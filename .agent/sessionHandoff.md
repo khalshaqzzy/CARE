@@ -75,6 +75,8 @@ The first `staging` GitHub Actions run revealed that a fresh Linux checkout had 
 
 The follow-up run exposed an over-broad `media/` ignore rule that excluded `apps/api/src/media/` from Git while leaving it visible to local checks. Runtime media ignores are now root-scoped, and the Media module/service are tracked so clean checkouts match the local source graph.
 
+The next hosted integration run showed that Vitest defaults overwrote the workflow-provided PostgreSQL service URL. Test setup now uses nullish defaults, preserving explicit CI/runtime variables while still defaulting local tests to Docker port 54329.
+
 ## Open Gate Item
 
 `Backend Complete Gate: not yet passed`.
