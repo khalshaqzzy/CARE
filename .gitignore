@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.cache/
+.tmp/
+media/
+local-data/
+apps/api/prisma/dev.db
+packages/contracts/src/generated.ts.tmp

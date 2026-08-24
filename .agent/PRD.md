@@ -1,15 +1,15 @@
 # Product Requirements Document (PRD): CARE Enterprise Member Voice
 
-| Atribut | Nilai |
-|---|---|
-| Status dokumen | **Draft product contract for v1 planning** |
-| Status implementasi | **Not started** |
-| Versi dokumen | 1.0 |
-| Tanggal | 24 Agustus 2026 |
-| Product owner | TMMIN |
-| Pengguna utama | Member/karyawan, Manager, Section Head, Union, dan CARE Admin |
-| Platform | Mobile-first Progressive Web App (PWA), satu frontend surface |
-| Source of truth | Dokumen ini |
+| Atribut             | Nilai                                                         |
+| ------------------- | ------------------------------------------------------------- |
+| Status dokumen      | **Draft product contract for v1 planning**                    |
+| Status implementasi | **Backend Phase 6 verification in progress**                  |
+| Versi dokumen       | 1.0                                                           |
+| Tanggal             | 24 Agustus 2026                                               |
+| Product owner       | TMMIN                                                         |
+| Pengguna utama      | Member/karyawan, Manager, Section Head, Union, dan CARE Admin |
+| Platform            | Mobile-first Progressive Web App (PWA), satu frontend surface |
+| Source of truth     | Dokumen ini                                                   |
 
 Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**, **MUST NOT/dilarang**, **SHOULD/sebaiknya**, dan **MAY/dapat** bersifat normatif. Bila source code, prototype, fixture, atau asumsi implementasi berbeda dengan dokumen ini, perbedaan wajib diekskalasi dan source of truth terkait wajib diperbarui; implementer tidak boleh memilih perilaku secara diam-diam.
 
@@ -17,7 +17,7 @@ Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**,
 
 ## 1. Ringkasan Eksekutif
 
-CARE adalah aplikasi pelaporan suara member (*member voice*) untuk lingkungan enterprise manufacturing. CARE menyediakan jalur mobile yang aman dan dapat ditelusuri untuk menyampaikan temuan, keluhan, ide, informasi, atau apresiasi; mengklasifikasikan severity dan rute penanganan dengan Gemini melalui Vertex AI; meneruskan voice kepada Manager, Section Head, atau Union; menyediakan chat verifikasi; serta mencatat penyelesaian, bukti, rating, feedback, dan reopen.
+CARE adalah aplikasi pelaporan suara member (_member voice_) untuk lingkungan enterprise manufacturing. CARE menyediakan jalur mobile yang aman dan dapat ditelusuri untuk menyampaikan temuan, keluhan, ide, informasi, atau apresiasi; mengklasifikasikan severity dan rute penanganan dengan Gemini melalui Vertex AI; meneruskan voice kepada Manager, Section Head, atau Union; menyediakan chat verifikasi; serta mencatat penyelesaian, bukti, rating, feedback, dan reopen.
 
 CARE menggunakan satu frontend PWA yang menyesuaikan navigasi dan kemampuan berdasarkan role. Backend menjadi satu-satunya akses ke PostgreSQL dan media. Seluruh perubahan lifecycle disimpan sebagai timeline append-only dengan actor dan timestamp. Private Voice tidak dikaitkan kepada Manager, dirutekan ke akun Union bersama, dan menyembunyikan identitas reporter dari Union maupun CARE Admin.
 
@@ -97,20 +97,20 @@ CARE v1 bukan:
 
 ## 4. Terminologi
 
-| Istilah | Definisi |
-|---|---|
-| Voice | Laporan, ide, informasi, apresiasi, keluhan, atau temuan yang dibuat reporter. |
-| Reporter | User yang membuat Voice. |
-| General Voice | Voice non-publik yang identitas reporternya terlihat oleh responder berizin dan dirutekan ke Manager. |
-| Private Voice | Voice yang dirutekan hanya ke Union dan identitas reporternya disamarkan dari responder/Admin. |
-| Route Manager | Manager yang dipilih secara deterministik berdasarkan kategori/department/area. |
-| Handler/PIC | Manager atau Section Head yang sedang menangani Voice; Union menjadi handler untuk Private Voice. |
-| Union | Akun responder bersama untuk Private Voice. |
-| Closure Cycle | Satu siklus penutupan Voice; reopen memulai siklus berikutnya. |
-| AI Classification | Snapshot hasil Gemini yang memuat kategori, severity, confidence, dan metadata model/prompt. |
-| Manual Fallback | Klasifikasi yang dikonfirmasi reporter saat AI gagal atau confidence rendah. |
-| Timeline | Urutan event bisnis Voice yang append-only. |
-| Notification Center | Sumber notifikasi persisten dan authoritative di dalam aplikasi. |
+| Istilah             | Definisi                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| Voice               | Laporan, ide, informasi, apresiasi, keluhan, atau temuan yang dibuat reporter.                        |
+| Reporter            | User yang membuat Voice.                                                                              |
+| General Voice       | Voice non-publik yang identitas reporternya terlihat oleh responder berizin dan dirutekan ke Manager. |
+| Private Voice       | Voice yang dirutekan hanya ke Union dan identitas reporternya disamarkan dari responder/Admin.        |
+| Route Manager       | Manager yang dipilih secara deterministik berdasarkan kategori/department/area.                       |
+| Handler/PIC         | Manager atau Section Head yang sedang menangani Voice; Union menjadi handler untuk Private Voice.     |
+| Union               | Akun responder bersama untuk Private Voice.                                                           |
+| Closure Cycle       | Satu siklus penutupan Voice; reopen memulai siklus berikutnya.                                        |
+| AI Classification   | Snapshot hasil Gemini yang memuat kategori, severity, confidence, dan metadata model/prompt.          |
+| Manual Fallback     | Klasifikasi yang dikonfirmasi reporter saat AI gagal atau confidence rendah.                          |
+| Timeline            | Urutan event bisnis Voice yang append-only.                                                           |
+| Notification Center | Sumber notifikasi persisten dan authoritative di dalam aplikasi.                                      |
 
 ---
 
@@ -237,23 +237,23 @@ Audit hanya dapat mengatribusikan aksi kepada akun Union, session, IP, user agen
 
 Legenda: `M` manage/mutate, `V` view, `O` operate workflow, `-` tidak memiliki akses.
 
-| Capability | CARE Admin | Member | Manager | Section Head | Union |
-|---|---:|---:|---:|---:|---:|
-| Import/master account | M | - | - | - | - |
-| Reset/deactivate account | M | - | - | - | - |
-| Buat Voice | - | M | M | M | - |
-| Voice milik sendiri | V | M | M | M | - |
-| General Voice route scope | V | - | O | Assigned only | - |
-| Private Voice content | V, anonymous | Own only | Own only | Own only | O, anonymous |
-| Identitas Private reporter | - | Own | Own | Own | - |
-| Tanya/proceed General | - | - | O | Assigned only | - |
-| Assign Section Head | - | - | M | - | - |
-| Close General | - | - | M | Assigned only | - |
-| Tanya/proceed/close Private | - | - | - | - | O |
-| Manage Section Head | - | - | M | - | - |
-| Chat | Support read only | Own | Route scope | Assigned only | Private only |
-| Rating/reopen | - | Own only | Own only | Own only | - |
-| System audit | V | - | Scoped timeline | Scoped timeline | Scoped timeline |
+| Capability                  |        CARE Admin |   Member |         Manager |    Section Head |           Union |
+| --------------------------- | ----------------: | -------: | --------------: | --------------: | --------------: |
+| Import/master account       |                 M |        - |               - |               - |               - |
+| Reset/deactivate account    |                 M |        - |               - |               - |               - |
+| Buat Voice                  |                 - |        M |               M |               M |               - |
+| Voice milik sendiri         |                 V |        M |               M |               M |               - |
+| General Voice route scope   |                 V |        - |               O |   Assigned only |               - |
+| Private Voice content       |      V, anonymous | Own only |        Own only |        Own only |    O, anonymous |
+| Identitas Private reporter  |                 - |      Own |             Own |             Own |               - |
+| Tanya/proceed General       |                 - |        - |               O |   Assigned only |               - |
+| Assign Section Head         |                 - |        - |               M |               - |               - |
+| Close General               |                 - |        - |               M |   Assigned only |               - |
+| Tanya/proceed/close Private |                 - |        - |               - |               - |               O |
+| Manage Section Head         |                 - |        - |               M |               - |               - |
+| Chat                        | Support read only |      Own |     Route scope |   Assigned only |    Private only |
+| Rating/reopen               |                 - | Own only |        Own only |        Own only |               - |
+| System audit                |                 V |        - | Scoped timeline | Scoped timeline | Scoped timeline |
 
 Authorization wajib ditegakkan di backend pada role, relationship, dan object level. Menyembunyikan tombol frontend bukan authorization.
 
@@ -504,7 +504,7 @@ Jika PIC/Union tidak tersedia atau route menjadi ambigu, submission ditolak deng
 - Supported model locations yang terverifikasi pada tanggal dokumen: `global`, `us`, dan `eu`; CARE tidak boleh mengasumsikan region Indonesia tersedia.
 - Default `thinking_level`: `LOW`.
 - Model, location, prompt version, timeout, dan confidence threshold berasal dari runtime env/config.
-- Authentication menggunakan Google service identity/ADC; API key/credential tidak boleh masuk repository atau log.
+- Authentication menggunakan server-only API key dari runtime environment. API key tidak boleh masuk repository, dokumentasi, log, response, metric, atau client bundle.
 
 Structured response minimum:
 
@@ -549,12 +549,12 @@ AI tidak memilih user/PIC ID. Backend memetakan category kepada master data seca
 
 ### 13.4 Severity Rubric
 
-| Severity | Meaning | Contoh |
-|---|---|---|
-| Low | Tidak mendesak dan tidak berdampak langsung pada operasi | Apresiasi, ide 5R minor, label, informasi lebih jelas, kenyamanan kecil |
-| Medium | Perlu follow-up, tanpa bahaya langsung atau dampak produksi besar | Tool kecil rusak dengan backup, pencahayaan minor, SOP kurang jelas, delay kecil berulang |
-| High | Dampak signifikan atau potensi risiko terhadap safety, quality, productivity, atau people | Ergonomi menyebabkan sakit, abnormalitas mesin, manpower shortage berulang, blocked walkway, konflik berulang |
-| Critical | Bahaya segera, serious people/compliance issue, atau potensi dampak bisnis besar | Near miss berpotensi cedera berat, api/asap/listrik, unsafe machine, harassment/violence/discrimination, chemical spill, major line stop/customer quality risk |
+| Severity | Meaning                                                                                   | Contoh                                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Low      | Tidak mendesak dan tidak berdampak langsung pada operasi                                  | Apresiasi, ide 5R minor, label, informasi lebih jelas, kenyamanan kecil                                                                                        |
+| Medium   | Perlu follow-up, tanpa bahaya langsung atau dampak produksi besar                         | Tool kecil rusak dengan backup, pencahayaan minor, SOP kurang jelas, delay kecil berulang                                                                      |
+| High     | Dampak signifikan atau potensi risiko terhadap safety, quality, productivity, atau people | Ergonomi menyebabkan sakit, abnormalitas mesin, manpower shortage berulang, blocked walkway, konflik berulang                                                  |
+| Critical | Bahaya segera, serious people/compliance issue, atau potensi dampak bisnis besar          | Near miss berpotensi cedera berat, api/asap/listrik, unsafe machine, harassment/violence/discrimination, chemical spill, major line stop/customer quality risk |
 
 Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emergency response. UI Critical wajib menyarankan reporter menghubungi jalur darurat lokal bila terdapat bahaya langsung; CARE tetap menerima Voice jika reporter melanjutkan.
 
@@ -580,7 +580,7 @@ Setiap submission menyimpan:
 - latency, token usage bila tersedia, dan timestamp;
 - sanitized fallback/error code.
 
-Raw chain-of-thought tidak diminta atau disimpan. Model upgrade memerlukan labeled evaluation, staging smoke test, dan audit perubahan config.
+Raw chain-of-thought tidak diminta atau disimpan. Model upgrade memerlukan deterministic rubric fixtures, live non-sensitive structured-output smoke test, dan audit perubahan config.
 
 ---
 
@@ -632,17 +632,17 @@ Raw chain-of-thought tidak diminta atau disimpan. Model upgrade memerlukan label
 
 ### 15.2 Transition Matrix
 
-| Dari | Action | Actor | Ke | Efek |
-|---|---|---|---|---|
-| Draft | Submit | Reporter | Open | Route owner dan timeline dibuat |
-| Open | Ask Reporter | Manager/Union | In Verification | Conversation aktif; actor menjadi handler |
-| Open | Assign Section Head | Route Manager | In Verification | Section Head menjadi handler |
-| Open | Proceed | Manager/Union | In Progress | Actor menjadi handler |
-| In Verification | Ask/continue chat | Current handler/Manager owner | In Verification | Status tetap; message/event ditambah |
-| In Verification | Proceed | Current handler/Manager/Union | In Progress | Handler dikonfirmasi |
-| In Verification | Reassign | Route Manager | In Verification | Handler Section Head diganti |
-| In Progress | Close | Route Manager/current handler/Union | Closed | Closure cycle selesai |
-| Closed | Rate 1–2 + Reopen | Reporter | In Verification | PIC terakhir dipertahankan; cycle baru dimulai |
+| Dari            | Action              | Actor                               | Ke              | Efek                                           |
+| --------------- | ------------------- | ----------------------------------- | --------------- | ---------------------------------------------- |
+| Draft           | Submit              | Reporter                            | Open            | Route owner dan timeline dibuat                |
+| Open            | Ask Reporter        | Manager/Union                       | In Verification | Conversation aktif; actor menjadi handler      |
+| Open            | Assign Section Head | Route Manager                       | In Verification | Section Head menjadi handler                   |
+| Open            | Proceed             | Manager/Union                       | In Progress     | Actor menjadi handler                          |
+| In Verification | Ask/continue chat   | Current handler/Manager owner       | In Verification | Status tetap; message/event ditambah           |
+| In Verification | Proceed             | Current handler/Manager/Union       | In Progress     | Handler dikonfirmasi                           |
+| In Verification | Reassign            | Route Manager                       | In Verification | Handler Section Head diganti                   |
+| In Progress     | Close               | Route Manager/current handler/Union | Closed          | Closure cycle selesai                          |
+| Closed          | Rate 1–2 + Reopen   | Reporter                            | In Verification | PIC terakhir dipertahankan; cycle baru dimulai |
 
 ### 15.3 Transition Rules
 
@@ -806,27 +806,27 @@ Detail menampilkan field submission, attachment, classification source, severity
 
 ### 20.1 Core Entities
 
-| Entity | Tanggung jawab utama |
-|---|---|
-| Employee | no.reg, nama, division, department, active state |
-| UserAccount | username, password hash, role/capability, password-change state |
-| ManagerProfile | area, Safety/Facility flags, department route identity |
-| SectionHeadRelation | Manager–Section Head active relationship dan history |
-| ImportBatch | type, checksum, preview/result counts, actor, error summary |
-| VoiceDraft | reporter-owned input, version, classification state, expiry |
-| Voice | immutable submission snapshot, visibility, route, status, version |
-| AIClassification | model/prompt/source/category/severity/confidence/content hash |
-| VoiceAssignment | route owner/current handler dan assignment history |
-| VoiceEvent | append-only business timeline |
-| Attachment | storage key, purpose, MIME, size, checksum, processed state |
-| Conversation | satu room per Voice |
-| Message | immutable text/sender/role/timestamp |
-| ClosureCycle | close/reopen sequence, actor, note, evidence, timestamps |
-| Rating | score/comment/feedback per Closure Cycle |
-| Notification | persistent recipient/event/read state |
-| PushSubscription | user/device endpoint dan delivery lifecycle |
-| Session | opaque authentication session dan security metadata |
-| AuditEvent | append-only administrative/security mutation record |
+| Entity              | Tanggung jawab utama                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| Employee            | no.reg, nama, division, department, active state                  |
+| UserAccount         | username, password hash, role/capability, password-change state   |
+| ManagerProfile      | area, Safety/Facility flags, department route identity            |
+| SectionHeadRelation | Manager–Section Head active relationship dan history              |
+| ImportBatch         | type, checksum, preview/result counts, actor, error summary       |
+| VoiceDraft          | reporter-owned input, version, classification state, expiry       |
+| Voice               | immutable submission snapshot, visibility, route, status, version |
+| AIClassification    | model/prompt/source/category/severity/confidence/content hash     |
+| VoiceAssignment     | route owner/current handler dan assignment history                |
+| VoiceEvent          | append-only business timeline                                     |
+| Attachment          | storage key, purpose, MIME, size, checksum, processed state       |
+| Conversation        | satu room per Voice                                               |
+| Message             | immutable text/sender/role/timestamp                              |
+| ClosureCycle        | close/reopen sequence, actor, note, evidence, timestamps          |
+| Rating              | score/comment/feedback per Closure Cycle                          |
+| Notification        | persistent recipient/event/read state                             |
+| PushSubscription    | user/device endpoint dan delivery lifecycle                       |
+| Session             | opaque authentication session dan security metadata               |
+| AuditEvent          | append-only administrative/security mutation record               |
 
 ### 20.2 Required Enums
 
@@ -1280,15 +1280,15 @@ Deployment log wajib menunjukkan release SHA, build, migration, service health, 
 
 Target diuji pada 2.000 active accounts, 50 concurrent users, 50.000 Voice, representative messages/attachments/closure cycles, dan staging-like VM.
 
-| Operation | Target |
-|---|---|
-| Common authenticated read | p95 ≤ 2 detik |
-| Standard mutation di luar AI/upload | p95 ≤ 3 detik |
-| Dashboard initial query/filter | p95 ≤ 3 detik |
-| Active page status propagation | p95 ≤ 5 detik |
-| Notification Center creation setelah commit | p95 ≤ 5 detik |
-| AI classification | p95 ≤ 12 detik per successful attempt |
-| Server error rate | <1% di luar expected 4xx |
+| Operation                                   | Target                                |
+| ------------------------------------------- | ------------------------------------- |
+| Common authenticated read                   | p95 ≤ 2 detik                         |
+| Standard mutation di luar AI/upload         | p95 ≤ 3 detik                         |
+| Dashboard initial query/filter              | p95 ≤ 3 detik                         |
+| Active page status propagation              | p95 ≤ 5 detik                         |
+| Notification Center creation setelah commit | p95 ≤ 5 detik                         |
+| AI classification                           | p95 ≤ 12 detik per successful attempt |
+| Server error rate                           | <1% di luar expected 4xx              |
 
 Pagination dan aggregation wajib dilakukan server-side. Browser tidak boleh mengambil seluruh history/media untuk membangun dashboard.
 
@@ -1493,14 +1493,13 @@ Minimum journeys:
 19. Unauthorized/IDOR/media access ditolak.
 20. Responsive layouts dan no-overflow pada mobile/tablet/desktop.
 
-### 33.4 AI Evaluation
+### 33.4 AI Contract Validation
 
-- Dataset berlabel bahasa Indonesia dari konteks manufacturing, tanpa PII.
-- Minimum 100 case dan mencakup tiap category/severity, multi-topic, ambiguous, spelling informal, harassment, electrical/fire, quality/customer, ergonomic, facility, dan appreciation.
-- Metric minimum: routing accuracy, Critical recall, severity exact/adjacent accuracy, invalid-schema rate, fallback rate, latency, token usage.
-- Launch target awal: routing accuracy ≥90%, Critical recall ≥95%, invalid-schema <1% pada model/prompt candidate.
-- Critical miss ditinjau manual sebelum model/prompt dipromosikan.
-- Deterministic CI memakai fake/recorded contract; live Vertex test hanya staging smoke/evaluation bercredential.
+- Tidak ada labeled dataset atau statistical accuracy/recall launch gate untuk v1.
+- Deterministic rubric fixtures mencakup setiap supplied category/severity example, multi-topic priority, ambiguous content, informal Indonesian, provider failure, invalid schema, low confidence, dan Private category suppression.
+- Unit/contract tests memverifikasi prompt version, locked severity rubric, structured schema parsing, allowlisted rationale code, timeout/retry, dan mandatory Manual Fallback.
+- Live Vertex test memakai content Indonesia non-sensitive untuk memverifikasi environment-scoped API-key authentication, configured model/location, timeout behavior, dan structured-output compatibility; smoke test ini tidak mengukur statistical accuracy.
+- Backend tetap memilih actual route account secara deterministik dan tidak menerima user/Manager identifier dari AI.
 
 ### 33.5 Security Negative Tests
 
@@ -1582,7 +1581,7 @@ Minimum journeys:
 ### 34.7 Non-Functional dan Delivery
 
 - [ ] Performance baseline memenuhi Section 29.
-- [ ] Unit, integration, E2E, AI evaluation, security, migration, build, dan deployment checks lulus.
+- [ ] Unit, integration, E2E, AI contract validation, security, migration, build, dan deployment checks lulus.
 - [ ] Push `staging` auto-deploy ke `care.qd-tmmin.site` setelah green CI.
 - [ ] Push `main` contract tersedia tetapi production activation diblokir sampai prerequisite lengkap.
 - [ ] Release-by-SHA, health/readiness, smoke, dan code rollback rehearsal lulus.
@@ -1600,7 +1599,7 @@ Minimum journeys:
 - 0 duplicate business mutation dari idempotent retry.
 - 0 active Voice tanpa valid route owner/handler relationship.
 - Notification Center record tercipta untuk 100% required business events.
-- AI evaluation memenuhi routing/Critical recall target sebelum model/prompt promotion.
+- Deterministic AI contract fixtures dan live structured-output smoke lulus sebelum model/prompt promotion.
 - Performance target p95 dan error rate dipenuhi pada baseline.
 
 Adoption, average verification time, average closure time, reopen rate, rating distribution, dan aging per severity dipantau setelah rollout; target numerik bisnis ditetapkan setelah baseline nyata tersedia.
@@ -1629,23 +1628,23 @@ Adoption, average verification time, average closure time, reopen rate, rating d
 
 ## 37. Risiko dan Mitigasi
 
-| Risiko | Severity | Status | Mitigasi/konsekuensi v1 |
-|---|---|---|---|
-| Tidak ada backup/recovery | Critical | Accepted | Pencegahan destructive action, expand/contract, health checks; data tetap dapat hilang permanen |
-| Retensi tanpa batas pada local volume | High | Accepted | Storage metrics/alerts dan capacity review; tidak ada purge otomatis |
-| Single VM menjadi single point of failure | Critical | Accepted | Restart/health/readiness; bukan HA |
-| Password minimum enam karakter tanpa complexity | High | Accepted | Argon2id, TLS, rate limiting, forced change, session revocation |
-| Akun Union bersama tanpa atribusi individu | High | Accepted | Session/IP/user-agent audit; non-repudiation individual tidak tersedia |
-| Admin membaca isi Private Voice | High | Accepted | Identity tetap disamarkan, least privilege, audit access |
-| Infrastructure operator dapat mengakses raw Private mapping | High | Accepted | Restricted VM/DB access; cryptographic anonymity deferred |
-| AI salah route/severity | High | Mitigated | Structured schema, threshold/fallback, labeled evaluation, monitoring, deterministic route mapping |
-| Self-reported confidence tidak terkalibrasi sempurna | Medium | Accepted | Configurable threshold dan empirical evaluation |
-| Vertex `global` memproses data di luar in-country Indonesia | High | Open governance | Data minimization dan governance approval sebelum launch |
-| Vertex outage/429 | Medium | Mitigated | Retry terbatas dan Manual Fallback; core readiness degraded, bukan down |
-| Web Push tidak terkirim/terlambat | Medium | Accepted | Notification Center authoritative dan delivery retry/metrics |
-| Media berbahaya/oversized | High | Mitigated | Decode/re-encode, EXIF strip, limits, authorized serving |
-| Auto production deploy dari main | High | Accepted | Mandatory CI/security/smoke, stale rejection, code rollback |
-| Migration gagal tanpa backup | Critical | Accepted | Forward-only expand/contract dan fresh/upgrade tests; recovery tidak tersedia |
+| Risiko                                                      | Severity | Status          | Mitigasi/konsekuensi v1                                                                            |
+| ----------------------------------------------------------- | -------- | --------------- | -------------------------------------------------------------------------------------------------- |
+| Tidak ada backup/recovery                                   | Critical | Accepted        | Pencegahan destructive action, expand/contract, health checks; data tetap dapat hilang permanen    |
+| Retensi tanpa batas pada local volume                       | High     | Accepted        | Storage metrics/alerts dan capacity review; tidak ada purge otomatis                               |
+| Single VM menjadi single point of failure                   | Critical | Accepted        | Restart/health/readiness; bukan HA                                                                 |
+| Password minimum enam karakter tanpa complexity             | High     | Accepted        | Argon2id, TLS, rate limiting, forced change, session revocation                                    |
+| Akun Union bersama tanpa atribusi individu                  | High     | Accepted        | Session/IP/user-agent audit; non-repudiation individual tidak tersedia                             |
+| Admin membaca isi Private Voice                             | High     | Accepted        | Identity tetap disamarkan, least privilege, audit access                                           |
+| Infrastructure operator dapat mengakses raw Private mapping | High     | Accepted        | Restricted VM/DB access; cryptographic anonymity deferred                                          |
+| AI salah route/severity                                     | High     | Mitigated       | Structured schema, threshold/fallback, rubric fixtures, live contract smoke, deterministic routing |
+| Self-reported confidence tidak terkalibrasi sempurna        | Medium   | Accepted        | Configurable threshold, mandatory fallback, and deterministic boundary tests                       |
+| Vertex `global` memproses data di luar in-country Indonesia | High     | Open governance | Data minimization dan governance approval sebelum launch                                           |
+| Vertex outage/429                                           | Medium   | Mitigated       | Retry terbatas dan Manual Fallback; core readiness degraded, bukan down                            |
+| Web Push tidak terkirim/terlambat                           | Medium   | Accepted        | Notification Center authoritative dan delivery retry/metrics                                       |
+| Media berbahaya/oversized                                   | High     | Mitigated       | Decode/re-encode, EXIF strip, limits, authorized serving                                           |
+| Auto production deploy dari main                            | High     | Accepted        | Mandatory CI/security/smoke, stale rejection, code rollback                                        |
+| Migration gagal tanpa backup                                | Critical | Accepted        | Forward-only expand/contract dan fresh/upgrade tests; recovery tidak tersedia                      |
 
 ---
 
@@ -1655,10 +1654,9 @@ Staging/production membutuhkan:
 
 - actual Employee CSV, Manager CSV, dan Union JSON serta designated data owner;
 - designated CARE Admin, Union credential owner, dan Manager mapping owner;
-- GCP project, billing, Vertex/Agent Platform API access, service identity/ADC, IAM least privilege;
+- GCP project, billing, Vertex/Agent Platform API access, and separate server-only runtime API key per environment;
 - approval model `gemini-3.7-flash`, default `global` location, terms/CDPA, dan retention posture;
-- labeled Indonesian manufacturing AI evaluation dataset;
-- VAPID key pair dan contact subject per environment;
+- VAPID contact subject per environment; key pairs are generated by the project CLI and private keys remain runtime secrets;
 - staging VM, deploy user, SSH known-hosts/key, DNS, ports, Caddy email, dan runtime secrets;
 - production VM/domain/DNS/GitHub environment/runtime secrets;
 - Android Chrome/Edge dan iOS/iPadOS Home Screen devices untuk UAT;
@@ -1675,7 +1673,7 @@ V1 siap production bila:
 
 1. seluruh acceptance criteria wajib lulus;
 2. tidak ada unresolved Critical/High security finding;
-3. AI evaluation dan live staging contract smoke lulus;
+3. deterministic AI contract fixtures dan live staging structured-output smoke lulus;
 4. role/privacy/Private identity negative tests lulus;
 5. PostgreSQL fresh dan previous-release upgrade lulus;
 6. performance baseline lulus;

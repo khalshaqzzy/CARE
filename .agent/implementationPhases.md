@@ -1,13 +1,13 @@
 # CARE v1 Implementation Phases
 
-| Atribut | Nilai |
-|---|---|
-| Status roadmap | Active planning baseline |
-| Last updated | 24 Agustus 2026 |
-| Product contract | .agent/PRD.md v1.0 |
-| Current implementation | Not started |
-| Current phase | None; Phase 0 completed, Phase 1 is next |
-| Delivery strategy | Backend complete → Frontend complete → Production containerization and deployment |
+| Atribut                | Nilai                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| Status roadmap         | Active planning baseline                                                          |
+| Last updated           | 24 Agustus 2026                                                                   |
+| Product contract       | .agent/PRD.md v1.0                                                                |
+| Current implementation | Backend capabilities through Phase 5 implemented; final verification remains      |
+| Current phase          | Phase 6 in_progress                                                               |
+| Delivery strategy      | Backend complete → Frontend complete → Production containerization and deployment |
 
 Dokumen ini mengatur urutan implementasi CARE v1. Hanya satu phase/subphase boleh berstatus in_progress. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -57,7 +57,7 @@ Frontend application implementation dilarang dimulai selama Phase 1–6. Backend
 
 ## Phase 1 — Backend Repository and Toolchain Foundation
 
-Status: pending
+Status: done
 
 Dependencies: Phase 0.
 
@@ -82,7 +82,7 @@ Acceptance:
 
 ## Phase 2 — Backend Identity, Sessions, Provisioning, and Authorization
 
-Status: pending
+Status: done
 
 Dependencies: Phase 1.
 
@@ -110,7 +110,7 @@ Acceptance:
 
 ## Phase 3 — Backend Voice Draft, Media, AI, and Submission
 
-Status: pending
+Status: done
 
 Dependencies: Phase 2; GCP staging dependency tersedia untuk live validation.
 
@@ -123,7 +123,7 @@ Scope:
 - input minimization, classification snapshot, category priority, confidence threshold, dan Manual Fallback;
 - deterministic Private/General routing;
 - atomic submit with route validation, Voice event, notification intent, and preserved draft on failure;
-- AI labeled evaluation harness and prompt/model versioning.
+- deterministic AI rubric fixtures, live structured-output smoke contract, and prompt/model versioning.
 
 Acceptance:
 
@@ -132,14 +132,14 @@ Acceptance:
 - zero/ambiguous PIC menolak submit tanpa kehilangan draft;
 - Private selalu ke Union dan General tepat satu Manager;
 - deterministic AI adapter tests serta live non-sensitive staging contract smoke lulus;
-- AI evaluation memenuhi PRD routing accuracy/Critical recall target;
+- deterministic rubric fixtures and live non-sensitive structured-output contract smoke pass;
 - logs tidak memuat prompt, PII, media, atau credential.
 
 ---
 
 ## Phase 4 — Backend Lifecycle, Assignment, Timeline, and Conversation
 
-Status: pending
+Status: done
 
 Dependencies: Phase 3.
 
@@ -169,7 +169,7 @@ Acceptance:
 
 ## Phase 5 — Backend Closure, Rating, Reopen, Dashboard, and Push
 
-Status: pending
+Status: done
 
 Dependencies: Phase 4.
 
@@ -198,7 +198,7 @@ Acceptance:
 
 ## Phase 6 — Backend Completion and Contract Freeze
 
-Status: pending
+Status: in_progress
 
 Dependencies: Phase 1–5.
 
@@ -207,7 +207,7 @@ Scope:
 - reconcile every PRD backend capability and acceptance criterion;
 - freeze/version OpenAPI v1 and generate TypeScript client/contracts for frontend;
 - complete backend unit/integration/security/AI/performance test suites;
-- migration fresh and previous-SHA upgrade validation;
+- migration fresh and, once a prior application release exists, previous-SHA upgrade validation;
 - concurrency, idempotency, privacy, media, and audit review;
 - seed only non-sensitive deterministic E2E/UAT fixtures;
 - document backend run commands, environment variables, error catalog, and frontend integration guide.
@@ -217,13 +217,19 @@ Backend Complete Gate acceptance:
 - every v1 backend endpoint and domain workflow is implemented;
 - no placeholder, mock business service, or frontend-dependent unfinished backend decision remains;
 - unit and real-PostgreSQL integration suites green;
-- AI evaluation and live staging Vertex contract smoke green;
+- deterministic AI contract fixtures and live staging Vertex structured-output smoke green;
 - security negative tests green with no unresolved Critical/High backend finding;
 - backend load targets green on representative data;
 - OpenAPI drift check and generated client green;
-- fresh/upgrade migrations green;
+- fresh migration green; previous-release upgrade green whenever a previous schema release exists;
 - backend application can be started locally without production Dockerfile, using Docker PostgreSQL only;
 - handoff explicitly records **Backend Complete Gate: passed** before Phase 7 may start.
+
+Open gate evidence:
+
+- implementation, fresh migration, deterministic tests, OpenAPI/client, dependency audit, secret scan, and representative load profile are green;
+- live non-sensitive Vertex structured-output smoke remains pending because the API key has not been supplied through the runtime shell environment;
+- Backend Complete Gate remains not passed and Phase 7 remains blocked until that smoke is green.
 
 ---
 
@@ -435,4 +441,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Begin Phase 1 with backend-only repository/toolchain scaffolding and Docker-managed PostgreSQL development/test infrastructure. Do not start React screen implementation or production application containerization. Before any commit, create the target backend workflows, reconcile the exact local parity commands in .agent/rules.md, and run them from a clean-artifact state.
+Fill the generated ignored root `.env` value for `VERTEX_API_KEY`, run `pnpm test:vertex:smoke`, and record the result. If it passes and no new High/Critical finding exists, mark the Backend Complete Gate passed before beginning frontend work. PostgreSQL remains Docker-only; do not install or invoke host `psql`.

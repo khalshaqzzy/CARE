@@ -1,0 +1,48 @@
+{
+  "name": "care",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=22.23.0 <23",
+    "pnpm": ">=11.8.0 <12"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev:api": "pnpm --filter @care/api dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck",
+    "test:unit": "pnpm --filter @care/api test:unit",
+    "test:integration": "pnpm --filter @care/api test:integration",
+    "test:security": "pnpm --filter @care/api test:security",
+    "test:performance": "pnpm --filter @care/api test:performance",
+    "test": "pnpm test:unit",
+    "openapi:generate": "pnpm --filter @care/api openapi:generate && pnpm --filter @care/contracts generate",
+    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- apps/api/openapi.json packages/contracts/src/generated.ts",
+    "db:up": "docker compose up -d postgres",
+    "db:wait": "node scripts/db-wait.mjs",
+    "db:verify": "docker compose exec -T postgres psql -U care -d care -c 'SELECT version();' -c 'SELECT extname FROM pg_extension WHERE extname = $$vector$$;'",
+    "db:down": "docker compose down",
+    "db:test:reset": "docker compose exec -T postgres psql -U care -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS care_test WITH (FORCE);' -c 'CREATE DATABASE care_test;'",
+    "db:test:migrate": "DATABASE_URL=postgresql://care:care_local@localhost:54329/care_test pnpm --filter @care/api prisma:migrate:deploy",
+    "db:migrate": "pnpm --filter @care/api prisma:migrate:deploy",
+    "db:generate": "pnpm --filter @care/api prisma:generate",
+    "migrations:destructive-check": "node scripts/check-migrations.mjs",
+    "bootstrap:admin": "pnpm --filter @care/api bootstrap:admin",
+    "vapid:generate": "pnpm --filter @care/api vapid:generate",
+    "seed:performance": "pnpm --filter @care/api seed:performance",
+    "maintenance:reconcile": "pnpm --filter @care/api maintenance:reconcile",
+    "test:vertex:smoke": "pnpm --filter @care/api test:vertex:smoke",
+    "git:diff-check": "git diff --check",
+    "setup:local": "pnpm --filter @care/api setup:local"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "eslint": "9.39.1",
+    "globals": "16.5.0",
+    "prettier": "3.9.6",
+    "typescript-eslint": "8.67.0"
+  }
+}

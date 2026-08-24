@@ -16,7 +16,6 @@ It exists to:
 - make future sessions aware that of the last session's progress
 - document changes readable to developers product owners
 
-
 ## 2. Required Read Order
 
 For most implementation sessions, read in this order:
@@ -79,6 +78,9 @@ Required behavior:
   Gitleaks version locally, preferably through a pinned Docker image;
 - never silence a scanner broadly. A false-positive exception must identify the exact finding,
   explain why it is safe, and preserve scanning for the rest of the file/repository;
+- the exact ignored root `.env` may be excluded from directory scanning because it is the local
+  runtime secret store generated mode `0600`; `.env.example`, nested files, imports, and all other
+  repository paths remain scanned;
 - record the exact commands and results in `.agent/sessionHandoff.md`;
 - do not commit while any local CI-equivalent check is failing.
 
@@ -86,10 +88,12 @@ The current baseline is:
 
 ```text
 pnpm install --frozen-lockfile
+pnpm audit --audit-level high
 pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test:unit
+pnpm migrations:destructive-check
 pnpm openapi:check
 pnpm build
 docker compose config --quiet
@@ -99,18 +103,24 @@ pnpm db:verify
 pnpm db:test:reset
 pnpm db:test:migrate
 NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
-  SESSION_CSRF_SECRET=<safe-test-value> AUTH_THROTTLE_SECRET=<safe-test-value> \
+  SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
+  AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
   OUTBOX_ENABLED=false pnpm test:integration
-pnpm db:down
-pnpm --filter @tmmin-henkaten/e2e exec playwright install chromium msedge
-pnpm test:e2e
+NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
+  SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
+  AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
+  OUTBOX_ENABLED=false pnpm test:security
+NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm seed:performance
+NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm test:performance
+NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm maintenance:reconcile
 docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.24.3 \
   dir /repo --config=/repo/.gitleaks.toml --redact --verbose
 git diff --check
+pnpm db:down
 ```
 
-For staging release work, the baseline above is extended by the commands and assertions in
-`.github/workflows/ci.yml`. Local parity must additionally cover:
+Production containerization and deployment remain deferred. When those workflows are introduced,
+the baseline above must be extended with their exact commands, including:
 
 ```text
 pnpm migrations:destructive-check <staging-base-sha>

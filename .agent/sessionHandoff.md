@@ -1,72 +1,88 @@
 # CARE Session Handoff
 
-| Atribut | Nilai |
-|---|---|
-| Date | 24 Agustus 2026 |
-| Current objective | Establish the CARE v1 product contract and backend-first delivery sequence |
-| Current phase | Phase 0 complete; Phase 1 pending |
-| Implementation status | Application code not started |
-| Recommended next action | Scaffold repository/toolchain foundation |
+| Atribut                 | Nilai                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| Date                    | 24 Agustus 2026                                                                |
+| Current objective       | Complete and verify the backend contract through the Backend Complete Gate     |
+| Current phase           | Phase 6 in progress                                                            |
+| Implementation status   | Backend capabilities through Phase 5 implemented; final external smoke remains |
+| Recommended next action | Fill `VERTEX_API_KEY` in the ignored root `.env` and run the live smoke        |
 
 ## Completed Work
 
-- Created the normative CARE v1 PRD covering product workflows, roles, permission, privacy, AI, data model, API, UX/PWA, security, observability, deployment, CI/CD, tests, acceptance criteria, risks, and launch blockers.
-- Created a sequenced implementation roadmap.
-- Created the initial architecture ADR.
-- Reordered delivery into mandatory Backend Complete, Frontend Complete, and Delivery Complete gates.
-- Recorded the backend-first sequencing decision in a dedicated ADR.
-- Inspected `.agent/rules.md` and the PRD/deployment patterns in `supplier-henkaten`.
-- Verified official Gemini 3.7 Flash model ID, GA status, structured-output support, and supported locations from Google Cloud documentation.
+- Created the pinned Node.js/pnpm monorepo with NestJS API, generated OpenAPI client, Vitest, Prisma, and an intentionally empty frontend placeholder.
+- Added Docker Compose PostgreSQL 16/pgvector development and disposable test databases. Every `psql` operation is executed inside the container; host PostgreSQL and host `psql` are not required or installed.
+- Implemented health/readiness/release/metrics endpoints, environment validation/redaction, structured JSON logs, correlation IDs, migration checks, and backend-only CI.
+- Implemented Employees, accounts, Managers, Section Heads, sessions, imports, throttles, idempotency, drafts, Voices, classifications, media, assignments, events, conversations, closure cycles, ratings, notifications, push subscriptions, outbox, and audit schema.
+- Implemented opaque cookie sessions, session-bound CSRF, Argon2id, forced password changes, database-backed account/IP throttling, default-deny role/object authorization, Admin account operations, and bootstrap CLI.
+- Implemented Employee/Manager/Union preview-confirm imports. Manager imports are authoritative snapshots and validate all area/department routes, active Voices, and Section Head relations transactionally.
+- Implemented the Indonesian Gemini prompt and structured schema, Vertex AI express-mode API-key adapter, timeout/retry/manual fallback, Private category suppression, and deterministic server routing.
+- Implemented drafts, preview, secure staged image processing, authenticated media, atomic submit, lifecycle actions, assignment/reassignment, immutable timeline/chat, closure evidence, rating/reopen, dashboards, conversations, notifications, outbox, and Web Push.
+- Added signed opaque cursors, private audience-specific DTOs/OpenAPI schemas, stable errors, storage reconciliation, VAPID generation with explicit secure output, and non-sensitive performance fixtures.
+- Upgraded dependencies and pinned patched transitive versions until `pnpm audit --audit-level high` reported no known vulnerabilities.
+- Restored CodeQL, Gitleaks, package vulnerability auditing, and planned Trivy requirements after the repository visibility decision changed to public. Functional security tests remain required alongside them.
+- Gitleaks excludes only the ignored mode-0600 root `.env`, which intentionally contains generated local runtime secrets. All tracked content and other uncommitted paths remain covered.
+- Added a non-overwriting `pnpm setup:local` workflow. It generated the ignored mode-0600 `.env`, environment-specific VAPID pair, private local credentials note, 12 synthetic Employee rows, an 11-row full Manager snapshot covering every area route, and Union JSON. Only `VERTEX_API_KEY` remains blank.
+- Bootstrapped the local CARE Admin idempotently against Docker PostgreSQL. Its generated credential is stored only in ignored `local-data/LOCAL_CREDENTIALS.txt`.
 
-## Files Changed
+## Durable Decisions
 
-- `.agent/PRD.md`
-- `.agent/implementationPhases.md`
-- `.agent/sessionHandoff.md`
-- `docs/adr/0001-care-v1-architecture.md`
-- `docs/adr/0002-backend-first-delivery-order.md`
+- Each workforce account has Member capabilities plus at most one responder role: Manager or Section Head. Admin and Union remain non-workforce roles.
+- General routing is deterministic: Safety by area, Facility by area, and Work Difficulty by reporter department. Regular department Managers explicitly exclude Safety/Facility profiles.
+- Private Voices route to the active Union snapshot; Private serializers and generated contract types contain only a per-Voice anonymous alias and no reporter identity fields.
+- Vertex AI receives minimized Indonesian text and returns category/severity metadata only. A server-only runtime API key is used with `vertexai: true`; secret values are never committed, logged, documented, or returned.
+- There is no labeled AI dataset or statistical accuracy/recall gate. Deterministic rubric/schema/fallback checks plus one live non-sensitive provider smoke are required.
+- VAPID key pairs are environment-specific. A local-only pair now exists solely in the ignored mode-0600 `.env`; no key value is captured in tracked artifacts or this handoff.
+- Production Dockerfiles, Caddy, remote Compose, frontend code, and hosted deployment automation remain deferred.
 
-## Decisions Made
+## Verification Evidence
 
-- CARE is a one-surface role-aware mobile PWA with NestJS/Prisma/PostgreSQL backend.
-- Roles are CARE Admin, Member, Manager, Section Head, and shared Union.
-- Actual Employee/Manager/Union data is imported through Admin UI and not committed to Git.
-- Private Voice is Union-routed and reporter identity is hidden from Union and CARE Admin; Admin may see content.
-- General Voice is non-public and visible only to the reporter, route Manager, assigned Section Head, and Admin.
-- Routing is deterministic: one Safety/area, one Facility/area, one regular Manager/department.
-- Gemini on Vertex AI uses configurable model/location with defaults `gemini-3.7-flash`/`global`, structured JSON, `LOW` thinking, and confidence threshold `0.75`.
-- Four statuses are used; reopen is an event returning to In Verification with the previous PIC.
-- Closure requires a note and image evidence; rating is stored per closure cycle.
-- Notification Center is authoritative and Web Push is best-effort.
-- Single-VM-per-environment topology and release-by-SHA deployment pattern are locked.
-- Logical retention is unlimited while backup, PITR, RPO/RTO, HA, and DR are explicitly absent.
-- Backend implementation and contract tests must be complete before frontend implementation starts.
-- Frontend implementation and cross-role E2E must be complete before production application containerization and deployment automation starts.
-- Docker-managed PostgreSQL remains mandatory during backend development/testing; it is explicitly excluded from the deferred production containerization work.
+Green checks performed after implementation or relevant changes:
 
-## External Blockers
+```text
+pnpm install
+pnpm db:generate
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test:unit                         # 2 files, 12 tests passed
+pnpm setup:local                       # ignored local env/import fixtures created
+pnpm bootstrap:admin                   # local Admin created idempotently in Docker PostgreSQL
+pnpm migrations:destructive-check      # passed
+pnpm openapi:generate                  # canonical document and client generated
+pnpm build                             # API/contracts build; frontend remains placeholder
+docker compose config --quiet
+pnpm db:up
+pnpm db:wait
+pnpm db:verify                         # PostgreSQL 16 and vector extension confirmed in container
+pnpm db:test:reset
+pnpm db:test:migrate                   # fresh migration passed
+pnpm test:integration                  # 2 files, 5 tests passed
+pnpm test:security                     # 2 files, 5 tests passed
+pnpm seed:performance                  # 2,000 accounts and 50,000 Voices
+pnpm test:performance                  # 50 concurrent users, 250 samples, passed in 342 ms test time
+pnpm maintenance:reconcile             # dry-run: no orphan/expired objects
+pnpm audit --audit-level high           # no known vulnerabilities
+docker gitleaks v8.24.3 directory scan  # no leaks found
+git diff --check                        # passed
+```
 
-- Actual Employee CSV, Manager CSV, and Union JSON plus data owner.
-- GCP project/billing/API/service identity and governance approval for the `global` processing location.
-- Labeled Indonesian manufacturing AI evaluation dataset.
-- VAPID keys and real mobile UAT devices.
-- Staging VM/DNS/SSH/runtime secrets confirmation.
-- Production VM/domain/DNS/GitHub environment/runtime secrets.
-- Written acceptance of critical risks: no backup/DR, shared Union account, password policy, Admin access to Private content, and indefinite logical retention.
+The repository-defined parity sequence was rerun after moving both generated `dist` directories out of the worktree. Install, generation, and build succeeded from that clean-artifact state. Integration tests were also rerun without a database reset after performance seeding to verify their isolation cleanup.
 
-## Checks Performed
+Immediately before the initial backend delivery commit on `staging`, the complete parity sequence was rerun from clean generated artifacts. Frozen install, dependency audit, formatting, lint, typecheck, 12 unit tests, migration safety, OpenAPI regeneration/drift, build, Compose validation, Docker PostgreSQL/pgvector verification, fresh test migration, 5 integration tests, 5 security tests, 2,000-account/50,000-Voice seeding, the 50-concurrent-user performance test, reconciliation, both Gitleaks modes, and diff checks passed. Docker Compose was stopped afterward.
 
-- Read repository rules and current repository status.
-- Inspected reference PRD headings/content and deployment workflow/Compose/Caddy/scripts.
-- Verified document paths and confirmed `.agent/PRD.md` was initially empty.
-- Documentation structure and terminology validation performed after writing.
-- Roadmap ordering validation confirms that frontend starts only after the Backend Complete Gate and production containerization starts only after the Frontend Complete Gate.
-- No application build, test, container, formatter, or migration was applicable because the repository has no application code/toolchain yet.
+## Open Gate Item
 
-## Next Recommended Action
+`Backend Complete Gate: not yet passed`.
 
-Implement Phase 1 from `.agent/implementationPhases.md`: establish the backend-only pinned pnpm/Node workspace, NestJS API, shared OpenAPI contracts, Docker-managed PostgreSQL development/test infrastructure, root backend quality scripts, and initial backend GitHub Actions. Do not start React UI or production application containerization before their respective gates pass.
+The live Vertex smoke was intentionally not run because no API key was supplied through the shell/runtime environment. A credential pasted in chat is not copied into commands or project artifacts. Fill the blank `VERTEX_API_KEY` in the ignored root `.env`, then run:
+
+```text
+pnpm test:vertex:smoke
+```
+
+The smoke sends one non-sensitive Indonesian fixture and prints only provider/model/location/schema status. Phase 7 must not begin until it is green and this handoff records `Backend Complete Gate: passed`.
 
 ## Cleanup
 
-No dev server, watcher, background process, or Docker container was started by this session.
+The Docker PostgreSQL service is stopped after local verification. No agent-started server, watcher, or container remains. No host PostgreSQL or `psql` installation was performed.
