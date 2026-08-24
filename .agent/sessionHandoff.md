@@ -1,12 +1,25 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| Date                    | 24 Agustus 2026                                                                |
-| Current objective       | Complete and verify the backend contract through the Backend Complete Gate     |
-| Current phase           | Phase 6 in progress                                                            |
-| Implementation status   | Backend capabilities through Phase 5 implemented; final external smoke remains |
-| Recommended next action | Fill `VERTEX_API_KEY` in the ignored root `.env` and run the live smoke        |
+| Atribut                 | Nilai                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| Date                    | 24 Agustus 2026                                                              |
+| Current objective       | Complete and verify the backend contract through the Backend Complete Gate   |
+| Current phase           | Phase 6 in progress                                                          |
+| Implementation status   | Backend through Phase 5 delivered to `staging`; final external smoke remains |
+| Recommended next action | Fill `VERTEX_API_KEY` in the ignored root `.env` and run the live smoke      |
+
+## Delivery Status
+
+- The backend implementation and CI corrections are committed on `staging` and pushed to `origin/staging`.
+- Delivered commits, oldest to newest:
+  - `aecf72a` — `feat: add secure member voice backend`
+  - `f2cb6a3` — `ci: generate Prisma client before lint`
+  - `d65aa2d` — `fix: track secure media pipeline source`
+  - `a6ce5fb` — `fix: preserve explicit test database configuration`
+- Local `HEAD` and `origin/staging` were both verified at `a6ce5fb7a5f2be991f25c4527867d3f611628a22` after the push.
+- The GitHub repository is public, enabling the restored GitHub CodeQL upload path without a private-repository code-scanning entitlement.
+- GitHub Actions run [32699084968](https://github.com/khalshaqzzy/CARE/actions/runs/32699084968) completed successfully: `quality`, `secrets`, and `codeql` are all green.
+- The working tree was clean immediately after delivery. The ignored root `.env`, `apps/api/.env` link, and `local-data/` runtime fixtures were not committed.
 
 ## Completed Work
 
@@ -77,6 +90,8 @@ The follow-up run exposed an over-broad `media/` ignore rule that excluded `apps
 
 The next hosted integration run showed that Vitest defaults overwrote the workflow-provided PostgreSQL service URL. Test setup now uses nullish defaults, preserving explicit CI/runtime variables while still defaulting local tests to Docker port 54329.
 
+The final hosted run, [32699084968](https://github.com/khalshaqzzy/CARE/actions/runs/32699084968), completed successfully after the repository was made public. Its `quality` job passed frozen installation, Prisma generation, dependency audit, formatting, lint, typecheck, unit tests, migration deployment, integration and security tests, 50,000-Voice performance seeding/profile, OpenAPI drift, build, Compose validation, and diff checks. Gitleaks and CodeQL also completed successfully. The workflow stopped its PostgreSQL service container during cleanup.
+
 ## Open Gate Item
 
 `Backend Complete Gate: not yet passed`.
@@ -91,4 +106,4 @@ The smoke sends one non-sensitive Indonesian fixture and prints only provider/mo
 
 ## Cleanup
 
-The Docker PostgreSQL service is stopped after local verification. No agent-started server, watcher, or container remains. No host PostgreSQL or `psql` installation was performed.
+The Docker PostgreSQL service is stopped after local verification. A final `docker compose ps --status running` check reported no CARE containers. No agent-started server, watcher, or container remains. No host PostgreSQL or `psql` installation was performed.

@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-24
+- Last updated: 2026-08-24 — staging delivery and hosted CI validation
 
 ## Context
 
@@ -15,6 +16,8 @@ The backend is implemented as a strict TypeScript pnpm monorepo containing a Nes
 
 Local and test PostgreSQL run exclusively in Docker. Database verification and reset commands invoke `pg_isready` or `psql` inside the PostgreSQL container; a host PostgreSQL service and host `psql` are neither installed nor supported.
 
+Test environment setup supplies local Docker defaults only when a variable is absent. Explicit `DATABASE_URL` and security/runtime variables supplied by CI or an operator take precedence, so the same test suite can target the GitHub PostgreSQL service or another disposable Docker database without source changes.
+
 Authentication uses random opaque cookies whose HMAC hashes are stored in PostgreSQL. CSRF tokens are bound to the server-side session. Passwords use Argon2id, sessions have idle and absolute expiry, and login plus authenticated mutations consume database-backed HMAC-keyed throttle buckets. Authorization is default-deny and combines account state, role, reporter ownership, route ownership, active assignment, visibility, and resource relationship. Unauthorized object access is returned as a non-enumerating not-found response.
 
 Manager provisioning treats each CSV as the full desired active snapshot. Partial unique PostgreSQL indexes enforce one active Safety Manager per area, one active Facility Manager per area, one active regular Manager per department, one active Union account, one active Section Head relation per employee, and one active Voice assignment. Regular department Managers explicitly exclude profiles marked Safety or Facility. Snapshot replacement is rejected if an omitted Manager still owns active Voices or Section Head relations.
@@ -24,6 +27,8 @@ Gemini is used only to classify a minimized Indonesian payload into category, se
 Voice aggregates use immutable snapshots, append-only events/messages, expected versions, row locking or serializable transactions, and request-hash-bound idempotency keys. Notifications and delivery intent are committed transactionally. Outbox workers claim rows with `FOR UPDATE SKIP LOCKED`; persistent notifications remain authoritative when Web Push fails.
 
 Images are bounded in request size and decoded pixel count, checked for MIME/signature agreement, rotated and re-encoded to WebP, stripped of metadata, checksummed, assigned random private storage keys, and served only after object-level authorization. Attachment states make interrupted file/database finalization detectable. A dry-run-first reconciliation CLI reports and optionally removes stale imports, expired drafts, orphan attachments, and unreferenced files.
+
+Runtime media directories are ignored only at explicit repository-root/API-runtime paths. The `apps/api/src/media/` implementation is tracked source code and must remain present in clean checkouts; broad unanchored `media/` ignore patterns are prohibited because they can hide application modules from CI.
 
 OpenAPI v1 is committed and transformed into generated TypeScript operations. Member, General responder, Private responder, and Admin Private details are separate discriminated schemas. Private schemas do not define reporter identity fields. List cursors are HMAC-signed opaque values, and error responses use stable envelopes with correlation IDs.
 
@@ -72,6 +77,7 @@ Not selected for this release. The accepted validation consists of deterministic
 - Closure evidence is staged against a Voice and moved to an immutable numbered closure cycle during close.
 - Ratings are immutable per closure cycle. A low rating may atomically reopen to the preserved route owner and previous active handler.
 - CI pins third-party Actions by commit SHA and runs dependency audit, quality, migration, database, integration, security, performance, contract-drift, secret-scan, and CodeQL checks. The repository is public, so GitHub code-scanning integration is enabled.
+- CI generates Prisma Client immediately after frozen installation and before typed lint/typecheck, ensuring a clean Linux checkout has the schema-derived types required by the source graph.
 - Production application Dockerfiles, reverse proxy, remote Compose, frontend implementation, and hosted deployment automation are intentionally outside this architecture increment.
 
 ## Consequences
@@ -100,6 +106,8 @@ Negative consequences:
 - Synthetic performance checks seed 2,000 accounts and 50,000 Voices, then execute 250 samples across 50 concurrent Member/Manager users against indexed PostgreSQL queries.
 - OpenAPI and the TypeScript client are regenerated and checked for drift.
 - Dependency audit reports no known vulnerabilities and Gitleaks scans the full uncommitted directory without broad allowlists.
+- Hosted GitHub Actions run `32699084968` passed the complete `quality`, `secrets`, and `codeql` jobs on the delivered `staging` commit `a6ce5fb7a5f2be991f25c4527867d3f611628a22`.
+- The hosted quality job independently verified frozen install, Prisma generation, audit, formatting, lint, typecheck, unit/integration/security tests, migration deployment, representative performance data/profile, OpenAPI drift, build, Compose configuration, and clean diff checks.
 
 ## Risks
 
