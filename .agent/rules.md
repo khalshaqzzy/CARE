@@ -88,6 +88,7 @@ The current baseline is:
 
 ```text
 pnpm install --frozen-lockfile
+pnpm db:generate
 pnpm audit --audit-level high
 pnpm format:check
 pnpm lint

@@ -71,6 +71,8 @@ The repository-defined parity sequence was rerun after moving both generated `di
 
 Immediately before the initial backend delivery commit on `staging`, the complete parity sequence was rerun from clean generated artifacts. Frozen install, dependency audit, formatting, lint, typecheck, 12 unit tests, migration safety, OpenAPI regeneration/drift, build, Compose validation, Docker PostgreSQL/pgvector verification, fresh test migration, 5 integration tests, 5 security tests, 2,000-account/50,000-Voice seeding, the 50-concurrent-user performance test, reconciliation, both Gitleaks modes, and diff checks passed. Docker Compose was stopped afterward.
 
+The first `staging` GitHub Actions run revealed that a fresh Linux checkout had no generated Prisma Client before typed ESLint. CI and local parity now run `pnpm db:generate` immediately after frozen install so lint and typecheck consume the schema-derived types deterministically.
+
 ## Open Gate Item
 
 `Backend Complete Gate: not yet passed`.
