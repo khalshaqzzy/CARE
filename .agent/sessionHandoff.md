@@ -73,6 +73,8 @@ Immediately before the initial backend delivery commit on `staging`, the complet
 
 The first `staging` GitHub Actions run revealed that a fresh Linux checkout had no generated Prisma Client before typed ESLint. CI and local parity now run `pnpm db:generate` immediately after frozen install so lint and typecheck consume the schema-derived types deterministically.
 
+The follow-up run exposed an over-broad `media/` ignore rule that excluded `apps/api/src/media/` from Git while leaving it visible to local checks. Runtime media ignores are now root-scoped, and the Media module/service are tracked so clean checkouts match the local source graph.
+
 ## Open Gate Item
 
 `Backend Complete Gate: not yet passed`.
