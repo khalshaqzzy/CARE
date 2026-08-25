@@ -1,444 +1,487 @@
-# CARE v1 Implementation Phases
+# CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                             |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| Status roadmap         | Active planning baseline                                                          |
-| Last updated           | 24 Agustus 2026                                                                   |
-| Product contract       | .agent/PRD.md v1.0                                                                |
-| Current implementation | Backend capabilities through Phase 5 implemented; final verification remains      |
-| Current phase          | Phase 6 in_progress                                                               |
-| Delivery strategy      | Backend complete → Frontend complete → Production containerization and deployment |
+| Atribut                | Nilai                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| Status roadmap         | Active remediation baseline                                                                   |
+| Last updated           | 25 Agustus 2026                                                                               |
+| Product contract       | `.agent/PRD.md` v1.1                                                                          |
+| Current implementation | Phase 0–5 delivered under superseded v1.0 assumptions; v1.1 remediation is not yet complete   |
+| Current phase          | Phase 6.1 `in_progress`                                                                       |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
 
-Dokumen ini mengatur urutan implementasi CARE v1. Hanya satu phase/subphase boleh berstatus in_progress. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
+Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
-Status yang digunakan: pending, in_progress, blocked, deferred, done.
+Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
 
 ## Sequencing Gates
 
 Tiga gate berikut bersifat wajib:
 
-1. **Backend Complete Gate** — seluruh schema, API, business workflow, authorization, AI, media, notification, integration/security/performance tests backend, dan OpenAPI contract selesai sebelum frontend dimulai.
-2. **Frontend Complete Gate** — seluruh UI role, responsive/PWA behavior, generated-client integration, dan Playwright journeys selesai sebelum production containerization/deployment dimulai.
-3. **Delivery Complete Gate** — production Dockerfiles, Caddy/Compose, CI/CD release automation, staging rehearsal, dan production readiness selesai terakhir.
+1. **Backend Complete Gate** — seluruh remediation schema, organization master, routing, authorization, Union, AI Responses, location review, dashboard, migration, OpenAPI, dan backend regression selesai sebelum frontend dimulai.
+2. **Frontend Complete Gate** — workforce PWA dan Admin app, generated-client integration, accessibility, responsive behavior, dan two-origin Playwright journeys selesai sebelum production containerization/deployment dimulai.
+3. **Delivery Complete Gate** — production Dockerfiles, Caddy/Compose, CI/CD release automation, staging rehearsal pada dua domain, dan production readiness selesai terakhir.
 
-Pengecualian yang wajib ada selama pekerjaan backend:
+Pengecualian selama pekerjaan backend hanya untuk Docker-managed PostgreSQL/pgvector, disposable test database, dan CI service container. Production Dockerfiles, Caddy/remote Compose, release-by-SHA, serta deployment automation tetap ditunda sampai Frontend Complete Gate.
 
-- Docker-managed PostgreSQL/pgvector untuk local development dan integration tests;
-- disposable test database/Compose commands;
-- CI service container yang diperlukan untuk membuktikan backend.
+## Historical Baseline and Supersession Rule
 
-Pengecualian tersebut adalah test/development infrastructure, bukan production application containerization. Dockerfile production untuk API/web, Caddy image, remote Compose, release-by-SHA, dan deployment scripts tetap ditunda sampai Frontend Complete Gate.
+Phase 0–5 tetap `done` sebagai catatan implementasi historis dan scope-nya tidak ditulis ulang seolah-olah telah memenuhi PRD v1.1. Implementasi tersebut masih mengandung asumsi v1.0 yang kini **superseded**: exclusive single-role accounts, Employee/Manager CSV dan Union JSON, Manager per area/category, shared Union account, Manager-managed Section Heads, Vertex/Gemini, Admin-anonymous Private, baseline 2.000 account, serta satu frontend.
+
+Phase 6 wajib memperbaiki dan memigrasikan implementasi tersebut. Status `done` pada Phase 0–5 tidak berarti kontrak lama tetap berlaku dan tidak boleh dipakai untuk melewati acceptance Phase 6.
 
 ---
 
 ## Phase 0 — Product and Architecture Baseline
 
-Status: done
+Status: `done` — historical v1.0 baseline; superseded where Phase 6/PRD v1.1 differs.
 
-Deliverables:
+Deliverables historis:
 
-- PRD normatif CARE v1;
-- initial architecture and sequencing ADRs;
-- implementation roadmap dan session handoff;
-- keputusan role, privacy, AI, lifecycle, storage, deployment, testing, dan accepted risk.
+- PRD CARE v1.0, initial architecture/sequencing ADRs, roadmap, dan session handoff;
+- keputusan awal role, privacy, AI, lifecycle, storage, deployment, testing, dan accepted risk;
+- urutan backend → frontend → containerization/deployment.
 
-Acceptance:
+Acceptance historis:
 
-- requirement utama dan edge case produk tercatat;
-- keputusan yang masih menjadi external dependency terlihat sebagai launch blocker;
-- urutan backend → frontend → containerization/deployment terkunci;
-- application implementation belum dimulai.
+- requirement dan edge case v1.0 tercatat;
+- external dependency dan launch blocker terlihat;
+- application implementation belum dimulai pada akhir phase ini.
 
 ---
 
 # Backend Track
 
-Frontend application implementation dilarang dimulai selama Phase 1–6. Backend boleh menyediakan OpenAPI artifacts, contract fixtures, dan minimal non-user-facing test harness yang diperlukan untuk verifikasi API.
+Frontend implementation dilarang dimulai sampai seluruh Phase 6.1–6.6 lulus dan Backend Complete Gate tercatat `passed` pada handoff.
 
 ## Phase 1 — Backend Repository and Toolchain Foundation
 
-Status: done
+Status: `done` — historical delivered baseline.
 
 Dependencies: Phase 0.
 
-Scope:
+Scope historis:
 
-- scaffold pnpm monorepo untuk apps/api, shared contracts, backend tests, dan placeholder workspace frontend tanpa UI implementation;
-- pin Node.js/pnpm dan commit lockfile;
-- TypeScript, formatting, lint, Vitest, Prisma, OpenAPI generation/check, dan root backend scripts;
-- local Docker Compose PostgreSQL/pgvector sesuai repository rules;
-- database lifecycle commands: up, wait, verify, test reset/migrate, dan down;
-- baseline GitHub Actions untuk backend quality, PostgreSQL integration, migration checks, dan secret scanning;
-- release identity, /health, dan initial /ready API endpoints.
+- pnpm monorepo, API/shared contracts/backend tests, Node/pnpm pinning, TypeScript, lint/format, Vitest, Prisma, OpenAPI generation, dan root backend scripts;
+- Docker PostgreSQL/pgvector untuk development/integration test dan baseline GitHub Actions;
+- release identity, `/health`, dan initial `/ready` endpoints.
 
-Acceptance:
+Acceptance historis:
 
-- clean pnpm install, format, lint, typecheck, backend unit smoke, API build, OpenAPI generation, dan local Compose validation lulus;
-- local/test PostgreSQL hanya memerlukan Docker;
-- fresh Prisma migration dan integration smoke lulus;
-- tidak ada React screen, frontend workflow, production application Dockerfile, Caddy/remote Compose, atau deployment automation.
+- install, format, lint, typecheck, unit smoke, API build, OpenAPI generation, Compose validation, fresh migration, dan integration smoke lulus;
+- tidak ada frontend workflow atau production application containerization.
 
 ---
 
 ## Phase 2 — Backend Identity, Sessions, Provisioning, and Authorization
 
-Status: done
+Status: `done` — historical v1.0 implementation; identity/import/role/route assumptions superseded by Phase 6.
 
 Dependencies: Phase 1.
 
-Scope:
+Scope historis:
 
-- Employee, UserAccount, ManagerProfile, SectionHeadRelation, Session, ImportBatch, dan AuditEvent schema;
-- CARE Admin bootstrap CLI/runtime contract;
-- login, logout, forced password change, reset, deactivation, CSRF, and throttling;
-- Employee/Manager/Union import parsing, preview, atomic confirm, dan audit;
-- manager-route uniqueness and active-reference constraints;
-- employee search dan Section Head promote/transfer/remove;
-- centralized role/object authorization policies;
-- dedicated General, Private Union, dan Private Admin DTO/serializer contracts.
+- Employee/UserAccount/ManagerProfile/SectionHeadRelation/session/import/audit schema;
+- CARE Admin bootstrap, authentication, reset/deactivation, CSRF, throttling;
+- Employee/Manager/Union import, manager route uniqueness, Section Head mutation, role/object policies, dan Private serializers.
 
-Acceptance:
+Acceptance historis:
 
-- first-login/reset/session revocation behavior lulus;
-- import error field-addressable dan tidak pernah partial write;
-- one Safety/area, Facility/area, regular Manager/department constraints terbukti pada PostgreSQL;
-- Private DTO tidak memiliki reporter identity field;
-- authorization/IDOR/over-posting negative tests lulus;
-- OpenAPI contract dan examples lengkap untuk seluruh capability phase ini.
+- first-login/reset/session, import atomicity, old route uniqueness, old Private serialization, authorization, dan OpenAPI contract lulus terhadap v1.0.
 
 ---
 
 ## Phase 3 — Backend Voice Draft, Media, AI, and Submission
 
-Status: done
+Status: `done` — historical v1.0 implementation; AI/routing/privacy assumptions superseded by Phase 6.
 
-Dependencies: Phase 2; GCP staging dependency tersedia untuk live validation.
+Dependencies: Phase 2.
 
-Scope:
+Scope historis:
 
-- VoiceDraft, Voice, Attachment, AIClassification, human-readable ID sequence, dan versioning;
-- form/draft API, upload/remove, preview data contract, expiry, dan orphan cleanup;
-- secure image pipeline: stream limit, signature validation, decode, re-encode, EXIF removal, checksum, and authenticated serving;
-- Vertex adapter dengan default gemini-3.7-flash, global, LOW, structured schema, timeout/retry;
-- input minimization, classification snapshot, category priority, confidence threshold, dan Manual Fallback;
-- deterministic Private/General routing;
-- atomic submit with route validation, Voice event, notification intent, and preserved draft on failure;
-- deterministic AI rubric fixtures, live structured-output smoke contract, and prompt/model versioning.
+- VoiceDraft/Voice/Attachment/AIClassification, media pipeline, preview/draft/submit;
+- Vertex adapter, old fixed category priority, confidence fallback, dan old Private/General routing;
+- atomic submit, route validation, event/notification intent, fixtures, dan prompt/model versioning.
 
-Acceptance:
+Acceptance historis:
 
-- draft/version/content-hash invalidation behavior lulus;
-- malicious/invalid/oversized media ditolak dan processed image bebas EXIF;
-- zero/ambiguous PIC menolak submit tanpa kehilangan draft;
-- Private selalu ke Union dan General tepat satu Manager;
-- deterministic AI adapter tests serta live non-sensitive staging contract smoke lulus;
-- deterministic rubric fixtures and live non-sensitive structured-output contract smoke pass;
-- logs tidak memuat prompt, PII, media, atau credential.
+- draft/media/submit/routing/AI/logging tests lulus terhadap v1.0 contract.
 
 ---
 
 ## Phase 4 — Backend Lifecycle, Assignment, Timeline, and Conversation
 
-Status: done
+Status: `done` — historical v1.0 implementation; Union/assignment/privacy assumptions superseded by Phase 6.
 
 Dependencies: Phase 3.
 
-Scope:
+Scope historis:
 
-- VoiceAssignment, VoiceEvent, Conversation, Message, outbox, dan notification persistence;
-- Open/In Verification/In Progress/Closed transition service;
-- ask reporter, proceed, assign, reassign, and close authorization;
-- reassign-before-progress rule dan close-only-from-progress rule;
-- Manager/Section Head/Union ownership semantics;
-- immutable chat dengan processed image attachments;
-- anonymous per-Voice reporter alias and Private serialization;
-- cursor pagination, severity-first inbox, timeline, and bounded polling contracts;
-- optimistic versioning and idempotency across all mutations.
+- VoiceAssignment/Event/Conversation/Message/outbox/notification persistence;
+- lifecycle transition, ask/proceed/assign/reassign/close, immutable chat, timeline/pagination;
+- old Manager/Section Head/shared-Union ownership dan Private serialization.
 
-Acceptance:
+Acceptance historis:
 
-- every valid/invalid transition dan concurrency race tested;
-- Manager can close an In Progress General Voice with active Section Head;
-- Section Head cannot operate outside active assignment;
-- Union cannot access General or Private identity;
-- message/timeline append-only invariants hold;
-- Voice + assignment + event + notification/outbox transaction consistency terbukti;
-- OpenAPI contracts and examples complete.
+- transition/concurrency/object authorization/append-only/idempotency/OpenAPI checks lulus terhadap v1.0.
 
 ---
 
 ## Phase 5 — Backend Closure, Rating, Reopen, Dashboard, and Push
 
-Status: done
+Status: `done` — historical v1.0 implementation; dashboard/access-scope assumptions superseded by Phase 6.
 
 Dependencies: Phase 4.
 
-Scope:
+Scope historis:
 
-- ClosureCycle, closure evidence, Rating, repeated reopen cycles;
-- close note/evidence validation and immutable closure;
-- rating 1–2 feedback/reopen and rating 3–5 optional comment;
-- reopen to In Verification with previous PIC;
-- role-scoped dashboard aggregates, history, filters, search, and pagination;
-- Notification Center query/read APIs;
-- VAPID Web Push subscription, endpoint allowlist, delivery retry, redacted Private payload, and cleanup;
-- structured logging, metrics, outbox diagnostics, storage usage, and dependency-degraded readiness.
+- ClosureCycle/evidence/Rating/reopen history;
+- role-scoped dashboard, history/filter/search/pagination;
+- Notification Center/Web Push, structured logging, metrics, outbox/storage/readiness diagnostics.
 
-Acceptance:
+Acceptance historis:
 
-- closure impossible before In Progress or without note/evidence;
-- repeated closure/rating/reopen never overwrites history;
-- dashboard counts and inbox visibility match every role;
-- Notification Center persists when push fails;
-- Private push never contains content/identity;
-- push subscription isolation/revocation/SSRF tests lulus;
-- 50,000-Voice representative queries meet backend performance targets.
+- closure/rating/reopen history, old dashboard scopes, notification/push privacy, dan 50.000-Voice query profile lulus terhadap v1.0.
 
 ---
 
-## Phase 6 — Backend Completion and Contract Freeze
+## Phase 6 — Backend Contract Remediation and Re-freeze
 
-Status: in_progress
+Aggregate state: active; Phase 6.1 adalah satu-satunya subphase berstatus `in_progress`.
 
-Dependencies: Phase 1–5.
+Dependencies: historical Phase 1–5 implementation and PRD v1.1.
+
+Tujuan: memigrasikan implementasi v1.0 ke kontrak v1.1 tanpa menghapus ID, event, closure, rating, notification, route owner, assignment, actor, atau PIC historis. Gunakan expand/contract migration; perubahan source code dimulai pada subphase implementasi ini, bukan pada sesi revisi dokumentasi.
+
+### Phase 6.1 — Schema, Capability, Effective Master, and Historical Backfill
+
+Status: `in_progress`
 
 Scope:
 
-- reconcile every PRD backend capability and acceptance criterion;
-- freeze/version OpenAPI v1 and generate TypeScript client/contracts for frontend;
-- complete backend unit/integration/security/AI/performance test suites;
-- migration fresh and, once a prior application release exists, previous-SHA upgrade validation;
-- concurrency, idempotency, privacy, media, and audit review;
-- seed only non-sensitive deterministic E2E/UAT fixtures;
-- document backend run commands, environment variables, error catalog, and frontend integration guide.
+- desain expand/contract dari current schema untuk account kind, structural position mentah, capability, overview/detail/action scope, dan effective-dated organization snapshot;
+- composite organization unit `Directorat + Division + Department`;
+- effective route/default PIC/global PIC, Union level, Private identity-consent snapshot, location-review snapshot, dan legacy-handler access;
+- backfill Voice, assignment, event, closure, rating, notification, reporter organization, route owner, handler, dan actor snapshots tanpa mengganti ID/historis;
+- compatibility window untuk old columns/API selama backfill dan contract cutover;
+- current-schema upgrade fixture dan rollback-by-compatible-code analysis.
+
+Acceptance:
+
+- fresh migration dan upgrade dari migration baseline saat ini lulus pada PostgreSQL nyata;
+- backfill deterministik, rerunnable/idempotent, dan mempunyai reconciliation counts;
+- satu account dapat tetap Member sekaligus structural reader/default/global route PIC;
+- perubahan organization/position tidak mengubah historical ownership/actor/PIC;
+- legacy active handler hanya mempertahankan akses Voice lama sampai selesai dan tidak eligible untuk route baru;
+- tidak ada destructive drop sebelum seluruh reader/writer memakai schema baru dan verification query green.
+
+### Phase 6.2 — Authoritative XLSX Import and Administration
+
+Status: `pending`
+
+Dependencies: Phase 6.1.
+
+Scope:
+
+- ganti Employee/Manager CSV dan Union JSON dengan `.xlsx` sheet `MFG + QD` dan tujuh header persis;
+- preserve leading-zero no.reg, raw structural position, composite unit, preview/confirm/history, dan 10.000-account baseline;
+- monthly full snapshot: create/update/deactivate, session revocation, effective history, mapping invalidation, dan legacy handler preservation;
+- preview diff untuk posisi/unit/route gap/global PIC invalid/Union gap;
+- atomic confirm dan remediation queue dengan locked actions: default PIC, PIC global, dan tiga akun Union;
+- Department Head aktif otomatis menjadi Manager; Admin dapat memilih active employee sebagai default PIC untuk named department tanpa Head;
+- satu global PIC dipilih dari active Department Head;
+- tepat satu Union Head dan dua Union Officer dikelola terpisah dari workbook;
+- read-only Section Head candidates dari active snapshot; hapus promote/transfer/remove APIs.
+
+Acceptance:
+
+- fixture workbook menguji exact sheet/header, 7.018 rows, leading-zero no.reg, duplicate validation, duplicate department names lintas divisi, 12 named departments tanpa Head, dan 188 rows `Department=14`;
+- preview/confirm atomik, field-addressable, audited, dan tidak partial write;
+- 10.000-account import memenuhi target performa;
+- deactivated account tidak dapat login/bertindak, sementara legacy handler dapat menyelesaikan Voice lama dalam scope terbatas;
+- invalidated default/global mapping menghasilkan remediation issue dan tidak menerima Voice baru;
+- API import lama dan Section Head mutation tidak lagi tersedia setelah contract cutover.
+
+### Phase 6.3 — General/Private Routing, Union, and Identity Consent
+
+Status: `pending`
+
+Dependencies: Phase 6.2.
+
+Scope:
+
+- tambah `ENVIRONMENT`/Lingkungan;
+- Safety, Environment, dan Facility seluruh area menuju satu global PIC; delegasi hanya ke Section Head dari department asal PIC;
+- Work Difficulty menuju Department Head/default PIC pada composite unit reporter;
+- `Department=14` tidak mempunyai General route, tetapi tetap boleh membuat Private;
+- form/draft contract memulai pilihan Private/General dan mewajibkan `showReporterIdentity` hanya untuk Private;
+- Private langsung menuju Union Head tanpa category routing; Head dapat assign/reassign Union 1/2 sebelum `IN_PROGRESS`;
+- Union Officer hanya membaca/menangani assigned Private;
+- Union `HIDE` serializer tanpa identity field, Union `SHOW` dengan nama/no.reg/division/department, dan Admin full-identity read-only serializer;
+- immutable consent/profile/route/handler snapshots dan notification/audit redaction.
+
+Acceptance:
+
+- routing tests membuktikan tiga special categories menuju satu global PIC lintas area dan Work Difficulty memakai composite unit/default PIC;
+- missing route dan `Department=14` menolak General submit dengan remediation serta mempertahankan draft;
+- exactly-three Union setup, Head-first route, Officer assignment/reassignment boundary, dan operator attribution lulus;
+- anonymous Union DTO tidak memiliki identity field; `SHOW` dan Admin DTO hanya memuat contract yang diizinkan;
+- monthly master update tidak mengubah historical PIC/assignment/consent.
+
+### Phase 6.4 — OpenAI Responses, Classification, and Location Review
+
+Status: `pending`
+
+Dependencies: Phase 6.3.
+
+Scope:
+
+- hapus Gemini/Vertex, `@google/genai`, location provider, dan seluruh `VERTEX_*` runtime contract;
+- official JavaScript SDK, `responses.create`, `/responses`, Structured Outputs JSON Schema, `store:false`, tanpa tools/conversation state;
+- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key;
+- minimized payload, bounded timeout/retry, schema validation, sanitized errors, versioned prompts/contracts;
+- classification: nullable category untuk Private, severity, confidence, rationale code; tidak ada fixed category priority;
+- location review: `COMPLETE | INCOMPLETE | UNKNOWN`, warning, maksimal tiga suggestion questions;
+- debounce/on-blur review, content-hash cache, invalidation, snapshot-bound acknowledgment, advisory warning, dan non-blocking provider failure;
+- Manual Fallback: General memilih category+severity, Private memilih severity saja.
+
+Acceptance:
+
+- tests mencakup valid schema, refusal/incomplete, invalid schema, timeout, bounded retry, low confidence, missing config, Private severity-only, dan sanitized logs;
+- location cache hit/invalidation, stale acknowledgment rejection, `INCOMPLETE` confirmation, dan provider failure path lulus;
+- live non-sensitive Responses smoke lulus untuk classification dan location schemas dengan external runtime config;
+- tidak ada Gemini/Vertex dependency, env, metadata, atau normative contract tersisa.
+
+### Phase 6.5 — Dashboard, Detail/Action Authorization, and Cross-Cutting Services
+
+Status: `pending`
+
+Dependencies: Phase 6.4.
+
+Scope:
+
+- pisahkan aggregate overview authorization dari scoped Voice list/detail/action;
+- Manager: aggregate satu divisi, browse detail department sendiri, plus operational inbox untuk explicit global/default route;
+- Division Head/Deputy/Pjt.: aggregate seluruh General, detail divisi sendiri, read-only;
+- Director: aggregate/detail seluruh General, read-only;
+- Union: aggregate/detail seluruh General read-only; Private Head semua, Officer assigned only;
+- CARE Admin: operational overview dan read-only detail seluruh General/Private dengan full Private identity;
+- Section Head hanya assigned Voice/action aktif; Member hanya Voice sendiri;
+- grafik status, severity, category termasuk Environment, trend, division/department breakdown sesuai scope;
+- consent/route-aware notifications, Web Push, media, timeline, audit, and closure/reopen regression.
+
+Acceptance:
+
+- authorization matrix seluruh account/capability/scope lulus pada aggregate, list, detail, media, timeline, dan mutation;
+- aggregate-only response tidak membocorkan title, reporter, Voice ID, atau detail;
+- Manager browse vs operational inbox boundaries terbukti;
+- leadership/Director/Union General action ditolak walaupun detail dapat dibaca;
+- Union Officer unassigned Private dan all non-Union leadership Private access ditolak;
+- notification/media/privacy/lifecycle regressions green.
+
+### Phase 6.6 — Contract Regeneration and Backend Complete Gate
+
+Status: `pending`
+
+Dependencies: Phase 6.1–6.5.
+
+Scope:
+
+- regenerate/version OpenAPI dan shared TypeScript client untuk workforce/Admin apps;
+- remove superseded endpoints/fields after compatibility checks;
+- run unit, real-PostgreSQL integration, migration upgrade, security, AI, media, notification, concurrency, idempotency, audit, dan performance suites;
+- seed 10.000 accounts/50.000 Voice, 50 concurrent users, organization edge cases, and privacy fixtures;
+- document backend run commands, env contract, error catalog, migration/backfill procedure, dan two-app integration guide.
 
 Backend Complete Gate acceptance:
 
-- every v1 backend endpoint and domain workflow is implemented;
-- no placeholder, mock business service, or frontend-dependent unfinished backend decision remains;
-- unit and real-PostgreSQL integration suites green;
-- deterministic AI contract fixtures and live staging Vertex structured-output smoke green;
-- security negative tests green with no unresolved Critical/High backend finding;
-- backend load targets green on representative data;
-- OpenAPI drift check and generated client green;
-- fresh migration green; previous-release upgrade green whenever a previous schema release exists;
-- backend application can be started locally without production Dockerfile, using Docker PostgreSQL only;
-- handoff explicitly records **Backend Complete Gate: passed** before Phase 7 may start.
+- seluruh Phase 6 acceptance green dan tidak ada placeholder/mock business behavior;
+- fresh migration serta current-schema upgrade/backfill green dengan historical reconciliation;
+- workbook-shape/monthly-update/remediation/routing/Union/privacy/dashboard tests green;
+- 10.000-account/50.000-Voice/50-concurrent profile memenuhi PRD target;
+- no unresolved Critical/High backend security finding;
+- OpenAPI drift check dan generated client green;
+- live OpenAI Responses classification/location smoke green dengan external config;
+- handoff mencatat **Backend Complete Gate: passed** sebelum Phase 7 dimulai.
 
-Open gate evidence:
-
-- implementation, fresh migration, deterministic tests, OpenAPI/client, dependency audit, secret scan, and representative load profile are green;
-- live non-sensitive Vertex structured-output smoke remains pending because the API key has not been supplied through the runtime shell environment;
-- Backend Complete Gate remains not passed and Phase 7 remains blocked until that smoke is green.
+Gate saat ini: **not passed**. Phase 7 tetap blocked oleh sequencing sampai Phase 6.1–6.6 selesai; ketiadaan runtime OpenAI config tidak menghalangi pekerjaan 6.1–6.5, tetapi menghalangi final gate.
 
 ---
 
 # Frontend Track
 
-Phase 7–10 may start only after the Backend Complete Gate passes. Backend contract changes after freeze require explicit compatibility review, regenerated client, and rerun of all affected backend/frontend tests.
+Phase 7–11 hanya boleh dimulai setelah Backend Complete Gate. Backend contract change setelah freeze memerlukan compatibility review, client regeneration, dan rerun affected tests.
 
-## Phase 7 — Frontend Foundation, Design System, and PWA Shell
+## Phase 7 — Shared Frontend Foundations for Workforce and Admin
 
-Status: pending
+Status: `pending`
 
 Dependencies: Phase 6 Backend Complete Gate.
 
 Scope:
 
-- React/Vite/Tailwind/shadcn application;
-- CARE design tokens, typography, layout, forms, status/severity primitives;
-- generated OpenAPI client integration with typed error handling;
-- authentication/forced-password-change/account flows;
-- role-aware router, navigation, session/CSRF integration;
-- responsive mobile/tablet/desktop shell;
-- manifest, service worker foundation, offline fallback, cache isolation;
-- common loading, empty, error, permission, stale, and conflict states.
+- React/Vite foundations untuk workforce PWA dan separate Admin React app;
+- shared design tokens/components/generated OpenAPI client/error/session/CSRF utilities;
+- host-scoped authentication, forced-password-change, capability-aware router, loading/error/permission/conflict states;
+- same-origin `/api/v1` proxy contract pada kedua origin dan strict cache/credential isolation;
+- workforce manifest/service-worker/offline shell foundation; Admin app selalu network-only dan bukan PWA.
 
 Acceptance:
 
-- no handwritten duplicate API wire types;
-- one frontend surface adapts correctly to every role;
-- shell accessible by keyboard and responsive without document overflow;
-- logout/account switch clears user-scoped cache;
-- all mutations remain network-only;
-- component/unit tests for shared shell/forms pass.
+- kedua app build tanpa handwritten duplicate API wire types;
+- origin/cookie/CSRF/cache isolation tests lulus;
+- shared UI accessible/responsive dan account switch membersihkan scoped cache;
+- seluruh mutation network-only.
 
----
+## Phase 8 — Admin Application and Organization Operations
 
-## Phase 8 — Frontend Member Voice Journeys
-
-Status: pending
+Status: `pending`
 
 Dependencies: Phase 7.
 
 Scope:
 
-- Member Home/dashboard;
-- Input Voice, image selection/camera, validation, upload progress;
-- AI/manual-fallback Preview and draft recovery;
-- submit result and Riwayat list/detail;
-- status/severity/PIC/timeline presentation;
-- reporter chat and attachments;
-- closure result/evidence display;
-- rating, required feedback, reopen, and repeated cycle history;
-- notification center and deep-link behavior.
+- Admin bootstrap/account/reset pages pada `admin-ped.qd-tmmin.site` staging;
+- XLSX initial/monthly upload, preview/diff/confirm/history;
+- remediation queue, default PIC, global PIC, three-Union-account, route, account, import issue, dan resolution audit pages;
+- read-only Section Head candidates, Voice Explorer, Private full-identity detail, audit, dan system status.
 
 Acceptance:
 
-- Private and General reporter journeys match API/privacy contract;
-- draft survives correctable submission errors;
-- high-confidence AI is read-only and fallback is mandatory when required;
-- rating/feedback/reopen UI enforces server rules;
-- mobile primary actions remain visible with safe-area handling;
-- Member Playwright journeys pass against completed backend.
+- invalid/valid workbook, 10.000-account preview, atomic confirm, deactivation, mapping invalidation, dan remediation journeys lulus;
+- tidak ada UI Section Head promote/transfer/remove;
+- Admin Private access read-only, full identity, dan audited;
+- app tidak menyediakan offline/PWA behavior.
 
----
+## Phase 9 — Member Voice Journey
 
-## Phase 9 — Frontend Responder and Admin Journeys
-
-Status: pending
+Status: `pending`
 
 Dependencies: Phase 8.
 
 Scope:
 
-- Manager, Section Head, and Union dashboards;
-- severity-first Voice Member inbox, filters, search, pagination;
-- General/Private detail variants and vertical timeline;
-- ask, proceed, assign, reassign, close, and evidence flows;
-- room chat and notifications;
-- Manager Section Head settings/search/promote/remove;
-- CARE Admin import preview/confirm, accounts/reset, route/master views;
-- Admin Voice Explorer, audit, and system status.
+- Member Home dan pilihan awal Private Voice/General Voice;
+- Private identity consent `Ya/Tidak` dan contract-aware preview;
+- form/media validation, automatic location review, warning/suggestions, confirmation acknowledgment, cache invalidation;
+- General category/severity dan Private severity AI/fallback previews;
+- submit result, history/detail, status/PIC/timeline/chat, closure/rating/reopen, notification deep links.
 
 Acceptance:
 
-- UI only exposes actions permitted by current capability while backend remains authoritative;
-- Union/Admin Private screens never render reporter identity;
-- reassign after In Progress and close before In Progress are unavailable and safely handle server conflicts;
-- import preview/errors and reset/session revocation UX complete;
-- all responder/Admin Playwright journeys pass.
+- Private/General paths, conditional consent, no-category Private, and route failure preserve draft;
+- warning lokasi tampil di bawah field tanpa field tambahan wajib; stale review/ack ditolak;
+- provider failure tidak memblokir form dan fallback sesuai jenis Voice;
+- `Department=14` General remediation dan Private continuation lulus;
+- responsive Member Playwright journeys green.
 
----
+## Phase 10 — Responder and Leadership Journeys
 
-## Phase 10 — Frontend Completion, PWA, Accessibility, and E2E Gate
+Status: `pending`
 
-Status: pending
-
-Dependencies: Phase 7–9.
+Dependencies: Phase 9.
 
 Scope:
 
-- Notification Web Push opt-in, install guidance, multi-device state, and redacted notification UX;
-- service worker update/recovery, offline/stale behavior, and cache exclusion validation;
-- responsive polishing at required viewports;
-- WCAG 2.1 AA, keyboard/focus, touch target, reduced motion;
-- full cross-role Playwright suite, visual regression, security UI probes;
-- frontend performance, bundle, and production Vite build validation.
+- Section Head assigned inbox/action journey;
+- Manager department detail/action, division overview, dan separate global/default operational inbox;
+- Union Head Private all/assign/reassign, Union Officer assigned-only, conditional identity, dan General read-only journey;
+- Division/Deputy/Pjt. Head, Director, dan Union General aggregate/detail read-only dashboards;
+- minimum charts, scoped filters, timeline/chat/notifications, proceed/assign/reassign/close conflict states.
+
+Acceptance:
+
+- full dashboard/detail/action matrix dan aggregate leakage checks lulus;
+- Environment tampil pada form/filter/chart;
+- action controls mengikuti capability/object scope tetapi server tetap authoritative;
+- conditional Private identity dan Officer assignment isolation lulus;
+- all responder/leadership Playwright journeys green.
+
+## Phase 11 — Frontend Completion, Workforce PWA, Accessibility, and Two-App E2E Gate
+
+Status: `pending`
+
+Dependencies: Phase 7–10.
+
+Scope:
+
+- workforce Web Push opt-in, install/update/offline/stale behavior, and cache exclusions;
+- Admin network-only validation;
+- responsive polish, WCAG 2.1 AA, keyboard/focus/touch/reduced-motion;
+- two-origin full Playwright, host isolation, visual regression, UI security probes, performance/bundle/build validation.
 
 Frontend Complete Gate acceptance:
 
-- every PRD UI journey is implemented without placeholder screen/action;
-- mobile/tablet/desktop and supported-browser matrix green;
-- PWA install/update/offline/push foreground/background/app-closed scenarios green;
-- full Playwright suite against the completed backend green;
-- Axe/accessibility and no-overflow checks green;
-- production frontend build green;
+- seluruh PRD UI journey tersedia tanpa placeholder;
+- workforce PWA and Admin responsive supported-browser matrix green;
+- Playwright pada kedua origin, Axe, no-overflow, production builds, dan privacy probes green;
 - no unresolved Critical/High frontend finding;
-- handoff explicitly records **Frontend Complete Gate: passed** before Phase 11 may start.
+- handoff mencatat **Frontend Complete Gate: passed** sebelum Phase 12.
 
 ---
 
 # Containerization and Deployment Track
 
-Production application containerization, Caddy/remote Compose, dan hosted release automation begin only after the Frontend Complete Gate. Docker PostgreSQL used earlier remains development/test infrastructure.
+## Phase 12 — Production Containerization for API, Workforce, Admin, and Caddy
 
-## Phase 11 — Production Containerization
+Status: `pending`
 
-Status: pending
-
-Dependencies: Phase 10 Frontend Complete Gate.
+Dependencies: Phase 11 Frontend Complete Gate.
 
 Scope:
 
-- production multi-stage Dockerfiles for API and web;
-- non-root/minimal runtime images;
-- PostgreSQL image/configuration aligned with development migration requirements;
-- Caddy image/config and same-origin /api/v1 routing;
-- remote Docker Compose with health checks, persistent PostgreSQL/media/Caddy/deployment volumes;
-- migrate/bootstrap operational profiles;
-- runtime env template/validator and secret-safe rendering;
-- image/Compose/Caddy tests, Hadolint, Trivy, and non-root assertions.
+- multi-stage production Dockerfiles untuk API, workforce web, dan Admin web;
+- non-root/minimal runtime, PostgreSQL, Caddy dual-host config dengan same-origin `/api/v1` proxy;
+- remote Compose, health checks, persistent database/media/Caddy/deployment volumes;
+- migrate/bootstrap operational profiles, env validator, Hadolint/Trivy/non-root/secret assertions.
 
 Acceptance:
 
-- all images build from clean checkout;
-- services run non-root where applicable;
-- production-like Compose starts in required dependency order;
-- health/readiness/release identity and persistent media/database behavior pass;
-- security headers and SPA/API routing pass;
-- no secret is baked into image or repository.
+- seluruh image build clean dan run non-root where applicable;
+- dependency order, persistence, health/readiness/release identity, dual SPA/API routing, dan security headers lulus;
+- tidak ada secret baked into image/repository.
 
----
+## Phase 13 — Staging Deployment and Rehearsal
 
-## Phase 12 — Staging CI/CD and Release Automation
+Status: `pending`
 
-Status: pending
-
-Dependencies: Phase 11.
+Dependencies: Phase 12.
 
 Scope:
 
-- release-by-SHA archive, checksum, safe path, deploy lock, high-water run, and secure runtime env;
-- remote preflight/deploy/rollback/smoke scripts adapted for CARE;
-- five-release retention and safe image cleanup;
-- staging GitHub Actions quality/security/migration/container jobs;
-- stale-candidate rejection and automatic deployment from staging;
-- service order PostgreSQL → migration/bootstrap → API → web → Caddy;
-- code rollback without database rollback;
-- staging live Vertex, push, media, auth, and critical journey smoke.
+- release-by-SHA, checksum/safe path/deploy lock/high-water run, preflight/deploy/rollback/smoke;
+- staging CI/CD with security/migration/container gates and stale-candidate rejection;
+- deploy workforce ke `care.qd-tmmin.site` dan Admin ke `admin-ped.qd-tmmin.site`;
+- live Responses, auth, import/remediation, routing/Union/privacy, push/media, host isolation, migration, dan rollback rehearsal.
 
 Acceptance:
 
-- actionlint, ShellCheck, Hadolint, bash syntax, Gitleaks, CodeQL/dependency, and Trivy checks green;
-- Linux deployment harness validates real flock contention;
-- fresh and previous-SHA migration paths green;
-- push to staging deploys exact SHA to https://care.qd-tmmin.site;
-- failed candidate restores compatible previous code release;
-- remote volumes persist across release;
-- deployment produces complete release evidence.
+- exact staging SHA tersedia pada kedua origin setelah green CI;
+- Linux deployment lock, fresh/current-schema upgrade, persistent volumes, compatible code rollback, and release evidence lulus;
+- end-to-end bootstrap/import/remediation serta critical workforce/Admin journeys green.
 
----
+## Phase 14 — Production Readiness and Launch
 
-## Phase 13 — Production Readiness and Launch
+Status: `pending`
 
-Status: pending
-
-Dependencies: Phase 12 and all external blockers resolved.
+Dependencies: Phase 13 and all external blockers.
 
 Scope:
 
-- production VM/domain/DNS/GitHub environment/runtime secrets;
-- production-specific Vertex/VAPID/database/Caddy/deploy credentials;
-- main workflow using the proven reusable deployment contract;
-- production preflight and release rehearsal;
-- actual master-data import UAT;
-- written critical-risk approvals and operational ownership;
-- final production deployment and smoke.
+- production workforce/admin domains, VM/DNS/GitHub environments/runtime secrets/OpenAI/VAPID/Caddy/deploy credentials;
+- production preflight/rehearsal, authoritative master UAT, written risk approvals, operational ownership;
+- exact-main-SHA deployment and critical smoke.
 
 Delivery Complete Gate acceptance:
 
-- all PRD Section 39 readiness items complete;
-- production environment cannot deploy with placeholder domain/secret;
-- exact main SHA deploys after green CI and stale-candidate checks;
-- production health/readiness/release identity and critical smoke green;
+- seluruh PRD Section 39 readiness item complete;
+- placeholder domain/secret ditolak;
+- kedua production origin, health/readiness/release identity, host isolation, import/routing/privacy, dan critical smoke green;
 - no unresolved Critical/High security finding;
-- critical accepted risks approved in writing;
-- no backup/DR/HA capability is claimed;
-- implementation and release handoff documents are current.
+- accepted risks approved in writing dan tidak ada backup/DR/HA claim;
+- implementation/release handoff current.
 
 ---
 
 ## Next Recommended Action
 
-Fill the generated ignored root `.env` value for `VERTEX_API_KEY`, run `pnpm test:vertex:smoke`, and record the result. If it passes and no new High/Critical finding exists, mark the Backend Complete Gate passed before beginning frontend work. PostgreSQL remains Docker-only; do not install or invoke host `psql`.
+Mulai Phase 6.1 dengan schema/capability/effective-master migration design, inventarisasi current-schema columns/constraints, dan current-schema upgrade test yang membuktikan historical ID/PIC/event preservation. Jangan memulai frontend. Live OpenAI Responses smoke dilakukan pada Phase 6.4/6.6 setelah base URL, model, dan API key diberikan melalui runtime environment.

@@ -1,109 +1,79 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                        |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| Date                    | 24 Agustus 2026                                                              |
-| Current objective       | Complete and verify the backend contract through the Backend Complete Gate   |
-| Current phase           | Phase 6 in progress                                                          |
-| Implementation status   | Backend through Phase 5 delivered to `staging`; final external smoke remains |
-| Recommended next action | Fill `VERTEX_API_KEY` in the ignored root `.env` and run the live smoke      |
+| Atribut                 | Nilai                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| Date                    | 25 Agustus 2026                                                                       |
+| Current objective       | Remediate dan re-freeze backend CARE sesuai PRD v1.1 sebelum frontend dimulai         |
+| Current phase           | Phase 6.1 `in_progress`                                                               |
+| Backend Complete Gate   | Not passed                                                                            |
+| Implementation status   | Phase 0–5 delivered under superseded v1.0 assumptions; source remediation belum mulai |
+| Recommended next action | Design schema/capability/effective-master migration dan current-schema upgrade test   |
 
-## Delivery Status
+## Session Outcome
 
-- The backend implementation and CI corrections are committed on `staging` and pushed to `origin/staging`.
-- Delivered commits, oldest to newest:
-  - `aecf72a` — `feat: add secure member voice backend`
-  - `f2cb6a3` — `ci: generate Prisma client before lint`
-  - `d65aa2d` — `fix: track secure media pipeline source`
-  - `a6ce5fb` — `fix: preserve explicit test database configuration`
-- Local `HEAD` and `origin/staging` were both verified at `a6ce5fb7a5f2be991f25c4527867d3f611628a22` after the push.
-- The GitHub repository is public, enabling the restored GitHub CodeQL upload path without a private-repository code-scanning entitlement.
-- GitHub Actions run [32699084968](https://github.com/khalshaqzzy/CARE/actions/runs/32699084968) completed successfully: `quality`, `secrets`, and `codeql` are all green.
-- The working tree was clean immediately after delivery. The ignored root `.env`, `apps/api/.env` link, and `local-data/` runtime fixtures were not committed.
+Sesi ini hanya mengubah dokumentasi kontrak dan roadmap; source code, database, runtime configuration, dan deployment tidak diubah.
 
-## Completed Work
+Files changed:
 
-- Created the pinned Node.js/pnpm monorepo with NestJS API, generated OpenAPI client, Vitest, Prisma, and an intentionally empty frontend placeholder.
-- Added Docker Compose PostgreSQL 16/pgvector development and disposable test databases. Every `psql` operation is executed inside the container; host PostgreSQL and host `psql` are not required or installed.
-- Implemented health/readiness/release/metrics endpoints, environment validation/redaction, structured JSON logs, correlation IDs, migration checks, and backend-only CI.
-- Implemented Employees, accounts, Managers, Section Heads, sessions, imports, throttles, idempotency, drafts, Voices, classifications, media, assignments, events, conversations, closure cycles, ratings, notifications, push subscriptions, outbox, and audit schema.
-- Implemented opaque cookie sessions, session-bound CSRF, Argon2id, forced password changes, database-backed account/IP throttling, default-deny role/object authorization, Admin account operations, and bootstrap CLI.
-- Implemented Employee/Manager/Union preview-confirm imports. Manager imports are authoritative snapshots and validate all area/department routes, active Voices, and Section Head relations transactionally.
-- Implemented the Indonesian Gemini prompt and structured schema, Vertex AI express-mode API-key adapter, timeout/retry/manual fallback, Private category suppression, and deterministic server routing.
-- Implemented drafts, preview, secure staged image processing, authenticated media, atomic submit, lifecycle actions, assignment/reassignment, immutable timeline/chat, closure evidence, rating/reopen, dashboards, conversations, notifications, outbox, and Web Push.
-- Added signed opaque cursors, private audience-specific DTOs/OpenAPI schemas, stable errors, storage reconciliation, VAPID generation with explicit secure output, and non-sensitive performance fixtures.
-- Upgraded dependencies and pinned patched transitive versions until `pnpm audit --audit-level high` reported no known vulnerabilities.
-- Restored CodeQL, Gitleaks, package vulnerability auditing, and planned Trivy requirements after the repository visibility decision changed to public. Functional security tests remain required alongside them.
-- Gitleaks excludes only the ignored mode-0600 root `.env`, which intentionally contains generated local runtime secrets. All tracked content and other uncommitted paths remain covered.
-- Added a non-overwriting `pnpm setup:local` workflow. It generated the ignored mode-0600 `.env`, environment-specific VAPID pair, private local credentials note, 12 synthetic Employee rows, an 11-row full Manager snapshot covering every area route, and Union JSON. Only `VERTEX_API_KEY` remains blank.
-- Bootstrapped the local CARE Admin idempotently against Docker PostgreSQL. Its generated credential is stored only in ignored `local-data/LOCAL_CREDENTIALS.txt`.
+- `.agent/PRD.md` — dinaikkan ke v1.1 dan diselaraskan dengan workbook organisasi, routing/capability, Union individual accounts, conditional Private identity, OpenAI Responses, location review, dashboard scopes, dan dual frontend.
+- `.agent/implementationPhases.md` — Phase 0–5 dipertahankan `done` sebagai sejarah; Phase 6 dipecah menjadi remediation 6.1–6.6; frontend/deployment disusun ulang menjadi Phase 7–14.
+- `.agent/sessionHandoff.md` — current state, gate, decisions, checks, dan next action disinkronkan.
+- `docs/adr/0004-care-v1-1-organization-routing-ai-and-frontend.md` — keputusan v1.1 yang mensupersede bagian terkait ADR 0001/0003.
 
-## Durable Decisions
+## Current Product and Technical Contract
 
-- Each workforce account has Member capabilities plus at most one responder role: Manager or Section Head. Admin and Union remain non-workforce roles.
-- General routing is deterministic: Safety by area, Facility by area, and Work Difficulty by reporter department. Regular department Managers explicitly exclude Safety/Facility profiles.
-- Private Voices route to the active Union snapshot; Private serializers and generated contract types contain only a per-Voice anonymous alias and no reporter identity fields.
-- Vertex AI receives minimized Indonesian text and returns category/severity metadata only. A server-only runtime API key is used with `vertexai: true`; secret values are never committed, logged, documented, or returned.
-- There is no labeled AI dataset or statistical accuracy/recall gate. Deterministic rubric/schema/fallback checks plus one live non-sensitive provider smoke are required.
-- VAPID key pairs are environment-specific. A local-only pair now exists solely in the ignored mode-0600 `.env`; no key value is captured in tracked artifacts or this handoff.
-- Production Dockerfiles, Caddy, remote Compose, frontend code, and hosted deployment automation remain deferred.
+- Workbook `.xlsx` authoritative memakai sheet `MFG + QD` dan tujuh header persis. Snapshot Agustus memiliki 7.018 karyawan, termasuk 38 Department Head, 250 Section Head, 4 Division Head, 8 Deputy/Acting Division Head, dan 1 Director; terdapat 12 named departments tanpa Department Head serta 188 rows dengan `Department=14`.
+- Organization unit memakai composite `Directorat + Division + Department`. Department Head/Manager interchangeable; posisi dan workforce membership diturunkan dari monthly snapshot.
+- Account kind, structural position, capability, dan route assignment dipisahkan. Setiap workforce account tetap Member; structural reader/default PIC/global PIC dapat menjadi capability tambahan.
+- Named department tanpa Department Head dapat memperoleh default PIC dari active employee yang dipilih Admin. `Department=14` tidak mempunyai General route yang sah.
+- Safety, Environment, dan Facility seluruh area memakai tepat satu global PIC dari active Department Head. Work Difficulty memakai Department Head/default PIC pada composite unit reporter.
+- Section Head sepenuhnya diturunkan dari workbook; promote/transfer/remove manual dihapus.
+- Union memakai tepat satu Head dan dua Officer yang dikelola Admin di luar workbook. Private selalu menuju Head, lalu dapat di-assign ke Officer sebelum `IN_PROGRESS`.
+- Private identity consent immutable. Union mendapat anonymous DTO bila `Tidak`, atau nama/no.reg/division/department bila `Ya`; CARE Admin selalu dapat membaca profil lengkap secara read-only.
+- AI beralih dari Gemini/Vertex ke official JavaScript SDK dan OpenAI-compatible Responses API (`responses.create`, `/responses`, Structured Outputs, `store:false`). Classification dan location review adalah contract terpisah.
+- Aggregate, list/detail, dan action authorization dipisahkan. Leadership memperoleh General overview/detail read-only sesuai scope; Private tetap Union-only selain reporter dan CARE Admin.
+- Workforce PWA berada di `care.qd-tmmin.site`; separate non-PWA Admin React app berada di `admin-ped.qd-tmmin.site` untuk staging. Keduanya memakai satu backend dan generated client bersama.
 
-## Verification Evidence
+## Historical Delivery Evidence
 
-Green checks performed after implementation or relevant changes:
+Backend v1.0 implementation sebelumnya dikirim ke branch `staging` melalui commits `aecf72a`, `f2cb6a3`, `d65aa2d`, dan `a6ce5fb`. GitHub Actions run [32699084968](https://github.com/khalshaqzzy/CARE/actions/runs/32699084968) green untuk quality, secrets, dan CodeQL.
 
-```text
-pnpm install
-pnpm db:generate
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test:unit                         # 2 files, 12 tests passed
-pnpm setup:local                       # ignored local env/import fixtures created
-pnpm bootstrap:admin                   # local Admin created idempotently in Docker PostgreSQL
-pnpm migrations:destructive-check      # passed
-pnpm openapi:generate                  # canonical document and client generated
-pnpm build                             # API/contracts build; frontend remains placeholder
-docker compose config --quiet
-pnpm db:up
-pnpm db:wait
-pnpm db:verify                         # PostgreSQL 16 and vector extension confirmed in container
-pnpm db:test:reset
-pnpm db:test:migrate                   # fresh migration passed
-pnpm test:integration                  # 2 files, 5 tests passed
-pnpm test:security                     # 2 files, 5 tests passed
-pnpm seed:performance                  # 2,000 accounts and 50,000 Voices
-pnpm test:performance                  # 50 concurrent users, 250 samples, passed in 342 ms test time
-pnpm maintenance:reconcile             # dry-run: no orphan/expired objects
-pnpm audit --audit-level high           # no known vulnerabilities
-docker gitleaks v8.24.3 directory scan  # no leaks found
-git diff --check                        # passed
-```
+Implemented historical baseline mencakup monorepo/toolchain, Docker PostgreSQL/pgvector, NestJS/Prisma/OpenAPI, authentication/session/CSRF/throttle, imports, Voice/media/AI/routing, lifecycle/assignment/chat, closure/rating/reopen, dashboard, notification/outbox/Web Push, CI/security, dan 50.000-Voice performance fixtures.
 
-The repository-defined parity sequence was rerun after moving both generated `dist` directories out of the worktree. Install, generation, and build succeeded from that clean-artifact state. Integration tests were also rerun without a database reset after performance seeding to verify their isolation cleanup.
+Catatan penting: status delivered tersebut hanya membuktikan kontrak v1.0. Employee/Manager/Union imports, exclusive role model, per-area/category Manager routes, shared Union, Vertex adapter, old Private serializers, old dashboard scopes, 2.000-account seed, dan frontend placeholder adalah implementation debt yang wajib dimigrasikan dalam Phase 6. Status Phase 0–5 `done` tidak membuat behavior lama tetap normatif.
 
-Immediately before the initial backend delivery commit on `staging`, the complete parity sequence was rerun from clean generated artifacts. Frozen install, dependency audit, formatting, lint, typecheck, 12 unit tests, migration safety, OpenAPI regeneration/drift, build, Compose validation, Docker PostgreSQL/pgvector verification, fresh test migration, 5 integration tests, 5 security tests, 2,000-account/50,000-Voice seeding, the 50-concurrent-user performance test, reconciliation, both Gitleaks modes, and diff checks passed. Docker Compose was stopped afterward.
+## Gate and Blockers
 
-The first `staging` GitHub Actions run revealed that a fresh Linux checkout had no generated Prisma Client before typed ESLint. CI and local parity now run `pnpm db:generate` immediately after frozen install so lint and typecheck consume the schema-derived types deterministically.
+`Backend Complete Gate: not passed`.
 
-The follow-up run exposed an over-broad `media/` ignore rule that excluded `apps/api/src/media/` from Git while leaving it visible to local checks. Runtime media ignores are now root-scoped, and the Media module/service are tracked so clean checkouts match the local source graph.
+Frontend Phase 7 tidak boleh dimulai sampai Phase 6.1–6.6 green. Blocker/gate items:
 
-The next hosted integration run showed that Vitest defaults overwrote the workflow-provided PostgreSQL service URL. Test setup now uses nullish defaults, preserving explicit CI/runtime variables while still defaulting local tests to Docker port 54329.
+- current schema belum mempunyai capability/effective organization/route/consent/location/legacy-access model v1.1;
+- XLSX monthly import, remediation queue, default/global PIC, dan three-Union-account provisioning belum diimplementasikan;
+- routing, Union assignment, conditional identity, dan leadership/dashboard authorization masih memakai contract lama;
+- Gemini/Vertex adapter belum diganti dengan OpenAI Responses dan location review belum tersedia;
+- OpenAPI/client, migration upgrade, privacy/security, serta 10.000-account regression belum dire-freeze;
+- live Responses classification/location smoke memerlukan `OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` external runtime config pada Phase 6.4/6.6.
 
-The final hosted run, [32699084968](https://github.com/khalshaqzzy/CARE/actions/runs/32699084968), completed successfully after the repository was made public. Its `quality` job passed frozen installation, Prisma generation, dependency audit, formatting, lint, typecheck, unit tests, migration deployment, integration and security tests, 50,000-Voice performance seeding/profile, OpenAPI drift, build, Compose validation, and diff checks. Gitleaks and CodeQL also completed successfully. The workflow stopped its PostgreSQL service container during cleanup.
+Ketiadaan OpenAI runtime config tidak menghalangi implementasi Phase 6.1–6.5, tetapi final Backend Complete Gate tidak boleh lulus tanpa live non-sensitive smoke.
 
-## Open Gate Item
+## Next Recommended Action
 
-`Backend Complete Gate: not yet passed`.
+Mulai Phase 6.1:
 
-The live Vertex smoke was intentionally not run because no API key was supplied through the shell/runtime environment. A credential pasted in chat is not copied into commands or project artifacts. Fill the blank `VERTEX_API_KEY` in the ignored root `.env`, then run:
+1. inventarisasi current Prisma schema, migrations, unique indexes, serializers, dan historical ownership fields;
+2. rancang expand/contract schema untuk account kind, raw structural position, capability, effective organization/route, consent, location review, dan legacy handler;
+3. tetapkan deterministic backfill/reconciliation rules yang mempertahankan seluruh ID, route owner, assignment, actor, event, closure, rating, notification, dan PIC historis;
+4. buat current-schema-to-v1.1 upgrade fixture/test sebelum mengubah destructive constraint;
+5. jangan memulai frontend atau menghapus legacy columns sampai compatibility readers/writers dan backfill verification green.
 
-```text
-pnpm test:vertex:smoke
-```
+## Checks Run in This Documentation Session
 
-The smoke sends one non-sensitive Indonesian fixture and prints only provider/model/location/schema status. Phase 7 must not begin until it is green and this handoff records `Backend Complete Gate: passed`.
+- workbook shape/statistics diperiksa dengan spreadsheet tooling tanpa memodifikasi source workbook;
+- PRD dan roadmap diaudit dengan targeted searches; istilah lama hanya tersisa pada historical/supersession/removal statements, bukan sebagai contract normatif;
+- official OpenAI Responses API reference diverifikasi untuk `responses.create`, `/responses`, dan Structured Outputs;
+- `pnpm exec prettier --check .agent/PRD.md .agent/implementationPhases.md .agent/sessionHandoff.md docs/adr/0004-care-v1-1-organization-routing-ai-and-frontend.md` — passed;
+- `git diff --check` — passed;
+- roadmap status scan — tepat satu subphase, Phase 6.1, berstatus `in_progress`.
 
-## Cleanup
-
-The Docker PostgreSQL service is stopped after local verification. A final `docker compose ps --status running` check reported no CARE containers. No agent-started server, watcher, or container remains. No host PostgreSQL or `psql` installation was performed.
+Full source CI/backend tests tidak dijalankan karena sesi ini tidak mengubah source code, schema, dependency, workflow, atau runtime configuration. Tidak ada server, watcher, database container, atau background process yang dimulai pada sesi ini.
