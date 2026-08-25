@@ -1,13 +1,6 @@
-import type { Role } from '@prisma/client';
+import type { Principal } from './policy.service';
 
-export type AuthActor = {
-  accountId: string;
-  sessionId: string;
-  role: Role;
-  username: string;
-  employeeId: string | null;
-  passwordRestricted: boolean;
-};
+export type AuthActor = Principal;
 
 declare global {
   namespace Express {

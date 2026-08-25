@@ -1,88 +1,90 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Area, PrismaClient, Role } from '@prisma/client';
+import { AccountKind, PrismaClient, RouteKind, UnionSlot } from '@prisma/client';
 import { hash } from 'argon2';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const prisma = new PrismaClient();
-describe('PostgreSQL business invariants', () => {
+describe('PostgreSQL v1.1 business invariants', () => {
   beforeAll(async () => {
     await prisma.$connect();
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "UserAccount", "Employee" CASCADE');
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE TABLE "UserAccount", "Employee", "OrganizationSnapshot", "OrganizationUnit" CASCADE',
+    );
   });
   afterAll(async () => prisma.$disconnect());
-  it('enforces one active Union account', async () => {
+
+  it('allows exactly one active account per Union slot', async () => {
     const passwordHash = await hash('temporary-password');
-    await prisma.userAccount.create({
-      data: { username: 'union-a', displayName: 'Union A', role: Role.UNION, passwordHash },
-    });
-    await expect(
-      prisma.userAccount.create({
-        data: { username: 'union-b', displayName: 'Union B', role: Role.UNION, passwordHash },
-      }),
-    ).rejects.toMatchObject({ code: 'P2002' });
-  });
-  it('enforces active Manager route uniqueness in PostgreSQL', async () => {
-    const passwordHash = await hash('temporary-password');
-    for (const noReg of ['M001', 'M002']) {
-      const employee = await prisma.employee.create({
-        data: { noReg, name: noReg, division: 'Production', department: noReg },
-      });
-      const account = await prisma.userAccount.create({
-        data: {
-          employeeId: employee.id,
-          username: noReg,
-          displayName: noReg,
-          role: Role.MANAGER,
-          passwordHash,
-        },
-      });
-      await prisma.managerProfile
-        .create({
-          data: {
-            employeeId: employee.id,
-            accountId: account.id,
-            area: Area.KARAWANG_1,
-            department: noReg,
-            isSafety: true,
-          },
-        })
-        .catch((error) => {
-          if (noReg === 'M002') expect(error).toMatchObject({ code: 'P2002' });
-          else throw error;
-        });
-    }
-    expect(
-      await prisma.managerProfile.count({
-        where: { active: true, isSafety: true, area: Area.KARAWANG_1 },
-      }),
-    ).toBe(1);
-    const employee = await prisma.employee.create({
+    const first = await prisma.userAccount.create({
       data: {
-        noReg: 'M003',
-        name: 'M003',
-        division: 'Production',
-        department: 'M001',
-      },
-    });
-    const account = await prisma.userAccount.create({
-      data: {
-        employeeId: employee.id,
-        username: 'M003',
-        displayName: 'M003',
-        role: Role.MANAGER,
+        username: 'union-a',
+        displayName: 'Union A',
+        accountKind: AccountKind.UNION,
         passwordHash,
       },
     });
+    const second = await prisma.userAccount.create({
+      data: {
+        username: 'union-b',
+        displayName: 'Union B',
+        accountKind: AccountKind.UNION,
+        passwordHash,
+      },
+    });
+    await prisma.unionAccountTerm.create({ data: { accountId: first.id, slot: UnionSlot.HEAD } });
     await expect(
-      prisma.managerProfile.create({
-        data: {
-          employeeId: employee.id,
-          accountId: account.id,
-          area: Area.KARAWANG_2,
-          department: 'M001',
-          isSafety: false,
-          isFacility: false,
-        },
+      prisma.unionAccountTerm.create({ data: { accountId: second.id, slot: UnionSlot.HEAD } }),
+    ).rejects.toMatchObject({ code: 'P2002' });
+    await expect(
+      prisma.unionAccountTerm.create({ data: { accountId: second.id, slot: UnionSlot.OFFICER_1 } }),
+    ).resolves.toMatchObject({ slot: UnionSlot.OFFICER_1 });
+  });
+
+  it('enforces one active global PIC while permitting composite department routes', async () => {
+    const passwordHash = await hash('temporary-password');
+    const employees = await Promise.all(
+      ['M001', 'M002'].map((noReg) => prisma.employee.create({ data: { noReg, name: noReg } })),
+    );
+    const accounts = await Promise.all(
+      employees.map((employee) =>
+        prisma.userAccount.create({
+          data: {
+            employeeId: employee.id,
+            username: employee.noReg.toLocaleLowerCase('en-US'),
+            displayName: employee.name,
+            accountKind: AccountKind.WORKFORCE,
+            passwordHash,
+          },
+        }),
+      ),
+    );
+    await prisma.routeMapping.create({
+      data: { kind: RouteKind.GLOBAL_SPECIAL, ownerAccountId: accounts[0]!.id },
+    });
+    await expect(
+      prisma.routeMapping.create({
+        data: { kind: RouteKind.GLOBAL_SPECIAL, ownerAccountId: accounts[1]!.id },
       }),
-    ).resolves.toMatchObject({ department: 'M001' });
+    ).rejects.toMatchObject({ code: 'P2002' });
+    const units = await Promise.all([
+      prisma.organizationUnit.create({
+        data: { directorate: 'Manufacturing', division: 'A', department: 'Maintenance Dept' },
+      }),
+      prisma.organizationUnit.create({
+        data: { directorate: 'Manufacturing', division: 'B', department: 'Maintenance Dept' },
+      }),
+    ]);
+    await expect(
+      Promise.all(
+        units.map((unit, index) =>
+          prisma.routeMapping.create({
+            data: {
+              kind: RouteKind.DEPARTMENT_HEAD,
+              organizationUnitId: unit.id,
+              ownerAccountId: accounts[index]!.id,
+            },
+          }),
+        ),
+      ),
+    ).resolves.toHaveLength(2);
   });
 });

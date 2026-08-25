@@ -11,7 +11,9 @@ describe('runtime configuration', () => {
       SESSION_CSRF_SECRET: 'b'.repeat(32),
       AUTH_THROTTLE_SECRET: 'c'.repeat(32),
       CURSOR_SIGNING_SECRET: 'd'.repeat(32),
-      VERTEX_API_KEY: 'secret-api-key-value-that-is-long',
+      OPENAI_API_KEY: 'secret-api-key-value-that-is-long',
+      OPENAI_MODEL: 'test-model',
+      OPENAI_BASE_URL: 'https://example.invalid/v1',
     });
     const value = JSON.stringify(redactedConfig(loadConfig()));
     expect(value).not.toContain('secret-api-key');

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AccountKind, AccountStatus } from '@prisma/client';
 import { hash, verify } from 'argon2';
 import type { Response } from 'express';
 import { z } from 'zod';
@@ -7,6 +8,7 @@ import { badRequest, unauthorized } from '../common/errors';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 import type { AuthActor } from './auth.types';
+import { PolicyService } from './policy.service';
 import { ThrottleService } from './throttle.service';
 
 const loginSchema = z.object({
@@ -23,6 +25,7 @@ export class AuthService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ThrottleService) private readonly throttle: ThrottleService,
+    @Inject(PolicyService) private readonly policy: PolicyService,
   ) {}
   async login(input: unknown, response: Response, ip: string, userAgent?: string) {
     const parsed = loginSchema.safeParse(input);
@@ -35,7 +38,11 @@ export class AuthService {
     const account = await this.prisma.userAccount.findUnique({
       where: { username },
     });
-    if (!account || !account.active || !(await verify(account.passwordHash, parsed.data.password)))
+    if (
+      !account ||
+      account.status === AccountStatus.INACTIVE ||
+      !(await verify(account.passwordHash, parsed.data.password))
+    )
       throw unauthorized();
     const config = loadConfig();
     const token = randomToken();
@@ -60,7 +67,8 @@ export class AuthService {
       path: '/',
       expires: session.absoluteExpiresAt,
     });
-    return this.sessionShape(account, session.id, session.passwordRestricted);
+    const principal = await this.policy.resolvePrincipal(account, session);
+    return this.sessionShape(account, principal);
   }
   async logout(actor: AuthActor, response: Response) {
     await this.prisma.$transaction([
@@ -81,14 +89,21 @@ export class AuthService {
       where: { id: actor.accountId },
       include: { employee: true },
     });
+    const principal = await this.policy.resolvePrincipal(account, {
+      id: actor.sessionId,
+      passwordRestricted: actor.passwordRestricted,
+    });
     return {
-      ...this.sessionShape(account, actor.sessionId, actor.passwordRestricted),
+      ...this.sessionShape(account, principal),
       employee: account.employee
         ? {
             noReg: account.employee.noReg,
             name: account.employee.name,
-            division: account.employee.division,
-            department: account.employee.department,
+            directorate: principal.directorate,
+            division: principal.division,
+            department: principal.department,
+            section: principal.section,
+            structuralPosition: principal.structuralPosition,
           }
         : null,
     };
@@ -125,7 +140,7 @@ export class AuthService {
         where: { id: account.id },
         data: { passwordHash, passwordChangeRequired: false },
       });
-      if (account.role === 'UNION')
+      if (account.accountKind === AccountKind.UNION)
         await tx.session.updateMany({
           where: { accountId: account.id, id: { not: actor.sessionId }, revokedAt: null },
           data: { revokedAt: new Date() },
@@ -138,19 +153,76 @@ export class AuthService {
     return { success: true };
   }
   private sessionShape(
-    account: { id: string; username: string; displayName: string; role: string },
-    sessionId: string,
-    passwordChangeRequired: boolean,
+    account: {
+      id: string;
+      username: string;
+      displayName: string;
+      accountKind: AccountKind;
+      status: AccountStatus;
+    },
+    principal: AuthActor,
   ) {
     return {
       account: {
         id: account.id,
         username: account.username,
         displayName: account.displayName,
-        role: account.role,
+        accountKind: account.accountKind,
+        status: account.status,
       },
-      sessionId,
-      passwordChangeRequired,
+      workforceProfile:
+        account.accountKind === AccountKind.WORKFORCE
+          ? {
+              structuralPosition: principal.structuralPosition,
+              organizationSnapshotId: principal.organizationSnapshotId,
+              organizationUnitId: principal.organizationUnitId,
+            }
+          : null,
+      unionProfile: principal.unionSlot ? { slot: principal.unionSlot } : null,
+      capabilities: principal.capabilities,
+      scopes: {
+        overview: this.overviewScopes(principal),
+        detail: this.detailScopes(principal),
+        action: this.actionScopes(principal),
+      },
+      sessionId: principal.sessionId,
+      passwordChangeRequired: principal.passwordRestricted,
     };
+  }
+
+  private overviewScopes(actor: AuthActor) {
+    if (
+      actor.capabilities.some((value) =>
+        ['DIRECTOR', 'DIVISION_LEADERSHIP', 'UNION_HEAD', 'UNION_OFFICER'].includes(value),
+      )
+    )
+      return ['GENERAL_GLOBAL'];
+    if (actor.capabilities.includes('CARE_ADMIN')) return ['ADMIN_OPERATIONAL'];
+    if (actor.capabilities.includes('MANAGER')) return ['GENERAL_OWN_DIVISION'];
+    return ['OWN'];
+  }
+
+  private detailScopes(actor: AuthActor) {
+    if (actor.capabilities.includes('CARE_ADMIN')) return ['GENERAL_ALL', 'PRIVATE_ALL_READ_ONLY'];
+    if (
+      actor.capabilities.some((value) =>
+        ['DIRECTOR', 'UNION_HEAD', 'UNION_OFFICER'].includes(value),
+      )
+    )
+      return ['GENERAL_ALL'];
+    if (actor.capabilities.includes('DIVISION_LEADERSHIP')) return ['GENERAL_OWN_DIVISION'];
+    if (actor.capabilities.includes('MANAGER'))
+      return ['GENERAL_OWN_DEPARTMENT', 'EXPLICIT_WORK_ITEMS'];
+    if (actor.capabilities.includes('SECTION_HEAD')) return ['ASSIGNED', 'OWN'];
+    return ['OWN'];
+  }
+
+  private actionScopes(actor: AuthActor) {
+    const result = ['REPORTER_OWN'];
+    if (actor.capabilities.includes('MANAGER')) result.push('ROUTE_OWNED_GENERAL');
+    if (actor.capabilities.includes('SECTION_HEAD')) result.push('ASSIGNED_GENERAL');
+    if (actor.capabilities.includes('UNION_HEAD')) result.push('PRIVATE_ALL');
+    if (actor.capabilities.includes('UNION_OFFICER')) result.push('PRIVATE_ASSIGNED');
+    return result;
   }
 }

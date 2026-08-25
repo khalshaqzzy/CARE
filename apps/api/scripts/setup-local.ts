@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { lstat, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import webpush from 'web-push';
+import ExcelJS from 'exceljs';
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -22,11 +23,10 @@ async function main() {
   const envPath = resolve(repositoryRoot, '.env');
   const apiEnvPath = resolve(repositoryRoot, 'apps/api/.env');
   const dataRoot = resolve(repositoryRoot, 'local-data');
-  const employeePath = resolve(dataRoot, 'employees.csv');
-  const managerPath = resolve(dataRoot, 'managers.csv');
-  const unionPath = resolve(dataRoot, 'union.json');
+  const organizationPath = resolve(dataRoot, 'organization.xlsx');
+  const remediationPath = resolve(dataRoot, 'admin-remediation.json');
   const credentialPath = resolve(dataRoot, 'LOCAL_CREDENTIALS.txt');
-  const targets = [envPath, apiEnvPath, employeePath, managerPath, unionPath, credentialPath];
+  const targets = [envPath, apiEnvPath, organizationPath, remediationPath, credentialPath];
   const existing = [] as string[];
 
   for (const target of targets) if (await pathExists(target)) existing.push(target);
@@ -49,11 +49,11 @@ async function main() {
     `CURSOR_SIGNING_SECRET=${secret()}`,
     'SESSION_IDLE_HOURS=8',
     'SESSION_ABSOLUTE_DAYS=7',
-    'VERTEX_API_KEY=',
-    'VERTEX_MODEL=gemini-3.7-flash',
-    'VERTEX_LOCATION=global',
-    'VERTEX_CONFIDENCE_THRESHOLD=0.75',
-    'VERTEX_TIMEOUT_MS=10000',
+    'OPENAI_API_KEY=',
+    'OPENAI_MODEL=',
+    'OPENAI_BASE_URL=',
+    'OPENAI_CONFIDENCE_THRESHOLD=0.75',
+    'OPENAI_TIMEOUT_MS=10000',
     'VAPID_SUBJECT=mailto:care-local@example.invalid',
     `VAPID_PUBLIC_KEY=${vapid.publicKey}`,
     `VAPID_PRIVATE_KEY=${vapid.privateKey}`,
@@ -65,38 +65,55 @@ async function main() {
     '',
   ].join('\n');
 
-  const employees = [
-    'no_reg,name,division,department',
-    'MEM001,Local Member,Manufacturing,Production',
-    'MGR-PROD,Production Manager,Manufacturing,Production',
-    'SAF-K1,Safety Manager Karawang 1,Manufacturing,Production',
-    'SAF-K2,Safety Manager Karawang 2,Manufacturing,Production',
-    'SAF-K3,Safety Manager Karawang 3,Manufacturing,Production',
-    'SAF-S1,Safety Manager Sunter 1,Manufacturing,Production',
-    'SAF-S2,Safety Manager Sunter 2,Manufacturing,Production',
-    'FAC-K1,Facility Manager Karawang 1,Manufacturing,Production',
-    'FAC-K2,Facility Manager Karawang 2,Manufacturing,Production',
-    'FAC-K3,Facility Manager Karawang 3,Manufacturing,Production',
-    'FAC-S1,Facility Manager Sunter 1,Manufacturing,Production',
-    'FAC-S2,Facility Manager Sunter 2,Manufacturing,Production',
-    '',
-  ].join('\n');
-
-  const managers = [
-    'name,no_reg,division,department,area,is_safety,is_facility',
-    'Production Manager,MGR-PROD,Manufacturing,Production,KARAWANG_1,0,0',
-    'Safety Manager Karawang 1,SAF-K1,Manufacturing,Production,KARAWANG_1,1,0',
-    'Safety Manager Karawang 2,SAF-K2,Manufacturing,Production,KARAWANG_2,1,0',
-    'Safety Manager Karawang 3,SAF-K3,Manufacturing,Production,KARAWANG_3,1,0',
-    'Safety Manager Sunter 1,SAF-S1,Manufacturing,Production,SUNTER_1,1,0',
-    'Safety Manager Sunter 2,SAF-S2,Manufacturing,Production,SUNTER_2,1,0',
-    'Facility Manager Karawang 1,FAC-K1,Manufacturing,Production,KARAWANG_1,0,1',
-    'Facility Manager Karawang 2,FAC-K2,Manufacturing,Production,KARAWANG_2,0,1',
-    'Facility Manager Karawang 3,FAC-K3,Manufacturing,Production,KARAWANG_3,0,1',
-    'Facility Manager Sunter 1,FAC-S1,Manufacturing,Production,SUNTER_1,0,1',
-    'Facility Manager Sunter 2,FAC-S2,Manufacturing,Production,SUNTER_2,0,1',
-    '',
-  ].join('\n');
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('MFG + QD');
+  sheet.addRow([
+    'Noreg',
+    'Nama',
+    'Posisi (struktural)',
+    'Directorat',
+    'Division',
+    'Department',
+    'Section',
+  ]);
+  sheet.addRows([
+    [
+      '000001',
+      'Local Member',
+      'Member',
+      'Manufacturing',
+      'Production Division',
+      'Production Department',
+      'Assembly',
+    ],
+    [
+      '000002',
+      'Local Department Head',
+      'Department Head',
+      'Manufacturing',
+      'Production Division',
+      'Production Department',
+      'Management',
+    ],
+    [
+      '000003',
+      'Local Section Head',
+      'Section Head',
+      'Manufacturing',
+      'Production Division',
+      'Production Department',
+      'Assembly',
+    ],
+    [
+      '000014',
+      'Local Department 14 Member',
+      'Member',
+      'Manufacturing',
+      'Production Division',
+      '14',
+      'Unrouted',
+    ],
+  ]);
 
   const credentials = [
     'CARE LOCAL CREDENTIALS - DO NOT COMMIT',
@@ -106,13 +123,13 @@ async function main() {
     `  password: ${adminPassword}`,
     '',
     'Imported workforce accounts',
-    '  username: each no_reg from employees.csv',
+    '  username: each Noreg from organization.xlsx',
     '  initial password: same value as no_reg',
     '  password change is required on first login',
     '',
-    'Union',
-    '  username: care-union',
-    '  initial password: care-union',
+    'Union slots (provision through Admin API using admin-remediation.json)',
+    '  care-union-head / care-union-1 / care-union-2',
+    '  initial password: same as username',
     '  password change is required on first login',
     '',
   ].join('\n');
@@ -120,16 +137,22 @@ async function main() {
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
   await writeFile(envPath, env, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
   await symlink('../../.env', apiEnvPath);
-  await writeFile(employeePath, employees, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-  await writeFile(managerPath, managers, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+  await workbook.xlsx.writeFile(organizationPath);
   await writeFile(
-    unionPath,
-    `${JSON.stringify({ username: 'care-union', display_name: 'Local Union' }, null, 2)}\n`,
-    {
-      encoding: 'utf8',
-      mode: 0o600,
-      flag: 'wx',
-    },
+    remediationPath,
+    `${JSON.stringify(
+      {
+        unionAccounts: [
+          { slot: 'HEAD', username: 'care-union-head', displayName: 'Local Union Head' },
+          { slot: 'OFFICER_1', username: 'care-union-1', displayName: 'Local Union Officer 1' },
+          { slot: 'OFFICER_2', username: 'care-union-2', displayName: 'Local Union Officer 2' },
+        ],
+        globalPicNoReg: '000002',
+      },
+      null,
+      2,
+    )}\n`,
+    { encoding: 'utf8', mode: 0o600, flag: 'wx' },
   );
   await writeFile(credentialPath, credentials, {
     encoding: 'utf8',
@@ -138,7 +161,7 @@ async function main() {
   });
 
   process.stdout.write(
-    'Local environment and synthetic account imports created. Fill VERTEX_API_KEY in .env.\n',
+    'Local environment, synthetic XLSX, and Admin remediation data created. OpenAI config is optional until live smoke.\n',
   );
 }
 

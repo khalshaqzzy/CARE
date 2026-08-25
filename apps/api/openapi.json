@@ -364,7 +364,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/MetricsText"
                 }
               }
             }
@@ -740,17 +740,7 @@
         ],
         "tags": [
           "authentication"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/v1/auth/session": {
@@ -1155,7 +1145,7 @@
     },
     "/api/v1/admin/accounts": {
       "get": {
-        "operationId": "AdminController_list",
+        "operationId": "AdminController_accounts",
         "parameters": [],
         "responses": {
           "200": {
@@ -1163,7 +1153,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResponse"
+                  "$ref": "#/components/schemas/AccountSummaryList"
                 }
               }
             }
@@ -1275,740 +1265,9 @@
         ]
       }
     },
-    "/api/v1/admin/accounts/{id}": {
+    "/api/v1/admin/remediation-issues": {
       "get": {
-        "operationId": "AdminController_detail",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "administration"
-        ]
-      }
-    },
-    "/api/v1/admin/accounts/{id}/revoke-sessions": {
-      "post": {
-        "operationId": "AdminController_revokeSessions",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "administration"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/accounts/{id}/reset-password": {
-      "post": {
-        "operationId": "AdminController_reset",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "administration"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/accounts/{id}/activate": {
-      "patch": {
-        "operationId": "AdminController_activate",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "administration"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/accounts/{id}/deactivate": {
-      "patch": {
-        "operationId": "AdminController_deactivate",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "administration"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/employees/search": {
-      "get": {
-        "operationId": "AdminController_search",
+        "operationId": "AdminController_issues",
         "parameters": [],
         "responses": {
           "200": {
@@ -2016,7 +1275,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/RemediationIssueList"
                 }
               }
             }
@@ -2128,10 +1387,140 @@
         ]
       }
     },
-    "/api/v1/admin/section-heads/promote": {
-      "post": {
-        "operationId": "AdminController_promote",
+    "/api/v1/admin/remediation-issues/history": {
+      "get": {
+        "operationId": "AdminController_resolutions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemediationResolutionList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-units/{id}/default-pic": {
+      "put": {
+        "operationId": "AdminController_defaultPic",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "X-CSRF-Token",
             "in": "header",
@@ -2143,12 +1532,12 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/RouteMappingResponse"
                 }
               }
             }
@@ -2263,16 +1652,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/AccountSelectionRequest"
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/section-heads/transfer": {
-      "post": {
-        "operationId": "AdminController_transfer",
+    "/api/v1/admin/routes/global-special-pic": {
+      "put": {
+        "operationId": "AdminController_globalPic",
         "parameters": [
           {
             "name": "X-CSRF-Token",
@@ -2285,12 +1674,12 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/RouteMappingResponse"
                 }
               }
             }
@@ -2405,17 +1794,278 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/AccountSelectionRequest"
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/section-heads/remove": {
-      "post": {
-        "operationId": "AdminController_remove",
+    "/api/v1/admin/organization-units/{id}/section-head-candidates": {
+      "get": {
+        "operationId": "AdminController_sectionHeads",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionHeadCandidateList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/union-accounts": {
+      "get": {
+        "operationId": "AdminController_unionAccounts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnionAccountList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/union-accounts/{slot}": {
+      "put": {
+        "operationId": "AdminController_unionAccount",
+        "parameters": [
+          {
+            "name": "slot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "X-CSRF-Token",
             "in": "header",
@@ -2427,12 +2077,12 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/UnionProvisionResponse"
                 }
               }
             }
@@ -2547,26 +2197,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/UnionAccountRequest"
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/imports/{type}/preview": {
+    "/api/v1/admin/organization-imports/preview": {
       "post": {
         "operationId": "ImportsController_preview",
         "parameters": [
           {
-            "name": "type",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "X-CSRF-Token",
             "in": "header",
             "required": true,
@@ -2582,7 +2224,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/OrganizationImportPreview"
                 }
               }
             }
@@ -2690,21 +2332,143 @@
           }
         ],
         "tags": [
-          "provisioning"
+          "organization-imports"
         ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/OrganizationFileUploadRequest"
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/imports/{id}": {
+    "/api/v1/admin/organization-imports": {
+      "get": {
+        "operationId": "ImportsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationImportList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "organization-imports"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-imports/{id}": {
       "get": {
         "operationId": "ImportsController_detail",
         "parameters": [
@@ -2723,7 +2487,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/OrganizationImportPreview"
                 }
               }
             }
@@ -2831,11 +2595,142 @@
           }
         ],
         "tags": [
-          "provisioning"
+          "organization-imports"
         ]
       }
     },
-    "/api/v1/admin/imports/{id}/confirm": {
+    "/api/v1/admin/organization-imports/{id}/changes": {
+      "get": {
+        "operationId": "ImportsController_changes",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationChangeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "organization-imports"
+        ]
+      }
+    },
+    "/api/v1/admin/organization-imports/{id}/confirm": {
       "post": {
         "operationId": "ImportsController_confirm",
         "parameters": [
@@ -2858,12 +2753,12 @@
           }
         ],
         "responses": {
-          "201": {
+          "202": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/ImportQueuedResponse"
                 }
               }
             }
@@ -2971,18 +2866,8 @@
           }
         ],
         "tags": [
-          "provisioning"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
+          "organization-imports"
+        ]
       }
     },
     "/api/v1/drafts": {
@@ -3005,7 +2890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceDraftResponse"
                 }
               }
             }
@@ -3120,7 +3005,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/VoiceDraftRequest"
               }
             }
           }
@@ -3146,7 +3031,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceDraftResponse"
                 }
               }
             }
@@ -3284,7 +3169,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceDraftResponse"
                 }
               }
             }
@@ -3399,7 +3284,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/VoiceDraftRequest"
               }
             }
           }
@@ -3563,305 +3448,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "voices"
-        ]
-      }
-    },
-    "/api/v1/drafts/{id}/attachments": {
-      "post": {
-        "operationId": "VoicesController_addDraftAttachment",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/drafts/{id}/attachments/{attachmentId}": {
-      "delete": {
-        "operationId": "VoicesController_removeDraftAttachment",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "attachmentId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceDraftPreview"
                 }
               }
             }
@@ -4110,17 +3697,7 @@
         ],
         "tags": [
           "voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/v1/drafts/{id}/manual-classification": {
@@ -4266,11 +3843,280 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/ManualClassificationRequest"
               }
             }
           }
         }
+      }
+    },
+    "/api/v1/drafts/{id}/location-review": {
+      "post": {
+        "operationId": "VoicesController_locationReview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationReviewSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      },
+      "get": {
+        "operationId": "VoicesController_getLocationReview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationReviewSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
       }
     },
     "/api/v1/drafts/{id}/submit": {
@@ -4310,7 +4156,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceSubmittedResponse"
                 }
               }
             }
@@ -4425,11 +4271,309 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/SubmitVoiceRequest"
               }
             }
           }
         }
+      }
+    },
+    "/api/v1/drafts/{id}/attachments": {
+      "post": {
+        "operationId": "VoicesController_addDraftAttachment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageUploadRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drafts/{id}/attachments/{attachmentId}": {
+      "delete": {
+        "operationId": "VoicesController_removeDraftAttachment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
       }
     },
     "/api/v1/voices": {
@@ -4442,7 +4586,129 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResponse"
+                  "$ref": "#/components/schemas/VoiceListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
+    "/api/v1/work-items": {
+      "get": {
+        "operationId": "VoicesController_workItems",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceListResponse"
                 }
               }
             }
@@ -4575,13 +4841,19 @@
                 "schema": {
                   "oneOf": [
                     {
-                      "$ref": "#/components/schemas/MemberVoiceDetail"
+                      "$ref": "#/components/schemas/ReporterSelfVoiceDetail"
                     },
                     {
                       "$ref": "#/components/schemas/GeneralResponderVoiceDetail"
                     },
                     {
-                      "$ref": "#/components/schemas/PrivateResponderVoiceDetail"
+                      "$ref": "#/components/schemas/LeadershipGeneralVoiceDetail"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UnionAnonymousVoiceDetail"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UnionIdentifiedVoiceDetail"
                     },
                     {
                       "$ref": "#/components/schemas/AdminPrivateVoiceDetail"
@@ -4590,10 +4862,12 @@
                   "discriminator": {
                     "propertyName": "audience",
                     "mapping": {
-                      "MEMBER": "#/components/schemas/MemberVoiceDetail",
+                      "REPORTER_SELF": "#/components/schemas/ReporterSelfVoiceDetail",
                       "GENERAL_RESPONDER": "#/components/schemas/GeneralResponderVoiceDetail",
-                      "PRIVATE_RESPONDER": "#/components/schemas/PrivateResponderVoiceDetail",
-                      "ADMIN_PRIVATE": "#/components/schemas/AdminPrivateVoiceDetail"
+                      "LEADERSHIP_GENERAL_READ_ONLY": "#/components/schemas/LeadershipGeneralVoiceDetail",
+                      "UNION_ANONYMOUS": "#/components/schemas/UnionAnonymousVoiceDetail",
+                      "UNION_IDENTIFIED": "#/components/schemas/UnionIdentifiedVoiceDetail",
+                      "ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY": "#/components/schemas/AdminPrivateVoiceDetail"
                     }
                   }
                 }
@@ -4726,7 +5000,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/TimelineResponse"
                 }
               }
             }
@@ -4838,9 +5112,9 @@
         ]
       }
     },
-    "/api/v1/voices/{id}/ask": {
+    "/api/v1/voices/{id}/assignments": {
       "post": {
-        "operationId": "VoicesController_ask",
+        "operationId": "VoicesController_assign",
         "parameters": [
           {
             "name": "id",
@@ -4875,7 +5149,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
                 }
               }
             }
@@ -4990,7 +5264,325 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/AssignmentRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voices/{id}/assignments/reassign": {
+      "post": {
+        "operationId": "VoicesController_reassign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voices/{id}/ask": {
+      "post": {
+        "operationId": "VoicesController_ask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceTextMutationRequest"
               }
             }
           }
@@ -5034,7 +5626,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
                 }
               }
             }
@@ -5149,325 +5741,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voices/{id}/assign": {
-      "post": {
-        "operationId": "VoicesController_assign",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Unique key for safe mutation retries",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voices/{id}/reassign": {
-      "post": {
-        "operationId": "VoicesController_reassign",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-CSRF-Token",
-            "in": "header",
-            "required": true,
-            "description": "Session-bound CSRF token",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "description": "Unique key for safe mutation retries",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VALIDATION_ERROR",
-                  "message": "Request validation failed",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "UNAUTHENTICATED",
-                  "message": "Authentication is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Resource not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "NOT_FOUND",
-                  "message": "Resource not found",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The resource changed; reload and retry",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "VERSION_CONFLICT",
-                  "message": "The resource changed; reload and retry",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Manual classification is required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                  "message": "Manual classification is required",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too many requests; try again later",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                },
-                "example": {
-                  "code": "RATE_LIMITED",
-                  "message": "Too many requests; try again later",
-                  "errors": [],
-                  "correlationId": "01HZZEXAMPLECORRELATION"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "cookie": []
-          }
-        ],
-        "tags": [
-          "voices"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/VersionedMutationRequest"
               }
             }
           }
@@ -5493,7 +5767,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/MessageList"
                 }
               }
             }
@@ -5640,7 +5914,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             }
@@ -5753,9 +6027,9 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/MessageUploadRequest"
               }
             }
           }
@@ -5772,7 +6046,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/ConversationList"
                 }
               }
             }
@@ -5912,7 +6186,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/AttachmentResponse"
                 }
               }
             }
@@ -6025,9 +6299,9 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/ImageUploadRequest"
               }
             }
           }
@@ -6071,7 +6345,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/ClosureResponse"
                 }
               }
             }
@@ -6186,7 +6460,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/CloseVoiceRequest"
               }
             }
           }
@@ -6230,7 +6504,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/RatingResponse"
                 }
               }
             }
@@ -6345,16 +6619,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/RatingRequest"
               }
             }
           }
         }
       }
     },
-    "/api/v1/dashboard": {
+    "/api/v1/dashboard/general": {
       "get": {
-        "operationId": "VoicesController_dashboard",
+        "operationId": "VoicesController_dashboardGeneral",
         "parameters": [],
         "responses": {
           "200": {
@@ -6362,7 +6636,129 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/DashboardAggregate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
+    "/api/v1/dashboard/private": {
+      "get": {
+        "operationId": "VoicesController_dashboardPrivate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardAggregate"
                 }
               }
             }
@@ -6493,7 +6889,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/MediaBinary"
                 }
               }
             }
@@ -6615,7 +7011,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResponse"
+                  "$ref": "#/components/schemas/NotificationPage"
                 }
               }
             }
@@ -6737,7 +7133,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/UnreadCountResponse"
                 }
               }
             }
@@ -6869,7 +7265,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/UpdatedCountResponse"
                 }
               }
             }
@@ -6978,17 +7374,7 @@
         ],
         "tags": [
           "notifications"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/v1/notifications/{id}/read": {
@@ -7128,17 +7514,7 @@
         ],
         "tags": [
           "notifications"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/api/v1/notifications/push/public-key": {
@@ -7151,7 +7527,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/PushPublicKeyResponse"
                 }
               }
             }
@@ -7273,7 +7649,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/PushStatusResponse"
                 }
               }
             }
@@ -7405,7 +7781,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/PushSubscriptionResponse"
                 }
               }
             }
@@ -7520,7 +7896,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MutationRequest"
+                "$ref": "#/components/schemas/PushSubscriptionRequest"
               }
             }
           }
@@ -7671,7 +8047,7 @@
   "info": {
     "title": "CARE API",
     "description": "",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "contact": {}
   },
   "tags": [],
@@ -7734,20 +8110,339 @@
           }
         }
       },
-      "MutationRequest": {
+      "LoginRequest": {
         "type": "object",
-        "description": "Endpoint-specific request. Aggregate mutations require expectedVersion.",
+        "required": [
+          "username",
+          "password"
+        ],
+        "additionalProperties": false,
         "properties": {
-          "expectedVersion": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "VoiceDraftRequest": {
+        "type": "object",
+        "required": [
+          "area",
+          "locationDetail",
+          "title",
+          "detail",
+          "visibility"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "showReporterIdentity": {
+            "type": "boolean",
+            "description": "Required only for Private Voice"
+          }
+        }
+      },
+      "ManualClassificationRequest": {
+        "type": "object",
+        "required": [
+          "severity"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SAFETY",
+              "ENVIRONMENT",
+              "FACILITY",
+              "WORK_DIFFICULTY"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          }
+        }
+      },
+      "SubmitVoiceRequest": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "locationReviewId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "locationContentHash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "nullable": true
+          },
+          "acknowledgeIncompleteLocation": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssignmentRequest": {
+        "type": "object",
+        "required": [
+          "handlerAccountId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "handlerAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "AccountSelectionRequest": {
+        "type": "object",
+        "required": [
+          "accountId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "UnionAccountRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "displayName"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "format": "password"
+          },
+          "newPassword": {
+            "type": "string",
+            "format": "password",
+            "minLength": 6,
+            "maxLength": 128
+          }
+        }
+      },
+      "VoiceTextMutationRequest": {
+        "type": "object",
+        "required": [
+          "text",
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "version": {
             "type": "integer",
             "minimum": 1
           }
-        },
-        "additionalProperties": true
+        }
       },
-      "SuccessResponse": {
+      "VersionedMutationRequest": {
         "type": "object",
-        "additionalProperties": true
+        "required": [
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "CloseVoiceRequest": {
+        "type": "object",
+        "required": [
+          "note",
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "RatingRequest": {
+        "type": "object",
+        "required": [
+          "score"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "score": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "reopen": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PushSubscriptionRequest": {
+        "type": "object",
+        "required": [
+          "installationId",
+          "endpoint",
+          "keys"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "installationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200
+          },
+          "endpoint": {
+            "type": "string",
+            "format": "uri"
+          },
+          "keys": {
+            "type": "object",
+            "required": [
+              "p256dh",
+              "auth"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "p256dh": {
+                "type": "string"
+              },
+              "auth": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "OrganizationFileUploadRequest": {
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "Authoritative organization snapshot in .xlsx or UTF-8 .csv format"
+          }
+        }
+      },
+      "ImageUploadRequest": {
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        }
+      },
+      "MessageUploadRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "files": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
       },
       "PagedResponse": {
         "type": "object",
@@ -7819,6 +8514,8 @@
         "type": "object",
         "required": [
           "account",
+          "capabilities",
+          "scopes",
           "sessionId",
           "passwordChangeRequired"
         ],
@@ -7826,6 +8523,41 @@
           "account": {
             "type": "object",
             "additionalProperties": true
+          },
+          "workforceProfile": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "unionProfile": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "MEMBER",
+                "SECTION_HEAD",
+                "MANAGER",
+                "DIVISION_LEADERSHIP",
+                "DIRECTOR",
+                "UNION_HEAD",
+                "UNION_OFFICER",
+                "CARE_ADMIN"
+              ]
+            }
+          },
+          "scopes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "sessionId": {
             "type": "string",
@@ -7837,50 +8569,74 @@
         }
       },
       "ClassificationPreview": {
-        "type": "object",
-        "required": [
-          "source",
-          "category",
-          "severity",
-          "confidence",
-          "rationaleCode"
-        ],
-        "properties": {
-          "source": {
-            "type": "string",
-            "enum": [
-              "AI",
-              "MANUAL_FALLBACK"
-            ]
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "category",
+              "severity",
+              "confidence",
+              "rationaleCode"
+            ],
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "AI",
+                  "MANUAL_FALLBACK"
+                ]
+              },
+              "category": {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  "SAFETY",
+                  "ENVIRONMENT",
+                  "FACILITY",
+                  "WORK_DIFFICULTY"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "CRITICAL"
+                ]
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "rationaleCode": {
+                "type": "string"
+              }
+            }
           },
-          "category": {
-            "type": "string",
-            "enum": [
-              "SAFETY",
-              "FACILITY",
-              "WORK_DIFFICULTY"
-            ]
-          },
-          "severity": {
-            "type": "string",
-            "enum": [
-              "LOW",
-              "MEDIUM",
-              "HIGH",
-              "CRITICAL"
-            ]
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "rationaleCode": {
-            "type": "string"
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "fallbackCode"
+            ],
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "MANUAL_FALLBACK"
+                ]
+              },
+              "fallbackCode": {
+                "type": "string"
+              }
+            }
           }
-        }
+        ]
       },
-      "MemberVoiceDetail": {
+      "ReporterSelfVoiceDetail": {
         "type": "object",
         "required": [
           "id",
@@ -7910,7 +8666,7 @@
           "audience": {
             "type": "string",
             "enum": [
-              "MEMBER"
+              "REPORTER_SELF"
             ]
           },
           "visibility": {
@@ -7944,6 +8700,7 @@
             "nullable": true,
             "enum": [
               "SAFETY",
+              "ENVIRONMENT",
               "FACILITY",
               "WORK_DIFFICULTY"
             ]
@@ -8064,6 +8821,7 @@
             "nullable": true,
             "enum": [
               "SAFETY",
+              "ENVIRONMENT",
               "FACILITY",
               "WORK_DIFFICULTY"
             ]
@@ -8129,7 +8887,7 @@
           }
         }
       },
-      "PrivateResponderVoiceDetail": {
+      "LeadershipGeneralVoiceDetail": {
         "type": "object",
         "required": [
           "id",
@@ -8145,7 +8903,7 @@
           "status",
           "version",
           "pic",
-          "anonymousReporter"
+          "reporter"
         ],
         "properties": {
           "id": {
@@ -8159,7 +8917,7 @@
           "audience": {
             "type": "string",
             "enum": [
-              "PRIVATE_RESPONDER"
+              "LEADERSHIP_GENERAL_READ_ONLY"
             ]
           },
           "visibility": {
@@ -8193,6 +8951,118 @@
             "nullable": true,
             "enum": [
               "SAFETY",
+              "ENVIRONMENT",
+              "FACILITY",
+              "WORK_DIFFICULTY"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_VERIFICATION",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pic": {
+            "type": "object",
+            "required": [
+              "label"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "reporter": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "UnionAnonymousVoiceDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayId",
+          "audience",
+          "visibility",
+          "area",
+          "locationDetail",
+          "title",
+          "detail",
+          "category",
+          "severity",
+          "status",
+          "version",
+          "pic",
+          "anonymousReporter"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayId": {
+            "type": "string",
+            "example": "CARE-202608-000001"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "UNION_ANONYMOUS"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SAFETY",
+              "ENVIRONMENT",
               "FACILITY",
               "WORK_DIFFICULTY"
             ]
@@ -8247,7 +9117,7 @@
           }
         }
       },
-      "AdminPrivateVoiceDetail": {
+      "UnionIdentifiedVoiceDetail": {
         "type": "object",
         "required": [
           "id",
@@ -8263,7 +9133,7 @@
           "status",
           "version",
           "pic",
-          "anonymousReporter"
+          "reporter"
         ],
         "properties": {
           "id": {
@@ -8277,7 +9147,7 @@
           "audience": {
             "type": "string",
             "enum": [
-              "ADMIN_PRIVATE"
+              "UNION_IDENTIFIED"
             ]
           },
           "visibility": {
@@ -8311,6 +9181,7 @@
             "nullable": true,
             "enum": [
               "SAFETY",
+              "ENVIRONMENT",
               "FACILITY",
               "WORK_DIFFICULTY"
             ]
@@ -8351,18 +9222,1228 @@
               }
             }
           },
-          "anonymousReporter": {
+          "reporter": {
             "type": "object",
             "required": [
-              "alias"
+              "noReg",
+              "name",
+              "division",
+              "department"
             ],
             "properties": {
-              "alias": {
+              "noReg": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "division": {
+                "type": "string"
+              },
+              "department": {
                 "type": "string"
               }
             }
           }
         }
+      },
+      "AdminPrivateVoiceDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayId",
+          "audience",
+          "visibility",
+          "area",
+          "locationDetail",
+          "title",
+          "detail",
+          "category",
+          "severity",
+          "status",
+          "version",
+          "pic",
+          "reporter"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayId": {
+            "type": "string",
+            "example": "CARE-202608-000001"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SAFETY",
+              "ENVIRONMENT",
+              "FACILITY",
+              "WORK_DIFFICULTY"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_VERIFICATION",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pic": {
+            "type": "object",
+            "required": [
+              "label"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "reporter": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "LocationReviewSnapshot": {
+        "type": "object",
+        "nullable": true,
+        "required": [
+          "id",
+          "completeness",
+          "questions",
+          "contentHash"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "completeness": {
+            "type": "string",
+            "enum": [
+              "COMPLETE",
+              "INCOMPLETE",
+              "UNKNOWN"
+            ]
+          },
+          "warning": {
+            "type": "string",
+            "nullable": true
+          },
+          "questions": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string"
+            }
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardAggregate": {
+        "type": "object",
+        "required": [
+          "total",
+          "status",
+          "severity",
+          "category",
+          "trend",
+          "division",
+          "department"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "category": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "trend": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "division": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "department": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          }
+        }
+      },
+      "AggregateBuckets": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "label",
+            "value"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "OrganizationImportPreview": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "summary"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PREVIEWED",
+              "QUEUED",
+              "PROCESSING",
+              "CONFIRMED",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AccountSummaryList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AccountSummary"
+        }
+      },
+      "AccountSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "accountKind",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "accountKind": {
+            "type": "string",
+            "enum": [
+              "CARE_ADMIN",
+              "WORKFORCE",
+              "UNION"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "LEGACY_HANDLER",
+              "INACTIVE"
+            ]
+          },
+          "employee": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "unionTerms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "RouteMappingResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "ownerAccountId",
+          "effectiveFrom"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "DEPARTMENT_HEAD",
+              "DEFAULT_DEPARTMENT",
+              "GLOBAL_SPECIAL",
+              "LEGACY"
+            ]
+          },
+          "organizationUnitId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ownerAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RemediationIssueList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RemediationIssue"
+        }
+      },
+      "RemediationIssue": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "status",
+          "details",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED",
+              "SUPERSEDED"
+            ]
+          },
+          "organizationUnitId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "RemediationResolutionList": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "action",
+            "reason"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "action": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "details": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "SectionHeadCandidateList": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "employeeName",
+            "section",
+            "structuralPosition",
+            "employee"
+          ],
+          "properties": {
+            "employeeName": {
+              "type": "string"
+            },
+            "section": {
+              "type": "string"
+            },
+            "structuralPosition": {
+              "type": "string"
+            },
+            "employee": {
+              "type": "object",
+              "required": [
+                "noReg",
+                "account"
+              ],
+              "properties": {
+                "noReg": {
+                  "type": "string"
+                },
+                "account": {
+                  "type": "object",
+                  "nullable": true,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "UnionAccountList": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "slot",
+            "account"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "slot": {
+              "type": "string",
+              "enum": [
+                "HEAD",
+                "OFFICER_1",
+                "OFFICER_2"
+              ]
+            },
+            "effectiveFrom": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "account": {
+              "$ref": "#/components/schemas/AccountSummary"
+            }
+          }
+        }
+      },
+      "UnionProvisionResponse": {
+        "type": "object",
+        "required": [
+          "slot",
+          "account",
+          "temporaryPassword",
+          "passwordChangeRequired"
+        ],
+        "properties": {
+          "slot": {
+            "type": "string",
+            "enum": [
+              "HEAD",
+              "OFFICER_1",
+              "OFFICER_2"
+            ]
+          },
+          "account": {
+            "$ref": "#/components/schemas/AccountSummary"
+          },
+          "temporaryPassword": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "passwordChangeRequired": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OrganizationChangeList": {
+        "type": "object",
+        "required": [
+          "id",
+          "changes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationChange"
+            }
+          }
+        }
+      },
+      "OrganizationChange": {
+        "type": "object",
+        "required": [
+          "noReg",
+          "type"
+        ],
+        "properties": {
+          "noReg": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CREATE",
+              "UPDATE",
+              "UNCHANGED",
+              "DEACTIVATE"
+            ]
+          },
+          "positionChanged": {
+            "type": "boolean"
+          },
+          "organizationChanged": {
+            "type": "boolean"
+          },
+          "nameChanged": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ImportQueuedResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED"
+            ]
+          }
+        }
+      },
+      "OrganizationImportList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OrganizationImportPreview"
+        }
+      },
+      "MetricsText": {
+        "type": "string"
+      },
+      "UpdatedCountResponse": {
+        "type": "object",
+        "required": [
+          "updated"
+        ],
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PushPublicKeyResponse": {
+        "type": "object",
+        "required": [
+          "publicKey",
+          "configured"
+        ],
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "configured": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PushStatusResponse": {
+        "type": "object",
+        "required": [
+          "configured",
+          "subscriptions"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "installationId",
+                "environment"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "installationId": {
+                  "type": "string"
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "lastSuccessAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "PushSubscriptionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "active"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NotificationPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "type",
+                "title",
+                "body",
+                "readAt",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "deepLink": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "readAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "VoiceListItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayId",
+          "visibility",
+          "area",
+          "title",
+          "severity",
+          "status",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayId": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SAFETY",
+              "ENVIRONMENT",
+              "FACILITY",
+              "WORK_DIFFICULTY"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_VERIFICATION",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VoiceListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoiceListItem"
+            }
+          }
+        }
+      },
+      "VoiceDraftResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "visibility",
+          "area",
+          "locationDetail",
+          "title",
+          "detail",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "showReporterIdentity": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "classificationContentHash": {
+            "type": "string"
+          },
+          "locationContentHash": {
+            "type": "string"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/ClassificationPreview"
+          },
+          "locationReview": {
+            "$ref": "#/components/schemas/LocationReviewSnapshot"
+          }
+        }
+      },
+      "VoiceDraftPreview": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VoiceDraftResponse"
+          },
+          {
+            "type": "object",
+            "required": [
+              "routeReadiness"
+            ],
+            "properties": {
+              "routeReadiness": {
+                "type": "object",
+                "required": [
+                  "ready"
+                ],
+                "properties": {
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "VoiceSubmittedResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayId",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_VERIFICATION",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          }
+        }
+      },
+      "VoiceMutationResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayId",
+          "status",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_VERIFICATION",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "currentHandlerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "handlerType": {
+            "type": "string"
+          }
+        }
+      },
+      "TimelineResponse": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "type",
+            "occurredAt",
+            "payload"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": {
+              "type": "string"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "AttachmentResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "mimeType",
+          "size",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MessageList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/MessageResponse"
+        }
+      },
+      "ConversationList": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "voiceId"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "voiceId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "voice": {
+              "$ref": "#/components/schemas/VoiceListItem"
+            },
+            "messages": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/MessageResponse"
+              }
+            }
+          }
+        }
+      },
+      "ClosureResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "voiceId",
+          "cycleNumber",
+          "note"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "voiceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycleNumber": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "RatingResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "closureCycleId",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "closureCycleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "feedback": {
+            "type": "string",
+            "nullable": true
+          },
+          "reopen": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MediaBinary": {
+        "type": "string",
+        "format": "binary"
       }
     }
   }

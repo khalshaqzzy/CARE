@@ -10,10 +10,10 @@ describe('representative 50,000-Voice queries', () => {
     });
     expect(count).toBeGreaterThanOrEqual(50_000);
     const manager = await prisma.userAccount.findUniqueOrThrow({
-      where: { username: 'PERF_MANAGER' },
+      where: { username: 'perf_00000' },
     });
     const members = await prisma.userAccount.findMany({
-      where: { username: { startsWith: 'PERF_MEMBER_' } },
+      where: { username: { startsWith: 'perf_', not: 'perf_00000' } },
       take: 40,
       orderBy: { username: 'asc' },
     });

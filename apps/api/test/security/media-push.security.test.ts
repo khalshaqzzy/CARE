@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { AttachmentPurpose, AttachmentState, Role } from '@prisma/client';
+import { AttachmentPurpose, AttachmentState } from '@prisma/client';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -48,7 +48,7 @@ describe('media and push security boundaries', () => {
     })
       .png()
       .toBuffer();
-    const service = new MediaService(prisma as any);
+    const service = new MediaService(prisma as any, {} as any);
     await expect(
       service.process(
         { buffer: png, size: png.length, mimetype: 'image/jpeg' } as Express.Multer.File,
@@ -83,7 +83,7 @@ describe('media and push security boundaries', () => {
       .jpeg()
       .withMetadata({ orientation: 6 })
       .toBuffer();
-    const service = new MediaService(prisma as any);
+    const service = new MediaService(prisma as any, {} as any);
     const result = await service.process(
       { buffer: input, size: input.length, mimetype: 'image/jpeg' } as Express.Multer.File,
       'account-id',
@@ -106,7 +106,7 @@ describe('media and push security boundaries', () => {
         {
           accountId: 'account',
           sessionId: 'session',
-          role: Role.MEMBER,
+          capabilities: ['MEMBER'],
         } as any,
         {
           installationId: 'phone',

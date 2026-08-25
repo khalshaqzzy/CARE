@@ -1,81 +1,47 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, ParseUUIDPipe, Put, Query } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
-import { Actor, Roles } from '../auth/auth.decorators';
+import { Actor, Capabilities } from '../auth/auth.decorators';
 import type { AuthActor } from '../auth/auth.types';
 import { AdminService } from './admin.service';
 
 @ApiTags('administration')
 @ApiCookieAuth()
+@Capabilities('CARE_ADMIN')
 @Controller('admin')
 export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
-  @Roles(Role.CARE_ADMIN) @Get('accounts') list(
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.service.listAccounts(cursor, Number(limit ?? 50));
+  @Get('accounts') accounts(@Query('search') search?: string) {
+    return this.service.accounts(search);
   }
-  @Roles(Role.CARE_ADMIN) @Get('accounts/:id') detail(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.accountDetail(id);
+  @Get('remediation-issues') issues(@Query('status') status?: string) {
+    return this.service.issues(status);
   }
-  @Roles(Role.CARE_ADMIN) @Post('accounts/:id/revoke-sessions') revokeSessions(
+  @Get('remediation-issues/history') resolutions() {
+    return this.service.resolutions();
+  }
+  @Put('organization-units/:id/default-pic') defaultPic(
     @Actor() actor: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: unknown,
   ) {
-    return this.service.revokeSessions(actor, id, body);
+    return this.service.setDefaultPic(actor, id, body);
   }
-  @Roles(Role.CARE_ADMIN) @Post('accounts/:id/reset-password') reset(
-    @Actor() actor: AuthActor,
+  @Put('routes/global-special-pic') globalPic(@Actor() actor: AuthActor, @Body() body: unknown) {
+    return this.service.setGlobalPic(actor, body);
+  }
+  @Get('organization-units/:id/section-head-candidates') sectionHeads(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
   ) {
-    return this.service.resetAccount(actor, id, body);
+    return this.service.sectionHeadCandidates(id);
   }
-  @Roles(Role.CARE_ADMIN) @Patch('accounts/:id/activate') activate(
+  @Get('union-accounts') unionAccounts() {
+    return this.service.unionAccounts();
+  }
+  @Put('union-accounts/:slot') unionAccount(
     @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('slot') slot: string,
     @Body() body: unknown,
   ) {
-    return this.service.setActive(actor, id, true, body);
-  }
-  @Roles(Role.CARE_ADMIN) @Patch('accounts/:id/deactivate') deactivate(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-  ) {
-    return this.service.setActive(actor, id, false, body);
-  }
-  @Roles(Role.MANAGER) @Get('employees/search') search(@Query('q') query = '') {
-    return this.service.searchEmployees(query);
-  }
-  @Roles(Role.MANAGER) @Post('section-heads/promote') promote(
-    @Actor() actor: AuthActor,
-    @Body() body: unknown,
-  ) {
-    return this.service.promoteSectionHead(actor, body);
-  }
-  @Roles(Role.MANAGER) @Post('section-heads/transfer') transfer(
-    @Actor() actor: AuthActor,
-    @Body() body: unknown,
-  ) {
-    return this.service.transferSectionHead(actor, body);
-  }
-  @Roles(Role.MANAGER) @Post('section-heads/remove') remove(
-    @Actor() actor: AuthActor,
-    @Body() body: unknown,
-  ) {
-    return this.service.removeSectionHead(actor, body);
+    return this.service.setUnionAccount(actor, slot, body);
   }
 }

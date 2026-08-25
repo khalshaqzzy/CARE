@@ -27,27 +27,26 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-id-v1');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.1');
     for (const value of [
       'SAFETY',
+      'ENVIRONMENT',
       'FACILITY',
       'WORK_DIFFICULTY',
       'LOW',
       'MEDIUM',
       'HIGH',
       'CRITICAL',
-      'harassment',
-      'chemical spill',
     ])
       expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(value);
-    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('Jangan memilih');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('no fixed category priority');
   });
   it('requires manual fallback without exposing a missing provider secret', async () => {
-    delete process.env.VERTEX_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     resetConfigForTests();
     const result = await new AiService().classify({
       area: 'KARAWANG_1',
-      department: 'Production',
+      visibility: 'GENERAL',
       title: 'Informasi',
       detail: 'Mohon tambahkan label yang lebih jelas.',
     });
@@ -55,7 +54,7 @@ describe('CARE domain contracts', () => {
       source: 'MANUAL_FALLBACK',
       fallbackCode: 'PROVIDER_NOT_CONFIGURED',
     });
-    expect(JSON.stringify(result)).not.toContain('VERTEX_API_KEY');
+    expect(JSON.stringify(result)).not.toContain('OPENAI_API_KEY');
   });
   it.each([
     [VoiceStatus.OPEN, 'ASK', VoiceStatus.IN_VERIFICATION],

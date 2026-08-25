@@ -2,10 +2,10 @@
 
 | Atribut             | Nilai                                                                                                      |
 | ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Status dokumen      | **Active product contract for v1.1 remediation**                                                           |
-| Status implementasi | **Backend Phase 6 remediation in progress; frontend blocked**                                              |
+| Status dokumen      | **Active product contract v1.1**                                                                           |
+| Status implementasi | **Backend Phase 6 complete and API v1.1 re-frozen; frontend Phase 7 pending**                              |
 | Versi dokumen       | 1.1                                                                                                        |
-| Tanggal             | 25 Agustus 2026                                                                                            |
+| Tanggal             | 26 Agustus 2026                                                                                            |
 | Product owner       | TMMIN                                                                                                      |
 | Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                  |
 | Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama |
@@ -174,7 +174,7 @@ Tujuan:
 
 Kemampuan:
 
-- upload/preview/confirm workbook organisasi `.xlsx` dan melihat import history;
+- upload/preview/confirm master organisasi `.xlsx` atau `.csv` dan melihat import history;
 - menyelesaikan organization remediation, memilih default PIC/PIC global, dan mengelola tiga akun Union;
 - melihat/mengelola employee, account, route mapping, dan effective organization snapshot;
 - reset password ke credential sementara dan mencabut session;
@@ -247,22 +247,22 @@ Tiga akun Union non-workforce dikelola Admin terpisah dari workbook: tepat satu 
 
 Legenda: `M` manage/mutate, `V` view, `O` operate workflow, `-` tidak memiliki akses.
 
-| Capability                          | CARE Admin | Member | Manager/Dept Head | Section Head | Division/Deputy |   Director | Union Head | Union Officer |
-| ----------------------------------- | ---------: | -----: | ----------------: | -----------: | --------------: | ---------: | ---------: | ------------: |
-| XLSX/import/remediation/Union admin |          M |      - |                 - |            - |               - |          - |          - |             - |
-| Reset/deactivate account            |          M |      - |                 - |            - |               - |          - |          - |             - |
-| Buat Voice                          |          - |      M |                 M |            M |               M |          M |          - |             - |
-| Voice milik sendiri                 |          V |      M |                 M |            M |               M |          M |          - |             - |
-| General overview                    |          V |    Own |          Division |     Assigned |             All |        All |        All |           All |
-| General detail                      |          V |    Own |  Dept/route scope |     Assigned |    Own division |        All |        All |           All |
-| General lifecycle action            |          - |      - |       Route scope |     Assigned |               - |          - |          - |             - |
-| Private content                     |     V full |    Own |               Own |          Own |               - |          - |        All |      Assigned |
-| Private reporter identity           |     V full |    Own |               Own |          Own |               - |          - | By consent |    By consent |
-| Assign Section Head                 |          - |      - |                 M |            - |               - |          - |          - |             - |
-| Assign Union Officer                |          - |      - |                 - |            - |               - |          - |          M |             - |
-| Private lifecycle action            |          - |      - |                 - |            - |               - |          - |        All |      Assigned |
-| Rating/reopen                       |          - |    Own |               Own |          Own |             Own |        Own |          - |             - |
-| System audit                        |          V |      - |   Scoped timeline |       Scoped |      Read scope | Read scope |     Scoped |        Scoped |
+| Capability                              | CARE Admin | Member | Manager/Dept Head | Section Head | Division/Deputy |   Director | Union Head | Union Officer |
+| --------------------------------------- | ---------: | -----: | ----------------: | -----------: | --------------: | ---------: | ---------: | ------------: |
+| XLSX/CSV import/remediation/Union admin |          M |      - |                 - |            - |               - |          - |          - |             - |
+| Reset/deactivate account                |          M |      - |                 - |            - |               - |          - |          - |             - |
+| Buat Voice                              |          - |      M |                 M |            M |               M |          M |          - |             - |
+| Voice milik sendiri                     |          V |      M |                 M |            M |               M |          M |          - |             - |
+| General overview                        |          V |    Own |          Division |     Assigned |             All |        All |        All |           All |
+| General detail                          |          V |    Own |  Dept/route scope |     Assigned |    Own division |        All |        All |           All |
+| General lifecycle action                |          - |      - |       Route scope |     Assigned |               - |          - |          - |             - |
+| Private content                         |     V full |    Own |               Own |          Own |               - |          - |        All |      Assigned |
+| Private reporter identity               |     V full |    Own |               Own |          Own |               - |          - | By consent |    By consent |
+| Assign Section Head                     |          - |      - |                 M |            - |               - |          - |          - |             - |
+| Assign Union Officer                    |          - |      - |                 - |            - |               - |          - |          M |             - |
+| Private lifecycle action                |          - |      - |                 - |            - |               - |          - |        All |      Assigned |
+| Rating/reopen                           |          - |    Own |               Own |          Own |             Own |        Own |          - |             - |
+| System audit                            |          V |      - |   Scoped timeline |       Scoped |      Read scope | Read scope |     Scoped |        Scoped |
 
 Authorization wajib ditegakkan di backend pada role, relationship, dan object level. Menyembunyikan tombol frontend bukan authorization.
 
@@ -310,11 +310,11 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 
 ---
 
-## 9. Master Data, XLSX Import, dan Remediation
+## 9. Master Data, XLSX/CSV Import, dan Remediation
 
-### 9.1 Authoritative Workbook Contract
+### 9.1 Authoritative Organization File Contract
 
-Admin mengunggah satu file `.xlsx` dengan sheet wajib `MFG + QD` dan tujuh header persis:
+Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format memakai tujuh header persis dengan urutan berikut:
 
 ```text
 Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
@@ -323,7 +323,8 @@ Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
 Aturan:
 
 - satu row merepresentasikan satu workforce account; `Noreg` diperlakukan sebagai text agar leading zero terjaga;
-- seluruh field wajib ada dan header asing/malformed workbook ditolak;
+- seluruh field wajib ada; kolom kedelapan, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak;
+- XLSX mewajibkan seluruh cell data berupa plain string atau blank; numeric/formula/date/rich-value ditolak. CSV mengikuti RFC-style quoting, menerima UTF-8 BOM, dan seluruh nilai diperlakukan sebagai text;
 - `Noreg` unik setelah trim; password existing tidak berubah akibat import;
 - organization unit memakai key komposit `Directorat + Division + Department`;
 - posisi mentah disimpan, tetapi hanya `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability;
@@ -922,7 +923,7 @@ Path final dapat disesuaikan selama OpenAPI mempertahankan capability berikut:
 
 #### Provisioning
 
-- upload/preview/confirm/history authoritative XLSX;
+- upload/preview/confirm/history authoritative XLSX atau CSV;
 - import batch detail, diff, issue, dan remediation resolution;
 - employee/account search dan effective organization read;
 - default PIC/global PIC read-write;
@@ -1102,7 +1103,7 @@ Kedua frontend wajib mengonsumsi generated contract yang sama dan tidak mendupli
 
 - Auth/Sessions;
 - Employees/Accounts;
-- XLSX Imports/Effective Organization/Remediation;
+- XLSX/CSV Imports/Effective Organization/Remediation;
 - Account Capability/Department Route/Global Route/Union Provisioning;
 - Voice Drafts/Uploads;
 - AI Classification/Location Review;
@@ -1136,7 +1137,7 @@ Domain mutation lintas Voice, assignment, event, closure, notification, dan audi
 
 ### 24.6 Implementation Sequencing
 
-- Backend Phase 6 remediation untuk schema/capability/effective master, XLSX, routing, Union, Responses AI, dashboard authorization, migration, dan OpenAPI wajib complete sebelum frontend implementation dimulai.
+- Backend Phase 6 remediation untuk schema/capability/effective master, XLSX/CSV, routing, Union, Responses AI, dashboard authorization, migration, dan OpenAPI wajib complete sebelum frontend implementation dimulai.
 - Admin web, workforce role journeys, responsive/PWA behavior, accessibility, generated-client integration, dan two-app browser E2E wajib complete sebelum production application containerization/deployment dimulai.
 - Docker-managed PostgreSQL tetap wajib sejak backend development untuk local/integration tests; hal ini adalah development/test infrastructure, bukan production application containerization.
 - Production API/workforce/Admin Dockerfiles, dual-host Caddy/remote Compose, release-by-SHA scripts, dan hosted CI/CD dikerjakan setelah Frontend Complete Gate.
@@ -1268,7 +1269,7 @@ Event minimum:
 
 - login success/failure/lockout/logout;
 - first-password change/reset/deactivation/session revocation;
-- XLSX import preview/confirm/failure dan authoritative deactivation;
+- XLSX/CSV import preview/confirm/failure dan authoritative deactivation;
 - default/global route change dan remediation resolution;
 - derived Section Head capability change akibat snapshot;
 - Union account create/reset/level/deactivation dan Union assignment;
@@ -1494,7 +1495,7 @@ Minimum:
 
 - password/first-login/reset/session rules;
 - account-kind/capability/object permission matrix dan tiga Private serializer variants;
-- XLSX sheet/header/row/effective-diff/default/global route/remediation validation;
+- XLSX sheet serta XLSX/CSV header/row/effective-diff/default/global route/remediation validation;
 - AI Responses structured parsing, no-fixed-priority behavior, confidence/fallback, location hash invalidation/acknowledgment;
 - severity rubric fixtures;
 - seluruh lifecycle transition dan invalid transition;
@@ -1508,7 +1509,7 @@ Minimum:
 
 - Prisma fresh/upgrade migrations;
 - Employee/OrganizationSnapshot/OrganizationUnit/account capability uniqueness dan foreign keys;
-- XLSX import preview/atomic confirm/idempotency/rollback/deactivation/remediation;
+- XLSX/CSV import preview/atomic confirm/idempotency/rollback/deactivation/remediation;
 - current-schema-to-v1.1 expand/contract backfill preserving every historical ID/PIC/event;
 - concurrent submit dan human-readable ID sequence;
 - route mutation vs active submission;
@@ -1527,7 +1528,7 @@ Minimum:
 Minimum journeys:
 
 1. Admin bootstrap/login pada Admin origin dan forced account workflows.
-2. XLSX invalid/valid preview, authoritative confirm, diff, remediation, dan preserved leading-zero no.reg.
+2. XLSX/CSV invalid/valid preview, authoritative confirm, diff, remediation, dan preserved leading-zero no.reg.
 3. Default PIC, PIC global, serta exactly-one-Head/two-Officer setup.
 4. Monthly snapshot deactivation dan legacy handler menyelesaikan Voice aktif tanpa menerima Voice baru.
 5. Member first login/change password dan pilihan awal Private/General.
@@ -1580,7 +1581,7 @@ Minimum journeys:
 
 ### 34.1 Identity, Organization, dan Provisioning
 
-- [ ] Satu upload `.xlsx` authoritative memakai sheet `MFG + QD` dan tujuh header persis; preview/confirm/history/audit tidak menyimpan raw production PII di Git.
+- [ ] Satu upload `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; preview/confirm/history/audit tidak menyimpan raw production PII di Git.
 - [ ] Preview memperlihatkan create/update/deactivate, perubahan posisi/unit, route gap, mapping PIC invalid, dan Union account gap; confirm berlaku atomik.
 - [ ] Leading-zero no.reg dipertahankan dan monthly snapshot menonaktifkan account yang hilang serta mencabut session-nya.
 - [ ] Capability diturunkan dari posisi struktural dan route assignment tanpa menghilangkan capability Member.
@@ -1754,7 +1755,7 @@ V1 siap production bila:
 7. workforce real-device PWA/push/offline dan Admin responsive UAT lulus;
 8. kedua staging origin lulus host-isolation, auto-deploy, release identity, smoke, dan rollback rehearsal;
 9. production workforce/admin domains, VM, DNS, secrets, OpenAI config, dan VAPID tersedia;
-10. authoritative XLSX UAT, monthly diff, Union setup, dan route remediation lengkap;
+10. authoritative XLSX/CSV UAT, monthly diff, Union setup, dan route remediation lengkap;
 11. critical accepted risks disetujui secara tertulis;
 12. incident/deployment/storage owner ditetapkan.
 
@@ -1764,7 +1765,7 @@ V1 siap production bila:
 
 - Workforce PWA dan Admin React app adalah dua frontend/deployment terpisah dengan satu backend dan generated OpenAPI client bersama.
 - Lima area tetap.
-- Satu workbook `.xlsx` authoritative memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
+- Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
 - Workforce master diimpor melalui Admin UI dan tidak disimpan di Git; tiga akun Union dikelola Admin di luar workbook.
 - First login/reset memakai username/no.reg sebagai temporary password dan wajib change.
 - Department Head dan Manager interchangeable; Department Head aktif otomatis menjadi Manager department-nya.

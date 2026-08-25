@@ -17,11 +17,11 @@ const schema = z.object({
   CURSOR_SIGNING_SECRET: z.string().min(32),
   SESSION_IDLE_HOURS: z.coerce.number().positive().default(8),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().positive().default(7),
-  VERTEX_API_KEY: optionalSecret,
-  VERTEX_MODEL: z.string().default('gemini-3.7-flash'),
-  VERTEX_LOCATION: z.string().default('global'),
-  VERTEX_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.75),
-  VERTEX_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  OPENAI_API_KEY: optionalSecret,
+  OPENAI_MODEL: z.string().optional().or(z.literal('')),
+  OPENAI_BASE_URL: z.string().url().optional().or(z.literal('')),
+  OPENAI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.75),
+  OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   VAPID_SUBJECT: z.string().optional().or(z.literal('')),
   VAPID_PUBLIC_KEY: optionalSecret,
   VAPID_PRIVATE_KEY: optionalSecret,
@@ -48,7 +48,7 @@ export function loadConfig(): AppConfig {
   }
   const value = parsed.data;
   if (value.NODE_ENV !== 'development' && value.NODE_ENV !== 'test') {
-    for (const key of ['VERTEX_API_KEY', 'METRICS_TOKEN'] as const) {
+    for (const key of ['METRICS_TOKEN'] as const) {
       if (!value[key]) throw new Error(`Missing required runtime configuration field: ${key}`);
     }
   }
@@ -76,10 +76,9 @@ export function redactedConfig(config = loadConfig()) {
     environment: config.NODE_ENV,
     releaseSha: config.RELEASE_SHA,
     mediaRoot: config.MEDIA_ROOT,
-    vertex: {
-      configured: Boolean(config.VERTEX_API_KEY),
-      model: config.VERTEX_MODEL,
-      location: config.VERTEX_LOCATION,
+    openai: {
+      configured: Boolean(config.OPENAI_API_KEY && config.OPENAI_MODEL && config.OPENAI_BASE_URL),
+      model: config.OPENAI_MODEL || null,
     },
     push: { configured: Boolean(config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) },
   };

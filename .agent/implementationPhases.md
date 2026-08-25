@@ -2,11 +2,11 @@
 
 | Atribut                | Nilai                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
-| Status roadmap         | Active remediation baseline                                                                   |
-| Last updated           | 25 Agustus 2026                                                                               |
+| Status roadmap         | Backend v1.1 re-freeze complete; frontend pending                                             |
+| Last updated           | 26 Agustus 2026                                                                               |
 | Product contract       | `.agent/PRD.md` v1.1                                                                          |
-| Current implementation | Phase 0–5 delivered under superseded v1.0 assumptions; v1.1 remediation is not yet complete   |
-| Current phase          | Phase 6.1 `in_progress`                                                                       |
+| Current implementation | Phase 0–5 historical baseline and Phase 6 v1.1 backend remediation complete                   |
+| Current phase          | Phase 6 `done`; Phase 7 `pending`                                                             |
 | Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
@@ -146,7 +146,7 @@ Acceptance historis:
 
 ## Phase 6 — Backend Contract Remediation and Re-freeze
 
-Aggregate state: active; Phase 6.1 adalah satu-satunya subphase berstatus `in_progress`.
+Aggregate state: `done`; seluruh subphase 6.1–6.6 selesai dan API v1.1 telah dire-freeze.
 
 Dependencies: historical Phase 1–5 implementation and PRD v1.1.
 
@@ -154,7 +154,7 @@ Tujuan: memigrasikan implementasi v1.0 ke kontrak v1.1 tanpa menghapus ID, event
 
 ### Phase 6.1 — Schema, Capability, Effective Master, and Historical Backfill
 
-Status: `in_progress`
+Status: `done`
 
 Scope:
 
@@ -174,15 +174,15 @@ Acceptance:
 - legacy active handler hanya mempertahankan akses Voice lama sampai selesai dan tidak eligible untuk route baru;
 - tidak ada destructive drop sebelum seluruh reader/writer memakai schema baru dan verification query green.
 
-### Phase 6.2 — Authoritative XLSX Import and Administration
+### Phase 6.2 — Authoritative XLSX/CSV Import and Administration
 
-Status: `pending`
+Status: `done`
 
 Dependencies: Phase 6.1.
 
 Scope:
 
-- ganti Employee/Manager CSV dan Union JSON dengan `.xlsx` sheet `MFG + QD` dan tujuh header persis;
+- ganti import terpisah Employee/Manager/Union dengan satu file `.xlsx` atau UTF-8 `.csv`; XLSX memakai sheet `MFG + QD`, dan kedua format memakai tujuh header persis;
 - preserve leading-zero no.reg, raw structural position, composite unit, preview/confirm/history, dan 10.000-account baseline;
 - monthly full snapshot: create/update/deactivate, session revocation, effective history, mapping invalidation, dan legacy handler preservation;
 - preview diff untuk posisi/unit/route gap/global PIC invalid/Union gap;
@@ -194,7 +194,7 @@ Scope:
 
 Acceptance:
 
-- fixture workbook menguji exact sheet/header, 7.018 rows, leading-zero no.reg, duplicate validation, duplicate department names lintas divisi, 12 named departments tanpa Head, dan 188 rows `Department=14`;
+- fixture XLSX/CSV menguji exact sheet/header/column count, quoting/BOM CSV, 7.018 rows, leading-zero no.reg, duplicate validation, duplicate department names lintas divisi, 12 named departments tanpa Head, dan 188 rows `Department=14`;
 - preview/confirm atomik, field-addressable, audited, dan tidak partial write;
 - 10.000-account import memenuhi target performa;
 - deactivated account tidak dapat login/bertindak, sementara legacy handler dapat menyelesaikan Voice lama dalam scope terbatas;
@@ -203,7 +203,7 @@ Acceptance:
 
 ### Phase 6.3 — General/Private Routing, Union, and Identity Consent
 
-Status: `pending`
+Status: `done`
 
 Dependencies: Phase 6.2.
 
@@ -229,7 +229,7 @@ Acceptance:
 
 ### Phase 6.4 — OpenAI Responses, Classification, and Location Review
 
-Status: `pending`
+Status: `done`
 
 Dependencies: Phase 6.3.
 
@@ -248,12 +248,12 @@ Acceptance:
 
 - tests mencakup valid schema, refusal/incomplete, invalid schema, timeout, bounded retry, low confidence, missing config, Private severity-only, dan sanitized logs;
 - location cache hit/invalidation, stale acknowledgment rejection, `INCOMPLETE` confirmation, dan provider failure path lulus;
-- live non-sensitive Responses smoke lulus untuk classification dan location schemas dengan external runtime config;
+- deterministic local mock `/responses` smoke lulus untuk classification dan location schemas tanpa external API key; live provider validation dipindahkan ke staging rehearsal setelah config tersedia;
 - tidak ada Gemini/Vertex dependency, env, metadata, atau normative contract tersisa.
 
 ### Phase 6.5 — Dashboard, Detail/Action Authorization, and Cross-Cutting Services
 
-Status: `pending`
+Status: `done`
 
 Dependencies: Phase 6.4.
 
@@ -280,7 +280,7 @@ Acceptance:
 
 ### Phase 6.6 — Contract Regeneration and Backend Complete Gate
 
-Status: `pending`
+Status: `done`
 
 Dependencies: Phase 6.1–6.5.
 
@@ -300,10 +300,10 @@ Backend Complete Gate acceptance:
 - 10.000-account/50.000-Voice/50-concurrent profile memenuhi PRD target;
 - no unresolved Critical/High backend security finding;
 - OpenAPI drift check dan generated client green;
-- live OpenAI Responses classification/location smoke green dengan external config;
+- mock OpenAI-compatible `/responses` classification/location smoke green tanpa external API key, sesuai keputusan pengujian; live provider smoke menjadi staging validation dan bukan Phase 6 test dependency;
 - handoff mencatat **Backend Complete Gate: passed** sebelum Phase 7 dimulai.
 
-Gate saat ini: **not passed**. Phase 7 tetap blocked oleh sequencing sampai Phase 6.1–6.6 selesai; ketiadaan runtime OpenAI config tidak menghalangi pekerjaan 6.1–6.5, tetapi menghalangi final gate.
+Gate saat ini: **passed** pada 26 Agustus 2026. Phase 7 boleh dimulai. Base URL/model/API key riil tetap external dependency untuk staging dan production, bukan dependency unit/integration/smoke test.
 
 ---
 
@@ -341,7 +341,7 @@ Dependencies: Phase 7.
 Scope:
 
 - Admin bootstrap/account/reset pages pada `admin-ped.qd-tmmin.site` staging;
-- XLSX initial/monthly upload, preview/diff/confirm/history;
+- XLSX/CSV initial/monthly upload, preview/diff/confirm/history;
 - remediation queue, default PIC, global PIC, three-Union-account, route, account, import issue, dan resolution audit pages;
 - read-only Section Head candidates, Voice Explorer, Private full-identity detail, audit, dan system status.
 
@@ -484,4 +484,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Mulai Phase 6.1 dengan schema/capability/effective-master migration design, inventarisasi current-schema columns/constraints, dan current-schema upgrade test yang membuktikan historical ID/PIC/event preservation. Jangan memulai frontend. Live OpenAI Responses smoke dilakukan pada Phase 6.4/6.6 setelah base URL, model, dan API key diberikan melalui runtime environment.
+Mulai Phase 7 shared frontend foundations untuk workforce PWA dan Admin app menggunakan generated OpenAPI v1.1 client. Pertahankan mock Responses pada automated test; validasi provider riil dilakukan saat Phase 13 staging setelah base URL, model, dan API key tersedia.

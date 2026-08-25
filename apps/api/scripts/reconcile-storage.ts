@@ -1,4 +1,4 @@
-import { AttachmentState, ImportStatus, PrismaClient } from '@prisma/client';
+import { AccountStatus, AttachmentState, ImportStatus, PrismaClient } from '@prisma/client';
 import { readdir, unlink } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 import { loadConfig } from '../src/config';
@@ -15,16 +15,23 @@ function safePath(root: string, key: string) {
 async function main() {
   const now = new Date();
   const objectRoot = resolve(loadConfig().MEDIA_ROOT, 'objects');
-  const importRoot = resolve(loadConfig().MEDIA_ROOT, 'imports');
-  const [attachments, expiredImports, expiredDrafts] = await Promise.all([
+  const mediaRoot = resolve(loadConfig().MEDIA_ROOT);
+  const [attachments, expiredImports, expiredDrafts, staleLegacyAccess] = await Promise.all([
     prisma.attachment.findMany({ select: { id: true, storageKey: true, state: true } }),
     prisma.importBatch.findMany({
-      where: { status: ImportStatus.PREVIEWED, expiresAt: { lt: now } },
+      where: {
+        status: { in: [ImportStatus.PREVIEWED, ImportStatus.FAILED] },
+        expiresAt: { lt: now },
+      },
       select: { id: true, storageKey: true },
     }),
     prisma.voiceDraft.findMany({
       where: { submittedAt: null, expiresAt: { lt: now } },
       select: { id: true, attachments: { select: { id: true, storageKey: true } } },
+    }),
+    prisma.legacyVoiceAccess.findMany({
+      where: { effectiveTo: null, voice: { status: 'CLOSED' } },
+      select: { id: true, accountId: true },
     }),
   ]);
   const referenced = new Set(attachments.map((item) => item.storageKey));
@@ -41,7 +48,7 @@ async function main() {
     for (const item of orphanedAttachments)
       await unlink(safePath(objectRoot, item.storageKey)).catch(() => undefined);
     for (const batch of expiredImports)
-      await unlink(safePath(importRoot, batch.storageKey)).catch(() => undefined);
+      await unlink(safePath(mediaRoot, batch.storageKey)).catch(() => undefined);
     await prisma.$transaction(async (tx) => {
       await tx.importBatch.updateMany({
         where: { id: { in: expiredImports.map((item) => item.id) } },
@@ -53,7 +60,22 @@ async function main() {
           data: { draftId: null, state: AttachmentState.ORPHANED },
         });
         await tx.aIClassification.deleteMany({ where: { draftId: draft.id } });
+        await tx.locationReviewSnapshot.deleteMany({ where: { draftId: draft.id } });
         await tx.voiceDraft.delete({ where: { id: draft.id } });
+      }
+      await tx.legacyVoiceAccess.updateMany({
+        where: { id: { in: staleLegacyAccess.map((item) => item.id) } },
+        data: { effectiveTo: now },
+      });
+      for (const accountId of new Set(staleLegacyAccess.map((item) => item.accountId))) {
+        const remaining = await tx.legacyVoiceAccess.count({
+          where: { accountId, effectiveTo: null },
+        });
+        if (!remaining)
+          await tx.userAccount.updateMany({
+            where: { id: accountId, status: AccountStatus.LEGACY_HANDLER },
+            data: { status: AccountStatus.INACTIVE, deactivatedAt: now },
+          });
       }
       await tx.idempotencyRecord.deleteMany({ where: { expiresAt: { lt: now } } });
       await tx.requestThrottle.deleteMany({ where: { expiresAt: { lt: now } } });
@@ -62,7 +84,7 @@ async function main() {
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: execute ? 'execute' : 'dry-run', unreferencedFiles: unreferencedFiles.length, orphanedAttachments: orphanedAttachments.length, expiredImports: expiredImports.length, expiredDrafts: expiredDrafts.length })}\n`,
+    `${JSON.stringify({ mode: execute ? 'execute' : 'dry-run', unreferencedFiles: unreferencedFiles.length, orphanedAttachments: orphanedAttachments.length, expiredImports: expiredImports.length, expiredDrafts: expiredDrafts.length, staleLegacyAccess: staleLegacyAccess.length })}\n`,
   );
 }
 

@@ -1,11 +1,11 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { AccountKind, PrismaClient } from '@prisma/client';
 import { hash } from 'argon2';
 import { loadLocalEnv } from '../src/load-local-env';
 
 loadLocalEnv();
 
 async function main() {
-  const username = process.env.CARE_ADMIN_USERNAME?.trim();
+  const username = process.env.CARE_ADMIN_USERNAME?.trim().toLocaleLowerCase('en-US');
   const password = process.env.CARE_ADMIN_PASSWORD;
   if (!username || !password || password.length < 12 || password === username)
     throw new Error(
@@ -19,12 +19,12 @@ async function main() {
         data: {
           username,
           displayName: 'CARE Admin',
-          role: Role.CARE_ADMIN,
+          accountKind: AccountKind.CARE_ADMIN,
           passwordHash: await hash(password),
           passwordChangeRequired: false,
         },
       });
-    else if (existing.role !== Role.CARE_ADMIN)
+    else if (existing.accountKind !== AccountKind.CARE_ADMIN)
       throw new Error('Bootstrap username belongs to a non-admin account');
     process.stdout.write('CARE Admin bootstrap completed\n');
   } finally {

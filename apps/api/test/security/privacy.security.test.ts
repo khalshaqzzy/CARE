@@ -1,48 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { Role, VoiceVisibility } from '@prisma/client';
 import { VoicesService } from '../../src/voices/voices.service';
 
+const voice = {
+  id: 'voice',
+  displayId: 'CARE-202608-000001',
+  reporterId: 'reporter-secret',
+  visibility: 'PRIVATE',
+  area: 'KARAWANG_1',
+  locationDetail: 'line',
+  title: 'private',
+  detail: 'detail',
+  category: null,
+  severity: 'HIGH',
+  status: 'OPEN',
+  version: 1,
+  routeOwner: null,
+  currentHandler: null,
+  attachments: [],
+  locationReview: null,
+  anonymousAlias: 'Anonymous-X',
+  reporterNoRegSnapshot: 'SECRET',
+  reporterNameSnapshot: 'Secret Name',
+  reporterDirectorateSnapshot: 'Secret Directorate',
+  reporterDivisionSnapshot: 'Secret Division',
+  reporterDepartmentSnapshot: 'Secret Department',
+  reporterSectionSnapshot: 'Secret Section',
+  reporterPositionSnapshot: 'Member',
+};
+const actor = (capabilities: string[]) => ({ accountId: 'union', capabilities });
+
 describe('Private Voice response boundary', () => {
-  it('scopes Union access to the immutable route owner relationship', async () => {
+  it('omits identity fields from anonymous Union DTOs', () => {
     const service = Object.create(VoicesService.prototype) as any;
-    await expect(
-      service.scope({ accountId: 'union-route-owner', role: Role.UNION }),
-    ).resolves.toEqual({
-      visibility: VoiceVisibility.PRIVATE,
-      routeOwnerId: 'union-route-owner',
+    const response = service.serialize(actor(['UNION_HEAD']), {
+      ...voice,
+      showReporterIdentity: false,
     });
-  });
-  it('does not serialize reporter identity to Union or Admin audiences', () => {
-    const service = Object.create(VoicesService.prototype) as any;
-    const response = service.serialize(
-      { accountId: 'union', role: Role.UNION },
-      {
-        id: 'voice',
-        displayId: 'CARE-202608-000001',
-        visibility: VoiceVisibility.PRIVATE,
-        area: 'KARAWANG_1',
-        locationDetail: 'line',
-        title: 'private',
-        detail: 'detail',
-        category: null,
-        severity: 'HIGH',
-        status: 'OPEN',
-        version: 1,
-        currentHandlerId: null,
-        reporterId: 'reporter-secret',
-        anonymousAlias: 'Anonymous-X',
-        reporter: {
-          employee: {
-            noReg: 'SECRET',
-            name: 'Secret Name',
-            division: 'Secret Division',
-            department: 'Secret Department',
-          },
-        },
-      },
-    );
+    expect(response.audience).toBe('UNION_ANONYMOUS');
     const json = JSON.stringify(response);
-    expect(response.audience).toBe('PRIVATE_RESPONDER');
     expect(json).toContain('Anonymous-X');
     for (const value of [
       'reporter-secret',
@@ -52,5 +47,24 @@ describe('Private Voice response boundary', () => {
       'Secret Department',
     ])
       expect(json).not.toContain(value);
+  });
+  it('reveals only consented fields to Union and full snapshots to Admin', () => {
+    const service = Object.create(VoicesService.prototype) as any;
+    const identified = service.serialize(actor(['UNION_HEAD']), {
+      ...voice,
+      showReporterIdentity: true,
+    });
+    expect(identified.reporter).toEqual({
+      noReg: 'SECRET',
+      name: 'Secret Name',
+      division: 'Secret Division',
+      department: 'Secret Department',
+    });
+    const admin = service.serialize(actor(['CARE_ADMIN']), {
+      ...voice,
+      showReporterIdentity: false,
+    });
+    expect(admin.audience).toBe('ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY');
+    expect(admin.reporter.section).toBe('Secret Section');
   });
 });

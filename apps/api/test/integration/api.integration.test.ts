@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PrismaClient, Role } from '@prisma/client';
+import { AccountKind, AccountStatus, PrismaClient } from '@prisma/client';
 import { hash } from 'argon2';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
@@ -12,17 +12,18 @@ describe('API session boundary', () => {
     app = await createApp();
     await app.init();
     await prisma.requestThrottle.deleteMany();
+    await prisma.outboxEvent.deleteMany();
     await prisma.userAccount.upsert({
       where: { username: 'api-admin' },
       update: {
         passwordHash: await hash('initial-admin-password'),
-        active: true,
+        status: AccountStatus.ACTIVE,
         passwordChangeRequired: true,
       },
       create: {
         username: 'api-admin',
         displayName: 'API Admin',
-        role: Role.CARE_ADMIN,
+        accountKind: AccountKind.CARE_ADMIN,
         passwordHash: await hash('initial-admin-password'),
         passwordChangeRequired: true,
       },

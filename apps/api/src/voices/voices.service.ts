@@ -1,57 +1,108 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
+  AccountStatus,
   AttachmentPurpose,
+  ClassificationSource,
   HandlerType,
+  LocationCompleteness,
   NotificationType,
   Prisma,
-  Role,
+  RouteKind,
   RoutingCategory,
   Severity,
+  UnionSlot,
   VoiceEventType,
   VoiceStatus,
   VoiceVisibility,
 } from '@prisma/client';
 import { z } from 'zod';
 import { AiService } from '../ai/ai.service';
-import { CLASSIFICATION_PROMPT_VERSION } from '../ai/prompt';
+import { CLASSIFICATION_PROMPT_VERSION, LOCATION_PROMPT_VERSION } from '../ai/prompt';
 import type { AuthActor } from '../auth/auth.types';
-import { decodeCursor, encodeCursor } from '../common/cursor';
-import { canonicalHash, randomToken, sha256 } from '../common/crypto';
-import { badRequest, conflict, forbiddenAsNotFound, invalidTransition } from '../common/errors';
-import { parse } from '../common/validation';
+import { PolicyService } from '../auth/policy.service';
+import { canonicalHash } from '../common/crypto';
+import {
+  AppError,
+  badRequest,
+  conflict,
+  forbiddenAsNotFound,
+  invalidTransition,
+} from '../common/errors';
 import { loadConfig } from '../config';
 import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma.service';
+import { ratingError, transitionTarget } from './policies';
 
-const draftSchema = z.object({
-  area: z.enum(['KARAWANG_1', 'KARAWANG_2', 'KARAWANG_3', 'SUNTER_1', 'SUNTER_2']),
-  locationDetail: z.string().trim().min(1).max(200),
-  title: z.string().trim().min(1).max(150),
-  detail: z.string().trim().min(1).max(5000),
-  visibility: z.nativeEnum(VoiceVisibility),
-  expectedVersion: z.number().int().positive().optional(),
-});
-const manualSchema = z.object({
-  category: z.nativeEnum(RoutingCategory),
-  severity: z.nativeEnum(Severity),
-  expectedVersion: z.number().int().positive(),
-});
-const versionSchema = z.object({ expectedVersion: z.number().int().positive() });
-const assignSchema = versionSchema.extend({ sectionHeadAccountId: z.string().uuid() });
-const askSchema = versionSchema.extend({ message: z.string().trim().min(1).max(4000) });
-const messageSchema = z.object({
-  text: z.string().trim().max(4000).optional(),
-  expectedVersion: z.number().int().positive(),
-});
-const closeSchema = versionSchema.extend({
-  note: z.string().trim().min(1).max(4000),
-  evidenceIds: z.array(z.string().uuid()).min(1).max(5),
-});
-const ratingSchema = versionSchema.extend({
-  score: z.number().int().min(1).max(5),
-  feedback: z.string().trim().max(2000).optional(),
-  reopen: z.boolean().default(false),
-});
+const draftSchema = z
+  .object({
+    area: z.enum(['KARAWANG_1', 'KARAWANG_2', 'KARAWANG_3', 'SUNTER_1', 'SUNTER_2']),
+    locationDetail: z.string().trim().min(1).max(200),
+    title: z.string().trim().min(1).max(150),
+    detail: z.string().trim().min(1).max(5000),
+    visibility: z.nativeEnum(VoiceVisibility),
+    showReporterIdentity: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.visibility === VoiceVisibility.PRIVATE && value.showReporterIdentity === undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['showReporterIdentity'],
+        message: 'Required for Private Voice',
+      });
+    if (value.visibility === VoiceVisibility.GENERAL && value.showReporterIdentity !== undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['showReporterIdentity'],
+        message: 'Not accepted for General Voice',
+      });
+  });
+const manualSchema = z
+  .object({
+    category: z.nativeEnum(RoutingCategory).nullable().optional(),
+    severity: z.nativeEnum(Severity),
+  })
+  .strict();
+const submitSchema = z
+  .object({
+    version: z.number().int().positive(),
+    locationReviewId: z.string().uuid().nullable().optional(),
+    locationContentHash: z.string().length(64).nullable().optional(),
+    acknowledgeIncompleteLocation: z.boolean().optional(),
+  })
+  .strict();
+const assignmentSchema = z
+  .object({ handlerAccountId: z.string().uuid(), reason: z.string().trim().max(500).optional() })
+  .strict();
+const textSchema = z
+  .object({ text: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
+  .strict();
+const closeSchema = z
+  .object({ note: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
+  .strict();
+const ratingSchema = z
+  .object({
+    score: z.number().int(),
+    feedback: z.string().trim().max(2000).optional(),
+    reopen: z.boolean().default(false),
+  })
+  .strict();
+const locationWarning =
+  'Detail lokasi Anda belum lengkap, dan Voice berpotensi tidak ditangani dengan baik.';
+const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
+  const result = schema.safeParse(value);
+  if (!result.success)
+    throw badRequest(
+      'VALIDATION_ERROR',
+      'Request validation failed',
+      result.error.issues.map((issue) => ({
+        field: issue.path.join('.'),
+        code: issue.code,
+        message: issue.message,
+      })),
+    );
+  return result.data;
+};
 
 @Injectable()
 export class VoicesService {
@@ -59,491 +110,436 @@ export class VoicesService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AiService) private readonly ai: AiService,
     @Inject(MediaService) private readonly media: MediaService,
+    @Inject(PolicyService) private readonly policy: PolicyService,
   ) {}
+
   async createDraft(actor: AuthActor, input: unknown) {
-    this.requireReporter(actor);
+    if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
     const data = parse(draftSchema, input);
-    const department = await this.department(actor);
-    const contentHash = this.contentHash(data, department);
+    const organization = await this.currentOrganization(actor);
+    const hashes = this.hashes(data);
     return this.prisma.voiceDraft.create({
       data: {
         reporterId: actor.accountId,
-        area: data.area,
-        locationDetail: data.locationDetail,
-        title: data.title,
-        detail: data.detail,
-        visibility: data.visibility,
-        reporterDepartment: department,
-        contentHash,
-        expiresAt: new Date(Date.now() + 30 * 86_400_000),
+        ...data,
+        organizationSnapshotId: organization.snapshotId,
+        organizationUnitId: organization.organizationUnitId,
+        ...hashes,
+        expiresAt: new Date(Date.now() + 7 * 86_400_000),
       },
-    });
-  }
-  async updateDraft(actor: AuthActor, id: string, input: unknown) {
-    const data = parse(draftSchema, input);
-    if (!data.expectedVersion)
-      throw badRequest('EXPECTED_VERSION_REQUIRED', 'expectedVersion is required');
-    const draft = await this.ownDraft(actor, id);
-    if (draft.version !== data.expectedVersion)
-      throw conflict('VERSION_CONFLICT', 'Draft version is stale', {
-        currentVersion: draft.version,
-      });
-    const department = await this.department(actor);
-    const contentHash = this.contentHash(data, department);
-    const changed = contentHash !== draft.contentHash;
-    return this.prisma.$transaction(async (tx) => {
-      if (changed) await tx.aIClassification.deleteMany({ where: { draftId: id } });
-      return tx.voiceDraft.update({
-        where: { id, version: data.expectedVersion },
-        data: {
-          area: data.area,
-          locationDetail: data.locationDetail,
-          title: data.title,
-          detail: data.detail,
-          visibility: data.visibility,
-          reporterDepartment: department,
-          contentHash,
-          version: { increment: 1 },
-          expiresAt: new Date(Date.now() + 30 * 86_400_000),
-        },
-      });
     });
   }
   async getDraft(actor: AuthActor, id: string) {
-    return this.ownDraft(actor, id, { classification: true, attachments: true });
+    return this.ownedDraft(actor, id);
   }
-  async previewDraft(actor: AuthActor, id: string) {
-    const draft = await this.prisma.voiceDraft.findFirst({
-      where: { id, reporterId: actor.accountId },
-      include: { classification: true, attachments: true },
+  async updateDraft(actor: AuthActor, id: string, input: unknown) {
+    const data = parse(draftSchema, input);
+    const draft = await this.ownedDraft(actor, id);
+    if (draft.submittedAt) throw conflict('DRAFT_SUBMITTED', 'Draft was already submitted');
+    const hashes = this.hashes(data);
+    const classificationChanged =
+      hashes.classificationContentHash !== draft.classificationContentHash;
+    const locationChanged = hashes.locationContentHash !== draft.locationContentHash;
+    return this.prisma.$transaction(async (tx) => {
+      if (classificationChanged) await tx.aIClassification.deleteMany({ where: { draftId: id } });
+      if (locationChanged) await tx.locationReviewSnapshot.deleteMany({ where: { draftId: id } });
+      return tx.voiceDraft.update({
+        where: { id },
+        data: { ...data, ...hashes, version: { increment: 1 } },
+        include: { classification: true, locationReview: true },
+      });
     });
-    if (!draft) throw forbiddenAsNotFound();
-    if (!draft.classification || draft.classification.contentHash !== draft.contentHash)
-      throw badRequest('CLASSIFICATION_REQUIRED', 'Current classification is required');
-    const route = await this.prisma.$transaction((tx) =>
-      this.resolveRoute(
-        tx,
-        draft.visibility,
-        draft.classification!.category,
-        draft.area,
-        draft.reporterDepartment,
-      ),
-    );
-    return {
-      draft: {
-        id: draft.id,
-        version: draft.version,
-        area: draft.area,
-        locationDetail: draft.locationDetail,
-        title: draft.title,
-        detail: draft.detail,
-        visibility: draft.visibility,
-      },
-      classification: {
-        source: draft.classification.source,
-        category:
-          draft.visibility === VoiceVisibility.PRIVATE ? null : draft.classification.category,
-        severity: draft.classification.severity,
-        confidence: draft.classification.confidence,
-      },
-      attachmentCount: draft.attachments.filter((item) => item.state === 'READY').length,
-      route: {
-        type: draft.visibility === VoiceVisibility.PRIVATE ? 'UNION' : 'MANAGER',
-        label: draft.visibility === VoiceVisibility.PRIVATE ? 'Union' : route.displayName,
-      },
-    };
   }
   async deleteDraft(actor: AuthActor, id: string) {
-    const draft = await this.ownDraft(actor, id);
-    if (draft.submittedAt) throw conflict('DRAFT_SUBMITTED', 'Submitted draft cannot be deleted');
+    await this.ownedDraft(actor, id);
     await this.prisma.voiceDraft.delete({ where: { id } });
     return { success: true };
   }
   async addDraftAttachment(actor: AuthActor, id: string, file: Express.Multer.File) {
-    await this.ownDraft(actor, id);
-    const count = await this.prisma.attachment.count({ where: { draftId: id } });
-    if (count >= 5) throw badRequest('ATTACHMENT_LIMIT', 'Maximum five draft images');
+    await this.ownedDraft(actor, id);
     return this.media.process(file, actor.accountId, AttachmentPurpose.VOICE, { draftId: id });
   }
-  async removeDraftAttachment(actor: AuthActor, draftId: string, attachmentId: string) {
-    await this.ownDraft(actor, draftId);
-    const attachment = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, draftId, uploaderId: actor.accountId },
+  async removeDraftAttachment(actor: AuthActor, id: string, attachmentId: string) {
+    await this.ownedDraft(actor, id);
+    const result = await this.prisma.attachment.deleteMany({
+      where: { id: attachmentId, draftId: id, uploaderId: actor.accountId },
     });
-    if (!attachment) throw forbiddenAsNotFound();
-    await this.prisma.attachment.update({
-      where: { id: attachmentId },
-      data: { state: 'ORPHANED', draftId: null },
-    });
+    if (!result.count) throw forbiddenAsNotFound();
     return { success: true };
   }
+
   async classify(actor: AuthActor, id: string) {
-    const draft = await this.ownDraft(actor, id);
+    const draft = await this.refreshAiHashes(await this.ownedDraft(actor, id));
     const result = await this.ai.classify({
-      area: draft.area,
-      department: draft.reporterDepartment,
+      visibility: draft.visibility,
+      area: draft.visibility === VoiceVisibility.GENERAL ? draft.area : undefined,
       title: draft.title,
       detail: draft.detail,
     });
-    await this.prisma.aIClassification.deleteMany({ where: { draftId: id } });
-    if (result.source === 'AI')
-      return this.prisma.aIClassification.create({
-        data: {
+    if (result.source === 'AI') {
+      return this.prisma.aIClassification.upsert({
+        where: { draftId: id },
+        create: {
           draftId: id,
           model: result.model,
-          location: result.location,
           promptVersion: result.promptVersion,
-          source: 'AI',
-          category: result.result.category,
-          severity: result.result.severity,
-          confidence: result.result.confidence,
-          rationaleCode: result.result.rationaleCode,
-          contentHash: draft.contentHash,
+          source: ClassificationSource.AI,
+          ...result.result,
+          contentHash: draft.classificationContentHash,
           responseId: result.responseId,
           latencyMs: result.latencyMs,
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
+        },
+        update: {
+          model: result.model,
+          promptVersion: result.promptVersion,
+          source: ClassificationSource.AI,
+          ...result.result,
+          contentHash: draft.classificationContentHash,
+          responseId: result.responseId,
+          latencyMs: result.latencyMs,
+          fallbackCode: null,
         },
       });
+    }
     return {
-      source: 'MANUAL_FALLBACK',
+      source: ClassificationSource.MANUAL_FALLBACK,
       fallbackCode: result.fallbackCode,
-      candidate: result.candidate ?? null,
+      candidate: 'candidate' in result ? result.candidate : undefined,
     };
   }
   async manualClassification(actor: AuthActor, id: string, input: unknown) {
+    const draft = await this.refreshAiHashes(await this.ownedDraft(actor, id));
     const data = parse(manualSchema, input);
-    const draft = await this.ownDraft(actor, id);
-    if (draft.version !== data.expectedVersion)
-      throw conflict('VERSION_CONFLICT', 'Draft version is stale', {
-        currentVersion: draft.version,
-      });
-    await this.prisma.aIClassification.deleteMany({ where: { draftId: id } });
-    return this.prisma.aIClassification.create({
-      data: {
+    if (draft.visibility === VoiceVisibility.GENERAL && !data.category)
+      throw badRequest('CATEGORY_REQUIRED', 'General Voice manual fallback requires category');
+    if (draft.visibility === VoiceVisibility.PRIVATE && data.category != null)
+      throw badRequest('PRIVATE_CATEGORY_FORBIDDEN', 'Private Voice does not use a category');
+    return this.prisma.aIClassification.upsert({
+      where: { draftId: id },
+      create: {
         draftId: id,
-        model: loadConfig().VERTEX_MODEL,
-        location: loadConfig().VERTEX_LOCATION,
+        model: 'manual',
         promptVersion: CLASSIFICATION_PROMPT_VERSION,
-        source: 'MANUAL_FALLBACK',
-        category: data.category,
+        source: ClassificationSource.MANUAL_FALLBACK,
+        category: data.category ?? null,
         severity: data.severity,
-        confidence: 0,
-        rationaleCode: 'AMBIGUOUS',
-        fallbackCode: 'REPORTER_CONFIRMED',
-        contentHash: draft.contentHash,
+        confidence: 1,
+        rationaleCode: 'MANUAL',
+        contentHash: draft.classificationContentHash,
+        fallbackCode: 'MANUAL_SELECTED',
+      },
+      update: {
+        model: 'manual',
+        source: ClassificationSource.MANUAL_FALLBACK,
+        category: data.category ?? null,
+        severity: data.severity,
+        confidence: 1,
+        rationaleCode: 'MANUAL',
+        contentHash: draft.classificationContentHash,
+        fallbackCode: 'MANUAL_SELECTED',
       },
     });
   }
-  async submit(actor: AuthActor, id: string, input: unknown, key: string) {
-    const { expectedVersion } = parse(versionSchema, input);
-    return this.idempotent(actor, `draft:${id}:submit`, key, input, async () =>
-      this.prisma.$transaction(
-        async (tx) => {
-          const draft = await tx.voiceDraft.findFirst({
-            where: { id, reporterId: actor.accountId },
-            include: { classification: true, attachments: true },
-          });
-          if (!draft) throw forbiddenAsNotFound();
-          if (draft.version !== expectedVersion)
-            throw conflict('VERSION_CONFLICT', 'Draft version is stale', {
-              currentVersion: draft.version,
-            });
-          if (draft.submittedAt) throw conflict('DRAFT_SUBMITTED', 'Draft is already submitted');
-          if (!draft.classification || draft.classification.contentHash !== draft.contentHash)
-            throw badRequest('CLASSIFICATION_REQUIRED', 'Current classification is required');
-          if (draft.attachments.some((a) => a.state !== 'READY'))
-            throw badRequest('MEDIA_NOT_READY', 'All images must finish processing');
-          const route = await this.resolveRoute(
-            tx,
-            draft.visibility,
-            draft.classification.category,
-            draft.area,
-            draft.reporterDepartment,
-          );
-          const displayId = await this.nextDisplayId(tx);
-          const handlerType =
-            draft.visibility === VoiceVisibility.PRIVATE ? HandlerType.UNION : HandlerType.MANAGER;
-          const voice = await tx.voice.create({
-            data: {
-              displayId,
-              reporterId: actor.accountId,
-              visibility: draft.visibility,
-              area: draft.area,
-              reporterDepartment: draft.reporterDepartment,
-              locationDetail: draft.locationDetail,
-              title: draft.title,
-              detail: draft.detail,
-              category:
-                draft.visibility === VoiceVisibility.PRIVATE ? null : draft.classification.category,
-              severity: draft.classification.severity,
-              routeOwnerId: route.id,
-              handlerType,
-              anonymousAlias: `Anonymous-${randomToken(6)}`,
-            },
-          });
-          await tx.aIClassification.update({
-            where: { id: draft.classification.id },
-            data: { draftId: null, voiceId: voice.id },
-          });
-          await tx.attachment.updateMany({
-            where: { draftId: id },
-            data: { draftId: null, voiceId: voice.id },
-          });
-          await tx.voiceDraft.update({
-            where: { id },
-            data: { submittedAt: new Date(), version: { increment: 1 } },
-          });
-          await tx.voiceEvent.create({
-            data: {
-              voiceId: voice.id,
-              type: VoiceEventType.SUBMITTED,
-              actorId: actor.accountId,
-              actorRole: actor.role,
-              payload: { status: VoiceStatus.OPEN },
-            },
-          });
-          await this.notify(
-            tx,
-            route.id,
-            voice.id,
-            NotificationType.VOICE_SUBMITTED,
-            draft.visibility === VoiceVisibility.PRIVATE ? 'Private Voice baru' : 'Voice baru',
-            draft.visibility === VoiceVisibility.PRIVATE
-              ? 'Ada Private Voice baru'
-              : `Voice ${displayId} memerlukan tindak lanjut`,
-          );
-          return {
-            id: voice.id,
-            displayId: voice.displayId,
-            status: voice.status,
-            version: voice.version,
-          };
-        },
-        { isolationLevel: 'Serializable' },
-      ),
-    );
+  async reviewLocation(actor: AuthActor, id: string) {
+    const draft = await this.refreshAiHashes(await this.ownedDraft(actor, id));
+    if (
+      draft.locationReview?.contentHash === draft.locationContentHash &&
+      draft.locationReview.promptVersion === LOCATION_PROMPT_VERSION
+    )
+      return draft.locationReview;
+    const result = await this.ai.reviewLocation({
+      area: draft.area,
+      locationDetail: draft.locationDetail,
+    });
+    return this.prisma.locationReviewSnapshot.upsert({
+      where: { draftId: id },
+      create: {
+        draftId: id,
+        ...result,
+        questions: result.questions,
+        contentHash: draft.locationContentHash,
+      },
+      update: { ...result, questions: result.questions, contentHash: draft.locationContentHash },
+    });
   }
+  async getLocationReview(actor: AuthActor, id: string) {
+    const draft = await this.ownedDraft(actor, id);
+    return draft.locationReview;
+  }
+  async previewDraft(actor: AuthActor, id: string) {
+    const draft = await this.ownedDraft(actor, id);
+    return { ...draft, routeReadiness: await this.routeReadiness(draft) };
+  }
+
+  async submit(actor: AuthActor, id: string, input: unknown, key: string) {
+    if (!key || key.length > 100)
+      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
+    const body = parse(submitSchema, input);
+    const requestHash = canonicalHash(body);
+    const existing = await this.prisma.idempotencyRecord.findUnique({
+      where: { accountId_scope_key: { accountId: actor.accountId, scope: `submit:${id}`, key } },
+    });
+    if (existing) {
+      if (existing.requestHash !== requestHash)
+        throw conflict(
+          'IDEMPOTENCY_CONFLICT',
+          'Idempotency key was reused with a different request',
+        );
+      return existing.response;
+    }
+    const draft = await this.ownedDraft(actor, id);
+    if (draft.version !== body.version)
+      throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
+    const currentHashes = this.hashes(draft);
+    if (
+      currentHashes.classificationContentHash !== draft.classificationContentHash ||
+      currentHashes.locationContentHash !== draft.locationContentHash
+    )
+      throw conflict(
+        'DRAFT_AI_SNAPSHOT_STALE',
+        'AI model or prompt version changed; reload and preview the draft',
+      );
+    const current = await this.currentOrganization(actor);
+    if (
+      draft.organizationSnapshotId !== current.snapshotId ||
+      draft.organizationUnitId !== current.organizationUnitId
+    )
+      throw conflict(
+        'DRAFT_ORGANIZATION_STALE',
+        'Organization data changed; reload and preview the draft',
+      );
+    if (
+      !draft.classification ||
+      draft.classification.contentHash !== draft.classificationContentHash
+    )
+      throw new AppError(
+        'CLASSIFICATION_REQUIRED',
+        'A current classification or manual fallback is required',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    if (
+      draft.locationReview?.completeness === LocationCompleteness.INCOMPLETE &&
+      (!body.acknowledgeIncompleteLocation ||
+        body.locationReviewId !== draft.locationReview.id ||
+        body.locationContentHash !== draft.locationContentHash)
+    )
+      throw new AppError(
+        'LOCATION_ACKNOWLEDGMENT_REQUIRED',
+        locationWarning,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        [],
+        {
+          locationReviewId: draft.locationReview.id,
+          locationContentHash: draft.locationContentHash,
+          warning: locationWarning,
+        },
+      );
+    const classification = draft.classification;
+    const route = await this.resolveRoute(draft, classification.category);
+    const employee = await this.prisma.employee.findUniqueOrThrow({
+      where: { id: actor.employeeId! },
+    });
+    const unit = await this.prisma.organizationUnit.findUniqueOrThrow({
+      where: { id: current.organizationUnitId },
+    });
+    const response = await this.prisma.$transaction(async (tx) => {
+      const displayId = await this.nextDisplayId(tx);
+      const now = new Date();
+      const voice = await tx.voice.create({
+        data: {
+          displayId,
+          reporterId: actor.accountId,
+          visibility: draft.visibility,
+          area: draft.area,
+          reporterOrganizationSnapshotId: current.snapshotId,
+          reporterOrganizationUnitId: current.organizationUnitId,
+          reporterNoRegSnapshot: employee.noReg,
+          reporterNameSnapshot: employee.name,
+          reporterDirectorateSnapshot: unit.directorate,
+          reporterDivisionSnapshot: unit.division,
+          reporterDepartmentSnapshot: unit.department,
+          reporterSectionSnapshot: current.section,
+          reporterPositionSnapshot: current.structuralPosition,
+          showReporterIdentity:
+            draft.visibility === VoiceVisibility.PRIVATE ? draft.showReporterIdentity : null,
+          locationDetail: draft.locationDetail,
+          title: draft.title,
+          detail: draft.detail,
+          category: draft.visibility === VoiceVisibility.PRIVATE ? null : classification.category,
+          severity: classification.severity,
+          routeOwnerId: route.ownerAccountId,
+          routeMappingId: route.id,
+          handlerType:
+            draft.visibility === VoiceVisibility.PRIVATE
+              ? HandlerType.UNION_HEAD
+              : HandlerType.MANAGER,
+          anonymousAlias: `Reporter-${displayId.slice(-6)}`,
+          locationWarningAcknowledgedAt:
+            draft.locationReview?.completeness === LocationCompleteness.INCOMPLETE ? now : null,
+        },
+      });
+      await tx.aIClassification.update({
+        where: { id: classification.id },
+        data: { draftId: null, voiceId: voice.id },
+      });
+      if (draft.locationReview)
+        await tx.locationReviewSnapshot.update({
+          where: { id: draft.locationReview.id },
+          data: { draftId: null, voiceId: voice.id },
+        });
+      await tx.attachment.updateMany({
+        where: { draftId: id },
+        data: { draftId: null, voiceId: voice.id, state: 'REFERENCED' },
+      });
+      await tx.voiceEvent.create({
+        data: {
+          voiceId: voice.id,
+          actorId: actor.accountId,
+          ...this.policy.actorSnapshot(actor),
+          type: VoiceEventType.SUBMITTED,
+          payload: { visibility: voice.visibility, category: voice.category },
+        },
+      });
+      await tx.voiceDraft.update({ where: { id }, data: { submittedAt: now } });
+      const shaped = { id: voice.id, displayId: voice.displayId, status: voice.status };
+      await tx.idempotencyRecord.create({
+        data: {
+          accountId: actor.accountId,
+          scope: `submit:${id}`,
+          key,
+          requestHash,
+          statusCode: 201,
+          response: shaped,
+          expiresAt: new Date(Date.now() + 86_400_000),
+        },
+      });
+      await this.notify(
+        tx,
+        route.ownerAccountId,
+        voice.id,
+        NotificationType.VOICE_SUBMITTED,
+        voice.visibility === VoiceVisibility.PRIVATE ? 'Private Voice baru' : 'General Voice baru',
+      );
+      return shaped;
+    });
+    return response;
+  }
+
   async list(
     actor: AuthActor,
-    query: {
-      cursor?: string;
-      status?: VoiceStatus;
-      severity?: Severity;
-      search?: string;
-      limit?: string;
-    },
+    query: { status?: VoiceStatus; visibility?: VoiceVisibility; limit?: string },
   ) {
-    const where = await this.scope(actor);
-    const take = Math.min(Math.max(Number(query.limit ?? 20), 1), 100);
-    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
-    const items = await this.prisma.voice.findMany({
-      where: {
-        AND: [
-          where,
-          query.status ? { status: query.status } : {},
-          query.severity ? { severity: query.severity } : {},
-          query.search
-            ? {
-                OR: [
-                  { displayId: { contains: query.search, mode: 'insensitive' } },
-                  { title: { contains: query.search, mode: 'insensitive' } },
-                ],
-              }
-            : {},
-        ],
-      },
-      take: take + 1,
-      ...(cursorId ? { skip: 1, cursor: { id: cursorId } } : {}),
-      orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
-    });
-    const more = items.length > take;
+    const where = await this.policy.browseScope(actor);
+    const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     return {
-      items: items.slice(0, take).map((v) => ({
-        id: v.id,
-        displayId: v.displayId,
-        title: v.title,
-        severity: v.severity,
-        status: v.status,
-        visibility: v.visibility,
-        submittedAt: v.submittedAt,
-        version: v.version,
-      })),
-      nextCursor: more && items[take - 1] ? encodeCursor(items[take - 1].id) : null,
+      items: await this.prisma.voice.findMany({
+        where: {
+          AND: [
+            where,
+            query.status ? { status: query.status } : {},
+            query.visibility ? { visibility: query.visibility } : {},
+          ],
+        },
+        take,
+        orderBy: { updatedAt: 'desc' },
+        select: this.listSelect(),
+      }),
+    };
+  }
+  async workItems(actor: AuthActor) {
+    return {
+      items: await this.prisma.voice.findMany({
+        where: this.policy.workItemScope(actor),
+        orderBy: [{ severity: 'desc' }, { submittedAt: 'asc' }],
+        select: this.listSelect(),
+      }),
     };
   }
   async detail(actor: AuthActor, id: string) {
-    const voice = await this.authorizedVoice(actor, id, {
-      reporter: { include: { employee: true } },
+    const scope = await this.policy.detailScope(actor);
+    const voice = await this.prisma.voice.findFirst({
+      where: { id, AND: [scope] },
+      include: {
+        routeOwner: { select: { id: true, displayName: true } },
+        currentHandler: { select: { id: true, displayName: true } },
+        classification: true,
+        locationReview: true,
+        attachments: true,
+      },
     });
+    if (!voice) throw forbiddenAsNotFound();
+    if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
+      await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
     return this.serialize(actor, voice);
   }
   async timeline(actor: AuthActor, id: string) {
-    const voice = await this.authorizedVoice(actor, id);
-    const events = await this.prisma.voiceEvent.findMany({
+    await this.authorizedVoice(actor, id);
+    return this.prisma.voiceEvent.findMany({
       where: { voiceId: id },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
-    });
-    return events.map((e) => ({
-      id: e.id,
-      type: e.type,
-      actor:
-        voice.visibility === 'PRIVATE' &&
-        e.actorId === voice.reporterId &&
-        actor.accountId !== voice.reporterId
-          ? voice.anonymousAlias
-          : e.actorRole,
-      occurredAt: e.occurredAt,
-      payload: e.payload,
-    }));
-  }
-  async ask(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(askSchema, input);
-    return this.mutateVoice(actor, id, data.expectedVersion, key, input, async (tx, voice) => {
-      this.requireResponder(actor, voice);
-      if (![VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION].includes(voice.status))
-        throw invalidTransition('Reporter can only be asked before progress');
-      const conversation = await tx.conversation.upsert({
-        where: { voiceId: id },
-        update: {},
-        create: { voiceId: id },
-      });
-      await tx.message.create({
-        data: {
-          conversationId: conversation.id,
-          senderId: actor.accountId,
-          senderRole: actor.role,
-          text: data.message,
-        },
-      });
-      await tx.voice.update({
-        where: { id },
-        data: {
-          status: VoiceStatus.IN_VERIFICATION,
-          currentHandlerId: actor.accountId,
-          version: { increment: 1 },
-        },
-      });
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          type: VoiceEventType.ASKED_REPORTER,
-          actorId: actor.accountId,
-          actorRole: actor.role,
-          payload: {},
-        },
-      });
-      await this.notify(
-        tx,
-        voice.reporterId,
-        id,
-        NotificationType.MESSAGE,
-        'Pertanyaan baru',
-        voice.visibility === 'PRIVATE'
-          ? 'Ada pembaruan Private Voice'
-          : `Ada pertanyaan untuk ${voice.displayId}`,
-      );
-      return { status: VoiceStatus.IN_VERIFICATION, version: voice.version + 1 };
+      select: { id: true, type: true, occurredAt: true, payload: true },
     });
   }
-  async proceed(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(versionSchema, input);
-    return this.mutateVoice(actor, id, data.expectedVersion, key, input, async (tx, voice) => {
-      this.requireResponder(actor, voice);
-      if (![VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION].includes(voice.status))
-        throw invalidTransition('Voice cannot proceed from current status');
-      await tx.voice.update({
-        where: { id },
-        data: {
-          status: VoiceStatus.IN_PROGRESS,
-          currentHandlerId: actor.accountId,
-          version: { increment: 1 },
-        },
-      });
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          type: VoiceEventType.PROCEEDED,
-          actorId: actor.accountId,
-          actorRole: actor.role,
-          payload: {},
-        },
-      });
-      await this.notify(
-        tx,
-        voice.reporterId,
-        id,
-        NotificationType.STATUS_CHANGED,
-        'Voice diproses',
-        voice.visibility === 'PRIVATE'
-          ? 'Ada pembaruan Private Voice'
-          : `${voice.displayId} sedang diproses`,
-      );
-      return { status: VoiceStatus.IN_PROGRESS, version: voice.version + 1 };
+
+  async assign(actor: AuthActor, id: string, input: unknown, key: string, reassign = false) {
+    if (!key || key.length > 100)
+      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
+    const data = parse(assignmentSchema, input);
+    const voice = await this.actionVoice(actor, id);
+    if (voice.status === VoiceStatus.IN_PROGRESS || voice.status === VoiceStatus.CLOSED)
+      throw invalidTransition('Assignment is only allowed before IN_PROGRESS');
+    if (reassign && !voice.currentHandlerId)
+      throw invalidTransition('Voice has no active assignment');
+    const candidate = await this.prisma.userAccount.findUnique({
+      where: { id: data.handlerAccountId },
+      include: {
+        employee: { include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } } },
+        unionTerms: { where: { effectiveTo: null } },
+      },
     });
-  }
-  async assign(actor: AuthActor, id: string, input: unknown, key: string) {
-    return this.assignSectionHead(actor, id, input, key, false);
-  }
-  async reassign(actor: AuthActor, id: string, input: unknown, key: string) {
-    return this.assignSectionHead(actor, id, input, key, true);
-  }
-  private async assignSectionHead(
-    actor: AuthActor,
-    id: string,
-    input: unknown,
-    key: string,
-    reassign: boolean,
-  ) {
-    const data = parse(assignSchema, input);
-    return this.mutateVoice(actor, id, data.expectedVersion, key, input, async (tx, voice) => {
+    if (!candidate || candidate.status !== AccountStatus.ACTIVE) throw forbiddenAsNotFound();
+    let handlerType: HandlerType;
+    if (voice.visibility === VoiceVisibility.PRIVATE) {
       if (
-        actor.role !== Role.MANAGER ||
-        voice.routeOwnerId !== actor.accountId ||
-        voice.visibility !== VoiceVisibility.GENERAL
+        !actor.capabilities.includes('UNION_HEAD') ||
+        !candidate.unionTerms.some(
+          (term) => term.slot === UnionSlot.OFFICER_1 || term.slot === UnionSlot.OFFICER_2,
+        )
       )
         throw forbiddenAsNotFound();
-      if (voice.status === VoiceStatus.IN_PROGRESS || voice.status === VoiceStatus.CLOSED)
-        throw invalidTransition('Assignment is only allowed before progress');
-      const currentAssignment = await tx.voiceAssignment.findFirst({
-        where: { voiceId: id, endedAt: null },
-      });
-      if (reassign && (voice.status !== VoiceStatus.IN_VERIFICATION || !currentAssignment))
-        throw invalidTransition('Reassignment requires an active assignment in verification');
-      if (!reassign && currentAssignment)
-        throw conflict('ASSIGNMENT_EXISTS', 'Use the reassign operation for an assigned Voice');
-      const target = await tx.userAccount.findUnique({
-        where: { id: data.sectionHeadAccountId },
-        include: {
-          employee: {
-            include: { sectionHeads: { where: { active: true, managerId: actor.accountId } } },
-          },
-        },
-      });
+      handlerType = HandlerType.UNION_OFFICER;
+    } else {
+      const membership = candidate.employee?.memberships[0];
+      const route = voice.routeMappingId
+        ? await this.prisma.routeMapping.findUnique({ where: { id: voice.routeMappingId } })
+        : null;
+      const owner = await this.currentMembershipForAccount(voice.routeOwnerId);
+      const assignmentUnitId =
+        route?.kind === RouteKind.GLOBAL_SPECIAL
+          ? owner?.organizationUnitId
+          : (route?.organizationUnitId ?? voice.reporterOrganizationUnitId);
       if (
-        !target?.active ||
-        target.role !== Role.SECTION_HEAD ||
-        !target.employee?.sectionHeads.length
+        !membership ||
+        membership.structuralPosition.trim().toLocaleLowerCase('en-US') !== 'section head' ||
+        !assignmentUnitId ||
+        membership.organizationUnitId !== assignmentUnitId
       )
         throw forbiddenAsNotFound();
+      handlerType = HandlerType.SECTION_HEAD;
+    }
+    return this.prisma.$transaction(async (tx) => {
       await tx.voiceAssignment.updateMany({
         where: { voiceId: id, endedAt: null },
         data: { endedAt: new Date() },
       });
-      await tx.voiceAssignment.create({
-        data: {
-          voiceId: id,
-          handlerId: target.id,
-          handlerType: HandlerType.SECTION_HEAD,
-          actorId: actor.accountId,
-        },
+      const assignment = await tx.voiceAssignment.create({
+        data: { voiceId: id, handlerId: candidate.id, handlerType, actorId: actor.accountId },
       });
-      const eventType = reassign ? VoiceEventType.REASSIGNED : VoiceEventType.ASSIGNED;
-      await tx.voice.update({
+      const updated = await tx.voice.update({
         where: { id },
         data: {
-          currentHandlerId: target.id,
-          handlerType: HandlerType.SECTION_HEAD,
+          currentHandlerId: candidate.id,
+          handlerType,
           status: VoiceStatus.IN_VERIFICATION,
           version: { increment: 1 },
         },
@@ -551,21 +547,91 @@ export class VoicesService {
       await tx.voiceEvent.create({
         data: {
           voiceId: id,
-          type: eventType,
           actorId: actor.accountId,
-          actorRole: actor.role,
-          payload: { handlerRole: Role.SECTION_HEAD },
+          ...this.policy.actorSnapshot(actor),
+          type: reassign ? VoiceEventType.REASSIGNED : VoiceEventType.ASSIGNED,
+          payload: { assignmentId: assignment.id, handlerType, reason: data.reason ?? null },
         },
       });
       await this.notify(
         tx,
-        target.id,
+        candidate.id,
         id,
         NotificationType.ASSIGNED,
-        'Voice ditugaskan',
-        `${voice.displayId} ditugaskan kepada Anda`,
+        voice.visibility === VoiceVisibility.PRIVATE
+          ? 'Private Voice ditugaskan'
+          : 'Voice ditugaskan',
       );
-      return { status: VoiceStatus.IN_VERIFICATION, version: voice.version + 1 };
+      return {
+        id: updated.id,
+        displayId: updated.displayId,
+        status: updated.status,
+        version: updated.version,
+        currentHandlerId: updated.currentHandlerId,
+        handlerType: updated.handlerType,
+      };
+    });
+  }
+  reassign(actor: AuthActor, id: string, input: unknown, key: string) {
+    return this.assign(actor, id, input, key, true);
+  }
+  async ask(actor: AuthActor, id: string, input: unknown, _key: string) {
+    void _key;
+    const data = parse(textSchema, input);
+    return this.transitionWithMessage(actor, id, data, 'ASK');
+  }
+  async proceed(actor: AuthActor, id: string, input: unknown, _key: string) {
+    void _key;
+    const data = parse(z.object({ version: z.number().int().positive() }).strict(), input);
+    const voice = await this.actionVoice(actor, id);
+    const target = transitionTarget(voice.status, 'PROCEED');
+    if (!target || voice.version !== data.version)
+      throw invalidTransition('Voice cannot proceed from its current state');
+    return this.updateStatus(actor, voice.id, target, VoiceEventType.PROCEEDED, {});
+  }
+
+  async messages(actor: AuthActor, id: string) {
+    const voice = await this.authorizedVoice(actor, id);
+    const messages = await this.prisma.message.findMany({
+      where: { conversation: { voiceId: id } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        text: true,
+        createdAt: true,
+        senderId: true,
+        senderAccountKind: true,
+        attachments: true,
+      },
+    });
+    const anonymousUnion =
+      voice.visibility === VoiceVisibility.PRIVATE &&
+      !voice.showReporterIdentity &&
+      !actor.capabilities.includes('CARE_ADMIN') &&
+      voice.reporterId !== actor.accountId;
+    return messages.map((message) => ({
+      ...message,
+      senderId:
+        anonymousUnion && message.senderId === voice.reporterId ? undefined : message.senderId,
+      sender:
+        anonymousUnion && message.senderId === voice.reporterId
+          ? { kind: 'ANONYMOUS_REPORTER', alias: voice.anonymousAlias }
+          : { kind: message.senderAccountKind },
+    }));
+  }
+  async conversations(actor: AuthActor) {
+    const scope = await this.policy.detailScope(actor);
+    return this.prisma.conversation.findMany({
+      where: { voice: scope },
+      include: {
+        voice: { select: this.listSelect() },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, text: true, createdAt: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
   async addMessage(
@@ -573,150 +639,73 @@ export class VoicesService {
     id: string,
     input: unknown,
     files: Express.Multer.File[],
-    key: string,
+    _key: string,
   ) {
-    const data = parse(messageSchema, input);
-    if (!data.text && !files.length)
-      throw badRequest('EMPTY_MESSAGE', 'Text or attachment is required');
-    if (files.length > 5) throw badRequest('ATTACHMENT_LIMIT', 'Maximum five images per message');
-    return this.mutateVoice(
-      actor,
-      id,
-      data.expectedVersion,
-      key,
-      { ...data, files: files.map((f) => ({ size: f.size, type: f.mimetype })) },
-      async (tx, voice) => {
-        if (voice.status === VoiceStatus.CLOSED)
-          throw invalidTransition('Closed conversation is read-only');
-        const conversation = await tx.conversation.upsert({
-          where: { voiceId: id },
-          update: {},
-          create: { voiceId: id },
-        });
-        const message = await tx.message.create({
-          data: {
-            conversationId: conversation.id,
-            senderId: actor.accountId,
-            senderRole: actor.role,
-            text: data.text,
-          },
-        });
-        for (const file of files) {
-          const attachment = await this.media.process(
-            file,
-            actor.accountId,
-            AttachmentPurpose.CHAT,
-            {},
-          );
-          await tx.attachment.update({
-            where: { id: attachment.id },
-            data: { messageId: message.id },
-          });
-        }
-        await tx.voiceEvent.create({
-          data: {
-            voiceId: id,
-            type: VoiceEventType.MESSAGE_SENT,
-            actorId: actor.accountId,
-            actorRole: actor.role,
-            payload: { attachmentCount: files.length },
-          },
-        });
-        const recipient =
-          actor.accountId === voice.reporterId
-            ? (voice.currentHandlerId ?? voice.routeOwnerId)
-            : voice.reporterId;
-        await this.notify(
-          tx,
-          recipient,
-          id,
-          NotificationType.MESSAGE,
-          'Pesan baru',
-          voice.visibility === 'PRIVATE'
-            ? 'Ada pembaruan Private Voice'
-            : `Pesan baru pada ${voice.displayId}`,
-        );
-        await tx.voice.update({ where: { id }, data: { version: { increment: 1 } } });
-        return { id: message.id, version: voice.version + 1 };
-      },
-    );
-  }
-  async messages(actor: AuthActor, id: string) {
+    void _key;
+    const text = z.object({ text: z.string().trim().max(4000).optional() }).parse(input).text;
+    if (!text && !files.length)
+      throw badRequest('MESSAGE_EMPTY', 'Message or attachment is required');
     const voice = await this.authorizedVoice(actor, id);
-    const conversation = await this.prisma.conversation.findUnique({
+    if (voice.reporterId !== actor.accountId) await this.actionVoice(actor, id);
+    const conversation = await this.prisma.conversation.upsert({
       where: { voiceId: id },
-      include: {
-        messages: {
-          include: { attachments: true },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        },
+      create: { voiceId: id },
+      update: {},
+    });
+    const message = await this.prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: actor.accountId,
+        ...this.policy.senderSnapshot(actor),
+        text,
       },
     });
-    return (conversation?.messages ?? []).map((m) => ({
-      id: m.id,
-      sender:
-        voice.visibility === 'PRIVATE' &&
-        m.senderId === voice.reporterId &&
-        actor.accountId !== voice.reporterId
-          ? voice.anonymousAlias
-          : m.senderRole,
-      text: m.text,
-      createdAt: m.createdAt,
-      attachments: m.attachments.map((a) => ({ id: a.id, mimeType: a.mimeType, size: a.size })),
-    }));
-  }
-  async conversations(actor: AuthActor) {
-    const where = await this.scope(actor);
-    const items = await this.prisma.conversation.findMany({
-      where: { voice: where },
-      take: 50,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        voice: true,
-        messages: { take: 1, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] },
+    for (const file of files) {
+      const attachment = await this.media.process(file, actor.accountId, AttachmentPurpose.CHAT, {
+        voiceId: id,
+      });
+      await this.prisma.attachment.update({
+        where: { id: attachment.id },
+        data: { voiceId: null, messageId: message.id },
+      });
+    }
+    await this.prisma.voiceEvent.create({
+      data: {
+        voiceId: id,
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        type: VoiceEventType.MESSAGE_SENT,
+        payload: { messageId: message.id },
       },
     });
-    return items.map((item) => ({
-      id: item.id,
-      voiceId: item.voiceId,
-      displayId: item.voice.displayId,
-      title: item.voice.visibility === VoiceVisibility.PRIVATE ? 'Private Voice' : item.voice.title,
-      status: item.voice.status,
-      updatedAt: item.messages[0]?.createdAt ?? item.createdAt,
-      hasMessages: Boolean(item.messages.length),
-    }));
+    const recipientId =
+      actor.accountId === voice.reporterId
+        ? (voice.currentHandlerId ?? voice.routeOwnerId)
+        : voice.reporterId;
+    await this.prisma.$transaction(async (tx) =>
+      this.notify(tx, recipientId, id, NotificationType.MESSAGE, 'Pesan Voice baru'),
+    );
+    return message;
   }
   async stageEvidence(actor: AuthActor, id: string, file: Express.Multer.File) {
-    const voice = await this.authorizedVoice(actor, id);
-    this.requireResponder(actor, voice);
+    await this.actionVoice(actor, id);
     return this.media.process(file, actor.accountId, AttachmentPurpose.CLOSURE_EVIDENCE, {
       voiceId: id,
     });
   }
-  async close(actor: AuthActor, id: string, input: unknown, key: string) {
+  async close(actor: AuthActor, id: string, input: unknown, _key: string) {
+    void _key;
     const data = parse(closeSchema, input);
-    return this.mutateVoice(actor, id, data.expectedVersion, key, input, async (tx, voice) => {
-      this.requireResponder(actor, voice);
-      if (voice.status !== VoiceStatus.IN_PROGRESS)
-        throw invalidTransition('Only In Progress Voice can be closed');
-      const evidence = await tx.attachment.findMany({
-        where: {
-          id: { in: data.evidenceIds },
-          voiceId: id,
-          purpose: AttachmentPurpose.CLOSURE_EVIDENCE,
-          state: 'READY',
-          uploaderId: actor.accountId,
-        },
-      });
-      if (evidence.length !== data.evidenceIds.length)
-        throw badRequest('EVIDENCE_INVALID', 'All evidence must be ready and owned by the closer');
-      const count = await tx.closureCycle.count({ where: { voiceId: id } });
-      const cycle = await tx.closureCycle.create({
-        data: { voiceId: id, cycleNumber: count + 1, actorId: actor.accountId, note: data.note },
-      });
-      await tx.attachment.updateMany({
-        where: { id: { in: data.evidenceIds } },
-        data: { voiceId: null, closureId: cycle.id },
+    const voice = await this.actionVoice(actor, id);
+    if (
+      voice.version !== data.version ||
+      transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
+    )
+      throw invalidTransition('Voice cannot close from its current state');
+    return this.prisma.$transaction(async (tx) => {
+      const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
+      const closure = await tx.closureCycle.create({
+        data: { voiceId: id, cycleNumber: cycles + 1, actorId: actor.accountId, note: data.note },
       });
       await tx.voice.update({
         where: { id },
@@ -725,230 +714,411 @@ export class VoicesService {
       await tx.voiceEvent.create({
         data: {
           voiceId: id,
-          type: VoiceEventType.CLOSED,
           actorId: actor.accountId,
-          actorRole: actor.role,
-          payload: { cycleNumber: count + 1 },
+          ...this.policy.actorSnapshot(actor),
+          type: VoiceEventType.CLOSED,
+          payload: { closureId: closure.id },
+        },
+      });
+      await this.cleanupLegacy(tx, id);
+      await this.notify(tx, voice.reporterId, id, NotificationType.CLOSED, 'Voice ditutup');
+      return closure;
+    });
+  }
+  async rate(actor: AuthActor, id: string, input: unknown, _key: string) {
+    void _key;
+    const data = parse(ratingSchema, input);
+    const voice = await this.prisma.voice.findFirst({
+      where: { id, reporterId: actor.accountId, status: VoiceStatus.CLOSED },
+      include: {
+        closureCycles: { where: { reopenedAt: null }, orderBy: { cycleNumber: 'desc' }, take: 1 },
+      },
+    });
+    if (!voice?.closureCycles[0]) throw forbiddenAsNotFound();
+    const error = ratingError(data.score, data.feedback, data.reopen);
+    if (error) throw badRequest(error, 'Rating is invalid');
+    return this.prisma.$transaction(async (tx) => {
+      const rating = await tx.rating.create({
+        data: { closureCycleId: voice.closureCycles[0]!.id, reporterId: actor.accountId, ...data },
+      });
+      if (data.reopen) {
+        await tx.closureCycle.update({
+          where: { id: voice.closureCycles[0]!.id },
+          data: { reopenedAt: new Date() },
+        });
+        await tx.voice.update({
+          where: { id },
+          data: { status: VoiceStatus.IN_VERIFICATION, version: { increment: 1 } },
+        });
+      }
+      await tx.voiceEvent.create({
+        data: {
+          voiceId: id,
+          actorId: actor.accountId,
+          ...this.policy.actorSnapshot(actor),
+          type: data.reopen ? VoiceEventType.REOPENED : VoiceEventType.RATED,
+          payload: { score: data.score },
+        },
+      });
+      await this.notify(
+        tx,
+        voice.currentHandlerId ?? voice.routeOwnerId,
+        id,
+        data.reopen ? NotificationType.REOPENED : NotificationType.RATED,
+        data.reopen ? 'Voice dibuka kembali' : 'Voice diberi rating',
+      );
+      return rating;
+    });
+  }
+
+  async dashboardGeneral(actor: AuthActor) {
+    return this.dashboard(actor, VoiceVisibility.GENERAL);
+  }
+  async dashboardPrivate(actor: AuthActor) {
+    let where: Prisma.VoiceWhereInput;
+    if (actor.capabilities.includes('CARE_ADMIN') || actor.capabilities.includes('UNION_HEAD'))
+      where = { visibility: VoiceVisibility.PRIVATE };
+    else if (actor.capabilities.includes('UNION_OFFICER'))
+      where = { visibility: VoiceVisibility.PRIVATE, currentHandlerId: actor.accountId };
+    else where = { visibility: VoiceVisibility.PRIVATE, reporterId: actor.accountId };
+    return this.aggregate(where, false);
+  }
+
+  private async dashboard(actor: AuthActor, visibility: VoiceVisibility) {
+    let where: Prisma.VoiceWhereInput = { visibility };
+    const full = actor.capabilities.some((capability) =>
+      ['CARE_ADMIN', 'DIRECTOR', 'UNION_HEAD', 'UNION_OFFICER'].includes(capability),
+    );
+    if (actor.capabilities.includes('MANAGER') && !full)
+      where = {
+        visibility,
+        reporterDirectorateSnapshot: actor.directorate ?? '__none__',
+        reporterDivisionSnapshot: actor.division ?? '__none__',
+      };
+    else if (!full && !actor.capabilities.includes('DIVISION_LEADERSHIP'))
+      where = { visibility, reporterId: actor.accountId };
+    return this.aggregate(where, full);
+  }
+  private async aggregate(where: Prisma.VoiceWhereInput, full: boolean) {
+    const scope = where as {
+      visibility: VoiceVisibility;
+      reporterDirectorateSnapshot?: string;
+      reporterDivisionSnapshot?: string;
+      reporterId?: string;
+      currentHandlerId?: string;
+    };
+    const conditions = [Prisma.sql`"visibility" = ${scope.visibility}::"VoiceVisibility"`];
+    if (scope.reporterDirectorateSnapshot)
+      conditions.push(
+        Prisma.sql`"reporterDirectorateSnapshot" = ${scope.reporterDirectorateSnapshot}`,
+      );
+    if (scope.reporterDivisionSnapshot)
+      conditions.push(Prisma.sql`"reporterDivisionSnapshot" = ${scope.reporterDivisionSnapshot}`);
+    if (scope.reporterId) conditions.push(Prisma.sql`"reporterId" = ${scope.reporterId}::uuid`);
+    if (scope.currentHandlerId)
+      conditions.push(Prisma.sql`"currentHandlerId" = ${scope.currentHandlerId}::uuid`);
+    const [total, statuses, severities, categories, divisions, departments, trendRows] =
+      await Promise.all([
+        this.prisma.voice.count({ where }),
+        this.prisma.voice.groupBy({ by: ['status'], where, _count: { _all: true } }),
+        this.prisma.voice.groupBy({ by: ['severity'], where, _count: { _all: true } }),
+        this.prisma.voice.groupBy({ by: ['category'], where, _count: { _all: true } }),
+        this.prisma.voice.groupBy({
+          by: ['reporterDirectorateSnapshot', 'reporterDivisionSnapshot'],
+          where,
+          _count: { _all: true },
+        }),
+        this.prisma.voice.groupBy({
+          by: [
+            'reporterDirectorateSnapshot',
+            'reporterDivisionSnapshot',
+            'reporterDepartmentSnapshot',
+          ],
+          where,
+          _count: { _all: true },
+        }),
+        this.prisma.$queryRaw<Array<{ label: string; value: bigint }>>(
+          Prisma.sql`SELECT to_char(date_trunc('day', "submittedAt"), 'YYYY-MM-DD') AS label, count(*)::bigint AS value FROM "Voice" WHERE ${Prisma.join(conditions, ' AND ')} GROUP BY 1 ORDER BY 1`,
+        ),
+      ]);
+    const buckets = <T extends Record<string, unknown>>(items: T[], key: keyof T) =>
+      items.map((item) => ({
+        label: String(item[key] ?? 'NONE'),
+        value: (item._count as { _all: number })._all,
+      }));
+    const suppress = (items: { label: string; value: number }[]) =>
+      full
+        ? items
+        : [
+            ...items.filter((item) => item.value >= 5),
+            {
+              label: 'OTHER_SUPPRESSED',
+              value: items
+                .filter((item) => item.value < 5)
+                .reduce((sum, item) => sum + item.value, 0),
+            },
+          ].filter((item) => item.value > 0);
+    return {
+      total,
+      status: buckets(statuses, 'status'),
+      severity: buckets(severities, 'severity'),
+      category: buckets(categories, 'category'),
+      trend: trendRows.map((item) => ({ label: item.label, value: Number(item.value) })),
+      division: suppress(
+        divisions.map((item) => ({
+          label: `${item.reporterDirectorateSnapshot} / ${item.reporterDivisionSnapshot}`,
+          value: item._count._all,
+        })),
+      ),
+      department: suppress(
+        departments.map((item) => ({
+          label: `${item.reporterDirectorateSnapshot} / ${item.reporterDivisionSnapshot} / ${item.reporterDepartmentSnapshot}`,
+          value: item._count._all,
+        })),
+      ),
+    };
+  }
+
+  private async ownedDraft(actor: AuthActor, id: string) {
+    const draft = await this.prisma.voiceDraft.findFirst({
+      where: { id, reporterId: actor.accountId, expiresAt: { gt: new Date() } },
+      include: { classification: true, locationReview: true, attachments: true },
+    });
+    if (!draft) throw forbiddenAsNotFound();
+    return draft;
+  }
+  private hashes(data: {
+    visibility: VoiceVisibility;
+    area: string;
+    locationDetail: string;
+    title: string;
+    detail: string;
+  }) {
+    const model = loadConfig().OPENAI_MODEL || 'manual-fallback';
+    return {
+      classificationContentHash: canonicalHash({
+        visibility: data.visibility,
+        area: data.visibility === VoiceVisibility.GENERAL ? data.area : undefined,
+        title: data.title.trim(),
+        detail: data.detail.trim(),
+        model,
+        promptVersion: CLASSIFICATION_PROMPT_VERSION,
+      }),
+      locationContentHash: canonicalHash({
+        area: data.area.trim(),
+        location: data.locationDetail.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US'),
+        model,
+        promptVersion: LOCATION_PROMPT_VERSION,
+      }),
+    };
+  }
+  private async refreshAiHashes<T extends Awaited<ReturnType<VoicesService['ownedDraft']>>>(
+    draft: T,
+  ): Promise<T> {
+    const hashes = this.hashes(draft);
+    const classificationChanged =
+      hashes.classificationContentHash !== draft.classificationContentHash;
+    const locationChanged = hashes.locationContentHash !== draft.locationContentHash;
+    if (!classificationChanged && !locationChanged) return draft;
+    return this.prisma.$transaction(async (tx) => {
+      if (classificationChanged)
+        await tx.aIClassification.deleteMany({ where: { draftId: draft.id } });
+      if (locationChanged)
+        await tx.locationReviewSnapshot.deleteMany({ where: { draftId: draft.id } });
+      return tx.voiceDraft.update({
+        where: { id: draft.id },
+        data: { ...hashes, version: { increment: 1 } },
+        include: { classification: true, locationReview: true, attachments: true },
+      });
+    }) as Promise<T>;
+  }
+  private async currentOrganization(actor: AuthActor) {
+    if (!actor.employeeId) throw forbiddenAsNotFound();
+    const membership = await this.prisma.organizationMembership.findFirst({
+      where: { employeeId: actor.employeeId, snapshot: { status: 'ACTIVE' } },
+    });
+    if (!membership)
+      throw conflict(
+        'ORGANIZATION_MEMBERSHIP_MISSING',
+        'Active organization membership is required',
+      );
+    return membership;
+  }
+  private currentMembershipForAccount(accountId: string) {
+    return this.prisma.organizationMembership.findFirst({
+      where: { employee: { account: { id: accountId } }, snapshot: { status: 'ACTIVE' } },
+    });
+  }
+  private async routeReadiness(draft: {
+    visibility: VoiceVisibility;
+    organizationUnitId: string | null;
+    classification?: { category: RoutingCategory | null } | null;
+  }) {
+    if (draft.visibility === VoiceVisibility.PRIVATE)
+      return {
+        ready:
+          (await this.prisma.unionAccountTerm.count({
+            where: {
+              slot: UnionSlot.HEAD,
+              effectiveTo: null,
+              account: { status: AccountStatus.ACTIVE },
+            },
+          })) === 1,
+      };
+    if (!draft.organizationUnitId || !draft.classification)
+      return { ready: false, reason: 'CLASSIFICATION_REQUIRED' };
+    try {
+      await this.resolveRoute(draft, draft.classification.category);
+      return { ready: true };
+    } catch (error) {
+      return {
+        ready: false,
+        reason: error instanceof AppError ? error.code : 'GENERAL_ROUTE_UNAVAILABLE',
+      };
+    }
+  }
+  private async resolveRoute(
+    draft: { visibility: VoiceVisibility; organizationUnitId: string | null },
+    category: RoutingCategory | null,
+  ) {
+    if (draft.visibility === VoiceVisibility.PRIVATE) {
+      const heads = await this.prisma.unionAccountTerm.findMany({
+        where: {
+          slot: UnionSlot.HEAD,
+          effectiveTo: null,
+          account: { status: AccountStatus.ACTIVE },
+        },
+      });
+      if (heads.length !== 1)
+        throw conflict(
+          'UNION_HEAD_UNAVAILABLE',
+          'Private Voice requires exactly one active Union Head',
+        );
+      return { id: null, ownerAccountId: heads[0]!.accountId };
+    }
+    if (!draft.organizationUnitId)
+      throw conflict('GENERAL_ROUTE_UNAVAILABLE', 'No organization route is available');
+    const unit = await this.prisma.organizationUnit.findUniqueOrThrow({
+      where: { id: draft.organizationUnitId },
+    });
+    if (unit.department.trim() === '14')
+      throw conflict('GENERAL_ROUTE_FORBIDDEN', 'Department 14 cannot submit General Voice');
+    const special =
+      category === RoutingCategory.SAFETY ||
+      category === RoutingCategory.ENVIRONMENT ||
+      category === RoutingCategory.FACILITY;
+    const route = await this.prisma.routeMapping.findFirst({
+      where: special
+        ? {
+            kind: RouteKind.GLOBAL_SPECIAL,
+            effectiveTo: null,
+            owner: { status: AccountStatus.ACTIVE },
+          }
+        : {
+            organizationUnitId: draft.organizationUnitId,
+            kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
+            effectiveTo: null,
+            owner: { status: AccountStatus.ACTIVE },
+          },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    if (!route)
+      throw conflict(
+        'GENERAL_ROUTE_UNAVAILABLE',
+        'No valid General Voice route is available; draft was preserved',
+      );
+    return route;
+  }
+  private async nextDisplayId(tx: Prisma.TransactionClient) {
+    const period = new Date().toISOString().slice(0, 7).replace('-', '');
+    const sequence = await tx.humanVoiceSequence.upsert({
+      where: { period },
+      create: { period, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+    return `CARE-${period}-${String(sequence.value).padStart(6, '0')}`;
+  }
+  private listSelect(): Prisma.VoiceSelect {
+    return {
+      id: true,
+      displayId: true,
+      visibility: true,
+      area: true,
+      title: true,
+      category: true,
+      severity: true,
+      status: true,
+      updatedAt: true,
+    };
+  }
+  private async authorizedVoice(actor: AuthActor, id: string) {
+    const scope = await this.policy.detailScope(actor);
+    const voice = await this.prisma.voice.findFirst({ where: { id, AND: [scope] } });
+    if (!voice) throw forbiddenAsNotFound();
+    return voice;
+  }
+  private async actionVoice(actor: AuthActor, id: string) {
+    const voice = await this.authorizedVoice(actor, id);
+    const allowed =
+      (voice.visibility === VoiceVisibility.GENERAL &&
+        (voice.routeOwnerId === actor.accountId || voice.currentHandlerId === actor.accountId)) ||
+      (voice.visibility === VoiceVisibility.PRIVATE &&
+        (actor.capabilities.includes('UNION_HEAD') ||
+          voice.currentHandlerId === actor.accountId)) ||
+      actor.accountStatus === AccountStatus.LEGACY_HANDLER;
+    if (!allowed) throw forbiddenAsNotFound();
+    return voice;
+  }
+  private async transitionWithMessage(
+    actor: AuthActor,
+    id: string,
+    data: { text: string; version: number },
+    action: 'ASK',
+  ) {
+    const voice = await this.actionVoice(actor, id);
+    const target = transitionTarget(voice.status, action);
+    if (!target || voice.version !== data.version)
+      throw invalidTransition('Voice cannot transition from its current state');
+    await this.addMessage(actor, id, { text: data.text }, [], '');
+    return this.updateStatus(actor, id, target, VoiceEventType.ASKED_REPORTER, {});
+  }
+  private async updateStatus(
+    actor: AuthActor,
+    id: string,
+    status: VoiceStatus,
+    type: VoiceEventType,
+    payload: object,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const voice = await tx.voice.update({
+        where: { id },
+        data: { status, version: { increment: 1 } },
+      });
+      await tx.voiceEvent.create({
+        data: {
+          voiceId: id,
+          actorId: actor.accountId,
+          ...this.policy.actorSnapshot(actor),
+          type,
+          payload,
         },
       });
       await this.notify(
         tx,
         voice.reporterId,
         id,
-        NotificationType.CLOSED,
-        'Voice selesai',
-        voice.visibility === 'PRIVATE'
-          ? 'Private Voice telah ditutup'
-          : `${voice.displayId} telah ditutup`,
+        NotificationType.STATUS_CHANGED,
+        'Status Voice diperbarui',
       );
-      return { status: VoiceStatus.CLOSED, version: voice.version + 1, closureCycleId: cycle.id };
-    });
-  }
-  async rate(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(ratingSchema, input);
-    return this.mutateVoice(actor, id, data.expectedVersion, key, input, async (tx, voice) => {
-      if (voice.reporterId !== actor.accountId) throw forbiddenAsNotFound();
-      if (voice.status !== VoiceStatus.CLOSED)
-        throw invalidTransition('Only a Closed Voice can be rated');
-      if (data.score <= 2 && !data.feedback)
-        throw badRequest('FEEDBACK_REQUIRED', 'Feedback is required for rating 1–2');
-      if (data.score >= 3 && data.reopen)
-        throw badRequest('REOPEN_NOT_ALLOWED', 'Only rating 1–2 can reopen');
-      const cycle = await tx.closureCycle.findFirst({
-        where: { voiceId: id },
-        orderBy: { cycleNumber: 'desc' },
-        include: { rating: true },
-      });
-      if (!cycle || cycle.rating)
-        throw conflict('RATING_EXISTS', 'Current closure cycle is already rated');
-      if (data.reopen) {
-        const handler = voice.currentHandlerId
-          ? await tx.userAccount.findUnique({ where: { id: voice.currentHandlerId } })
-          : null;
-        if (handler && !handler.active)
-          throw conflict('PIC_INACTIVE', 'Previous PIC is inactive; Admin remediation is required');
-      }
-      const rating = await tx.rating.create({
-        data: {
-          closureCycleId: cycle.id,
-          reporterId: actor.accountId,
-          score: data.score,
-          feedback: data.feedback,
-          reopen: data.reopen,
-        },
-      });
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          type: VoiceEventType.RATED,
-          actorId: actor.accountId,
-          actorRole: actor.role,
-          payload: { score: data.score },
-        },
-      });
-      if (data.reopen) {
-        await tx.closureCycle.update({ where: { id: cycle.id }, data: { reopenedAt: new Date() } });
-        await tx.voice.update({
-          where: { id },
-          data: { status: VoiceStatus.IN_VERIFICATION, version: { increment: 1 } },
-        });
-        await tx.voiceEvent.create({
-          data: {
-            voiceId: id,
-            type: VoiceEventType.REOPENED,
-            actorId: actor.accountId,
-            actorRole: actor.role,
-            payload: { cycleNumber: cycle.cycleNumber },
-          },
-        });
-        await this.notify(
-          tx,
-          voice.currentHandlerId ?? voice.routeOwnerId,
-          id,
-          NotificationType.REOPENED,
-          'Voice dibuka kembali',
-          voice.visibility === 'PRIVATE'
-            ? 'Private Voice dibuka kembali'
-            : `${voice.displayId} dibuka kembali`,
-        );
-      } else await tx.voice.update({ where: { id }, data: { version: { increment: 1 } } });
       return {
-        ratingId: rating.id,
-        status: data.reopen ? VoiceStatus.IN_VERIFICATION : VoiceStatus.CLOSED,
-        version: voice.version + 1,
+        id: voice.id,
+        displayId: voice.displayId,
+        status: voice.status,
+        version: voice.version,
+        currentHandlerId: voice.currentHandlerId,
+        handlerType: voice.handlerType,
       };
     });
-  }
-  async dashboard(actor: AuthActor) {
-    const where = await this.scope(actor);
-    const [total, statuses, severities, recent] = await Promise.all([
-      this.prisma.voice.count({ where }),
-      this.prisma.voice.groupBy({ by: ['status'], where, _count: true }),
-      this.prisma.voice.groupBy({ by: ['severity'], where, _count: true }),
-      this.prisma.voice.findMany({
-        where,
-        take: 10,
-        orderBy: [{ severity: 'desc' }, { updatedAt: 'desc' }],
-      }),
-    ]);
-    return {
-      total,
-      byStatus: Object.fromEntries(statuses.map((s) => [s.status, s._count])),
-      bySeverity: Object.fromEntries(severities.map((s) => [s.severity, s._count])),
-      recent: recent.map((v) => ({
-        id: v.id,
-        displayId: v.displayId,
-        title: v.title,
-        severity: v.severity,
-        status: v.status,
-        updatedAt: v.updatedAt,
-      })),
-    };
-  }
-  private requireReporter(actor: AuthActor) {
-    if (![Role.MEMBER, Role.MANAGER, Role.SECTION_HEAD].includes(actor.role as any))
-      throw forbiddenAsNotFound();
-  }
-  private async department(actor: AuthActor) {
-    const employee = actor.employeeId
-      ? await this.prisma.employee.findUnique({ where: { id: actor.employeeId } })
-      : null;
-    if (!employee?.active) throw forbiddenAsNotFound();
-    return employee.department;
-  }
-  private contentHash(
-    data: { area: string; title: string; detail: string; visibility: string },
-    department: string,
-  ) {
-    return sha256(
-      JSON.stringify({
-        area: data.area,
-        title: data.title.trim(),
-        detail: data.detail.trim(),
-        visibility: data.visibility,
-        department,
-      }),
-    );
-  }
-  private ownDraft(actor: AuthActor, id: string, include?: Prisma.VoiceDraftInclude) {
-    return this.prisma.voiceDraft
-      .findFirst({ where: { id, reporterId: actor.accountId }, include })
-      .then((value) => {
-        if (!value) throw forbiddenAsNotFound();
-        return value;
-      });
-  }
-  private async resolveRoute(
-    tx: Prisma.TransactionClient,
-    visibility: VoiceVisibility,
-    category: RoutingCategory,
-    area: string,
-    department: string,
-  ) {
-    if (visibility === VoiceVisibility.PRIVATE) {
-      const unions = await tx.userAccount.findMany({ where: { role: Role.UNION, active: true } });
-      if (unions.length !== 1)
-        throw conflict(
-          unions.length ? 'ROUTE_AMBIGUOUS' : 'ROUTE_UNAVAILABLE',
-          'Exactly one active Union route is required',
-        );
-      return unions[0]!;
-    }
-    const profiles = await tx.managerProfile.findMany({
-      where: {
-        active: true,
-        ...(category === RoutingCategory.SAFETY
-          ? { area: area as any, isSafety: true }
-          : category === RoutingCategory.FACILITY
-            ? { area: area as any, isFacility: true }
-            : { department, isSafety: false, isFacility: false }),
-        account: { active: true },
-      },
-      include: { account: true },
-    });
-    if (profiles.length !== 1)
-      throw conflict(
-        profiles.length ? 'ROUTE_AMBIGUOUS' : 'ROUTE_UNAVAILABLE',
-        'Exactly one Manager route is required',
-      );
-    return profiles[0]!.account;
-  }
-  private async nextDisplayId(tx: Prisma.TransactionClient) {
-    const period = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Jakarta',
-      year: 'numeric',
-      month: '2-digit',
-    })
-      .format(new Date())
-      .replace('-', '');
-    const seq = await tx.humanVoiceSequence.upsert({
-      where: { period },
-      update: { value: { increment: 1 } },
-      create: { period, value: 1 },
-    });
-    return `CARE-${period}-${String(seq.value).padStart(6, '0')}`;
-  }
-  private async scope(actor: AuthActor): Promise<Prisma.VoiceWhereInput> {
-    if (actor.role === Role.CARE_ADMIN) return {};
-    if (actor.role === Role.UNION)
-      return { visibility: VoiceVisibility.PRIVATE, routeOwnerId: actor.accountId };
-    if (actor.role === Role.MANAGER)
-      return { OR: [{ reporterId: actor.accountId }, { routeOwnerId: actor.accountId }] };
-    if (actor.role === Role.SECTION_HEAD)
-      return { OR: [{ reporterId: actor.accountId }, { currentHandlerId: actor.accountId }] };
-    return { reporterId: actor.accountId };
-  }
-  private async authorizedVoice(
-    actor: AuthActor,
-    id: string,
-    include?: Prisma.VoiceInclude,
-  ): Promise<any> {
-    const voice = await this.prisma.voice.findFirst({
-      where: { id, AND: [await this.scope(actor)] },
-      include,
-    });
-    if (!voice) throw forbiddenAsNotFound();
-    return voice;
   }
   private serialize(actor: AuthActor, voice: any) {
     const base = {
@@ -963,127 +1133,78 @@ export class VoicesService {
       severity: voice.severity,
       status: voice.status,
       version: voice.version,
-      pic: {
-        ...(voice.currentHandlerId ? { id: voice.currentHandlerId } : {}),
-        label:
-          voice.visibility === 'PRIVATE'
-            ? 'Union'
-            : voice.currentHandlerId
-              ? 'Current handler'
-              : 'Route Manager',
-      },
+      routeOwner: voice.routeOwner,
+      currentHandler: voice.currentHandler,
+      attachments: voice.attachments,
+      locationReview: voice.locationReview,
     };
-    if (actor.accountId === voice.reporterId)
-      return { ...base, audience: 'MEMBER', reporter: { self: true } };
-    if (voice.visibility === 'PRIVATE')
+    if (voice.reporterId === actor.accountId)
+      return { ...base, audience: 'REPORTER_SELF', reporter: { self: true } };
+    if (voice.visibility === VoiceVisibility.GENERAL)
       return {
         ...base,
-        audience: actor.role === Role.CARE_ADMIN ? 'ADMIN_PRIVATE' : 'PRIVATE_RESPONDER',
-        anonymousReporter: { alias: voice.anonymousAlias },
+        audience: actor.capabilities.some((capability: string) =>
+          ['DIRECTOR', 'DIVISION_LEADERSHIP', 'UNION_HEAD', 'UNION_OFFICER', 'CARE_ADMIN'].includes(
+            capability,
+          ),
+        )
+          ? 'LEADERSHIP_GENERAL_READ_ONLY'
+          : 'GENERAL_RESPONDER',
+        reporter: {
+          noReg: voice.reporterNoRegSnapshot,
+          name: voice.reporterNameSnapshot,
+          directorate: voice.reporterDirectorateSnapshot,
+          division: voice.reporterDivisionSnapshot,
+          department: voice.reporterDepartmentSnapshot,
+          section: voice.reporterSectionSnapshot,
+          position: voice.reporterPositionSnapshot,
+        },
+      };
+    if (actor.capabilities.includes('CARE_ADMIN'))
+      return {
+        ...base,
+        audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY',
+        reporter: {
+          noReg: voice.reporterNoRegSnapshot,
+          name: voice.reporterNameSnapshot,
+          directorate: voice.reporterDirectorateSnapshot,
+          division: voice.reporterDivisionSnapshot,
+          department: voice.reporterDepartmentSnapshot,
+          section: voice.reporterSectionSnapshot,
+          position: voice.reporterPositionSnapshot,
+        },
+      };
+    if (voice.showReporterIdentity)
+      return {
+        ...base,
+        audience: 'UNION_IDENTIFIED',
+        reporter: {
+          noReg: voice.reporterNoRegSnapshot,
+          name: voice.reporterNameSnapshot,
+          division: voice.reporterDivisionSnapshot,
+          department: voice.reporterDepartmentSnapshot,
+        },
       };
     return {
       ...base,
-      audience: 'GENERAL_RESPONDER',
-      reporter: {
-        noReg: voice.reporter.employee.noReg,
-        name: voice.reporter.employee.name,
-        division: voice.reporter.employee.division,
-        department: voice.reporter.employee.department,
-      },
+      audience: 'UNION_ANONYMOUS',
+      anonymousReporter: { alias: voice.anonymousAlias },
     };
   }
-  private requireResponder(actor: AuthActor, voice: any) {
-    if (
-      actor.role === Role.UNION &&
-      voice.visibility === VoiceVisibility.PRIVATE &&
-      voice.routeOwnerId === actor.accountId
-    )
-      return;
-    if (voice.visibility !== VoiceVisibility.GENERAL) throw forbiddenAsNotFound();
-    if (actor.role === Role.MANAGER && voice.routeOwnerId === actor.accountId) return;
-    if (actor.role === Role.SECTION_HEAD && voice.currentHandlerId === actor.accountId) return;
-    throw forbiddenAsNotFound();
-  }
-  private async mutateVoice<T>(
-    actor: AuthActor,
-    id: string,
-    expectedVersion: number,
-    key: string,
-    input: unknown,
-    mutation: (tx: Prisma.TransactionClient, voice: any) => Promise<T>,
-  ) {
-    return this.idempotent(actor, `voice:${id}`, key, input, () =>
-      this.prisma.$transaction(
-        async (tx) => {
-          const voices = await tx.$queryRaw<
-            any[]
-          >`SELECT * FROM "Voice" WHERE id = ${id}::uuid FOR UPDATE`;
-          const voice = voices[0];
-          if (!voice || !(await this.canAccess(actor, voice))) throw forbiddenAsNotFound();
-          if (voice.version !== expectedVersion)
-            throw conflict('VERSION_CONFLICT', 'Voice version is stale', {
-              currentVersion: voice.version,
-              status: voice.status,
-            });
-          return mutation(tx, voice);
-        },
-        { isolationLevel: 'Serializable' },
-      ),
-    );
-  }
-  private async canAccess(actor: AuthActor, voice: any) {
-    if (actor.role === Role.CARE_ADMIN) return true;
-    if (actor.role === Role.UNION)
-      return voice.visibility === VoiceVisibility.PRIVATE && voice.routeOwnerId === actor.accountId;
-    return (
-      voice.reporterId === actor.accountId ||
-      voice.routeOwnerId === actor.accountId ||
-      voice.currentHandlerId === actor.accountId
-    );
-  }
-  private async idempotent<T>(
-    actor: AuthActor,
-    scope: string,
-    key: string,
-    input: unknown,
-    action: () => Promise<T>,
-  ): Promise<T> {
-    if (!key || key.length > 100)
-      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
-    const requestHash = canonicalHash(input);
-    const existing = await this.prisma.idempotencyRecord.findUnique({
-      where: { accountId_scope_key: { accountId: actor.accountId, scope, key } },
+  private async auditPrivateRead(actor: AuthActor, voiceId: string, action: string) {
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        action,
+        result: 'SUCCESS',
+        resourceType: 'VOICE',
+        resourceId: voiceId,
+        summary: { private: true, content: 'redacted' },
+        correlationId: `private-read:${voiceId}`,
+        releaseSha: loadConfig().RELEASE_SHA,
+      },
     });
-    if (existing) {
-      if (existing.requestHash !== requestHash)
-        throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key was used with another payload');
-      return existing.response as T;
-    }
-    const result = await action();
-    try {
-      await this.prisma.idempotencyRecord.create({
-        data: {
-          accountId: actor.accountId,
-          scope,
-          key,
-          requestHash,
-          statusCode: 200,
-          response: result as Prisma.InputJsonValue,
-          expiresAt: new Date(Date.now() + 24 * 3_600_000),
-        },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        const replay = await this.prisma.idempotencyRecord.findUniqueOrThrow({
-          where: { accountId_scope_key: { accountId: actor.accountId, scope, key } },
-        });
-        if (replay.requestHash !== requestHash)
-          throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key was used with another payload');
-        return replay.response as T;
-      }
-      throw error;
-    }
-    return result;
   }
   private async notify(
     tx: Prisma.TransactionClient,
@@ -1091,18 +1212,41 @@ export class VoicesService {
     voiceId: string,
     type: NotificationType,
     title: string,
-    body: string,
   ) {
     const notification = await tx.notification.create({
-      data: { recipientId, voiceId, type, title, body, deepLink: `/voices/${voiceId}` },
+      data: {
+        recipientId,
+        voiceId,
+        type,
+        title,
+        body: 'Ada pembaruan Voice di CARE',
+        deepLink: `/voices/${voiceId}`,
+      },
     });
     await tx.outboxEvent.create({
       data: {
         topic: 'PUSH_NOTIFICATION',
-        dedupeKey: `notification:${notification.id}`,
+        dedupeKey: `${type}:${voiceId}:${recipientId}:${notification.id}`,
         payload: { notificationId: notification.id },
       },
     });
-    return notification;
+  }
+  private async cleanupLegacy(tx: Prisma.TransactionClient, voiceId: string) {
+    await tx.legacyVoiceAccess.updateMany({
+      where: { voiceId, effectiveTo: null },
+      data: { effectiveTo: new Date() },
+    });
+    const accounts = await tx.userAccount.findMany({
+      where: { status: AccountStatus.LEGACY_HANDLER },
+      select: { id: true },
+    });
+    for (const account of accounts)
+      if (
+        !(await tx.legacyVoiceAccess.count({ where: { accountId: account.id, effectiveTo: null } }))
+      )
+        await tx.userAccount.update({
+          where: { id: account.id },
+          data: { status: AccountStatus.INACTIVE },
+        });
   }
 }

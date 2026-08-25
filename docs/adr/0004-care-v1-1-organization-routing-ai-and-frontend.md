@@ -19,7 +19,7 @@ The delivered backend stores historical Voice ownership, assignments, actors, ev
 
 ### Authoritative organization and capabilities
 
-One authoritative `.xlsx` upload replaces Employee/Manager CSV and Union JSON workforce imports. The importer requires sheet `MFG + QD` and the seven exact source headers, preserves no.reg values including leading zeroes, and treats each confirmed monthly upload as the full active workforce snapshot.
+One authoritative `.xlsx` or UTF-8 `.csv` upload replaces separate Employee/Manager CSV and Union JSON workforce imports. Both formats require the seven exact source headers; XLSX additionally requires sheet `MFG + QD`. CSV uses standard quoted-field parsing and preserves every value as text. Both formats preserve no.reg values including leading zeroes and each confirmed monthly upload is the full active workforce snapshot.
 
 Organization units are identified by the composite `Directorat + Division + Department`. Raw structural position is retained. Account kind, structural position, capability, and route assignment are modeled separately so a workforce account always retains Member capability while also acting as a structural reader, default PIC, global PIC, or assigned handler.
 
@@ -92,6 +92,10 @@ The Responses API provides a provider-configurable, schema-validated contract fo
 
 Rejected because multiple authoritative files can disagree, cannot reliably derive structural changes, and increase monthly reconciliation work.
 
+### Require XLSX as the only authoritative format
+
+Rejected because the organization owner may publish the same tabular snapshot as CSV. Accepting one XLSX or one CSV through the same endpoint preserves a single authoritative snapshot and remediation flow without reintroducing separate Employee, Manager, or Union import contracts. The CSV parser is deliberately constrained to UTF-8, seven exact columns, bounded record size, standard quoting, and the same row validation used by XLSX.
+
 ### Use department name as the organization key
 
 Rejected because names recur across divisions and would route some reports ambiguously.
@@ -138,7 +142,7 @@ Rejected because it would corrupt auditability and make past handling appear to 
 - Effective-dated organization snapshots and mappings distinguish current routing eligibility from immutable Voice/event/assignment history.
 - Import preview reports create/update/deactivate, structural and unit changes, route gaps, invalid global/default mappings, and Union-account gaps. Confirm is atomic; remediation resolutions are separately audited.
 - Session responses expose account kind, raw structural position, capabilities, and safe overview/detail/action scopes.
-- Import APIs provide XLSX preview, confirm, history, issues, and resolution audit. Legacy Employee/Manager/Union imports and Section Head mutation endpoints are removed after compatibility cutover.
+- Import APIs provide XLSX/CSV preview, confirm, history, issues, and resolution audit. Legacy separate Employee/Manager/Union imports and Section Head mutation endpoints are removed after compatibility cutover.
 - Drafts add Voice type and conditionally required `showReporterIdentity`. Submission carries the latest location-review snapshot acknowledgment.
 - Separate aggregate endpoints return only aggregate dimensions. Scoped list/detail endpoints apply record-level policy independently.
 - Tests and performance fixtures scale to 10,000 active accounts, 50 concurrent users, and 50,000 Voices.
@@ -148,22 +152,23 @@ Rejected because it would corrupt auditability and make past handling appear to 
 
 - The current backend requires a material schema, data, API, authorization, AI, and routing migration before frontend implementation can safely depend on it.
 - Organization imports become operationally critical and require a named monthly data owner and remediation operator.
+- Supporting two file encodings adds parser and validation surface. Format-specific parsing is therefore completed before a shared normalization path, and the asynchronous worker re-detects the persisted extension before checksum-bound parsing.
 - Historical and current authorization must coexist while legacy handlers finish active Voices.
 - Union credentials and actions become individually attributable; three-account completeness becomes a routing prerequisite.
 - CARE Admin access to identified Private content becomes a high-sensitivity audited capability.
 - Two frontend images and host configurations add deployment complexity but reduce privilege and offline-cache coupling.
-- Live AI validation depends on externally supplied endpoint, model, credentials, governance approval, and quota.
+- Automated AI validation uses a local mock `/responses` server and never depends on a real API key. Live staging/production validation still depends on externally supplied endpoint, model, credentials, governance approval, and quota.
 - The previous absence of backup/DR/HA remains unchanged and must still be accepted before production.
 
 ## Validation Plan
 
-- Validate exact workbook sheet/header shape, leading-zero no.reg, duplicate records, composite department collisions, missing-head departments, `Department=14`, 10,000-account load, and monthly create/update/deactivate behavior.
+- Validate exact XLSX sheet/header and CSV header/column shape, CSV quoting/BOM, leading-zero no.reg, duplicate records, composite department collisions, missing-head departments, `Department=14`, 10,000-account load, and monthly create/update/deactivate behavior.
 - Upgrade a database at the current migration baseline and reconcile every historical Voice, assignment, actor, event, closure, rating, notification, route owner, and PIC identifier.
 - Test global category routing across areas, composite Work Difficulty routing, missing-route draft preservation, default/global mapping invalidation, and legacy-handler bounds.
 - Test exactly one Union Head/two Officers, Head-first routing, assignment/reassignment cutoff, assigned-only Officer access, anonymous/full-consent Union serializers, and Admin full-identity read-only access.
 - Test every aggregate/detail/action matrix cell, including aggregate leakage and media/timeline authorization.
 - Contract-test Responses request/output shapes, missing config, refusal/incomplete/invalid output, timeout/retry, low confidence, Private severity-only fallback, location cache invalidation, and snapshot acknowledgment.
-- Run a live non-sensitive Responses smoke for classification and location review with externally provided configuration.
+- Run deterministic classification/location smoke tests against a local mock `/responses` server without an external API key; run a separate live non-sensitive validation during staging rehearsal after configuration is supplied.
 - Run two-origin Playwright coverage for Admin bootstrap/import/remediation, reporter/responder/leadership workflows, host isolation, privacy, workforce PWA behavior, responsiveness, and accessibility.
 
 ## Risks
@@ -179,9 +184,13 @@ Rejected because it would corrupt auditability and make past handling appear to 
 ## Follow-up Work
 
 - Produce and review the expand/contract schema and current-schema backfill specification.
-- Implement the authoritative XLSX importer, remediation queue, effective organization master, and route administration.
+- Maintain the authoritative XLSX/CSV importer, remediation queue, effective organization master, and route administration.
 - Replace legacy role/routing/Union/Private serializers and add compatibility migration tests.
-- Implement the Responses adapter and location-review contract, then complete governance review and live smoke.
+- Validate the completed Responses adapter/location-review contract with mock tests; complete governance review and live validation during staging.
 - Regenerate OpenAPI/client contracts and complete authorization, privacy, security, migration, and performance regression.
 - Build and validate the separate workforce and Admin applications only after the backend contract is re-frozen.
 - Provision and approve production workforce/Admin domains, AI configuration, Union account owners, monthly data owner, and accepted operational risks.
+
+## Implementation Status
+
+The backend contract was re-frozen as API v1.1 on 26 August 2026. The generated TypeScript client, expand/contract migration, XLSX/CSV import paths, mock Responses smoke, authorization/security suites, and the 10,000-account/50,000-Voice/50-concurrent profile are green. Live provider validation remains a staging concern and does not require an API key in automated tests.

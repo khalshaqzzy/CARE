@@ -155,7 +155,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["AdminController_list"];
+        get: operations["AdminController_accounts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -164,14 +164,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/accounts/{id}": {
+    "/api/v1/admin/remediation-issues": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["AdminController_detail"];
+        get: operations["AdminController_issues"];
         put?: never;
         post?: never;
         delete?: never;
@@ -180,78 +180,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/accounts/{id}/revoke-sessions": {
+    "/api/v1/admin/remediation-issues/history": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        post: operations["AdminController_revokeSessions"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/accounts/{id}/reset-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["AdminController_reset"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/accounts/{id}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: operations["AdminController_activate"];
-        trace?: never;
-    };
-    "/api/v1/admin/accounts/{id}/deactivate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: operations["AdminController_deactivate"];
-        trace?: never;
-    };
-    "/api/v1/admin/employees/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["AdminController_search"];
+        get: operations["AdminController_resolutions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -260,7 +196,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/section-heads/promote": {
+    "/api/v1/admin/organization-units/{id}/default-pic": {
         parameters: {
             query?: never;
             header?: never;
@@ -268,15 +204,15 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
-        post: operations["AdminController_promote"];
+        put: operations["AdminController_defaultPic"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/section-heads/transfer": {
+    "/api/v1/admin/routes/global-special-pic": {
         parameters: {
             query?: never;
             header?: never;
@@ -284,15 +220,47 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
-        post: operations["AdminController_transfer"];
+        put: operations["AdminController_globalPic"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/section-heads/remove": {
+    "/api/v1/admin/organization-units/{id}/section-head-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_sectionHeads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/union-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_unionAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/union-accounts/{slot}": {
         parameters: {
             query?: never;
             header?: never;
@@ -300,15 +268,15 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
-        post: operations["AdminController_remove"];
+        put: operations["AdminController_unionAccount"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/imports/{type}/preview": {
+    "/api/v1/admin/organization-imports/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -324,7 +292,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/imports/{id}": {
+    "/api/v1/admin/organization-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/organization-imports/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -340,7 +324,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/imports/{id}/confirm": {
+    "/api/v1/admin/organization-imports/{id}/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ImportsController_changes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/organization-imports/{id}/confirm": {
         parameters: {
             query?: never;
             header?: never;
@@ -404,38 +404,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drafts/{id}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["VoicesController_addDraftAttachment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drafts/{id}/attachments/{attachmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["VoicesController_removeDraftAttachment"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/drafts/{id}/classify": {
         parameters: {
             query?: never;
@@ -468,6 +436,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drafts/{id}/location-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_getLocationReview"];
+        put?: never;
+        post: operations["VoicesController_locationReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drafts/{id}/submit": {
         parameters: {
             query?: never;
@@ -484,6 +468,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drafts/{id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_addDraftAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drafts/{id}/attachments/{attachmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["VoicesController_removeDraftAttachment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voices": {
         parameters: {
             query?: never;
@@ -492,6 +508,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["VoicesController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_workItems"];
         put?: never;
         post?: never;
         delete?: never;
@@ -532,6 +564,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voices/{id}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/assignments/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_reassign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voices/{id}/ask": {
         parameters: {
             query?: never;
@@ -558,38 +622,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["VoicesController_proceed"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/voices/{id}/assign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["VoicesController_assign"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/voices/{id}/reassign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["VoicesController_reassign"];
         delete?: never;
         options?: never;
         head?: never;
@@ -676,14 +708,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/dashboard": {
+    "/api/v1/dashboard/general": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["VoicesController_dashboard"];
+        get: operations["VoicesController_dashboardGeneral"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/private": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_dashboardPrivate"];
         put?: never;
         post?: never;
         delete?: never;
@@ -854,14 +902,93 @@ export interface components {
             code: string;
             message: string;
         };
-        /** @description Endpoint-specific request. Aggregate mutations require expectedVersion. */
-        MutationRequest: {
-            expectedVersion?: number;
-        } & {
-            [key: string]: unknown;
+        LoginRequest: {
+            username: string;
+            /** Format: password */
+            password: string;
         };
-        SuccessResponse: {
-            [key: string]: unknown;
+        VoiceDraftRequest: {
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            title: string;
+            detail: string;
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @description Required only for Private Voice */
+            showReporterIdentity?: boolean;
+        };
+        ManualClassificationRequest: {
+            /** @enum {string|null} */
+            category?: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            /** @enum {string} */
+            severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+        };
+        SubmitVoiceRequest: {
+            version: number;
+            /** Format: uuid */
+            locationReviewId?: string | null;
+            locationContentHash?: string | null;
+            acknowledgeIncompleteLocation?: boolean;
+        };
+        AssignmentRequest: {
+            /** Format: uuid */
+            handlerAccountId: string;
+            reason?: string;
+        };
+        AccountSelectionRequest: {
+            /** Format: uuid */
+            accountId: string;
+        };
+        UnionAccountRequest: {
+            username: string;
+            displayName: string;
+        };
+        ChangePasswordRequest: {
+            /** Format: password */
+            currentPassword: string;
+            /** Format: password */
+            newPassword: string;
+        };
+        VoiceTextMutationRequest: {
+            text: string;
+            version: number;
+        };
+        VersionedMutationRequest: {
+            version: number;
+        };
+        CloseVoiceRequest: {
+            note: string;
+            version: number;
+        };
+        RatingRequest: {
+            score: number;
+            feedback?: string;
+            reopen?: boolean;
+        };
+        PushSubscriptionRequest: {
+            installationId: string;
+            /** Format: uri */
+            endpoint: string;
+            keys: {
+                p256dh: string;
+                auth: string;
+            };
+        };
+        OrganizationFileUploadRequest: {
+            /**
+             * Format: binary
+             * @description Authoritative organization snapshot in .xlsx or UTF-8 .csv format
+             */
+            file: string;
+        };
+        ImageUploadRequest: {
+            /** Format: binary */
+            file: string;
+        };
+        MessageUploadRequest: {
+            text?: string;
+            files?: string[];
         };
         PagedResponse: {
             items: {
@@ -889,6 +1016,16 @@ export interface components {
             account: {
                 [key: string]: unknown;
             };
+            workforceProfile?: {
+                [key: string]: unknown;
+            } | null;
+            unionProfile?: {
+                [key: string]: unknown;
+            } | null;
+            capabilities: ("MEMBER" | "SECTION_HEAD" | "MANAGER" | "DIVISION_LEADERSHIP" | "DIRECTOR" | "UNION_HEAD" | "UNION_OFFICER" | "CARE_ADMIN")[];
+            scopes: {
+                [key: string]: string[];
+            };
             /** Format: uuid */
             sessionId: string;
             passwordChangeRequired: boolean;
@@ -896,14 +1033,18 @@ export interface components {
         ClassificationPreview: {
             /** @enum {string} */
             source: "AI" | "MANUAL_FALLBACK";
-            /** @enum {string} */
-            category: "SAFETY" | "FACILITY" | "WORK_DIFFICULTY";
+            /** @enum {string|null} */
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             confidence: number;
             rationaleCode: string;
+        } | {
+            /** @enum {string} */
+            source: "MANUAL_FALLBACK";
+            fallbackCode: string;
         };
-        MemberVoiceDetail: {
+        ReporterSelfVoiceDetail: {
             /** Format: uuid */
             id: string;
             /** @example CARE-202608-000001 */
@@ -912,7 +1053,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            audience: "MEMBER";
+            audience: "REPORTER_SELF";
             /** @enum {string} */
             visibility: "GENERAL" | "PRIVATE";
             /** @enum {string} */
@@ -921,7 +1062,7 @@ export interface components {
             title: string;
             detail: string;
             /** @enum {string|null} */
-            category: "SAFETY" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
@@ -954,7 +1095,7 @@ export interface components {
             title: string;
             detail: string;
             /** @enum {string|null} */
-            category: "SAFETY" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
@@ -971,7 +1112,7 @@ export interface components {
                 department: string;
             };
         };
-        PrivateResponderVoiceDetail: {
+        LeadershipGeneralVoiceDetail: {
             /** Format: uuid */
             id: string;
             /** @example CARE-202608-000001 */
@@ -980,7 +1121,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            audience: "PRIVATE_RESPONDER";
+            audience: "LEADERSHIP_GENERAL_READ_ONLY";
             /** @enum {string} */
             visibility: "GENERAL" | "PRIVATE";
             /** @enum {string} */
@@ -989,7 +1130,39 @@ export interface components {
             title: string;
             detail: string;
             /** @enum {string|null} */
-            category: "SAFETY" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            /** @enum {string} */
+            severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
+            version: number;
+            pic: {
+                id?: string;
+                label: string;
+            };
+            reporter: {
+                [key: string]: unknown;
+            };
+        };
+        UnionAnonymousVoiceDetail: {
+            /** Format: uuid */
+            id: string;
+            /** @example CARE-202608-000001 */
+            displayId: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            audience: "UNION_ANONYMOUS";
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            title: string;
+            detail: string;
+            /** @enum {string|null} */
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
@@ -1004,7 +1177,7 @@ export interface components {
                 alias: string;
             };
         };
-        AdminPrivateVoiceDetail: {
+        UnionIdentifiedVoiceDetail: {
             /** Format: uuid */
             id: string;
             /** @example CARE-202608-000001 */
@@ -1013,7 +1186,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            audience: "ADMIN_PRIVATE";
+            audience: "UNION_IDENTIFIED";
             /** @enum {string} */
             visibility: "GENERAL" | "PRIVATE";
             /** @enum {string} */
@@ -1022,7 +1195,7 @@ export interface components {
             title: string;
             detail: string;
             /** @enum {string|null} */
-            category: "SAFETY" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
@@ -1032,10 +1205,351 @@ export interface components {
                 id?: string;
                 label: string;
             };
-            anonymousReporter: {
-                alias: string;
+            reporter: {
+                noReg: string;
+                name: string;
+                division: string;
+                department: string;
             };
         };
+        AdminPrivateVoiceDetail: {
+            /** Format: uuid */
+            id: string;
+            /** @example CARE-202608-000001 */
+            displayId: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            audience: "ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY";
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            title: string;
+            detail: string;
+            /** @enum {string|null} */
+            category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            /** @enum {string} */
+            severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
+            version: number;
+            pic: {
+                id?: string;
+                label: string;
+            };
+            reporter: {
+                [key: string]: unknown;
+            };
+        };
+        LocationReviewSnapshot: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            completeness: "COMPLETE" | "INCOMPLETE" | "UNKNOWN";
+            warning?: string | null;
+            questions: string[];
+            contentHash: string;
+        } | null;
+        DashboardAggregate: {
+            total: number;
+            status: components["schemas"]["AggregateBuckets"];
+            severity: components["schemas"]["AggregateBuckets"];
+            category: components["schemas"]["AggregateBuckets"];
+            trend: components["schemas"]["AggregateBuckets"];
+            division: components["schemas"]["AggregateBuckets"];
+            department: components["schemas"]["AggregateBuckets"];
+        };
+        AggregateBuckets: {
+            label: string;
+            value: number;
+        }[];
+        OrganizationImportPreview: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "PREVIEWED" | "QUEUED" | "PROCESSING" | "CONFIRMED" | "FAILED" | "EXPIRED";
+            summary: {
+                [key: string]: unknown;
+            };
+            errors?: Record<string, never>[];
+        };
+        SuccessResponse: {
+            success: boolean;
+        };
+        AccountSummaryList: components["schemas"]["AccountSummary"][];
+        AccountSummary: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            displayName: string;
+            /** @enum {string} */
+            accountKind: "CARE_ADMIN" | "WORKFORCE" | "UNION";
+            /** @enum {string} */
+            status: "ACTIVE" | "LEGACY_HANDLER" | "INACTIVE";
+            employee?: {
+                [key: string]: unknown;
+            } | null;
+            unionTerms?: {
+                [key: string]: unknown;
+            }[];
+        };
+        RouteMappingResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "DEPARTMENT_HEAD" | "DEFAULT_DEPARTMENT" | "GLOBAL_SPECIAL" | "LEGACY";
+            /** Format: uuid */
+            organizationUnitId?: string | null;
+            /** Format: uuid */
+            ownerAccountId: string;
+            /** Format: date-time */
+            effectiveFrom: string;
+            /** Format: date-time */
+            effectiveTo?: string | null;
+            reason?: string;
+        };
+        RemediationIssueList: components["schemas"]["RemediationIssue"][];
+        RemediationIssue: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            /** @enum {string} */
+            status: "OPEN" | "RESOLVED" | "SUPERSEDED";
+            /** Format: uuid */
+            organizationUnitId?: string | null;
+            /** Format: uuid */
+            accountId?: string | null;
+            details: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+        };
+        RemediationResolutionList: {
+            /** Format: uuid */
+            id: string;
+            action: string;
+            reason: string;
+            /** Format: date-time */
+            createdAt?: string;
+            details?: {
+                [key: string]: unknown;
+            };
+        }[];
+        SectionHeadCandidateList: {
+            employeeName: string;
+            section: string;
+            structuralPosition: string;
+            employee: {
+                noReg: string;
+                account: {
+                    /** Format: uuid */
+                    id?: string;
+                    username?: string;
+                } | null;
+            };
+        }[];
+        UnionAccountList: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            slot: "HEAD" | "OFFICER_1" | "OFFICER_2";
+            /** Format: date-time */
+            effectiveFrom?: string;
+            account: components["schemas"]["AccountSummary"];
+        }[];
+        UnionProvisionResponse: {
+            /** @enum {string} */
+            slot: "HEAD" | "OFFICER_1" | "OFFICER_2";
+            account: components["schemas"]["AccountSummary"];
+            temporaryPassword: string;
+            passwordChangeRequired: boolean;
+        };
+        OrganizationChangeList: {
+            /** Format: uuid */
+            id: string;
+            changes: components["schemas"]["OrganizationChange"][];
+        };
+        OrganizationChange: {
+            noReg: string;
+            /** @enum {string} */
+            type: "CREATE" | "UPDATE" | "UNCHANGED" | "DEACTIVATE";
+            positionChanged?: boolean;
+            organizationChanged?: boolean;
+            nameChanged?: boolean;
+        };
+        ImportQueuedResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "QUEUED";
+        };
+        OrganizationImportList: components["schemas"]["OrganizationImportPreview"][];
+        MetricsText: string;
+        UpdatedCountResponse: {
+            updated: number;
+        };
+        UnreadCountResponse: {
+            count: number;
+        };
+        PushPublicKeyResponse: {
+            publicKey: string | null;
+            configured: boolean;
+        };
+        PushStatusResponse: {
+            configured: boolean;
+            subscriptions: {
+                /** Format: uuid */
+                id: string;
+                installationId: string;
+                environment: string;
+                /** Format: date-time */
+                lastSuccessAt?: string | null;
+            }[];
+        };
+        PushSubscriptionResponse: {
+            /** Format: uuid */
+            id: string;
+            active: boolean;
+        };
+        NotificationPage: {
+            items: {
+                /** Format: uuid */
+                id: string;
+                type: string;
+                title: string;
+                body: string;
+                deepLink?: string | null;
+                /** Format: date-time */
+                readAt: string | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            nextCursor: string | null;
+        };
+        VoiceListItem: {
+            /** Format: uuid */
+            id: string;
+            displayId: string;
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            title: string;
+            /** @enum {string|null} */
+            category?: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
+            /** @enum {string} */
+            severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        VoiceListResponse: {
+            items: components["schemas"]["VoiceListItem"][];
+        };
+        VoiceDraftResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            title: string;
+            detail: string;
+            showReporterIdentity?: boolean | null;
+            version: number;
+            classificationContentHash?: string;
+            locationContentHash?: string;
+            classification?: components["schemas"]["ClassificationPreview"];
+            locationReview?: components["schemas"]["LocationReviewSnapshot"];
+        };
+        VoiceDraftPreview: components["schemas"]["VoiceDraftResponse"] & {
+            routeReadiness: {
+                ready: boolean;
+                reason?: string;
+            };
+        };
+        VoiceSubmittedResponse: {
+            /** Format: uuid */
+            id: string;
+            displayId: string;
+            /** @enum {string} */
+            status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
+        };
+        VoiceMutationResponse: {
+            /** Format: uuid */
+            id: string;
+            displayId: string;
+            /** @enum {string} */
+            status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
+            version: number;
+            /** Format: uuid */
+            currentHandlerId?: string | null;
+            handlerType?: string;
+        };
+        TimelineResponse: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            /** Format: date-time */
+            occurredAt: string;
+            payload: {
+                [key: string]: unknown;
+            };
+        }[];
+        AttachmentResponse: {
+            /** Format: uuid */
+            id: string;
+            mimeType: string;
+            size: number;
+            state: string;
+            width?: number | null;
+            height?: number | null;
+        };
+        MessageResponse: {
+            /** Format: uuid */
+            id: string;
+            text?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        MessageList: components["schemas"]["MessageResponse"][];
+        ConversationList: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            voiceId: string;
+            /** Format: date-time */
+            createdAt?: string;
+            voice?: components["schemas"]["VoiceListItem"];
+            messages?: components["schemas"]["MessageResponse"][];
+        }[];
+        ClosureResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            voiceId: string;
+            cycleNumber: number;
+            note: string;
+        };
+        RatingResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            closureCycleId: string;
+            score: number;
+            feedback?: string | null;
+            reopen?: boolean;
+        };
+        /** Format: binary */
+        MediaBinary: string;
     };
     responses: never;
     parameters: never;
@@ -1422,7 +1936,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["MetricsText"];
                 };
             };
             /** @description Request validation failed */
@@ -1668,11 +2182,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             201: {
                 headers: {
@@ -2159,7 +2669,7 @@ export interface operations {
             };
         };
     };
-    AdminController_list: {
+    AdminController_accounts: {
         parameters: {
             query?: never;
             header?: never;
@@ -2173,7 +2683,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PagedResponse"];
+                    "application/json": components["schemas"]["AccountSummaryList"];
                 };
             };
             /** @description Request validation failed */
@@ -2280,7 +2790,507 @@ export interface operations {
             };
         };
     };
-    AdminController_detail: {
+    AdminController_issues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemediationIssueList"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminController_resolutions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemediationResolutionList"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminController_defaultPic: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountSelectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteMappingResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminController_globalPic: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountSelectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteMappingResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminController_sectionHeads: {
         parameters: {
             query?: never;
             header?: never;
@@ -2296,7 +3306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["SectionHeadCandidateList"];
                 };
             };
             /** @description Request validation failed */
@@ -2403,527 +3413,7 @@ export interface operations {
             };
         };
     };
-    AdminController_revokeSessions: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    AdminController_reset: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    AdminController_activate: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    AdminController_deactivate: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    AdminController_search: {
+    AdminController_unionAccounts: {
         parameters: {
             query?: never;
             header?: never;
@@ -2937,7 +3427,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["UnionAccountList"];
                 };
             };
             /** @description Request validation failed */
@@ -3044,284 +3534,30 @@ export interface operations {
             };
         };
     };
-    AdminController_promote: {
+    AdminController_unionAccount: {
         parameters: {
             query?: never;
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
             };
-            path?: never;
+            path: {
+                slot: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["UnionAccountRequest"];
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    AdminController_transfer: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    AdminController_remove: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["UnionProvisionResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -3435,14 +3671,12 @@ export interface operations {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
             };
-            path: {
-                type: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "multipart/form-data": components["schemas"]["OrganizationFileUploadRequest"];
             };
         };
         responses: {
@@ -3451,7 +3685,128 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["OrganizationImportPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    ImportsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationImportList"];
                 };
             };
             /** @description Request validation failed */
@@ -3574,7 +3929,130 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["OrganizationImportPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    ImportsController_changes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationChangeList"];
                 };
             };
             /** @description Request validation failed */
@@ -3693,18 +4171,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["ImportQueuedResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -3823,7 +4297,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["VoiceDraftRequest"];
             };
         };
         responses: {
@@ -3832,7 +4306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["VoiceDraftResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -3955,7 +4429,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["VoiceDraftResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -4202,7 +4676,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["VoiceDraftRequest"];
             };
         };
         responses: {
@@ -4211,7 +4685,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["VoiceDraftResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -4334,7 +4808,644 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["VoiceDraftPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_classify: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_manual: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualClassificationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_getLocationReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationReviewSnapshot"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_locationReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationReviewSnapshot"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_submit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitVoiceRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSubmittedResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -4455,7 +5566,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "multipart/form-data": components["schemas"]["ImageUploadRequest"];
             };
         };
         responses: {
@@ -4464,7 +5575,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["AttachmentResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -4698,398 +5809,6 @@ export interface operations {
             };
         };
     };
-    VoicesController_classify: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassificationPreview"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    VoicesController_manual: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassificationPreview"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    VoicesController_submit: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-                /** @description Unique key for safe mutation retries */
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
     VoicesController_list: {
         parameters: {
             query?: never;
@@ -5104,7 +5823,128 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PagedResponse"];
+                    "application/json": components["schemas"]["VoiceListResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_workItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceListResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -5227,7 +6067,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemberVoiceDetail"] | components["schemas"]["GeneralResponderVoiceDetail"] | components["schemas"]["PrivateResponderVoiceDetail"] | components["schemas"]["AdminPrivateVoiceDetail"];
+                    "application/json": components["schemas"]["ReporterSelfVoiceDetail"] | components["schemas"]["GeneralResponderVoiceDetail"] | components["schemas"]["LeadershipGeneralVoiceDetail"] | components["schemas"]["UnionAnonymousVoiceDetail"] | components["schemas"]["UnionIdentifiedVoiceDetail"] | components["schemas"]["AdminPrivateVoiceDetail"];
                 };
             };
             /** @description Request validation failed */
@@ -5350,271 +6190,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    VoicesController_ask: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-                /** @description Unique key for safe mutation retries */
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
-                };
-            };
-            /** @description Request validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VALIDATION_ERROR",
-                     *       "message": "Request validation failed",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authentication is required */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "UNAUTHENTICATED",
-                     *       "message": "Authentication is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Resource not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "NOT_FOUND",
-                     *       "message": "Resource not found",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description The resource changed; reload and retry */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "VERSION_CONFLICT",
-                     *       "message": "The resource changed; reload and retry",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Manual classification is required */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
-                     *       "message": "Manual classification is required",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Too many requests; try again later */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "code": "RATE_LIMITED",
-                     *       "message": "Too many requests; try again later",
-                     *       "errors": [],
-                     *       "correlationId": "01HZZEXAMPLECORRELATION"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
-    };
-    VoicesController_proceed: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Session-bound CSRF token */
-                "X-CSRF-Token": string;
-                /** @description Unique key for safe mutation retries */
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["TimelineResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -5737,7 +6313,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["AssignmentRequest"];
             };
         };
         responses: {
@@ -5746,7 +6322,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -5869,7 +6445,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["AssignmentRequest"];
             };
         };
         responses: {
@@ -5878,7 +6454,271 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_ask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceTextMutationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_proceed: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionedMutationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -6001,7 +6841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["MessageList"];
                 };
             };
             /** @description Request validation failed */
@@ -6124,7 +6964,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "multipart/form-data": components["schemas"]["MessageUploadRequest"];
             };
         };
         responses: {
@@ -6133,7 +6973,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -6254,7 +7094,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["ConversationList"];
                 };
             };
             /** @description Request validation failed */
@@ -6375,7 +7215,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "multipart/form-data": components["schemas"]["ImageUploadRequest"];
             };
         };
         responses: {
@@ -6384,7 +7224,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["AttachmentResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -6507,7 +7347,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["CloseVoiceRequest"];
             };
         };
         responses: {
@@ -6516,7 +7356,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["ClosureResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -6639,7 +7479,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["RatingRequest"];
             };
         };
         responses: {
@@ -6648,7 +7488,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["RatingResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -6755,7 +7595,7 @@ export interface operations {
             };
         };
     };
-    VoicesController_dashboard: {
+    VoicesController_dashboardGeneral: {
         parameters: {
             query?: never;
             header?: never;
@@ -6769,7 +7609,128 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["DashboardAggregate"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_dashboardPrivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardAggregate"];
                 };
             };
             /** @description Request validation failed */
@@ -6892,7 +7853,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["MediaBinary"];
                 };
             };
             /** @description Request validation failed */
@@ -7013,7 +7974,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PagedResponse"];
+                    "application/json": components["schemas"]["NotificationPage"];
                 };
             };
             /** @description Request validation failed */
@@ -7134,7 +8095,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["UnreadCountResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -7251,18 +8212,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["UpdatedCountResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -7381,11 +8338,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MutationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -7513,7 +8466,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["PushPublicKeyResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -7634,7 +8587,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["PushStatusResponse"];
                 };
             };
             /** @description Request validation failed */
@@ -7753,7 +8706,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MutationRequest"];
+                "application/json": components["schemas"]["PushSubscriptionRequest"];
             };
         };
         responses: {
@@ -7762,7 +8715,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["PushSubscriptionResponse"];
                 };
             };
             /** @description Request validation failed */

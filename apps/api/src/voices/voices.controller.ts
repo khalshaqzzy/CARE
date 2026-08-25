@@ -32,166 +32,180 @@ export class VoicesController {
     @Inject(VoicesService) private readonly voices: VoicesService,
     @Inject(MediaService) private readonly media: MediaService,
   ) {}
-  @Post('drafts') createDraft(@Actor() actor: AuthActor, @Body() body: unknown) {
-    return this.voices.createDraft(actor, body);
+  @Post('drafts') createDraft(@Actor() a: AuthActor, @Body() b: unknown) {
+    return this.voices.createDraft(a, b);
   }
-  @Get('drafts/:id') getDraft(@Actor() actor: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
-    return this.voices.getDraft(actor, id);
-  }
-  @Get('drafts/:id/preview') previewDraft(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.voices.previewDraft(actor, id);
+  @Get('drafts/:id') getDraft(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
+    return this.voices.getDraft(a, id);
   }
   @Patch('drafts/:id') updateDraft(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
+    @Body() b: unknown,
   ) {
-    return this.voices.updateDraft(actor, id, body);
+    return this.voices.updateDraft(a, id, b);
   }
-  @Delete('drafts/:id') deleteDraft(
-    @Actor() actor: AuthActor,
+  @Delete('drafts/:id') deleteDraft(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
+    return this.voices.deleteDraft(a, id);
+  }
+  @Get('drafts/:id/preview') previewDraft(
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.voices.deleteDraft(actor, id);
+    return this.voices.previewDraft(a, id);
+  }
+  @Post('drafts/:id/classify') classify(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.classify(a, id);
+  }
+  @Post('drafts/:id/manual-classification') manual(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+  ) {
+    return this.voices.manualClassification(a, id, b);
+  }
+  @Post('drafts/:id/location-review') locationReview(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.reviewLocation(a, id);
+  }
+  @Get('drafts/:id/location-review') getLocationReview(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.getLocationReview(a, id);
+  }
+  @Post('drafts/:id/submit') submit(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.submit(a, id, b, key);
   }
   @Post('drafts/:id/attachments')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10_000_000, files: 1 } }))
   addDraftAttachment(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.voices.addDraftAttachment(actor, id, file);
+    return this.voices.addDraftAttachment(a, id, file);
   }
   @Delete('drafts/:id/attachments/:attachmentId') removeDraftAttachment(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
   ) {
-    return this.voices.removeDraftAttachment(actor, id, attachmentId);
+    return this.voices.removeDraftAttachment(a, id, attachmentId);
   }
-  @Post('drafts/:id/classify') classify(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.voices.classify(actor, id);
+
+  @Get('voices') list(@Actor() a: AuthActor, @Query() q: Parameters<VoicesService['list']>[1]) {
+    return this.voices.list(a, q);
   }
-  @Post('drafts/:id/manual-classification') manual(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-  ) {
-    return this.voices.manualClassification(actor, id, body);
+  @Get('work-items') workItems(@Actor() a: AuthActor) {
+    return this.voices.workItems(a);
   }
-  @Post('drafts/:id/submit') submit(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key = '',
-  ) {
-    return this.voices.submit(actor, id, body, key);
-  }
-  @Get('voices') list(
-    @Actor() actor: AuthActor,
-    @Query() query: Parameters<VoicesService['list']>[1],
-  ) {
-    return this.voices.list(actor, query);
-  }
-  @Get('voices/:id') detail(@Actor() actor: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
-    return this.voices.detail(actor, id);
+  @Get('voices/:id') detail(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
+    return this.voices.detail(a, id);
   }
   @Get('voices/:id/timeline') timeline(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.voices.timeline(actor, id);
+    return this.voices.timeline(a, id);
+  }
+  @Post('voices/:id/assignments') assign(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.assign(a, id, b, key);
+  }
+  @Post('voices/:id/assignments/reassign') reassign(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.reassign(a, id, b, key);
   }
   @Post('voices/:id/ask') ask(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
+    @Body() b: unknown,
     @Headers('idempotency-key') key = '',
   ) {
-    return this.voices.ask(actor, id, body, key);
+    return this.voices.ask(a, id, b, key);
   }
   @Post('voices/:id/proceed') proceed(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
+    @Body() b: unknown,
     @Headers('idempotency-key') key = '',
   ) {
-    return this.voices.proceed(actor, id, body, key);
-  }
-  @Post('voices/:id/assign') assign(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key = '',
-  ) {
-    return this.voices.assign(actor, id, body, key);
-  }
-  @Post('voices/:id/reassign') reassign(
-    @Actor() actor: AuthActor,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key = '',
-  ) {
-    return this.voices.reassign(actor, id, body, key);
+    return this.voices.proceed(a, id, b, key);
   }
   @Get('voices/:id/messages') messages(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.voices.messages(actor, id);
+    return this.voices.messages(a, id);
   }
-  @Get('conversations') conversations(@Actor() actor: AuthActor) {
-    return this.voices.conversations(actor);
+  @Get('conversations') conversations(@Actor() a: AuthActor) {
+    return this.voices.conversations(a);
   }
   @Post('voices/:id/messages')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FilesInterceptor('files', 5, { limits: { fileSize: 10_000_000 } }))
   message(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
+    @Body() b: unknown,
     @UploadedFiles() files: Express.Multer.File[] = [],
     @Headers('idempotency-key') key = '',
   ) {
-    return this.voices.addMessage(actor, id, body, files, key);
+    return this.voices.addMessage(a, id, b, files, key);
   }
   @Post('voices/:id/closure-evidence')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10_000_000, files: 1 } }))
   evidence(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.voices.stageEvidence(actor, id, file);
+    return this.voices.stageEvidence(a, id, file);
   }
   @Post('voices/:id/close') close(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
+    @Body() b: unknown,
     @Headers('idempotency-key') key = '',
   ) {
-    return this.voices.close(actor, id, body, key);
+    return this.voices.close(a, id, b, key);
   }
   @Post('voices/:id/rate') rate(
-    @Actor() actor: AuthActor,
+    @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: unknown,
+    @Body() b: unknown,
     @Headers('idempotency-key') key = '',
   ) {
-    return this.voices.rate(actor, id, body, key);
+    return this.voices.rate(a, id, b, key);
   }
-  @Get('dashboard') dashboard(@Actor() actor: AuthActor) {
-    return this.voices.dashboard(actor);
+  @Get('dashboard/general') dashboardGeneral(@Actor() a: AuthActor) {
+    return this.voices.dashboardGeneral(a);
   }
+  @Get('dashboard/private') dashboardPrivate(@Actor() a: AuthActor) {
+    return this.voices.dashboardPrivate(a);
+  }
+
   @Get('media/:id')
   @Header('Cache-Control', 'private, no-store')
   @Header('X-Content-Type-Options', 'nosniff')
@@ -200,7 +214,7 @@ export class VoicesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Res() response: Response,
   ) {
-    const media = await this.media.readAuthorized(id, actor.accountId);
+    const media = await this.media.readAuthorized(id, actor);
     response
       .type(media.attachment.mimeType)
       .setHeader('Content-Disposition', `inline; filename="${id}.webp"`)

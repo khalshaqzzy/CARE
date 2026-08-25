@@ -5,7 +5,9 @@ import { loadConfig } from '../config';
 import { forbiddenAsNotFound, unauthorized } from '../common/errors';
 import { hmac256, safeEqual } from '../common/crypto';
 import { PrismaService } from '../prisma.service';
-import { PUBLIC_KEY, ROLES_KEY } from './auth.decorators';
+import { CAPABILITIES_KEY, PUBLIC_KEY } from './auth.decorators';
+import type { Capability } from './capabilities';
+import { PolicyService } from './policy.service';
 import { ThrottleService } from './throttle.service';
 
 @Injectable()
@@ -13,6 +15,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PolicyService) private readonly policy: PolicyService,
   ) {}
   async canActivate(context: ExecutionContext) {
     if (
@@ -33,24 +36,18 @@ export class AuthGuard implements CanActivate {
     if (
       !session ||
       session.revokedAt ||
-      !session.account.active ||
+      session.account.status === 'INACTIVE' ||
       session.expiresAt <= now ||
       session.absoluteExpiresAt <= now
     )
       throw unauthorized();
-    request.actor = {
-      accountId: session.accountId,
-      sessionId: session.id,
-      role: session.account.role,
-      username: session.account.username,
-      employeeId: session.account.employeeId,
-      passwordRestricted: session.passwordRestricted,
-    };
-    const allowed = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
+    request.actor = await this.policy.resolvePrincipal(session.account, session);
+    const required = this.reflector.getAllAndOverride<Capability[]>(CAPABILITIES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-    if (allowed && !allowed.includes(session.account.role)) throw forbiddenAsNotFound();
+    if (required && !required.some((value) => request.actor?.capabilities.includes(value)))
+      throw forbiddenAsNotFound();
     const path = request.path;
     if (
       session.passwordRestricted &&

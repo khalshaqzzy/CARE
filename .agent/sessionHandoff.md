@@ -1,79 +1,81 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| Date                    | 25 Agustus 2026                                                                       |
-| Current objective       | Remediate dan re-freeze backend CARE sesuai PRD v1.1 sebelum frontend dimulai         |
-| Current phase           | Phase 6.1 `in_progress`                                                               |
-| Backend Complete Gate   | Not passed                                                                            |
-| Implementation status   | Phase 0–5 delivered under superseded v1.0 assumptions; source remediation belum mulai |
-| Recommended next action | Design schema/capability/effective-master migration dan current-schema upgrade test   |
+| Atribut                 | Nilai                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| Date                    | 26 Agustus 2026                                                                  |
+| Current objective       | Backend CARE v1.1 selesai diremediasi dan dire-freeze sebelum frontend           |
+| Current phase           | Phase 6 `done`; Phase 7 `pending`                                                |
+| Backend Complete Gate   | Passed                                                                           |
+| Implementation status   | Phase 6.1–6.6 implemented; OpenAPI/client v1.1 generated; frontend belum dimulai |
+| Recommended next action | Mulai Phase 7 shared foundations untuk workforce PWA dan Admin app               |
 
 ## Session Outcome
 
-Sesi ini hanya mengubah dokumentasi kontrak dan roadmap; source code, database, runtime configuration, dan deployment tidak diubah.
+Phase 6 Backend Contract Remediation telah diimplementasikan penuh. Phase 0–5 tetap `done` sebagai histori v1.0, sedangkan semua assumption lama yang bertentangan sudah diganti oleh schema, service, policy, API, migration, dan test v1.1.
 
-Files changed:
+Contract import kemudian diperluas pada 26 Agustus 2026 agar endpoint authoritative yang sama menerima `.xlsx` maupun UTF-8 `.csv`. Kedua format memakai header, diff, checksum, queue, transaction, dan remediation semantics yang identik; XLSX tetap mewajibkan sheet `MFG + QD`.
 
-- `.agent/PRD.md` — dinaikkan ke v1.1 dan diselaraskan dengan workbook organisasi, routing/capability, Union individual accounts, conditional Private identity, OpenAI Responses, location review, dashboard scopes, dan dual frontend.
-- `.agent/implementationPhases.md` — Phase 0–5 dipertahankan `done` sebagai sejarah; Phase 6 dipecah menjadi remediation 6.1–6.6; frontend/deployment disusun ulang menjadi Phase 7–14.
-- `.agent/sessionHandoff.md` — current state, gate, decisions, checks, dan next action disinkronkan.
-- `docs/adr/0004-care-v1-1-organization-routing-ai-and-frontend.md` — keputusan v1.1 yang mensupersede bagian terkait ADR 0001/0003.
+Perubahan utama:
 
-## Current Product and Technical Contract
+- expand/backfill/contract migration untuk account kind/status, capability-derived access, effective organization snapshot, composite unit, route mapping, Union slots, consent, location snapshot, actor snapshot, dan object-specific legacy access;
+- authoritative XLSX/CSV preview/async confirm worker, monthly full-snapshot semantics, account/session deactivation, route invalidation, remediation issue/resolution, default/global PIC, dan tiga akun Union;
+- General/Private routing baru, `ENVIRONMENT`, Department 14 rejection, Head-first Private routing, generic assignment, conditional identity serializers, dan audited Admin Private detail/media access;
+- OpenAI-compatible Responses adapter dengan strict JSON Schema, Zod validation, bounded retry, sanitized fallback, model/prompt-bound hashes, location review, serta snapshot acknowledgment;
+- centralized capability/object policy, separate `/voices` dan `/work-items`, scoped dashboards, sparse-bucket suppression, and leadership read-only rules;
+- OpenAPI 1.1 dan generated TypeScript client dengan schema request/response eksplisit untuk setiap operation;
+- local setup, CI, migration-upgrade fixture, security/privacy tests, dan performance fixture diperbarui.
 
-- Workbook `.xlsx` authoritative memakai sheet `MFG + QD` dan tujuh header persis. Snapshot Agustus memiliki 7.018 karyawan, termasuk 38 Department Head, 250 Section Head, 4 Division Head, 8 Deputy/Acting Division Head, dan 1 Director; terdapat 12 named departments tanpa Department Head serta 188 rows dengan `Department=14`.
-- Organization unit memakai composite `Directorat + Division + Department`. Department Head/Manager interchangeable; posisi dan workforce membership diturunkan dari monthly snapshot.
-- Account kind, structural position, capability, dan route assignment dipisahkan. Setiap workforce account tetap Member; structural reader/default PIC/global PIC dapat menjadi capability tambahan.
-- Named department tanpa Department Head dapat memperoleh default PIC dari active employee yang dipilih Admin. `Department=14` tidak mempunyai General route yang sah.
-- Safety, Environment, dan Facility seluruh area memakai tepat satu global PIC dari active Department Head. Work Difficulty memakai Department Head/default PIC pada composite unit reporter.
-- Section Head sepenuhnya diturunkan dari workbook; promote/transfer/remove manual dihapus.
-- Union memakai tepat satu Head dan dua Officer yang dikelola Admin di luar workbook. Private selalu menuju Head, lalu dapat di-assign ke Officer sebelum `IN_PROGRESS`.
-- Private identity consent immutable. Union mendapat anonymous DTO bila `Tidak`, atau nama/no.reg/division/department bila `Ya`; CARE Admin selalu dapat membaca profil lengkap secara read-only.
-- AI beralih dari Gemini/Vertex ke official JavaScript SDK dan OpenAI-compatible Responses API (`responses.create`, `/responses`, Structured Outputs, `store:false`). Classification dan location review adalah contract terpisah.
-- Aggregate, list/detail, dan action authorization dipisahkan. Leadership memperoleh General overview/detail read-only sesuai scope; Private tetap Union-only selain reporter dan CARE Admin.
-- Workforce PWA berada di `care.qd-tmmin.site`; separate non-PWA Admin React app berada di `admin-ped.qd-tmmin.site` untuk staging. Keduanya memakai satu backend dan generated client bersama.
+Workbook aktual tetap hanya dibaca untuk UAT shape validation dan tidak dimasukkan ke Git. Hasil validasi: 7.018 rows, 58 composite units, 12 named units tanpa Department Head, dan 188 rows dengan normalized `Department = 14`.
 
-## Historical Delivery Evidence
+## AI Test Decision
 
-Backend v1.0 implementation sebelumnya dikirim ke branch `staging` melalui commits `aecf72a`, `f2cb6a3`, `d65aa2d`, dan `a6ce5fb`. GitHub Actions run [32699084968](https://github.com/khalshaqzzy/CARE/actions/runs/32699084968) green untuk quality, secrets, dan CodeQL.
+Automated AI test tidak memakai API key nyata. `pnpm test:openai:smoke` menyalakan mock HTTP `/responses` lokal, menyuntikkan credential dummy hanya agar SDK dapat membangun request, lalu memvalidasi classification dan location schemas, `store:false`, serta absence of tools/conversation. Tidak ada external network call.
 
-Implemented historical baseline mencakup monorepo/toolchain, Docker PostgreSQL/pgvector, NestJS/Prisma/OpenAPI, authentication/session/CSRF/throttle, imports, Voice/media/AI/routing, lifecycle/assignment/chat, closure/rating/reopen, dashboard, notification/outbox/Web Push, CI/security, dan 50.000-Voice performance fixtures.
+`OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` tetap kosong secara default dan baru diperlukan pada runtime staging/production. Live provider validation dipindahkan ke Phase 13 staging rehearsal dan bukan dependency Backend Complete Gate.
 
-Catatan penting: status delivered tersebut hanya membuktikan kontrak v1.0. Employee/Manager/Union imports, exclusive role model, per-area/category Manager routes, shared Union, Vertex adapter, old Private serializers, old dashboard scopes, 2.000-account seed, dan frontend placeholder adalah implementation debt yang wajib dimigrasikan dalam Phase 6. Status Phase 0–5 `done` tidak membuat behavior lama tetap normatif.
+## Backend Complete Gate Evidence
 
-## Gate and Blockers
+- format, ESLint, TypeScript, unit (23), PostgreSQL integration (8), security (5), build, dan mock Responses smoke: passed;
+- fresh migration chain dan current-schema upgrade reconciliation: passed, dengan ID/count/history Voice, assignment, event, message, closure, rating, notification, route, actor, consent, dan legacy access tetap utuh;
+- destructive migration allowlist/hash checker: passed;
+- OpenAPI generation deterministic dan shared client regenerated; superseded import/Section Head/assignment/Vertex surfaces tidak ada;
+- performance profile: 10.000 accounts, 50.000 Voices, 50 concurrent users × 5 rounds: passed;
+- workbook actual read-only validation: passed;
+- Prisma schema validation, Compose validation, `git diff --check`, dan dependency audit threshold High: passed;
+- dependency audit masih melaporkan satu Moderate advisory pada transitive `uuid@8.3.2` melalui pinned `exceljs@4.4.0`; tidak ada High/Critical finding dan importer tidak memberikan caller-controlled output buffer ke API uuid yang terdampak.
 
-`Backend Complete Gate: not passed`.
+Gitleaks v8.24.3 dijalankan melalui container dan tidak menemukan leak; CI secrets scan juga tetap dikonfigurasi. Tidak ada credential aktual atau workbook aktual yang ditambahkan ke repository.
 
-Frontend Phase 7 tidak boleh dimulai sampai Phase 6.1–6.6 green. Blocker/gate items:
+## Final Pre-commit Parity — 26 Agustus 2026
 
-- current schema belum mempunyai capability/effective organization/route/consent/location/legacy-access model v1.1;
-- XLSX monthly import, remediation queue, default/global PIC, dan three-Union-account provisioning belum diimplementasikan;
-- routing, Union assignment, conditional identity, dan leadership/dashboard authorization masih memakai contract lama;
-- Gemini/Vertex adapter belum diganti dengan OpenAI Responses dan location review belum tersedia;
-- OpenAPI/client, migration upgrade, privacy/security, serta 10.000-account regression belum dire-freeze;
-- live Responses classification/location smoke memerlukan `OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` external runtime config pada Phase 6.4/6.6.
+Parity dijalankan ulang setelah dukungan CSV dan perubahan dokumentasi final. Existing ignored `apps/api/dist` dan `packages/contracts/dist` dipindahkan ke `/tmp/care-precommit-artifacts-20260826` terlebih dahulu agar generation/build dimulai dari artifact state bersih.
 
-Ketiadaan OpenAI runtime config tidak menghalangi implementasi Phase 6.1–6.5, tetapi final Backend Complete Gate tidak boleh lulus tanpa live non-sensitive smoke.
+Commands dan hasil:
+
+- `pnpm install --frozen-lockfile` — passed;
+- `pnpm db:generate` — passed;
+- `pnpm audit --audit-level high` — passed dengan satu Moderate transitive advisory dan nol High/Critical;
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` — passed;
+- `pnpm test:unit` — 23 passed;
+- `pnpm test:openai:smoke` — passed terhadap local mock `/responses`, tanpa credential/provider eksternal;
+- `pnpm migrations:destructive-check` — passed;
+- `pnpm db:up`, `pnpm db:wait`, `pnpm db:verify`, `pnpm db:test:reset`, dan disposable `prisma migrate deploy` — passed pada PostgreSQL 16/pgvector;
+- `pnpm test:migration:upgrade` — passed melalui Docker `psql` fallback karena host `psql` tidak disyaratkan;
+- CI-equivalent `pnpm test:integration` — 8 passed;
+- CI-equivalent `pnpm test:security` — 5 passed;
+- CI-equivalent `pnpm seed:performance` dan `pnpm test:performance` — passed untuk 10.000 accounts, 50.000 Voices, dan 50 concurrent users;
+- CI-equivalent `pnpm maintenance:reconcile` — passed dalam dry-run dengan seluruh counter nol;
+- `pnpm openapi:check`, `pnpm build`, dan `docker compose config --quiet` — passed;
+- `zricethezav/gitleaks:v8.24.3 dir /repo --config=/repo/.gitleaks.toml --redact --verbose` — no leaks found;
+- `git diff --check` — passed;
+- attached August XLSX read-only parse — 7.018 rows dan 188 normalized `Department=14`, passed.
 
 ## Next Recommended Action
 
-Mulai Phase 6.1:
+Mulai Phase 7:
 
-1. inventarisasi current Prisma schema, migrations, unique indexes, serializers, dan historical ownership fields;
-2. rancang expand/contract schema untuk account kind, raw structural position, capability, effective organization/route, consent, location review, dan legacy handler;
-3. tetapkan deterministic backfill/reconciliation rules yang mempertahankan seluruh ID, route owner, assignment, actor, event, closure, rating, notification, dan PIC historis;
-4. buat current-schema-to-v1.1 upgrade fixture/test sebelum mengubah destructive constraint;
-5. jangan memulai frontend atau menghapus legacy columns sampai compatibility readers/writers dan backfill verification green.
-
-## Checks Run in This Documentation Session
-
-- workbook shape/statistics diperiksa dengan spreadsheet tooling tanpa memodifikasi source workbook;
-- PRD dan roadmap diaudit dengan targeted searches; istilah lama hanya tersisa pada historical/supersession/removal statements, bukan sebagai contract normatif;
-- official OpenAI Responses API reference diverifikasi untuk `responses.create`, `/responses`, dan Structured Outputs;
-- `pnpm exec prettier --check .agent/PRD.md .agent/implementationPhases.md .agent/sessionHandoff.md docs/adr/0004-care-v1-1-organization-routing-ai-and-frontend.md` — passed;
-- `git diff --check` — passed;
-- roadmap status scan — tepat satu subphase, Phase 6.1, berstatus `in_progress`.
-
-Full source CI/backend tests tidak dijalankan karena sesi ini tidak mengubah source code, schema, dependency, workflow, atau runtime configuration. Tidak ada server, watcher, database container, atau background process yang dimulai pada sesi ini.
+1. scaffold shared frontend foundations dan generated-client integration;
+2. buat entry point terpisah untuk workforce PWA dan Admin non-PWA;
+3. implement host-scoped session/CSRF/cache isolation;
+4. jangan memulai container production atau deployment sebelum Frontend Complete Gate;
+5. pertahankan mock Responses untuk automated tests, lalu lakukan provider validation saat staging config tersedia.

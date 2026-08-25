@@ -15,7 +15,7 @@ async function main() {
   const app = await createApp();
   const config = new DocumentBuilder()
     .setTitle('CARE API')
-    .setVersion('1.0.0')
+    .setVersion('1.1.0')
     .addCookieAuth('care_session', { type: 'apiKey', in: 'cookie', name: 'care_session' }, 'cookie')
     .build();
   const document = enrichOpenApi(SwaggerModule.createDocument(app, config));

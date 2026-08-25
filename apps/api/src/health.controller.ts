@@ -64,7 +64,10 @@ export class HealthController {
       status: degraded ? 'not_ready' : 'ready',
       checks,
       dependencies: {
-        vertex: config.VERTEX_API_KEY ? 'configured' : 'degraded',
+        openai:
+          config.OPENAI_API_KEY && config.OPENAI_MODEL && config.OPENAI_BASE_URL
+            ? 'configured'
+            : 'degraded',
         push: config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY ? 'configured' : 'degraded',
       },
       config: redactedConfig(config),

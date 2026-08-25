@@ -7,6 +7,8 @@ import { randomToken, sha256 } from '../common/crypto';
 import { badRequest, forbiddenAsNotFound } from '../common/errors';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
+import type { AuthActor } from '../auth/auth.types';
+import { PolicyService } from '../auth/policy.service';
 
 const accepted = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const formatForMime: Record<string, string> = {
@@ -17,7 +19,10 @@ const formatForMime: Record<string, string> = {
 
 @Injectable()
 export class MediaService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PolicyService) private readonly policy: PolicyService,
+  ) {}
 
   async process(
     file: Express.Multer.File,
@@ -88,7 +93,7 @@ export class MediaService {
     });
   }
 
-  async readAuthorized(id: string, accountId: string) {
+  async readAuthorized(id: string, actor: AuthActor) {
     const attachment = await this.prisma.attachment.findUnique({
       where: { id },
       include: {
@@ -101,16 +106,31 @@ export class MediaService {
     if (!attachment || attachment.state !== AttachmentState.READY) throw forbiddenAsNotFound();
     const voice =
       attachment.voice ?? attachment.message?.conversation.voice ?? attachment.closure?.voice;
-    const allowed =
-      attachment.draft?.reporterId === accountId ||
-      voice?.reporterId === accountId ||
-      voice?.routeOwnerId === accountId ||
-      voice?.currentHandlerId === accountId;
-    const account = await this.prisma.userAccount.findUnique({
-      where: { id: accountId },
-      select: { role: true },
-    });
-    if (!allowed && account?.role !== 'CARE_ADMIN') throw forbiddenAsNotFound();
+    const draftAllowed = attachment.draft?.reporterId === actor.accountId;
+    const scope = await this.policy.detailScope(actor);
+    const voiceAllowed = voice
+      ? Boolean(
+          await this.prisma.voice.findFirst({
+            where: { id: voice.id, AND: [scope] },
+            select: { id: true },
+          }),
+        )
+      : false;
+    if (!draftAllowed && !voiceAllowed) throw forbiddenAsNotFound();
+    if (voice?.visibility === 'PRIVATE' && actor.capabilities.includes('CARE_ADMIN'))
+      await this.prisma.auditEvent.create({
+        data: {
+          actorId: actor.accountId,
+          ...this.policy.actorSnapshot(actor),
+          action: 'PRIVATE_MEDIA_READ',
+          result: 'SUCCESS',
+          resourceType: 'ATTACHMENT',
+          resourceId: attachment.id,
+          summary: { voiceId: voice.id, content: 'redacted' },
+          correlationId: `private-media:${attachment.id}`,
+          releaseSha: loadConfig().RELEASE_SHA,
+        },
+      });
     return {
       attachment,
       buffer: await readFile(
