@@ -125,6 +125,7 @@ export default function DesignPage() {
     { id: '1', name: 'temuan-line-a.webp', status: 'success' },
   ]);
   const [motionKey, setMotionKey] = useState(0);
+  const [activeSection, setActiveSection] = useState('overview');
   const columns = useMemo<Column<(typeof employees)[number]>[]>(
     () => [
       { key: 'id', header: 'No. Reg', sortable: true, cell: (row) => row.id },
@@ -150,6 +151,21 @@ export default function DesignPage() {
       document.head.append(meta);
     }
     meta.content = 'noindex, nofollow';
+
+    const sections = navigation
+      .map(([id]) => document.getElementById(id))
+      .filter((section): section is HTMLElement => Boolean(section));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible?.target.id) setActiveSection(visible.target.id);
+      },
+      { rootMargin: '-15% 0px -65% 0px', threshold: [0, 0.1, 0.5] },
+    );
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -163,13 +179,24 @@ export default function DesignPage() {
           </div>
         </a>
         <nav aria-label="Bagian design system">
-          {navigation.map(([id, label]) => (
-            <a key={id} href={`#${id}`}>
+          <small>Explore system</small>
+          {navigation.map(([id, label], index) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              aria-current={activeSection === id ? 'location' : undefined}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
               {label}
             </a>
           ))}
         </nav>
-        <p>Light theme · Mock data only</p>
+        <div className="design-nav__meta">
+          <span>
+            <i /> System ready
+          </span>
+          <small>Light theme · Mock data only</small>
+        </div>
       </aside>
       <main className="design-main">
         <section id="overview" className="design-hero">
@@ -966,6 +993,10 @@ function Guideline({ title, items }: { title: string; items: string[] }) {
 function MemberHomePreview({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`member-preview${compact ? ' is-compact' : ''}`}>
+      <div className="member-preview__status" aria-hidden="true">
+        <strong>9:41</strong>
+        <span>●●● ◒ ▰</span>
+      </div>
       <header>
         <div>
           <Avatar name="Member CARE" />
@@ -991,6 +1022,11 @@ function MemberHomePreview({ compact = false }: { compact?: boolean }) {
               <strong>09</strong>/12 tugas
             </span>
             <strong>75%</strong>
+          </div>
+          <div className="member-progress__segments" aria-hidden="true">
+            {Array.from({ length: 12 }, (_, index) => (
+              <i key={index} data-filled={index < 9} />
+            ))}
           </div>
           <Progress value={75} label="Progress mingguan" />
         </Card>
@@ -1027,6 +1063,25 @@ function MemberHomePreview({ compact = false }: { compact?: boolean }) {
             </div>
           </Card>
         </div>
+        <button className="member-preview__view-all" type="button">
+          Lihat semua <ChevronRight size={16} />
+        </button>
+        <section className="member-quick-actions" aria-label="Aksi cepat">
+          <strong>Aksi cepat</strong>
+          <div>
+            {[
+              { label: 'Cari', icon: <Search size={18} /> },
+              { label: 'Chat', icon: <MessageSquareText size={18} /> },
+              { label: 'Jadwal', icon: <CalendarDays size={18} /> },
+              { label: 'Lainnya', icon: <Ellipsis size={18} /> },
+            ].map((item) => (
+              <button key={item.label} type="button">
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </main>
       <BottomNav
         current="home"

@@ -37,6 +37,9 @@ test.describe('public design contract', () => {
 
   test('passes axe and keyboard focus visibility', async ({ page }) => {
     await page.goto('/design');
+    await expect(
+      page.getByRole('heading', { name: 'CARE interface, dari token hingga workflow.' }),
+    ).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
       .analyze();

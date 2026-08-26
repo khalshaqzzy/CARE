@@ -22,6 +22,16 @@ The workforce app uses an injectManifest TypeScript service worker. Only hashed 
 
 Admin is non-PWA and hard-gated at 1280 px before protected providers mount. Below the gate it displays desktop guidance, does not poll/fetch, and has no manifest, service worker, or offline cache artifact.
 
+## 2026-08-26 Visual Refinement
+
+The accepted direction is refined—not replaced—to align more closely with the supplied mobile dashboard reference. Primary cobalt becomes `#0866FF`, cyan becomes `#18BDE3`, cool neutrals and elevation are softened, and `/design` uses a section-aware navigation model, layered cobalt hero, polished specimens, and a more complete mock Member Home composition. The mobile composition demonstrates status chrome, weekly segmented progress, Voice cards, quick actions, and bottom navigation while remaining fixture-only. Shared interaction polish also fixes button press feedback to consume the existing `--transform-press-y` token.
+
+This refinement deliberately does not implement Phase 9 routes, data fetching, or workflow behavior. It strengthens the visual contract that future Phase 8–10 pages must compose, preserves light-only and reduced-motion decisions, and keeps all existing isolation/PWA/Admin boundaries unchanged.
+
+## Bottom Navigation Refinement
+
+The mobile workforce navigation uses a white, rounded dock with icon-first presentation to match the reference product language. Labels remain in the DOM and are visually clipped rather than removed, retaining accessible names while preventing cramped mobile overflow. Preview-only actions also enforce constrained widths and text clamping. This is presentation-only; route availability and business behavior remain governed by the Phase 8–10 roadmap.
+
 ## Consequences
 
 - Phase 8–10 pages must compose shared components and generated contract types instead of creating parallel UI or wire contracts.

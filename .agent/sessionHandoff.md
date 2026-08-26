@@ -11,13 +11,19 @@
 
 ## Session Outcome
 
+### Design system visual refinement — 26 Agustus 2026
+
+`/design` dan shared CARE tokens dipoles ulang berdasarkan referensi mobile dashboard tanpa mengubah batas produk Phase 7 atau mengklaim business journey Phase 9 sudah tersedia. Palette kini memakai cobalt `#0866FF`, cyan `#18BDE3`, neutral yang lebih tenang, dan shadow yang lebih lembut. Showcase memperoleh section-aware navigation, responsive glass/pill navigation, hero berlapis, token specimens dengan depth terkontrol, serta mock Member Home yang lebih lengkap dengan status bar, segmented progress, quick actions, cards, dan bottom navigation. Undefined press variable `--motion-press-y` juga dikoreksi ke contract `--transform-press-y`.
+
+Files utama: `packages/ui/src/tokens.ts`, `packages/ui/src/styles.css`, `apps/web-voice/src/design/DesignPage.tsx`, `apps/web-voice/src/design/design.css`, dan tiga visual baseline `e2e/design.visual.spec.ts-snapshots/design-overview-*.png`. Validasi sesi: Prettier, scoped ESLint, UI/workforce TypeScript, 10 unit tests, build workforce/Admin, dan 5 Playwright visual tests passed. `/design` tetap public, unlisted, lazy, `noindex`, mock-only, dan API-free; Phase 8 tetap next product phase.
+
 Phase 7 CARE Frontend Foundation dan Design System telah diimplementasikan pada 26 Agustus 2026:
 
 - placeholder frontend diganti oleh `apps/web-voice` (workforce PWA) dan `apps/web-admin` (Admin non-PWA), dengan `packages/ui` serta `packages/frontend-core` sebagai shared boundaries;
 - OpenAPI membedakan `LoginResponse` (tanpa employee snapshot) dari `SessionResponse` (employee wajib tetapi nullable), serta mengekspor account/profile/capability/overview-detail-action scope secara eksplisit tanpa wire type duplikat;
 - same-origin generated client memakai `credentials: include`, lazy CSRF pada mutation selain login, typed errors/correlation ID, offline preflight rejection tanpa queue/retry, session-keyed query helpers, cache purge/account-switch broadcast, forced-password/app-kind/capability gates;
 - `/design` public, unlisted, `noindex`, lazy, mock-only, dan tidak menginisialisasi Query/Auth/API. Showcase merender token families, component/state registry, motion lab, workforce reference pattern, auth/create/offline/conflict/notification patterns, dan Admin desktop pattern;
-- visual CARE dikunci light-only: Inter Variable, cobalt `#0B63E5`, cyan `#13B6D8`, gray canvas, white layered surfaces, comfortable workforce density, dan compact Admin density. BeUI hanya menjadi sumber pola motion yang relevan; semantics/focus tetap Radix/native dan attribution MIT tersimpan di `packages/ui`;
+- visual CARE dikunci light-only: Inter Variable, cobalt `#0866FF`, cyan `#18BDE3`, gray canvas, white layered surfaces, comfortable workforce density, dan compact Admin density. BeUI hanya menjadi sumber pola motion yang relevan; semantics/focus tetap Radix/native dan attribution MIT tersimpan di `packages/ui`;
 - custom injectManifest service worker hanya mem-precache hashed shell assets plus offline fallback, mengecualikan design chunk, dan menjaga API/auth/mutation/media/chat/private routes network-only. Tidak ada background sync;
 - Admin hard-gated pada 1280 px sebelum provider/protected tree sehingga viewport kecil tidak melakukan protected fetch. Build Admin tidak berisi manifest/service worker/CacheStorage behavior.
 
@@ -81,6 +87,12 @@ Commands dan hasil:
 - `zricethezav/gitleaks:v8.24.3 dir /repo --config=/repo/.gitleaks.toml --redact --verbose` — no leaks found;
 - `git diff --check` — passed;
 - attached August XLSX read-only parse — 7.018 rows dan 188 normalized `Department=14`, passed.
+
+### Bottom navigation refinement — follow-up
+
+The Member Home preview now mirrors the reference dock more closely: a white floating bottom panel with large monochrome icons, only the active Home icon in dark ink, oversized rounded lower corners, safe-area padding, and visually hidden labels preserved for assistive technology. The `Buat Voice` action is width-constrained with ellipsis protection, and long Voice titles are clamped to two lines so cards cannot overflow. Shared mobile BottomNav labels are similarly visually icon-only while remaining accessible.
+
+Validation after this refinement: Prettier, UI/workforce typecheck, scoped ESLint, UI/workforce unit tests (10 passed), workforce build, and 5 Playwright visual tests passed; visual baselines were regenerated.
 
 ## Next Recommended Action
 
