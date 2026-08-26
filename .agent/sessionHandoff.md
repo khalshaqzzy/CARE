@@ -1,13 +1,13 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                     |
-| ----------------------- | ------------------------------------------------------------------------- |
-| Date                    | 26 Agustus 2026                                                           |
-| Current objective       | Phase 7 frontend foundation selesai; lanjutkan Admin domain pages Phase 8 |
-| Current phase           | Phase 7 `done`; Phase 8 `pending`                                         |
-| Backend Complete Gate   | Passed                                                                    |
-| Implementation status   | Phase 0–7 implemented; two-app frontend foundation dan `/design` tersedia |
-| Recommended next action | Implementasikan Phase 8 pada `apps/web-admin` memakai shared UI/core      |
+| Atribut                 | Nilai                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| Date                    | 27 Agustus 2026                                                                       |
+| Current objective       | Phase 8.0 contract/backend completion pada branch `feat/phase-8-admin-operations`     |
+| Current phase           | Phase 8.0 `in_progress` (Phase 7 `done`)                                              |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 memperluas contract tanpa breaking gate lama            |
+| Implementation status   | Phase 0–7 done; Phase 8.0 in_progress — branch baru dibuat                           |
+| Recommended next action | Lanjutkan Phase 8.0: perluas OpenAPI/Prisma/services untuk cursor/idempotency/audit  |
 
 ## Session Outcome
 
@@ -94,15 +94,26 @@ The Member Home preview now mirrors the reference dock more closely: a white flo
 
 Validation after this refinement: Prettier, UI/workforce typecheck, scoped ESLint, UI/workforce unit tests (10 passed), workforce build, and 5 Playwright visual tests passed; visual baselines were regenerated.
 
+## Branch and Phase 8 Kickoff — 27 Agustus 2026
+
+Branch `feat/phase-8-admin-operations` dibuat dari `staging` untuk mengisolasi seluruh pekerjaan Phase 8 sesuai instruksi. `implementationPhases.md` diperbarui ke status `Phase 8 in_progress` dengan subphase 8.0–8.5 sequential; hanya 8.0 `in_progress`. Tidak ada perubahan kode pada kickoff ini—hanya perubahan branch dan dokumen roadmap/handoff.
+
+Next steps sesuai plan Phase 8.0–8.5:
+
+1. Phase 8.0: contract/backend completion (OpenAPI, cursor, idempotency, indexes, import/remediation/account/audit/Voice Explorer/system status).
+2. Phase 8.1: Admin data layer dan routing (feature routes, session-scoped Query, URL filter, gate).
+3. Phase 8.2: import/master/remediation/Union pages.
+4. Phase 8.3: accounts dan audit pages.
+5. Phase 8.4: Voice Explorer dan system status.
+6. Phase 8.5: accessibility, security, performance, full-stack acceptance, ADR, dan exit gate.
+
 ## Next Recommended Action
 
-Mulai Phase 8:
+Lanjutkan Phase 8.0 pada branch `feat/phase-8-admin-operations`:
 
-1. implementasikan Admin login-integrated organization import, remediation, account, route, dan audit pages pada `apps/web-admin`;
-2. gunakan generated contracts dari `@care/contracts`, transport/guards dari `@care/frontend-core`, serta komponen `@care/ui` tanpa wire type atau token duplikat;
-3. pertahankan hard desktop gate 1280 px dan pastikan protected tree tidak fetch ketika gate tertutup;
-4. pertahankan `/design` sebagai public mock-only proof surface dan tambahkan composed pattern bila Phase 8 memperkenalkan pola UI reusable baru;
-5. jangan memperluas workforce business pages sebelum urutan Phase 9–10.
+1. perluas contract/backend sesuai scope 8.0 dan regenerasi `@care/contracts`;
+2. jalankan parity Phase 7 + backend suites sebelum memulai 8.1;
+3. pertahankan hard gate 1280 px dan network-only Admin; jangan memulai Phase 9 atau production containerization.
 
 ## Phase 7 Final Gate — 26 Agustus 2026
 
