@@ -1,15 +1,27 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------- |
-| Date                    | 26 Agustus 2026                                                                  |
-| Current objective       | Backend CARE v1.1 selesai diremediasi dan dire-freeze sebelum frontend           |
-| Current phase           | Phase 6 `done`; Phase 7 `pending`                                                |
-| Backend Complete Gate   | Passed                                                                           |
-| Implementation status   | Phase 6.1–6.6 implemented; OpenAPI/client v1.1 generated; frontend belum dimulai |
-| Recommended next action | Mulai Phase 7 shared foundations untuk workforce PWA dan Admin app               |
+| Atribut                 | Nilai                                                                     |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Date                    | 26 Agustus 2026                                                           |
+| Current objective       | Phase 7 frontend foundation selesai; lanjutkan Admin domain pages Phase 8 |
+| Current phase           | Phase 7 `done`; Phase 8 `pending`                                         |
+| Backend Complete Gate   | Passed                                                                    |
+| Implementation status   | Phase 0–7 implemented; two-app frontend foundation dan `/design` tersedia |
+| Recommended next action | Implementasikan Phase 8 pada `apps/web-admin` memakai shared UI/core      |
 
 ## Session Outcome
+
+Phase 7 CARE Frontend Foundation dan Design System telah diimplementasikan pada 26 Agustus 2026:
+
+- placeholder frontend diganti oleh `apps/web-voice` (workforce PWA) dan `apps/web-admin` (Admin non-PWA), dengan `packages/ui` serta `packages/frontend-core` sebagai shared boundaries;
+- OpenAPI membedakan `LoginResponse` (tanpa employee snapshot) dari `SessionResponse` (employee wajib tetapi nullable), serta mengekspor account/profile/capability/overview-detail-action scope secara eksplisit tanpa wire type duplikat;
+- same-origin generated client memakai `credentials: include`, lazy CSRF pada mutation selain login, typed errors/correlation ID, offline preflight rejection tanpa queue/retry, session-keyed query helpers, cache purge/account-switch broadcast, forced-password/app-kind/capability gates;
+- `/design` public, unlisted, `noindex`, lazy, mock-only, dan tidak menginisialisasi Query/Auth/API. Showcase merender token families, component/state registry, motion lab, workforce reference pattern, auth/create/offline/conflict/notification patterns, dan Admin desktop pattern;
+- visual CARE dikunci light-only: Inter Variable, cobalt `#0B63E5`, cyan `#13B6D8`, gray canvas, white layered surfaces, comfortable workforce density, dan compact Admin density. BeUI hanya menjadi sumber pola motion yang relevan; semantics/focus tetap Radix/native dan attribution MIT tersimpan di `packages/ui`;
+- custom injectManifest service worker hanya mem-precache hashed shell assets plus offline fallback, mengecualikan design chunk, dan menjaga API/auth/mutation/media/chat/private routes network-only. Tidak ada background sync;
+- Admin hard-gated pada 1280 px sebelum provider/protected tree sehingga viewport kecil tidak melakukan protected fetch. Build Admin tidak berisi manifest/service worker/CacheStorage behavior.
+
+Phase 7 evidence: TypeScript/build kedua app, frontend/backend unit-component tests, token contract, Axe, keyboard/focus, no-overflow 360/768/1440, Admin 1279/1280/1440 gate, PWA offline fallback, origin isolation, production artifact assertions, dan visual baselines lulus. Full backend parity tetap dipertahankan oleh CI dan dijalankan ulang pada final gate sesi ini.
 
 Phase 6 Backend Contract Remediation telah diimplementasikan penuh. Phase 0–5 tetap `done` sebagai histori v1.0, sedangkan semua assumption lama yang bertentangan sudah diganti oleh schema, service, policy, API, migration, dan test v1.1.
 
@@ -72,10 +84,20 @@ Commands dan hasil:
 
 ## Next Recommended Action
 
-Mulai Phase 7:
+Mulai Phase 8:
 
-1. scaffold shared frontend foundations dan generated-client integration;
-2. buat entry point terpisah untuk workforce PWA dan Admin non-PWA;
-3. implement host-scoped session/CSRF/cache isolation;
-4. jangan memulai container production atau deployment sebelum Frontend Complete Gate;
-5. pertahankan mock Responses untuk automated tests, lalu lakukan provider validation saat staging config tersedia.
+1. implementasikan Admin login-integrated organization import, remediation, account, route, dan audit pages pada `apps/web-admin`;
+2. gunakan generated contracts dari `@care/contracts`, transport/guards dari `@care/frontend-core`, serta komponen `@care/ui` tanpa wire type atau token duplikat;
+3. pertahankan hard desktop gate 1280 px dan pastikan protected tree tidak fetch ketika gate tertutup;
+4. pertahankan `/design` sebagai public mock-only proof surface dan tambahkan composed pattern bila Phase 8 memperkenalkan pola UI reusable baru;
+5. jangan memperluas workforce business pages sebelum urutan Phase 9–10.
+
+## Phase 7 Final Gate — 26 Agustus 2026
+
+- formatting, ESLint, TypeScript, serta production build dua aplikasi: passed;
+- recursive unit/component suites: 44 passed, mencakup auth bootstrap, forced password, wrong-app admission, CSRF/offline/error mapping, account-switch cache isolation, interactive states, keyboard/focus, accessibility, token contract, dan showcase coverage;
+- Playwright functional, Axe, keyboard, visual regression, PWA, dan two-origin isolation: 16 passed pada `/design` 360/768/1440, workforce, serta Admin 1279/1280/1440;
+- workforce precache: 12 shell/offline entries dan tidak memuat chunk `design-system`; API/auth/mutation/media/chat/private tetap network-only;
+- Admin artifact assertion: tidak ada manifest atau service worker;
+- PostgreSQL 16/pgvector, fresh migrations, migration upgrade reconciliation, integration 8, security 5, serta performance 1 dengan fixture 10.000 accounts/50.000 Voices: passed;
+- generated OpenAPI/client tetap deterministic; Gitleaks v8.24.3 menemukan nol leak dan final `git diff --check` lulus.

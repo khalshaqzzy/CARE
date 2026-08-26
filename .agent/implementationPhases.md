@@ -2,11 +2,11 @@
 
 | Atribut                | Nilai                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
-| Status roadmap         | Backend v1.1 re-freeze complete; frontend pending                                             |
+| Status roadmap         | Backend v1.1 re-freeze and Phase 7 frontend foundation complete                               |
 | Last updated           | 26 Agustus 2026                                                                               |
 | Product contract       | `.agent/PRD.md` v1.1                                                                          |
-| Current implementation | Phase 0–5 historical baseline and Phase 6 v1.1 backend remediation complete                   |
-| Current phase          | Phase 6 `done`; Phase 7 `pending`                                                             |
+| Current implementation | Phase 0–6 backend complete; Phase 7 two-app frontend foundation complete                      |
+| Current phase          | Phase 7 `done`; Phase 8 `pending`                                                             |
 | Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
@@ -313,7 +313,7 @@ Phase 7–11 hanya boleh dimulai setelah Backend Complete Gate. Backend contract
 
 ## Phase 7 — Shared Frontend Foundations for Workforce and Admin
 
-Status: `pending`
+Status: `done` — completed 26 Agustus 2026.
 
 Dependencies: Phase 6 Backend Complete Gate.
 
@@ -324,6 +324,10 @@ Scope:
 - host-scoped authentication, forced-password-change, capability-aware router, loading/error/permission/conflict states;
 - same-origin `/api/v1` proxy contract pada kedua origin dan strict cache/credential isolation;
 - workforce manifest/service-worker/offline shell foundation; Admin app selalu network-only dan bukan PWA.
+- `apps/web-voice` dan `apps/web-admin` menggantikan placeholder frontend lama; shared boundaries berada di `packages/ui` dan `packages/frontend-core`;
+- `/design` tetap public, unlisted, `noindex`, lazy-loaded, mock-only, dan tidak melakukan session/API bootstrap;
+- Admin memakai hard desktop gate ≥1280 px; di bawah gate protected tree tidak di-mount dan tidak melakukan fetch;
+- CARE light design system memakai token contract, Inter Variable, cobalt/cyan palette, Radix semantics, dan motion patterns yang diadaptasi secara selektif dari BeUI dengan attribution MIT.
 
 Acceptance:
 
@@ -331,6 +335,8 @@ Acceptance:
 - origin/cookie/CSRF/cache isolation tests lulus;
 - shared UI accessible/responsive dan account switch membersihkan scoped cache;
 - seluruh mutation network-only.
+- unit/component tests, token-contract scan, Axe, keyboard/focus, reduced-motion, 360/768/1440 visual regression, PWA offline fallback, production artifact split, dan two-host storage isolation lulus;
+- workforce production build menghasilkan manifest/custom service worker dan mengecualikan `/design` chunk dari precache; Admin build tidak menghasilkan manifest/service worker.
 
 ## Phase 8 — Admin Application and Organization Operations
 
@@ -484,4 +490,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Mulai Phase 7 shared frontend foundations untuk workforce PWA dan Admin app menggunakan generated OpenAPI v1.1 client. Pertahankan mock Responses pada automated test; validasi provider riil dilakukan saat Phase 13 staging setelah base URL, model, dan API key tersedia.
+Mulai Phase 8 Admin organization operations pada shell desktop yang sudah tersedia. Pertahankan generated OpenAPI contract, same-origin transport, desktop gate, dan cache split Phase 7; validasi provider AI riil tetap dilakukan saat Phase 13 staging.

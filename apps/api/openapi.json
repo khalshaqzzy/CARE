@@ -504,7 +504,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SessionResponse"
+                  "$ref": "#/components/schemas/LoginResponse"
                 }
               }
             }
@@ -8510,10 +8510,13 @@
           }
         }
       },
-      "SessionResponse": {
+      "LoginResponse": {
         "type": "object",
+        "additionalProperties": false,
         "required": [
           "account",
+          "workforceProfile",
+          "unionProfile",
           "capabilities",
           "scopes",
           "sessionId",
@@ -8521,41 +8524,56 @@
         ],
         "properties": {
           "account": {
-            "type": "object",
-            "additionalProperties": true
+            "$ref": "#/components/schemas/SessionAccount"
           },
           "workforceProfile": {
-            "type": "object",
-            "nullable": true,
-            "additionalProperties": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionWorkforceProfile"
+              }
+            ],
+            "nullable": true
           },
           "unionProfile": {
-            "type": "object",
-            "nullable": true,
-            "additionalProperties": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionUnionProfile"
+              }
+            ],
+            "nullable": true
           },
           "capabilities": {
             "type": "array",
             "items": {
-              "type": "string",
-              "enum": [
-                "MEMBER",
-                "SECTION_HEAD",
-                "MANAGER",
-                "DIVISION_LEADERSHIP",
-                "DIRECTOR",
-                "UNION_HEAD",
-                "UNION_OFFICER",
-                "CARE_ADMIN"
-              ]
+              "$ref": "#/components/schemas/Capability"
             }
           },
           "scopes": {
             "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
+            "additionalProperties": false,
+            "required": [
+              "overview",
+              "detail",
+              "action"
+            ],
+            "properties": {
+              "overview": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/OverviewScope"
+                }
+              },
+              "detail": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DetailScope"
+                }
+              },
+              "action": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ActionScope"
+                }
               }
             }
           },
@@ -8567,6 +8585,258 @@
             "type": "boolean"
           }
         }
+      },
+      "SessionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account",
+          "workforceProfile",
+          "unionProfile",
+          "capabilities",
+          "scopes",
+          "sessionId",
+          "passwordChangeRequired",
+          "employee"
+        ],
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/SessionAccount"
+          },
+          "workforceProfile": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionWorkforceProfile"
+              }
+            ],
+            "nullable": true
+          },
+          "unionProfile": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionUnionProfile"
+              }
+            ],
+            "nullable": true
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            }
+          },
+          "scopes": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "overview",
+              "detail",
+              "action"
+            ],
+            "properties": {
+              "overview": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/OverviewScope"
+                }
+              },
+              "detail": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DetailScope"
+                }
+              },
+              "action": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ActionScope"
+                }
+              }
+            }
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "passwordChangeRequired": {
+            "type": "boolean"
+          },
+          "employee": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionEmployee"
+              }
+            ],
+            "nullable": true,
+            "description": "Authoritative employee snapshot returned by the session endpoint."
+          }
+        }
+      },
+      "SessionAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "accountKind",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "accountKind": {
+            "type": "string",
+            "enum": [
+              "CARE_ADMIN",
+              "WORKFORCE",
+              "UNION"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "LEGACY_HANDLER",
+              "INACTIVE"
+            ]
+          }
+        }
+      },
+      "SessionWorkforceProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "structuralPosition",
+          "organizationSnapshotId",
+          "organizationUnitId"
+        ],
+        "properties": {
+          "structuralPosition": {
+            "type": "string",
+            "nullable": true
+          },
+          "organizationSnapshotId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "organizationUnitId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "SessionUnionProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "slot"
+        ],
+        "properties": {
+          "slot": {
+            "type": "string",
+            "enum": [
+              "HEAD",
+              "OFFICER_1",
+              "OFFICER_2"
+            ]
+          }
+        }
+      },
+      "SessionEmployee": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "noReg",
+          "name",
+          "directorate",
+          "division",
+          "department",
+          "section",
+          "structuralPosition"
+        ],
+        "properties": {
+          "noReg": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "directorate": {
+            "type": "string",
+            "nullable": true
+          },
+          "division": {
+            "type": "string",
+            "nullable": true
+          },
+          "department": {
+            "type": "string",
+            "nullable": true
+          },
+          "section": {
+            "type": "string",
+            "nullable": true
+          },
+          "structuralPosition": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Capability": {
+        "type": "string",
+        "enum": [
+          "MEMBER",
+          "SECTION_HEAD",
+          "MANAGER",
+          "DIVISION_LEADERSHIP",
+          "DIRECTOR",
+          "UNION_HEAD",
+          "UNION_OFFICER",
+          "CARE_ADMIN"
+        ]
+      },
+      "OverviewScope": {
+        "type": "string",
+        "enum": [
+          "OWN",
+          "GENERAL_GLOBAL",
+          "ADMIN_OPERATIONAL",
+          "GENERAL_OWN_DIVISION"
+        ]
+      },
+      "DetailScope": {
+        "type": "string",
+        "enum": [
+          "OWN",
+          "GENERAL_ALL",
+          "PRIVATE_ALL_READ_ONLY",
+          "GENERAL_OWN_DIVISION",
+          "GENERAL_OWN_DEPARTMENT",
+          "EXPLICIT_WORK_ITEMS",
+          "ASSIGNED"
+        ]
+      },
+      "ActionScope": {
+        "type": "string",
+        "enum": [
+          "REPORTER_OWN",
+          "ROUTE_OWNED_GENERAL",
+          "ASSIGNED_GENERAL",
+          "PRIVATE_ALL",
+          "PRIVATE_ASSIGNED"
+        ]
       },
       "ClassificationPreview": {
         "oneOf": [

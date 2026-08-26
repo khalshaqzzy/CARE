@@ -1,4 +1,4 @@
-name: Backend CI
+name: CARE CI
 
 on:
   push:
@@ -57,6 +57,8 @@ jobs:
       - run: pnpm test:performance
       - run: pnpm openapi:check
       - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:frontend:e2e
       - run: docker compose config --quiet
       - run: git diff --check
 

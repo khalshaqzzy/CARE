@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+@import '@care/ui/styles.css';
+
+.route-loader,
+.centered-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: var(--space-5);
+}
+.auth-layout {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(0, 1.1fr) minmax(24rem, 0.9fr);
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12);
+  background: var(--surface-canvas);
+}
+.auth-brand {
+  display: grid;
+  max-width: 42rem;
+  gap: var(--space-4);
+}
+.auth-brand h1 {
+  max-width: 13ch;
+  margin: var(--space-2) 0;
+  font-size: clamp(2.5rem, 6vw, 5.5rem);
+  line-height: 0.98;
+  letter-spacing: var(--tracking-tight);
+}
+.auth-brand p {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--text-secondary);
+}
+.brand-mark,
+.brand-lockup > span {
+  display: grid;
+  width: var(--space-12);
+  height: var(--space-12);
+  place-items: center;
+  border-radius: var(--radius-card);
+  color: var(--text-inverse);
+  background: var(--action-primary-bg);
+  font-size: var(--font-size-xl);
+  font-weight: var(--weight-bold);
+}
+.auth-card {
+  width: min(100%, 30rem);
+  justify-self: end;
+  padding: var(--space-8);
+}
+.auth-card h2,
+.password-card h1 {
+  margin: var(--space-1) 0;
+  line-height: var(--line-tight);
+}
+.auth-card p,
+.password-card p {
+  margin: var(--space-1) 0;
+  color: var(--text-secondary);
+}
+.auth-form {
+  display: grid;
+  gap: var(--space-4);
+}
+.password-card {
+  width: min(100%, 32rem);
+  padding: var(--space-8);
+}
+.workforce-topbar {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+.workforce-topbar > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.brand-lockup > span {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-sm);
+}
+.care-app-shell__content > .care-stack {
+  max-width: 80rem;
+  margin-inline: auto;
+}
+.sw-update-prompt {
+  position: fixed;
+  z-index: var(--layer-toast);
+  right: var(--space-4);
+  bottom: calc(var(--space-20) + env(safe-area-inset-bottom));
+  width: min(calc(100vw - var(--space-8)), 28rem);
+}
+
+@media (max-width: 767px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    padding: var(--space-4);
+    align-content: start;
+  }
+  .auth-brand {
+    min-height: 19rem;
+    margin: calc(var(--space-4) * -1);
+    padding: var(--space-8) var(--space-6);
+    border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+    color: var(--text-inverse);
+    background: var(--action-primary-bg);
+  }
+  .auth-brand h1 {
+    font-size: 2.5rem;
+  }
+  .auth-brand p {
+    color: color-mix(in srgb, var(--text-inverse) 78%, transparent);
+  }
+  .auth-card {
+    justify-self: center;
+    padding: var(--space-6);
+  }
+  .workforce-topbar .care-avatar {
+    display: none;
+  }
+}

@@ -3,7 +3,7 @@
 | Atribut             | Nilai                                                                                                      |
 | ------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Status dokumen      | **Active product contract v1.1**                                                                           |
-| Status implementasi | **Backend Phase 6 complete and API v1.1 re-frozen; frontend Phase 7 pending**                              |
+| Status implementasi | **Backend Phase 6 dan frontend foundation Phase 7 complete; domain journeys Phase 8–10 pending**           |
 | Versi dokumen       | 1.1                                                                                                        |
 | Tanggal             | 26 Agustus 2026                                                                                            |
 | Product owner       | TMMIN                                                                                                      |
@@ -422,7 +422,7 @@ Workforce PWA dan Admin web memakai navigation serta host authorization yang ber
 - System Status;
 - Akun.
 
-Workforce mobile memakai bottom navigation untuk primary journeys dan sidebar/topbar pada desktop. Admin app memakai desktop/tablet-first sidebar, bukan PWA/offline surface. Kedua frontend tetap bergantung pada backend authorization.
+Workforce mobile memakai bottom navigation untuk primary journeys dan sidebar/topbar pada desktop. Admin app memakai desktop-only sidebar dengan hard gate ≥1280 px, bukan PWA/offline surface. Di bawah gate, protected tree tidak di-mount dan tidak melakukan fetch. Kedua frontend tetap bergantung pada backend authorization.
 
 ---
 
@@ -1075,7 +1075,7 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 
 - Language: TypeScript.
 - Package manager: pnpm dengan pinned version dan frozen lockfile.
-- Frontend: React, Vite, Tailwind CSS, shadcn/ui; workforce dan Admin merupakan applications terpisah.
+- Frontend: React, Vite, Tailwind CSS, Radix primitives, Motion, dan CARE shared UI; workforce dan Admin merupakan applications terpisah.
 - Backend: NestJS.
 - ORM/migration: Prisma.
 - Database: PostgreSQL.
@@ -1089,15 +1089,18 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 
 Minimum workspace:
 
-- `apps/web` — workforce role/capability-aware PWA;
-- `apps/admin-web` — CARE Admin web terpisah, non-PWA;
+- `apps/web-voice` — workforce role/capability-aware PWA dan public `/design` showcase;
+- `apps/web-admin` — CARE Admin web terpisah, desktop-only ≥1280 px dan non-PWA;
 - `apps/api` — NestJS API dan Prisma;
 - `packages/contracts` — generated/shared OpenAPI types/client;
-- `packages/ui` — shared design tokens/primitives bila diperlukan;
+- `packages/ui` — shared light-theme design tokens, accessible primitives, composed components, dan motion contract;
+- `packages/frontend-core` — same-origin transport, auth/session/CSRF, cache isolation, typed errors, dan route guards;
 - `e2e` — Playwright journeys;
 - `deploy` — Caddy, Compose, runtime env templates, scripts, dan tests.
 
 Kedua frontend wajib mengonsumsi generated contract yang sama dan tidak menduplikasi wire types atau authorization rules.
+
+`/design` wajib tersedia pada production build workforce tetapi tidak muncul pada navigasi produk. Route ini public, `noindex`, lazy-loaded, hanya memakai mock data, tidak menginisialisasi auth/API, dan merender token/component/state coverage. Admin tidak memiliki design-system page terpisah dan selalu menggunakan `packages/ui`. V1 memakai light theme saja; BeUI hanya menjadi referensi motion untuk workflow-relevant interactions dengan source provenance dan notice MIT yang dipertahankan.
 
 ### 24.3 Backend Modules
 
@@ -1646,9 +1649,9 @@ Minimum journeys:
 - [ ] Division/Deputy/Pjt. Head, Director, dan Union memperoleh General read-only sesuai scope; Private tetap mengikuti scope Union khusus.
 - [ ] Inbox severity-first lalu newest dengan server pagination/filter.
 - [ ] Notification Center authoritative dan push best-effort/redacted.
-- [ ] Workforce app dan Admin app memakai generated OpenAPI client bersama tetapi dipisahkan sebagai deployment/origin berbeda.
-- [ ] Workforce PWA installable dan update-safe; Admin app bukan PWA/offline surface.
-- [ ] Offline state jelas dan tidak membuat queued mutation.
+- [x] Workforce app dan Admin app memakai generated OpenAPI client bersama tetapi dipisahkan sebagai deployment/origin berbeda.
+- [x] Workforce PWA foundation installable dan update-safe; Admin app bukan PWA/offline surface.
+- [x] Offline state jelas dan tidak membuat queued mutation.
 - [ ] Two-app responsive/accessibility matrix lulus.
 
 ### 34.7 Non-Functional dan Delivery

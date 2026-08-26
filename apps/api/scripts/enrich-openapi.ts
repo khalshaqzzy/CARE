@@ -149,7 +149,8 @@ function successSchema(operationId: string) {
   if (operationId === 'HealthController_ready') return { $ref: '#/components/schemas/Readiness' };
   if (operationId === 'HealthController_release') return { $ref: '#/components/schemas/Release' };
   if (operationId === 'AuthController_csrf') return { $ref: '#/components/schemas/CsrfToken' };
-  if (operationId === 'AuthController_login' || operationId === 'AuthController_session')
+  if (operationId === 'AuthController_login') return { $ref: '#/components/schemas/LoginResponse' };
+  if (operationId === 'AuthController_session')
     return { $ref: '#/components/schemas/SessionResponse' };
   const mapping: Record<string, string> = {
     AdminController_accounts: 'AccountSummaryList',
@@ -262,6 +263,47 @@ const baseVoiceProperties = {
     type: 'object',
     required: ['label'],
     properties: { id: { type: 'string' }, label: { type: 'string' } },
+  },
+};
+
+const sessionBaseSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'account',
+    'workforceProfile',
+    'unionProfile',
+    'capabilities',
+    'scopes',
+    'sessionId',
+    'passwordChangeRequired',
+  ],
+  properties: {
+    account: { $ref: '#/components/schemas/SessionAccount' },
+    workforceProfile: {
+      allOf: [{ $ref: '#/components/schemas/SessionWorkforceProfile' }],
+      nullable: true,
+    },
+    unionProfile: {
+      allOf: [{ $ref: '#/components/schemas/SessionUnionProfile' }],
+      nullable: true,
+    },
+    capabilities: {
+      type: 'array',
+      items: { $ref: '#/components/schemas/Capability' },
+    },
+    scopes: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['overview', 'detail', 'action'],
+      properties: {
+        overview: { type: 'array', items: { $ref: '#/components/schemas/OverviewScope' } },
+        detail: { type: 'array', items: { $ref: '#/components/schemas/DetailScope' } },
+        action: { type: 'array', items: { $ref: '#/components/schemas/ActionScope' } },
+      },
+    },
+    sessionId: { type: 'string', format: 'uuid' },
+    passwordChangeRequired: { type: 'boolean' },
   },
 };
 
@@ -447,36 +489,109 @@ const schemas: Record<string, any> = {
     properties: { releaseSha: { type: 'string' }, service: { type: 'string', enum: ['care-api'] } },
   },
   CsrfToken: { type: 'object', required: ['token'], properties: { token: { type: 'string' } } },
+  LoginResponse: sessionBaseSchema,
   SessionResponse: {
-    type: 'object',
-    required: ['account', 'capabilities', 'scopes', 'sessionId', 'passwordChangeRequired'],
+    ...sessionBaseSchema,
+    required: [...sessionBaseSchema.required, 'employee'],
     properties: {
-      account: { type: 'object', additionalProperties: true },
-      workforceProfile: { type: 'object', nullable: true, additionalProperties: true },
-      unionProfile: { type: 'object', nullable: true, additionalProperties: true },
-      capabilities: {
-        type: 'array',
-        items: {
-          type: 'string',
-          enum: [
-            'MEMBER',
-            'SECTION_HEAD',
-            'MANAGER',
-            'DIVISION_LEADERSHIP',
-            'DIRECTOR',
-            'UNION_HEAD',
-            'UNION_OFFICER',
-            'CARE_ADMIN',
-          ],
-        },
+      ...sessionBaseSchema.properties,
+      employee: {
+        allOf: [{ $ref: '#/components/schemas/SessionEmployee' }],
+        nullable: true,
+        description: 'Authoritative employee snapshot returned by the session endpoint.',
       },
-      scopes: {
-        type: 'object',
-        additionalProperties: { type: 'array', items: { type: 'string' } },
-      },
-      sessionId: { type: 'string', format: 'uuid' },
-      passwordChangeRequired: { type: 'boolean' },
     },
+  },
+  SessionAccount: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'username', 'displayName', 'accountKind', 'status'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      username: { type: 'string' },
+      displayName: { type: 'string' },
+      accountKind: { type: 'string', enum: ['CARE_ADMIN', 'WORKFORCE', 'UNION'] },
+      status: { type: 'string', enum: ['ACTIVE', 'LEGACY_HANDLER', 'INACTIVE'] },
+    },
+  },
+  SessionWorkforceProfile: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['structuralPosition', 'organizationSnapshotId', 'organizationUnitId'],
+    properties: {
+      structuralPosition: { type: 'string', nullable: true },
+      organizationSnapshotId: { type: 'string', format: 'uuid', nullable: true },
+      organizationUnitId: { type: 'string', format: 'uuid', nullable: true },
+    },
+  },
+  SessionUnionProfile: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['slot'],
+    properties: {
+      slot: { type: 'string', enum: ['HEAD', 'OFFICER_1', 'OFFICER_2'] },
+    },
+  },
+  SessionEmployee: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'noReg',
+      'name',
+      'directorate',
+      'division',
+      'department',
+      'section',
+      'structuralPosition',
+    ],
+    properties: {
+      noReg: { type: 'string' },
+      name: { type: 'string' },
+      directorate: { type: 'string', nullable: true },
+      division: { type: 'string', nullable: true },
+      department: { type: 'string', nullable: true },
+      section: { type: 'string', nullable: true },
+      structuralPosition: { type: 'string', nullable: true },
+    },
+  },
+  Capability: {
+    type: 'string',
+    enum: [
+      'MEMBER',
+      'SECTION_HEAD',
+      'MANAGER',
+      'DIVISION_LEADERSHIP',
+      'DIRECTOR',
+      'UNION_HEAD',
+      'UNION_OFFICER',
+      'CARE_ADMIN',
+    ],
+  },
+  OverviewScope: {
+    type: 'string',
+    enum: ['OWN', 'GENERAL_GLOBAL', 'ADMIN_OPERATIONAL', 'GENERAL_OWN_DIVISION'],
+  },
+  DetailScope: {
+    type: 'string',
+    enum: [
+      'OWN',
+      'GENERAL_ALL',
+      'PRIVATE_ALL_READ_ONLY',
+      'GENERAL_OWN_DIVISION',
+      'GENERAL_OWN_DEPARTMENT',
+      'EXPLICIT_WORK_ITEMS',
+      'ASSIGNED',
+    ],
+  },
+  ActionScope: {
+    type: 'string',
+    enum: [
+      'REPORTER_OWN',
+      'ROUTE_OWNED_GENERAL',
+      'ASSIGNED_GENERAL',
+      'PRIVATE_ALL',
+      'PRIVATE_ASSIGNED',
+    ],
   },
   ClassificationPreview: {
     oneOf: [

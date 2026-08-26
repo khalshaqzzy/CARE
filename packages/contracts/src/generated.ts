@@ -1012,24 +1012,74 @@ export interface components {
         CsrfToken: {
             token: string;
         };
-        SessionResponse: {
-            account: {
-                [key: string]: unknown;
-            };
-            workforceProfile?: {
-                [key: string]: unknown;
-            } | null;
-            unionProfile?: {
-                [key: string]: unknown;
-            } | null;
-            capabilities: ("MEMBER" | "SECTION_HEAD" | "MANAGER" | "DIVISION_LEADERSHIP" | "DIRECTOR" | "UNION_HEAD" | "UNION_OFFICER" | "CARE_ADMIN")[];
+        LoginResponse: {
+            account: components["schemas"]["SessionAccount"];
+            workforceProfile: components["schemas"]["SessionWorkforceProfile"] | null;
+            unionProfile: components["schemas"]["SessionUnionProfile"] | null;
+            capabilities: components["schemas"]["Capability"][];
             scopes: {
-                [key: string]: string[];
+                overview: components["schemas"]["OverviewScope"][];
+                detail: components["schemas"]["DetailScope"][];
+                action: components["schemas"]["ActionScope"][];
             };
             /** Format: uuid */
             sessionId: string;
             passwordChangeRequired: boolean;
         };
+        SessionResponse: {
+            account: components["schemas"]["SessionAccount"];
+            workforceProfile: components["schemas"]["SessionWorkforceProfile"] | null;
+            unionProfile: components["schemas"]["SessionUnionProfile"] | null;
+            capabilities: components["schemas"]["Capability"][];
+            scopes: {
+                overview: components["schemas"]["OverviewScope"][];
+                detail: components["schemas"]["DetailScope"][];
+                action: components["schemas"]["ActionScope"][];
+            };
+            /** Format: uuid */
+            sessionId: string;
+            passwordChangeRequired: boolean;
+            /** @description Authoritative employee snapshot returned by the session endpoint. */
+            employee: components["schemas"]["SessionEmployee"] | null;
+        };
+        SessionAccount: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            displayName: string;
+            /** @enum {string} */
+            accountKind: "CARE_ADMIN" | "WORKFORCE" | "UNION";
+            /** @enum {string} */
+            status: "ACTIVE" | "LEGACY_HANDLER" | "INACTIVE";
+        };
+        SessionWorkforceProfile: {
+            structuralPosition: string | null;
+            /** Format: uuid */
+            organizationSnapshotId: string | null;
+            /** Format: uuid */
+            organizationUnitId: string | null;
+        };
+        SessionUnionProfile: {
+            /** @enum {string} */
+            slot: "HEAD" | "OFFICER_1" | "OFFICER_2";
+        };
+        SessionEmployee: {
+            noReg: string;
+            name: string;
+            directorate: string | null;
+            division: string | null;
+            department: string | null;
+            section: string | null;
+            structuralPosition: string | null;
+        };
+        /** @enum {string} */
+        Capability: "MEMBER" | "SECTION_HEAD" | "MANAGER" | "DIVISION_LEADERSHIP" | "DIRECTOR" | "UNION_HEAD" | "UNION_OFFICER" | "CARE_ADMIN";
+        /** @enum {string} */
+        OverviewScope: "OWN" | "GENERAL_GLOBAL" | "ADMIN_OPERATIONAL" | "GENERAL_OWN_DIVISION";
+        /** @enum {string} */
+        DetailScope: "OWN" | "GENERAL_ALL" | "PRIVATE_ALL_READ_ONLY" | "GENERAL_OWN_DIVISION" | "GENERAL_OWN_DEPARTMENT" | "EXPLICIT_WORK_ITEMS" | "ASSIGNED";
+        /** @enum {string} */
+        ActionScope: "REPORTER_OWN" | "ROUTE_OWNED_GENERAL" | "ASSIGNED_GENERAL" | "PRIVATE_ALL" | "PRIVATE_ASSIGNED";
         ClassificationPreview: {
             /** @enum {string} */
             source: "AI" | "MANUAL_FALLBACK";
@@ -2065,7 +2115,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"];
+                    "application/json": components["schemas"]["LoginResponse"];
                 };
             };
             /** @description Request validation failed */

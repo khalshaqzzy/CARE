@@ -41,8 +41,8 @@ export type SessionResponse = {
   };
   workforceProfile: {
     structuralPosition: string | null;
-    organizationSnapshotId: string;
-    organizationUnitId: string;
+    organizationSnapshotId: string | null;
+    organizationUnitId: string | null;
   } | null;
   unionProfile: { slot: UnionSlot } | null;
   capabilities: Capability[];
