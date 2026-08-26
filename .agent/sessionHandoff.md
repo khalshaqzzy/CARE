@@ -1,13 +1,13 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| Date                    | 27 Agustus 2026                                                                       |
-| Current objective       | Phase 8.0 contract/backend completion pada branch `feat/phase-8-admin-operations`     |
-| Current phase           | Phase 8.0 `in_progress` (Phase 7 `done`)                                              |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 memperluas contract tanpa breaking gate lama            |
-| Implementation status   | Phase 0–7 done; Phase 8.0 in_progress — branch baru dibuat                           |
-| Recommended next action | Lanjutkan Phase 8.0: perluas OpenAPI/Prisma/services untuk cursor/idempotency/audit  |
+| Atribut                 | Nilai                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| Date                    | 27 Agustus 2026                                                                                    |
+| Current objective       | Phase 8.0–8.4 done; Phase 8.5 accessibility & full-stack acceptance in progress                    |
+| Current phase           | Phase 8.5 `in_progress` (Phase 7 `done`, Phase 8.0–8.4 `done`)                                     |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                |
+| Implementation status   | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 in_progress • branch `feat/phase-8-admin-operations` |
+| Recommended next action | Selesaikan Phase 8.5: Axe/keyboard/Playwright mocked & full-stack, lalu tandai Phase 8 `done`      |
 
 ## Session Outcome
 
@@ -94,26 +94,69 @@ The Member Home preview now mirrors the reference dock more closely: a white flo
 
 Validation after this refinement: Prettier, UI/workforce typecheck, scoped ESLint, UI/workforce unit tests (10 passed), workforce build, and 5 Playwright visual tests passed; visual baselines were regenerated.
 
-## Branch and Phase 8 Kickoff — 27 Agustus 2026
+## Phase 8 Execution — 27 Agustus 2026
 
-Branch `feat/phase-8-admin-operations` dibuat dari `staging` untuk mengisolasi seluruh pekerjaan Phase 8 sesuai instruksi. `implementationPhases.md` diperbarui ke status `Phase 8 in_progress` dengan subphase 8.0–8.5 sequential; hanya 8.0 `in_progress`. Tidak ada perubahan kode pada kickoff ini—hanya perubahan branch dan dokumen roadmap/handoff.
+**Branch:** `feat/phase-8-admin-operations` (from `staging`)
 
-Next steps sesuai plan Phase 8.0–8.5:
+**Phase 8.0 — Contract & Backend Completion (done):**
 
-1. Phase 8.0: contract/backend completion (OpenAPI, cursor, idempotency, indexes, import/remediation/account/audit/Voice Explorer/system status).
-2. Phase 8.1: Admin data layer dan routing (feature routes, session-scoped Query, URL filter, gate).
-3. Phase 8.2: import/master/remediation/Union pages.
-4. Phase 8.3: accounts dan audit pages.
-5. Phase 8.4: Voice Explorer dan system status.
-6. Phase 8.5: accessibility, security, performance, full-stack acceptance, ADR, dan exit gate.
+- regenerasi OpenAPI & `@care/contracts`; semua response eksplisit tanpa `additionalProperties` untuk data yang dirender UI;
+- cursor pagination (`limit`, `cursor` signed opaque, stable sort) untuk imports, changes, remediation, accounts, voices, audit;
+- mutation sensitif memakai `Idempotency-Key`, optimistic `checksum`/`expectedVersion`/`expectedCurrentRouteId`/`expectedCurrentTerm`, CSRF, audit reason;
+- indeks PostgreSQL untuk account (`username,displayName`, `createdAt`), `ImportBatch(createdAt)`, `Voice(severity/title)`, `OrganizationUnit`, `AuditEvent(action/result)`;
+- import preview diperluas (checksum/version/expiry/typed summary/route gaps/Dept14/globalPic/Union gaps); `GET .../{id}/changes` cursor-paginated dengan filter; `POST .../{id}/confirm` menerima `{checksum,expectedVersion}` + `Idempotency-Key` dengan conflict stabil (checksum/ version/ expired/ idempotency);
+- current effective snapshot (`/admin/organization-snapshots/current`) dan organization-unit list/detail (composite unit, member/head counts, routeHealth, source snapshot);
+- import list/history cursor-paginated dengan status `PREVIEWED→QUEUED→PROCESSING→CONFIRMED|FAILED|EXPIRED`;
+- remediation list/history typed & paginated dengan filter status/type/unit/batch; default PIC & global PIC menerima `expectedCurrentRouteId` + reason; account search dengan eligibility filter; Union slot menerima `expectedCurrentTerm` + reason dengan legacy preservation & session revocation;
+- account list/detail paginated dengan search/filter kind/status/unit/position + eligibility; reset-password & activation/deactivation dengan reason/version, constraint legacy ownership, dan CARE_ADMIN immutable;
+- audit list/detail Admin-only dengan cursor & filter (date range, action/result/actorKind/resource/correlation) & sanitized summary; Voice list diperluas (cursor/search/status/visibility/severity/area/category/handler/date range/stable sort); detail DTO `AdminPrivateVoiceDetail.reporter` exact 7 fields; semua Admin read Private (list/detail/timeline/message/media) diaudit teredaksi; system status typed `/health|/ready|/release.json`.
+
+**Phase 8.1 — Admin Data Layer & Routing (done):**
+
+- pecah shell monolitik menjadi feature routes: Overview, Imports, Remediation, Union, Accounts, Voice Explorer, Audit, System Status, Account;
+- generated client via transport Phase 7 (fetch + CSRF + credentials), session-scoped React Query keys, targeted invalidation, URL search params untuk filter/list state;
+- hard gate 1280 px tetap sebelum Query/Auth/Router; tidak ada CacheStorage/IndexedDB/service worker untuk Admin.
+
+**Phase 8.2 — Import/Master/Remediation/Union (done):**
+
+- Imports: upload 10 MB `.xlsx/.csv`, preview summary, error, paginated change table, typed confirmation dialog dengan deactivation highlight, polling queued/processing, terminal state, history & snapshot;
+- Remediation: queue per issue type/unit, drawer pilih PIC + reason, current mapping, Section Head candidates read-only;
+- Union: 3 cards Head/1/2 dengan provision/replace dialog, forced-password notice, consequence, audit link.
+
+**Phase 8.3 — Accounts & Audit (done):**
+
+- Accounts: server-side search/filter, detail drawer org/capability/status, reset/activate/deactivate dengan confirm + reason, CARE Admin read-only;
+- Audit: sanitized event table & drawer dengan actor snapshot, action/result, resource, timestamp, correlation, release SHA, reason, safe summary.
+
+**Phase 8.4 — Voice Explorer & System Status (done):**
+
+- Voice Explorer: paginated filter table (search/status/visibility/severity), detail drawer read-only dengan notice “akses Private diaudit”, full immutable reporter identity, attachment/classification/location/timeline tanpa action;
+- System Status: API/database/migration/storage/outbox, OpenAI/push config, release SHA, last-refreshed, manual refresh, polling 30s hanya saat tab visible.
+
+**Phase 8.5 — Accessibility, Security, Performance & Full-Stack (in_progress):**
+
+- Sisa: Axe/keyboard/focus-return/reduced-motion, loading/empty/error/permission/conflict, long-content, 1280/1440 no-overflow; Playwright mocked-contract & full-stack (bootstrap→import→remediation→Union→accounts→Private audit→system status); Admin build assertion tanpa manifest/sw/fetch di bawah gate.
+
+**PRD Update:** mengunci tepat satu CARE Admin v1 CLI-managed; Accounts hanya mengelola workforce/Union; Admin hanya ganti password sendiri (`PRD.md:6.1,8.3`).
+
+**Validasi Phase 8.0:**
+
+- `pnpm typecheck` — passed (api, contracts, ui, frontend-core, web-admin, web-voice);
+- `pnpm build` — passed (web-voice PWA 12 precache, web-admin non-PWA 610 kB);
+- `pnpm test:unit` — 23+8+9+2+2 passed;
+- `pnpm db:test:reset/migrate` + `test:integration` 8 passed + `test:security` 5 passed + `seed:performance` + `test:performance` 1 passed + `maintenance:reconcile` dry-run 0;
+- `pnpm openapi:generate` deterministic & `packages/contracts` regenerated;
+- `pnpm format:check` `pnpm lint` `pnpm migrations:destructive-check` `docker compose config --quiet` `gitleaks` `git diff --check` — passed;
+- migration `20260827000000_phase8_admin_ops` applied.
 
 ## Next Recommended Action
 
-Lanjutkan Phase 8.0 pada branch `feat/phase-8-admin-operations`:
+Selesaikan Phase 8.5 pada branch `feat/phase-8-admin-operations`:
 
-1. perluas contract/backend sesuai scope 8.0 dan regenerasi `@care/contracts`;
-2. jalankan parity Phase 7 + backend suites sebelum memulai 8.1;
-3. pertahankan hard gate 1280 px dan network-only Admin; jangan memulai Phase 9 atau production containerization.
+1. jalankan Axe/keyboard/focus/reduced-motion/no-overflow untuk setiap halaman Admin;
+2. jalankan Playwright mocked-contract journeys & full-stack disposable DB (bootstrap→import→remediation→Union→accounts→Private audit→system status);
+3. verifikasi Admin build tanpa manifest/sw/offline cache/fetch di bawah gate, lalu tandai Phase 8 `done` dan buat ADR Phase 8;
+4. jangan mulai Phase 9 atau production containerization sebelum Phase 8 gate passed.
 
 ## Phase 7 Final Gate — 26 Agustus 2026
 

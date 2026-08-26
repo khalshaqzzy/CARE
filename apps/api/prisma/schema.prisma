@@ -188,6 +188,8 @@ model UserAccount {
   ratings                Rating[]
 
   @@index([accountKind, status])
+  @@index([username, displayName])
+  @@index([createdAt, id])
 }
 
 model Session {
@@ -239,6 +241,7 @@ model OrganizationUnit {
 
   @@unique([directorate, division, department])
   @@index([division, department])
+  @@index([createdAt, id])
 }
 
 model OrganizationMembership {
@@ -309,6 +312,7 @@ model ImportBatch {
   issues      ImportIssue[]
 
   @@index([status, expiresAt])
+  @@index([createdAt, id])
 }
 
 model ImportIssue {
@@ -447,6 +451,8 @@ model Voice {
   @@index([visibility, status, severity, submittedAt])
   @@index([area, category, status])
   @@index([reporterOrganizationUnitId, visibility, status])
+  @@index([severity, submittedAt])
+  @@index([title, displayId])
 }
 
 model HumanVoiceSequence {
@@ -683,6 +689,8 @@ model AuditEvent {
 
   @@index([occurredAt, id])
   @@index([resourceType, resourceId, occurredAt])
+  @@index([action, result, actorAccountKind, occurredAt, id])
+  @@index([correlationId, occurredAt])
 }
 
 model LegacyVoiceAccess {

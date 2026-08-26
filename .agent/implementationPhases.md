@@ -2,11 +2,11 @@
 
 | Atribut                | Nilai                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 8 Admin Application & Organization Operations in progress                               |
+| Status roadmap         | Phase 8 Admin Application & Organization Operations 8.0–8.4 done, 8.5 in progress             |
 | Last updated           | 27 Agustus 2026                                                                               |
 | Product contract       | `.agent/PRD.md` v1.1                                                                          |
-| Current implementation | Phase 0–7 complete; Phase 8.0 contract/backend completion in progress                         |
-| Current phase          | Phase 8.0 `in_progress`                                                                       |
+| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress  |
+| Current phase          | Phase 8.5 `in_progress`                                                                       |
 | Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
@@ -352,7 +352,7 @@ Scope summary:
 
 ### Phase 8.0 — Contract and Backend Completion
 
-Status: `in_progress`
+Status: `done` — implemented 27 Agustus 2026
 
 Scope:
 
@@ -384,7 +384,7 @@ Acceptance:
 
 ### Phase 8.1 — Admin Data Layer and Routing
 
-Status: `pending`
+Status: `done` — implemented 27 Agustus 2026
 
 Scope:
 
@@ -398,7 +398,7 @@ Acceptance:
 
 ### Phase 8.2 — Import/Master/Remediation/Union
 
-Status: `pending`
+Status: `done` — implemented 27 Agustus 2026
 
 Scope:
 
@@ -412,7 +412,7 @@ Acceptance:
 
 ### Phase 8.3 — Accounts and Audit
 
-Status: `pending`
+Status: `done` — implemented 27 Agustus 2026
 
 Scope:
 
@@ -426,7 +426,7 @@ Acceptance:
 
 ### Phase 8.4 — Voice Explorer and System Status
 
-Status: `pending`
+Status: `done` — implemented 27 Agustus 2026
 
 Scope:
 
@@ -439,7 +439,7 @@ Acceptance:
 
 ### Phase 8.5 — Accessibility, Security, Performance, and Full-Stack Acceptance
 
-Status: `pending`
+Status: `in_progress`
 
 Scope:
 
@@ -586,4 +586,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Lanjutkan Phase 8.0 contract/backend completion: implementasikan perubahan OpenAPI/Prisma/service/policy di atas, regenerasi `@care/contracts`, dan jalankan full parity Phase 7 + Phase 8 backend suites sebelum memulai Phase 8.1. Branch aktif: `feat/phase-8-admin-operations`.
+Lanjutkan Phase 8.5: lengkapi Axe/keyboard/focus/reduced-motion, Playwright mocked-contract dan full-stack (bootstrap→import→remediation→Union→accounts→Private audit→system status), serta Admin build assertion, sebelum menandai Phase 8 `done`. Branch aktif: `feat/phase-8-admin-operations`.

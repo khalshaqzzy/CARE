@@ -21,6 +21,7 @@ import { CLASSIFICATION_PROMPT_VERSION, LOCATION_PROMPT_VERSION } from '../ai/pr
 import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
 import { canonicalHash } from '../common/crypto';
+import { decodeCursor, encodeCursor } from '../common/cursor';
 import {
   AppError,
   badRequest,
@@ -427,24 +428,77 @@ export class VoicesService {
 
   async list(
     actor: AuthActor,
-    query: { status?: VoiceStatus; visibility?: VoiceVisibility; limit?: string },
+    query: {
+      status?: VoiceStatus;
+      visibility?: VoiceVisibility;
+      limit?: string;
+      cursor?: string;
+      search?: string;
+      severity?: Severity;
+      area?: string;
+      category?: RoutingCategory;
+      handler?: string;
+      from?: string;
+      to?: string;
+      sort?: string;
+    },
   ) {
     const where = await this.policy.browseScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
-    return {
-      items: await this.prisma.voice.findMany({
-        where: {
-          AND: [
-            where,
-            query.status ? { status: query.status } : {},
-            query.visibility ? { visibility: query.visibility } : {},
-          ],
-        },
-        take,
-        orderBy: { updatedAt: 'desc' },
-        select: this.listSelect(),
-      }),
-    };
+    const cursorId = query.cursor
+      ? (() => {
+          try {
+            return decodeCursor(query.cursor!);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+    const and: Prisma.VoiceWhereInput[] = [where];
+    if (query.status) and.push({ status: query.status });
+    if (query.visibility) and.push({ visibility: query.visibility });
+    if (query.severity) and.push({ severity: query.severity as Severity });
+    if (query.area) and.push({ area: query.area as never });
+    if (query.category) and.push({ category: query.category as RoutingCategory });
+    if (query.handler)
+      and.push({ OR: [{ routeOwnerId: query.handler }, { currentHandlerId: query.handler }] });
+    if (query.search) {
+      and.push({
+        OR: [
+          { displayId: { contains: query.search, mode: 'insensitive' } },
+          { title: { contains: query.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (query.from || query.to) {
+      const submittedAt: Prisma.DateTimeFilter = {};
+      if (query.from) submittedAt.gte = new Date(query.from);
+      if (query.to) submittedAt.lte = new Date(query.to);
+      and.push({ submittedAt });
+    }
+    const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
+    const orderBy: Prisma.VoiceOrderByWithRelationInput[] =
+      query.sort === 'severity'
+        ? [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }]
+        : [{ updatedAt: 'desc' }, { id: 'desc' }];
+    const items = await this.prisma.voice.findMany({
+      where: combinedWhere,
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy,
+      select: this.listSelect(),
+    });
+    const hasNext = items.length > take;
+    const data = hasNext ? items.slice(0, take) : items;
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    // audit admin private list reads
+    if (actor.capabilities.includes('CARE_ADMIN')) {
+      const hasPrivate =
+        data.some((v) => (v as { visibility: string }).visibility === 'PRIVATE') ||
+        query.visibility === 'PRIVATE';
+      if (hasPrivate) await this.auditPrivateRead(actor, 'list', 'PRIVATE_LIST_READ');
+    }
+    return { items: data, nextCursor };
   }
   async workItems(actor: AuthActor) {
     return {
@@ -473,7 +527,9 @@ export class VoicesService {
     return this.serialize(actor, voice);
   }
   async timeline(actor: AuthActor, id: string) {
-    await this.authorizedVoice(actor, id);
+    const voice = await this.authorizedVoice(actor, id);
+    if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
+      await this.auditPrivateRead(actor, voice.id, 'PRIVATE_TIMELINE_READ');
     return this.prisma.voiceEvent.findMany({
       where: { voiceId: id },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
@@ -592,6 +648,8 @@ export class VoicesService {
 
   async messages(actor: AuthActor, id: string) {
     const voice = await this.authorizedVoice(actor, id);
+    if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
+      await this.auditPrivateRead(actor, voice.id, 'PRIVATE_MESSAGE_READ');
     const messages = await this.prisma.message.findMany({
       where: { conversation: { voiceId: id } },
       orderBy: { createdAt: 'asc' },

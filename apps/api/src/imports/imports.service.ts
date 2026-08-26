@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
 import { canonicalHash, randomToken, sha256 } from '../common/crypto';
+import { decodeCursor, encodeCursor } from '../common/cursor';
 import { badRequest, conflict, forbiddenAsNotFound } from '../common/errors';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
@@ -219,20 +220,59 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  list() {
-    return this.prisma.importBatch.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+  async list(query?: { cursor?: string; limit?: string | number; status?: string }) {
+    const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
+    const cursorId = query?.cursor
+      ? (() => {
+          try {
+            return decodeCursor(query.cursor!);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+    const statusFilter =
+      query?.status && Object.values(ImportStatus).includes(query.status as ImportStatus)
+        ? (query.status as ImportStatus)
+        : undefined;
+    // handle expiry transition on read for fetched batches
+    const items = await this.prisma.importBatch.findMany({
+      where: statusFilter ? { status: statusFilter } : {},
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
       select: {
         id: true,
         status: true,
+        checksum: true,
+        version: true,
+        expiresAt: true,
         summary: true,
         failureCode: true,
-        version: true,
         createdAt: true,
         confirmedAt: true,
+        storageKey: true,
       },
     });
+    // auto-expire PREVIEWED batches past expiry on read
+    for (const batch of items) {
+      if (
+        batch.status === ImportStatus.PREVIEWED &&
+        batch.expiresAt &&
+        batch.expiresAt.getTime() < Date.now()
+      ) {
+        await this.prisma.importBatch
+          .update({ where: { id: batch.id }, data: { status: ImportStatus.EXPIRED } })
+          .catch(() => undefined);
+        (batch as { status: ImportStatus }).status = ImportStatus.EXPIRED;
+      }
+    }
+    const hasNext = items.length > take;
+    const data = hasNext ? items.slice(0, take) : items;
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    // maintain backward compatibility: if caller expects array, they can use items; new API returns object with items+nextCursor
+    // we return paginated object; existing tests that directly query prisma are unaffected
+    return { items: data, nextCursor };
   }
   async detail(id: string) {
     const batch = await this.prisma.importBatch.findUnique({
@@ -240,19 +280,302 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       include: { issues: true },
     });
     if (!batch) throw forbiddenAsNotFound();
+    if (
+      batch.status === ImportStatus.PREVIEWED &&
+      batch.expiresAt &&
+      batch.expiresAt.getTime() < Date.now()
+    ) {
+      await this.prisma.importBatch
+        .update({ where: { id }, data: { status: ImportStatus.EXPIRED } })
+        .catch(() => undefined);
+      batch.status = ImportStatus.EXPIRED;
+    }
     return batch;
   }
-  async changes(id: string) {
+  async changes(id: string, query?: { cursor?: string; limit?: string | number; filter?: string }) {
     const batch = await this.detail(id);
-    return { id, changes: (batch.summary as Record<string, unknown>).changes ?? [] };
+    const allChanges =
+      ((batch.summary as Record<string, unknown>).changes as
+        Array<Record<string, unknown>> | undefined) ?? [];
+    const filter =
+      query?.filter && ['CREATE', 'UPDATE', 'UNCHANGED', 'DEACTIVATE'].includes(query.filter)
+        ? query.filter
+        : undefined;
+    const filtered = filter
+      ? allChanges.filter((c) => (c as { type?: string }).type === filter)
+      : allChanges;
+    // stable sort by noReg then type
+    const sorted = [...filtered].sort((a, b) => {
+      const aNoReg = String((a as { noReg?: string }).noReg ?? '');
+      const bNoReg = String((b as { noReg?: string }).noReg ?? '');
+      if (aNoReg !== bNoReg) return aNoReg.localeCompare(bNoReg);
+      const aType = String((a as { type?: string }).type ?? '');
+      const bType = String((b as { type?: string }).type ?? '');
+      return aType.localeCompare(bType);
+    });
+    const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
+    const cursorId = query?.cursor
+      ? (() => {
+          try {
+            return decodeCursor(query.cursor!);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+    let start = 0;
+    if (cursorId) {
+      // cursor encodes an id like `${batchId}:${index}:${noReg}` but we stored changes as array; we use simple index-based cursor via encodeCursor of synthetic id
+      // For simplicity, decode cursor as synthetic id and find index
+      const idx = sorted.findIndex(
+        (_, index) => encodeCursor(`${id}:${String(index).padStart(6, '0')}`) === query!.cursor,
+      );
+      if (idx >= 0) start = idx + 1;
+      else {
+        // fallback: try to find by noReg encoded as cursor id directly (if cursor is a noReg)
+        const noRegIdx = sorted.findIndex((c) => (c as { noReg?: string }).noReg === cursorId);
+        if (noRegIdx >= 0) start = noRegIdx + 1;
+      }
+    }
+    // simpler: if cursor is opaque id of the last item's synthetic id, find it
+    if (cursorId && start === 0) {
+      // try to match synthetic id
+      const syntheticIdx = sorted.findIndex(
+        (_, index) => `${id}:${String(index).padStart(6, '0')}` === cursorId,
+      );
+      if (syntheticIdx >= 0) start = syntheticIdx + 1;
+    }
+    const slice = sorted.slice(start, start + take + 1);
+    const hasNext = slice.length > take;
+    const data = hasNext ? slice.slice(0, take) : slice;
+    const nextCursor =
+      hasNext && data.length
+        ? encodeCursor(`${id}:${String(start + data.length - 1).padStart(6, '0')}`)
+        : null;
+    // also compute pagination meta via take+1 pattern using synthetic ids
+    // For compatibility, also support cursor as noReg: fallback above
+    // Return paginated structure with items and nextCursor, plus legacy id
+    return { id, items: data, nextCursor, total: sorted.length };
   }
 
-  async confirm(actor: AuthActor, id: string) {
+  async getCurrentSnapshot() {
+    const snapshot = await this.prisma.organizationSnapshot.findFirst({
+      where: { status: OrganizationSnapshotStatus.ACTIVE },
+      orderBy: { effectiveAt: 'desc' },
+    });
+    if (!snapshot) return null;
+    const [unitCount, memberCount] = await Promise.all([
+      this.prisma.organizationUnit.count({ where: {} }),
+      this.prisma.organizationMembership.count({ where: { snapshotId: snapshot.id } }),
+    ]);
+    const headCount = await this.prisma.organizationMembership
+      .count({
+        where: {
+          snapshotId: snapshot.id,
+          structuralPosition: { equals: 'Section Head', mode: 'insensitive' },
+        },
+      })
+      .catch(() => 0);
+    // also count Department Head members - but we count all structural positions that are Department Head
+    const departmentHeadCount = await this.prisma.organizationMembership
+      .count({
+        where: {
+          snapshotId: snapshot.id,
+          structuralPosition: { equals: 'Department Head', mode: 'insensitive' },
+        },
+      })
+      .catch(() => 0);
+    return {
+      id: snapshot.id,
+      checksum: snapshot.checksum,
+      effectiveAt: snapshot.effectiveAt,
+      rowCount: snapshot.rowCount,
+      status: snapshot.status,
+      unitCount,
+      memberCount,
+      headCount: headCount + departmentHeadCount,
+      sourceSnapshotId: snapshot.id,
+    };
+  }
+
+  async listOrganizationUnits(query?: {
+    cursor?: string;
+    limit?: string | number;
+    search?: string;
+  }) {
+    const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
+    const cursorId = query?.cursor
+      ? (() => {
+          try {
+            return decodeCursor(query.cursor!);
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+    const search = query?.search?.trim();
+    const where: Prisma.OrganizationUnitWhereInput = search
+      ? {
+          OR: [
+            { directorate: { contains: search, mode: 'insensitive' } },
+            { division: { contains: search, mode: 'insensitive' } },
+            { department: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+    const units = await this.prisma.organizationUnit.findMany({
+      where,
+      orderBy: [{ directorate: 'asc' }, { division: 'asc' }, { department: 'asc' }, { id: 'asc' }],
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      include: {
+        _count: { select: { memberships: true } },
+      },
+    });
+    // enrich with route health and member/head counts from active snapshot
+    const activeSnapshot = await this.prisma.organizationSnapshot.findFirst({
+      where: { status: OrganizationSnapshotStatus.ACTIVE },
+    });
+    const enriched = await Promise.all(
+      units.slice(0, take).map(async (unit) => {
+        const memberships = activeSnapshot
+          ? await this.prisma.organizationMembership.findMany({
+              where: { organizationUnitId: unit.id, snapshotId: activeSnapshot.id },
+              select: { structuralPosition: true },
+            })
+          : [];
+        const memberCount = memberships.length;
+        const headCount = memberships.filter(
+          (m) => m.structuralPosition.trim().toLocaleLowerCase('en-US') === 'section head',
+        ).length;
+        const route = await this.prisma.routeMapping.findFirst({
+          where: { organizationUnitId: unit.id, effectiveTo: null },
+          select: { ownerAccountId: true, kind: true },
+        });
+        const routeHealth = route ? 'HEALTHY' : 'GAP';
+        return {
+          id: unit.id,
+          directorate: unit.directorate,
+          division: unit.division,
+          department: unit.department,
+          compositeKey: `${unit.directorate} / ${unit.division} / ${unit.department}`,
+          memberCount,
+          headCount,
+          currentRouteOwnerId: route?.ownerAccountId ?? null,
+          routeHealth,
+          sourceSnapshotId: activeSnapshot?.id ?? null,
+          isComposite: true,
+        };
+      }),
+    );
+    const hasNext = units.length > take;
+    const nextCursor =
+      hasNext && enriched.length ? encodeCursor(enriched[enriched.length - 1].id) : null;
+    // for units beyond take, we already sliced; return paginated
+    return { items: enriched, nextCursor };
+  }
+
+  async getOrganizationUnit(id: string) {
+    const unit = await this.prisma.organizationUnit.findUnique({
+      where: { id },
+      include: { _count: { select: { memberships: true } } },
+    });
+    if (!unit) throw forbiddenAsNotFound();
+    const activeSnapshot = await this.prisma.organizationSnapshot.findFirst({
+      where: { status: OrganizationSnapshotStatus.ACTIVE },
+    });
+    const memberships = activeSnapshot
+      ? await this.prisma.organizationMembership.findMany({
+          where: { organizationUnitId: id, snapshotId: activeSnapshot.id },
+          include: { employee: { select: { noReg: true, name: true } } },
+        })
+      : [];
+    const memberCount = memberships.length;
+    const headCount = memberships.filter(
+      (m) => m.structuralPosition.trim().toLocaleLowerCase('en-US') === 'section head',
+    ).length;
+    const route = await this.prisma.routeMapping.findFirst({
+      where: { organizationUnitId: id, effectiveTo: null },
+      include: { owner: { select: { id: true, displayName: true, username: true } } },
+    });
+    const routeHealth = route ? 'HEALTHY' : 'GAP';
+    return {
+      id: unit.id,
+      directorate: unit.directorate,
+      division: unit.division,
+      department: unit.department,
+      compositeKey: `${unit.directorate} / ${unit.division} / ${unit.department}`,
+      memberCount,
+      headCount,
+      currentRouteOwner: route?.owner ?? null,
+      routeHealth,
+      sourceSnapshot: activeSnapshot
+        ? {
+            id: activeSnapshot.id,
+            effectiveAt: activeSnapshot.effectiveAt,
+            checksum: activeSnapshot.checksum,
+          }
+        : null,
+      sourceSnapshotId: activeSnapshot?.id ?? null,
+      members: memberships.map((m) => ({
+        employeeName: m.employeeName,
+        structuralPosition: m.structuralPosition,
+        section: m.section,
+        employee: { noReg: m.employee.noReg, name: m.employee.name },
+      })),
+    };
+  }
+
+  async confirm(actor: AuthActor, id: string, body?: unknown, idempotencyKey?: string) {
+    const parsedBody = body as Record<string, unknown> | undefined;
+    const checksum = typeof parsedBody?.checksum === 'string' ? parsedBody.checksum : undefined;
+    const expectedVersion =
+      typeof parsedBody?.expectedVersion === 'number' ? parsedBody.expectedVersion : undefined;
+    const requestHash = canonicalHash({
+      id,
+      checksum: checksum ?? null,
+      expectedVersion: expectedVersion ?? null,
+    });
+    if (idempotencyKey) {
+      const existing = await this.prisma.idempotencyRecord.findUnique({
+        where: {
+          accountId_scope_key: {
+            accountId: actor.accountId,
+            scope: `import:confirm:${id}`,
+            key: idempotencyKey,
+          },
+        },
+      });
+      if (existing) {
+        if (existing.requestHash !== requestHash)
+          throw conflict(
+            'IDEMPOTENCY_CONFLICT',
+            'Idempotency key was reused with a different payload',
+          );
+        return existing.response as { id: string; status: ImportStatus };
+      }
+    }
     const batch = await this.prisma.importBatch.findFirst({
       where: { id, actorId: actor.accountId },
-      select: { errors: true },
+      select: { errors: true, checksum: true, version: true, expiresAt: true, status: true },
     });
     if (!batch) throw forbiddenAsNotFound();
+    if (
+      batch.expiresAt &&
+      batch.expiresAt.getTime() < Date.now() &&
+      batch.status === ImportStatus.PREVIEWED
+    ) {
+      await this.prisma.importBatch
+        .update({ where: { id }, data: { status: ImportStatus.EXPIRED } })
+        .catch(() => undefined);
+      throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
+    }
+    if (batch.expiresAt && batch.expiresAt.getTime() < Date.now())
+      throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
+    if (checksum !== undefined && checksum !== batch.checksum)
+      throw conflict('CHECKSUM_MISMATCH', 'Checksum does not match preview');
+    if (expectedVersion !== undefined && expectedVersion !== batch.version)
+      throw conflict('VERSION_CONFLICT', 'Preview version has changed; reload and retry');
     if (Array.isArray(batch.errors) && batch.errors.length)
       throw conflict('IMPORT_VALIDATION_FAILED', 'Import preview contains blocking errors');
     const result = await this.prisma.importBatch.updateMany({
@@ -261,13 +584,31 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         actorId: actor.accountId,
         status: ImportStatus.PREVIEWED,
         expiresAt: { gt: new Date() },
+        ...(expectedVersion !== undefined ? { version: expectedVersion } : {}),
+        ...(checksum !== undefined ? { checksum } : {}),
       },
       data: { status: ImportStatus.QUEUED, version: { increment: 1 } },
     });
     if (!result.count)
       throw conflict('IMPORT_NOT_CONFIRMABLE', 'Import is stale, expired, or already confirmed');
     void this.processNext();
-    return { id, status: ImportStatus.QUEUED };
+    const response = { id, status: ImportStatus.QUEUED };
+    if (idempotencyKey) {
+      await this.prisma.idempotencyRecord
+        .create({
+          data: {
+            accountId: actor.accountId,
+            scope: `import:confirm:${id}`,
+            key: idempotencyKey,
+            requestHash,
+            statusCode: 202,
+            response: response as unknown as Prisma.InputJsonValue,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        })
+        .catch(() => undefined);
+    }
+    return response;
   }
 
   async processNext() {

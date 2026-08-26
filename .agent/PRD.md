@@ -3,7 +3,7 @@
 | Atribut             | Nilai                                                                                                      |
 | ------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Status dokumen      | **Active product contract v1.1**                                                                           |
-| Status implementasi | **Backend Phase 6 dan frontend foundation Phase 7 complete; domain journeys Phase 8–10 pending**           |
+| Status implementasi | **Backend Phase 8.0 dan Admin Phase 8.1–8.4 complete; Phase 8.5 in progress; Phase 9–10 pending**          |
 | Versi dokumen       | 1.1                                                                                                        |
 | Tanggal             | 26 Agustus 2026                                                                                            |
 | Product owner       | TMMIN                                                                                                      |
@@ -169,8 +169,10 @@ Tujuan:
 
 - memprovision master data dan akun;
 - menjaga konfigurasi routing valid;
-- melakukan reset/deaktivasi akun;
+- melakukan reset/deaktivasi akun workforce/Union;
 - melakukan support dan audit.
+
+> **v1 single Admin:** hanya satu kredensial CARE Admin yang dikelola via CLI/runtime secret. UI tidak membuat, mereset, atau menonaktifkan akun Admin; Admin hanya dapat mengganti password sendiri.
 
 Kemampuan:
 
@@ -287,9 +289,11 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 
 ### 8.3 CARE Admin Bootstrap
 
-- Akun CARE Admin pertama dibuat melalui CLI/runtime secret, bukan fixture Git.
+- v1 memiliki tepat satu akun CARE Admin yang dibuat melalui CLI/runtime secret; tidak ada Admin kedua dan tidak ada pembuatan akun Admin via UI.
 - Bootstrap bersifat idempotent dan tidak mencetak password.
 - Password bootstrap wajib minimal 12 karakter dan berbeda dari username; aturan enam karakter hanya berlaku bagi akun workforce/Union sesuai kontrak produk.
+- UI Admin tidak menyediakan pembuatan, reset, atau penonaktifan akun Admin; halaman Accounts hanya mengelola workforce dan Union.
+- Admin hanya dapat mengganti password sendiri via `/account` dan logout.
 
 ### 8.4 Reset dan Deaktivasi
 
