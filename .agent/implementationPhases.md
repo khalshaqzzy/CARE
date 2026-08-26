@@ -313,7 +313,7 @@ Phase 7–11 hanya boleh dimulai setelah Backend Complete Gate. Backend contract
 
 ## Phase 7 — Shared Frontend Foundations for Workforce and Admin
 
-Status: `done` — completed 26 Agustus 2026.
+Status: `done` — completed 26 Agustus 2026; visual contract refined against the mobile dashboard reference on the same date.
 
 Dependencies: Phase 6 Backend Complete Gate.
 

@@ -2,29 +2,29 @@
 
 :root {
   color-scheme: light;
-  --raw-brand-50: #eef6ff;
-  --raw-brand-100: #d9eaff;
-  --raw-brand-200: #b9d7ff;
-  --raw-brand-300: #8cbbff;
-  --raw-brand-400: #5797ff;
-  --raw-brand-500: #2878f5;
-  --raw-brand-600: #0b63e5;
-  --raw-brand-700: #084fb8;
-  --raw-brand-800: #0b428f;
-  --raw-brand-900: #0d396f;
-  --raw-brand-950: #082344;
-  --raw-accent-500: #13b6d8;
+  --raw-brand-50: #eff6ff;
+  --raw-brand-100: #dbeafe;
+  --raw-brand-200: #bfdbfe;
+  --raw-brand-300: #93c5fd;
+  --raw-brand-400: #60a5fa;
+  --raw-brand-500: #2481ff;
+  --raw-brand-600: #0866ff;
+  --raw-brand-700: #0755d9;
+  --raw-brand-800: #0b46ad;
+  --raw-brand-900: #103d87;
+  --raw-brand-950: #0a275c;
+  --raw-accent-500: #18bde3;
   --raw-neutral-0: #fff;
-  --raw-neutral-50: #f8f9fb;
-  --raw-neutral-100: #f3f5f7;
-  --raw-neutral-200: #e3e7ec;
-  --raw-neutral-300: #cfd5dc;
-  --raw-neutral-500: #7a828d;
-  --raw-neutral-600: #616873;
-  --raw-neutral-700: #424850;
-  --raw-neutral-900: #171a1f;
-  --raw-success: #15803d;
-  --raw-warning: #b45309;
+  --raw-neutral-50: #fafbfc;
+  --raw-neutral-100: #f4f6f8;
+  --raw-neutral-200: #e8ebef;
+  --raw-neutral-300: #d7dce2;
+  --raw-neutral-500: #5f6b78;
+  --raw-neutral-600: #59616d;
+  --raw-neutral-700: #3c434d;
+  --raw-neutral-900: #16191e;
+  --raw-success: #137333;
+  --raw-warning: #a94b00;
   --raw-danger: #c62828;
 
   --surface-canvas: var(--raw-neutral-100);
@@ -102,9 +102,9 @@
   --radius-card: 1.25rem;
   --radius-panel: 1.75rem;
   --radius-pill: 999px;
-  --shadow-card: 0 1px 2px rgb(23 26 31 / 6%), 0 10px 28px rgb(23 26 31 / 5%);
-  --shadow-popover: 0 18px 44px rgb(23 26 31 / 16%);
-  --shadow-modal: 0 26px 70px rgb(23 26 31 / 22%);
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 4%), 0 12px 32px rgb(16 24 40 / 6%);
+  --shadow-popover: 0 20px 48px rgb(16 24 40 / 14%);
+  --shadow-modal: 0 30px 80px rgb(16 24 40 / 20%);
   --shadow-sticky: 0 1px 0 rgb(23 26 31 / 8%);
   --duration-instant: 0ms;
   --duration-fast: 120ms;
@@ -200,6 +200,7 @@ select,
   position: relative;
   display: inline-flex;
   min-width: max-content;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -215,8 +216,23 @@ select,
     box-shadow var(--duration-fast) var(--ease-standard),
     transform var(--duration-fast) var(--ease-emphasized);
 }
+.care-button__label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.care-button__label > svg,
+.care-button > .care-button__loader {
+  flex: 0 0 auto;
+}
+
 .care-button:active:not(:disabled):not([aria-disabled='true']) {
-  transform: translateY(var(--motion-press-y)) scale(0.985);
+  transform: translateY(var(--transform-press-y)) scale(0.985);
 }
 .care-button--primary {
   color: var(--action-primary-text);
@@ -1407,6 +1423,15 @@ select,
 }
 
 @media (max-width: 767px) {
+  /* Reference mobile dock keeps labels available to assistive tech while visually icon-only. */
+  .care-bottom-nav button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .care-page-header {
     display: grid;
   }
