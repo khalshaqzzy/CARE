@@ -1,12 +1,37 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 
 const root = resolve(process.cwd(), 'apps/api/prisma/migrations');
 const directories = await readdir(root, { withFileTypes: true });
 const destructive =
   /\b(DROP\s+(TABLE|COLUMN|TYPE|DATABASE)|TRUNCATE\b|ALTER\s+COLUMN\b[^;]*\bTYPE\b)\b/i;
 const findings = [];
+const baseSha = process.argv[2];
+if (baseSha) {
+  const exists = spawnSync('git', ['cat-file', '-e', `${baseSha}^{commit}`]);
+  if (exists.status !== 0) throw new Error(`Migration base commit is unavailable: ${baseSha}`);
+  const changed = spawnSync(
+    'git',
+    [
+      'diff',
+      '--diff-filter=AM',
+      '--name-only',
+      `${baseSha}...HEAD`,
+      '--',
+      'apps/api/prisma/migrations/*/migration.sql',
+    ],
+    { encoding: 'utf8' },
+  );
+  if (changed.status !== 0)
+    throw new Error(changed.stderr || 'Could not inspect changed migrations');
+  const forbidden = /\b(DROP\s+|TRUNCATE\b|prisma\s+migrate\s+reset|DOWN\s+MIGRATION)/i;
+  for (const migration of changed.stdout.trim().split('\n').filter(Boolean)) {
+    if (forbidden.test(await readFile(resolve(process.cwd(), migration), 'utf8')))
+      findings.push(migration);
+  }
+}
 const approved = new Map([
   [
     '20260825090000_v11_backend_remediation',

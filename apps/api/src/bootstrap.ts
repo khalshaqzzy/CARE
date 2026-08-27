@@ -10,6 +10,8 @@ import { SafeJsonLogger } from './common/json-logger';
 export async function createApp(): Promise<INestApplication> {
   loadConfig();
   const app = await NestFactory.create(AppModule, { logger: new SafeJsonLogger() });
+  const trustProxyHops = loadConfig().TRUST_PROXY_HOPS;
+  if (trustProxyHops > 0) app.getHttpAdapter().getInstance().set('trust proxy', trustProxyHops);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
   app.setGlobalPrefix('api/v1', { exclude: ['health', 'ready', 'release.json', 'metrics'] });

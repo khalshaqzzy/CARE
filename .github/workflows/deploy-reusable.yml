@@ -1,0 +1,161 @@
+name: Reusable CARE deployment
+
+on:
+  workflow_call:
+    inputs:
+      app_env: { required: true, type: string }
+      expected_branch: { required: true, type: string }
+      release_sha: { required: true, type: string }
+      deploy_run_number: { required: true, type: string }
+      deploy_run_attempt: { required: true, type: string }
+      environment_url: { required: true, type: string }
+      remote_base_dir: { required: true, type: string }
+      workforce_domain: { required: true, type: string }
+      admin_domain: { required: true, type: string }
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    environment:
+      name: ${{ inputs.app_env }}
+      url: ${{ inputs.environment_url }}
+    concurrency:
+      group: deploy-${{ inputs.app_env }}
+      cancel-in-progress: false
+    env:
+      REMOTE_HOST: ${{ secrets.VM_HOST }}
+      REMOTE_USER: ${{ secrets.VM_USER }}
+      REMOTE_PORT: ${{ vars.VM_SSH_PORT || '22' }}
+      REMOTE_BASE_DIR: ${{ inputs.remote_base_dir }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      DEPLOY_RUN_NUMBER: ${{ inputs.deploy_run_number }}
+      DEPLOY_RUN_ATTEMPT: ${{ inputs.deploy_run_attempt }}
+      SSH_KEY: /tmp/care-deploy-key
+      KNOWN_HOSTS: /tmp/care-known-hosts
+      ARCHIVE: /tmp/care-release.tar.gz
+      RUNTIME_ENV: /tmp/care-runtime.env
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - name: Validate immutable contract
+        run: |
+          [[ "${{ inputs.app_env }}" =~ ^(staging|production)$ ]]
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DEPLOY_RUN_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$DEPLOY_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          [[ "$REMOTE_BASE_DIR" == "/opt/care/${{ inputs.app_env }}" ]]
+          [[ "$REMOTE_PORT" =~ ^[0-9]+$ ]] && ((REMOTE_PORT>=1 && REMOTE_PORT<=65535))
+      - name: Check candidate freshness
+        id: freshness
+        run: |
+          branch_sha="$(git ls-remote origin 'refs/heads/${{ inputs.expected_branch }}' | cut -f1)"
+          [[ "$branch_sha" == "$RELEASE_SHA" ]] && value=true || value=false
+          echo "deploy=$value" >> "$GITHUB_OUTPUT"
+      - name: Validate required secrets
+        if: steps.freshness.outputs.deploy == 'true'
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_SSH_PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          VM_SSH_KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+          CADDY_EMAIL: ${{ secrets.CADDY_EMAIL }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DATABASE: ${{ secrets.POSTGRES_DATABASE }}
+          SESSION_HASH_SECRET: ${{ secrets.SESSION_HASH_SECRET }}
+          SESSION_CSRF_SECRET: ${{ secrets.SESSION_CSRF_SECRET }}
+          AUTH_THROTTLE_SECRET: ${{ secrets.AUTH_THROTTLE_SECRET }}
+          CURSOR_SIGNING_SECRET: ${{ secrets.CURSOR_SIGNING_SECRET }}
+          METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+          CARE_ADMIN_USERNAME: ${{ secrets.CARE_ADMIN_USERNAME }}
+          CARE_ADMIN_PASSWORD: ${{ secrets.CARE_ADMIN_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: |
+          for name in VM_HOST VM_USER VM_SSH_PRIVATE_KEY VM_SSH_KNOWN_HOSTS CADDY_EMAIL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DATABASE SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN CARE_ADMIN_USERNAME CARE_ADMIN_PASSWORD OPENAI_API_KEY OPENAI_MODEL OPENAI_BASE_URL VAPID_SUBJECT VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY; do
+            [[ -n "${!name// }" ]] || { echo "Missing staging secret: $name" >&2; exit 1; }
+          done
+          [[ "$VM_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$VM_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+      - name: Render validated runtime environment
+        if: steps.freshness.outputs.deploy == 'true'
+        env:
+          CADDY_EMAIL: ${{ secrets.CADDY_EMAIL }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DATABASE: ${{ secrets.POSTGRES_DATABASE }}
+          SESSION_HASH_SECRET: ${{ secrets.SESSION_HASH_SECRET }}
+          SESSION_CSRF_SECRET: ${{ secrets.SESSION_CSRF_SECRET }}
+          AUTH_THROTTLE_SECRET: ${{ secrets.AUTH_THROTTLE_SECRET }}
+          CURSOR_SIGNING_SECRET: ${{ secrets.CURSOR_SIGNING_SECRET }}
+          METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+          CARE_ADMIN_USERNAME: ${{ secrets.CARE_ADMIN_USERNAME }}
+          CARE_ADMIN_PASSWORD: ${{ secrets.CARE_ADMIN_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          PUSH_CANARY_ENDPOINT_HASH: ${{ secrets.PUSH_CANARY_ENDPOINT_HASH }}
+        run: |
+          umask 077
+          deploy/scripts/render-runtime-env.sh "${{ inputs.app_env }}" "$RELEASE_SHA" "$DEPLOY_RUN_NUMBER" > "$RUNTIME_ENV"
+          deploy/scripts/validate-runtime-env.sh "$RUNTIME_ENV"
+      - name: Package exact SHA
+        if: steps.freshness.outputs.deploy == 'true'
+        run: |
+          git archive --format=tar.gz --output "$ARCHIVE" "$RELEASE_SHA"
+          echo "ARCHIVE_SHA=$(sha256sum "$ARCHIVE" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+      - name: Configure strict SSH
+        if: steps.freshness.outputs.deploy == 'true'
+        env:
+          PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          HOST_KEYS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          printf '%s\n' "$PRIVATE_KEY" > "$SSH_KEY"
+          printf '%s\n' "$HOST_KEYS" > "$KNOWN_HOSTS"
+      - name: Recheck freshness before SSH
+        id: final_freshness
+        if: steps.freshness.outputs.deploy == 'true'
+        run: |
+          [[ "$(git ls-remote origin 'refs/heads/${{ inputs.expected_branch }}' | cut -f1)" == "$RELEASE_SHA" ]] && value=true || value=false
+          echo "deploy=$value" >> "$GITHUB_OUTPUT"
+      - name: Upload isolated candidate
+        if: steps.final_freshness.outputs.deploy == 'true'
+        run: |
+          remote_archive="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.tar.gz"
+          remote_env="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.env"
+          opts=(-i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -p "$REMOTE_PORT")
+          # shellcheck disable=SC2029
+          ssh "${opts[@]}" "$REMOTE_USER@$REMOTE_HOST" "umask 077 && mkdir -p '$REMOTE_BASE_DIR/incoming'"
+          scp -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -P "$REMOTE_PORT" "$ARCHIVE" "$REMOTE_USER@$REMOTE_HOST:$remote_archive"
+          # shellcheck disable=SC2029
+          ssh "${opts[@]}" "$REMOTE_USER@$REMOTE_HOST" "umask 077 && cat > '$remote_env'" < "$RUNTIME_ENV"
+      - name: Deploy under remote lock
+        if: steps.final_freshness.outputs.deploy == 'true'
+        run: |
+          remote_archive="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.tar.gz"
+          remote_env="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.env"
+          ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "bash -s -- '${{ inputs.app_env }}' '$RELEASE_SHA' '$DEPLOY_RUN_NUMBER' '$DEPLOY_RUN_ATTEMPT' '$REMOTE_BASE_DIR' '$remote_archive' '$remote_env' '$ARCHIVE_SHA' '$REMOTE_HOST'" < deploy/scripts/remote-entrypoint.sh
+      - name: Verify externally
+        if: steps.final_freshness.outputs.deploy == 'true'
+        run: deploy/scripts/smoke-check.sh "$RELEASE_SHA" "https://${{ inputs.workforce_domain }}" "https://${{ inputs.admin_domain }}"
+      - name: Remove runner secret material
+        if: always()
+        run: rm -f -- "$SSH_KEY" "$KNOWN_HOSTS" "$RUNTIME_ENV" "$ARCHIVE"
+      - name: Record superseded candidate
+        if: steps.freshness.outputs.deploy != 'true' || steps.final_freshness.outputs.deploy != 'true'
+        run: echo "A newer branch HEAD superseded this candidate." >> "$GITHUB_STEP_SUMMARY"

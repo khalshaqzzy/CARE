@@ -1,0 +1,59 @@
+{
+	email {$CADDY_EMAIL}
+	admin off
+}
+
+(common_headers) {
+	header {
+		-Server
+		-Via
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+}
+
+{$CADDY_SCHEME}{$WORKFORCE_DOMAIN} {
+	encode gzip zstd
+	import common_headers
+	header Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+	header Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'"
+	handle /api/v1/* {
+		header Cache-Control "no-store"
+		reverse_proxy api:3000
+	}
+	handle /health {
+		header Cache-Control "no-store"
+		reverse_proxy api:3000
+	}
+	handle /ready {
+		header Cache-Control "no-store"
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy workforce-web:8080
+	}
+}
+
+{$CADDY_SCHEME}{$ADMIN_DOMAIN} {
+	encode gzip zstd
+	import common_headers
+	header Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	header Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'none'"
+	handle /api/v1/* {
+		header Cache-Control "no-store"
+		reverse_proxy api:3000
+	}
+	handle /health {
+		header Cache-Control "no-store"
+		reverse_proxy api:3000
+	}
+	handle /ready {
+		header Cache-Control "no-store"
+		reverse_proxy api:3000
+	}
+	handle {
+		reverse_proxy admin-web:8080
+	}
+}

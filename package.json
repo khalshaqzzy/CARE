@@ -40,6 +40,10 @@
     "seed:performance": "pnpm --filter @care/api seed:performance",
     "maintenance:reconcile": "pnpm --filter @care/api maintenance:reconcile",
     "test:openai:smoke": "pnpm --filter @care/api test:openai:smoke",
+    "deployment:validate": "deploy/scripts/validate-runtime-env.sh deploy/env/runtime.staging.env.example && docker compose --env-file deploy/env/runtime.staging.env.example -f deploy/compose/docker-compose.remote.yml --profile operations config --quiet",
+    "test:deployment": "bash deploy/tests/deployment-scripts.sh",
+    "security:exceptions:check": "deploy/scripts/check-security-exceptions.sh .agent/securityExceptions.json",
+    "security:audit": "pnpm audit --audit-level high",
     "git:diff-check": "git diff --check",
     "setup:local": "pnpm --filter @care/api setup:local"
   },

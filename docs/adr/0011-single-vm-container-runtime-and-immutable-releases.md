@@ -1,0 +1,51 @@
+# ADR-0011: Single-VM Container Runtime and Immutable Releases
+
+- Status: Accepted
+- Date: 28 August 2026
+
+## Context
+
+CARE requires two browser origins backed by one API and one PostgreSQL database. The first operational target is a single Ubuntu 22.04 VM. The release process must tolerate overlapping GitHub runs, preserve database and media state, reject untrusted release archives, expose exact release identity, and recover the application surface when a candidate fails. The product decision explicitly accepts the absence of backup, point-in-time recovery, disaster recovery, and high availability.
+
+## Decision
+
+CARE uses one Compose project per environment with these production services:
+
+- PostgreSQL 16 with pgvector on an internal data network;
+- a distroless, non-root API image;
+- separate non-root nginx images for the workforce PWA and network-only Admin SPA;
+- a non-root Caddy edge image as the only service publishing ports 80/443;
+- one-shot migration, Admin bootstrap, live Responses smoke, and Web Push canary profiles.
+
+The workforce and Admin origins proxy `/api/v1`, `/health`, and `/ready` to the same API. Each frontend owns its `/release.json`. Caddy supplies host-specific security policy; nginx supplies SPA fallback and cache policy. The API trusts exactly one proxy hop.
+
+Releases are immutable directories and image tags identified by the full lowercase Git SHA. GitHub builds an archive for the exact candidate commit and uploads it with a SHA-256 checksum. The VM validates the checksum and every archive member before extraction. Runtime environment files are parsed through an allowlist and passed directly to Compose; they are never executed with `source` or `eval`.
+
+Deployment serialization has four layers: GitHub concurrency without cancellation, branch-head freshness checks before transfer, one VM-wide `flock` shared by deploy/rollback/rehearsal, and a persistent high-water run number bound to its SHA. Incoming paths include SHA, run number, and attempt. `current` and `current_release` are replaced atomically only after health, live provider, routing, and release-identity smoke checks pass.
+
+Database migrations are forward-only. A failed candidate never runs a down migration or resets PostgreSQL. When a previous release exists, recovery means restarting its code/images against the already migrated schema and persistent data. Schema changes therefore must use expand/contract compatibility. If no previous release exists, the failed application surface is stopped while PostgreSQL and media remain intact.
+
+The active release, its previous release, and up to five releases in total are retained. Cleanup validates the exact release path and SHA-tagged images and never prunes PostgreSQL, media, Caddy state, or deployment state.
+
+The Web Push canary remains an explicitly invoked operational profile. It selects one enrolled active staging subscription by exact endpoint hash, sends a generic redacted payload through the CARE delivery path, and requires provider acceptance plus a new `lastSuccessAt`. It is intentionally outside automated tests, deployment smoke, and the automatic deployment gate. Live Responses classification/location validation remains an automatic staging deployment gate.
+
+## Consequences
+
+- No external deployment, queue, callback, or observability service is required. Browser push providers and the configured Responses API are the only application integrations exercised operationally.
+- Two origins remain isolated at the browser boundary while sharing one API and database.
+- A candidate can be rejected or rolled back without mutating the active pointer.
+- Code rollback is not data recovery. An incompatible or destructive migration cannot be repaired by this mechanism.
+- A single VM, single database, and bind-mounted state remain single points of failure. The system must not be represented as backed up, highly available, or disaster-recoverable.
+- Production activation is a separate decision. Checks run on `main`, but no production deployment caller exists until its domains, VM, secrets, approvals, and operational ownership are ready.
+
+## Alternatives Considered
+
+- A mutable checkout on the VM was rejected because source identity and rollback targets are ambiguous.
+- Cancelling an in-progress deployment was rejected because cancellation can interrupt migration or activation at an unsafe point.
+- Database rollback was rejected because PostgreSQL schema/data rollback cannot be made generally safe without a tested restoration capability.
+- Kubernetes and managed deployment services were rejected for the initial topology because they add an operational control plane without removing the accepted single-database and no-backup risks.
+- Making real Web Push a steady-state CI gate was rejected by scope decision; subscription enrollment and provider lifecycle are operational concerns, and the canary remains manually verifiable.
+
+## Verification
+
+The repository enforces Dockerfile/Compose validation, Linux lock and archive-safety tests, fresh and upgrade migration checks, dual-host routing, exact SHA readiness, non-root users, private PostgreSQL networking, persistent PostgreSQL/media checks, and High/Critical filesystem/image scans. Hosted release and rollback evidence is recorded separately for each candidate; local evidence alone does not prove a successful VM deployment.

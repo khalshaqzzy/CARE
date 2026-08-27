@@ -1,15 +1,15 @@
 # Product Requirements Document (PRD): CARE Enterprise Member Voice
 
-| Atribut             | Nilai                                                                                                      |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Status dokumen      | **Active product contract v1.1**                                                                           |
-| Status implementasi | **Backend Phase 8.0 dan Admin Phase 8.1–8.4 complete; Phase 8.5 in progress; Phase 9–10 pending**          |
-| Versi dokumen       | 1.1                                                                                                        |
-| Tanggal             | 26 Agustus 2026                                                                                            |
-| Product owner       | TMMIN                                                                                                      |
-| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                  |
-| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama |
-| Source of truth     | Dokumen ini                                                                                                |
+| Atribut             | Nilai                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Status dokumen      | **Active product contract v1.1**                                                                                           |
+| Status implementasi | **Phase 0–12 complete; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
+| Versi dokumen       | 1.1                                                                                                                        |
+| Tanggal             | 28 Agustus 2026                                                                                                            |
+| Product owner       | TMMIN                                                                                                                      |
+| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                  |
+| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                 |
+| Source of truth     | Dokumen ini                                                                                                                |
 
 Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**, **MUST NOT/dilarang**, **SHOULD/sebaiknya**, dan **MAY/dapat** bersifat normatif. Bila source code, prototype, fixture, atau asumsi implementasi berbeda dengan dokumen ini, perbedaan wajib diekskalasi dan source of truth terkait wajib diperbarui; implementer tidak boleh memilih perilaku secara diam-diam.
 
@@ -1394,7 +1394,7 @@ Tidak ada database, media volume, secret, certificate state, atau Compose projec
 
 - Domain production workforce/Admin belum ditentukan dan menjadi placeholder `PRODUCTION_CARE_DOMAIN` serta `PRODUCTION_CARE_ADMIN_DOMAIN`.
 - Production deploy tidak boleh aktif sampai VM, kedua DNS/TLS reachability, GitHub environment, runtime secrets, Responses provider, dan VAPID tervalidasi.
-- Push ke `main` menjadi trigger deployment production setelah seluruh prerequisite tersedia.
+- Push/PR ke `main` menjalankan CI, tetapi tidak memiliki production deployment caller pada scope saat ini. Aktivasi production baru dapat ditambahkan pada pekerjaan production readiness setelah seluruh prerequisite tersedia.
 
 ### 30.4 Caddy
 
@@ -1420,10 +1420,8 @@ Push/PR ke `staging`:
 Push ke `main`:
 
 1. menjalankan checks yang sama;
-2. auto-deploy ke production hanya setelah production environment lengkap;
-3. stale candidate ditolak;
-4. smoke/readiness dijalankan;
-5. code rollback dilakukan jika aman dan previous release tersedia.
+2. tidak memanggil production deployment;
+3. production auto-deploy, smoke, dan rollback tetap pending sampai production readiness selesai dan workflow caller terpisah disetujui.
 
 Repository rule menetapkan commit default hanya ke `staging` kecuali branch lain diminta.
 
@@ -1460,6 +1458,8 @@ Adaptasi pola `supplier-henkaten`:
 - atomic `current` symlink/release pointer;
 - retain candidate, previous, dan hingga total lima release;
 - stale image/release cleanup dengan validated target path.
+
+Web Push canary tersedia sebagai operational one-shot profile yang memilih satu subscription staging aktif berdasarkan exact endpoint hash, mengirim payload generik teredaksi melalui delivery helper CARE, dan memverifikasi penerimaan provider serta pembaruan `lastSuccessAt`. Canary dijalankan manual oleh operator dan bukan automated test, deployment smoke, atau syarat auto-deploy. Tidak ada callback/service tambahan.
 
 ### 31.4 Migration dan Rollback
 
@@ -1663,7 +1663,7 @@ Minimum journeys:
 - [ ] Performance baseline memenuhi Section 29.
 - [ ] Unit, integration, E2E, AI contract validation, security, migration, build, dan deployment checks lulus.
 - [ ] Push `staging` auto-deploy ke `care.qd-tmmin.site` dan `admin-ped.qd-tmmin.site` setelah green CI.
-- [ ] Push `main` contract tersedia tetapi production activation diblokir sampai prerequisite lengkap.
+- [x] Push/PR `main` menjalankan checks tanpa production deployment caller; production activation tetap diblokir sampai prerequisite lengkap.
 - [ ] Release-by-SHA, health/readiness, smoke, dan code rollback rehearsal lulus.
 - [ ] Critical Accepted Risks memperoleh approval sebelum production.
 
@@ -1725,7 +1725,7 @@ Adoption, average verification time, average closure time, reopen rate, rating d
 | Snapshot organisasi bulanan terlambat/salah                                      | High     | Mitigated       | Preview/diff, atomic confirm, remediation queue, audit, dan legacy-handler preservation               |
 | Web Push tidak terkirim/terlambat                                                | Medium   | Accepted        | Notification Center authoritative dan delivery retry/metrics                                          |
 | Media berbahaya/oversized                                                        | High     | Mitigated       | Decode/re-encode, EXIF strip, limits, authorized serving                                              |
-| Auto production deploy dari main                                                 | High     | Accepted        | Mandatory CI/security/smoke, stale rejection, code rollback                                           |
+| Production deployment diaktifkan sebelum prerequisite lengkap                    | High     | Mitigated       | `main` hanya CI; caller production tidak tersedia sampai readiness dan approval                       |
 | Migration gagal tanpa backup                                                     | Critical | Accepted        | Forward-only expand/contract dan fresh/upgrade tests; recovery tidak tersedia                         |
 
 ---
@@ -1798,4 +1798,6 @@ V1 siap production bila:
 - Single VM terpisah per environment.
 - Backend v1.1 remediation/re-freeze wajib lulus sebelum frontend dimulai, lalu Frontend Complete → production containerization/deployment.
 - Staging memakai `care.qd-tmmin.site` dan `admin-ped.qd-tmmin.site`; kedua production domain merupakan external dependency.
-- Push `staging` dan `main` menjadi trigger deployment environment masing-masing setelah checks/prerequisite.
+- Push `staging` menjadi trigger deployment staging setelah seluruh checks hijau dan candidate masih menjadi branch HEAD.
+- Push/PR `main` hanya menjalankan CI pada scope saat ini; production deployment caller belum tersedia.
+- Web Push canary adalah operasi staging manual, bukan automated test, deployment smoke, atau auto-deploy gate.

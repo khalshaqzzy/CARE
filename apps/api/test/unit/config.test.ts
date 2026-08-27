@@ -3,6 +3,18 @@ import { loadConfig, redactedConfig, resetConfigForTests } from '../../src/confi
 
 describe('runtime configuration', () => {
   afterEach(() => resetConfigForTests());
+  it('parses an exact trusted proxy hop count', () => {
+    Object.assign(process.env, {
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
+      SESSION_HASH_SECRET: 'a'.repeat(32),
+      SESSION_CSRF_SECRET: 'b'.repeat(32),
+      AUTH_THROTTLE_SECRET: 'c'.repeat(32),
+      CURSOR_SIGNING_SECRET: 'd'.repeat(32),
+      TRUST_PROXY_HOPS: '1',
+    });
+    expect(loadConfig().TRUST_PROXY_HOPS).toBe(1);
+  });
   it('never exposes runtime secrets', () => {
     Object.assign(process.env, {
       NODE_ENV: 'test',

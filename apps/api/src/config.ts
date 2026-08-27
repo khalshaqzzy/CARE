@@ -7,6 +7,7 @@ const optionalSecret = z.string().min(24).optional().or(z.literal(''));
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
   DATABASE_URL: z.string().url().startsWith('postgresql://'),
   MEDIA_ROOT: z.string().min(1).default('./media'),
   RELEASE_SHA: z.string().min(1).default('development'),
@@ -30,6 +31,11 @@ const schema = z.object({
     .default('fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com'),
   METRICS_TOKEN: optionalSecret,
   OUTBOX_ENABLED: z.enum(['true', 'false']).default('true'),
+  PUSH_CANARY_ENDPOINT_HASH: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional()
+    .or(z.literal('')),
 });
 
 type ParsedConfig = z.infer<typeof schema>;
