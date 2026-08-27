@@ -3,16 +3,41 @@
 | Atribut                 | Nilai                                                                                                                                                                                     |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Date                    | 27 Agustus 2026                                                                                                                                                                           |
-| Current objective       | Menutup sisa Phase 9/10: timeline/messages pagination, dashboard filter+suppression metadata, responder/leadership matrix, Admin Explorer pagination, Playwright mocked/full-stack/visual |
-| Current phase           | Phase 8.5 `in_progress`; Phase 9 Member journey & Phase 10 responder/leadership matrix acceptance implemented; Frontend Complete Gate tetap diblokir                                      |
+| Current objective       | Phase 8.5 accessibility/security/performance/full-stack acceptance selesai; Phase 8 complete; Phase 9/10 ditandai done; Frontend Complete Gate kini diblokir hanya oleh Phase 11           |
+| Current phase           | Phase 11 `in_progress` (single in_progress); Phase 8.5 done; Phase 8 complete; Phase 9/10 done                                                                                            |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                       |
-| Implementation status   | Phase 9 Member journey selesai; Phase 10 responder/leadership matrix + assign/close-evidence selesai; Phase 8.5 `in_progress`; Frontend Complete Gate blocked                             |
-| Latest ADR              | ADR-0007 (Member journey), ADR-0008 (voice lifecycle idempotency/evidence/assignment), ADR-0009 (pagination/dashboard metadata/matrix)                                                    |
-| Recommended next action | Full-stack Playwright kini berjalan di CI `quality` job (gated `FULLSTACK_E2E=1`); jalankan parity CI penuh sebelum merge; Phase 8.5 & Phase 11 tetap menahan Frontend Complete Gate      |
+| Implementation status   | Phase 8.5 done; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix done; Frontend Complete Gate blocked only by Phase 11                                   |
+| Latest ADR              | ADR-0006 (extended for Phase 8.5 completion), ADR-0007 (Member journey), ADR-0008 (voice lifecycle), ADR-0009 (pagination/dashboard metadata/matrix)                                       |
+| Recommended next action | Lanjutkan Phase 11 (Frontend Complete Gate): workforce Web Push opt-in, Admin network-only, responsive/WCAG polish, two-origin full Playwright; jalankan parity CI penuh sebelum merge      |
 
 ## Session Outcome
 
-### Phase 9/10 remaining completion — pagination, dashboard metadata, matrix, Admin Explorer, Playwright (27 Agustus 2026)
+### Phase 8.5 completion — Admin accessibility/security/performance/full-stack acceptance (27 Agustus 2026)
+
+Phase 8.5 was closed on branch `feat/phase-8.5-admin-qa-fullstack` (cut from `staging`). Work completed:
+
+- **Focus-return defect fixed** in `packages/ui/src/overlays.tsx`. Controlled `Dialog`/`Drawer` opened by an external trigger returned focus to `<body>` instead of the opening control. `onOpenAutoFocus` now records `document.activeElement` and `onCloseAutoFocus` restores it, so focus trap/return works for both apps.
+- **`apps/web-admin/src/features/overview/OverviewPage.tsx`** — added a retryable error `Alert` (the status/ready/release queries previously rendered only a degraded dash, so the admin Overview had no error surface).
+- **`e2e/helpers/mock-api.ts`** — broadened `mockAdminApi` (options object) to cover every endpoint the Admin pages call (session, overview, accounts, imports/preview/confirm/changes/snapshot, remediation, union, audit, voices/timeline/messages, health/ready/release) plus typed fixtures and an error/empty mode.
+- **`e2e/admin-a11y.spec.ts`** — Axe WCAG 2.1 AA + no document overflow for all nine Admin pages at 1280/1440, long-content title clamp, keyboard focus trap/return, and `prefers-reduced-motion` overlay render.
+- **`e2e/admin-journeys.spec.ts`** — mocked-contract happy/error/empty state per Admin page; error surfaces never leak stack frames or machine codes.
+- **`e2e/admin-fullstack.spec.ts` + `apps/api/scripts/seed-admin-e2e.ts` + `e2e/global-setup.ts`** — gated (`FULLSTACK_E2E=1`, serial) real API/Admin-proxy/PostgreSQL wiring smoke: bootstrap → login → forced password → Overview → Imports (invalid upload rejected) → Remediation → Union → Accounts reset → Private full-identity read-only → Audit filter → System Status → valid-import preview/confirm to `CONFIRMED`. The test-only seed is invoked by the Playwright `globalSetup` only when full-stack is enabled; the mocked default suite never touches a database.
+- **`e2e/foundation.spec.ts`** — Admin origin is network-only at runtime (no service worker / `CacheStorage` / `IndexedDB`) and the production Admin build carries no manifest/sw.
+- **`playwright.config.ts`** — `globalSetup` for the full-stack seed; the `fullstack` project is serial with `retries: 0` (password replay would break retries); `apps/api/package.json` gained `seed:admin:e2e`.
+
+Validation (against the disposable Docker PostgreSQL + running API):
+
+- mocked Playwright `test:frontend:e2e` — `65` passed (chromium 57 + visual + pwa); gated `--project=fullstack` — `2` passed;
+- `pnpm lint`, `pnpm format:check`, `pnpm typecheck` (monorepo), `pnpm test:unit`, `pnpm build` — passed;
+- `pnpm test:integration` — `31` passed; `pnpm test:security` — `5` passed.
+
+Compat notes:
+
+- `e2e/admin-explorer.spec.ts` was updated to the new `mockAdminApi(page, opts)` signature. The old `(page, voice)` signature was removed.
+- `e2e/admin-a11y.spec.ts` and `e2e/admin-journeys.spec.ts` run under the default `chromium` project (mocked); they are part of `test:frontend:e2e`.
+- Phase statuses reconciled: Phase 8 → `done`, Phase 8.5 → `done`, Phase 9 → `done`, Phase 10 → `done`; the single `in_progress` phase is now Phase 11. The Frontend Complete Gate remains blocked only by Phase 11; production containerization (Phase 12+) stays out of scope.
+
+
 
 Backend `apps/api/src/voices/voices.service.ts` + `apps/api/src/auth/policy.service.ts` (see ADR-0009):
 
