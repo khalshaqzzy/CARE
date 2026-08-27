@@ -59,6 +59,11 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:frontend:e2e
+      # Full-stack Playwright against the disposable PostgreSQL + running API on
+      # :3000. The API webServer and the `fullstack` project are enabled by
+      # FULLSTACK_E2E=1; the prebuilt `apps/api/dist` and the migrated test DB
+      # are already in place from the earlier steps in this job.
+      - run: FULLSTACK_E2E=1 pnpm exec playwright test --project=fullstack
       - run: docker compose config --quiet
       - run: git diff --check
 

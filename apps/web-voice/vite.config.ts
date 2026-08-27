@@ -46,7 +46,10 @@ export default defineConfig({
     port: 4173,
     proxy: { '/api/v1': { target: 'http://127.0.0.1:3000', changeOrigin: false } },
   },
-  preview: { port: 4173 },
+  preview: {
+    port: 4173,
+    proxy: { '/api/v1': { target: 'http://127.0.0.1:3000', changeOrigin: false } },
+  },
   build: {
     rollupOptions: {
       output: {

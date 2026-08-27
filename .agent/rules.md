@@ -97,6 +97,8 @@ pnpm test:unit
 pnpm migrations:destructive-check
 pnpm openapi:check
 pnpm build
+pnpm exec playwright install --with-deps chromium
+pnpm test:frontend:e2e
 docker compose config --quiet
 pnpm db:up
 pnpm db:wait
@@ -114,6 +116,10 @@ NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
 NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm seed:performance
 NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm test:performance
 NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm maintenance:reconcile
+FULLSTACK_E2E=1 NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
+  SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
+  AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
+  OUTBOX_ENABLED=false pnpm exec playwright test --project=fullstack
 docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.24.3 \
   dir /repo --config=/repo/.gitleaks.toml --redact --verbose
 git diff --check

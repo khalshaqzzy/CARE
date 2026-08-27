@@ -9,14 +9,33 @@ import {
   EmptyState,
   Input,
   Loader,
-  PageHeader,
+  Sidebar,
   Stack,
 } from '@care/ui';
 import { useIsMutating } from '@tanstack/react-query';
-import { Bell, ClipboardList, Home, Plus, UserRound } from 'lucide-react';
+import {
+  Bell,
+  Bot,
+  ClipboardList,
+  Home,
+  Inbox,
+  Plus,
+  ScrollText,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { registerCareServiceWorker } from './register-sw.js';
+import { AccountPage } from './features/account/AccountPage';
+import { CreateVoicePage } from './features/create/CreateVoicePage';
+import { DraftPreviewPage } from './features/create/DraftPreviewPage';
+import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
+import { HistoryPage } from './features/history/HistoryPage';
+import { HomePage } from './features/home/HomePage';
+import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
+import { WorkItemsPage } from './features/work/WorkItemsPage';
 
 export function App() {
   useEffect(() => registerCareServiceWorker(), []);
@@ -39,7 +58,19 @@ export function App() {
               <WorkforceShell />
             </SessionGate>
           }
-        />
+        >
+          <Route index element={<HomePage />} />
+          <Route path="voices/new" element={<CreateVoicePage />} />
+          <Route path="drafts/:id/edit" element={<CreateVoicePage />} />
+          <Route path="drafts/:id/preview" element={<DraftPreviewPage />} />
+          <Route path="history" element={<HistoryPage />} />
+          <Route path="work-items" element={<WorkItemsPage />} />
+          <Route path="general" element={<GeneralBrowsePage />} />
+          <Route path="voices/:id" element={<VoiceDetailPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="account" element={<AccountPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
       </Routes>
     </>
   );
@@ -255,18 +286,88 @@ function WrongApp() {
   );
 }
 
+type NavItem = { id: string; label: string; icon: React.ReactNode; to?: string };
+
+function capabilityFor(session: ReturnType<typeof useAuth>['session']): {
+  isMember: boolean;
+  isResponder: boolean;
+  isLeadership: boolean;
+  isUnion: boolean;
+  hasSectionHead: boolean;
+} {
+  const caps = session?.capabilities ?? [];
+  return {
+    isMember: caps.includes('MEMBER'),
+    isResponder: caps.some((c) => ['MANAGER', 'SECTION_HEAD'].includes(c)),
+    isLeadership: caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c)),
+    isUnion: caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER'].includes(c)),
+    hasSectionHead: caps.includes('SECTION_HEAD'),
+  };
+}
+
+function resolveCurrent(location: ReturnType<typeof useLocation>): string {
+  const p = location.pathname;
+  if (p === '/') return 'home';
+  if (p.startsWith('/voices/new') || p.startsWith('/drafts/')) return 'create';
+  if (p.startsWith('/history')) return 'history';
+  if (p.startsWith('/work-items')) return 'work-items';
+  if (p.startsWith('/general')) return 'general';
+  if (p.startsWith('/voices/')) return 'voices';
+  if (p.startsWith('/notifications')) return 'notifications';
+  if (p.startsWith('/account')) return 'account';
+  return 'home';
+}
+
 function WorkforceShell() {
   const { session, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   if (!session) return null;
-  const nav = [
-    { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
-    { id: 'create', label: 'Buat', icon: <Plus size={20} />, disabled: true },
-    { id: 'history', label: 'Riwayat', icon: <ClipboardList size={20} />, disabled: true },
-    { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} />, disabled: true },
-    { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
-  ];
+  const caps = capabilityFor(session);
+  const current = resolveCurrent(location);
+  const createNav = (): NavItem[] => {
+    if (caps.isUnion)
+      return [
+        { id: 'home', label: 'Beranda', icon: <ShieldCheck size={20} /> },
+        { id: 'general', label: 'General', icon: <ScrollText size={20} /> },
+        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
+        { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
+      ];
+    if (caps.isLeadership)
+      return [
+        { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
+        { id: 'general', label: 'General', icon: <ScrollText size={20} /> },
+        { id: 'create', label: 'Buat', icon: <Plus size={20} />, to: '/voices/new' },
+        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
+        { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
+      ];
+    if (caps.isResponder)
+      return [
+        { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
+        { id: 'work-items', label: 'Voice Member', icon: <Inbox size={20} /> },
+        { id: 'create', label: 'Buat', icon: <Plus size={20} />, to: '/voices/new' },
+        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
+        { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
+      ];
+    return [
+      { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
+      { id: 'create', label: 'Buat', icon: <Plus size={20} />, to: '/voices/new' },
+      { id: 'history', label: 'Riwayat', icon: <ClipboardList size={20} /> },
+      { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
+      { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
+    ];
+  };
+
+  const bottomNav = createNav().map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: item.icon,
+    ...(item.to ? { onClick: () => void navigate(item.to!) } : {}),
+  }));
+
+  const isDesktop =
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches;
+
   return (
     <AppShell
       density="roomy"
@@ -288,22 +389,43 @@ function WorkforceShell() {
           </div>
         </div>
       }
-      bottomNav={<BottomNav items={nav} current="home" />}
+      {...(isDesktop
+        ? {
+            sidebar: (
+              <Sidebar
+                items={bottomNav as never}
+                current={current}
+                header={
+                  <div className="workforce-sidebar-brand">
+                    <Bot size={22} />
+                    <span>
+                      <strong>CARE</strong>
+                      <small>Member Voice</small>
+                    </span>
+                  </div>
+                }
+                footer={
+                  <Stack gap="sm">
+                    <Button variant="ghost" size="sm" onClick={() => void navigate('/account')}>
+                      Akun Saya
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void logout().then(() => navigate('/login'))}
+                    >
+                      Keluar
+                    </Button>
+                  </Stack>
+                }
+              />
+            ),
+          }
+        : {
+            bottomNav: <BottomNav items={bottomNav as never} current={current} />,
+          })}
     >
-      <Stack gap="lg">
-        <PageHeader
-          eyebrow="Frontend foundation"
-          title={`Selamat datang, ${session.account.displayName}`}
-          description="Fondasi session, capability, PWA, dan design system telah aktif. Perjalanan Voice akan ditambahkan pada Phase berikutnya."
-        />
-        <Alert tone="info" title="Akses mengikuti capability backend">
-          {session.capabilities.join(' · ')}
-        </Alert>
-        <EmptyState
-          title="Belum ada perjalanan pada route ini"
-          description={`Halaman ${location.pathname} belum menjadi bagian Phase 7. Design system tersedia di /design tanpa masuk navigasi produk.`}
-        />
-      </Stack>
+      <Outlet />
     </AppShell>
   );
 }

@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// The `fullstack` project and the API webServer are only added when
+// FULLSTACK_E2E=1, so the default `test:frontend:e2e` run (which mocks the API
+// via page routes) is unchanged. Enabling full-stack requires the API built
+// (`pnpm build`) and, in CI, the Postgres service migrated and available.
+const isFullStack = process.env.FULLSTACK_E2E === '1';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -24,12 +30,22 @@ export default defineConfig({
       url: 'http://127.0.0.1:4174',
       reuseExistingServer: !process.env.CI,
     },
+    ...(isFullStack
+      ? [
+          {
+            command: 'pnpm --filter @care/api start',
+            url: 'http://127.0.0.1:3000/health',
+            reuseExistingServer: !process.env.CI,
+            timeout: 120_000,
+          },
+        ]
+      : []),
   ],
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /(?:\.visual|pwa)\.spec\.ts/,
+      testIgnore: /(?:\.visual|pwa|fullstack)\.spec\.ts/,
     },
     { name: 'visual', use: { ...devices['Desktop Chrome'] }, testMatch: /\.visual\.spec\.ts/ },
     {
@@ -37,5 +53,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], serviceWorkers: 'allow' },
       testMatch: /pwa\.spec\.ts/,
     },
+    ...(isFullStack
+      ? [
+          {
+            name: 'fullstack',
+            use: { ...devices['Desktop Chrome'], serviceWorkers: 'block' },
+            testMatch: /fullstack\.spec\.ts/,
+          },
+        ]
+      : []),
   ],
 });

@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                         |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 8 Admin Application & Organization Operations 8.0–8.4 done, 8.5 in progress             |
-| Last updated           | 27 Agustus 2026                                                                               |
-| Product contract       | `.agent/PRD.md` v1.1                                                                          |
-| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress  |
-| Current phase          | Phase 8.5 `in_progress`                                                                       |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
+| Atribut                | Nilai                                                                                                                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 8.5 `in_progress`; Phase 9 Member journey selesai; Phase 10 responder/leadership matrix + acceptance selesai (Frontend Complete Gate tetap diblokir sampai Phase 8.5 & Phase 11)                    |
+| Last updated           | 27 Agustus 2026                                                                                                                                                                                           |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                      |
+| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress; Phase 9 Member journey done; Phase 10 responder/leadership matrix + Admin Explorer + Playwright mocked done |
+| Current phase          | Phase 8.5 `in_progress` (sequencing exception allows concurrent Phase 9–10 batch work)                                                                                                                    |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                             |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -460,47 +460,39 @@ Acceptance:
 
 ## Phase 9 — Member Voice Journey
 
-Status: `pending`
+Status: `in_progress` — Member journey implemented and wired to the real backend; Phase 8.5 remains `in_progress` and Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
 
-Dependencies: Phase 8.
+Dependencies: Phase 8 (sequencing exception granted; Phase 9–10 may receive scoped acceptance without opening the Frontend Complete Gate).
 
-Scope:
+Scope (implemented — Member journey in `apps/web-voice`):
 
-- Member Home dan pilihan awal Private Voice/General Voice;
-- Private identity consent `Ya/Tidak` dan contract-aware preview;
-- form/media validation, automatic location review, warning/suggestions, confirmation acknowledgment, cache invalidation;
-- General category/severity dan Private severity AI/fallback previews;
-- submit result, history/detail, status/PIC/timeline/chat, closure/rating/reopen, notification deep links.
+- architecture: typed `workforce-api` derived from generated operations, session-scoped `careQueryKey`, shared formatters, capability-aware `AppShell`/`BottomNav`/`Sidebar` and feature routes (`/`, `/voices/new`, `/drafts/:id/edit`, `/drafts/:id/preview`, `/history`, `/work-items`, `/general`, `/voices/:id`, `/notifications`, `/account`);
+- Member Home with cobalt hero, greeting/profile, notification entry, `StatusSummary` status cards, recent Voice cards, resume-draft card, and Buat Voice CTA;
+- Create Voice wizard: Private/General choice → details (area, location, title, detail, Private identity consent, photos) → save draft + AI classification + location review → manual fallback → review (route readiness, severity/category, attachments, location warning, consent) → idempotent submit; dirty-form guard, char counters, media preview/remove, upload progress, focus-to-error;
+- preview page and closed-chat read-only rules; History with search/filter/cursor; Voice detail with metadata, PIC privacy label, media, classification source, location review, timeline, conversation, closure cycles/evidence/rating/reopen; Notifications center with unread count/pagination/mark-read/deep-link; Account session/capability/profile;
+- timeline/messages cursor pagination (`useCursorFeed`) with an optional `order=desc` for the live chat; dashboard aggregate filters + suppression metadata (`GeneralBrowsePage`).
 
-Acceptance:
-
-- Private/General paths, conditional consent, no-category Private, and route failure preserve draft;
-- warning lokasi tampil di bawah field tanpa field tambahan wajib; stale review/ack ditolak;
-- provider failure tidak memblokir form dan fallback sesuai jenis Voice;
-- `Department=14` General remediation dan Private continuation lulus;
-- responsive Member Playwright journeys green.
+Acceptance status: Member journey implemented on the real backend and verified via integration (31), security (5), unit, build, and Playwright (chromium/visual/pwa 20 passed). Full Phase 9/10 acceptance and the complete Phase 10 responder/leadership matrix now covered by `responder-matrix.integration.test.ts`.
 
 ## Phase 10 — Responder and Leadership Journeys
 
-Status: `pending`
+Status: `in_progress` — responder/leadership matrix implemented and acceptance-covered; Phase 8.5 and Frontend Complete Gate remain gating.
 
-Dependencies: Phase 9.
+Dependencies: Phase 9 (batch sequencing exception applies as above).
 
-Scope:
+Scope (implemented):
 
-- Section Head assigned inbox/action journey;
-- Manager department detail/action, division overview, dan separate global/default operational inbox;
-- Union Head Private all/assign/reassign, Union Officer assigned-only, conditional identity, dan General read-only journey;
-- Division/Deputy/Pjt. Head, Director, dan Union General aggregate/detail read-only dashboards;
-- minimum charts, scoped filters, timeline/chat/notifications, proceed/assign/reassign/close conflict states.
+- capability-aware responder Home split (division aggregate vs operational inbox);
+- `WorkItems` severity-first operational inbox with search/filter/cursor pagination and typed `nextCursor`;
+- `General` read-only browse aggregate/detail for Union and Leadership;
+- server-computed `availableActions` plus `ActionPanel` (ask/proceed/close) wired to lifecycle mutation endpoints;
+- backend `work-items` aligned to `/voices` cursor/filter/search contract;
+- assign/reassign `expectedVersion` CAS; `GET /voices/:id/assignment-candidates` (section heads for General, union officers for Private); `ActionPanel` Assign/Alihkan dialogs listing eligible candidates; assign only allowed for a route-owning Manager (General) or Union Head (Private);
+- close links staged closure evidence (1–5 cap, `EVIDENCE_LIMIT`) to the closure cycle; reopen falls back to the route owner when the last PIC is deactivated; close dialog stages and requires evidence (close-evidence UI);
+- ask/proceed/close/rate/addMessage honor `Idempotency-Key` (atomic replay record + conflict handling) and the frontend reuses a stable key per logical mutation;
+- Section Head aggregate overview scoped to `currentHandlerId`; `detailScope`/`workItemScope` empty sentinel fixed; Admin Voice Explorer consumes paginated timeline/messages.
 
-Acceptance:
-
-- full dashboard/detail/action matrix dan aggregate leakage checks lulus;
-- Environment tampil pada form/filter/chart;
-- action controls mengikuti capability/object scope tetapi server tetap authoritative;
-- conditional Private identity dan Officer assignment isolation lulus;
-- all responder/leadership Playwright journeys green.
+Acceptance status: the dashboard/detail/action matrix, aggregate/design leakage checks, conditional Private identity/Officer assignment isolation, timeline/messages cursor pagination, dashboard filter/suppression metadata, and responder/leadership mocked Playwright journeys are now covered by `responder-matrix.integration.test.ts` and the `member-voice`/`admin-explorer` e2e specs. Phase 8.5 remains `in_progress`; Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
 
 ## Phase 11 — Frontend Completion, Workforce PWA, Accessibility, and Two-App E2E Gate
 
@@ -590,4 +582,8 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-PR #2 review remediation telah selesai. Lanjutkan Phase 8.5 dengan mocked-contract dan full-stack Admin journeys (bootstrap→import→remediation→Union→accounts→Private audit→system status) sebelum menandai Phase 8 `done`. Foundation Axe/keyboard/no-overflow, Admin gate/build split, visual, dan PWA assertions saat ini hijau. Branch aktif: `feat/phase-8-admin-operations`.
+Sisa Phase 9/10 yang tercatat kini telah ditutup: timeline/messages cursor pagination, dashboard filter + suppression metadata, responder/leadership matrix (Section Head assigned-only, assign guard, leadership read-only, close-evidence UI), Admin Voice Explorer pagination compatibility, dan Playwright mocked-contract (member/responder + admin). Langkah berikutnya:
+
+1. jalankan full-stack Playwright (gated `FULLSTACK_E2E=1`) dengan disposable PostgreSQL + API berjalan pada `:3000` bila e2e runner tersedia, lalu daftarkan parity CI penuh sebelum merge;
+2. refresh visual baseline `workforce-shell-360.png` jika Member Home berubah di masa depan;
+3. Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 dan Phase 11 selesai; jangan mulai production containerization/deployment (Phase 12+) sebelum gate tersebut passed.

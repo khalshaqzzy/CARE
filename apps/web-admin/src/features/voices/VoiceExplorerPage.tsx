@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
 import {
   Alert,
@@ -77,26 +77,42 @@ export function VoiceExplorerPage() {
     queryFn: () => api.voice(selected!.id),
     enabled: !!session && !!selected && open,
   });
-  const timeline = useQuery({
+  const timeline = useInfiniteQuery({
     queryKey: careQueryKey(
       session?.sessionId ?? 'anon',
       'voices',
       'timeline',
       selected?.id ?? 'none',
     ),
-    queryFn: () => api.voiceTimeline(selected!.id),
+    queryFn: ({ pageParam }) =>
+      api.voiceTimeline(selected!.id, {
+        limit: 50,
+        order: 'desc',
+        ...(pageParam ? { cursor: pageParam } : {}),
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: !!session && !!selected && open,
   });
-  const messages = useQuery({
+  const timelineItems = timeline.data?.pages.flatMap((page) => page.items) ?? [];
+  const messages = useInfiniteQuery({
     queryKey: careQueryKey(
       session?.sessionId ?? 'anon',
       'voices',
       'messages',
       selected?.id ?? 'none',
     ),
-    queryFn: () => api.voiceMessages(selected!.id),
+    queryFn: ({ pageParam }) =>
+      api.voiceMessages(selected!.id, {
+        limit: 50,
+        order: 'desc',
+        ...(pageParam ? { cursor: pageParam } : {}),
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: !!session && !!selected && open,
   });
+  const messageItems = messages.data?.pages.flatMap((page) => page.items) ?? [];
   const updateFilter = (name: string, value: string) => {
     const params = new URLSearchParams(searchParams);
     params.delete('cursor');
@@ -359,9 +375,9 @@ export function VoiceExplorerPage() {
                 <strong>Timeline</strong>
                 {timeline.isLoading ? (
                   <Loader label="Memuat timeline" />
-                ) : timeline.data?.length ? (
+                ) : timelineItems.length ? (
                   <ol>
-                    {timeline.data.map((event) => (
+                    {timelineItems.map((event) => (
                       <li key={event.id}>
                         <strong>{event.type}</strong> —{' '}
                         {new Date(event.occurredAt).toLocaleString('id-ID')}
@@ -372,6 +388,17 @@ export function VoiceExplorerPage() {
                         ) : null}
                       </li>
                     ))}
+                    {timeline.hasNextPage ? (
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => void timeline.fetchNextPage()}
+                          disabled={timeline.isFetching}
+                        >
+                          {timeline.isFetching ? 'Memuat…' : 'Muat lebih'}
+                        </button>
+                      </li>
+                    ) : null}
                   </ol>
                 ) : (
                   <span>Belum ada event.</span>
@@ -383,9 +410,9 @@ export function VoiceExplorerPage() {
                 <strong>Percakapan</strong>
                 {messages.isLoading ? (
                   <Loader label="Memuat percakapan" />
-                ) : messages.data?.length ? (
+                ) : messageItems.length ? (
                   <ol>
-                    {messages.data.map((message) => (
+                    {messageItems.map((message) => (
                       <li key={message.id}>
                         <div>
                           <strong>{message.sender.alias ?? message.sender.kind}</strong> —{' '}
@@ -409,6 +436,17 @@ export function VoiceExplorerPage() {
                         ) : null}
                       </li>
                     ))}
+                    {messages.hasNextPage ? (
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => void messages.fetchNextPage()}
+                          disabled={messages.isFetching}
+                        >
+                          {messages.isFetching ? 'Memuat…' : 'Muat lebih'}
+                        </button>
+                      </li>
+                    ) : null}
                   </ol>
                 ) : (
                   <span>Belum ada pesan.</span>

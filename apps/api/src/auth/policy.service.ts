@@ -164,11 +164,25 @@ export class PolicyService {
       scopes.push({ visibility: VoiceVisibility.PRIVATE, currentHandlerId: actor.accountId });
     if (actor.accountStatus === AccountStatus.LEGACY_HANDLER)
       scopes.push({ legacyAccess: { some: { accountId: actor.accountId, effectiveTo: null } } });
-    return scopes.length ? { OR: scopes } : { id: '__none__' };
+    // `id: { in: [] }` is a valid Prisma "match nothing" filter; a literal `id:
+    // '__none__'` would be coerced as a UUID and fail for actors with no work-item
+    // scope (e.g. a plain Member reading their own voice detail/timeline/messages).
+    return scopes.length ? { OR: scopes } : { id: { in: [] } };
   }
 
   async detailScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     const browse = await this.browseScope(actor);
-    return { OR: [browse, this.workItemScope(actor)] };
+    const work = this.workItemScope(actor);
+    // `workItemScope` yields `{ id: { in: [] } }` when the actor has no work-item
+    // scope. OR-ing a never-true clause is a no-op (and when `browse` is the whole
+    // universe `{}`, wrapping it in an OR would swallow the match-all clause), so
+    // drop the empty work-item clause entirely.
+    const isEmptyWork =
+      typeof work === 'object' &&
+      work !== null &&
+      'id' in work &&
+      Array.isArray((work as { id: { in?: unknown[] } }).id?.in) &&
+      (work as { id: { in?: unknown[] } }).id.in?.length === 0;
+    return isEmptyWork ? browse : { OR: [browse, work] };
   }
 }

@@ -24,8 +24,8 @@ export type VoiceList = components['schemas']['VoiceListResponse'];
 export type VoiceItem = components['schemas']['VoiceListItem'];
 export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
-export type VoiceTimeline = components['schemas']['TimelineResponse'];
-export type VoiceMessages = components['schemas']['MessageList'];
+export type VoiceTimeline = components['schemas']['TimelinePage'];
+export type VoiceMessages = components['schemas']['MessagePage'];
 type AccountsQuery = NonNullable<operations['AdminController_accounts']['parameters']['query']>;
 type RemediationQuery = NonNullable<operations['AdminController_issues']['parameters']['query']>;
 type RemediationHistoryQuery = NonNullable<
@@ -37,6 +37,8 @@ type ImportChangesQuery = NonNullable<
   operations['ImportsController_changes']['parameters']['query']
 >;
 type VoicesQuery = NonNullable<operations['VoicesController_list']['parameters']['query']>;
+type TimelineQuery = NonNullable<operations['VoicesController_timeline']['parameters']['query']>;
+type MessagesQuery = NonNullable<operations['VoicesController_messages']['parameters']['query']>;
 type QueryInput<T> = { [K in keyof T]?: T[K] | undefined };
 
 function compactQuery<T extends object>(query: QueryInput<T>): T {
@@ -189,13 +191,17 @@ export function createAdminApi(transport: CareTransport) {
       ),
     voice: (id: string) =>
       dataOrThrow<VoiceDetail>(client.GET('/api/v1/voices/{id}', { params: { path: { id } } })),
-    voiceTimeline: (id: string) =>
+    voiceTimeline: (id: string, query: QueryInput<TimelineQuery> = {}) =>
       dataOrThrow<VoiceTimeline>(
-        client.GET('/api/v1/voices/{id}/timeline', { params: { path: { id } } }),
+        client.GET('/api/v1/voices/{id}/timeline', {
+          params: { path: { id }, query: compactQuery(query) },
+        }),
       ),
-    voiceMessages: (id: string) =>
+    voiceMessages: (id: string, query: QueryInput<MessagesQuery> = {}) =>
       dataOrThrow<VoiceMessages>(
-        client.GET('/api/v1/voices/{id}/messages', { params: { path: { id } } }),
+        client.GET('/api/v1/voices/{id}/messages', {
+          params: { path: { id }, query: compactQuery(query) },
+        }),
       ),
     health: () => dataOrThrow<components['schemas']['Health']>(client.GET('/health')),
     ready: () => dataOrThrow<components['schemas']['Readiness']>(client.GET('/ready')),

@@ -507,7 +507,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["VoicesController_listDrafts"];
         put?: never;
         post: operations["VoicesController_createDraft"];
         delete?: never;
@@ -740,6 +740,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voices/{id}/assignment-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_assignmentCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voices/{id}/ask": {
         parameters: {
             query?: never;
@@ -876,6 +892,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["VoicesController_dashboardPrivate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_dashboardMember"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1079,7 +1111,16 @@ export interface components {
             /** Format: uuid */
             handlerAccountId: string;
             reason?: string;
+            expectedVersion?: number;
         };
+        AssignmentCandidateList: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            /** @enum {string} */
+            slot?: "OFFICER_1" | "OFFICER_2";
+            structuralPosition?: string;
+        }[];
         AccountSelectionRequest: {
             /** Format: uuid */
             accountId: string;
@@ -1291,6 +1332,14 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
                 id: string;
@@ -1332,6 +1381,14 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
                 id: string;
@@ -1375,6 +1432,14 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
                 id: string;
@@ -1415,6 +1480,14 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
                 id: string;
@@ -1456,6 +1529,14 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
                 id: string;
@@ -1499,6 +1580,14 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
                 id: string;
@@ -1538,11 +1627,94 @@ export interface components {
             trend: components["schemas"]["AggregateBuckets"];
             division: components["schemas"]["AggregateBuckets"];
             department: components["schemas"]["AggregateBuckets"];
+            suppression: {
+                enabled: boolean;
+                threshold: number;
+                division: components["schemas"]["SuppressionBreakdown"];
+                department: components["schemas"]["SuppressionBreakdown"];
+            };
+            filters: {
+                area: string | null;
+                /** @enum {string|null} */
+                category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
+                /** @enum {string|null} */
+                severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+                /** @enum {string|null} */
+                status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED" | null;
+                /** Format: date-time */
+                from: string | null;
+                /** Format: date-time */
+                to: string | null;
+            };
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        SuppressionBreakdown: {
+            suppressedBuckets: number;
+            suppressedValue: number;
         };
         AggregateBuckets: {
             label: string;
             value: number;
         }[];
+        ClosureCycleResponse: {
+            /** Format: uuid */
+            id: string;
+            cycleNumber: number;
+            note: string;
+            /** Format: date-time */
+            closedAt: string;
+            /** Format: date-time */
+            reopenedAt?: string | null;
+            actor: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            };
+            evidence: components["schemas"]["AttachmentResponse"][];
+            rating: {
+                score: number;
+                feedback: string | null;
+                reopen: boolean;
+                /** Format: date-time */
+                createdAt: string;
+            } | null;
+        };
+        MemberDashboard: {
+            total: number;
+            counts: {
+                OPEN: number;
+                IN_VERIFICATION: number;
+                IN_PROGRESS: number;
+                CLOSED: number;
+            };
+            recent: components["schemas"]["VoiceListItem"][];
+            draft: components["schemas"]["DraftListItem"] | null;
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        DraftListItem: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            title: string;
+            detail: string;
+            showReporterIdentity?: boolean | null;
+            version: number;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DraftListResponse: {
+            items: components["schemas"]["DraftListItem"][];
+            /** @description Signed opaque cursor */
+            nextCursor: string | null;
+        };
         OrganizationImportSummary: {
             rowCount: number;
             unitCount: number;
@@ -1916,12 +2088,16 @@ export interface components {
             locationContentHash?: string;
             classification?: components["schemas"]["ClassificationPreview"];
             locationReview?: components["schemas"]["LocationReviewSnapshot"];
+            attachments?: components["schemas"]["AttachmentResponse"][];
         };
         VoiceDraftPreview: components["schemas"]["VoiceDraftResponse"] & {
             routeReadiness: {
                 ready: boolean;
                 reason?: string;
+                targetLabel?: string;
+                remediationCode?: string;
             };
+            routeTarget?: string | null;
         };
         VoiceSubmittedResponse: {
             /** Format: uuid */
@@ -1941,7 +2117,7 @@ export interface components {
             currentHandlerId?: string | null;
             handlerType?: string;
         };
-        TimelineResponse: {
+        TimelineEvent: {
             /** Format: uuid */
             id: string;
             type: string;
@@ -1950,7 +2126,12 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
-        }[];
+        };
+        TimelinePage: {
+            items: components["schemas"]["TimelineEvent"][];
+            /** @description Signed opaque cursor */
+            nextCursor: string | null;
+        };
         AttachmentResponse: {
             /** Format: uuid */
             id: string;
@@ -1981,7 +2162,11 @@ export interface components {
             };
             attachments: components["schemas"]["AttachmentResponse"][];
         };
-        MessageList: components["schemas"]["MessageResponse"][];
+        MessagePage: {
+            items: components["schemas"]["MessageResponse"][];
+            /** @description Signed opaque cursor */
+            nextCursor: string | null;
+        };
         ConversationList: {
             /** Format: uuid */
             id: string;
@@ -5915,6 +6100,130 @@ export interface operations {
             };
         };
     };
+    VoicesController_listDrafts: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftListResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     VoicesController_createDraft: {
         parameters: {
             query?: never;
@@ -7575,7 +7884,17 @@ export interface operations {
     };
     VoicesController_workItems: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                search?: string;
+                status?: string;
+                severity?: string;
+                area?: string;
+                category?: string;
+                dateFrom?: string;
+                dateTo?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7819,7 +8138,11 @@ export interface operations {
     };
     VoicesController_timeline: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                order?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -7833,7 +8156,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TimelineResponse"];
+                    "application/json": components["schemas"]["TimelinePage"];
                 };
             };
             /** @description Request validation failed */
@@ -8098,6 +8421,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_assignmentCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentCandidateList"];
                 };
             };
             /** @description Request validation failed */
@@ -8470,7 +8916,11 @@ export interface operations {
     };
     VoicesController_messages: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                order?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8484,7 +8934,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageList"];
+                    "application/json": components["schemas"]["MessagePage"];
                 };
             };
             /** @description Request validation failed */
@@ -9240,7 +9690,14 @@ export interface operations {
     };
     VoicesController_dashboardGeneral: {
         parameters: {
-            query?: never;
+            query?: {
+                area?: string;
+                category?: string;
+                severity?: string;
+                status?: string;
+                from?: string;
+                to?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9361,7 +9818,14 @@ export interface operations {
     };
     VoicesController_dashboardPrivate: {
         parameters: {
-            query?: never;
+            query?: {
+                area?: string;
+                category?: string;
+                severity?: string;
+                status?: string;
+                from?: string;
+                to?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9374,6 +9838,127 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardAggregate"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_dashboardMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberDashboard"];
                 };
             };
             /** @description Request validation failed */
@@ -9605,7 +10190,10 @@ export interface operations {
     };
     NotificationsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;

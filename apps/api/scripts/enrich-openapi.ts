@@ -142,6 +142,23 @@ const queryParameters: Record<string, string[]> = {
     'dateTo',
     'sort',
   ],
+  VoicesController_workItems: [
+    'cursor',
+    'limit',
+    'search',
+    'status',
+    'severity',
+    'area',
+    'category',
+    'dateFrom',
+    'dateTo',
+  ],
+  VoicesController_listDrafts: ['cursor', 'limit'],
+  VoicesController_dashboardGeneral: ['area', 'category', 'severity', 'status', 'from', 'to'],
+  VoicesController_dashboardPrivate: ['area', 'category', 'severity', 'status', 'from', 'to'],
+  VoicesController_timeline: ['cursor', 'limit', 'order'],
+  VoicesController_messages: ['cursor', 'limit', 'order'],
+  NotificationsController_list: ['cursor', 'limit'],
 };
 
 const idempotentOperations = new Set([
@@ -228,6 +245,10 @@ function successSchema(operationId: string) {
     operationId === 'VoicesController_dashboardPrivate'
   )
     return { $ref: '#/components/schemas/DashboardAggregate' };
+  if (operationId === 'VoicesController_dashboardMember')
+    return { $ref: '#/components/schemas/MemberDashboard' };
+  if (operationId === 'VoicesController_listDrafts')
+    return { $ref: '#/components/schemas/DraftListResponse' };
   if (operationId === 'ImportsController_preview' || operationId === 'ImportsController_detail')
     return { $ref: '#/components/schemas/OrganizationImportPreview' };
   if (operationId === 'HealthController_health') return { $ref: '#/components/schemas/Health' };
@@ -274,6 +295,7 @@ function successSchema(operationId: string) {
     VoicesController_addDraftAttachment: 'AttachmentResponse',
     VoicesController_ask: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
+    VoicesController_assignmentCandidates: 'AssignmentCandidateList',
     VoicesController_close: 'ClosureResponse',
     VoicesController_conversations: 'ConversationList',
     VoicesController_createDraft: 'VoiceDraftResponse',
@@ -283,14 +305,14 @@ function successSchema(operationId: string) {
     VoicesController_list: 'VoiceListResponse',
     VoicesController_mediaFile: 'MediaBinary',
     VoicesController_message: 'MessageResponse',
-    VoicesController_messages: 'MessageList',
+    VoicesController_messages: 'MessagePage',
     VoicesController_previewDraft: 'VoiceDraftPreview',
     VoicesController_proceed: 'VoiceMutationResponse',
     VoicesController_rate: 'RatingResponse',
     VoicesController_reassign: 'VoiceMutationResponse',
     VoicesController_removeDraftAttachment: 'SuccessResponse',
     VoicesController_submit: 'VoiceSubmittedResponse',
-    VoicesController_timeline: 'TimelineResponse',
+    VoicesController_timeline: 'TimelinePage',
     VoicesController_updateDraft: 'VoiceDraftResponse',
     VoicesController_workItems: 'VoiceListResponse',
   };
@@ -357,6 +379,18 @@ const baseVoiceProperties = {
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
+  submittedAt: { type: 'string', format: 'date-time' },
+  updatedAt: { type: 'string', format: 'date-time' },
+  classificationSource: {
+    type: 'string',
+    nullable: true,
+    enum: ['AI', 'MANUAL_FALLBACK'],
+  },
+  availableActions: { type: 'array', items: { type: 'string' } },
+  closureCycles: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/ClosureCycleResponse' },
+  },
   routeOwner: {
     type: 'object',
     required: ['id', 'displayName'],
@@ -489,6 +523,21 @@ const schemas: Record<string, any> = {
     properties: {
       handlerAccountId: { type: 'string', format: 'uuid' },
       reason: { type: 'string', maxLength: 500 },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  AssignmentCandidateList: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['id', 'displayName'],
+      additionalProperties: false,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        displayName: { type: 'string' },
+        slot: { type: 'string', enum: ['OFFICER_1', 'OFFICER_2'] },
+        structuralPosition: { type: 'string' },
+      },
     },
   },
   AccountSelectionRequest: {
@@ -900,7 +949,19 @@ const schemas: Record<string, any> = {
   },
   DashboardAggregate: {
     type: 'object',
-    required: ['total', 'status', 'severity', 'category', 'trend', 'division', 'department'],
+    required: [
+      'total',
+      'status',
+      'severity',
+      'category',
+      'trend',
+      'division',
+      'department',
+      'suppression',
+      'filters',
+      'generatedAt',
+    ],
+    additionalProperties: false,
     properties: {
       total: { type: 'integer' },
       status: { $ref: '#/components/schemas/AggregateBuckets' },
@@ -909,6 +970,40 @@ const schemas: Record<string, any> = {
       trend: { $ref: '#/components/schemas/AggregateBuckets' },
       division: { $ref: '#/components/schemas/AggregateBuckets' },
       department: { $ref: '#/components/schemas/AggregateBuckets' },
+      suppression: {
+        type: 'object',
+        required: ['enabled', 'threshold', 'division', 'department'],
+        additionalProperties: false,
+        properties: {
+          enabled: { type: 'boolean' },
+          threshold: { type: 'integer' },
+          division: { $ref: '#/components/schemas/SuppressionBreakdown' },
+          department: { $ref: '#/components/schemas/SuppressionBreakdown' },
+        },
+      },
+      filters: {
+        type: 'object',
+        required: ['area', 'category', 'severity', 'status', 'from', 'to'],
+        additionalProperties: false,
+        properties: {
+          area: { type: 'string', nullable: true },
+          category: baseVoiceProperties.category,
+          severity: { ...baseVoiceProperties.severity, nullable: true },
+          status: { ...baseVoiceProperties.status, nullable: true },
+          from: { type: 'string', format: 'date-time', nullable: true },
+          to: { type: 'string', format: 'date-time', nullable: true },
+        },
+      },
+      generatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  SuppressionBreakdown: {
+    type: 'object',
+    required: ['suppressedBuckets', 'suppressedValue'],
+    additionalProperties: false,
+    properties: {
+      suppressedBuckets: { type: 'integer' },
+      suppressedValue: { type: 'integer' },
     },
   },
   AggregateBuckets: {
@@ -917,6 +1012,95 @@ const schemas: Record<string, any> = {
       type: 'object',
       required: ['label', 'value'],
       properties: { label: { type: 'string' }, value: { type: 'integer' } },
+    },
+  },
+  ClosureCycleResponse: {
+    type: 'object',
+    required: ['id', 'cycleNumber', 'note', 'closedAt', 'actor', 'evidence', 'rating'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      cycleNumber: { type: 'integer' },
+      note: { type: 'string' },
+      closedAt: { type: 'string', format: 'date-time' },
+      reopenedAt: { type: 'string', format: 'date-time', nullable: true },
+      actor: {
+        type: 'object',
+        required: ['id', 'displayName'],
+        properties: { id: { type: 'string', format: 'uuid' }, displayName: { type: 'string' } },
+      },
+      evidence: { type: 'array', items: { $ref: '#/components/schemas/AttachmentResponse' } },
+      rating: {
+        type: 'object',
+        nullable: true,
+        required: ['score', 'feedback', 'reopen', 'createdAt'],
+        properties: {
+          score: { type: 'integer', minimum: 1, maximum: 5 },
+          feedback: { type: 'string', nullable: true },
+          reopen: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  },
+  MemberDashboard: {
+    type: 'object',
+    required: ['total', 'counts', 'recent', 'draft', 'generatedAt'],
+    additionalProperties: false,
+    properties: {
+      total: { type: 'integer' },
+      counts: {
+        type: 'object',
+        required: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'],
+        additionalProperties: false,
+        properties: {
+          OPEN: { type: 'integer' },
+          IN_VERIFICATION: { type: 'integer' },
+          IN_PROGRESS: { type: 'integer' },
+          CLOSED: { type: 'integer' },
+        },
+      },
+      recent: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
+      draft: {
+        allOf: [{ $ref: '#/components/schemas/DraftListItem' }],
+        nullable: true,
+      },
+      generatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  DraftListItem: {
+    type: 'object',
+    required: [
+      'id',
+      'visibility',
+      'area',
+      'locationDetail',
+      'title',
+      'detail',
+      'version',
+      'expiresAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      visibility: baseVoiceProperties.visibility,
+      area: baseVoiceProperties.area,
+      locationDetail: { type: 'string' },
+      title: { type: 'string' },
+      detail: { type: 'string' },
+      showReporterIdentity: { type: 'boolean', nullable: true },
+      version: { type: 'integer', minimum: 1 },
+      expiresAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  DraftListResponse: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/DraftListItem' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
     },
   },
   OrganizationImportSummary: {
@@ -1468,6 +1652,7 @@ const schemas: Record<string, any> = {
       locationContentHash: { type: 'string' },
       classification: { $ref: '#/components/schemas/ClassificationPreview' },
       locationReview: { $ref: '#/components/schemas/LocationReviewSnapshot' },
+      attachments: { type: 'array', items: { $ref: '#/components/schemas/AttachmentResponse' } },
     },
   },
   VoiceDraftPreview: {
@@ -1480,8 +1665,14 @@ const schemas: Record<string, any> = {
           routeReadiness: {
             type: 'object',
             required: ['ready'],
-            properties: { ready: { type: 'boolean' }, reason: { type: 'string' } },
+            properties: {
+              ready: { type: 'boolean' },
+              reason: { type: 'string' },
+              targetLabel: { type: 'string' },
+              remediationCode: { type: 'string' },
+            },
           },
+          routeTarget: { type: 'string', nullable: true },
         },
       },
     ],
@@ -1507,17 +1698,23 @@ const schemas: Record<string, any> = {
       handlerType: { type: 'string' },
     },
   },
-  TimelineResponse: {
-    type: 'array',
-    items: {
-      type: 'object',
-      required: ['id', 'type', 'occurredAt', 'payload'],
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        type: { type: 'string' },
-        occurredAt: { type: 'string', format: 'date-time' },
-        payload: { type: 'object', additionalProperties: true },
-      },
+  TimelineEvent: {
+    type: 'object',
+    required: ['id', 'type', 'occurredAt', 'payload'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      type: { type: 'string' },
+      occurredAt: { type: 'string', format: 'date-time' },
+      payload: { type: 'object', additionalProperties: true },
+    },
+  },
+  TimelinePage: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/TimelineEvent' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
     },
   },
   AttachmentResponse: {
@@ -1555,7 +1752,15 @@ const schemas: Record<string, any> = {
       },
     },
   },
-  MessageList: { type: 'array', items: { $ref: '#/components/schemas/MessageResponse' } },
+  MessagePage: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/MessageResponse' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+    },
+  },
   ConversationList: {
     type: 'array',
     items: {
