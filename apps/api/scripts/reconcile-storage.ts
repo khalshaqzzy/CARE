@@ -15,15 +15,12 @@ function safePath(root: string, key: string) {
 async function main() {
   const now = new Date();
   const objectRoot = resolve(loadConfig().MEDIA_ROOT, 'objects');
+  const importRoot = resolve(loadConfig().MEDIA_ROOT, 'imports');
   const mediaRoot = resolve(loadConfig().MEDIA_ROOT);
-  const [attachments, expiredImports, expiredDrafts, staleLegacyAccess] = await Promise.all([
+  const [attachments, importBatches, expiredDrafts, staleLegacyAccess] = await Promise.all([
     prisma.attachment.findMany({ select: { id: true, storageKey: true, state: true } }),
     prisma.importBatch.findMany({
-      where: {
-        status: { in: [ImportStatus.PREVIEWED, ImportStatus.FAILED] },
-        expiresAt: { lt: now },
-      },
-      select: { id: true, storageKey: true },
+      select: { id: true, storageKey: true, status: true, expiresAt: true },
     }),
     prisma.voiceDraft.findMany({
       where: { submittedAt: null, expiresAt: { lt: now } },
@@ -41,17 +38,44 @@ async function main() {
     .map((entry) => relative(objectRoot, resolve(entry.parentPath, entry.name)))
     .filter((key) => !referenced.has(key));
   const orphanedAttachments = attachments.filter((item) => item.state === AttachmentState.ORPHANED);
+  const terminalImports = importBatches.filter(
+    (batch) =>
+      batch.status === ImportStatus.CONFIRMED ||
+      batch.status === ImportStatus.FAILED ||
+      batch.status === ImportStatus.EXPIRED ||
+      (batch.status === ImportStatus.PREVIEWED && batch.expiresAt < now),
+  );
+  const retainedImportKeys = new Set(
+    importBatches
+      .filter((batch) => !terminalImports.some((terminal) => terminal.id === batch.id))
+      .map((batch) => batch.storageKey.replace(/^imports\//, '')),
+  );
+  const importFiles = await readdir(importRoot, { recursive: true, withFileTypes: true }).catch(
+    () => [],
+  );
+  const orphanedImportFiles = importFiles
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(importRoot, resolve(entry.parentPath, entry.name)))
+    .filter((key) => !retainedImportKeys.has(key));
 
   if (execute) {
     for (const key of unreferencedFiles)
       await unlink(safePath(objectRoot, key)).catch(() => undefined);
     for (const item of orphanedAttachments)
       await unlink(safePath(objectRoot, item.storageKey)).catch(() => undefined);
-    for (const batch of expiredImports)
+    for (const batch of terminalImports)
       await unlink(safePath(mediaRoot, batch.storageKey)).catch(() => undefined);
+    for (const key of orphanedImportFiles)
+      await unlink(safePath(importRoot, key)).catch(() => undefined);
     await prisma.$transaction(async (tx) => {
       await tx.importBatch.updateMany({
-        where: { id: { in: expiredImports.map((item) => item.id) } },
+        where: {
+          id: {
+            in: terminalImports
+              .filter((item) => item.status === ImportStatus.PREVIEWED)
+              .map((item) => item.id),
+          },
+        },
         data: { status: ImportStatus.EXPIRED },
       });
       for (const draft of expiredDrafts) {
@@ -84,7 +108,7 @@ async function main() {
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: execute ? 'execute' : 'dry-run', unreferencedFiles: unreferencedFiles.length, orphanedAttachments: orphanedAttachments.length, expiredImports: expiredImports.length, expiredDrafts: expiredDrafts.length, staleLegacyAccess: staleLegacyAccess.length })}\n`,
+    `${JSON.stringify({ mode: execute ? 'execute' : 'dry-run', unreferencedFiles: unreferencedFiles.length, orphanedAttachments: orphanedAttachments.length, terminalImports: terminalImports.length, orphanedImportFiles: orphanedImportFiles.length, expiredDrafts: expiredDrafts.length, staleLegacyAccess: staleLegacyAccess.length })}\n`,
   );
 }
 

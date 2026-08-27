@@ -16,7 +16,10 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
+import { inflateRawSync } from 'node:zlib';
+import { z } from 'zod';
 import { canonicalHash, randomToken, sha256 } from '../common/crypto';
+import { decodeCursor, encodeCursor } from '../common/cursor';
 import { badRequest, conflict, forbiddenAsNotFound } from '../common/errors';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
@@ -49,6 +52,12 @@ const unitKey = (row: Pick<ImportRow, 'directorate' | 'division' | 'department'>
     normalize(row.division).toLocaleLowerCase('en-US'),
     normalize(row.department).toLocaleLowerCase('en-US'),
   ]);
+const confirmBody = z
+  .object({
+    checksum: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
 @Injectable()
 export class ImportsService implements OnModuleInit, OnModuleDestroy {
@@ -184,7 +193,6 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       unionGaps: (['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).filter(
         (slot) => !unionTerms.some((term) => term.slot === slot),
       ),
-      changes,
     };
     const storageKey = `imports/${randomToken(24)}.${format}`;
     const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
@@ -206,68 +214,382 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         accountKind: account.accountKind,
       })),
     );
-    return this.prisma.importBatch.create({
-      data: {
-        actorId: actor.accountId,
-        checksum,
-        storageKey,
-        summary,
-        errors: errors as Prisma.InputJsonValue,
-        baseSnapshotId: activeSnapshot?.id,
-        expiresAt: new Date(Date.now() + 72 * 3_600_000),
-      },
-    });
+    const orderedChanges = [...changes].sort(
+      (a, b) => a.noReg.localeCompare(b.noReg) || a.type.localeCompare(b.type),
+    );
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const batch = await tx.importBatch.create({
+          data: {
+            actorId: actor.accountId,
+            checksum,
+            storageKey,
+            summary,
+            errors: errors as Prisma.InputJsonValue,
+            baseSnapshotId: activeSnapshot?.id,
+            expiresAt: new Date(Date.now() + 72 * 3_600_000),
+          },
+          select: {
+            id: true,
+            status: true,
+            checksum: true,
+            version: true,
+            expiresAt: true,
+            summary: true,
+            errors: true,
+            baseSnapshotId: true,
+            createdAt: true,
+          },
+        });
+        await tx.importChange.createMany({
+          data: orderedChanges.map((change, sequence) => ({
+            batchId: batch.id,
+            sequence,
+            type: change.type,
+            noReg: change.noReg,
+            payload: change as Prisma.InputJsonValue,
+          })),
+        });
+        return batch;
+      });
+    } catch (error) {
+      await unlink(path).catch(() => undefined);
+      throw error;
+    }
   }
 
-  list() {
-    return this.prisma.importBatch.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+  async list(query?: { cursor?: string; limit?: string | number; status?: string }) {
+    const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
+    const statusFilter =
+      query?.status && Object.values(ImportStatus).includes(query.status as ImportStatus)
+        ? (query.status as ImportStatus)
+        : undefined;
+    // handle expiry transition on read for fetched batches
+    const items = await this.prisma.importBatch.findMany({
+      where: statusFilter ? { status: statusFilter } : {},
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
       select: {
         id: true,
         status: true,
+        checksum: true,
+        version: true,
+        expiresAt: true,
         summary: true,
         failureCode: true,
-        version: true,
         createdAt: true,
         confirmedAt: true,
+        storageKey: true,
       },
     });
+    // auto-expire PREVIEWED batches past expiry on read
+    for (const batch of items) {
+      if (
+        batch.status === ImportStatus.PREVIEWED &&
+        batch.expiresAt &&
+        batch.expiresAt.getTime() < Date.now()
+      ) {
+        if (await this.expirePreview(batch.id)) {
+          (batch as { status: ImportStatus }).status = ImportStatus.EXPIRED;
+        } else {
+          const current = await this.prisma.importBatch.findUnique({
+            where: { id: batch.id },
+            select: { status: true, version: true, confirmedAt: true, failureCode: true },
+          });
+          if (current) Object.assign(batch, current);
+        }
+      }
+    }
+    const hasNext = items.length > take;
+    const visible = hasNext ? items.slice(0, take) : items;
+    const data = visible.map(({ storageKey, ...batch }) => {
+      void storageKey;
+      return batch;
+    });
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    // maintain backward compatibility: if caller expects array, they can use items; new API returns object with items+nextCursor
+    // we return paginated object; existing tests that directly query prisma are unaffected
+    return { items: data, nextCursor };
   }
   async detail(id: string) {
-    const batch = await this.prisma.importBatch.findUnique({
+    let batch = await this.prisma.importBatch.findUnique({
       where: { id },
       include: { issues: true },
     });
     if (!batch) throw forbiddenAsNotFound();
-    return batch;
+    if (
+      batch.status === ImportStatus.PREVIEWED &&
+      batch.expiresAt &&
+      batch.expiresAt.getTime() < Date.now()
+    ) {
+      if (await this.expirePreview(id)) batch.status = ImportStatus.EXPIRED;
+      else {
+        batch = await this.prisma.importBatch.findUnique({
+          where: { id },
+          include: { issues: true },
+        });
+        if (!batch) throw forbiddenAsNotFound();
+      }
+    }
+    const { storageKey, ...safeBatch } = batch;
+    void storageKey;
+    return safeBatch;
   }
-  async changes(id: string) {
-    const batch = await this.detail(id);
-    return { id, changes: (batch.summary as Record<string, unknown>).changes ?? [] };
+  async changes(id: string, query?: { cursor?: string; limit?: string | number; filter?: string }) {
+    await this.detail(id);
+    const filter =
+      query?.filter && ['CREATE', 'UPDATE', 'UNCHANGED', 'DEACTIVATE'].includes(query.filter)
+        ? query.filter
+        : undefined;
+    const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
+    const where: Prisma.ImportChangeWhereInput = {
+      batchId: id,
+      ...(filter ? { type: filter } : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.importChange.findMany({
+        where,
+        orderBy: [{ sequence: 'asc' }, { id: 'asc' }],
+        take: take + 1,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      }),
+      this.prisma.importChange.count({ where }),
+    ]);
+    const hasNext = rows.length > take;
+    const page = hasNext ? rows.slice(0, take) : rows;
+    const items = page.map((row) => row.payload as Record<string, unknown>);
+    return {
+      id,
+      items,
+      nextCursor: hasNext && page.length ? encodeCursor(page[page.length - 1].id) : null,
+      total,
+    };
   }
 
-  async confirm(actor: AuthActor, id: string) {
-    const batch = await this.prisma.importBatch.findFirst({
-      where: { id, actorId: actor.accountId },
-      select: { errors: true },
+  async getCurrentSnapshot() {
+    const snapshot = await this.prisma.organizationSnapshot.findFirst({
+      where: { status: OrganizationSnapshotStatus.ACTIVE },
+      orderBy: { effectiveAt: 'desc' },
     });
-    if (!batch) throw forbiddenAsNotFound();
-    if (Array.isArray(batch.errors) && batch.errors.length)
-      throw conflict('IMPORT_VALIDATION_FAILED', 'Import preview contains blocking errors');
-    const result = await this.prisma.importBatch.updateMany({
-      where: {
-        id,
-        actorId: actor.accountId,
-        status: ImportStatus.PREVIEWED,
-        expiresAt: { gt: new Date() },
+    if (!snapshot) return null;
+    const [unitCount, memberCount] = await Promise.all([
+      this.prisma.organizationUnit.count({ where: {} }),
+      this.prisma.organizationMembership.count({ where: { snapshotId: snapshot.id } }),
+    ]);
+    const headCount = await this.prisma.organizationMembership
+      .count({
+        where: {
+          snapshotId: snapshot.id,
+          structuralPosition: { equals: 'Section Head', mode: 'insensitive' },
+        },
+      })
+      .catch(() => 0);
+    // also count Department Head members - but we count all structural positions that are Department Head
+    const departmentHeadCount = await this.prisma.organizationMembership
+      .count({
+        where: {
+          snapshotId: snapshot.id,
+          structuralPosition: { equals: 'Department Head', mode: 'insensitive' },
+        },
+      })
+      .catch(() => 0);
+    return {
+      id: snapshot.id,
+      checksum: snapshot.checksum,
+      effectiveAt: snapshot.effectiveAt,
+      rowCount: snapshot.rowCount,
+      status: snapshot.status,
+      unitCount,
+      memberCount,
+      headCount: headCount + departmentHeadCount,
+      sourceSnapshotId: snapshot.id,
+    };
+  }
+
+  async listOrganizationUnits(query?: {
+    cursor?: string;
+    limit?: string | number;
+    search?: string;
+  }) {
+    const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
+    const search = query?.search?.trim();
+    const where: Prisma.OrganizationUnitWhereInput = search
+      ? {
+          OR: [
+            { directorate: { contains: search, mode: 'insensitive' } },
+            { division: { contains: search, mode: 'insensitive' } },
+            { department: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+    const units = await this.prisma.organizationUnit.findMany({
+      where,
+      orderBy: [{ directorate: 'asc' }, { division: 'asc' }, { department: 'asc' }, { id: 'asc' }],
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      include: {
+        _count: { select: { memberships: true } },
       },
-      data: { status: ImportStatus.QUEUED, version: { increment: 1 } },
     });
-    if (!result.count)
-      throw conflict('IMPORT_NOT_CONFIRMABLE', 'Import is stale, expired, or already confirmed');
+    // enrich with route health and member/head counts from active snapshot
+    const activeSnapshot = await this.prisma.organizationSnapshot.findFirst({
+      where: { status: OrganizationSnapshotStatus.ACTIVE },
+    });
+    const enriched = await Promise.all(
+      units.slice(0, take).map(async (unit) => {
+        const memberships = activeSnapshot
+          ? await this.prisma.organizationMembership.findMany({
+              where: { organizationUnitId: unit.id, snapshotId: activeSnapshot.id },
+              select: { structuralPosition: true },
+            })
+          : [];
+        const memberCount = memberships.length;
+        const headCount = memberships.filter(
+          (m) => m.structuralPosition.trim().toLocaleLowerCase('en-US') === 'section head',
+        ).length;
+        const route = await this.prisma.routeMapping.findFirst({
+          where: { organizationUnitId: unit.id, effectiveTo: null },
+          select: { ownerAccountId: true, kind: true },
+        });
+        const routeHealth = route ? 'HEALTHY' : 'GAP';
+        return {
+          id: unit.id,
+          directorate: unit.directorate,
+          division: unit.division,
+          department: unit.department,
+          compositeKey: `${unit.directorate} / ${unit.division} / ${unit.department}`,
+          memberCount,
+          headCount,
+          currentRouteOwnerId: route?.ownerAccountId ?? null,
+          routeHealth,
+          sourceSnapshotId: activeSnapshot?.id ?? null,
+          isComposite: true,
+        };
+      }),
+    );
+    const hasNext = units.length > take;
+    const nextCursor =
+      hasNext && enriched.length ? encodeCursor(enriched[enriched.length - 1].id) : null;
+    // for units beyond take, we already sliced; return paginated
+    return { items: enriched, nextCursor };
+  }
+
+  async getOrganizationUnit(id: string) {
+    const unit = await this.prisma.organizationUnit.findUnique({
+      where: { id },
+      include: { _count: { select: { memberships: true } } },
+    });
+    if (!unit) throw forbiddenAsNotFound();
+    const activeSnapshot = await this.prisma.organizationSnapshot.findFirst({
+      where: { status: OrganizationSnapshotStatus.ACTIVE },
+    });
+    const memberships = activeSnapshot
+      ? await this.prisma.organizationMembership.findMany({
+          where: { organizationUnitId: id, snapshotId: activeSnapshot.id },
+          include: { employee: { select: { noReg: true, name: true } } },
+        })
+      : [];
+    const memberCount = memberships.length;
+    const headCount = memberships.filter(
+      (m) => m.structuralPosition.trim().toLocaleLowerCase('en-US') === 'section head',
+    ).length;
+    const route = await this.prisma.routeMapping.findFirst({
+      where: { organizationUnitId: id, effectiveTo: null },
+      include: { owner: { select: { id: true, displayName: true, username: true } } },
+    });
+    const routeHealth = route ? 'HEALTHY' : 'GAP';
+    return {
+      id: unit.id,
+      directorate: unit.directorate,
+      division: unit.division,
+      department: unit.department,
+      compositeKey: `${unit.directorate} / ${unit.division} / ${unit.department}`,
+      memberCount,
+      headCount,
+      currentRouteOwner: route?.owner ?? null,
+      routeHealth,
+      sourceSnapshot: activeSnapshot
+        ? {
+            id: activeSnapshot.id,
+            effectiveAt: activeSnapshot.effectiveAt,
+            checksum: activeSnapshot.checksum,
+          }
+        : null,
+      sourceSnapshotId: activeSnapshot?.id ?? null,
+      members: memberships.map((m) => ({
+        employeeName: m.employeeName,
+        structuralPosition: m.structuralPosition,
+        section: m.section,
+        employee: { noReg: m.employee.noReg, name: m.employee.name },
+      })),
+    };
+  }
+
+  async confirm(
+    actor: AuthActor,
+    id: string,
+    body?: unknown,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    if (!idempotencyKey || idempotencyKey.length > 100)
+      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
+    const parsedBody = confirmBody.safeParse(body);
+    if (!parsedBody.success)
+      throw badRequest('VALIDATION_ERROR', 'checksum and expectedVersion are required');
+    const { checksum, expectedVersion } = parsedBody.data;
+    const requestHash = canonicalHash({
+      id,
+      checksum,
+      expectedVersion,
+    });
+    if (await this.expirePreview(id, actor.accountId))
+      throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
+    const response = await this.executeIdempotent({
+      actor,
+      scope: `import:confirm:${id}`,
+      key: idempotencyKey,
+      requestHash,
+      resourceLock: `import-batch:${id}`,
+      statusCode: 202,
+      work: async (tx) => {
+        const batch = await tx.importBatch.findFirst({
+          where: { id, actorId: actor.accountId },
+          select: { errors: true, checksum: true, version: true, expiresAt: true, status: true },
+        });
+        if (!batch) throw forbiddenAsNotFound();
+        if (batch.expiresAt && batch.expiresAt.getTime() < Date.now())
+          throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
+        if (checksum !== batch.checksum)
+          throw conflict('CHECKSUM_MISMATCH', 'Checksum does not match preview');
+        if (expectedVersion !== batch.version)
+          throw conflict('VERSION_CONFLICT', 'Preview version has changed; reload and retry');
+        if (Array.isArray(batch.errors) && batch.errors.length)
+          throw conflict('IMPORT_VALIDATION_FAILED', 'Import preview contains blocking errors');
+        const updated = await tx.importBatch.updateMany({
+          where: {
+            id,
+            actorId: actor.accountId,
+            status: ImportStatus.PREVIEWED,
+            expiresAt: { gt: new Date() },
+            version: expectedVersion,
+            checksum,
+          },
+          data: { status: ImportStatus.QUEUED, version: { increment: 1 } },
+        });
+        if (!updated.count)
+          throw conflict(
+            'IMPORT_NOT_CONFIRMABLE',
+            'Import is stale, expired, or already confirmed',
+          );
+        return { id, status: ImportStatus.QUEUED };
+      },
+    });
     void this.processNext();
-    return { id, status: ImportStatus.QUEUED };
+    return response;
   }
 
   async processNext() {
@@ -285,17 +607,24 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     if (!claimed) return null;
     try {
       await this.processBatch(claimed);
+      const completed = await this.prisma.importBatch.findUniqueOrThrow({
+        where: { id: claimed },
+        select: { storageKey: true, status: true },
+      });
+      if (completed.status === ImportStatus.CONFIRMED)
+        await this.deleteRawImport(completed.storageKey);
     } catch (error) {
       const retryable =
         error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
       const batch = await this.prisma.importBatch.findUniqueOrThrow({ where: { id: claimed } });
-      await this.prisma.importBatch.update({
+      const updated = await this.prisma.importBatch.update({
         where: { id: claimed },
         data:
           retryable && batch.version < 3
             ? { status: ImportStatus.QUEUED, version: { increment: 1 }, failureCode: null }
             : { status: ImportStatus.FAILED, failureCode: this.failureCode(error) },
       });
+      if (updated.status === ImportStatus.FAILED) await this.deleteRawImport(batch.storageKey);
     }
     return claimed;
   }
@@ -431,6 +760,12 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           where: { accountKind: AccountKind.WORKFORCE, username: { notIn: [...incoming] } },
           select: { id: true, employeeId: true },
         });
+        if (omitted.length)
+          await tx.$queryRaw(
+            Prisma.sql`SELECT "id"::text FROM "UserAccount" WHERE "id"::text IN (${Prisma.join(
+              omitted.map((account) => account.id),
+            )}) ORDER BY "id" FOR UPDATE`,
+          );
         for (const account of omitted) {
           const activeVoices = await tx.voice.findMany({
             where: {
@@ -612,6 +947,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
 
   async parse(buffer: Buffer, format: ImportFormat = 'xlsx'): Promise<ImportRow[]> {
     if (format === 'csv') return this.parseCsv(buffer);
+    this.assertSafeXlsxArchive(buffer);
     const workbook = new ExcelJS.Workbook();
     try {
       await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
@@ -725,6 +1061,167 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     )
       return 'xlsx';
     throw badRequest('ORGANIZATION_FILE_TYPE_INVALID', 'Only .xlsx and .csv files are accepted');
+  }
+
+  private assertSafeXlsxArchive(buffer: Buffer) {
+    if (buffer.length < 22) throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is missing');
+    const maxEntries = 100;
+    const maxInflatedBytes = 50_000_000;
+    const maxEntryBytes = 20_000_000;
+    const eocdSignature = 0x06054b50;
+    const centralSignature = 0x02014b50;
+    const searchStart = Math.max(0, buffer.length - 65_557);
+    let eocd = -1;
+    for (let offset = buffer.length - 22; offset >= searchStart; offset -= 1) {
+      if (buffer.readUInt32LE(offset) === eocdSignature) {
+        eocd = offset;
+        break;
+      }
+    }
+    if (eocd < 0) throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is missing');
+    const entries = buffer.readUInt16LE(eocd + 10);
+    const centralSize = buffer.readUInt32LE(eocd + 12);
+    const centralOffset = buffer.readUInt32LE(eocd + 16);
+    if (
+      entries < 1 ||
+      entries > maxEntries ||
+      centralOffset + centralSize > buffer.length ||
+      centralOffset >= eocd
+    )
+      throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX archive exceeds safe structural limits');
+    let offset = centralOffset;
+    let inflated = 0;
+    for (let index = 0; index < entries; index += 1) {
+      if (offset + 46 > buffer.length || buffer.readUInt32LE(offset) !== centralSignature)
+        throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is malformed');
+      const flags = buffer.readUInt16LE(offset + 8);
+      const method = buffer.readUInt16LE(offset + 10);
+      const compressedBytes = buffer.readUInt32LE(offset + 20);
+      const entryBytes = buffer.readUInt32LE(offset + 24);
+      const nameLength = buffer.readUInt16LE(offset + 28);
+      const extraLength = buffer.readUInt16LE(offset + 30);
+      const commentLength = buffer.readUInt16LE(offset + 32);
+      const localOffset = buffer.readUInt32LE(offset + 42);
+      if ((flags & 0x1) !== 0 || (method !== 0 && method !== 8))
+        throw badRequest('XLSX_INVALID', 'Encrypted or unsupported XLSX entries are not accepted');
+      if (entryBytes > maxEntryBytes)
+        throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX entry exceeds the safe expansion limit');
+      if (localOffset + 30 > buffer.length || buffer.readUInt32LE(localOffset) !== 0x04034b50)
+        throw badRequest('XLSX_INVALID', 'XLSX local ZIP entry is malformed');
+      const localNameLength = buffer.readUInt16LE(localOffset + 26);
+      const localExtraLength = buffer.readUInt16LE(localOffset + 28);
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      const dataEnd = dataStart + compressedBytes;
+      if (dataEnd > buffer.length)
+        throw badRequest('XLSX_INVALID', 'XLSX ZIP entry exceeds the archive boundary');
+      let actualBytes: number;
+      try {
+        actualBytes =
+          method === 0
+            ? compressedBytes
+            : inflateRawSync(buffer.subarray(dataStart, dataEnd), {
+                maxOutputLength: Math.min(maxEntryBytes, maxInflatedBytes - inflated) + 1,
+              }).length;
+      } catch {
+        throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX entry exceeds the safe expansion limit');
+      }
+      if (actualBytes !== entryBytes || actualBytes > maxEntryBytes)
+        throw badRequest('XLSX_INVALID', 'XLSX ZIP entry size is inconsistent');
+      inflated += actualBytes;
+      if (inflated > maxInflatedBytes)
+        throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX archive exceeds the safe expansion limit');
+      offset += 46 + nameLength + extraLength + commentLength;
+    }
+    if (offset > centralOffset + centralSize)
+      throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is malformed');
+  }
+
+  private async deleteRawImport(storageKey: string) {
+    const importsRoot = resolve(loadConfig().MEDIA_ROOT, 'imports');
+    const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
+    if (!path.startsWith(`${importsRoot}/`)) return;
+    await unlink(path).catch(() => undefined);
+  }
+
+  private async expirePreview(id: string, actorId?: string) {
+    const storageKey = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`import-batch:${id}`}, 0))::text AS lock`;
+      const batch = await tx.importBatch.findFirst({
+        where: { id, ...(actorId ? { actorId } : {}) },
+        select: { status: true, expiresAt: true, storageKey: true },
+      });
+      if (
+        !batch ||
+        batch.status !== ImportStatus.PREVIEWED ||
+        batch.expiresAt.getTime() >= Date.now()
+      )
+        return null;
+      const expired = await tx.importBatch.updateMany({
+        where: {
+          id,
+          ...(actorId ? { actorId } : {}),
+          status: ImportStatus.PREVIEWED,
+          expiresAt: { lt: new Date() },
+        },
+        data: { status: ImportStatus.EXPIRED },
+      });
+      return expired.count ? batch.storageKey : null;
+    });
+    if (!storageKey) return false;
+    await this.deleteRawImport(storageKey);
+    return true;
+  }
+
+  private async executeIdempotent<T extends Record<string, unknown>>(options: {
+    actor: AuthActor;
+    scope: string;
+    key?: string;
+    requestHash: string;
+    resourceLock: string;
+    statusCode: number;
+    work: (tx: Prisma.TransactionClient) => Promise<T>;
+  }): Promise<T> {
+    const idempotencyLock = `${options.actor.accountId}:${options.scope}:${options.key ?? 'none'}`;
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyLock}, 0))::text AS lock`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${options.resourceLock}, 0))::text AS lock`;
+        if (options.key) {
+          const existing = await tx.idempotencyRecord.findUnique({
+            where: {
+              accountId_scope_key: {
+                accountId: options.actor.accountId,
+                scope: options.scope,
+                key: options.key,
+              },
+            },
+          });
+          if (existing) {
+            if (existing.requestHash !== options.requestHash)
+              throw conflict(
+                'IDEMPOTENCY_CONFLICT',
+                'Idempotency key was reused with a different payload',
+              );
+            return existing.response as T;
+          }
+        }
+        const result = await options.work(tx);
+        if (options.key)
+          await tx.idempotencyRecord.create({
+            data: {
+              accountId: options.actor.accountId,
+              scope: options.scope,
+              key: options.key,
+              requestHash: options.requestHash,
+              statusCode: options.statusCode,
+              response: result as Prisma.InputJsonValue,
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+        return result;
+      },
+      { timeout: 120_000 },
+    );
   }
 
   private failureCode(error: unknown) {

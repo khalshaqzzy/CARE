@@ -2,11 +2,11 @@
 
 | Atribut                | Nilai                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
-| Status roadmap         | Backend v1.1 re-freeze and Phase 7 frontend foundation complete                               |
-| Last updated           | 26 Agustus 2026                                                                               |
+| Status roadmap         | Phase 8 Admin Application & Organization Operations 8.0–8.4 done, 8.5 in progress             |
+| Last updated           | 27 Agustus 2026                                                                               |
 | Product contract       | `.agent/PRD.md` v1.1                                                                          |
-| Current implementation | Phase 0–6 backend complete; Phase 7 two-app frontend foundation complete                      |
-| Current phase          | Phase 7 `done`; Phase 8 `pending`                                                             |
+| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress  |
+| Current phase          | Phase 8.5 `in_progress`                                                                       |
 | Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
@@ -340,23 +340,123 @@ Acceptance:
 
 ## Phase 8 — Admin Application and Organization Operations
 
-Status: `pending`
+Status: `in_progress` — subphases 8.0–8.5 sequential; only one subphase may be `in_progress`.
 
 Dependencies: Phase 7.
 
+Scope summary:
+
+- menutup gap backend/OpenAPI terlebih dahulu, lalu membangun seluruh journey Admin di shell desktop Phase 7 memakai CARE light design system tanpa identitas visual baru;
+- single CARE Admin credential v1 yang CLI-managed; UI tidak membuat/reset/menonaktifkan akun Admin; Accounts hanya mengelola workforce dan Union;
+- cursor pagination, signed opaque cursor, Idempotency-Key, optimistic expectation, CSRF, audit reason, dan typed health/ready/release.
+
+### Phase 8.0 — Contract and Backend Completion
+
+Status: `done` — implemented 27 Agustus 2026
+
 Scope:
 
-- Admin bootstrap/account/reset pages pada `admin-ped.qd-tmmin.site` staging;
-- XLSX/CSV initial/monthly upload, preview/diff/confirm/history;
-- remediation queue, default PIC, global PIC, three-Union-account, route, account, import issue, dan resolution audit pages;
-- read-only Section Head candidates, Voice Explorer, Private full-identity detail, audit, dan system status.
+- regenerasi OpenAPI dan `@care/contracts`; semua response eksplisit tanpa `additionalProperties` untuk data yang di-render UI;
+- semua list besar memakai signed opaque cursor, `limit`, filter, dan stable sort server-side;
+- mutation sensitif memakai `Idempotency-Key`, optimistic expectation, CSRF, audit reason, dan response versi terbaru;
+- indeks PostgreSQL untuk account, organization unit, import history/change, Voice Explorer, dan audit cursor queries;
+- perluas import preview response (checksum, version, expiry, typed summary, blocking errors, route gaps, Department=14 count, invalid global PIC, Union gaps); `GET .../{id}/changes` cursor-paginated dengan filter `CREATE | UPDATE | DEACTIVATE | UNCHANGED`;
+- confirm `{ checksum, expectedVersion }` plus `Idempotency-Key`; stale preview, checksum mismatch, duplicate payload beda, dan expired batch menghasilkan conflict stabil;
+- current effective snapshot dan organization-unit list/detail (composite unit, member/head counts, route health, source snapshot);
+- import list/history cursor-paginated dengan status `PREVIEWED → QUEUED → PROCESSING → CONFIRMED | FAILED | EXPIRED`;
+- remediation list/history typed, paginated, filter status/type/unit/batch; default PIC mutation dengan `expectedCurrentRouteId` dan reason; Global PIC hanya active Department Head dengan `expectedCurrentRouteId`;
+- account search dengan eligibility filter; Union slot mutation dengan username/displayName/expected term/reason dan legacy preservation;
+- account list/detail paginated dengan search/filter kind/status/unit/position; reset-password workforce/Union dengan session/push revocation dan `passwordChangeRequired`; activation/deactivation dengan reason/version dan constraint legacy ownership;
+- audit list/detail Admin-only dengan cursor, date range, action/result/actor/resource/correlation; Voice list dengan cursor/search/status/visibility/severity/area/category/handler/date dan stable sort;
+- detail DTO sesuai runtime (route owner, current handler, attachment metadata, classification, location review, version, reporter snapshot); `AdminPrivateVoiceDetail.reporter` exact 7 fields;
+- semua Admin read terhadap Private (list/detail/timeline/message/media) mencatat audit event teredaksi; mutation Voice oleh Admin ditolak;
+- system status memakai typed `/health`, `/ready`, `/release.json` dengan diagnostic tereduksi.
+- PR review hardening: account/read attachment storage redaction, transactional idempotency replay tanpa plaintext temporary password, account `version` CAS, resource advisory locks plus partial unique active-route/Union indexes, database-backed `ImportChange`, terminal raw-import deletion, dan actual XLSX inflate limits;
+- post-review concurrency hardening: expiry raw-file deletion memakai locked state reread + `PREVIEWED→EXPIRED` CAS; route assignment, status deactivation, Union replacement, dan monthly-import deactivation memakai deterministic account row locks; migration menghapus legacy reset/Union replay records yang berpotensi berisi plaintext;
+- shared Admin API boundary mengambil request/query/response type langsung dari generated operations; test filenames dan suite names phase-neutral agar reusable lintas roadmap.
 
 Acceptance:
 
-- invalid/valid workbook, 10.000-account preview, atomic confirm, deactivation, mapping invalidation, dan remediation journeys lulus;
-- tidak ada UI Section Head promote/transfer/remove;
-- Admin Private access read-only, full identity, dan audited;
-- app tidak menyediakan offline/PWA behavior.
+- OpenAPI generation deterministic dan drift check hijau;
+- cursor pagination, idempotency conflict, stale version, dan type-exact Private DTO lulus;
+- PostgreSQL integration untuk XLSX/CSV valid/invalid, leading-zero, 10k preview, atomic confirm, polling state, deactivation, route invalidation, PIC remediation, Union replacement, reset/session revocation, audit persistence hijau;
+- concurrency duplicate confirm, simultaneous route/Union replacement, stale version, idempotency mismatch hijau;
+- security CARE_ADMIN-only, CSRF, IDOR, forbidden Admin Voice mutation, audited Private access, sanitized audit hijau;
+- performance 10k accounts/50k Voices untuk account search, import changes, Voice Explorer, audit hijau;
+- fresh/upgrade migration, lint/typecheck, unit/integration/security/performance/build, Gitleaks hijau.
+- remediation evidence: API unit `25`, integration `13`, security `5`, seeded performance `10k/50k/50`, deterministic OpenAPI hashes, build, dan Playwright functional/visual/PWA hijau; PWA CI dijalankan lima kali (`10/10`) tanpa flaky; satu Moderate dependency advisory tetap tercatat, tanpa High/Critical.
+
+### Phase 8.1 — Admin Data Layer and Routing
+
+Status: `done` — implemented 27 Agustus 2026
+
+Scope:
+
+- pecah shell monolitik menjadi feature routes: Overview, Imports/Master Data, Remediation/Routes, Union Accounts, Accounts, Voice Explorer, Audit, System Status, Account;
+- generated client via Phase 7 transport, session-scoped React Query keys, targeted invalidation, typed error mapping, network-only mutation;
+- filter/list state di URL search params; hard gate 1280 px tetap sebelum Query/Auth/Router; tidak ada CacheStorage/IndexedDB/service worker.
+
+Acceptance:
+
+- routing, query-key isolation, URL filter persistence, gate non-fetch, dan typed error mapping lulus.
+
+### Phase 8.2 — Import/Master/Remediation/Union
+
+Status: `done` — implemented 27 Agustus 2026
+
+Scope:
+
+- upload `.xlsx`/`.csv` 10 MB, preview summary, error sheet/row/field, paginated change table, typed confirmation dialog, polling queued/processing, terminal state, history, current effective snapshot;
+- remediation queue per issue type/unit, drawer pilih PIC dan reason, current mapping, resolution history, Section Head candidates read-only;
+- Union tiga fixed slot cards dengan provision/replace dialog, forced-password notice, consequence, audit link.
+
+Acceptance:
+
+- import preview/history, remediation, dan Union journeys mocked-contract lulus; Section Head tetap read-only.
+
+### Phase 8.3 — Accounts and Audit
+
+Status: `done` — implemented 27 Agustus 2026
+
+Scope:
+
+- server-side search/filter accounts; detail drawer organization/capability/status; reset/activate/deactivate dengan confirm dan reason; CARE Admin read-only;
+- Voice Explorer paginated filter table tidak; Accounts/Audit focus.
+- audit sanitized event table dan drawer dengan actor snapshot, action/result, resource, timestamp, correlation, release SHA, reason, safe summary.
+
+Acceptance:
+
+- component tests untuk account constraints, audit filtering, dan read-only boundaries lulus.
+
+### Phase 8.4 — Voice Explorer and System Status
+
+Status: `done` — implemented 27 Agustus 2026
+
+Scope:
+
+- Voice Explorer paginated filter table, detail drawer read-only dengan “akses Private diaudit” notice, full immutable reporter identity untuk Private, attachment/classification/location/conversation/timeline tanpa action;
+- System Status API/database/migration/storage/outbox, OpenAI/push config state, release SHA, last-refreshed, manual refresh, polling 30s hanya saat visible.
+
+Acceptance:
+
+- Voice read-only dan system status degradation paths lulus; Private access audited.
+
+### Phase 8.5 — Accessibility, Security, Performance, and Full-Stack Acceptance
+
+Status: `in_progress`
+
+Scope:
+
+- Axe, keyboard/focus-return, reduced-motion, loading/empty/error/permission/conflict, long-content, 1280/1440 no-overflow;
+- Playwright mocked-contract setiap halaman dan error state;
+- full-stack Playwright terhadap disposable PostgreSQL/API/Admin proxy: bootstrap → login → forced password; invalid→valid import → confirm → remediation; default/global PIC dan Union setup; deactivation/invalidation; reset/session revocation; Private full-identity read-only dengan audit; audit filtering dan system-status;
+- Admin build assertion tanpa manifest/sw/offline cache/fetch di bawah gate.
+
+Acceptance:
+
+- seluruh Phase 8.0–8.5 acceptance hijau; tidak ada Admin provisioning/reset/deactivation UI untuk CARE Admin; tidak ada Section Head mutation/raw download/export/bulk/offline;
+- ADR Phase 8, session handoff, dan implementationPhases diperbarui; PRD mengunci single CLI-managed Admin;
+- Phase 9 tidak dimulai sebelum gate passed; production containerization tetap out of scope.
 
 ## Phase 9 — Member Voice Journey
 
@@ -490,4 +590,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Mulai Phase 8 Admin organization operations pada shell desktop yang sudah tersedia. Pertahankan generated OpenAPI contract, same-origin transport, desktop gate, dan cache split Phase 7; validasi provider AI riil tetap dilakukan saat Phase 13 staging.
+PR #2 review remediation telah selesai. Lanjutkan Phase 8.5 dengan mocked-contract dan full-stack Admin journeys (bootstrap→import→remediation→Union→accounts→Private audit→system status) sebelum menandai Phase 8 `done`. Foundation Axe/keyboard/no-overflow, Admin gate/build split, visual, dan PWA assertions saat ini hijau. Branch aktif: `feat/phase-8-admin-operations`.

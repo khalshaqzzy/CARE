@@ -28,12 +28,25 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
             schema: { type: 'string' },
           });
       }
+      for (const parameter of queryParameters[operation.operationId] ?? [])
+        if (!operation.parameters.some((existing: MutableOperation) => existing.name === parameter))
+          operation.parameters.push({
+            name: parameter,
+            in: 'query',
+            required: false,
+            schema:
+              parameter === 'limit'
+                ? { type: 'integer', minimum: 1, maximum: 100 }
+                : { type: 'string' },
+          });
       if (method !== 'get' && path !== '/api/v1/auth/login') {
         addHeader(operation, 'X-CSRF-Token', true, 'Session-bound CSRF token');
       }
       if (
         method !== 'get' &&
-        (path.includes('/voices/') || path.endsWith('/submit')) &&
+        (path.includes('/voices/') ||
+          path.endsWith('/submit') ||
+          idempotentOperations.has(operation.operationId)) &&
         !path.includes('attachments') &&
         !path.includes('closure-evidence')
       )
@@ -73,23 +86,95 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
         string,
         MutableOperation,
       ][]) {
-        if (status.startsWith('2') && !response.content)
-          response.content = {
-            'application/json': { schema: successSchema(operation.operationId) },
-          };
+        if (status.startsWith('2')) {
+          const json = response.content?.['application/json'];
+          if (json) json.schema = successSchema(operation.operationId);
+          else if (!response.content)
+            response.content = {
+              'application/json': { schema: successSchema(operation.operationId) },
+            };
+        }
       }
     }
   }
   return document;
 }
 
+const queryParameters: Record<string, string[]> = {
+  AdminController_accounts: [
+    'search',
+    'kind',
+    'status',
+    'unitId',
+    'position',
+    'eligibility',
+    'cursor',
+    'limit',
+  ],
+  AdminController_issues: ['status', 'type', 'organizationUnitId', 'batchId', 'cursor', 'limit'],
+  AdminController_resolutions: ['cursor', 'limit', 'type', 'status'],
+  AdminController_auditEvents: [
+    'cursor',
+    'limit',
+    'from',
+    'to',
+    'action',
+    'result',
+    'actorKind',
+    'resourceType',
+    'resourceId',
+    'correlationId',
+  ],
+  ImportsController_list: ['cursor', 'limit', 'status'],
+  ImportsController_changes: ['cursor', 'limit', 'filter'],
+  OrganizationUnitsController_list: ['cursor', 'limit', 'search'],
+  VoicesController_list: [
+    'cursor',
+    'limit',
+    'search',
+    'status',
+    'visibility',
+    'severity',
+    'area',
+    'category',
+    'handler',
+    'dateFrom',
+    'dateTo',
+    'sort',
+  ],
+};
+
+const idempotentOperations = new Set([
+  'AdminController_resetPassword',
+  'AdminController_setStatus',
+  'AdminController_defaultPic',
+  'AdminController_globalPic',
+  'AdminController_unionAccount',
+  'ImportsController_confirm',
+]);
+
 const noBodyOperations = new Set([
   'AuthController_logout',
-  'ImportsController_confirm',
   'VoicesController_classify',
   'VoicesController_locationReview',
   'NotificationsController_readAll',
   'NotificationsController_read',
+  'AdminController_accounts',
+  'AdminController_overview',
+  'AdminController_accountDetail',
+  'AdminController_resetPassword',
+  'AdminController_issues',
+  'AdminController_resolutions',
+  'AdminController_sectionHeads',
+  'AdminController_unionAccounts',
+  'AdminController_auditEvents',
+  'AdminController_auditDetail',
+  'ImportsController_list',
+  'ImportsController_detail',
+  'ImportsController_changes',
+  'OrganizationSnapshotsController_current',
+  'OrganizationUnitsController_list',
+  'OrganizationUnitsController_detail',
 ]);
 
 function addHeader(
@@ -153,7 +238,13 @@ function successSchema(operationId: string) {
   if (operationId === 'AuthController_session')
     return { $ref: '#/components/schemas/SessionResponse' };
   const mapping: Record<string, string> = {
+    AdminController_overview: 'AdminOverview',
     AdminController_accounts: 'AccountSummaryList',
+    AdminController_accountDetail: 'AccountSummary',
+    AdminController_resetPassword: 'AccountResetResponse',
+    AdminController_setStatus: 'AccountSummary',
+    AdminController_auditEvents: 'AuditEventList',
+    AdminController_auditDetail: 'AuditEvent',
     AdminController_defaultPic: 'RouteMappingResponse',
     AdminController_globalPic: 'RouteMappingResponse',
     AdminController_issues: 'RemediationIssueList',
@@ -161,6 +252,11 @@ function successSchema(operationId: string) {
     AdminController_sectionHeads: 'SectionHeadCandidateList',
     AdminController_unionAccount: 'UnionProvisionResponse',
     AdminController_unionAccounts: 'UnionAccountList',
+    ImportsController_detail: 'OrganizationImportPreview',
+    ImportsController_preview: 'OrganizationImportPreview',
+    OrganizationSnapshotsController_current: 'OrganizationSnapshot',
+    OrganizationUnitsController_list: 'OrganizationUnitList',
+    OrganizationUnitsController_detail: 'OrganizationUnit',
     AuthController_changePassword: 'SuccessResponse',
     AuthController_logout: 'SuccessResponse',
     ImportsController_changes: 'OrganizationChangeList',
@@ -214,6 +310,8 @@ function requestSchema(operationId: string) {
     AdminController_defaultPic: 'AccountSelectionRequest',
     AdminController_globalPic: 'AccountSelectionRequest',
     AdminController_unionAccount: 'UnionAccountRequest',
+    AdminController_setStatus: 'AccountStatusRequest',
+    ImportsController_confirm: 'ConfirmImportRequest',
     AuthController_login: 'LoginRequest',
     AuthController_changePassword: 'ChangePasswordRequest',
     NotificationsController_subscribe: 'PushSubscriptionRequest',
@@ -259,10 +357,30 @@ const baseVoiceProperties = {
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
-  pic: {
+  routeOwner: {
     type: 'object',
-    required: ['label'],
-    properties: { id: { type: 'string' }, label: { type: 'string' } },
+    required: ['id', 'displayName'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string' },
+    },
+  },
+  currentHandler: {
+    type: 'object',
+    nullable: true,
+    required: ['id', 'displayName'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string' },
+    },
+  },
+  attachments: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/AttachmentResponse' },
+  },
+  locationReview: {
+    allOf: [{ $ref: '#/components/schemas/LocationReviewSnapshot' }],
+    nullable: true,
   },
 };
 
@@ -375,15 +493,24 @@ const schemas: Record<string, any> = {
   },
   AccountSelectionRequest: {
     type: 'object',
-    required: ['accountId'],
+    required: ['accountId', 'expectedCurrentRouteId', 'reason'],
     additionalProperties: false,
-    properties: { accountId: { type: 'string', format: 'uuid' } },
+    properties: {
+      accountId: { type: 'string', format: 'uuid' },
+      expectedCurrentRouteId: { type: 'string', format: 'uuid', nullable: true },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+    },
   },
   UnionAccountRequest: {
     type: 'object',
-    required: ['username', 'displayName'],
+    required: ['username', 'displayName', 'expectedCurrentTerm', 'reason'],
     additionalProperties: false,
-    properties: { username: { type: 'string' }, displayName: { type: 'string' } },
+    properties: {
+      username: { type: 'string' },
+      displayName: { type: 'string' },
+      expectedCurrentTerm: { type: 'string', format: 'uuid', nullable: true },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+    },
   },
   ChangePasswordRequest: {
     type: 'object',
@@ -482,7 +609,56 @@ const schemas: Record<string, any> = {
     required: ['status'],
     properties: { status: { type: 'string', example: 'ok' } },
   },
-  Readiness: { type: 'object', additionalProperties: true },
+  Readiness: {
+    type: 'object',
+    required: ['status', 'checks', 'dependencies', 'config'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ready', 'not_ready'] },
+      checks: {
+        type: 'object',
+        required: ['database', 'migrations', 'outbox', 'storage'],
+        additionalProperties: false,
+        properties: {
+          database: { type: 'string' },
+          migrations: { type: 'string' },
+          outbox: { type: 'string' },
+          storage: { type: 'string' },
+        },
+      },
+      dependencies: {
+        type: 'object',
+        required: ['openai', 'push'],
+        additionalProperties: false,
+        properties: { openai: { type: 'string' }, push: { type: 'string' } },
+      },
+      config: {
+        type: 'object',
+        required: ['environment', 'releaseSha', 'mediaRoot', 'openai', 'push'],
+        additionalProperties: false,
+        properties: {
+          environment: { type: 'string' },
+          releaseSha: { type: 'string' },
+          mediaRoot: { type: 'string' },
+          openai: {
+            type: 'object',
+            required: ['configured', 'model'],
+            additionalProperties: false,
+            properties: {
+              configured: { type: 'boolean' },
+              model: { type: 'string', nullable: true },
+            },
+          },
+          push: {
+            type: 'object',
+            required: ['configured'],
+            additionalProperties: false,
+            properties: { configured: { type: 'boolean' } },
+          },
+        },
+      },
+    },
+  },
   Release: {
     type: 'object',
     required: ['releaseSha', 'service'],
@@ -690,10 +866,24 @@ const schemas: Record<string, any> = {
   AdminPrivateVoiceDetail: {
     type: 'object',
     required: [...Object.keys(baseVoiceProperties), 'reporter'],
+    additionalProperties: false,
     properties: {
       ...baseVoiceProperties,
       audience: { type: 'string', enum: ['ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY'] },
-      reporter: { type: 'object', additionalProperties: true },
+      reporter: {
+        type: 'object',
+        required: ['noReg', 'name', 'directorate', 'division', 'department', 'section', 'position'],
+        additionalProperties: false,
+        properties: {
+          noReg: { type: 'string' },
+          name: { type: 'string' },
+          directorate: { type: 'string', nullable: true },
+          division: { type: 'string' },
+          department: { type: 'string' },
+          section: { type: 'string', nullable: true },
+          position: { type: 'string', nullable: true },
+        },
+      },
     },
   },
   LocationReviewSnapshot: {
@@ -729,17 +919,76 @@ const schemas: Record<string, any> = {
       properties: { label: { type: 'string' }, value: { type: 'integer' } },
     },
   },
+  OrganizationImportSummary: {
+    type: 'object',
+    required: [
+      'rowCount',
+      'unitCount',
+      'create',
+      'update',
+      'deactivate',
+      'unchanged',
+      'routeGaps',
+      'department14Rows',
+      'globalPicInvalid',
+      'unionGaps',
+    ],
+    additionalProperties: false,
+    properties: {
+      rowCount: { type: 'integer' },
+      unitCount: { type: 'integer' },
+      create: { type: 'integer' },
+      update: { type: 'integer' },
+      deactivate: { type: 'integer' },
+      unchanged: { type: 'integer' },
+      routeGaps: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      department14Rows: { type: 'integer' },
+      globalPicInvalid: { type: 'boolean' },
+      unionGaps: { type: 'array', items: { type: 'string' } },
+    },
+  },
   OrganizationImportPreview: {
     type: 'object',
-    required: ['id', 'status', 'summary'],
+    required: ['id', 'status', 'summary', 'checksum', 'version', 'expiresAt', 'createdAt'],
+    additionalProperties: false,
     properties: {
       id: { type: 'string', format: 'uuid' },
+      checksum: { type: 'string', description: 'SHA256 checksum of file' },
+      version: { type: 'integer' },
+      expiresAt: { type: 'string', format: 'date-time' },
       status: {
         type: 'string',
         enum: ['PREVIEWED', 'QUEUED', 'PROCESSING', 'CONFIRMED', 'FAILED', 'EXPIRED'],
       },
-      summary: { type: 'object', additionalProperties: true },
-      errors: { type: 'array', items: { type: 'object' } },
+      summary: { $ref: '#/components/schemas/OrganizationImportSummary' },
+      errors: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      createdAt: { type: 'string', format: 'date-time' },
+      confirmedAt: { type: 'string', format: 'date-time', nullable: true },
+    },
+  },
+  ConfirmImportRequest: {
+    type: 'object',
+    required: ['checksum', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      checksum: {
+        type: 'string',
+        description: 'Must match batch.checksum else 409 CHECKSUM_MISMATCH',
+      },
+      expectedVersion: {
+        type: 'integer',
+        description: 'Must match batch.version else 409 VERSION_CONFLICT',
+      },
+    },
+  },
+  AccountStatusRequest: {
+    type: 'object',
+    required: ['status', 'reason', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+      expectedVersion: { type: 'integer' },
     },
   },
   SuccessResponse: {
@@ -749,20 +998,127 @@ const schemas: Record<string, any> = {
     properties: { success: { type: 'boolean' } },
   },
   AccountSummaryList: {
-    type: 'array',
-    items: { $ref: '#/components/schemas/AccountSummary' },
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AccountSummary' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+    },
+  },
+  AdminOverview: {
+    type: 'object',
+    required: ['accounts', 'openRemediation', 'latestImport', 'unionSlots', 'recentResolution'],
+    additionalProperties: false,
+    properties: {
+      accounts: {
+        type: 'object',
+        required: ['active', 'legacy', 'inactive'],
+        additionalProperties: false,
+        properties: {
+          active: { type: 'integer' },
+          legacy: { type: 'integer' },
+          inactive: { type: 'integer' },
+        },
+      },
+      openRemediation: { type: 'integer' },
+      latestImport: {
+        type: 'object',
+        nullable: true,
+        required: ['id', 'status', 'createdAt'],
+        additionalProperties: false,
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          status: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      unionSlots: { type: 'integer' },
+      recentResolution: {
+        type: 'object',
+        nullable: true,
+        required: ['id', 'action', 'createdAt'],
+        additionalProperties: false,
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          action: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
   },
   AccountSummary: {
     type: 'object',
-    required: ['id', 'username', 'displayName', 'accountKind', 'status'],
+    required: ['id', 'username', 'displayName', 'accountKind', 'status', 'version'],
+    additionalProperties: false,
     properties: {
       id: { type: 'string', format: 'uuid' },
       username: { type: 'string' },
       displayName: { type: 'string' },
       accountKind: { type: 'string', enum: ['CARE_ADMIN', 'WORKFORCE', 'UNION'] },
       status: { type: 'string', enum: ['ACTIVE', 'LEGACY_HANDLER', 'INACTIVE'] },
-      employee: { type: 'object', nullable: true, additionalProperties: true },
-      unionTerms: { type: 'array', items: { type: 'object', additionalProperties: true } },
+      version: { type: 'integer', minimum: 1 },
+      employee: {
+        type: 'object',
+        nullable: true,
+        additionalProperties: false,
+        required: ['noReg', 'name', 'memberships'],
+        properties: {
+          noReg: { type: 'string' },
+          name: { type: 'string' },
+          active: { type: 'boolean' },
+          memberships: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['structuralPosition', 'section', 'organizationUnit'],
+              properties: {
+                structuralPosition: { type: 'string' },
+                section: { type: 'string', nullable: true },
+                organizationUnit: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['id', 'directorate', 'division', 'department'],
+                  properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    directorate: { type: 'string' },
+                    division: { type: 'string' },
+                    department: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      unionTerms: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['slot'],
+          properties: {
+            slot: { type: 'string', enum: ['HEAD', 'OFFICER_1', 'OFFICER_2'] },
+            effectiveFrom: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+      passwordChangeRequired: { type: 'boolean' },
+      deactivatedAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  AccountResetResponse: {
+    type: 'object',
+    required: ['id', 'username', 'temporaryPassword', 'passwordChangeRequired'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      username: { type: 'string' },
+      temporaryPassword: { type: 'string' },
+      passwordChangeRequired: { type: 'boolean' },
     },
   },
   RouteMappingResponse: {
@@ -782,8 +1138,13 @@ const schemas: Record<string, any> = {
     },
   },
   RemediationIssueList: {
-    type: 'array',
-    items: { $ref: '#/components/schemas/RemediationIssue' },
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/RemediationIssue' } },
+      nextCursor: { type: 'string', nullable: true },
+    },
   },
   RemediationIssue: {
     type: 'object',
@@ -800,17 +1161,25 @@ const schemas: Record<string, any> = {
     },
   },
   RemediationResolutionList: {
-    type: 'array',
-    items: {
-      type: 'object',
-      required: ['id', 'action', 'reason'],
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        action: { type: 'string' },
-        reason: { type: 'string' },
-        createdAt: { type: 'string', format: 'date-time' },
-        details: { type: 'object', additionalProperties: true },
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'action', 'reason'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            action: { type: 'string' },
+            reason: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            details: { type: 'object', additionalProperties: true },
+          },
+        },
       },
+      nextCursor: { type: 'string', nullable: true },
     },
   },
   SectionHeadCandidateList: {
@@ -865,10 +1234,13 @@ const schemas: Record<string, any> = {
   },
   OrganizationChangeList: {
     type: 'object',
-    required: ['id', 'changes'],
+    required: ['id', 'items', 'nextCursor', 'total'],
+    additionalProperties: false,
     properties: {
       id: { type: 'string', format: 'uuid' },
-      changes: { type: 'array', items: { $ref: '#/components/schemas/OrganizationChange' } },
+      items: { type: 'array', items: { $ref: '#/components/schemas/OrganizationChange' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+      total: { type: 'integer', description: 'Total filtered changes' },
     },
   },
   OrganizationChange: {
@@ -885,14 +1257,109 @@ const schemas: Record<string, any> = {
   ImportQueuedResponse: {
     type: 'object',
     required: ['id', 'status'],
+    additionalProperties: false,
     properties: {
       id: { type: 'string', format: 'uuid' },
       status: { type: 'string', enum: ['QUEUED'] },
     },
   },
   OrganizationImportList: {
-    type: 'array',
-    items: { $ref: '#/components/schemas/OrganizationImportPreview' },
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/OrganizationImportPreview' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+    },
+  },
+  OrganizationSnapshot: {
+    type: 'object',
+    required: ['id', 'checksum', 'effectiveAt', 'rowCount', 'status'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      checksum: { type: 'string' },
+      effectiveAt: { type: 'string', format: 'date-time' },
+      rowCount: { type: 'integer' },
+      status: { type: 'string', enum: ['ACTIVE', 'SUPERSEDED'] },
+      unitCount: { type: 'integer' },
+      memberCount: { type: 'integer' },
+      headCount: { type: 'integer' },
+      sourceSnapshotId: { type: 'string', format: 'uuid', nullable: true },
+    },
+  },
+  OrganizationUnit: {
+    type: 'object',
+    required: [
+      'id',
+      'directorate',
+      'division',
+      'department',
+      'compositeKey',
+      'memberCount',
+      'headCount',
+      'routeHealth',
+    ],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      directorate: { type: 'string' },
+      division: { type: 'string' },
+      department: { type: 'string' },
+      compositeKey: { type: 'string' },
+      memberCount: { type: 'integer' },
+      headCount: { type: 'integer' },
+      currentRouteOwnerId: { type: 'string', format: 'uuid', nullable: true },
+      currentRouteOwner: { type: 'object', nullable: true, additionalProperties: true },
+      routeHealth: { type: 'string', enum: ['HEALTHY', 'GAP'] },
+      sourceSnapshotId: { type: 'string', format: 'uuid', nullable: true },
+      isComposite: { type: 'boolean' },
+    },
+  },
+  OrganizationUnitList: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/OrganizationUnit' } },
+      nextCursor: { type: 'string', nullable: true },
+    },
+  },
+  AuditEvent: {
+    type: 'object',
+    required: [
+      'id',
+      'action',
+      'result',
+      'resourceType',
+      'occurredAt',
+      'correlationId',
+      'releaseSha',
+    ],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      action: { type: 'string' },
+      result: { type: 'string' },
+      resourceType: { type: 'string' },
+      resourceId: { type: 'string', nullable: true },
+      actorAccountKind: { type: 'string', nullable: true },
+      actorStructuralPosition: { type: 'string', nullable: true },
+      occurredAt: { type: 'string', format: 'date-time' },
+      correlationId: { type: 'string' },
+      releaseSha: { type: 'string' },
+      reason: { type: 'string', nullable: true },
+      summary: { type: 'object', additionalProperties: true },
+    },
+  },
+  AuditEventList: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AuditEvent' } },
+      nextCursor: { type: 'string', nullable: true },
+    },
   },
   MetricsText: { type: 'string' },
   UpdatedCountResponse: {
@@ -978,8 +1445,12 @@ const schemas: Record<string, any> = {
   },
   VoiceListResponse: {
     type: 'object',
-    required: ['items'],
-    properties: { items: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } } },
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+    },
   },
   VoiceDraftResponse: {
     type: 'object',
@@ -1051,23 +1522,37 @@ const schemas: Record<string, any> = {
   },
   AttachmentResponse: {
     type: 'object',
-    required: ['id', 'mimeType', 'size', 'state'],
+    required: ['id', 'purpose', 'mimeType', 'size', 'state', 'createdAt'],
     properties: {
       id: { type: 'string', format: 'uuid' },
+      purpose: { type: 'string', enum: ['VOICE', 'CHAT', 'CLOSURE_EVIDENCE'] },
       mimeType: { type: 'string' },
       size: { type: 'integer' },
       state: { type: 'string' },
       width: { type: 'integer', nullable: true },
       height: { type: 'integer', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      readyAt: { type: 'string', format: 'date-time', nullable: true },
     },
   },
   MessageResponse: {
     type: 'object',
-    required: ['id', 'createdAt'],
+    required: ['id', 'createdAt', 'senderAccountKind', 'sender', 'attachments'],
     properties: {
       id: { type: 'string', format: 'uuid' },
       text: { type: 'string', nullable: true },
       createdAt: { type: 'string', format: 'date-time' },
+      senderId: { type: 'string', format: 'uuid', nullable: true },
+      senderAccountKind: { type: 'string' },
+      sender: {
+        type: 'object',
+        required: ['kind'],
+        properties: { kind: { type: 'string' }, alias: { type: 'string' } },
+      },
+      attachments: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AttachmentResponse' },
+      },
     },
   },
   MessageList: { type: 'array', items: { $ref: '#/components/schemas/MessageResponse' } },

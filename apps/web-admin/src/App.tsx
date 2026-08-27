@@ -9,7 +9,6 @@ import {
   EmptyState,
   Input,
   Loader,
-  PageHeader,
   Sidebar,
   Stack,
 } from '@care/ui';
@@ -25,7 +24,16 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { OverviewPage } from './features/overview/OverviewPage';
+import { ImportsPage } from './features/imports/ImportsPage';
+import { RemediationPage } from './features/remediation/RemediationPage';
+import { UnionPage } from './features/union/UnionPage';
+import { AccountsPage } from './features/accounts/AccountsPage';
+import { VoiceExplorerPage } from './features/voices/VoiceExplorerPage';
+import { AuditPage } from './features/audit/AuditPage';
+import { SystemStatusPage } from './features/system/SystemStatusPage';
+import { AccountPage } from './features/account/AccountPage';
 
 export function App() {
   return (
@@ -45,7 +53,18 @@ export function App() {
             <AdminShell />
           </SessionGate>
         }
-      />
+      >
+        <Route index element={<OverviewPage />} />
+        <Route path="imports" element={<ImportsPage />} />
+        <Route path="remediation" element={<RemediationPage />} />
+        <Route path="union" element={<UnionPage />} />
+        <Route path="accounts" element={<AccountsPage />} />
+        <Route path="voices" element={<VoiceExplorerPage />} />
+        <Route path="audit" element={<AuditPage />} />
+        <Route path="system" element={<SystemStatusPage />} />
+        <Route path="account" element={<AccountPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
     </Routes>
   );
 }
@@ -232,29 +251,83 @@ function WrongApp() {
 function AdminShell() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   if (!session) return null;
+  const path = location.pathname;
+  const current = path.startsWith('/imports')
+    ? 'imports'
+    : path.startsWith('/remediation')
+      ? 'remediation'
+      : path.startsWith('/union')
+        ? 'union'
+        : path.startsWith('/accounts')
+          ? 'accounts'
+          : path.startsWith('/voices')
+            ? 'voices'
+            : path.startsWith('/audit')
+              ? 'audit'
+              : path.startsWith('/system')
+                ? 'system'
+                : path.startsWith('/account')
+                  ? 'account'
+                  : 'overview';
   const items = [
-    { id: 'overview', label: 'Overview', icon: <CircleGauge size={19} /> },
-    { id: 'imports', label: 'Import & Master Data', icon: <Archive size={19} />, disabled: true },
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: <CircleGauge size={19} />,
+      onClick: () => navigate('/'),
+    },
+    {
+      id: 'imports',
+      label: 'Import & Master Data',
+      icon: <Archive size={19} />,
+      onClick: () => navigate('/imports'),
+    },
     {
       id: 'remediation',
       label: 'Remediation & Route',
       icon: <RouteIcon size={19} />,
-      disabled: true,
+      onClick: () => navigate('/remediation'),
     },
-    { id: 'union', label: 'Union Accounts', icon: <ShieldCheck size={19} />, disabled: true },
-    { id: 'accounts', label: 'Accounts', icon: <UsersRound size={19} />, disabled: true },
-    { id: 'voices', label: 'Voice Explorer', icon: <FileSearch size={19} />, disabled: true },
-    { id: 'audit', label: 'Audit', icon: <Activity size={19} />, disabled: true },
-    { id: 'system', label: 'System Status', icon: <Settings size={19} />, disabled: true },
+    {
+      id: 'union',
+      label: 'Union Accounts',
+      icon: <ShieldCheck size={19} />,
+      onClick: () => navigate('/union'),
+    },
+    {
+      id: 'accounts',
+      label: 'Accounts',
+      icon: <UsersRound size={19} />,
+      onClick: () => navigate('/accounts'),
+    },
+    {
+      id: 'voices',
+      label: 'Voice Explorer',
+      icon: <FileSearch size={19} />,
+      onClick: () => navigate('/voices'),
+    },
+    {
+      id: 'audit',
+      label: 'Audit',
+      icon: <Activity size={19} />,
+      onClick: () => navigate('/audit'),
+    },
+    {
+      id: 'system',
+      label: 'System Status',
+      icon: <Settings size={19} />,
+      onClick: () => navigate('/system'),
+    },
   ];
   return (
     <AppShell
       density="compact"
       sidebar={
         <Sidebar
-          items={items}
-          current="overview"
+          items={items as never}
+          current={current}
           header={
             <div className="admin-sidebar-brand">
               <Building2 size={22} />
@@ -265,13 +338,18 @@ function AdminShell() {
             </div>
           }
           footer={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void logout().then(() => navigate('/login'))}
-            >
-              Keluar
-            </Button>
+            <Stack gap="sm">
+              <Button variant="ghost" size="sm" onClick={() => void navigate('/account')}>
+                Akun Saya
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void logout().then(() => navigate('/login'))}
+              >
+                Keluar
+              </Button>
+            </Stack>
           }
         />
       }
@@ -288,20 +366,7 @@ function AdminShell() {
         </div>
       }
     >
-      <Stack gap="lg">
-        <PageHeader
-          eyebrow="Frontend foundation"
-          title="Overview operasional"
-          description="Shell Admin desktop-only, contract client, dan access boundary telah siap. Halaman operasi organisasi dimulai pada Phase 8."
-        />
-        <Alert tone="info" title="Admin selalu network-only">
-          Tidak ada service worker, offline cache, atau persistent protected data pada aplikasi ini.
-        </Alert>
-        <EmptyState
-          title="Data operasional belum dipasang"
-          description="Phase 7 hanya menetapkan fondasi dan komponen shared. Import, remediation, Voice Explorer, audit, dan status sistem akan memakai shell ini pada Phase 8."
-        />
-      </Stack>
+      <Outlet />
     </AppShell>
   );
 }

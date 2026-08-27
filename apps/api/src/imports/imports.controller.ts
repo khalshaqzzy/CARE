@@ -1,11 +1,14 @@
 import {
+  Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Inject,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -29,19 +32,69 @@ export class ImportsController {
     return this.service.preview(actor, file);
   }
 
-  @Get() list() {
-    return this.service.list();
+  @Get() list(
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.service.list({ cursor, limit, status });
   }
+
   @Get(':id') detail(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.detail(id);
   }
-  @Get(':id/changes') changes(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.changes(id);
+
+  @Get(':id/changes') changes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Query('filter') filter?: string,
+  ) {
+    return this.service.changes(id, { cursor, limit, filter });
   }
 
   @Post(':id/confirm')
   @HttpCode(202)
-  confirm(@Actor() actor: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
-    return this.service.confirm(actor, id);
+  confirm(
+    @Actor() actor: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body?: unknown,
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('Idempotency-Key') idempotencyKeyAlt?: string,
+  ) {
+    const key = idempotencyKey ?? idempotencyKeyAlt;
+    return this.service.confirm(actor, id, body, key);
+  }
+}
+
+@ApiTags('organization')
+@ApiCookieAuth()
+@Capabilities('CARE_ADMIN')
+@Controller('admin/organization-snapshots')
+export class OrganizationSnapshotsController {
+  constructor(@Inject(ImportsService) private readonly service: ImportsService) {}
+
+  @Get('current') current() {
+    return this.service.getCurrentSnapshot();
+  }
+}
+
+@ApiTags('organization')
+@ApiCookieAuth()
+@Capabilities('CARE_ADMIN')
+@Controller('admin/organization-units')
+export class OrganizationUnitsController {
+  constructor(@Inject(ImportsService) private readonly service: ImportsService) {}
+
+  @Get() list(
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.listOrganizationUnits({ cursor, limit, search });
+  }
+
+  @Get(':id') detail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getOrganizationUnit(id);
   }
 }
