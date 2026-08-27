@@ -83,10 +83,15 @@ describe('Organization, remediation, and routing journey', () => {
     const rawStorageKey = (
       await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } })
     ).storageKey;
-    await imports.confirm(admin, preview.id, {
-      checksum: preview.checksum,
-      expectedVersion: preview.version,
-    }, 'organization-routing-xlsx-confirm');
+    await imports.confirm(
+      admin,
+      preview.id,
+      {
+        checksum: preview.checksum,
+        expectedVersion: preview.version,
+      },
+      'organization-routing-xlsx-confirm',
+    );
     let batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     for (let attempt = 0; attempt < 100 && batch.status !== 'CONFIRMED'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -142,10 +147,15 @@ describe('Organization, remediation, and routing journey', () => {
     expect(
       (await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } })).storageKey,
     ).toMatch(/\.csv$/);
-    await imports.confirm(admin, preview.id, {
-      checksum: preview.checksum,
-      expectedVersion: preview.version,
-    }, 'organization-routing-csv-confirm');
+    await imports.confirm(
+      admin,
+      preview.id,
+      {
+        checksum: preview.checksum,
+        expectedVersion: preview.version,
+      },
+      'organization-routing-csv-confirm',
+    );
     let batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     for (let attempt = 0; attempt < 100 && batch.status !== 'CONFIRMED'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -161,22 +171,31 @@ describe('Organization, remediation, and routing journey', () => {
     const departmentHead = await prisma.userAccount.findUniqueOrThrow({
       where: { username: '000001' },
     });
-    await adminService.setGlobalPic(admin, {
-      accountId: departmentHead.id,
-      expectedCurrentRouteId: null,
-      reason: 'Integration test global PIC',
-    }, 'organization-routing-global-pic');
+    await adminService.setGlobalPic(
+      admin,
+      {
+        accountId: departmentHead.id,
+        expectedCurrentRouteId: null,
+        reason: 'Integration test global PIC',
+      },
+      'organization-routing-global-pic',
+    );
     for (const item of [
       { slot: 'HEAD', username: 'union-head' },
       { slot: 'OFFICER_1', username: 'union-1' },
       { slot: 'OFFICER_2', username: 'union-2' },
     ])
-      await adminService.setUnionAccount(admin, item.slot, {
-        username: item.username,
-        displayName: item.username,
-        expectedCurrentTerm: null,
-        reason: `Integration test ${item.slot}`,
-      }, `organization-routing-union-${item.slot}`);
+      await adminService.setUnionAccount(
+        admin,
+        item.slot,
+        {
+          username: item.username,
+          displayName: item.username,
+          expectedCurrentTerm: null,
+          reason: `Integration test ${item.slot}`,
+        },
+        `organization-routing-union-${item.slot}`,
+      );
     const member = await actor('000003');
 
     const generalDraft = await voices.createDraft(member, {

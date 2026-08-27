@@ -7,9 +7,34 @@
 | Current phase           | Phase 8.5 `in_progress` (Phase 7 `done`, Phase 8.0–8.4 `done`)                                     |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                |
 | Implementation status   | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 in_progress • branch `feat/phase-8-admin-operations` |
-| Recommended next action | Tambahkan mocked/full-stack Admin journeys tersisa, lalu tandai Phase 8 `done`                      |
+| Recommended next action | Tambahkan mocked/full-stack Admin journeys tersisa, lalu tandai Phase 8 `done`                     |
 
 ## Session Outcome
+
+### PR #2 CI remediation — 27 Agustus 2026
+
+PR #2 `quality` job gagal pada `pnpm format:check` karena dua file yang di-commit tanpa Prettier: `.agent/sessionHandoff.md` dan `apps/api/test/integration/organization-routing.integration.test.ts`. Job berhenti pada step format sehingga seluruh step setelahnya (lint, typecheck, unit, integration, build, e2e) belum terverifikasi oleh run tersebut; kedua file diperbaiki dengan Prettier murni (pembungkusan argumen call multi-line, tidak ada perubahan semantik), lalu full parity §4.2 dijalankan ulang dari clean-artifact state (`apps/api/dist`, `packages/*/dist`, output web dist dipindahkan ke `/tmp/care-precommit-artifacts-20260827` sebelum generation/build).
+
+Commands dan hasil parity 27 Agustus 2026:
+
+- `pnpm install --frozen-lockfile` — passed;
+- `pnpm db:generate` — passed;
+- `pnpm audit --audit-level high` — passed (satu Moderate transitive yang sudah diketahui, nol High/Critical);
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck` — passed setelah fix;
+- `pnpm test:unit` — 24+8+9+2+2 passed;
+- `pnpm test:openai:smoke` — passed (mock `/responses`, classification + location schema);
+- `pnpm migrations:destructive-check` — passed;
+- `docker compose config --quiet`, `pnpm db:up`, `pnpm db:wait`, `pnpm db:verify` — passed (PostgreSQL 16/pgvector);
+- `pnpm db:test:reset` + disposable `prisma migrate deploy` — passed;
+- `pnpm test:migration:upgrade` — passed (voices 3, legacy access 3, semua snapshot utuh);
+- CI-equivalent `pnpm test:integration` — 11 passed; `pnpm test:security` — 5 passed;
+- `pnpm seed:performance` + `pnpm test:performance` — passed (10.000 accounts / 50.000 Voices); `pnpm maintenance:reconcile` dry-run — counter nol;
+- `pnpm openapi:check` dan `pnpm build` — passed (workforce precache 12 entries);
+- Playwright `pnpm test:frontend:e2e` — 16 passed;
+- `zricethezav/gitleaks:v8.24.3 dir ... --redact --verbose` — no leaks found; `git diff --check` — passed;
+- `pnpm db:down` — Compose stack dimatikan setelah checks.
+
+Tidak ada perubahan product scope, contract, atau phase status dari sesi ini; Phase 8.5 tetap `in_progress`.
 
 ### PR #2 deep-review remediation — 27 Agustus 2026
 
