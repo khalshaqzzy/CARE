@@ -460,7 +460,7 @@ Acceptance:
 
 ## Phase 9 — Member Voice Journey
 
-Status: `in_progress` — Member journey implemented and wired to the real backend; Phase 8.5 remains `in_progress` and Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
+Status: `done` — Member journey implemented and wired to the real backend with Phase 9 acceptance covered. The Frontend Complete Gate is an independent Phase 8.5 + Phase 11 aggregate and stays blocked until both pass; it is not contingent on Phase 9 completion.
 
 Dependencies: Phase 8 (sequencing exception granted; Phase 9–10 may receive scoped acceptance without opening the Frontend Complete Gate).
 
@@ -472,11 +472,11 @@ Scope (implemented — Member journey in `apps/web-voice`):
 - preview page and closed-chat read-only rules; History with search/filter/cursor; Voice detail with metadata, PIC privacy label, media, classification source, location review, timeline, conversation, closure cycles/evidence/rating/reopen; Notifications center with unread count/pagination/mark-read/deep-link; Account session/capability/profile;
 - timeline/messages cursor pagination (`useCursorFeed`) with an optional `order=desc` for the live chat; dashboard aggregate filters + suppression metadata (`GeneralBrowsePage`).
 
-Acceptance status: Member journey implemented on the real backend and verified via integration (31), security (5), unit, build, and Playwright (chromium/visual/pwa 20 passed). Full Phase 9/10 acceptance and the complete Phase 10 responder/leadership matrix now covered by `responder-matrix.integration.test.ts`.
+Acceptance status: Member journey implemented on the real backend and verified via integration (31), security (5), unit, build, and Playwright (chromium/visual/pwa 20 passed). Full Phase 9/10 acceptance and the complete Phase 10 responder/leadership matrix now covered by `responder-matrix.integration.test.ts`. Phase 9 marked `done`.
 
 ## Phase 10 — Responder and Leadership Journeys
 
-Status: `in_progress` — responder/leadership matrix implemented and acceptance-covered; Phase 8.5 and Frontend Complete Gate remain gating.
+Status: `done` — responder/leadership matrix implemented and acceptance-covered (Phase 10 acceptance covered). The Frontend Complete Gate is an independent Phase 8.5 + Phase 11 aggregate and stays blocked until both pass; it is not contingent on Phase 10 completion.
 
 Dependencies: Phase 9 (batch sequencing exception applies as above).
 
@@ -492,7 +492,7 @@ Scope (implemented):
 - ask/proceed/close/rate/addMessage honor `Idempotency-Key` (atomic replay record + conflict handling) and the frontend reuses a stable key per logical mutation;
 - Section Head aggregate overview scoped to `currentHandlerId`; `detailScope`/`workItemScope` empty sentinel fixed; Admin Voice Explorer consumes paginated timeline/messages.
 
-Acceptance status: the dashboard/detail/action matrix, aggregate/design leakage checks, conditional Private identity/Officer assignment isolation, timeline/messages cursor pagination, dashboard filter/suppression metadata, and responder/leadership mocked Playwright journeys are now covered by `responder-matrix.integration.test.ts` and the `member-voice`/`admin-explorer` e2e specs. Phase 8.5 remains `in_progress`; Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
+Acceptance status: the dashboard/detail/action matrix, aggregate/design leakage checks, conditional Private identity/Officer assignment isolation, timeline/messages cursor pagination, dashboard filter/suppression metadata, and responder/leadership mocked Playwright journeys are now covered by `responder-matrix.integration.test.ts` and the `member-voice`/`admin-explorer` e2e specs. Phase 10 marked `done`. Phase 8.5 remains `in_progress`; Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
 
 ## Phase 11 — Frontend Completion, Workforce PWA, Accessibility, and Two-App E2E Gate
 
