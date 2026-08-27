@@ -3,13 +3,23 @@
 | Atribut                 | Nilai                                                                                              |
 | ----------------------- | -------------------------------------------------------------------------------------------------- |
 | Date                    | 27 Agustus 2026                                                                                    |
-| Current objective       | Phase 8.0–8.4 done; Phase 8.5 accessibility & full-stack acceptance in progress                    |
+| Current objective       | PR #2 review remediation complete; Phase 8.5 full-stack acceptance remains in progress             |
 | Current phase           | Phase 8.5 `in_progress` (Phase 7 `done`, Phase 8.0–8.4 `done`)                                     |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                |
 | Implementation status   | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 in_progress • branch `feat/phase-8-admin-operations` |
-| Recommended next action | Selesaikan Phase 8.5: Axe/keyboard/Playwright mocked & full-stack, lalu tandai Phase 8 `done`      |
+| Recommended next action | Tambahkan mocked/full-stack Admin journeys tersisa, lalu tandai Phase 8 `done`                      |
 
 ## Session Outcome
+
+### PR #2 deep-review remediation — 27 Agustus 2026
+
+Review penuh terhadap PR #2 ditindaklanjuti pada backend, contract, Admin UI, storage lifecycle, concurrency, dan test. Account DTO tidak lagi dapat mengembalikan `passwordHash`; temporary password tidak disimpan di idempotency/audit; status account memakai compare-and-swap `version`; deactivation ditolak selama account masih menjadi active route owner. Import confirm dan seluruh mutation Admin kini mewajibkan `Idempotency-Key`, lalu menjalankan advisory idempotency/resource lock, business mutation, audit, dan sanitized replay record dalam satu transaksi PostgreSQL. Partial unique indexes mengunci tepat satu active route per scope dan satu active Union term per slot.
+
+Import preview tidak lagi menanam hingga 10.000 changes di JSON summary. Changes disimpan sebagai `ImportChange`, dipaginasi/filter dari database, dan raw upload dihapus setelah `CONFIRMED`, terminal `FAILED`, atau `EXPIRED`; maintenance reconciliation menangani leftover terminal/orphan. XLSX diperiksa terhadap entry count, actual inflate per-entry, dan total inflate sebelum ExcelJS. Attachment response Voice/chat hanya mengandung safe metadata, sedangkan storage key/checksum tetap internal; Admin Voice drawer sekarang menampilkan attachment, timeline, dan conversation secara terstruktur dengan audited Private media access.
+
+Seluruh Admin feature page memakai shared generated OpenAPI transport; query parameter types berasal langsung dari generated operations. Overview memakai aggregate endpoint khusus, cursor history berada di URL untuk list utama, confirm import mem-poll state terminal, Union remediation diarahkan ke fixed-slot workflow, System Status memakai typed health/readiness/release dan proxy yang benar, dan Voice detail queries dipisah per selected Voice untuk mencegah stale/race.
+
+Test file/suite dibuat phase-neutral: `integration-contracts.test.ts`, `organization-routing.integration.test.ts`, dan `admin-safety.integration.test.ts`. Evidence terakhir: TypeScript, ESLint, Prettier, unit `24+8+9+2+2`, integration `11`, security `5`, seeded performance `10k accounts/50k Voices/50 concurrent users`, build, migration deploy/upgrade, deterministic OpenAPI hashes, mock OpenAI smoke, Compose validation, and Playwright functional/visual/PWA `16` passed. Dependency audit tetap memiliki satu Moderate transitive advisory dan nol High/Critical. Phase 8.5 tetap `in_progress` karena mocked-contract/full-stack Admin journey per halaman belum ditambahkan; status tersebut tidak dinaikkan secara prematur.
 
 ### Design system visual refinement — 26 Agustus 2026
 

@@ -21,21 +21,33 @@ import { PolicyService } from '../auth/policy.service';
 const accountBody = z
   .object({
     accountId: z.string().uuid(),
-    expectedCurrentRouteId: z.string().uuid().nullable().optional(),
-    reason: z.string().trim().min(1).max(500).optional(),
+    expectedCurrentRouteId: z.string().uuid().nullable(),
+    reason: z.string().trim().min(1).max(500),
   })
   .strict();
 const unionBody = z
   .object({
     username: z.string().trim().min(3).max(64),
     displayName: z.string().trim().min(1).max(200),
-    expectedCurrentTerm: z.string().uuid().nullable().optional(),
-    reason: z.string().trim().min(1).max(500).optional(),
+    expectedCurrentTerm: z.string().uuid().nullable(),
+    reason: z.string().trim().min(1).max(500),
   })
   .strict();
 const slots = new Set(Object.values(UnionSlot));
 const isDepartmentHead = (value?: string | null) =>
   value?.trim().toLocaleLowerCase('en-US') === 'department head';
+const accountResponseSelect = Prisma.validator<Prisma.UserAccountSelect>()({
+  id: true,
+  username: true,
+  displayName: true,
+  accountKind: true,
+  status: true,
+  deactivatedAt: true,
+  passwordChangeRequired: true,
+  version: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 @Injectable()
 export class AdminService {
@@ -43,6 +55,39 @@ export class AdminService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PolicyService) private readonly policy: PolicyService,
   ) {}
+
+  async overview() {
+    const [accountGroups, openRemediation, latestImport, unionSlots, recentResolution] =
+      await Promise.all([
+        this.prisma.userAccount.groupBy({ by: ['status'], _count: { _all: true } }),
+        this.prisma.importIssue.count({ where: { status: ImportIssueStatus.OPEN } }),
+        this.prisma.importBatch.findFirst({
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, status: true, createdAt: true },
+        }),
+        this.prisma.unionAccountTerm.count({
+          where: { effectiveTo: null, account: { status: AccountStatus.ACTIVE } },
+        }),
+        this.prisma.importIssueResolution.findFirst({
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, action: true, createdAt: true },
+        }),
+      ]);
+    const accountCounts = Object.fromEntries(
+      accountGroups.map((group) => [group.status, group._count._all]),
+    );
+    return {
+      accounts: {
+        active: accountCounts.ACTIVE ?? 0,
+        legacy: accountCounts.LEGACY_HANDLER ?? 0,
+        inactive: accountCounts.INACTIVE ?? 0,
+      },
+      openRemediation,
+      latestImport,
+      unionSlots,
+      recentResolution,
+    };
+  }
 
   async accounts(
     query?:
@@ -60,15 +105,7 @@ export class AdminService {
   ) {
     const params = typeof query === 'string' ? { search: query } : (query ?? {});
     const take = Math.min(Math.max(Number(params.limit ?? 20), 1), 100);
-    const cursorId = params.cursor
-      ? (() => {
-          try {
-            return decodeCursor(params.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = params.cursor ? decodeCursor(params.cursor) : undefined;
     const where: Prisma.UserAccountWhereInput = {};
     if (params.search) {
       where.OR = [
@@ -137,6 +174,7 @@ export class AdminService {
         accountKind: true,
         status: true,
         passwordChangeRequired: true,
+        version: true,
         createdAt: true,
         updatedAt: true,
         employee: {
@@ -178,6 +216,7 @@ export class AdminService {
         accountKind: true,
         status: true,
         passwordChangeRequired: true,
+        version: true,
         createdAt: true,
         updatedAt: true,
         deactivatedAt: true,
@@ -199,186 +238,73 @@ export class AdminService {
     return account;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async resetPassword(actor: AuthActor, id: string, key?: string, _body?: unknown) {
+  async resetPassword(
+    actor: AuthActor,
+    id: string,
+    key?: string,
+    _body?: unknown,
+  ): Promise<unknown> {
+    void _body;
+    this.requireIdempotencyKey(key);
     if (id === actor.accountId)
       throw badRequest(
         'ADMIN_SELF_MUTATION_FORBIDDEN',
         'Admin cannot mutate own account via workforce endpoint',
       );
-    const account = await this.prisma.userAccount.findUnique({ where: { id } });
-    if (!account) throw forbiddenAsNotFound();
-    if (account.accountKind === AccountKind.CARE_ADMIN)
-      throw badRequest(
-        'ADMIN_ACCOUNT_IMMUTABLE',
-        'CARE Admin account cannot be reset via this endpoint',
-      );
     const requestHash = canonicalHash({ id, action: 'reset' });
-    if (key) {
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: {
-          accountId_scope_key: { accountId: actor.accountId, scope: `admin:reset:${id}`, key },
-        },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different payload');
-        return existing.response;
-      }
-    }
-    const temporaryPassword =
-      account.accountKind === AccountKind.UNION
-        ? account.username
-        : account.employeeId
-          ? ((await this.prisma.employee.findUnique({ where: { id: account.employeeId } }))
-              ?.noReg ?? account.username)
-          : account.username;
-    const passwordHash = await hash(temporaryPassword, {
-      type: 2,
-      memoryCost: 19_456,
-      timeCost: 2,
-      parallelism: 1,
-    });
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.userAccount.update({
-        where: { id },
-        data: { passwordHash, passwordChangeRequired: true },
-      });
-      await tx.session.updateMany({
-        where: { accountId: id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      await tx.pushSubscription.updateMany({
-        where: { accountId: id, active: true },
-        data: { active: false },
-      });
-      await tx.auditEvent.create({
-        data: {
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          action: 'ACCOUNT_PASSWORD_RESET',
-          result: 'SUCCESS',
-          resourceType: 'USER_ACCOUNT',
-          resourceId: id,
-          summary: { accountKind: account.accountKind, username: account.username },
-          correlationId: `admin:reset:${id}`,
-          releaseSha: loadConfig().RELEASE_SHA,
-        },
-      });
-      return { id, username: account.username, temporaryPassword, passwordChangeRequired: true };
-    });
-    if (key)
-      await this.prisma.idempotencyRecord
-        .create({
-          data: {
-            accountId: actor.accountId,
-            scope: `admin:reset:${id}`,
-            key,
-            requestHash,
-            statusCode: 200,
-            response: result as unknown as Prisma.InputJsonValue,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
-        })
-        .catch(() => undefined);
-    return result;
-  }
-
-  async setAccountStatus(actor: AuthActor, id: string, body: unknown, key?: string) {
-    const parsed = z
-      .object({
-        status: z.enum(['ACTIVE', 'INACTIVE']),
-        reason: z.string().trim().min(1).max(500),
-        expectedVersion: z.number().int().optional(),
-      })
-      .safeParse(body);
-    if (!parsed.success)
-      throw badRequest(
-        'VALIDATION_ERROR',
-        'status, reason, and optional expectedVersion are required',
-      );
-    if (id === actor.accountId)
-      throw badRequest(
-        'ADMIN_SELF_MUTATION_FORBIDDEN',
-        'Admin cannot mutate own account via this endpoint',
-      );
-    const account = await this.prisma.userAccount.findUnique({
-      where: { id },
-      include: { employee: true },
-    });
-    if (!account) throw forbiddenAsNotFound();
-    if (account.accountKind === AccountKind.CARE_ADMIN)
-      throw badRequest(
-        'ADMIN_ACCOUNT_IMMUTABLE',
-        'CARE Admin account cannot be deactivated via this endpoint',
-      );
-    const requestHash = canonicalHash({
-      id,
-      status: parsed.data.status,
-      reason: parsed.data.reason,
-    });
-    if (key) {
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: {
-          accountId_scope_key: { accountId: actor.accountId, scope: `admin:status:${id}`, key },
-        },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different payload');
-        return existing.response;
-      }
-    }
-    if (parsed.data.expectedVersion !== undefined) {
-      // use updatedAt version? We use simple check: if account status already matches and version mismatched, conflict
-      // Since UserAccount has no version field, we use updatedAt hash: if expectedVersion provided, ensure it matches current status? Simplified to check if account already in desired status throw conflict if version stale
-    }
-    if (parsed.data.status === 'ACTIVE') {
-      // activation only allowed if employee still exists in active snapshot
-      if (account.employeeId) {
-        const membership = await this.prisma.organizationMembership.findFirst({
-          where: { employeeId: account.employeeId, snapshot: { status: 'ACTIVE' } },
+    return this.executeIdempotent<{
+      id: string;
+      username: string;
+      temporaryPassword: string;
+      passwordChangeRequired: boolean;
+    }>({
+      actor,
+      scope: `admin:reset:${id}`,
+      key,
+      requestHash,
+      resourceLock: `account:${id}`,
+      serialize: (result) => ({ id: result.id, passwordChangeRequired: true }),
+      replay: async (tx, response) => {
+        const account = await tx.userAccount.findUnique({
+          where: { id },
+          include: { employee: { select: { noReg: true } } },
         });
-        if (!membership)
-          throw conflict(
-            'EMPLOYEE_NOT_IN_ACTIVE_SNAPSHOT',
-            'Employee not found in active organization snapshot',
+        if (!account) throw forbiddenAsNotFound();
+        return {
+          id: String(response.id),
+          username: account.username,
+          temporaryPassword:
+            account.accountKind === AccountKind.UNION
+              ? account.username
+              : (account.employee?.noReg ?? account.username),
+          passwordChangeRequired: true,
+        };
+      },
+      work: async (tx) => {
+        const account = await tx.userAccount.findUnique({
+          where: { id },
+          include: { employee: { select: { noReg: true } } },
+        });
+        if (!account) throw forbiddenAsNotFound();
+        if (account.accountKind === AccountKind.CARE_ADMIN)
+          throw badRequest(
+            'ADMIN_ACCOUNT_IMMUTABLE',
+            'CARE Admin account cannot be reset via this endpoint',
           );
-      }
-      if (account.accountKind === AccountKind.UNION) {
-        // Union activation handled via union slot, not generic status
-        throw badRequest('UNION_STATUS_VIA_SLOT', 'Union account status is managed via union slot');
-      }
-    }
-    if (parsed.data.status === 'INACTIVE') {
-      // check active Union slot cannot be deactivated before slot replaced
-      const unionTerm = await this.prisma.unionAccountTerm.findFirst({
-        where: { accountId: id, effectiveTo: null },
-      });
-      if (unionTerm)
-        throw conflict(
-          'UNION_SLOT_ACTIVE',
-          'Active Union slot cannot be deactivated before replacement',
-        );
-      // check legacy/active Voice ownership constraint
-      const activeVoices = await this.prisma.voice.count({
-        where: { status: { not: 'CLOSED' }, OR: [{ routeOwnerId: id }, { currentHandlerId: id }] },
-      });
-      if (activeVoices > 0)
-        throw conflict(
-          'ACTIVE_VOICE_OWNERSHIP',
-          'Account still owns active Voices; reassign or close first',
-        );
-    }
-    const result = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.userAccount.update({
-        where: { id },
-        data: {
-          status: parsed.data.status as AccountStatus,
-          deactivatedAt: parsed.data.status === 'INACTIVE' ? new Date() : null,
-        },
-      });
-      if (parsed.data.status === 'INACTIVE') {
+        const temporaryPassword =
+          account.accountKind === AccountKind.UNION
+            ? account.username
+            : (account.employee?.noReg ?? account.username);
+        const passwordHash = await hash(temporaryPassword, {
+          type: 2,
+          memoryCost: 19_456,
+          timeCost: 2,
+          parallelism: 1,
+        });
+        await tx.userAccount.update({
+          where: { id },
+          data: { passwordHash, passwordChangeRequired: true },
+        });
         await tx.session.updateMany({
           where: { accountId: id, revokedAt: null },
           data: { revokedAt: new Date() },
@@ -387,38 +313,159 @@ export class AdminService {
           where: { accountId: id, active: true },
           data: { active: false },
         });
-      }
-      await tx.auditEvent.create({
-        data: {
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          action: parsed.data.status === 'ACTIVE' ? 'ACCOUNT_ACTIVATED' : 'ACCOUNT_DEACTIVATED',
-          result: 'SUCCESS',
-          resourceType: 'USER_ACCOUNT',
-          resourceId: id,
-          summary: { status: parsed.data.status },
-          reason: parsed.data.reason,
-          correlationId: `admin:status:${id}`,
-          releaseSha: loadConfig().RELEASE_SHA,
-        },
-      });
-      return updated;
-    });
-    if (key)
-      await this.prisma.idempotencyRecord
-        .create({
+        await tx.auditEvent.create({
           data: {
-            accountId: actor.accountId,
-            scope: `admin:status:${id}`,
-            key,
-            requestHash,
-            statusCode: 200,
-            response: result as unknown as Prisma.InputJsonValue,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            action: 'ACCOUNT_PASSWORD_RESET',
+            result: 'SUCCESS',
+            resourceType: 'USER_ACCOUNT',
+            resourceId: id,
+            summary: { accountKind: account.accountKind, username: account.username },
+            correlationId: `admin:reset:${id}`,
+            releaseSha: loadConfig().RELEASE_SHA,
           },
-        })
-        .catch(() => undefined);
-    return result;
+        });
+        return { id, username: account.username, temporaryPassword, passwordChangeRequired: true };
+      },
+    });
+  }
+
+  async setAccountStatus(
+    actor: AuthActor,
+    id: string,
+    body: unknown,
+    key?: string,
+  ): Promise<unknown> {
+    this.requireIdempotencyKey(key);
+    const parsed = z
+      .object({
+        status: z.enum(['ACTIVE', 'INACTIVE']),
+        reason: z.string().trim().min(1).max(500),
+        expectedVersion: z.number().int().positive(),
+      })
+      .safeParse(body);
+    if (!parsed.success)
+      throw badRequest('VALIDATION_ERROR', 'status, reason, and expectedVersion are required');
+    if (id === actor.accountId)
+      throw badRequest(
+        'ADMIN_SELF_MUTATION_FORBIDDEN',
+        'Admin cannot mutate own account via this endpoint',
+      );
+    const requestHash = canonicalHash({
+      id,
+      status: parsed.data.status,
+      reason: parsed.data.reason,
+      expectedVersion: parsed.data.expectedVersion,
+    });
+    return this.executeIdempotent({
+      actor,
+      scope: `admin:status:${id}`,
+      key,
+      requestHash,
+      resourceLock: `account:${id}`,
+      serialize: (result) => result as unknown as Prisma.InputJsonValue,
+      work: async (tx) => {
+        const account = await tx.userAccount.findUnique({
+          where: { id },
+          include: { employee: true },
+        });
+        if (!account) throw forbiddenAsNotFound();
+        if (account.accountKind === AccountKind.CARE_ADMIN)
+          throw badRequest(
+            'ADMIN_ACCOUNT_IMMUTABLE',
+            'CARE Admin account cannot be deactivated via this endpoint',
+          );
+        if (account.version !== parsed.data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'Account has changed; reload and retry');
+        if (parsed.data.status === 'ACTIVE') {
+          // activation only allowed if employee still exists in active snapshot
+          if (account.employeeId) {
+            const membership = await tx.organizationMembership.findFirst({
+              where: { employeeId: account.employeeId, snapshot: { status: 'ACTIVE' } },
+            });
+            if (!membership)
+              throw conflict(
+                'EMPLOYEE_NOT_IN_ACTIVE_SNAPSHOT',
+                'Employee not found in active organization snapshot',
+              );
+          }
+          if (account.accountKind === AccountKind.UNION) {
+            // Union activation handled via union slot, not generic status
+            throw badRequest(
+              'UNION_STATUS_VIA_SLOT',
+              'Union account status is managed via union slot',
+            );
+          }
+        }
+        if (parsed.data.status === 'INACTIVE') {
+          // check active Union slot cannot be deactivated before slot replaced
+          const unionTerm = await tx.unionAccountTerm.findFirst({
+            where: { accountId: id, effectiveTo: null },
+          });
+          if (unionTerm)
+            throw conflict(
+              'UNION_SLOT_ACTIVE',
+              'Active Union slot cannot be deactivated before replacement',
+            );
+          // check legacy/active Voice ownership constraint
+          const activeVoices = await tx.voice.count({
+            where: {
+              status: { not: 'CLOSED' },
+              OR: [{ routeOwnerId: id }, { currentHandlerId: id }],
+            },
+          });
+          if (activeVoices > 0)
+            throw conflict(
+              'ACTIVE_VOICE_OWNERSHIP',
+              'Account still owns active Voices; reassign or close first',
+            );
+          const activeRoutes = await tx.routeMapping.count({
+            where: { ownerAccountId: id, effectiveTo: null },
+          });
+          if (activeRoutes > 0)
+            throw conflict(
+              'ACTIVE_ROUTE_OWNERSHIP',
+              'Account owns an active route; replace the route before deactivation',
+            );
+        }
+        const updatedCount = await tx.userAccount.updateMany({
+          where: { id, version: parsed.data.expectedVersion },
+          data: {
+            status: parsed.data.status as AccountStatus,
+            deactivatedAt: parsed.data.status === 'INACTIVE' ? new Date() : null,
+            version: { increment: 1 },
+          },
+        });
+        if (!updatedCount.count)
+          throw conflict('VERSION_CONFLICT', 'Account has changed; reload and retry');
+        if (parsed.data.status === 'INACTIVE') {
+          await tx.session.updateMany({
+            where: { accountId: id, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+          await tx.pushSubscription.updateMany({
+            where: { accountId: id, active: true },
+            data: { active: false },
+          });
+        }
+        await tx.auditEvent.create({
+          data: {
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            action: parsed.data.status === 'ACTIVE' ? 'ACCOUNT_ACTIVATED' : 'ACCOUNT_DEACTIVATED',
+            result: 'SUCCESS',
+            resourceType: 'USER_ACCOUNT',
+            resourceId: id,
+            summary: { status: parsed.data.status },
+            reason: parsed.data.reason,
+            correlationId: `admin:status:${id}`,
+            releaseSha: loadConfig().RELEASE_SHA,
+          },
+        });
+        return tx.userAccount.findUniqueOrThrow({ where: { id }, select: accountResponseSelect });
+      },
+    });
   }
 
   async issues(
@@ -435,15 +482,7 @@ export class AdminService {
   ) {
     const params = typeof query === 'string' ? { status: query } : (query ?? {});
     const take = Math.min(Math.max(Number(params.limit ?? 20), 1), 100);
-    const cursorId = params.cursor
-      ? (() => {
-          try {
-            return decodeCursor(params.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = params.cursor ? decodeCursor(params.cursor) : undefined;
     const where: Prisma.ImportIssueWhereInput = {};
     if (
       params.status &&
@@ -477,15 +516,7 @@ export class AdminService {
     status?: string;
   }) {
     const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
-    const cursorId = query?.cursor
-      ? (() => {
-          try {
-            return decodeCursor(query.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
     const where: Prisma.ImportIssueResolutionWhereInput = {};
     // resolutions are filtered via issue relation; for simplicity, support limit/cursor only
     const items = await this.prisma.importIssueResolution.findMany({
@@ -525,161 +556,138 @@ export class AdminService {
     );
   }
 
-  async setDefaultPic(actor: AuthActor, unitId: string, body: unknown, idempotencyKey?: string) {
+  async setDefaultPic(
+    actor: AuthActor,
+    unitId: string,
+    body: unknown,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    this.requireIdempotencyKey(idempotencyKey);
     const parsed = accountBody.safeParse(body);
-    if (!parsed.success) throw badRequest('VALIDATION_ERROR', 'accountId is required');
-    const requestHash = canonicalHash({ unitId, ...parsed.data });
-    if (idempotencyKey) {
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: {
-          accountId_scope_key: {
-            accountId: actor.accountId,
-            scope: `admin:default-pic:${unitId}`,
-            key: idempotencyKey,
-          },
-        },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different payload');
-        return existing.response;
-      }
-    }
-    const [unit, activeHead, owner, currentRoute] = await Promise.all([
-      this.prisma.organizationUnit.findUnique({ where: { id: unitId } }),
-      this.prisma.routeMapping.findFirst({
-        where: { organizationUnitId: unitId, kind: RouteKind.DEPARTMENT_HEAD, effectiveTo: null },
-      }),
-      this.prisma.userAccount.findUnique({
-        where: { id: parsed.data.accountId },
-        include: {
-          employee: { include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } } },
-        },
-      }),
-      this.prisma.routeMapping.findFirst({
-        where: {
-          organizationUnitId: unitId,
-          kind: RouteKind.DEFAULT_DEPARTMENT,
-          effectiveTo: null,
-        },
-      }),
-    ]);
-    if (
-      !unit ||
-      !owner ||
-      owner.accountKind !== AccountKind.WORKFORCE ||
-      owner.status !== AccountStatus.ACTIVE ||
-      !owner.employee?.memberships.length
-    )
-      throw forbiddenAsNotFound();
-    if (unit.department === '14')
-      throw conflict('GENERAL_ROUTE_FORBIDDEN', 'Department 14 cannot have a General route');
-    if (activeHead)
-      throw conflict(
-        'DEPARTMENT_HEAD_EXISTS',
-        'Default PIC is only allowed when no active Department Head exists',
+    if (!parsed.success)
+      throw badRequest(
+        'VALIDATION_ERROR',
+        'accountId, expectedCurrentRouteId, and reason are required',
       );
-    if (parsed.data.expectedCurrentRouteId !== undefined) {
-      const expected = parsed.data.expectedCurrentRouteId;
-      const currentId = currentRoute?.id ?? null;
-      if (expected !== currentId)
-        throw conflict('VERSION_CONFLICT', 'Default PIC route has changed; reload and retry');
-    }
-    const reason = parsed.data.reason ?? 'Admin default PIC remediation';
-    const result = await this.replaceRoute(
+    const requestHash = canonicalHash({ unitId, ...parsed.data });
+    return this.executeIdempotent({
       actor,
-      RouteKind.DEFAULT_DEPARTMENT,
-      parsed.data.accountId,
-      unitId,
-      reason,
-    );
-    if (idempotencyKey) {
-      await this.prisma.idempotencyRecord
-        .create({
-          data: {
-            accountId: actor.accountId,
-            scope: `admin:default-pic:${unitId}`,
-            key: idempotencyKey,
-            requestHash,
-            statusCode: 200,
-            response: result as unknown as Prisma.InputJsonValue,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
-        })
-        .catch(() => undefined);
-    }
-    return result;
+      scope: `admin:default-pic:${unitId}`,
+      key: idempotencyKey,
+      requestHash,
+      resourceLock: `route:${RouteKind.DEFAULT_DEPARTMENT}:${unitId}`,
+      serialize: (result) => result as unknown as Prisma.InputJsonValue,
+      work: async (tx) => {
+        const [unit, activeHead, owner, currentRoute] = await Promise.all([
+          tx.organizationUnit.findUnique({ where: { id: unitId } }),
+          tx.routeMapping.findFirst({
+            where: {
+              organizationUnitId: unitId,
+              kind: RouteKind.DEPARTMENT_HEAD,
+              effectiveTo: null,
+            },
+          }),
+          tx.userAccount.findUnique({
+            where: { id: parsed.data.accountId },
+            include: {
+              employee: {
+                include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } },
+              },
+            },
+          }),
+          tx.routeMapping.findFirst({
+            where: {
+              organizationUnitId: unitId,
+              kind: RouteKind.DEFAULT_DEPARTMENT,
+              effectiveTo: null,
+            },
+          }),
+        ]);
+        if (
+          !unit ||
+          !owner ||
+          owner.accountKind !== AccountKind.WORKFORCE ||
+          owner.status !== AccountStatus.ACTIVE ||
+          !owner.employee?.memberships.length
+        )
+          throw forbiddenAsNotFound();
+        if (unit.department === '14')
+          throw conflict('GENERAL_ROUTE_FORBIDDEN', 'Department 14 cannot have a General route');
+        if (activeHead)
+          throw conflict(
+            'DEPARTMENT_HEAD_EXISTS',
+            'Default PIC is only allowed when no active Department Head exists',
+          );
+        if (parsed.data.expectedCurrentRouteId !== (currentRoute?.id ?? null))
+          throw conflict('VERSION_CONFLICT', 'Default PIC route has changed; reload and retry');
+        return this.replaceRoute(
+          tx,
+          actor,
+          RouteKind.DEFAULT_DEPARTMENT,
+          parsed.data.accountId,
+          unitId,
+          parsed.data.reason,
+        );
+      },
+    });
   }
 
-  async setGlobalPic(actor: AuthActor, body: unknown, idempotencyKey?: string) {
+  async setGlobalPic(actor: AuthActor, body: unknown, idempotencyKey?: string): Promise<unknown> {
+    this.requireIdempotencyKey(idempotencyKey);
     const parsed = accountBody.safeParse(body);
-    if (!parsed.success) throw badRequest('VALIDATION_ERROR', 'accountId is required');
+    if (!parsed.success)
+      throw badRequest(
+        'VALIDATION_ERROR',
+        'accountId, expectedCurrentRouteId, and reason are required',
+      );
     const requestHash = canonicalHash(parsed.data);
-    if (idempotencyKey) {
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: {
-          accountId_scope_key: {
-            accountId: actor.accountId,
-            scope: `admin:global-pic`,
-            key: idempotencyKey,
-          },
-        },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different payload');
-        return existing.response;
-      }
-    }
-    const [owner, currentRoute] = await Promise.all([
-      this.prisma.userAccount.findUnique({
-        where: { id: parsed.data.accountId },
-        include: {
-          employee: { include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } } },
-        },
-      }),
-      this.prisma.routeMapping.findFirst({
-        where: { kind: RouteKind.GLOBAL_SPECIAL, effectiveTo: null },
-      }),
-    ]);
-    if (
-      !owner ||
-      owner.status !== AccountStatus.ACTIVE ||
-      owner.accountKind !== AccountKind.WORKFORCE ||
-      !isDepartmentHead(owner.employee?.memberships[0]?.structuralPosition)
-    )
-      throw badRequest('GLOBAL_PIC_INVALID', 'Global PIC must be an active Department Head');
-    if (parsed.data.expectedCurrentRouteId !== undefined) {
-      const expected = parsed.data.expectedCurrentRouteId;
-      const currentId = currentRoute?.id ?? null;
-      if (expected !== currentId)
-        throw conflict('VERSION_CONFLICT', 'Global PIC route has changed; reload and retry');
-    }
-    const reason = parsed.data.reason ?? 'Admin global Safety/Environment/Facility PIC';
-    const result = await this.replaceRoute(actor, RouteKind.GLOBAL_SPECIAL, owner.id, null, reason);
-    if (idempotencyKey) {
-      await this.prisma.idempotencyRecord
-        .create({
-          data: {
-            accountId: actor.accountId,
-            scope: `admin:global-pic`,
-            key: idempotencyKey,
-            requestHash,
-            statusCode: 200,
-            response: result as unknown as Prisma.InputJsonValue,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
-        })
-        .catch(() => undefined);
-    }
-    return result;
+    return this.executeIdempotent({
+      actor,
+      scope: 'admin:global-pic',
+      key: idempotencyKey,
+      requestHash,
+      resourceLock: `route:${RouteKind.GLOBAL_SPECIAL}:global`,
+      serialize: (result) => result as unknown as Prisma.InputJsonValue,
+      work: async (tx) => {
+        const [owner, currentRoute] = await Promise.all([
+          tx.userAccount.findUnique({
+            where: { id: parsed.data.accountId },
+            include: {
+              employee: {
+                include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } },
+              },
+            },
+          }),
+          tx.routeMapping.findFirst({
+            where: { kind: RouteKind.GLOBAL_SPECIAL, effectiveTo: null },
+          }),
+        ]);
+        if (
+          !owner ||
+          owner.status !== AccountStatus.ACTIVE ||
+          owner.accountKind !== AccountKind.WORKFORCE ||
+          !isDepartmentHead(owner.employee?.memberships[0]?.structuralPosition)
+        )
+          throw badRequest('GLOBAL_PIC_INVALID', 'Global PIC must be an active Department Head');
+        if (parsed.data.expectedCurrentRouteId !== (currentRoute?.id ?? null))
+          throw conflict('VERSION_CONFLICT', 'Global PIC route has changed; reload and retry');
+        return this.replaceRoute(
+          tx,
+          actor,
+          RouteKind.GLOBAL_SPECIAL,
+          owner.id,
+          null,
+          parsed.data.reason,
+        );
+      },
+    });
   }
 
   unionAccounts() {
     return this.prisma.unionAccountTerm.findMany({
       where: { effectiveTo: null },
       include: {
-        account: { select: { id: true, username: true, displayName: true, status: true } },
+        account: { select: accountResponseSelect },
       },
       orderBy: { slot: 'asc' },
     });
@@ -690,206 +698,202 @@ export class AdminService {
     slotValue: string,
     body: unknown,
     idempotencyKey?: string,
-  ) {
+  ): Promise<unknown> {
+    this.requireIdempotencyKey(idempotencyKey);
     if (!slots.has(slotValue as UnionSlot))
       throw badRequest('UNION_SLOT_INVALID', 'Union slot must be HEAD, OFFICER_1, or OFFICER_2');
     const slot = slotValue as UnionSlot;
     const parsed = unionBody.safeParse(body);
     if (!parsed.success)
-      throw badRequest('VALIDATION_ERROR', 'Valid username and displayName are required');
-    const requestHash = canonicalHash({ slot, ...parsed.data });
-    if (idempotencyKey) {
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: {
-          accountId_scope_key: {
-            accountId: actor.accountId,
-            scope: `admin:union:${slot}`,
-            key: idempotencyKey,
-          },
-        },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key reused with different payload');
-        return existing.response;
-      }
-    }
+      throw badRequest(
+        'VALIDATION_ERROR',
+        'username, displayName, expectedCurrentTerm, and reason are required',
+      );
     const username = parsed.data.username.toLocaleLowerCase('en-US');
-    const existingUsername = await this.prisma.userAccount.findUnique({ where: { username } });
-    const current = await this.prisma.unionAccountTerm.findFirst({
-      where: { slot, effectiveTo: null },
-      include: { account: true },
-    });
-    if (parsed.data.expectedCurrentTerm !== undefined) {
-      const expected = parsed.data.expectedCurrentTerm;
-      const currentId = current?.id ?? null;
-      if (expected !== currentId)
-        throw conflict('VERSION_CONFLICT', 'Union slot has changed; reload and retry');
-    }
-    if (existingUsername && existingUsername.id !== current?.accountId)
-      throw conflict('USERNAME_EXISTS', 'Username is already used');
-    const passwordHash = await hash(username, {
-      type: 2,
-      memoryCost: 19_456,
-      timeCost: 2,
-      parallelism: 1,
-    });
-    const result = await this.prisma.$transaction(async (tx) => {
-      if (current) {
-        await tx.unionAccountTerm.update({
-          where: { id: current.id },
-          data: { effectiveTo: new Date() },
-        });
-        const activeVoices = await tx.voice.findMany({
-          where: {
-            status: { not: 'CLOSED' },
-            OR: [{ routeOwnerId: current.accountId }, { currentHandlerId: current.accountId }],
-          },
-          select: { id: true },
-        });
-        if (activeVoices.length)
-          await tx.legacyVoiceAccess.createMany({
-            data: activeVoices.map((voice) => ({
-              voiceId: voice.id,
-              accountId: current.accountId,
-              reason: 'UNION_SLOT_REPLACED',
-            })),
-            skipDuplicates: true,
-          });
-        await tx.userAccount.update({
-          where: { id: current.accountId },
-          data: {
-            status: activeVoices.length ? AccountStatus.LEGACY_HANDLER : AccountStatus.INACTIVE,
-            deactivatedAt: new Date(),
-          },
-        });
-        await tx.session.updateMany({
-          where: { accountId: current.accountId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-      }
-      const account = existingUsername
-        ? await tx.userAccount.update({
-            where: { id: existingUsername.id },
-            data: {
-              accountKind: AccountKind.UNION,
-              status: AccountStatus.ACTIVE,
-              displayName: parsed.data.displayName,
-              passwordHash,
-              passwordChangeRequired: true,
-              deactivatedAt: null,
-            },
-          })
-        : await tx.userAccount.create({
-            data: {
-              username,
-              displayName: parsed.data.displayName,
-              passwordHash,
-              accountKind: AccountKind.UNION,
-            },
-          });
-      const term = await tx.unionAccountTerm.create({ data: { accountId: account.id, slot } });
-      await this.audit(tx, actor, 'UNION_SLOT_REPLACED', term.id, {
+    const requestHash = canonicalHash({ slot, ...parsed.data, username });
+    return this.executeIdempotent<{
+      slot: UnionSlot;
+      account: unknown;
+      temporaryPassword: string;
+      passwordChangeRequired: boolean;
+    }>({
+      actor,
+      scope: `admin:union:${slot}`,
+      key: idempotencyKey,
+      requestHash,
+      resourceLock: `union-slot:${slot}`,
+      serialize: (result) =>
+        ({
+          slot: result.slot,
+          account: result.account,
+          passwordChangeRequired: true,
+        }) as unknown as Prisma.InputJsonValue,
+      replay: (_tx, response) => ({
+        ...response,
         slot,
-        accountId: account.id,
-        reason: parsed.data.reason ?? null,
-      });
-      const issues = await tx.importIssue.findMany({
-        where: {
-          status: ImportIssueStatus.OPEN,
-          type: slot === UnionSlot.HEAD ? 'UNION_HEAD_MISSING' : 'UNION_OFFICER_MISSING',
-        },
-      });
-      for (const issue of issues) {
-        const details = issue.details as { slot?: string };
-        if (slot !== UnionSlot.HEAD && details.slot !== slot) continue;
-        await tx.importIssue.update({
-          where: { id: issue.id },
-          data: { status: ImportIssueStatus.RESOLVED, resolvedAt: new Date() },
-        });
-        await tx.importIssueResolution.create({
-          data: {
-            issueId: issue.id,
-            actorId: actor.accountId,
-            action: 'UNION_SLOT_PROVISIONED',
-            reason: parsed.data.reason ?? `Provisioned ${slot}`,
-            details: { accountId: account.id, slot },
-          },
-        });
-      }
-      return {
-        slot,
-        account: { id: account.id, username: account.username, displayName: account.displayName },
+        account: response.account,
         temporaryPassword: username,
         passwordChangeRequired: true,
-      };
-    });
-    if (idempotencyKey) {
-      await this.prisma.idempotencyRecord
-        .create({
-          data: {
-            accountId: actor.accountId,
-            scope: `admin:union:${slot}`,
-            key: idempotencyKey,
-            requestHash,
-            statusCode: 200,
-            response: result as unknown as Prisma.InputJsonValue,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      }),
+      work: async (tx) => {
+        const existingUsername = await tx.userAccount.findUnique({ where: { username } });
+        const current = await tx.unionAccountTerm.findFirst({
+          where: { slot, effectiveTo: null },
+          include: { account: true },
+        });
+        if (parsed.data.expectedCurrentTerm !== (current?.id ?? null))
+          throw conflict('VERSION_CONFLICT', 'Union slot has changed; reload and retry');
+        if (existingUsername && existingUsername.id !== current?.accountId)
+          throw conflict('USERNAME_EXISTS', 'Username is already used');
+        const passwordHash = await hash(username, {
+          type: 2,
+          memoryCost: 19_456,
+          timeCost: 2,
+          parallelism: 1,
+        });
+        if (current) {
+          await tx.unionAccountTerm.update({
+            where: { id: current.id },
+            data: { effectiveTo: new Date() },
+          });
+          const activeVoices = await tx.voice.findMany({
+            where: {
+              status: { not: 'CLOSED' },
+              OR: [{ routeOwnerId: current.accountId }, { currentHandlerId: current.accountId }],
+            },
+            select: { id: true },
+          });
+          if (activeVoices.length)
+            await tx.legacyVoiceAccess.createMany({
+              data: activeVoices.map((voice) => ({
+                voiceId: voice.id,
+                accountId: current.accountId,
+                reason: 'UNION_SLOT_REPLACED',
+              })),
+              skipDuplicates: true,
+            });
+          await tx.userAccount.update({
+            where: { id: current.accountId },
+            data: {
+              status: activeVoices.length ? AccountStatus.LEGACY_HANDLER : AccountStatus.INACTIVE,
+              deactivatedAt: new Date(),
+            },
+          });
+          await tx.session.updateMany({
+            where: { accountId: current.accountId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
+        const account = existingUsername
+          ? await tx.userAccount.update({
+              where: { id: existingUsername.id },
+              data: {
+                accountKind: AccountKind.UNION,
+                status: AccountStatus.ACTIVE,
+                displayName: parsed.data.displayName,
+                passwordHash,
+                passwordChangeRequired: true,
+                deactivatedAt: null,
+              },
+            })
+          : await tx.userAccount.create({
+              data: {
+                username,
+                displayName: parsed.data.displayName,
+                passwordHash,
+                accountKind: AccountKind.UNION,
+              },
+            });
+        const term = await tx.unionAccountTerm.create({ data: { accountId: account.id, slot } });
+        await this.audit(tx, actor, 'UNION_SLOT_REPLACED', term.id, {
+          slot,
+          accountId: account.id,
+          reason: parsed.data.reason,
+        });
+        const issues = await tx.importIssue.findMany({
+          where: {
+            status: ImportIssueStatus.OPEN,
+            type: slot === UnionSlot.HEAD ? 'UNION_HEAD_MISSING' : 'UNION_OFFICER_MISSING',
           },
-        })
-        .catch(() => undefined);
-    }
-    return result;
+        });
+        for (const issue of issues) {
+          const details = issue.details as { slot?: string };
+          if (slot !== UnionSlot.HEAD && details.slot !== slot) continue;
+          await tx.importIssue.update({
+            where: { id: issue.id },
+            data: { status: ImportIssueStatus.RESOLVED, resolvedAt: new Date() },
+          });
+          await tx.importIssueResolution.create({
+            data: {
+              issueId: issue.id,
+              actorId: actor.accountId,
+              action: 'UNION_SLOT_PROVISIONED',
+              reason: parsed.data.reason,
+              details: { accountId: account.id, slot },
+            },
+          });
+        }
+        const safeAccount = await tx.userAccount.findUniqueOrThrow({
+          where: { id: account.id },
+          select: accountResponseSelect,
+        });
+        return {
+          slot,
+          account: safeAccount,
+          temporaryPassword: username,
+          passwordChangeRequired: true,
+        };
+      },
+    });
   }
 
   private async replaceRoute(
+    tx: Prisma.TransactionClient,
     actor: AuthActor,
     kind: RouteKind,
     ownerAccountId: string,
     organizationUnitId: string | null,
     reason: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.routeMapping.updateMany({
-        where: { kind, organizationUnitId, effectiveTo: null },
-        data: { effectiveTo: new Date() },
+    await tx.routeMapping.updateMany({
+      where: { kind, organizationUnitId, effectiveTo: null },
+      data: { effectiveTo: new Date() },
+    });
+    const route = await tx.routeMapping.create({
+      data: { kind, organizationUnitId, ownerAccountId, createdById: actor.accountId, reason },
+    });
+    await this.audit(tx, actor, 'ROUTE_MAPPING_CHANGED', route.id, {
+      kind,
+      organizationUnitId,
+      ownerAccountId,
+    });
+    const issueTypes =
+      kind === RouteKind.GLOBAL_SPECIAL
+        ? (['INVALID_GLOBAL_PIC'] as const)
+        : (['MISSING_DEPARTMENT_HEAD', 'INVALID_DEFAULT_PIC'] as const);
+    const issues = await tx.importIssue.findMany({
+      where: {
+        status: ImportIssueStatus.OPEN,
+        type: { in: [...issueTypes] },
+        ...(organizationUnitId ? { organizationUnitId } : {}),
+      },
+    });
+    for (const issue of issues) {
+      await tx.importIssue.update({
+        where: { id: issue.id },
+        data: { status: ImportIssueStatus.RESOLVED, resolvedAt: new Date() },
       });
-      const route = await tx.routeMapping.create({
-        data: { kind, organizationUnitId, ownerAccountId, createdById: actor.accountId, reason },
-      });
-      await this.audit(tx, actor, 'ROUTE_MAPPING_CHANGED', route.id, {
-        kind,
-        organizationUnitId,
-        ownerAccountId,
-      });
-      const issueTypes =
-        kind === RouteKind.GLOBAL_SPECIAL
-          ? (['INVALID_GLOBAL_PIC'] as const)
-          : (['MISSING_DEPARTMENT_HEAD', 'INVALID_DEFAULT_PIC'] as const);
-      const issues = await tx.importIssue.findMany({
-        where: {
-          status: ImportIssueStatus.OPEN,
-          type: { in: [...issueTypes] },
-          ...(organizationUnitId ? { organizationUnitId } : {}),
+      await tx.importIssueResolution.create({
+        data: {
+          issueId: issue.id,
+          actorId: actor.accountId,
+          action: 'ROUTE_PIC_ASSIGNED',
+          reason,
+          details: { routeMappingId: route.id, ownerAccountId },
         },
       });
-      for (const issue of issues) {
-        await tx.importIssue.update({
-          where: { id: issue.id },
-          data: { status: ImportIssueStatus.RESOLVED, resolvedAt: new Date() },
-        });
-        await tx.importIssueResolution.create({
-          data: {
-            issueId: issue.id,
-            actorId: actor.accountId,
-            action: 'ROUTE_PIC_ASSIGNED',
-            reason,
-            details: { routeMappingId: route.id, ownerAccountId },
-          },
-        });
-      }
-      return route;
-    });
+    }
+    return route;
   }
 
   async auditEvents(query?: {
@@ -905,15 +909,7 @@ export class AdminService {
     correlationId?: string;
   }) {
     const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
-    const cursorId = query?.cursor
-      ? (() => {
-          try {
-            return decodeCursor(query.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
     const where: Prisma.AuditEventWhereInput = {};
     if (query?.from || query?.to) {
       where.occurredAt = {};
@@ -985,6 +981,66 @@ export class AdminService {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(summary)) if (!forbidden.has(k)) out[k] = v;
     return out;
+  }
+
+  private async executeIdempotent<T>(options: {
+    actor: AuthActor;
+    scope: string;
+    key?: string;
+    requestHash: string;
+    resourceLock: string;
+    work: (tx: Prisma.TransactionClient) => Promise<T>;
+    serialize: (result: T) => Prisma.InputJsonValue;
+    replay?: (tx: Prisma.TransactionClient, response: Record<string, unknown>) => Promise<T> | T;
+    statusCode?: number;
+  }): Promise<T> {
+    const idempotencyLock = `${options.actor.accountId}:${options.scope}:${options.key ?? 'none'}`;
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyLock}, 0))::text AS lock`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${options.resourceLock}, 0))::text AS lock`;
+        if (options.key) {
+          const existing = await tx.idempotencyRecord.findUnique({
+            where: {
+              accountId_scope_key: {
+                accountId: options.actor.accountId,
+                scope: options.scope,
+                key: options.key,
+              },
+            },
+          });
+          if (existing) {
+            if (existing.requestHash !== options.requestHash)
+              throw conflict(
+                'IDEMPOTENCY_CONFLICT',
+                'Idempotency key reused with different payload',
+              );
+            const response = existing.response as Record<string, unknown>;
+            return options.replay ? options.replay(tx, response) : (response as T);
+          }
+        }
+        const result = await options.work(tx);
+        if (options.key)
+          await tx.idempotencyRecord.create({
+            data: {
+              accountId: options.actor.accountId,
+              scope: options.scope,
+              key: options.key,
+              requestHash: options.requestHash,
+              statusCode: options.statusCode ?? 200,
+              response: options.serialize(result),
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+        return result;
+      },
+      { timeout: 120_000 },
+    );
+  }
+
+  private requireIdempotencyKey(key?: string) {
+    if (!key || key.length > 100)
+      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
   }
 
   private audit(

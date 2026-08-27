@@ -90,6 +90,17 @@ export class MediaService {
     return this.prisma.attachment.update({
       where: { id: attachment.id },
       data: { state: AttachmentState.READY, readyAt: new Date() },
+      select: {
+        id: true,
+        purpose: true,
+        state: true,
+        mimeType: true,
+        size: true,
+        width: true,
+        height: true,
+        createdAt: true,
+        readyAt: true,
+      },
     });
   }
 

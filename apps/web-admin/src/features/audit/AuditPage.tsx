@@ -13,44 +13,67 @@ import {
   Input,
   Select,
 } from '@care/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-
-type Audit = {
-  id: string;
-  action: string;
-  result: string;
-  resourceType: string;
-  resourceId?: string | null;
-  actorAccountKind?: string | null;
-  occurredAt: string;
-  correlationId: string;
-  reason?: string | null;
-  summary: Record<string, unknown>;
-};
+import { createAdminApi, type AuditEvent as Audit } from '../../admin-api';
+import { cursorPagination } from '../../use-cursor-pagination';
 
 export function AuditPage() {
-  const { session } = useAuth();
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const cursor = searchParams.get('cursor') ?? undefined;
+  const pagination = cursorPagination(searchParams, setSearchParams);
   const action = searchParams.get('action') ?? '';
-  const [detail, setDetail] = useState<Audit | null>(null);
+  const result = searchParams.get('result') ?? '';
+  const actorKind = searchParams.get('actorKind') ?? '';
+  const resourceType = searchParams.get('resourceType') ?? '';
+  const correlationId = searchParams.get('correlationId') ?? '';
+  const from = searchParams.get('from') ?? '';
+  const to = searchParams.get('to') ?? '';
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   const q = useQuery({
-    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'audit', action, cursor ?? 'first'),
-    queryFn: async () => {
-      const qs = new URLSearchParams({
-        limit: '20',
-        ...(action ? { action } : {}),
-        ...(cursor ? { cursor } : {}),
-      });
-      const res = await fetch(`/api/v1/admin/audit-events?${qs}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Gagal memuat audit');
-      return (await res.json()) as { items: Audit[]; nextCursor: string | null };
-    },
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'audit',
+      action,
+      result,
+      actorKind,
+      resourceType,
+      correlationId,
+      from,
+      to,
+      pagination.cursor ?? 'first',
+    ),
+    queryFn: () =>
+      api.auditEvents({
+        limit: 20,
+        action: action || undefined,
+        result: result || undefined,
+        actorKind: actorKind || undefined,
+        resourceType: resourceType || undefined,
+        correlationId: correlationId || undefined,
+        from: from || undefined,
+        to: to || undefined,
+        cursor: pagination.cursor,
+      }),
     enabled: !!session,
   });
+  const detailQuery = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'audit', 'detail', selectedId ?? 'none'),
+    queryFn: () => api.auditEvent(selectedId!),
+    enabled: !!session && !!selectedId,
+  });
+  const detail = detailQuery.data;
+  const updateFilter = (name: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('cursor');
+    params.delete('cursorHistory');
+    if (value) params.set(name, value);
+    else params.delete(name);
+    setSearchParams(params);
+  };
 
   return (
     <Stack gap="lg">
@@ -65,16 +88,45 @@ export function AuditPage() {
             <Input
               label="Filter action"
               value={action}
-              onChange={(e) =>
-                setSearchParams({ ...(e.target.value ? { action: e.target.value } : {}) })
-              }
+              onChange={(e) => updateFilter('action', e.target.value)}
               placeholder="ACCOUNT_PASSWORD_RESET"
             />
             <Select
-              label="Sort"
-              value="newest"
-              onValueChange={() => {}}
-              options={[{ value: 'newest', label: 'Terbaru' }]}
+              label="Result"
+              value={result || 'ALL'}
+              onValueChange={(v) => updateFilter('result', v === 'ALL' ? '' : v)}
+              options={[
+                { value: 'ALL', label: 'Semua' },
+                { value: 'SUCCESS', label: 'Success' },
+                { value: 'FAILED', label: 'Failed' },
+              ]}
+            />
+            <Input
+              label="Actor kind"
+              value={actorKind}
+              onChange={(e) => updateFilter('actorKind', e.target.value)}
+            />
+            <Input
+              label="Resource type"
+              value={resourceType}
+              onChange={(e) => updateFilter('resourceType', e.target.value)}
+            />
+            <Input
+              label="Correlation ID"
+              value={correlationId}
+              onChange={(e) => updateFilter('correlationId', e.target.value)}
+            />
+            <Input
+              label="Dari"
+              type="datetime-local"
+              value={from}
+              onChange={(e) => updateFilter('from', e.target.value)}
+            />
+            <Input
+              label="Sampai"
+              type="datetime-local"
+              value={to}
+              onChange={(e) => updateFilter('to', e.target.value)}
             />
           </div>
           {q.isLoading ? (
@@ -111,7 +163,7 @@ export function AuditPage() {
                     cell: (r: Audit) => (
                       <button
                         onClick={() => {
-                          setDetail(r);
+                          setSelectedId(r.id);
                           setOpen(true);
                         }}
                         style={{ fontSize: '0.75rem', color: 'var(--action-primary)' }}
@@ -126,14 +178,14 @@ export function AuditPage() {
                 empty={<span>Tidak ada audit</span>}
               />
               <Pagination
-                page={1}
-                pageCount={q.data?.nextCursor ? 2 : 1}
-                onPageChange={(p) =>
-                  setSearchParams(
-                    p === 2 && q.data?.nextCursor
-                      ? { cursor: q.data.nextCursor, ...(action ? { action } : {}) }
-                      : { ...(action ? { action } : {}) },
-                  )
+                page={pagination.page}
+                pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
+                onPageChange={(page) =>
+                  page < pagination.page
+                    ? pagination.previous()
+                    : q.data?.nextCursor
+                      ? pagination.next(q.data.nextCursor)
+                      : undefined
                 }
               />
             </>
@@ -158,6 +210,11 @@ export function AuditPage() {
               </div>
               <div>Waktu: {new Date(detail.occurredAt).toLocaleString('id-ID')}</div>
               <div>Alasan: {detail.reason ?? '-'}</div>
+              <div>Release: {detail.releaseSha}</div>
+              <div>
+                Actor snapshot: {detail.actorAccountKind ?? '-'} /{' '}
+                {detail.actorStructuralPosition ?? '-'}
+              </div>
             </div>
             <pre
               style={{

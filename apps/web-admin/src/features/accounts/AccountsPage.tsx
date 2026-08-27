@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Alert,
   Badge,
@@ -12,42 +11,32 @@ import {
   Input,
   Loader,
   PageHeader,
+  Pagination,
   Select,
   Stack,
   Textarea,
 } from '@care/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-
-type Account = {
-  id: string;
-  username: string;
-  displayName: string;
-  accountKind: string;
-  status: string;
-  employee?: {
-    noReg: string;
-    memberships: Array<{
-      structuralPosition: string;
-      organizationUnit: { division: string; department: string };
-    }>;
-  } | null;
-};
+import { createAdminApi, type Account } from '../../admin-api';
+import { cursorPagination } from '../../use-cursor-pagination';
 
 export function AccountsPage() {
-  const { session } = useAuth();
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('search') ?? '';
   const kind = searchParams.get('kind') ?? '';
   const status = searchParams.get('status') ?? '';
-  const cursor = searchParams.get('cursor') ?? undefined;
-  const [detail, setDetail] = useState<Account | null>(null);
+  const pagination = cursorPagination(searchParams, setSearchParams);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [confirmAction, setConfirmAction] = useState<'reset' | 'deactivate' | 'activate' | null>(
     null,
   );
+  const [operationKey, setOperationKey] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: careQueryKey(
@@ -56,45 +45,33 @@ export function AccountsPage() {
       search,
       kind,
       status,
-      cursor ?? 'first',
+      pagination.cursor ?? 'first',
     ),
-    queryFn: async () => {
-      const qs = new URLSearchParams({
-        limit: '20',
-        ...(search ? { search } : {}),
-        ...(kind ? { kind } : {}),
-        ...(status ? { status } : {}),
-        ...(cursor ? { cursor } : {}),
-      });
-      const res = await fetch(`/api/v1/admin/accounts?${qs}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Gagal memuat accounts');
-      const j = await res.json();
-      // handle both paginated and array
-      if (Array.isArray(j)) return { items: j as Account[], nextCursor: null as string | null };
-      return j as { items: Account[]; nextCursor: string | null };
-    },
+    queryFn: () =>
+      api.accounts({
+        limit: 20,
+        search: search || undefined,
+        kind: kind || undefined,
+        status: status || undefined,
+        cursor: pagination.cursor,
+      }),
     enabled: !!session,
   });
 
-  async function getCsrf() {
-    const r = await fetch('/api/v1/auth/csrf', { credentials: 'include' });
-    const j = (await r.json()) as { token: string };
-    return j.token;
-  }
+  const detailQuery = useQuery({
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'accounts',
+      'detail',
+      selectedId ?? 'none',
+    ),
+    queryFn: () => api.account(selectedId!),
+    enabled: !!session && !!selectedId,
+  });
+  const detail = detailQuery.data ?? null;
 
   const reset = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/v1/admin/accounts/${id}/reset-password`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'X-CSRF-Token': await getCsrf(), 'Idempotency-Key': crypto.randomUUID() },
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Reset gagal');
-      }
-      return res.json();
-    },
+    mutationFn: ({ id, key }: { id: string; key: string }) => api.resetPassword(id, key),
     onSuccess: () => {
       setConfirmAction(null);
       void qc.invalidateQueries({
@@ -104,23 +81,17 @@ export function AccountsPage() {
   });
 
   const setStatus = useMutation({
-    mutationFn: async ({ id, st }: { id: string; st: 'ACTIVE' | 'INACTIVE' }) => {
-      const res = await fetch(`/api/v1/admin/accounts/${id}/status`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': await getCsrf(),
-          'Idempotency-Key': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ status: st, reason }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Gagal ubah status');
-      }
-      return res.json();
-    },
+    mutationFn: ({
+      id,
+      st,
+      version,
+      key,
+    }: {
+      id: string;
+      st: 'ACTIVE' | 'INACTIVE';
+      version: number;
+      key: string;
+    }) => api.setAccountStatus(id, { status: st, reason, expectedVersion: version }, key),
     onSuccess: () => {
       setConfirmAction(null);
       setReason('');
@@ -233,7 +204,7 @@ export function AccountsPage() {
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          setDetail(r);
+                          setSelectedId(r.id);
                           setDrawerOpen(true);
                         }}
                       >
@@ -246,22 +217,14 @@ export function AccountsPage() {
                 rowKey={(r: Account) => r.id}
                 empty={<span>Tidak ada akun</span>}
               />
-              {q.data?.nextCursor ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    setSearchParams({
-                      ...(search ? { search } : {}),
-                      ...(kind ? { kind } : {}),
-                      ...(status ? { status } : {}),
-                      cursor: q.data.nextCursor!,
-                    })
-                  }
-                >
-                  Muat lebih
-                </Button>
-              ) : null}
+              <Pagination
+                page={pagination.page}
+                pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
+                onPageChange={(page) => {
+                  if (page < pagination.page) pagination.previous();
+                  else if (q.data?.nextCursor) pagination.next(q.data.nextCursor);
+                }}
+              />
             </>
           )}
         </Stack>
@@ -297,15 +260,37 @@ export function AccountsPage() {
             </div>
             {detail.accountKind !== 'CARE_ADMIN' ? (
               <Stack gap="sm">
-                <Button variant="secondary" onClick={() => setConfirmAction('reset')}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setOperationKey(crypto.randomUUID());
+                    setConfirmAction('reset');
+                  }}
+                >
                   Reset password (sementara = noReg/username)
                 </Button>
-                <Button variant="secondary" onClick={() => setConfirmAction('deactivate')}>
-                  Nonaktifkan
-                </Button>
-                <Button variant="secondary" onClick={() => setConfirmAction('activate')}>
-                  Aktifkan
-                </Button>
+                {detail.status === 'ACTIVE' || detail.status === 'LEGACY_HANDLER' ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setOperationKey(crypto.randomUUID());
+                      setConfirmAction('deactivate');
+                    }}
+                  >
+                    Nonaktifkan
+                  </Button>
+                ) : null}
+                {detail.status === 'INACTIVE' ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setOperationKey(crypto.randomUUID());
+                      setConfirmAction('activate');
+                    }}
+                  >
+                    Aktifkan
+                  </Button>
+                ) : null}
               </Stack>
             ) : null}
           </Stack>
@@ -322,7 +307,12 @@ export function AccountsPage() {
             <Button variant="secondary" onClick={() => setConfirmAction(null)}>
               Batal
             </Button>
-            <Button loading={reset.isPending} onClick={() => detail && reset.mutate(detail.id)}>
+            <Button
+              loading={reset.isPending}
+              onClick={() =>
+                detail && operationKey && reset.mutate({ id: detail.id, key: operationKey })
+              }
+            >
               Ya, reset
             </Button>
           </>
@@ -357,8 +347,11 @@ export function AccountsPage() {
                 setStatus.mutate({
                   id: detail.id,
                   st: confirmAction === 'deactivate' ? 'INACTIVE' : 'ACTIVE',
+                  version: detail.version,
+                  key: operationKey!,
                 })
               }
+              disabled={!reason.trim() || !operationKey}
             >
               Simpan
             </Button>

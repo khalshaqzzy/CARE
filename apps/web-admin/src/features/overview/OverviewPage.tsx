@@ -2,63 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth, careQueryKey } from '@care/frontend-core';
 import { Alert, Card, Loader, PageHeader, Stack, StatCard } from '@care/ui';
 import { Activity, Archive, ShieldCheck, UsersRound } from 'lucide-react';
+import { useMemo } from 'react';
+import { createAdminApi } from '../../admin-api';
 
-function useFetch<T>(path: string, key: string[]) {
-  const { session } = useAuth();
-  return useQuery({
-    queryKey: careQueryKey(session?.sessionId ?? 'anon', ...key),
-    queryFn: async () => {
-      const res = await fetch(path, { credentials: 'include' });
-      if (!res.ok) throw new Error(`Gagal memuat ${path}`);
-      return (await res.json()) as T;
-    },
+export function OverviewPage() {
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
+  const overview = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'overview'),
+    queryFn: api.overview,
     enabled: !!session,
     staleTime: 30_000,
   });
-}
-
-export function OverviewPage() {
-  const accounts = useFetch<{ items: Array<{ status: string }> } | Array<unknown>>(
-    '/api/v1/admin/accounts?limit=100',
-    ['overview', 'accounts'],
-  );
-  const imports = useFetch<{ items: Array<{ status: string }> } | Array<unknown>>(
-    '/api/v1/admin/organization-imports?limit=1',
-    ['overview', 'imports'],
-  );
-  const remediation = useFetch<{ items: unknown[] } | unknown[]>(
-    '/api/v1/admin/remediation-issues?limit=1',
-    ['overview', 'remediation'],
-  );
-  const union = useFetch<unknown[]>('/api/v1/admin/union-accounts', ['overview', 'union']);
-  const health = useFetch<{ status: string }>('/health', ['overview', 'health']);
-  const ready = useFetch<Record<string, unknown>>('/ready', ['overview', 'ready']);
-  const release = useFetch<{ releaseSha: string }>('/release.json', ['overview', 'release']);
-
-  const accountItems = Array.isArray(accounts.data)
-    ? accounts.data
-    : ((accounts.data as { items?: unknown[] })?.items ?? []);
-  const active = accountItems.filter(
-    (a: unknown) => (a as { status: string }).status === 'ACTIVE',
-  ).length;
-  const legacy = accountItems.filter(
-    (a: unknown) => (a as { status: string }).status === 'LEGACY_HANDLER',
-  ).length;
-  const inactive = accountItems.filter(
-    (a: unknown) => (a as { status: string }).status === 'INACTIVE',
-  ).length;
-
-  const importItems = Array.isArray(imports.data)
-    ? imports.data
-    : ((imports.data as { items?: unknown[] })?.items ?? []);
-  const latestImport = importItems[0] as { status?: string; id?: string } | undefined;
-
-  const remediationItems = Array.isArray(remediation.data)
-    ? remediation.data
-    : ((remediation.data as { items?: unknown[] })?.items ?? []);
-  const unionList = Array.isArray(union.data) ? union.data : [];
-  const loading =
-    accounts.isLoading || imports.isLoading || remediation.isLoading || union.isLoading;
+  const health = useQuery({ queryKey: ['health'], queryFn: api.health, enabled: !!session });
+  const ready = useQuery({ queryKey: ['ready'], queryFn: api.ready, enabled: !!session });
+  const release = useQuery({ queryKey: ['release'], queryFn: api.release, enabled: !!session });
+  const data = overview.data;
 
   return (
     <Stack gap="lg">
@@ -67,39 +26,39 @@ export function OverviewPage() {
         title="Overview operasional"
         description="Ringkasan akun, import, remediation, dan kesehatan sistem."
       />
-      {loading ? <Loader label="Memuat overview" /> : null}
+      {overview.isLoading ? <Loader label="Memuat overview" /> : null}
       <div
         className="care-grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))', gap: '1rem' }}
       >
         <StatCard
           label="Akun aktif"
-          value={String(active)}
-          description={`${legacy} legacy • ${inactive} inactive`}
+          value={String(data?.accounts.active ?? 0)}
+          description={`${data?.accounts.legacy ?? 0} legacy • ${data?.accounts.inactive ?? 0} inactive`}
           icon={<UsersRound size={18} />}
           tone="brand"
         />
         <StatCard
           label="Import terbaru"
-          value={latestImport?.status ?? '-'}
+          value={data?.latestImport?.status ?? '-'}
           description={
-            latestImport?.id ? `ID ${String(latestImport.id).slice(0, 8)}` : 'Belum ada import'
+            data?.latestImport?.id ? `ID ${data.latestImport.id.slice(0, 8)}` : 'Belum ada import'
           }
           icon={<Archive size={18} />}
         />
         <StatCard
           label="Remediation terbuka"
-          value={String(remediationItems.length)}
+          value={String(data?.openRemediation ?? 0)}
           description="Isu yang memerlukan tindakan"
           icon={<Activity size={18} />}
-          tone={remediationItems.length ? 'warning' : 'default'}
+          tone={data?.openRemediation ? 'warning' : 'default'}
         />
         <StatCard
           label="Union slots"
-          value={`${unionList.length}/3`}
-          description={unionList.length === 3 ? 'Lengkap' : 'Belum lengkap'}
+          value={`${data?.unionSlots ?? 0}/3`}
+          description={data?.unionSlots === 3 ? 'Lengkap' : 'Belum lengkap'}
           icon={<ShieldCheck size={18} />}
-          tone={unionList.length === 3 ? 'success' : 'warning'}
+          tone={data?.unionSlots === 3 ? 'success' : 'warning'}
         />
       </div>
       <div

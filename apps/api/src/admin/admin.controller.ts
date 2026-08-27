@@ -21,6 +21,10 @@ import { AdminService } from './admin.service';
 @Controller('admin')
 export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
+  @Get('overview') overview() {
+    return this.service.overview();
+  }
+
   @Get('accounts') accounts(
     @Query('search') search?: string,
     @Query('kind') kind?: string,

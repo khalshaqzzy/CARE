@@ -30,7 +30,7 @@ Implement Phase 8 on a dedicated branch `feat/phase-8-admin-operations` in three
 
 **1. Contract & Backend Completion (Phase 8.0).** Regenerate OpenAPI and `@care/contracts` so every response rendered by the UI is explicit (`additionalProperties: false` where applicable). All large lists use a signed opaque cursor (`encodeCursor`/`decodeCursor` over `id`), `limit`, server-side filter, and stable sort. Sensitive mutations use `Idempotency-Key` with `canonicalHash` of the payload, optimistic expectations (`checksum`, `expectedVersion`, `expectedCurrentRouteId`, `expectedCurrentTerm`), CSRF, `reason`, and return the fresh version. Add indexes for `ImportBatch(createdAt)`, `UserAccount(username,displayName,createdAt)`, `Voice(severity/title)`, `OrganizationUnit`, and `AuditEvent(action/result/correlation)` via `20260827000000_phase8_admin_ops`.
 
-- `POST /admin/organization-imports/preview` returns `{id,checksum,version,expiresAt,status,summary,errors}` with typed `OrganizationImportSummary` (`rowCount,unitCount,create,update,deactivate,unchanged,routeGaps,department14Rows,globalPicInvalid,unionGaps,changes`). `GET .../{id}/changes` is cursor-paginated with `filter=CREATE|UPDATE|DEACTIVATE|UNCHANGED` and stable sort; the 10 000 rows are never sent in `summary`.
+- `POST /admin/organization-imports/preview` returns `{id,checksum,version,expiresAt,status,summary,errors}` with bounded typed `OrganizationImportSummary` (`rowCount,unitCount,create,update,deactivate,unchanged,routeGaps,department14Rows,globalPicInvalid,unionGaps`). Individual changes are persisted as `ImportChange` rows and served only through cursor-paginated `GET .../{id}/changes` with `filter=CREATE|UPDATE|DEACTIVATE|UNCHANGED`; the 10 000 rows are never embedded in `summary`.
 - `POST .../{id}/confirm` accepts `{checksum,expectedVersion}` and `Idempotency-Key`; stale preview, checksum mismatch, duplicate key with different payload, and expired `expiresAt` produce stable `409` codes (`CHECKSUM_MISMATCH`, `VERSION_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `IMPORT_EXPIRED`, `IMPORT_NOT_CONFIRMABLE`). Success is `202`/`QUEUED` and is stored in `IdempotencyRecord` via `accountId_scope_key`.
 - `GET /admin/organization-imports` and `GET /admin/organization-imports/{id}` are cursor-paginated and expose `PREVIEWED→QUEUED→PROCESSING→CONFIRMED|FAILED|EXPIRED`. Raw uploads are never downloadable.
 - `GET /admin/organization-snapshots/current` and `GET /admin/organization-units` + `GET /admin/organization-units/{id}` expose the active snapshot, composite `directorate/division/department`, `memberCount`/`headCount`, `currentRouteOwner`, `routeHealth`, and `sourceSnapshot`.
@@ -69,6 +69,10 @@ No Section Head mutation, raw import download, Voice/Private export, bulk accoun
 
 - The OpenAPI contract is now fully explicit and generated. The drift check (`pnpm openapi:check`) is green, and `@care/contracts` is regenerated; no handwritten wire types remain.
 - Every large list is cursor-paginated with `Idempotency-Key`/`expectedVersion` semantics, so duplicate confirms, simultaneous PIC replacements, and stale previews are handled with stable `409` codes and targeted invalidation.
+- Sensitive Admin mutations and import confirmation require a bounded `Idempotency-Key`. Advisory idempotency/resource locks, the business mutation, audit event, and sanitized replay record execute in one PostgreSQL transaction; active route and Union-slot partial unique indexes provide a final database invariant.
+- Temporary passwords are returned only on the immediate/replayed wire response and are deterministically reconstructed when needed; plaintext never enters `IdempotencyRecord`, audit, or account read DTOs. Account status uses a persisted `version` compare-and-swap and cannot deactivate an active route owner.
+- XLSX parsing validates actual deflate expansion before ExcelJS, with bounded entries/per-entry/total inflated bytes. Raw import files are removed on `CONFIRMED`, terminal `FAILED`, and `EXPIRED`, with reconciliation covering terminal/orphan leftovers.
+- Voice and message attachment DTOs expose only safe metadata; `storageKey` and checksum remain internal. Admin can inspect safe attachment links, structured timeline, and structured conversation data, while Private media reads remain authorized and redacted-audited.
 - Account search eligibility (`default-pic`/`global-pic`) is server-side, so the browser never filters candidates.
 - Private access is audited and redacted everywhere, and `AdminPrivateVoiceDetail` is type-exact, closing accidental disclosure via optional identity fields.
 - The Admin build remains `~610 kB` (gz `~191 kB`), contains no `manifest`/`sw.js`/`CacheStorage` usage, and the `main.tsx` gate still prevents protected fetches below `1280 px` (verified by `foundation.test.ts`).
@@ -78,15 +82,15 @@ No Section Head mutation, raw import download, Voice/Private export, bulk accoun
 ## Validation
 
 - `pnpm format:check` `pnpm lint` `pnpm typecheck` (api, contracts, ui, frontend-core, web-admin, web-voice) — passed.
-- `pnpm test:unit` — `23` (api) + `8` (ui) + `9` (frontend-core) + `2` (web-admin) + `2` (web-voice) passed.
+- `pnpm test:unit` — `24` (api) + `8` (ui) + `9` (frontend-core) + `2` (web-admin) + `2` (web-voice) passed, including adversarial XLSX expansion rejection.
 - `pnpm db:generate` `pnpm migrations:destructive-check` `docker compose config --quiet` — passed.
-- `prisma migrate deploy` on `care_test` — `20260824043057_init`, `20260825090000_v11_backend_remediation`, `20260827000000_phase8_admin_ops` applied.
-- `pnpm test:integration` — `8` passed (XLSX/CSV preview/confirm, `DEPARTMENT_14`, `ENVIRONMENT` routing, Private head routing).
+- `prisma migrate deploy` on `care_test` — `20260824043057_init`, `20260825090000_v11_backend_remediation`, `20260827000000_phase8_admin_ops`, and `20260827090000_phase8_review_fixes` applied.
+- `pnpm test:integration` — `11` passed, including parallel sanitized idempotency replay, account version conflicts, database-backed import-change pagination, raw-file terminal deletion, XLSX/CSV confirmation, `DEPARTMENT_14`, `ENVIRONMENT` routing, and Private head routing.
 - `pnpm test:security` — `5` passed (media/push, privacy serializers, CARE_ADMIN-only, CSRF/IDOR, Private audit).
 - `pnpm seed:performance` + `pnpm test:performance` — `10 000 accounts`/`50 000 Voices`/`50 concurrent users` — passed.
 - `pnpm maintenance:reconcile` — dry-run `0` orphans.
 - `pnpm openapi:generate` — deterministic; `apps/api/openapi.json` and `packages/contracts/src/generated.ts` in sync.
-- `pnpm build` — `web-voice` PWA `12` precache entries, `web-admin` `610 kB` non-PWA; `gitleaks` `v8.24.3` — no leaks; `git diff --check` — passed.
+- `pnpm build` — `web-voice` PWA `12` precache entries and `web-admin` `616 kB` non-PWA; Playwright functional/visual/PWA suite `16` passed; `git diff --check` — passed.
 
 ## Risks and Mitigations
 

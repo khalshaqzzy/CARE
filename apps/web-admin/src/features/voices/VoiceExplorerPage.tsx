@@ -13,31 +13,26 @@ import {
   Stack,
   Pagination,
 } from '@care/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-
-type VoiceItem = {
-  id: string;
-  displayId: string;
-  visibility: string;
-  area: string;
-  title: string;
-  severity: string;
-  status: string;
-  updatedAt: string;
-  category?: string | null;
-};
+import { createAdminApi, type VoiceItem } from '../../admin-api';
+import { cursorPagination } from '../../use-cursor-pagination';
 
 export function VoiceExplorerPage() {
-  const { session } = useAuth();
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('search') ?? '';
   const status = searchParams.get('status') ?? '';
   const visibility = searchParams.get('visibility') ?? '';
   const severity = searchParams.get('severity') ?? '';
-  const cursor = searchParams.get('cursor') ?? undefined;
+  const area = searchParams.get('area') ?? '';
+  const category = searchParams.get('category') ?? '';
+  const handler = searchParams.get('handler') ?? '';
+  const dateFrom = searchParams.get('dateFrom') ?? '';
+  const dateTo = searchParams.get('dateTo') ?? '';
+  const pagination = cursorPagination(searchParams, setSearchParams);
   const [selected, setSelected] = useState<VoiceItem | null>(null);
-  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [open, setOpen] = useState(false);
 
   const q = useQuery({
@@ -48,34 +43,68 @@ export function VoiceExplorerPage() {
       status,
       visibility,
       severity,
-      cursor ?? 'first',
+      area,
+      category,
+      handler,
+      dateFrom,
+      dateTo,
+      pagination.cursor ?? 'first',
     ),
-    queryFn: async () => {
-      const qs = new URLSearchParams({
-        limit: '20',
-        ...(search ? { search } : {}),
-        ...(status ? { status } : {}),
-        ...(visibility ? { visibility } : {}),
-        ...(severity ? { severity } : {}),
-        ...(cursor ? { cursor } : {}),
+    queryFn: () =>
+      api.voices({
+        limit: 20,
+        search: search || undefined,
+        status: status || undefined,
+        visibility: visibility || undefined,
+        severity: severity || undefined,
+        area: area || undefined,
+        category: category || undefined,
+        handler: handler || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        cursor: pagination.cursor,
         sort: 'updatedAt',
-      });
-      const res = await fetch(`/api/v1/voices?${qs}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Gagal memuat voices');
-      const j = await res.json();
-      if (Array.isArray(j.items)) return j as { items: VoiceItem[]; nextCursor: string | null };
-      return { items: j.items as VoiceItem[], nextCursor: j.nextCursor as string | null };
-    },
+      }),
     enabled: !!session,
   });
-
-  async function openDetail(v: VoiceItem) {
-    setSelected(v);
-    setOpen(true);
-    const res = await fetch(`/api/v1/voices/${v.id}`, { credentials: 'include' });
-    if (res.ok) setDetail(await res.json());
-    else setDetail({ error: 'Gagal memuat detail' });
-  }
+  const detail = useQuery({
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'voices',
+      'detail',
+      selected?.id ?? 'none',
+    ),
+    queryFn: () => api.voice(selected!.id),
+    enabled: !!session && !!selected && open,
+  });
+  const timeline = useQuery({
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'voices',
+      'timeline',
+      selected?.id ?? 'none',
+    ),
+    queryFn: () => api.voiceTimeline(selected!.id),
+    enabled: !!session && !!selected && open,
+  });
+  const messages = useQuery({
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'voices',
+      'messages',
+      selected?.id ?? 'none',
+    ),
+    queryFn: () => api.voiceMessages(selected!.id),
+    enabled: !!session && !!selected && open,
+  });
+  const updateFilter = (name: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('cursor');
+    params.delete('cursorHistory');
+    if (value) params.set(name, value);
+    else params.delete(name);
+    setSearchParams(params);
+  };
 
   return (
     <Stack gap="lg">
@@ -94,27 +123,13 @@ export function VoiceExplorerPage() {
             <Input
               label="Search ID/Judul"
               value={search}
-              onChange={(e) =>
-                setSearchParams({
-                  ...(e.target.value ? { search: e.target.value } : {}),
-                  ...(status ? { status } : {}),
-                  ...(visibility ? { visibility } : {}),
-                  ...(severity ? { severity } : {}),
-                })
-              }
+              onChange={(e) => updateFilter('search', e.target.value)}
               placeholder="CARE-2026 atau judul"
             />
             <Select
               label="Status"
               value={status || 'ALL'}
-              onValueChange={(v) =>
-                setSearchParams({
-                  ...(search ? { search } : {}),
-                  ...(v !== 'ALL' ? { status: v } : {}),
-                  ...(visibility ? { visibility } : {}),
-                  ...(severity ? { severity } : {}),
-                })
-              }
+              onValueChange={(v) => updateFilter('status', v === 'ALL' ? '' : v)}
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'OPEN', label: 'OPEN' },
@@ -126,14 +141,7 @@ export function VoiceExplorerPage() {
             <Select
               label="Visibility"
               value={visibility || 'ALL'}
-              onValueChange={(v) =>
-                setSearchParams({
-                  ...(search ? { search } : {}),
-                  ...(status ? { status } : {}),
-                  ...(v !== 'ALL' ? { visibility: v } : {}),
-                  ...(severity ? { severity } : {}),
-                })
-              }
+              onValueChange={(v) => updateFilter('visibility', v === 'ALL' ? '' : v)}
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'GENERAL', label: 'General' },
@@ -143,14 +151,7 @@ export function VoiceExplorerPage() {
             <Select
               label="Severity"
               value={severity || 'ALL'}
-              onValueChange={(v) =>
-                setSearchParams({
-                  ...(search ? { search } : {}),
-                  ...(status ? { status } : {}),
-                  ...(visibility ? { visibility } : {}),
-                  ...(v !== 'ALL' ? { severity: v } : {}),
-                })
-              }
+              onValueChange={(v) => updateFilter('severity', v === 'ALL' ? '' : v)}
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'LOW', label: 'LOW' },
@@ -158,6 +159,46 @@ export function VoiceExplorerPage() {
                 { value: 'HIGH', label: 'High' },
                 { value: 'CRITICAL', label: 'Critical' },
               ]}
+            />
+            <Select
+              label="Area"
+              value={area || 'ALL'}
+              onValueChange={(v) => updateFilter('area', v === 'ALL' ? '' : v)}
+              options={[
+                { value: 'ALL', label: 'Semua' },
+                ...['KARAWANG_1', 'KARAWANG_2', 'KARAWANG_3', 'SUNTER_1', 'SUNTER_2'].map(
+                  (value) => ({ value, label: value }),
+                ),
+              ]}
+            />
+            <Select
+              label="Kategori"
+              value={category || 'ALL'}
+              onValueChange={(v) => updateFilter('category', v === 'ALL' ? '' : v)}
+              options={[
+                { value: 'ALL', label: 'Semua' },
+                ...['SAFETY', 'ENVIRONMENT', 'FACILITY', 'WORK_DIFFICULTY'].map((value) => ({
+                  value,
+                  label: value,
+                })),
+              ]}
+            />
+            <Input
+              label="Handler ID"
+              value={handler}
+              onChange={(e) => updateFilter('handler', e.target.value)}
+            />
+            <Input
+              label="Dari"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => updateFilter('dateFrom', e.target.value)}
+            />
+            <Input
+              label="Sampai"
+              type="date"
+              value={dateTo}
+              onChange={(e) => updateFilter('dateTo', e.target.value)}
             />
           </div>
           {q.isLoading ? (
@@ -221,7 +262,10 @@ export function VoiceExplorerPage() {
                     header: '',
                     cell: (r: VoiceItem) => (
                       <button
-                        onClick={() => openDetail(r)}
+                        onClick={() => {
+                          setSelected(r);
+                          setOpen(true);
+                        }}
                         style={{ fontSize: '0.75rem', color: 'var(--action-primary)' }}
                       >
                         Detail
@@ -234,14 +278,14 @@ export function VoiceExplorerPage() {
                 empty={<span>Tidak ada Voice</span>}
               />
               <Pagination
-                page={1}
-                pageCount={q.data?.nextCursor ? 2 : 1}
-                onPageChange={(p) =>
-                  setSearchParams(
-                    p === 2 && q.data?.nextCursor
-                      ? { search, status, visibility, severity, cursor: q.data.nextCursor }
-                      : { search, status, visibility, severity },
-                  )
+                page={pagination.page}
+                pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
+                onPageChange={(page) =>
+                  page < pagination.page
+                    ? pagination.previous()
+                    : q.data?.nextCursor
+                      ? pagination.next(q.data.nextCursor)
+                      : undefined
                 }
               />
             </>
@@ -255,19 +299,122 @@ export function VoiceExplorerPage() {
         title={selected?.displayId ?? 'Detail'}
         description={selected?.title ?? ''}
       >
-        {detail ? (
+        {detail.data ? (
           <Stack gap="sm">
-            <pre
-              style={{
-                fontSize: '0.75rem',
-                overflow: 'auto',
-                background: 'var(--surface-subtle)',
-                padding: '0.5rem',
-                borderRadius: '0.5rem',
-              }}
-            >
-              {JSON.stringify(detail, null, 2)}
-            </pre>
+            <dl>
+              <dt>Status</dt>
+              <dd>{detail.data.status}</dd>
+              <dt>Area</dt>
+              <dd>{detail.data.area}</dd>
+              <dt>Kategori / severity</dt>
+              <dd>
+                {detail.data.category ?? '-'} / {detail.data.severity}
+              </dd>
+              <dt>Lokasi</dt>
+              <dd>{detail.data.locationDetail}</dd>
+              <dt>Detail</dt>
+              <dd>{detail.data.detail}</dd>
+              {detail.data.audience === 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY' ||
+              detail.data.audience === 'GENERAL_RESPONDER' ? (
+                <>
+                  <dt>Reporter</dt>
+                  <dd>
+                    {detail.data.reporter.name} ({detail.data.reporter.noReg}) —{' '}
+                    {detail.data.reporter.division} / {detail.data.reporter.department}
+                  </dd>
+                </>
+              ) : null}
+            </dl>
+            <Card>
+              <Stack gap="xs">
+                <strong>Lampiran Voice</strong>
+                {detail.data.attachments.length ? (
+                  <ul>
+                    {detail.data.attachments.map((attachment) => (
+                      <li key={attachment.id}>
+                        {attachment.state === 'READY' ? (
+                          <a
+                            href={`/api/v1/media/${attachment.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Buka {attachment.purpose.toLowerCase()} (
+                            {Math.ceil(attachment.size / 1024)} KB)
+                          </a>
+                        ) : (
+                          <span>
+                            {attachment.purpose} — {attachment.state}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span>Tidak ada lampiran.</span>
+                )}
+              </Stack>
+            </Card>
+            <Card>
+              <Stack gap="xs">
+                <strong>Timeline</strong>
+                {timeline.isLoading ? (
+                  <Loader label="Memuat timeline" />
+                ) : timeline.data?.length ? (
+                  <ol>
+                    {timeline.data.map((event) => (
+                      <li key={event.id}>
+                        <strong>{event.type}</strong> —{' '}
+                        {new Date(event.occurredAt).toLocaleString('id-ID')}
+                        {Object.keys(event.payload).length ? (
+                          <div>
+                            <code>{JSON.stringify(event.payload)}</code>
+                          </div>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <span>Belum ada event.</span>
+                )}
+              </Stack>
+            </Card>
+            <Card>
+              <Stack gap="xs">
+                <strong>Percakapan</strong>
+                {messages.isLoading ? (
+                  <Loader label="Memuat percakapan" />
+                ) : messages.data?.length ? (
+                  <ol>
+                    {messages.data.map((message) => (
+                      <li key={message.id}>
+                        <div>
+                          <strong>{message.sender.alias ?? message.sender.kind}</strong> —{' '}
+                          {new Date(message.createdAt).toLocaleString('id-ID')}
+                        </div>
+                        <p>{message.text || '(hanya lampiran)'}</p>
+                        {message.attachments.length ? (
+                          <ul>
+                            {message.attachments.map((attachment) => (
+                              <li key={attachment.id}>
+                                <a
+                                  href={`/api/v1/media/${attachment.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Buka lampiran ({Math.ceil(attachment.size / 1024)} KB)
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <span>Belum ada pesan.</span>
+                )}
+              </Stack>
+            </Card>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
               Reporter untuk Private menampilkan identitas lengkap immutable (noReg, nama,
               directorate, division, department, section, posisi). Tidak ada kontrol aksi.

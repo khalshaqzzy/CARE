@@ -1,31 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, careQueryKey } from '@care/frontend-core';
 import { Alert, Button, Card, Loader, PageHeader, Stack } from '@care/ui';
-import { useEffect, useState } from 'react';
-
-function useStatus(
-  path: string,
-  key: string[],
-  enabled: boolean,
-  refetchInterval: number | false = false,
-) {
-  const { session } = useAuth();
-  return useQuery({
-    queryKey: careQueryKey(session?.sessionId ?? 'anon', ...key),
-    queryFn: async () => {
-      const res = await fetch(path, { credentials: 'include' });
-      if (!res.ok) throw new Error(`Gagal memuat ${path}`);
-      return (await res.json()) as unknown;
-    },
-    enabled: enabled && !!session,
-    refetchInterval,
-    staleTime: 10_000,
-  });
-}
+import { useEffect, useMemo, useState } from 'react';
+import { createAdminApi } from '../../admin-api';
 
 export function SystemStatusPage() {
-  const { session } = useAuth();
-  const [now, setNow] = useState(() => new Date());
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
   const [visible, setVisible] = useState(() =>
     typeof document === 'undefined' ? true : document.visibilityState === 'visible',
   );
@@ -35,9 +16,24 @@ export function SystemStatusPage() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
   const shouldPoll = !!session && visible;
-  const health = useStatus('/health', ['system', 'health'], !!session, shouldPoll ? 30_000 : false);
-  const ready = useStatus('/ready', ['system', 'ready'], !!session, shouldPoll ? 30_000 : false);
-  const release = useStatus('/release.json', ['system', 'release'], !!session, false);
+  const health = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'system', 'health'),
+    queryFn: api.health,
+    enabled: !!session,
+    refetchInterval: shouldPoll ? 30_000 : false,
+  });
+  const ready = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'system', 'ready'),
+    queryFn: api.ready,
+    enabled: !!session,
+    refetchInterval: shouldPoll ? 30_000 : false,
+  });
+  const release = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'system', 'release'),
+    queryFn: api.release,
+    enabled: !!session,
+  });
+  const lastUpdated = Math.max(health.dataUpdatedAt, ready.dataUpdatedAt, release.dataUpdatedAt);
 
   return (
     <Stack gap="lg">
@@ -53,7 +49,6 @@ export function SystemStatusPage() {
               void health.refetch();
               void ready.refetch();
               void release.refetch();
-              setNow(new Date());
             }}
           >
             Muat ulang
@@ -61,7 +56,8 @@ export function SystemStatusPage() {
         }
       />
       <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-        Terakhir diperbarui: {now.toLocaleString('id-ID')}
+        Terakhir diperbarui:{' '}
+        {lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : 'belum tersedia'}
       </p>
       {!session ? (
         <Alert tone="warning" title="Tidak ada sesi">
@@ -82,9 +78,10 @@ export function SystemStatusPage() {
                 {String((health.error as Error).message)}
               </Alert>
             ) : (
-              <pre style={{ fontSize: '0.75rem', overflow: 'auto' }}>
-                {JSON.stringify(health.data, null, 2)}
-              </pre>
+              <dl>
+                <dt>Status API</dt>
+                <dd>{health.data?.status ?? '-'}</dd>
+              </dl>
             )}
           </Stack>
         </Card>
@@ -98,9 +95,16 @@ export function SystemStatusPage() {
                 {String((ready.error as Error).message)}
               </Alert>
             ) : (
-              <pre style={{ fontSize: '0.75rem', overflow: 'auto' }}>
-                {JSON.stringify(ready.data, null, 2)}
-              </pre>
+              <dl>
+                <dt>Status readiness</dt>
+                <dd>{ready.data?.status ?? '-'}</dd>
+                <dt>Database</dt>
+                <dd>{ready.data?.checks.database ?? '-'}</dd>
+                <dt>Storage</dt>
+                <dd>{ready.data?.checks.storage ?? '-'}</dd>
+                <dt>Migration</dt>
+                <dd>{ready.data?.checks.migrations ?? '-'}</dd>
+              </dl>
             )}
           </Stack>
         </Card>
@@ -114,9 +118,10 @@ export function SystemStatusPage() {
                 {String((release.error as Error).message)}
               </Alert>
             ) : (
-              <pre style={{ fontSize: '0.75rem', overflow: 'auto' }}>
-                {JSON.stringify(release.data, null, 2)}
-              </pre>
+              <dl>
+                <dt>Release SHA</dt>
+                <dd>{release.data?.releaseSha ?? '-'}</dd>
+              </dl>
             )}
           </Stack>
         </Card>

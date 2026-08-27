@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Alert,
   Badge,
@@ -14,30 +13,28 @@ import {
   Select,
   Stack,
   Textarea,
+  Pagination,
 } from '@care/ui';
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-
-type Issue = {
-  id: string;
-  type: string;
-  status: string;
-  organizationUnitId?: string | null;
-  details: Record<string, unknown>;
-  createdAt: string;
-};
+import { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { createAdminApi, type RemediationList } from '../../admin-api';
+import { cursorPagination } from '../../use-cursor-pagination';
+type Issue = RemediationList['items'][number];
 
 export function RemediationPage() {
-  const { session } = useAuth();
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const status = searchParams.get('status') ?? 'OPEN';
   const type = searchParams.get('type') ?? '';
-  const cursor = searchParams.get('cursor') ?? undefined;
+  const pagination = cursorPagination(searchParams, setSearchParams);
   const [selected, setSelected] = useState<Issue | null>(null);
   const [accountId, setAccountId] = useState('');
   const [reason, setReason] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [operationKey, setOperationKey] = useState('');
 
   const issues = useQuery({
     queryKey: careQueryKey(
@@ -45,19 +42,10 @@ export function RemediationPage() {
       'remediation',
       status,
       type,
-      cursor ?? 'first',
+      pagination.cursor ?? 'first',
     ),
-    queryFn: async () => {
-      const q = new URLSearchParams({
-        limit: '20',
-        status,
-        ...(type ? { type } : {}),
-        ...(cursor ? { cursor } : {}),
-      });
-      const res = await fetch(`/api/v1/admin/remediation-issues?${q}`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Gagal memuat remediation');
-      return (await res.json()) as { items: Issue[]; nextCursor: string | null };
-    },
+    queryFn: () =>
+      api.remediation({ limit: 20, status, type: type || undefined, cursor: pagination.cursor }),
     enabled: !!session,
   });
 
@@ -67,48 +55,25 @@ export function RemediationPage() {
       'candidates',
       selected?.organizationUnitId ?? 'none',
     ),
-    queryFn: async () => {
-      if (!selected?.organizationUnitId) return [];
-      const res = await fetch(
-        `/api/v1/admin/organization-units/${selected.organizationUnitId}/section-head-candidates`,
-        { credentials: 'include' },
-      );
-      if (!res.ok) return [];
-      return (await res.json()) as Array<{
-        employeeName: string;
-        employee: { account: { id: string } | null };
-      }>;
-    },
+    queryFn: () => api.sectionHeads(selected!.organizationUnitId!),
     enabled: !!selected?.organizationUnitId && drawerOpen,
   });
-
-  async function getCsrf() {
-    const r = await fetch('/api/v1/auth/csrf', { credentials: 'include' });
-    const j = (await r.json()) as { token: string };
-    return j.token;
-  }
 
   const assignDefault = useMutation({
     mutationFn: async () => {
       if (!selected?.organizationUnitId) throw new Error('Pilih unit');
-      const res = await fetch(
-        `/api/v1/admin/organization-units/${selected.organizationUnitId}/default-pic`,
+      return api.setDefaultPic(
+        selected.organizationUnitId,
         {
-          method: 'PUT',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': await getCsrf(),
-            'Idempotency-Key': crypto.randomUUID(),
-          },
-          body: JSON.stringify({ accountId, reason }),
+          accountId,
+          reason,
+          expectedCurrentRouteId:
+            typeof selected.details.currentRouteId === 'string'
+              ? selected.details.currentRouteId
+              : null,
         },
+        operationKey,
       );
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Gagal');
-      }
-      return res.json();
     },
     onSuccess: () => {
       setDrawerOpen(false);
@@ -121,23 +86,18 @@ export function RemediationPage() {
   });
 
   const assignGlobal = useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/v1/admin/routes/global-special-pic', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': await getCsrf(),
-          'Idempotency-Key': crypto.randomUUID(),
+    mutationFn: () =>
+      api.setGlobalPic(
+        {
+          accountId,
+          reason,
+          expectedCurrentRouteId:
+            typeof selected?.details.currentRouteId === 'string'
+              ? selected.details.currentRouteId
+              : null,
         },
-        body: JSON.stringify({ accountId, reason }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Gagal');
-      }
-      return res.json();
-    },
+        operationKey,
+      ),
     onSuccess: () => {
       setDrawerOpen(false);
       setAccountId('');
@@ -179,6 +139,7 @@ export function RemediationPage() {
                 { value: 'MISSING_DEPARTMENT_HEAD', label: 'Missing Head' },
                 { value: 'INVALID_GLOBAL_PIC', label: 'Invalid Global' },
                 { value: 'UNION_HEAD_MISSING', label: 'Union Head' },
+                { value: 'UNION_OFFICER_MISSING', label: 'Union Officer' },
               ]}
             />
           </div>
@@ -210,6 +171,7 @@ export function RemediationPage() {
                       size="sm"
                       onClick={() => {
                         setSelected(r);
+                        setOperationKey(crypto.randomUUID());
                         setDrawerOpen(true);
                       }}
                     >
@@ -223,6 +185,17 @@ export function RemediationPage() {
               empty={<span>Tidak ada isu</span>}
             />
           )}
+          <Pagination
+            page={pagination.page}
+            pageCount={pagination.page + (issues.data?.nextCursor ? 1 : 0)}
+            onPageChange={(page) =>
+              page < pagination.page
+                ? pagination.previous()
+                : issues.data?.nextCursor
+                  ? pagination.next(issues.data.nextCursor)
+                  : undefined
+            }
+          />
         </Stack>
       </Card>
 
@@ -253,7 +226,11 @@ export function RemediationPage() {
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Alasan remediation"
               />
-              <Button onClick={() => assignDefault.mutate()} loading={assignDefault.isPending}>
+              <Button
+                onClick={() => assignDefault.mutate()}
+                loading={assignDefault.isPending}
+                disabled={!accountId || !reason.trim()}
+              >
                 Simpan default PIC
               </Button>
               {assignDefault.error ? (
@@ -263,7 +240,7 @@ export function RemediationPage() {
               ) : null}
             </>
           ) : null}
-          {selected?.type === 'INVALID_GLOBAL_PIC' || selected?.type === 'UNION_HEAD_MISSING' ? (
+          {selected?.type === 'INVALID_GLOBAL_PIC' ? (
             <>
               <Input
                 label="Account ID (global PIC)"
@@ -272,7 +249,11 @@ export function RemediationPage() {
                 placeholder="UUID Department Head aktif"
               />
               <Textarea label="Alasan" value={reason} onChange={(e) => setReason(e.target.value)} />
-              <Button onClick={() => assignGlobal.mutate()} loading={assignGlobal.isPending}>
+              <Button
+                onClick={() => assignGlobal.mutate()}
+                loading={assignGlobal.isPending}
+                disabled={!accountId || !reason.trim()}
+              >
                 Simpan global PIC
               </Button>
               {assignGlobal.error ? (
@@ -281,6 +262,17 @@ export function RemediationPage() {
                 </Alert>
               ) : null}
             </>
+          ) : null}
+          {selected?.type === 'UNION_HEAD_MISSING' || selected?.type === 'UNION_OFFICER_MISSING' ? (
+            <Alert tone="info" title="Kelola melalui fixed Union slots">
+              Isu ini harus diselesaikan pada halaman Union Accounts agar HEAD/OFFICER dan
+              optimistic term expectation tetap benar.
+              <div>
+                <Button size="sm" onClick={() => navigate('/union')}>
+                  Buka Union Accounts
+                </Button>
+              </div>
+            </Alert>
           ) : null}
           {!selected ? <p>Pilih isu untuk menangani.</p> : null}
         </Stack>

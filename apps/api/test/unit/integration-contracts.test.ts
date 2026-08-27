@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { createServer } from 'node:http';
+import { deflateRawSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AiService } from '../../src/ai/ai.service';
 import { resetConfigForTests } from '../../src/config';
@@ -18,7 +19,34 @@ async function workbook(values: unknown[], headers: readonly string[] = ORGANIZA
   return Buffer.from(await book.xlsx.writeBuffer());
 }
 
-describe('Phase 6 XLSX contract', () => {
+function adversarialZipEntry(content: Buffer, declaredSize: number) {
+  const name = Buffer.from('xl/sharedStrings.xml');
+  const compressed = deflateRawSync(content);
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(8, 8);
+  local.writeUInt32LE(compressed.length, 18);
+  local.writeUInt32LE(declaredSize, 22);
+  local.writeUInt16LE(name.length, 26);
+  const central = Buffer.alloc(46);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt16LE(20, 4);
+  central.writeUInt16LE(20, 6);
+  central.writeUInt16LE(8, 10);
+  central.writeUInt32LE(compressed.length, 20);
+  central.writeUInt32LE(declaredSize, 24);
+  central.writeUInt16LE(name.length, 28);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length + name.length, 12);
+  end.writeUInt32LE(local.length + name.length + compressed.length, 16);
+  return Buffer.concat([local, name, compressed, central, name, end]);
+}
+
+describe('XLSX import contract', () => {
   const service = new ImportsService({} as never);
   it('preserves a leading-zero Noreg and exact seven-column organization identity', async () => {
     const rows = await service.parse(
@@ -74,9 +102,13 @@ describe('Phase 6 XLSX contract', () => {
     );
     expect(rows[0]).toMatchObject({ division: '', department: '14', section: '' });
   });
+  it('rejects a compressed entry whose actual expansion exceeds the XLSX safety limit', async () => {
+    const archive = adversarialZipEntry(Buffer.alloc(21 * 1024 * 1024, 65), 1);
+    await expect(service.parse(archive)).rejects.toMatchObject({ code: 'XLSX_ARCHIVE_LIMIT' });
+  });
 });
 
-describe('Phase 6 CSV contract', () => {
+describe('CSV import contract', () => {
   const service = new ImportsService({} as never);
   it('preserves leading zeroes and quoted commas with the same seven-column contract', async () => {
     const csv = Buffer.from(

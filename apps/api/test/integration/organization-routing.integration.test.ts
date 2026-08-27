@@ -1,6 +1,8 @@
 import { AccountKind, PrismaClient, RoutingCategory, Severity } from '@prisma/client';
 import { hash } from 'argon2';
 import ExcelJS from 'exceljs';
+import { access } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AdminService } from '../../src/admin/admin.service';
 import { PolicyService } from '../../src/auth/policy.service';
@@ -27,7 +29,7 @@ async function actor(username: string) {
   return policy.resolvePrincipal(account, { id: crypto.randomUUID(), passwordRestricted: false });
 }
 
-describe('Phase 6 organization, remediation, and routing journey', () => {
+describe('Organization, remediation, and routing journey', () => {
   beforeAll(async () => {
     await prisma.$connect();
     await prisma.$executeRawUnsafe(
@@ -35,9 +37,9 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
     );
     const account = await prisma.userAccount.create({
       data: {
-        username: 'phase6-admin',
-        displayName: 'Phase 6 Admin',
-        passwordHash: await hash('phase6-test-password'),
+        username: 'organization-routing-admin',
+        displayName: 'Organization Routing Admin',
+        passwordHash: await hash('organization-routing-test-password'),
         accountKind: AccountKind.CARE_ADMIN,
         passwordChangeRequired: false,
       },
@@ -78,13 +80,20 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
       mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     } as Express.Multer.File);
     expect(preview.summary).toMatchObject({ rowCount: 4, unitCount: 2, department14Rows: 1 });
-    await imports.confirm(admin, preview.id);
+    const rawStorageKey = (
+      await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } })
+    ).storageKey;
+    await imports.confirm(admin, preview.id, {
+      checksum: preview.checksum,
+      expectedVersion: preview.version,
+    }, 'organization-routing-xlsx-confirm');
     let batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     for (let attempt = 0; attempt < 100 && batch.status !== 'CONFIRMED'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 50));
       batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     }
     expect(batch.status).toBe('CONFIRMED');
+    await expect(access(resolve(process.env.MEDIA_ROOT!, rawStorageKey))).rejects.toThrow();
     expect(await prisma.organizationMembership.count()).toBe(4);
     expect(
       await prisma.routeMapping.count({ where: { kind: 'DEPARTMENT_HEAD', effectiveTo: null } }),
@@ -130,8 +139,13 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
       originalname: 'organization.csv',
       mimetype: 'text/csv',
     } as Express.Multer.File);
-    expect(preview.storageKey).toMatch(/\.csv$/);
-    await imports.confirm(admin, preview.id);
+    expect(
+      (await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } })).storageKey,
+    ).toMatch(/\.csv$/);
+    await imports.confirm(admin, preview.id, {
+      checksum: preview.checksum,
+      expectedVersion: preview.version,
+    }, 'organization-routing-csv-confirm');
     let batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     for (let attempt = 0; attempt < 100 && batch.status !== 'CONFIRMED'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -147,7 +161,11 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
     const departmentHead = await prisma.userAccount.findUniqueOrThrow({
       where: { username: '000001' },
     });
-    await adminService.setGlobalPic(admin, { accountId: departmentHead.id });
+    await adminService.setGlobalPic(admin, {
+      accountId: departmentHead.id,
+      expectedCurrentRouteId: null,
+      reason: 'Integration test global PIC',
+    }, 'organization-routing-global-pic');
     for (const item of [
       { slot: 'HEAD', username: 'union-head' },
       { slot: 'OFFICER_1', username: 'union-1' },
@@ -156,7 +174,9 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
       await adminService.setUnionAccount(admin, item.slot, {
         username: item.username,
         displayName: item.username,
-      });
+        expectedCurrentTerm: null,
+        reason: `Integration test ${item.slot}`,
+      }, `organization-routing-union-${item.slot}`);
     const member = await actor('000003');
 
     const generalDraft = await voices.createDraft(member, {
@@ -181,7 +201,12 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
       },
     });
     await expect(
-      voices.submit(member, generalDraft.id, { version: generalDraft.version }, 'phase6-general'),
+      voices.submit(
+        member,
+        generalDraft.id,
+        { version: generalDraft.version },
+        'organization-routing-general',
+      ),
     ).rejects.toMatchObject({
       code: 'LOCATION_ACKNOWLEDGMENT_REQUIRED',
       message:
@@ -196,7 +221,7 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
         locationContentHash: generalDraft.locationContentHash,
         acknowledgeIncompleteLocation: true,
       },
-      'phase6-general',
+      'organization-routing-general',
     );
     const generalVoice = await prisma.voice.findUniqueOrThrow({
       where: { id: (general as { id: string }).id },
@@ -222,7 +247,7 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
       member,
       privateDraft.id,
       { version: privateDraft.version },
-      'phase6-private',
+      'organization-routing-private',
     );
     const privateVoice = await prisma.voice.findUniqueOrThrow({
       where: { id: (privateResult as { id: string }).id },
@@ -251,7 +276,7 @@ describe('Phase 6 organization, remediation, and routing journey', () => {
         department14,
         blockedDraft.id,
         { version: blockedDraft.version },
-        'phase6-department-14',
+        'organization-routing-department-14',
       ),
     ).rejects.toMatchObject({ code: 'GENERAL_ROUTE_FORBIDDEN' });
     expect(await prisma.voiceDraft.findUnique({ where: { id: blockedDraft.id } })).not.toBeNull();

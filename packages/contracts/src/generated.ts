@@ -148,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts": {
         parameters: {
             query?: never;
@@ -1067,10 +1083,16 @@ export interface components {
         AccountSelectionRequest: {
             /** Format: uuid */
             accountId: string;
+            /** Format: uuid */
+            expectedCurrentRouteId: string | null;
+            reason: string;
         };
         UnionAccountRequest: {
             username: string;
             displayName: string;
+            /** Format: uuid */
+            expectedCurrentTerm: string | null;
+            reason: string;
         };
         ChangePasswordRequest: {
             /** Format: password */
@@ -1130,7 +1152,30 @@ export interface components {
             status: string;
         };
         Readiness: {
-            [key: string]: unknown;
+            /** @enum {string} */
+            status: "ready" | "not_ready";
+            checks: {
+                database: string;
+                migrations: string;
+                outbox: string;
+                storage: string;
+            };
+            dependencies: {
+                openai: string;
+                push: string;
+            };
+            config: {
+                environment: string;
+                releaseSha: string;
+                mediaRoot: string;
+                openai: {
+                    configured: boolean;
+                    model: string | null;
+                };
+                push: {
+                    configured: boolean;
+                };
+            };
         };
         Release: {
             releaseSha: string;
@@ -1246,10 +1291,18 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
-            pic: {
-                id?: string;
-                label: string;
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
             };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             reporter: {
                 /** @enum {boolean} */
                 self: true;
@@ -1279,10 +1332,18 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
-            pic: {
-                id?: string;
-                label: string;
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
             };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             reporter: {
                 noReg: string;
                 name: string;
@@ -1314,10 +1375,18 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
-            pic: {
-                id?: string;
-                label: string;
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
             };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             reporter: {
                 [key: string]: unknown;
             };
@@ -1346,10 +1415,18 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
-            pic: {
-                id?: string;
-                label: string;
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
             };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             anonymousReporter: {
                 /** @example Reporter Biru 47 */
                 alias: string;
@@ -1379,10 +1456,18 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
-            pic: {
-                id?: string;
-                label: string;
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
             };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             reporter: {
                 noReg: string;
                 name: string;
@@ -1414,10 +1499,18 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             version: number;
-            pic: {
-                id?: string;
-                label: string;
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
             };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             reporter: {
                 noReg: string;
                 name: string;
@@ -1463,7 +1556,6 @@ export interface components {
             department14Rows: number;
             globalPicInvalid: boolean;
             unionGaps: string[];
-            changes: components["schemas"]["OrganizationChange"][];
         };
         OrganizationImportPreview: {
             /** Format: uuid */
@@ -1479,7 +1571,6 @@ export interface components {
             errors?: {
                 [key: string]: unknown;
             }[];
-            storageKey?: string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1487,15 +1578,15 @@ export interface components {
         };
         ConfirmImportRequest: {
             /** @description Must match batch.checksum else 409 CHECKSUM_MISMATCH */
-            checksum?: string;
+            checksum: string;
             /** @description Must match batch.version else 409 VERSION_CONFLICT */
-            expectedVersion?: number;
+            expectedVersion: number;
         };
         AccountStatusRequest: {
             /** @enum {string} */
             status: "ACTIVE" | "INACTIVE";
             reason: string;
-            expectedVersion?: number;
+            expectedVersion: number;
         };
         SuccessResponse: {
             success: boolean;
@@ -1504,6 +1595,29 @@ export interface components {
             items: components["schemas"]["AccountSummary"][];
             /** @description Signed opaque cursor */
             nextCursor: string | null;
+        };
+        AdminOverview: {
+            accounts: {
+                active: number;
+                legacy: number;
+                inactive: number;
+            };
+            openRemediation: number;
+            latestImport: {
+                /** Format: uuid */
+                id: string;
+                status: string;
+                /** Format: date-time */
+                createdAt: string;
+            } | null;
+            unionSlots: number;
+            recentResolution: {
+                /** Format: uuid */
+                id: string;
+                action: string;
+                /** Format: date-time */
+                createdAt: string;
+            } | null;
         };
         AccountSummary: {
             /** Format: uuid */
@@ -1514,13 +1628,32 @@ export interface components {
             accountKind: "CARE_ADMIN" | "WORKFORCE" | "UNION";
             /** @enum {string} */
             status: "ACTIVE" | "LEGACY_HANDLER" | "INACTIVE";
+            version: number;
             employee?: {
-                [key: string]: unknown;
+                noReg: string;
+                name: string;
+                active?: boolean;
+                memberships: {
+                    structuralPosition: string;
+                    section: string | null;
+                    organizationUnit: {
+                        /** Format: uuid */
+                        id: string;
+                        directorate: string;
+                        division: string;
+                        department: string;
+                    };
+                }[];
             } | null;
             unionTerms?: {
-                [key: string]: unknown;
+                /** @enum {string} */
+                slot: "HEAD" | "OFFICER_1" | "OFFICER_2";
+                /** Format: date-time */
+                effectiveFrom?: string;
             }[];
             passwordChangeRequired?: boolean;
+            /** Format: date-time */
+            deactivatedAt?: string | null;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -1821,11 +1954,17 @@ export interface components {
         AttachmentResponse: {
             /** Format: uuid */
             id: string;
+            /** @enum {string} */
+            purpose: "VOICE" | "CHAT" | "CLOSURE_EVIDENCE";
             mimeType: string;
             size: number;
             state: string;
             width?: number | null;
             height?: number | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            readyAt?: string | null;
         };
         MessageResponse: {
             /** Format: uuid */
@@ -1833,6 +1972,14 @@ export interface components {
             text?: string | null;
             /** Format: date-time */
             createdAt: string;
+            /** Format: uuid */
+            senderId?: string | null;
+            senderAccountKind: string;
+            sender: {
+                kind: string;
+                alias?: string;
+            };
+            attachments: components["schemas"]["AttachmentResponse"][];
         };
         MessageList: components["schemas"]["MessageResponse"][];
         ConversationList: {
@@ -1887,7 +2034,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Health"];
                 };
             };
             /** @description Request validation failed */
@@ -2983,9 +3130,139 @@ export interface operations {
             };
         };
     };
-    AdminController_accounts: {
+    AdminController_overview: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOverview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminController_accounts: {
+        parameters: {
+            query?: {
+                search?: string;
+                kind?: string;
+                status?: string;
+                unitId?: string;
+                position?: string;
+                eligibility?: string;
+                cursor?: string;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3233,6 +3510,8 @@ export interface operations {
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
             };
             path: {
                 id: string;
@@ -3359,6 +3638,8 @@ export interface operations {
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
             };
             path: {
                 id: string;
@@ -3485,7 +3766,14 @@ export interface operations {
     };
     AdminController_issues: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: string;
+                type?: string;
+                organizationUnitId?: string;
+                batchId?: string;
+                cursor?: string;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3606,7 +3894,12 @@ export interface operations {
     };
     AdminController_resolutions: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                type?: string;
+                status?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3731,6 +4024,8 @@ export interface operations {
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
             };
             path: {
                 id: string;
@@ -3861,6 +4156,8 @@ export interface operations {
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
             };
             path?: never;
             cookie?: never;
@@ -4233,6 +4530,8 @@ export interface operations {
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
             };
             path: {
                 slot: string;
@@ -4359,7 +4658,18 @@ export interface operations {
     };
     AdminController_auditEvents: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                from?: string;
+                to?: string;
+                action?: string;
+                result?: string;
+                actorKind?: string;
+                resourceType?: string;
+                resourceId?: string;
+                correlationId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4731,7 +5041,11 @@ export interface operations {
     };
     ImportsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                status?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4975,7 +5289,11 @@ export interface operations {
     };
     ImportsController_changes: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                filter?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -5102,6 +5420,8 @@ export interface operations {
             header: {
                 /** @description Session-bound CSRF token */
                 "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
             };
             path: {
                 id: string;
@@ -5349,7 +5669,11 @@ export interface operations {
     };
     OrganizationUnitsController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                search?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7117,7 +7441,20 @@ export interface operations {
     };
     VoicesController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                search?: string;
+                status?: string;
+                visibility?: string;
+                severity?: string;
+                area?: string;
+                category?: string;
+                handler?: string;
+                dateFrom?: string;
+                dateTo?: string;
+                sort?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

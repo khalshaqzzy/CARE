@@ -91,7 +91,7 @@ describe('media and push security boundaries', () => {
       {},
     );
     expect(result.state).toBe(AttachmentState.READY);
-    const files = await readFile(join(root, 'objects', result.storageKey));
+    const files = await readFile(join(root, 'objects', String(stored.storageKey)));
     const metadata = await sharp(files).metadata();
     expect(metadata.format).toBe('webp');
     expect(metadata.orientation).toBeUndefined();

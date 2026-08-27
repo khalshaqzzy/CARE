@@ -16,6 +16,8 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
+import { inflateRawSync } from 'node:zlib';
+import { z } from 'zod';
 import { canonicalHash, randomToken, sha256 } from '../common/crypto';
 import { decodeCursor, encodeCursor } from '../common/cursor';
 import { badRequest, conflict, forbiddenAsNotFound } from '../common/errors';
@@ -50,6 +52,12 @@ const unitKey = (row: Pick<ImportRow, 'directorate' | 'division' | 'department'>
     normalize(row.division).toLocaleLowerCase('en-US'),
     normalize(row.department).toLocaleLowerCase('en-US'),
   ]);
+const confirmBody = z
+  .object({
+    checksum: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
 @Injectable()
 export class ImportsService implements OnModuleInit, OnModuleDestroy {
@@ -185,7 +193,6 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       unionGaps: (['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).filter(
         (slot) => !unionTerms.some((term) => term.slot === slot),
       ),
-      changes,
     };
     const storageKey = `imports/${randomToken(24)}.${format}`;
     const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
@@ -207,30 +214,53 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         accountKind: account.accountKind,
       })),
     );
-    return this.prisma.importBatch.create({
-      data: {
-        actorId: actor.accountId,
-        checksum,
-        storageKey,
-        summary,
-        errors: errors as Prisma.InputJsonValue,
-        baseSnapshotId: activeSnapshot?.id,
-        expiresAt: new Date(Date.now() + 72 * 3_600_000),
-      },
-    });
+    const orderedChanges = [...changes].sort(
+      (a, b) => a.noReg.localeCompare(b.noReg) || a.type.localeCompare(b.type),
+    );
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const batch = await tx.importBatch.create({
+          data: {
+            actorId: actor.accountId,
+            checksum,
+            storageKey,
+            summary,
+            errors: errors as Prisma.InputJsonValue,
+            baseSnapshotId: activeSnapshot?.id,
+            expiresAt: new Date(Date.now() + 72 * 3_600_000),
+          },
+          select: {
+            id: true,
+            status: true,
+            checksum: true,
+            version: true,
+            expiresAt: true,
+            summary: true,
+            errors: true,
+            baseSnapshotId: true,
+            createdAt: true,
+          },
+        });
+        await tx.importChange.createMany({
+          data: orderedChanges.map((change, sequence) => ({
+            batchId: batch.id,
+            sequence,
+            type: change.type,
+            noReg: change.noReg,
+            payload: change as Prisma.InputJsonValue,
+          })),
+        });
+        return batch;
+      });
+    } catch (error) {
+      await unlink(path).catch(() => undefined);
+      throw error;
+    }
   }
 
   async list(query?: { cursor?: string; limit?: string | number; status?: string }) {
     const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
-    const cursorId = query?.cursor
-      ? (() => {
-          try {
-            return decodeCursor(query.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
     const statusFilter =
       query?.status && Object.values(ImportStatus).includes(query.status as ImportStatus)
         ? (query.status as ImportStatus)
@@ -264,11 +294,16 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.importBatch
           .update({ where: { id: batch.id }, data: { status: ImportStatus.EXPIRED } })
           .catch(() => undefined);
+        await this.deleteRawImport(batch.storageKey);
         (batch as { status: ImportStatus }).status = ImportStatus.EXPIRED;
       }
     }
     const hasNext = items.length > take;
-    const data = hasNext ? items.slice(0, take) : items;
+    const visible = hasNext ? items.slice(0, take) : items;
+    const data = visible.map(({ storageKey, ...batch }) => {
+      void storageKey;
+      return batch;
+    });
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     // maintain backward compatibility: if caller expects array, they can use items; new API returns object with items+nextCursor
     // we return paginated object; existing tests that directly query prisma are unaffected
@@ -288,74 +323,43 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       await this.prisma.importBatch
         .update({ where: { id }, data: { status: ImportStatus.EXPIRED } })
         .catch(() => undefined);
+      await this.deleteRawImport(batch.storageKey);
       batch.status = ImportStatus.EXPIRED;
     }
-    return batch;
+    const { storageKey, ...safeBatch } = batch;
+    void storageKey;
+    return safeBatch;
   }
   async changes(id: string, query?: { cursor?: string; limit?: string | number; filter?: string }) {
-    const batch = await this.detail(id);
-    const allChanges =
-      ((batch.summary as Record<string, unknown>).changes as
-        Array<Record<string, unknown>> | undefined) ?? [];
+    await this.detail(id);
     const filter =
       query?.filter && ['CREATE', 'UPDATE', 'UNCHANGED', 'DEACTIVATE'].includes(query.filter)
         ? query.filter
         : undefined;
-    const filtered = filter
-      ? allChanges.filter((c) => (c as { type?: string }).type === filter)
-      : allChanges;
-    // stable sort by noReg then type
-    const sorted = [...filtered].sort((a, b) => {
-      const aNoReg = String((a as { noReg?: string }).noReg ?? '');
-      const bNoReg = String((b as { noReg?: string }).noReg ?? '');
-      if (aNoReg !== bNoReg) return aNoReg.localeCompare(bNoReg);
-      const aType = String((a as { type?: string }).type ?? '');
-      const bType = String((b as { type?: string }).type ?? '');
-      return aType.localeCompare(bType);
-    });
     const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
-    const cursorId = query?.cursor
-      ? (() => {
-          try {
-            return decodeCursor(query.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
-    let start = 0;
-    if (cursorId) {
-      // cursor encodes an id like `${batchId}:${index}:${noReg}` but we stored changes as array; we use simple index-based cursor via encodeCursor of synthetic id
-      // For simplicity, decode cursor as synthetic id and find index
-      const idx = sorted.findIndex(
-        (_, index) => encodeCursor(`${id}:${String(index).padStart(6, '0')}`) === query!.cursor,
-      );
-      if (idx >= 0) start = idx + 1;
-      else {
-        // fallback: try to find by noReg encoded as cursor id directly (if cursor is a noReg)
-        const noRegIdx = sorted.findIndex((c) => (c as { noReg?: string }).noReg === cursorId);
-        if (noRegIdx >= 0) start = noRegIdx + 1;
-      }
-    }
-    // simpler: if cursor is opaque id of the last item's synthetic id, find it
-    if (cursorId && start === 0) {
-      // try to match synthetic id
-      const syntheticIdx = sorted.findIndex(
-        (_, index) => `${id}:${String(index).padStart(6, '0')}` === cursorId,
-      );
-      if (syntheticIdx >= 0) start = syntheticIdx + 1;
-    }
-    const slice = sorted.slice(start, start + take + 1);
-    const hasNext = slice.length > take;
-    const data = hasNext ? slice.slice(0, take) : slice;
-    const nextCursor =
-      hasNext && data.length
-        ? encodeCursor(`${id}:${String(start + data.length - 1).padStart(6, '0')}`)
-        : null;
-    // also compute pagination meta via take+1 pattern using synthetic ids
-    // For compatibility, also support cursor as noReg: fallback above
-    // Return paginated structure with items and nextCursor, plus legacy id
-    return { id, items: data, nextCursor, total: sorted.length };
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
+    const where: Prisma.ImportChangeWhereInput = {
+      batchId: id,
+      ...(filter ? { type: filter } : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.importChange.findMany({
+        where,
+        orderBy: [{ sequence: 'asc' }, { id: 'asc' }],
+        take: take + 1,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      }),
+      this.prisma.importChange.count({ where }),
+    ]);
+    const hasNext = rows.length > take;
+    const page = hasNext ? rows.slice(0, take) : rows;
+    const items = page.map((row) => row.payload as Record<string, unknown>);
+    return {
+      id,
+      items,
+      nextCursor: hasNext && page.length ? encodeCursor(page[page.length - 1].id) : null,
+      total,
+    };
   }
 
   async getCurrentSnapshot() {
@@ -404,15 +408,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     search?: string;
   }) {
     const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
-    const cursorId = query?.cursor
-      ? (() => {
-          try {
-            return decodeCursor(query.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
     const search = query?.search?.trim();
     const where: Prisma.OrganizationUnitWhereInput = search
       ? {
@@ -526,88 +522,82 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async confirm(actor: AuthActor, id: string, body?: unknown, idempotencyKey?: string) {
-    const parsedBody = body as Record<string, unknown> | undefined;
-    const checksum = typeof parsedBody?.checksum === 'string' ? parsedBody.checksum : undefined;
-    const expectedVersion =
-      typeof parsedBody?.expectedVersion === 'number' ? parsedBody.expectedVersion : undefined;
+  async confirm(
+    actor: AuthActor,
+    id: string,
+    body?: unknown,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    if (!idempotencyKey || idempotencyKey.length > 100)
+      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
+    const parsedBody = confirmBody.safeParse(body);
+    if (!parsedBody.success)
+      throw badRequest('VALIDATION_ERROR', 'checksum and expectedVersion are required');
+    const { checksum, expectedVersion } = parsedBody.data;
     const requestHash = canonicalHash({
       id,
-      checksum: checksum ?? null,
-      expectedVersion: expectedVersion ?? null,
+      checksum,
+      expectedVersion,
     });
-    if (idempotencyKey) {
-      const existing = await this.prisma.idempotencyRecord.findUnique({
-        where: {
-          accountId_scope_key: {
-            accountId: actor.accountId,
-            scope: `import:confirm:${id}`,
-            key: idempotencyKey,
-          },
-        },
-      });
-      if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw conflict(
-            'IDEMPOTENCY_CONFLICT',
-            'Idempotency key was reused with a different payload',
-          );
-        return existing.response as { id: string; status: ImportStatus };
-      }
-    }
-    const batch = await this.prisma.importBatch.findFirst({
+    const expiredBatch = await this.prisma.importBatch.findFirst({
       where: { id, actorId: actor.accountId },
-      select: { errors: true, checksum: true, version: true, expiresAt: true, status: true },
+      select: { expiresAt: true, status: true, storageKey: true },
     });
-    if (!batch) throw forbiddenAsNotFound();
     if (
-      batch.expiresAt &&
-      batch.expiresAt.getTime() < Date.now() &&
-      batch.status === ImportStatus.PREVIEWED
+      expiredBatch?.expiresAt &&
+      expiredBatch.expiresAt.getTime() < Date.now() &&
+      expiredBatch.status === ImportStatus.PREVIEWED
     ) {
       await this.prisma.importBatch
-        .update({ where: { id }, data: { status: ImportStatus.EXPIRED } })
-        .catch(() => undefined);
-      throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
-    }
-    if (batch.expiresAt && batch.expiresAt.getTime() < Date.now())
-      throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
-    if (checksum !== undefined && checksum !== batch.checksum)
-      throw conflict('CHECKSUM_MISMATCH', 'Checksum does not match preview');
-    if (expectedVersion !== undefined && expectedVersion !== batch.version)
-      throw conflict('VERSION_CONFLICT', 'Preview version has changed; reload and retry');
-    if (Array.isArray(batch.errors) && batch.errors.length)
-      throw conflict('IMPORT_VALIDATION_FAILED', 'Import preview contains blocking errors');
-    const result = await this.prisma.importBatch.updateMany({
-      where: {
-        id,
-        actorId: actor.accountId,
-        status: ImportStatus.PREVIEWED,
-        expiresAt: { gt: new Date() },
-        ...(expectedVersion !== undefined ? { version: expectedVersion } : {}),
-        ...(checksum !== undefined ? { checksum } : {}),
-      },
-      data: { status: ImportStatus.QUEUED, version: { increment: 1 } },
-    });
-    if (!result.count)
-      throw conflict('IMPORT_NOT_CONFIRMABLE', 'Import is stale, expired, or already confirmed');
-    void this.processNext();
-    const response = { id, status: ImportStatus.QUEUED };
-    if (idempotencyKey) {
-      await this.prisma.idempotencyRecord
-        .create({
-          data: {
-            accountId: actor.accountId,
-            scope: `import:confirm:${id}`,
-            key: idempotencyKey,
-            requestHash,
-            statusCode: 202,
-            response: response as unknown as Prisma.InputJsonValue,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          },
+        .updateMany({
+          where: { id, actorId: actor.accountId, status: ImportStatus.PREVIEWED },
+          data: { status: ImportStatus.EXPIRED },
         })
         .catch(() => undefined);
+      await this.deleteRawImport(expiredBatch.storageKey);
+      throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
     }
+    const response = await this.executeIdempotent({
+      actor,
+      scope: `import:confirm:${id}`,
+      key: idempotencyKey,
+      requestHash,
+      resourceLock: `import-batch:${id}`,
+      statusCode: 202,
+      work: async (tx) => {
+        const batch = await tx.importBatch.findFirst({
+          where: { id, actorId: actor.accountId },
+          select: { errors: true, checksum: true, version: true, expiresAt: true, status: true },
+        });
+        if (!batch) throw forbiddenAsNotFound();
+        if (batch.expiresAt && batch.expiresAt.getTime() < Date.now())
+          throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
+        if (checksum !== batch.checksum)
+          throw conflict('CHECKSUM_MISMATCH', 'Checksum does not match preview');
+        if (expectedVersion !== batch.version)
+          throw conflict('VERSION_CONFLICT', 'Preview version has changed; reload and retry');
+        if (Array.isArray(batch.errors) && batch.errors.length)
+          throw conflict('IMPORT_VALIDATION_FAILED', 'Import preview contains blocking errors');
+        const updated = await tx.importBatch.updateMany({
+          where: {
+            id,
+            actorId: actor.accountId,
+            status: ImportStatus.PREVIEWED,
+            expiresAt: { gt: new Date() },
+            version: expectedVersion,
+            checksum,
+          },
+          data: { status: ImportStatus.QUEUED, version: { increment: 1 } },
+        });
+        if (!updated.count)
+          throw conflict(
+            'IMPORT_NOT_CONFIRMABLE',
+            'Import is stale, expired, or already confirmed',
+          );
+        return { id, status: ImportStatus.QUEUED };
+      },
+    });
+    void this.processNext();
     return response;
   }
 
@@ -626,17 +616,24 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     if (!claimed) return null;
     try {
       await this.processBatch(claimed);
+      const completed = await this.prisma.importBatch.findUniqueOrThrow({
+        where: { id: claimed },
+        select: { storageKey: true, status: true },
+      });
+      if (completed.status === ImportStatus.CONFIRMED)
+        await this.deleteRawImport(completed.storageKey);
     } catch (error) {
       const retryable =
         error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
       const batch = await this.prisma.importBatch.findUniqueOrThrow({ where: { id: claimed } });
-      await this.prisma.importBatch.update({
+      const updated = await this.prisma.importBatch.update({
         where: { id: claimed },
         data:
           retryable && batch.version < 3
             ? { status: ImportStatus.QUEUED, version: { increment: 1 }, failureCode: null }
             : { status: ImportStatus.FAILED, failureCode: this.failureCode(error) },
       });
+      if (updated.status === ImportStatus.FAILED) await this.deleteRawImport(batch.storageKey);
     }
     return claimed;
   }
@@ -953,6 +950,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
 
   async parse(buffer: Buffer, format: ImportFormat = 'xlsx'): Promise<ImportRow[]> {
     if (format === 'csv') return this.parseCsv(buffer);
+    this.assertSafeXlsxArchive(buffer);
     const workbook = new ExcelJS.Workbook();
     try {
       await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
@@ -1066,6 +1064,137 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     )
       return 'xlsx';
     throw badRequest('ORGANIZATION_FILE_TYPE_INVALID', 'Only .xlsx and .csv files are accepted');
+  }
+
+  private assertSafeXlsxArchive(buffer: Buffer) {
+    const maxEntries = 100;
+    const maxInflatedBytes = 50_000_000;
+    const maxEntryBytes = 20_000_000;
+    const eocdSignature = 0x06054b50;
+    const centralSignature = 0x02014b50;
+    const searchStart = Math.max(0, buffer.length - 65_557);
+    let eocd = -1;
+    for (let offset = buffer.length - 22; offset >= searchStart; offset -= 1) {
+      if (buffer.readUInt32LE(offset) === eocdSignature) {
+        eocd = offset;
+        break;
+      }
+    }
+    if (eocd < 0) throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is missing');
+    const entries = buffer.readUInt16LE(eocd + 10);
+    const centralSize = buffer.readUInt32LE(eocd + 12);
+    const centralOffset = buffer.readUInt32LE(eocd + 16);
+    if (
+      entries < 1 ||
+      entries > maxEntries ||
+      centralOffset + centralSize > buffer.length ||
+      centralOffset >= eocd
+    )
+      throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX archive exceeds safe structural limits');
+    let offset = centralOffset;
+    let inflated = 0;
+    for (let index = 0; index < entries; index += 1) {
+      if (offset + 46 > buffer.length || buffer.readUInt32LE(offset) !== centralSignature)
+        throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is malformed');
+      const flags = buffer.readUInt16LE(offset + 8);
+      const method = buffer.readUInt16LE(offset + 10);
+      const compressedBytes = buffer.readUInt32LE(offset + 20);
+      const entryBytes = buffer.readUInt32LE(offset + 24);
+      const nameLength = buffer.readUInt16LE(offset + 28);
+      const extraLength = buffer.readUInt16LE(offset + 30);
+      const commentLength = buffer.readUInt16LE(offset + 32);
+      const localOffset = buffer.readUInt32LE(offset + 42);
+      if ((flags & 0x1) !== 0 || (method !== 0 && method !== 8))
+        throw badRequest('XLSX_INVALID', 'Encrypted or unsupported XLSX entries are not accepted');
+      if (entryBytes > maxEntryBytes)
+        throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX entry exceeds the safe expansion limit');
+      if (localOffset + 30 > buffer.length || buffer.readUInt32LE(localOffset) !== 0x04034b50)
+        throw badRequest('XLSX_INVALID', 'XLSX local ZIP entry is malformed');
+      const localNameLength = buffer.readUInt16LE(localOffset + 26);
+      const localExtraLength = buffer.readUInt16LE(localOffset + 28);
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      const dataEnd = dataStart + compressedBytes;
+      if (dataEnd > buffer.length)
+        throw badRequest('XLSX_INVALID', 'XLSX ZIP entry exceeds the archive boundary');
+      let actualBytes: number;
+      try {
+        actualBytes =
+          method === 0
+            ? compressedBytes
+            : inflateRawSync(buffer.subarray(dataStart, dataEnd), {
+                maxOutputLength: Math.min(maxEntryBytes, maxInflatedBytes - inflated) + 1,
+              }).length;
+      } catch {
+        throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX entry exceeds the safe expansion limit');
+      }
+      if (actualBytes !== entryBytes || actualBytes > maxEntryBytes)
+        throw badRequest('XLSX_INVALID', 'XLSX ZIP entry size is inconsistent');
+      inflated += actualBytes;
+      if (inflated > maxInflatedBytes)
+        throw badRequest('XLSX_ARCHIVE_LIMIT', 'XLSX archive exceeds the safe expansion limit');
+      offset += 46 + nameLength + extraLength + commentLength;
+    }
+    if (offset > centralOffset + centralSize)
+      throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is malformed');
+  }
+
+  private async deleteRawImport(storageKey: string) {
+    const importsRoot = resolve(loadConfig().MEDIA_ROOT, 'imports');
+    const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
+    if (!path.startsWith(`${importsRoot}/`)) return;
+    await unlink(path).catch(() => undefined);
+  }
+
+  private async executeIdempotent<T extends Record<string, unknown>>(options: {
+    actor: AuthActor;
+    scope: string;
+    key?: string;
+    requestHash: string;
+    resourceLock: string;
+    statusCode: number;
+    work: (tx: Prisma.TransactionClient) => Promise<T>;
+  }): Promise<T> {
+    const idempotencyLock = `${options.actor.accountId}:${options.scope}:${options.key ?? 'none'}`;
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyLock}, 0))::text AS lock`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${options.resourceLock}, 0))::text AS lock`;
+        if (options.key) {
+          const existing = await tx.idempotencyRecord.findUnique({
+            where: {
+              accountId_scope_key: {
+                accountId: options.actor.accountId,
+                scope: options.scope,
+                key: options.key,
+              },
+            },
+          });
+          if (existing) {
+            if (existing.requestHash !== options.requestHash)
+              throw conflict(
+                'IDEMPOTENCY_CONFLICT',
+                'Idempotency key was reused with a different payload',
+              );
+            return existing.response as T;
+          }
+        }
+        const result = await options.work(tx);
+        if (options.key)
+          await tx.idempotencyRecord.create({
+            data: {
+              accountId: options.actor.accountId,
+              scope: options.scope,
+              key: options.key,
+              requestHash: options.requestHash,
+              statusCode: options.statusCode,
+              response: result as Prisma.InputJsonValue,
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+          });
+        return result;
+      },
+      { timeout: 120_000 },
+    );
   }
 
   private failureCode(error: unknown) {

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Alert,
   Badge,
@@ -15,109 +14,78 @@ import {
   Dialog,
   Tabs,
 } from '@care/ui';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-
-type ImportPreview = {
-  id: string;
-  checksum: string;
-  version: number;
-  expiresAt: string;
-  status: string;
-  summary: {
-    rowCount: number;
-    unitCount: number;
-    create: number;
-    update: number;
-    deactivate: number;
-    unchanged: number;
-    routeGaps: unknown[];
-    department14Rows: number;
-  };
-  errors: Array<{ code: string; message: string; row?: number | null }>;
-  createdAt: string;
-};
+import { createAdminApi, type ImportPreview } from '../../admin-api';
+import { cursorPagination } from '../../use-cursor-pagination';
 
 export function ImportsPage() {
-  const { session } = useAuth();
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const cursor = searchParams.get('cursor') ?? undefined;
+  const pagination = cursorPagination(searchParams, setSearchParams);
   const [file, setFile] = useState<File | null>(null);
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewId = searchParams.get('previewId');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmKey, setConfirmKey] = useState('');
+  const [changeCursor, setChangeCursor] = useState<string | undefined>();
+  const [changeHistory, setChangeHistory] = useState<string[]>([]);
+  const [changeFilter, setChangeFilter] = useState('');
 
   const list = useQuery({
-    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports', 'list', cursor ?? 'first'),
-    queryFn: async () => {
-      const res = await fetch(
-        `/api/v1/admin/organization-imports?limit=20${cursor ? `&cursor=${cursor}` : ''}`,
-        { credentials: 'include' },
-      );
-      if (!res.ok) throw new Error('Gagal memuat imports');
-      return (await res.json()) as { items: ImportPreview[]; nextCursor: string | null };
-    },
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'imports',
+      'list',
+      pagination.cursor ?? 'first',
+    ),
+    queryFn: () => api.imports({ limit: 20, cursor: pagination.cursor }),
     enabled: !!session,
   });
 
   const detail = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports', 'detail', previewId ?? 'none'),
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/admin/organization-imports/${previewId}`, {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Gagal memuat detail');
-      return (await res.json()) as ImportPreview;
-    },
+    queryFn: () => api.importDetail(previewId!),
     enabled: !!previewId && !!session,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'QUEUED' || query.state.data?.status === 'PROCESSING'
+        ? 2_000
+        : false,
   });
 
   const changes = useQuery({
-    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports', 'changes', previewId ?? 'none'),
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/admin/organization-imports/${previewId}/changes?limit=20`, {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Gagal memuat changes');
-      return (await res.json()) as {
-        items: Array<{ noReg: string; type: string }>;
-        nextCursor: string | null;
-        total: number;
-      };
-    },
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'imports',
+      'changes',
+      previewId ?? 'none',
+      changeFilter,
+      changeCursor ?? 'first',
+    ),
+    queryFn: () =>
+      api.importChanges(previewId!, {
+        limit: 20,
+        cursor: changeCursor,
+        filter: changeFilter || undefined,
+      }),
     enabled: !!previewId && !!session,
   });
 
   const snapshot = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports', 'snapshot'),
-    queryFn: async () => {
-      const res = await fetch('/api/v1/admin/organization-snapshots/current', {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Gagal memuat snapshot');
-      return (await res.json()) as unknown;
-    },
+    queryFn: api.currentSnapshot,
     enabled: !!session,
   });
 
   const previewMutation = useMutation({
-    mutationFn: async (f: File) => {
-      const fd = new FormData();
-      fd.append('file', f);
-      const res = await fetch('/api/v1/admin/organization-imports/preview', {
-        method: 'POST',
-        credentials: 'include',
-        body: fd,
-        headers: { 'X-CSRF-Token': await getCsrf() },
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Preview gagal');
-      }
-      return (await res.json()) as ImportPreview;
-    },
+    mutationFn: api.previewImport,
     onSuccess: (data) => {
-      setPreviewId(data.id);
+      const params = new URLSearchParams(searchParams);
+      params.set('previewId', data.id);
+      setSearchParams(params);
+      setChangeCursor(undefined);
+      setChangeHistory([]);
       void qc.invalidateQueries({
         queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports', 'list'),
       });
@@ -127,46 +95,30 @@ export function ImportsPage() {
   const confirmMutation = useMutation({
     mutationFn: async () => {
       if (!detail.data) throw new Error('Tidak ada preview');
-      const res = await fetch(`/api/v1/admin/organization-imports/${detail.data.id}/confirm`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': await getCsrf(),
-          'Idempotency-Key': crypto.randomUUID(),
-        },
-        body: JSON.stringify({
+      return api.confirmImport(
+        detail.data.id,
+        {
           checksum: detail.data.checksum,
           expectedVersion: detail.data.version,
-        }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Confirm gagal');
-      }
-      return res.json();
+        },
+        confirmKey,
+      );
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setConfirmOpen(false);
-      void qc.invalidateQueries({
+      await qc.invalidateQueries({
+        queryKey: careQueryKey(
+          session?.sessionId ?? 'anon',
+          'imports',
+          'detail',
+          previewId ?? 'none',
+        ),
+      });
+      await qc.invalidateQueries({
         queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports', 'list'),
       });
     },
   });
-
-  async function getCsrf() {
-    const r = await fetch('/api/v1/auth/csrf', { credentials: 'include' });
-    const j = (await r.json()) as { token: string };
-    return j.token;
-  }
-
-  // polling only while queued/processing
-  useEffect(() => {
-    if (detail.data?.status === 'QUEUED' || detail.data?.status === 'PROCESSING') {
-      const id = setInterval(() => void detail.refetch(), 2000);
-      return () => clearInterval(id);
-    }
-  }, [detail.data?.status, detail]);
 
   return (
     <Stack gap="lg">
@@ -257,11 +209,20 @@ export function ImportsPage() {
                 }
                 title="Blocking validation"
               >
-                {detail.data.errors.map((e) => `${e.code}: ${e.message}`).join(' • ')}
+                {detail.data.errors
+                  .map((e) => `${String(e.code)}: ${String(e.message ?? '')}`)
+                  .join(' • ')}
               </Alert>
             ) : null}
             {detail.data.status === 'PREVIEWED' ? (
-              <Button onClick={() => setConfirmOpen(true)} variant="primary">
+              <Button
+                onClick={() => {
+                  setConfirmKey(crypto.randomUUID());
+                  setConfirmOpen(true);
+                }}
+                variant="primary"
+                disabled={Boolean(detail.data.errors?.length)}
+              >
                 Konfirmasi import
               </Button>
             ) : null}
@@ -286,6 +247,20 @@ export function ImportsPage() {
         <Card>
           <Stack gap="sm">
             <strong>Perubahan ({changes.data.total})</strong>
+            <Tabs
+              label="Filter perubahan"
+              defaultValue={changeFilter || 'ALL'}
+              items={['ALL', 'CREATE', 'UPDATE', 'UNCHANGED', 'DEACTIVATE'].map((value) => ({
+                value,
+                label: value,
+                content: null,
+              }))}
+              onValueChange={(value) => {
+                setChangeFilter(value === 'ALL' ? '' : value);
+                setChangeCursor(undefined);
+                setChangeHistory([]);
+              }}
+            />
             <DataTable
               columns={[
                 { key: 'noReg', header: 'NoReg', cell: (r: { noReg: string }) => r.noReg },
@@ -311,9 +286,20 @@ export function ImportsPage() {
               rowKey={(r: { noReg: string; type: string }) => `${r.noReg}-${r.type}`}
               empty={<span>Tidak ada perubahan</span>}
             />
-            {changes.data.nextCursor ? (
-              <p style={{ fontSize: '0.75rem' }}>Ada data lanjutan (cursor)</p>
-            ) : null}
+            <Pagination
+              page={changeHistory.length + 1}
+              pageCount={changeHistory.length + 1 + (changes.data.nextCursor ? 1 : 0)}
+              onPageChange={(page) => {
+                if (page < changeHistory.length + 1) {
+                  const previous = changeHistory.at(-1) || undefined;
+                  setChangeHistory((items) => items.slice(0, -1));
+                  setChangeCursor(previous);
+                } else if (changes.data.nextCursor) {
+                  setChangeHistory((items) => [...items, changeCursor ?? '']);
+                  setChangeCursor(changes.data.nextCursor);
+                }
+              }}
+            />
           </Stack>
         </Card>
       ) : null}
@@ -364,12 +350,14 @@ export function ImportsPage() {
                       empty={<span>Belum ada import</span>}
                     />
                     <Pagination
-                      page={1}
-                      pageCount={list.data?.nextCursor ? 2 : 1}
-                      onPageChange={(p) =>
-                        setSearchParams(
-                          p === 2 && list.data?.nextCursor ? { cursor: list.data.nextCursor } : {},
-                        )
+                      page={pagination.page}
+                      pageCount={pagination.page + (list.data?.nextCursor ? 1 : 0)}
+                      onPageChange={(page) =>
+                        page < pagination.page
+                          ? pagination.previous()
+                          : list.data?.nextCursor
+                            ? pagination.next(list.data.nextCursor)
+                            : undefined
                       }
                     />
                   </>
@@ -383,9 +371,22 @@ export function ImportsPage() {
             content: snapshot.isLoading ? (
               <Loader label="Memuat snapshot" />
             ) : (
-              <pre style={{ fontSize: '0.75rem', overflow: 'auto' }}>
-                {JSON.stringify(snapshot.data, null, 2)}
-              </pre>
+              <dl>
+                <dt>Snapshot ID</dt>
+                <dd>{snapshot.data?.id ?? '-'}</dd>
+                <dt>Status</dt>
+                <dd>{snapshot.data?.status ?? '-'}</dd>
+                <dt>Unit</dt>
+                <dd>{snapshot.data?.unitCount ?? 0}</dd>
+                <dt>Member</dt>
+                <dd>{snapshot.data?.memberCount ?? 0}</dd>
+                <dt>Efektif</dt>
+                <dd>
+                  {snapshot.data?.effectiveAt
+                    ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
+                    : '-'}
+                </dd>
+              </dl>
             ),
           },
         ]}
@@ -405,6 +406,7 @@ export function ImportsPage() {
               onClick={() => confirmMutation.mutate()}
               loading={confirmMutation.isPending}
               variant="primary"
+              disabled={Boolean(detail.data?.errors?.length) || !confirmKey}
             >
               Ya, konfirmasi
             </Button>

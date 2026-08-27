@@ -1,61 +1,51 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Alert, Badge, Button, Card, Dialog, Input, Loader, PageHeader, Stack } from '@care/ui';
-import { useState } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Input,
+  Loader,
+  PageHeader,
+  Stack,
+  Textarea,
+} from '@care/ui';
+import { useMemo, useState } from 'react';
+import { createAdminApi, type UnionAccountList } from '../../admin-api';
 
-type UnionTerm = {
-  id: string;
-  slot: 'HEAD' | 'OFFICER_1' | 'OFFICER_2';
-  account: { id: string; username: string; displayName: string; status: string };
-};
+type UnionTerm = UnionAccountList[number];
 
 export function UnionPage() {
-  const { session } = useAuth();
+  const { session, transport } = useAuth();
+  const api = useMemo(() => createAdminApi(transport), [transport]);
   const qc = useQueryClient();
   const [slot, setSlot] = useState<UnionTerm['slot']>('HEAD');
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [reason, setReason] = useState('');
+  const [operationKey, setOperationKey] = useState('');
   const [open, setOpen] = useState(false);
 
   const q = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'union'),
-    queryFn: async () => {
-      const res = await fetch('/api/v1/admin/union-accounts', { credentials: 'include' });
-      if (!res.ok) throw new Error('Gagal memuat union');
-      return (await res.json()) as UnionTerm[];
-    },
+    queryFn: api.unionAccounts,
     enabled: !!session,
   });
 
-  async function getCsrf() {
-    const r = await fetch('/api/v1/auth/csrf', { credentials: 'include' });
-    const j = (await r.json()) as { token: string };
-    return j.token;
-  }
-
   const mutate = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/v1/admin/union-accounts/${slot}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': await getCsrf(),
-          'Idempotency-Key': crypto.randomUUID(),
-        },
-        body: JSON.stringify({ username, displayName }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error((j as { message?: string }).message ?? 'Gagal menyimpan union');
-      }
-      return res.json();
-    },
+    mutationFn: () =>
+      api.setUnionAccount(
+        slot,
+        { username, displayName, reason, expectedCurrentTerm: bySlot(slot)?.id ?? null },
+        operationKey,
+      ),
     onSuccess: () => {
       setOpen(false);
       setUsername('');
       setDisplayName('');
+      setReason('');
       void qc.invalidateQueries({ queryKey: careQueryKey(session?.sessionId ?? 'anon', 'union') });
     },
   });
@@ -119,6 +109,10 @@ export function UnionPage() {
                     size="sm"
                     onClick={() => {
                       setSlot(s);
+                      setUsername(term?.account.username ?? '');
+                      setDisplayName(term?.account.displayName ?? '');
+                      setReason('');
+                      setOperationKey(crypto.randomUUID());
                       setOpen(true);
                     }}
                   >
@@ -144,7 +138,11 @@ export function UnionPage() {
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Batal
             </Button>
-            <Button onClick={() => mutate.mutate()} loading={mutate.isPending}>
+            <Button
+              onClick={() => mutate.mutate()}
+              loading={mutate.isPending}
+              disabled={!username.trim() || !displayName.trim() || !reason.trim()}
+            >
               Simpan
             </Button>
           </>
@@ -157,6 +155,7 @@ export function UnionPage() {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="union-head"
           />
+          <Textarea label="Alasan" value={reason} onChange={(e) => setReason(e.target.value)} />
           <Input
             label="Display name"
             value={displayName}

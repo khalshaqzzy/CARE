@@ -27,7 +27,7 @@ const principal = (
   ...overrides,
 });
 
-describe('Phase 6 authorization scopes', () => {
+describe('Authorization scopes', () => {
   const policy = new PolicyService({} as never);
   it('separates Manager department browse from route work-items and division aggregate metadata', async () => {
     const manager = principal(['MEMBER', 'MANAGER'], {

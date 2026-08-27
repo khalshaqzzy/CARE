@@ -34,6 +34,18 @@ import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma.service';
 import { ratingError, transitionTarget } from './policies';
 
+const attachmentResponseSelect = Prisma.validator<Prisma.AttachmentSelect>()({
+  id: true,
+  purpose: true,
+  state: true,
+  mimeType: true,
+  size: true,
+  width: true,
+  height: true,
+  createdAt: true,
+  readyAt: true,
+});
+
 const draftSchema = z
   .object({
     area: z.enum(['KARAWANG_1', 'KARAWANG_2', 'KARAWANG_3', 'SUNTER_1', 'SUNTER_2']),
@@ -445,15 +457,7 @@ export class VoicesService {
   ) {
     const where = await this.policy.browseScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
-    const cursorId = query.cursor
-      ? (() => {
-          try {
-            return decodeCursor(query.cursor!);
-          } catch {
-            return undefined;
-          }
-        })()
-      : undefined;
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
     if (query.status) and.push({ status: query.status });
     if (query.visibility) and.push({ visibility: query.visibility });
@@ -518,7 +522,7 @@ export class VoicesService {
         currentHandler: { select: { id: true, displayName: true } },
         classification: true,
         locationReview: true,
-        attachments: true,
+        attachments: { select: attachmentResponseSelect },
       },
     });
     if (!voice) throw forbiddenAsNotFound();
@@ -659,7 +663,7 @@ export class VoicesService {
         createdAt: true,
         senderId: true,
         senderAccountKind: true,
-        attachments: true,
+        attachments: { select: attachmentResponseSelect },
       },
     });
     const anonymousUnion =
