@@ -2,6 +2,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   AccountStatus,
   AttachmentPurpose,
+  AttachmentState,
   ClassificationSource,
   HandlerType,
   LocationCompleteness,
@@ -125,7 +126,11 @@ const submitSchema = z
   })
   .strict();
 const assignmentSchema = z
-  .object({ handlerAccountId: z.string().uuid(), reason: z.string().trim().max(500).optional() })
+  .object({
+    handlerAccountId: z.string().uuid(),
+    reason: z.string().trim().max(500).optional(),
+    expectedVersion: z.number().int().positive().optional(),
+  })
   .strict();
 const textSchema = z
   .object({ text: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
@@ -671,6 +676,8 @@ export class VoicesService {
       throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
     const data = parse(assignmentSchema, input);
     const voice = await this.actionVoice(actor, id);
+    if (data.expectedVersion !== undefined && data.expectedVersion !== voice.version)
+      throw conflict('VERSION_CONFLICT', 'Voice version changed');
     if (voice.status === VoiceStatus.IN_PROGRESS || voice.status === VoiceStatus.CLOSED)
       throw invalidTransition('Assignment is only allowed before IN_PROGRESS');
     if (reassign && !voice.currentHandlerId)
@@ -760,19 +767,87 @@ export class VoicesService {
   reassign(actor: AuthActor, id: string, input: unknown, key: string) {
     return this.assign(actor, id, input, key, true);
   }
-  async ask(actor: AuthActor, id: string, input: unknown, _key: string) {
-    void _key;
-    const data = parse(textSchema, input);
-    return this.transitionWithMessage(actor, id, data, 'ASK');
+  async assignmentCandidates(actor: AuthActor, id: string) {
+    const voice = await this.actionVoice(actor, id);
+    if (voice.visibility === VoiceVisibility.PRIVATE) {
+      const terms = await this.prisma.unionAccountTerm.findMany({
+        where: {
+          slot: { in: [UnionSlot.OFFICER_1, UnionSlot.OFFICER_2] },
+          effectiveTo: null,
+          account: { status: AccountStatus.ACTIVE },
+        },
+        include: { account: { select: { id: true, displayName: true } } },
+      });
+      return terms
+        .filter((term) => term.account.id !== voice.currentHandlerId)
+        .map((term) => ({
+          id: term.account.id,
+          displayName: term.account.displayName,
+          slot: term.slot,
+        }));
+    }
+    const route = voice.routeMappingId
+      ? await this.prisma.routeMapping.findUnique({ where: { id: voice.routeMappingId } })
+      : null;
+    const owner = await this.currentMembershipForAccount(voice.routeOwnerId);
+    const assignmentUnitId =
+      route?.kind === RouteKind.GLOBAL_SPECIAL
+        ? owner?.organizationUnitId
+        : (route?.organizationUnitId ?? voice.reporterOrganizationUnitId);
+    if (!assignmentUnitId) return [];
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: {
+        snapshot: { status: 'ACTIVE' },
+        organizationUnitId: assignmentUnitId,
+        employee: { account: { status: AccountStatus.ACTIVE } },
+      },
+      include: {
+        employee: { include: { account: { select: { id: true, displayName: true } } } },
+      },
+    });
+    return memberships
+      .filter(
+        (membership) =>
+          membership.structuralPosition?.trim().toLocaleLowerCase('en-US') === 'section head',
+      )
+      .filter(
+        (membership) =>
+          membership.employee.account !== null &&
+          membership.employee.account.id !== voice.currentHandlerId,
+      )
+      .map((membership) => ({
+        id: membership.employee.account!.id,
+        displayName: membership.employee.account!.displayName,
+        structuralPosition: membership.structuralPosition,
+      }));
   }
-  async proceed(actor: AuthActor, id: string, input: unknown, _key: string) {
-    void _key;
+  async ask(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(textSchema, input);
+    const voice = await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `ask:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const target = transitionTarget(voice.status, 'ASK');
+        if (!target || voice.version !== data.version)
+          throw invalidTransition('Voice cannot transition from its current state');
+        await this.createMessageWithin(tx, actor, id, data.text, []);
+        return this.transitionStatus(tx, actor, id, target, VoiceEventType.ASKED_REPORTER, {});
+      },
+    );
+  }
+  async proceed(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(z.object({ version: z.number().int().positive() }).strict(), input);
     const voice = await this.actionVoice(actor, id);
-    const target = transitionTarget(voice.status, 'PROCEED');
-    if (!target || voice.version !== data.version)
-      throw invalidTransition('Voice cannot proceed from its current state');
-    return this.updateStatus(actor, voice.id, target, VoiceEventType.PROCEEDED, {});
+    return this.idempotentMutation(actor, `proceed:${id}`, key, canonicalHash(data), 200, (tx) => {
+      const target = transitionTarget(voice.status, 'PROCEED');
+      if (!target || voice.version !== data.version)
+        throw invalidTransition('Voice cannot proceed from its current state');
+      return this.transitionStatus(tx, actor, id, target, VoiceEventType.PROCEEDED, {});
+    });
   }
 
   async messages(actor: AuthActor, id: string) {
@@ -826,53 +901,26 @@ export class VoicesService {
     id: string,
     input: unknown,
     files: Express.Multer.File[],
-    _key: string,
+    key: string,
   ) {
-    void _key;
     const text = z.object({ text: z.string().trim().max(4000).optional() }).parse(input).text;
     if (!text && !files.length)
       throw badRequest('MESSAGE_EMPTY', 'Message or attachment is required');
     const voice = await this.authorizedVoice(actor, id);
     if (voice.reporterId !== actor.accountId) await this.actionVoice(actor, id);
-    const conversation = await this.prisma.conversation.upsert({
-      where: { voiceId: id },
-      create: { voiceId: id },
-      update: {},
-    });
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        senderId: actor.accountId,
-        ...this.policy.senderSnapshot(actor),
-        text,
-      },
-    });
+    const requestHash = canonicalHash({ text, fileSizes: files.map((file) => file.size) });
+    const prior = await this.checkIdempotency<unknown>(actor, `message:${id}`, key, requestHash);
+    if (prior.replayed) return prior.response as never;
+    const attachmentIds: string[] = [];
     for (const file of files) {
       const attachment = await this.media.process(file, actor.accountId, AttachmentPurpose.CHAT, {
         voiceId: id,
       });
-      await this.prisma.attachment.update({
-        where: { id: attachment.id },
-        data: { voiceId: null, messageId: message.id },
-      });
+      attachmentIds.push(attachment.id);
     }
-    await this.prisma.voiceEvent.create({
-      data: {
-        voiceId: id,
-        actorId: actor.accountId,
-        ...this.policy.actorSnapshot(actor),
-        type: VoiceEventType.MESSAGE_SENT,
-        payload: { messageId: message.id },
-      },
-    });
-    const recipientId =
-      actor.accountId === voice.reporterId
-        ? (voice.currentHandlerId ?? voice.routeOwnerId)
-        : voice.reporterId;
-    await this.prisma.$transaction(async (tx) =>
-      this.notify(tx, recipientId, id, NotificationType.MESSAGE, 'Pesan Voice baru'),
+    return this.idempotentMutation(actor, `message:${id}`, key, requestHash, 201, (tx) =>
+      this.createMessageWithin(tx, actor, id, text ?? '', attachmentIds),
     );
-    return message;
   }
   async stageEvidence(actor: AuthActor, id: string, file: Express.Multer.File) {
     await this.actionVoice(actor, id);
@@ -880,82 +928,143 @@ export class VoicesService {
       voiceId: id,
     });
   }
-  async close(actor: AuthActor, id: string, input: unknown, _key: string) {
-    void _key;
+  async close(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(closeSchema, input);
     const voice = await this.actionVoice(actor, id);
-    if (
-      voice.version !== data.version ||
-      transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
-    )
-      throw invalidTransition('Voice cannot close from its current state');
-    return this.prisma.$transaction(async (tx) => {
-      const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
-      const closure = await tx.closureCycle.create({
-        data: { voiceId: id, cycleNumber: cycles + 1, actorId: actor.accountId, note: data.note },
-      });
-      await tx.voice.update({
-        where: { id },
-        data: { status: VoiceStatus.CLOSED, version: { increment: 1 } },
-      });
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          type: VoiceEventType.CLOSED,
-          payload: { closureId: closure.id },
-        },
-      });
-      await this.cleanupLegacy(tx, id);
-      await this.notify(tx, voice.reporterId, id, NotificationType.CLOSED, 'Voice ditutup');
-      return closure;
-    });
-  }
-  async rate(actor: AuthActor, id: string, input: unknown, _key: string) {
-    void _key;
-    const data = parse(ratingSchema, input);
-    const voice = await this.prisma.voice.findFirst({
-      where: { id, reporterId: actor.accountId, status: VoiceStatus.CLOSED },
-      include: {
-        closureCycles: { where: { reopenedAt: null }, orderBy: { cycleNumber: 'desc' }, take: 1 },
-      },
-    });
-    if (!voice?.closureCycles[0]) throw forbiddenAsNotFound();
-    const error = ratingError(data.score, data.feedback, data.reopen);
-    if (error) throw badRequest(error, 'Rating is invalid');
-    return this.prisma.$transaction(async (tx) => {
-      const rating = await tx.rating.create({
-        data: { closureCycleId: voice.closureCycles[0]!.id, reporterId: actor.accountId, ...data },
-      });
-      if (data.reopen) {
-        await tx.closureCycle.update({
-          where: { id: voice.closureCycles[0]!.id },
-          data: { reopenedAt: new Date() },
+    return this.idempotentMutation(
+      actor,
+      `close:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        if (
+          voice.version !== data.version ||
+          transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
+        )
+          throw invalidTransition('Voice cannot close from its current state');
+        const staged = await tx.attachment.findMany({
+          where: {
+            voiceId: id,
+            purpose: AttachmentPurpose.CLOSURE_EVIDENCE,
+            closureId: null,
+            state: AttachmentState.READY,
+          },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
         });
+        if (staged.length > 5)
+          throw badRequest('EVIDENCE_LIMIT', 'At most 5 closure evidence files are allowed');
+        const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
+        const closure = await tx.closureCycle.create({
+          data: { voiceId: id, cycleNumber: cycles + 1, actorId: actor.accountId, note: data.note },
+        });
+        if (staged.length)
+          await tx.attachment.updateMany({
+            where: { id: { in: staged.map((item) => item.id) } },
+            data: { voiceId: null, closureId: closure.id, state: AttachmentState.REFERENCED },
+          });
         await tx.voice.update({
           where: { id },
-          data: { status: VoiceStatus.IN_VERIFICATION, version: { increment: 1 } },
+          data: { status: VoiceStatus.CLOSED, version: { increment: 1 } },
         });
-      }
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          type: data.reopen ? VoiceEventType.REOPENED : VoiceEventType.RATED,
-          payload: { score: data.score },
-        },
-      });
-      await this.notify(
-        tx,
-        voice.currentHandlerId ?? voice.routeOwnerId,
-        id,
-        data.reopen ? NotificationType.REOPENED : NotificationType.RATED,
-        data.reopen ? 'Voice dibuka kembali' : 'Voice diberi rating',
-      );
-      return rating;
-    });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.CLOSED,
+            payload: { closureId: closure.id, evidenceCount: staged.length },
+          },
+        });
+        await this.cleanupLegacy(tx, id);
+        await this.notify(tx, voice.reporterId, id, NotificationType.CLOSED, 'Voice ditutup');
+        return closure;
+      },
+    );
+  }
+  async rate(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(ratingSchema, input);
+    const error = ratingError(data.score, data.feedback, data.reopen);
+    if (error) throw badRequest(error, 'Rating is invalid');
+    return this.idempotentMutation(
+      actor,
+      `rate:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        const voice = await tx.voice.findFirst({
+          where: { id, reporterId: actor.accountId, status: VoiceStatus.CLOSED },
+          include: {
+            closureCycles: {
+              where: { reopenedAt: null },
+              orderBy: { cycleNumber: 'desc' },
+              take: 1,
+            },
+          },
+        });
+        if (!voice?.closureCycles[0]) throw forbiddenAsNotFound();
+        const rating = await tx.rating.create({
+          data: {
+            closureCycleId: voice.closureCycles[0]!.id,
+            reporterId: actor.accountId,
+            ...data,
+          },
+        });
+        let recipientId = voice.currentHandlerId ?? voice.routeOwnerId;
+        if (data.reopen) {
+          // Reopen resilience: hand the voice back to the last PIC only if that account is
+          // still ACTIVE; otherwise fall back to the route owner so a deactivated handler
+          // cannot strand a reopened voice.
+          let handlerId = voice.currentHandlerId ?? voice.routeOwnerId;
+          let handlerType = voice.handlerType;
+          if (
+            handlerId &&
+            (await tx.userAccount.count({
+              where: { id: handlerId, status: AccountStatus.ACTIVE },
+            })) !== 1
+          ) {
+            handlerId = voice.routeOwnerId;
+            handlerType =
+              voice.visibility === VoiceVisibility.PRIVATE
+                ? HandlerType.UNION_HEAD
+                : HandlerType.MANAGER;
+          }
+          recipientId = handlerId;
+          await tx.closureCycle.update({
+            where: { id: voice.closureCycles[0]!.id },
+            data: { reopenedAt: new Date() },
+          });
+          await tx.voice.update({
+            where: { id },
+            data: {
+              status: VoiceStatus.IN_VERIFICATION,
+              version: { increment: 1 },
+              currentHandlerId: handlerId,
+              handlerType,
+            },
+          });
+        }
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: data.reopen ? VoiceEventType.REOPENED : VoiceEventType.RATED,
+            payload: { score: data.score },
+          },
+        });
+        await this.notify(
+          tx,
+          recipientId,
+          id,
+          data.reopen ? NotificationType.REOPENED : NotificationType.RATED,
+          data.reopen ? 'Voice dibuka kembali' : 'Voice diberi rating',
+        );
+        return rating;
+      },
+    );
   }
 
   async dashboardGeneral(actor: AuthActor) {
@@ -1097,6 +1206,146 @@ export class VoicesService {
         })),
       ),
     };
+  }
+
+  private async checkIdempotency<T>(
+    actor: AuthActor,
+    scope: string,
+    key: string,
+    requestHash: string,
+  ): Promise<{ replayed: boolean; response?: T }> {
+    if (!key || key.length > 100)
+      throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
+    const existing = await this.prisma.idempotencyRecord.findUnique({
+      where: { accountId_scope_key: { accountId: actor.accountId, scope, key } },
+    });
+    if (!existing) return { replayed: false };
+    if (existing.requestHash !== requestHash)
+      throw conflict('IDEMPOTENCY_CONFLICT', 'Idempotency key was reused with a different request');
+    return { replayed: true, response: existing.response as T };
+  }
+  private async idempotentMutation<T>(
+    actor: AuthActor,
+    scope: string,
+    key: string,
+    requestHash: string,
+    statusCode: number,
+    run: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    const prior = await this.checkIdempotency<T>(actor, scope, key, requestHash);
+    if (prior.replayed) return prior.response as T;
+    return this.prisma.$transaction(async (tx) => {
+      const result = await run(tx);
+      try {
+        await tx.idempotencyRecord.create({
+          data: {
+            accountId: actor.accountId,
+            scope,
+            key,
+            requestHash,
+            statusCode,
+            response: JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue,
+            expiresAt: new Date(Date.now() + 86_400_000),
+          },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          const winner = await tx.idempotencyRecord.findUnique({
+            where: { accountId_scope_key: { accountId: actor.accountId, scope, key } },
+          });
+          if (winner && winner.requestHash === requestHash) return winner.response as T;
+          throw conflict(
+            'IDEMPOTENCY_CONFLICT',
+            'Idempotency key was reused with a different request',
+          );
+        }
+        throw error;
+      }
+      return result;
+    });
+  }
+  private async transitionStatus(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    id: string,
+    status: VoiceStatus,
+    type: VoiceEventType,
+    payload: object,
+  ) {
+    const voice = await tx.voice.update({
+      where: { id },
+      data: { status, version: { increment: 1 } },
+    });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: id,
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        type,
+        payload,
+      },
+    });
+    await this.notify(
+      tx,
+      voice.reporterId,
+      id,
+      NotificationType.STATUS_CHANGED,
+      'Status Voice diperbarui',
+    );
+    return {
+      id: voice.id,
+      displayId: voice.displayId,
+      status: voice.status,
+      version: voice.version,
+      currentHandlerId: voice.currentHandlerId,
+      handlerType: voice.handlerType,
+    };
+  }
+  private async createMessageWithin(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    id: string,
+    text: string,
+    attachmentIds: string[],
+  ) {
+    const conversation = await tx.conversation.upsert({
+      where: { voiceId: id },
+      create: { voiceId: id },
+      update: {},
+    });
+    const message = await tx.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: actor.accountId,
+        ...this.policy.senderSnapshot(actor),
+        text,
+      },
+    });
+    if (attachmentIds.length)
+      await tx.attachment.updateMany({
+        where: { id: { in: attachmentIds } },
+        data: { voiceId: null, messageId: message.id },
+      });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: id,
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        type: VoiceEventType.MESSAGE_SENT,
+        payload: { messageId: message.id },
+      },
+    });
+    const voice = await tx.voice.findUnique({
+      where: { id },
+      select: { reporterId: true, currentHandlerId: true, routeOwnerId: true },
+    });
+    const recipientId =
+      voice && actor.accountId === voice.reporterId
+        ? (voice.currentHandlerId ?? voice.routeOwnerId)
+        : voice?.reporterId;
+    if (recipientId)
+      await this.notify(tx, recipientId, id, NotificationType.MESSAGE, 'Pesan Voice baru');
+    return message;
   }
 
   private async ownedDraft(actor: AuthActor, id: string) {
@@ -1309,57 +1558,6 @@ export class VoicesService {
       actor.accountStatus === AccountStatus.LEGACY_HANDLER;
     if (!allowed) throw forbiddenAsNotFound();
     return voice;
-  }
-  private async transitionWithMessage(
-    actor: AuthActor,
-    id: string,
-    data: { text: string; version: number },
-    action: 'ASK',
-  ) {
-    const voice = await this.actionVoice(actor, id);
-    const target = transitionTarget(voice.status, action);
-    if (!target || voice.version !== data.version)
-      throw invalidTransition('Voice cannot transition from its current state');
-    await this.addMessage(actor, id, { text: data.text }, [], '');
-    return this.updateStatus(actor, id, target, VoiceEventType.ASKED_REPORTER, {});
-  }
-  private async updateStatus(
-    actor: AuthActor,
-    id: string,
-    status: VoiceStatus,
-    type: VoiceEventType,
-    payload: object,
-  ) {
-    return this.prisma.$transaction(async (tx) => {
-      const voice = await tx.voice.update({
-        where: { id },
-        data: { status, version: { increment: 1 } },
-      });
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          type,
-          payload,
-        },
-      });
-      await this.notify(
-        tx,
-        voice.reporterId,
-        id,
-        NotificationType.STATUS_CHANGED,
-        'Status Voice diperbarui',
-      );
-      return {
-        id: voice.id,
-        displayId: voice.displayId,
-        status: voice.status,
-        version: voice.version,
-        currentHandlerId: voice.currentHandlerId,
-        handlerType: voice.handlerType,
-      };
-    });
   }
   private actionSet(
     actor: AuthActor,

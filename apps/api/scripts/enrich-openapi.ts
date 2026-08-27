@@ -291,6 +291,7 @@ function successSchema(operationId: string) {
     VoicesController_addDraftAttachment: 'AttachmentResponse',
     VoicesController_ask: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
+    VoicesController_assignmentCandidates: 'AssignmentCandidateList',
     VoicesController_close: 'ClosureResponse',
     VoicesController_conversations: 'ConversationList',
     VoicesController_createDraft: 'VoiceDraftResponse',
@@ -518,6 +519,21 @@ const schemas: Record<string, any> = {
     properties: {
       handlerAccountId: { type: 'string', format: 'uuid' },
       reason: { type: 'string', maxLength: 500 },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  AssignmentCandidateList: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['id', 'displayName'],
+      additionalProperties: false,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        displayName: { type: 'string' },
+        slot: { type: 'string', enum: ['OFFICER_1', 'OFFICER_2'] },
+        structuralPosition: { type: 'string' },
+      },
     },
   },
   AccountSelectionRequest: {

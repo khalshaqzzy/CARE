@@ -145,6 +145,12 @@ export class VoicesController {
   ) {
     return this.voices.reassign(a, id, b, key);
   }
+  @Get('voices/:id/assignment-candidates') assignmentCandidates(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.assignmentCandidates(a, id);
+  }
   @Post('voices/:id/ask') ask(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
