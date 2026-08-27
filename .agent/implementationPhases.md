@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status roadmap         | Phase 8.5 selesai; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix + acceptance done (Frontend Complete Gate tetap diblokir sampai Phase 11)                                                                       |
-| Last updated           | 27 Agustus 2026                                                                                                                                                                                                                                        |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                   |
-| Current implementation | Phase 0–8 done (Phase 8.5 accessibility/security/performance/full-stack acceptance passed); Phase 9 Member journey done; Phase 10 responder/leadership matrix + Admin Explorer done; Playwright mocked + CI full-stack (gated `FULLSTACK_E2E=1`) wired |
-| Current phase          | Phase 11 `in_progress` (single in_progress; Frontend Complete Gate blocked only by Phase 11)                                                                                                                                                           |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                          |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 8.5 selesai; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix + acceptance done; Phase 11 Frontend Complete Gate done (Frontend Complete Gate: passed)                                                                                                |
+| Last updated           | 27 Agustus 2026                                                                                                                                                                                                                                                                                |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                           |
+| Current implementation | Phase 0–8 done (Phase 8.5 accessibility/security/performance/full-stack acceptance passed); Phase 9 Member journey done; Phase 10 responder/leadership matrix + Admin Explorer done; Phase 11 Frontend Complete Gate passed; Playwright mocked + CI full-stack (gated `FULLSTACK_E2E=1`) wired |
+| Current phase          | Frontend Complete Gate `passed`; production containerization (Phase 12) is the next pending phase; no `in_progress` phase until Phase 12 starts                                                                                                                                                |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                  |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -504,24 +504,50 @@ Acceptance status: the dashboard/detail/action matrix, aggregate/design leakage 
 
 ## Phase 11 — Frontend Completion, Workforce PWA, Accessibility, and Two-App E2E Gate
 
-Status: `pending`
+Status: `done` — Frontend Complete Gate passed on 27 Agustus 2026.
 
 Dependencies: Phase 7–10.
 
-Scope:
+Scope (implemented):
 
-- workforce Web Push opt-in, install/update/offline/stale behavior, and cache exclusions;
-- Admin network-only validation;
-- responsive polish, WCAG 2.1 AA, keyboard/focus/touch/reduced-motion;
-- two-origin full Playwright, host isolation, visual regression, UI security probes, performance/bundle/build validation.
+- workforce Web Push opt-in: `useWebPush` + `PushSettingsCard` (subscribe/
+  unsubscribe/status, unconfigured/unsupported/denied/iOS-install degraded
+  states, explicit gesture, session-keyed invalidation) wired to the existing
+  backend push contract and service-worker push/notificationclick handlers;
+- PWA install/update/offline/stale behavior verified; cache exclusions preserved;
+  service worker registers a privacy-stripped offline summary cache for
+  `/dashboard/member` only (no Private titles/draft content cached); offline
+  stale banner + recent/draft suppression on the member home;
+- Admin network-only validation re-verified (no service worker/manifest/offline
+  cache, no protected fetch below the 1280 px gate);
+- responsive polish, WCAG 2.1 AA, keyboard/focus/reduced-motion, no-overflow,
+  44 px mobile bottom-nav touch target; mobile auth-brand contrast fix;
+- create-wizard step advance fix (visibility → detail);
+- two-origin full Playwright: expanded options-based `mockWorkforceApi`,
+  `workforce-a11y/journeys/push/security` specs, two new visual baselines, and a
+  gated workforce full-stack smoke that reuses the seeded member and runs serially
+  before the Admin full-stack journey; UI security probes (conditional Private
+  identity hiding, aggregate non-leakage, CSRF on mutations, capability-gated
+  actions, authorized media) pass;
+- performance/bundle/build validation: workforce PWA precache 12 entries, Admin
+  bundle sized, no regression.
 
 Frontend Complete Gate acceptance:
 
 - seluruh PRD UI journey tersedia tanpa placeholder;
-- workforce PWA and Admin responsive supported-browser matrix green;
-- Playwright pada kedua origin, Axe, no-overflow, production builds, dan privacy probes green;
+- workforce PWA and Admin responsive supported-browser matrix green (Axe WCAG
+  2.1 AA on all workforce routes, no-overflow at 360/768/1440, keyboard/focus/
+  reduced-motion, 44 px mobile touch);
+- Playwright pada kedua origin, Axe, no-overflow, production builds, dan privacy
+  probes green (95 passed: chromium + visual + pwa);
 - no unresolved Critical/High frontend finding;
 - handoff mencatat **Frontend Complete Gate: passed** sebelum Phase 12.
+
+Validation evidence: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`,
+`pnpm build` green; `pnpm test:unit` green (API 34, ui 8, frontend-core 9,
+web-voice 19, web-admin 2); Playwright `test:frontend:e2e` 95 passed.
+See ADR-0010. Real Web Push delivery + VAPID credentials remain a staging
+rehearsal concern (Phase 13), not this gate.
 
 ---
 
@@ -590,8 +616,8 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Phase 8.5 telah selesai dan Phase 8 complete. Phase 9 dan Phase 10 telah ditandai `done`, dan satu-satunya phase `in_progress` kini Phase 11. Langkah berikutnya:
+Frontend Complete Gate telah passed dan satu-satunya phase `in_progress` sebelumnya (Phase 11) kini `done`. Langkah berikutnya:
 
-1. jalankan parity CI penuh sebelum merge (termasuk step fullstack Playwright `FULLSTACK_E2E=1` yang men-seed `care_test` melalui Playwright globalSetup); full-stack smoke hanya memvalidasi wiring API/DB/proxy — business flow acceptance tetap di `test:integration` (31) & `test:security` (5);
-2. refresh visual baseline `workforce-shell-360.png` jika Member Home berubah di masa depan;
-3. lanjutkan Phase 11 (Frontend Complete Gate): workforce Web Push opt-in, admin network-only, responsive/WCAG polish, two-origin full Playwright; jangan mulai production containerization/deployment (Phase 12+) sebelum Phase 11 passed.
+1. jalankan parity CI penuh sebelum merge (termasuk step fullstack Playwright `FULLSTACK_E2E=1` yang men-seed `care_test` melalui Playwright globalSetup; full-stack smoke memvalidasi wiring API/DB/proxy dan kini memuat journey workflow single-worker: Admin (_admin-fullstack_) dan member (_a-workforce-fullstack_, dijalankan terlebih dahulu agar member aktif) — business flow acceptance tetap di `test:integration` (31) & `test:security` (5); aturan single-worker wajib dipertahankan agar urutan file deterministik;
+2. refresh visual baseline workforce (_workforce-history-360.png_, _workforce-notifications-360.png_) jika layout berubah di masa depan; `workforce-shell-360.png` tetap valid karena perubahan Home tidak mengubah render online;
+3. mulai **Phase 12 (production containerization)** hanya setelah Frontend Complete Gate tercatat passed; Web Push delivery riil + VAPID credential tetap menjadi staging rehearsal (Phase 13).

@@ -1,5 +1,5 @@
 import { Badge, Button, Card, Stack } from '@care/ui';
-import { KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import { Bell, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { formatDateTime } from '../../lib/formatters';
@@ -109,6 +109,9 @@ export function AccountPage() {
             <Badge tone="neutral">Berlaku {formatDateTime(new Date())}</Badge>
           </div>
           <div className="account-actions">
+            <Button variant="secondary" onClick={() => void navigate('/notifications')}>
+              <Bell size={18} /> Notifikasi push
+            </Button>
             <Button variant="secondary" onClick={() => void navigate('/change-password')}>
               <KeyRound size={18} /> Ganti password
             </Button>

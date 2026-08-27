@@ -261,6 +261,27 @@ export function createWorkforceApi(transport: CareTransport) {
           params: { path: { id }, header: csrfHeader() },
         }),
       ),
+    pushPublicKey: () =>
+      dataOrThrow<components['schemas']['PushPublicKeyResponse']>(
+        client.GET('/api/v1/notifications/push/public-key'),
+      ),
+    pushStatus: () =>
+      dataOrThrow<components['schemas']['PushStatusResponse']>(
+        client.GET('/api/v1/notifications/push/status'),
+      ),
+    subscribePush: (body: components['schemas']['PushSubscriptionRequest']) =>
+      dataOrThrow<components['schemas']['PushSubscriptionResponse']>(
+        client.POST('/api/v1/notifications/push/subscriptions', {
+          params: { header: csrfHeader() },
+          body,
+        }),
+      ),
+    unsubscribePush: (installationId: string) =>
+      dataOrThrow<components['schemas']['SuccessResponse']>(
+        client.DELETE('/api/v1/notifications/push/subscriptions/{installationId}', {
+          params: { path: { installationId }, header: csrfHeader() },
+        }),
+      ),
   };
 }
 

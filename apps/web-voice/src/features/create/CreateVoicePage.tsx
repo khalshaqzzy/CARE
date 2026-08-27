@@ -111,7 +111,10 @@ function VisibilityStep({ wizard }: { wizard: Wizard }) {
         <Button
           variant="primary"
           disabled={!choice}
-          onClick={() => wizard.setField({ visibility: choice! })}
+          onClick={() => {
+            wizard.setField({ visibility: choice! });
+            wizard.setStep('form');
+          }}
         >
           Lanjutkan
         </Button>

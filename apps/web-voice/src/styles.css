@@ -122,7 +122,7 @@
     font-size: 2.5rem;
   }
   .auth-brand p {
-    color: color-mix(in srgb, var(--text-inverse) 78%, transparent);
+    color: var(--text-inverse);
   }
   .auth-card {
     justify-self: center;
@@ -1019,6 +1019,45 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+/* Push settings */
+.push-settings__intro {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+.push-settings__devices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.push-settings__devices li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+.push-settings__devices li span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.push-settings__devices li strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+}
+.push-settings__devices li small {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 /* Pager */

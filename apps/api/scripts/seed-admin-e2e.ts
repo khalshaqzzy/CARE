@@ -168,6 +168,43 @@ async function main() {
       },
     });
 
+    // A minimal append-only timeline so the member smoke can render a timeline
+    // for the seeded voices instead of an empty/hidden section.
+    await prisma.voiceEvent.createMany({
+      data: [
+        {
+          id: stableUuid('event', 'general-submitted'),
+          voiceId: generalVoice.id,
+          type: 'SUBMITTED',
+          actorId: work.reporter.id,
+          actorAccountKind: AccountKind.WORKFORCE,
+          actorStructuralPosition: 'Member',
+          actorCapabilities: ['MEMBER'],
+          payload: {},
+        },
+        {
+          id: stableUuid('event', 'general-proceeded'),
+          voiceId: generalVoice.id,
+          type: 'PROCEEDED',
+          actorId: work.manager.id,
+          actorAccountKind: AccountKind.WORKFORCE,
+          actorStructuralPosition: 'Department Head',
+          actorCapabilities: ['MEMBER', 'MANAGER'],
+          payload: {},
+        },
+        {
+          id: stableUuid('event', 'private-submitted'),
+          voiceId: privateVoice.id,
+          type: 'SUBMITTED',
+          actorId: work.reporter.id,
+          actorAccountKind: AccountKind.WORKFORCE,
+          actorStructuralPosition: 'Member',
+          actorCapabilities: ['MEMBER'],
+          payload: {},
+        },
+      ],
+    });
+
     // A confirmed import batch + its changes and an unresolved remediation issue,
     // so the Imports and Remediation pages render real data.
     const batch = await prisma.importBatch.create({
