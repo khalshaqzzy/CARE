@@ -4,8 +4,39 @@ test('precache excludes design/API and provides an explicit offline fallback', a
   context,
   page,
 }) => {
+  // CI runners occasionally delay first-run service worker activation beyond the
+  // default 30 s budget; give this journey room without loosening anything else.
+  test.setTimeout(120_000);
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+
   await page.goto('/');
-  await page.evaluate(() => navigator.serviceWorker.ready);
+  // navigator.serviceWorker.ready can remain pending forever when activation
+  // stalls on a busy runner, hiding the real registration state. Poll the
+  // registration directly so failures report the last observed worker state.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(async () => {
+          const registration = await navigator.serviceWorker.getRegistration('/');
+          return (
+            registration?.active?.state ??
+            registration?.installing?.state ??
+            registration?.waiting?.state ??
+            null
+          );
+        }),
+      {
+        timeout: 60_000,
+        interval: 500,
+        message: consoleErrors.length
+          ? `Service worker did not reach "activated"; console errors: ${consoleErrors.join(' | ')}`
+          : 'Service worker did not reach "activated"',
+      },
+    )
+    .toBe('activated');
   const controlledPage = await context.newPage();
   await controlledPage.goto('/');
   const cachedUrls = await controlledPage.evaluate(async () => {
