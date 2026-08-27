@@ -126,8 +126,9 @@ export class VoicesController {
   @Get('voices/:id/timeline') timeline(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query() q: Parameters<VoicesService['timeline']>[2],
   ) {
-    return this.voices.timeline(a, id);
+    return this.voices.timeline(a, id, q ?? {});
   }
   @Post('voices/:id/assignments') assign(
     @Actor() a: AuthActor,
@@ -170,8 +171,9 @@ export class VoicesController {
   @Get('voices/:id/messages') messages(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query() q: Parameters<VoicesService['messages']>[2],
   ) {
-    return this.voices.messages(a, id);
+    return this.voices.messages(a, id, q ?? {});
   }
   @Get('conversations') conversations(@Actor() a: AuthActor) {
     return this.voices.conversations(a);
@@ -214,11 +216,17 @@ export class VoicesController {
   ) {
     return this.voices.rate(a, id, b, key);
   }
-  @Get('dashboard/general') dashboardGeneral(@Actor() a: AuthActor) {
-    return this.voices.dashboardGeneral(a);
+  @Get('dashboard/general') dashboardGeneral(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardGeneral']>[1],
+  ) {
+    return this.voices.dashboardGeneral(a, q ?? {});
   }
-  @Get('dashboard/private') dashboardPrivate(@Actor() a: AuthActor) {
-    return this.voices.dashboardPrivate(a);
+  @Get('dashboard/private') dashboardPrivate(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardPrivate']>[1],
+  ) {
+    return this.voices.dashboardPrivate(a, q ?? {});
   }
   @Get('dashboard/member') dashboardMember(@Actor() a: AuthActor) {
     return this.voices.dashboardMember(a);

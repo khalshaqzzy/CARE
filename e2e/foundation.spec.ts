@@ -79,7 +79,7 @@ test('workforce auth bootstrap and shell', async ({ page }) => {
   );
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Selamat datang, Budi Santoso' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Navigasi utama' })).toBeVisible();
 });
 

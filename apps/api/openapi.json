@@ -6854,6 +6854,32 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6862,7 +6888,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TimelineResponse"
+                  "$ref": "#/components/schemas/TimelinePage"
                 }
               }
             }
@@ -7752,6 +7778,32 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7760,7 +7812,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageList"
+                  "$ref": "#/components/schemas/MessagePage"
                 }
               }
             }
@@ -8622,7 +8674,56 @@
     "/api/v1/dashboard/general": {
       "get": {
         "operationId": "VoicesController_dashboardGeneral",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "area",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -8744,7 +8845,56 @@
     "/api/v1/dashboard/private": {
       "get": {
         "operationId": "VoicesController_dashboardPrivate",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "area",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -12423,8 +12573,12 @@
           "category",
           "trend",
           "division",
-          "department"
+          "department",
+          "suppression",
+          "filters",
+          "generatedAt"
         ],
+        "additionalProperties": false,
         "properties": {
           "total": {
             "type": "integer"
@@ -12446,6 +12600,108 @@
           },
           "department": {
             "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "suppression": {
+            "type": "object",
+            "required": [
+              "enabled",
+              "threshold",
+              "division",
+              "department"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "threshold": {
+                "type": "integer"
+              },
+              "division": {
+                "$ref": "#/components/schemas/SuppressionBreakdown"
+              },
+              "department": {
+                "$ref": "#/components/schemas/SuppressionBreakdown"
+              }
+            }
+          },
+          "filters": {
+            "type": "object",
+            "required": [
+              "area",
+              "category",
+              "severity",
+              "status",
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "area": {
+                "type": "string",
+                "nullable": true
+              },
+              "category": {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  "SAFETY",
+                  "ENVIRONMENT",
+                  "FACILITY",
+                  "WORK_DIFFICULTY"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "CRITICAL"
+                ],
+                "nullable": true
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "OPEN",
+                  "IN_VERIFICATION",
+                  "IN_PROGRESS",
+                  "CLOSED"
+                ],
+                "nullable": true
+              },
+              "from": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "to": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuppressionBreakdown": {
+        "type": "object",
+        "required": [
+          "suppressedBuckets",
+          "suppressedValue"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "suppressedBuckets": {
+            "type": "integer"
+          },
+          "suppressedValue": {
+            "type": "integer"
           }
         }
       },
@@ -14148,32 +14404,50 @@
           }
         }
       },
-      "TimelineResponse": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": [
-            "id",
-            "type",
-            "occurredAt",
-            "payload"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "type": {
-              "type": "string"
-            },
-            "occurredAt": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "payload": {
-              "type": "object",
-              "additionalProperties": true
+      "TimelineEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "occurredAt",
+          "payload"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "TimelinePage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
             }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Signed opaque cursor"
           }
         }
       },
@@ -14280,10 +14554,25 @@
           }
         }
       },
-      "MessageList": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/MessageResponse"
+      "MessagePage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Signed opaque cursor"
+          }
         }
       },
       "ConversationList": {

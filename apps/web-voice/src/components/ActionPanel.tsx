@@ -1,9 +1,11 @@
 import { Alert, Button, Card, Checkbox, Dialog, Select, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { ImagePlus } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { ACTION_LABELS, STATUS_LABELS } from '../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
-import type { VoiceDetail } from '../workforce-api';
+import type { Attachment, VoiceDetail } from '../workforce-api';
+import { MediaGallery } from './MediaGallery';
 
 type Action = 'ask' | 'proceed' | 'close' | 'rate' | 'assign' | 'reassign' | 'none';
 
@@ -332,21 +334,75 @@ function CloseDialog({
   onConfirm: (body: { note: string; version: number }) => void;
   loading: boolean;
 }) {
+  const api = useApi();
   const [note, setNote] = useState('');
+  const [evidence, setEvidence] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const uploadEvidence = async (files: FileList) => {
+    const room = 5 - evidence.length;
+    const picked = Array.from(files).slice(0, room);
+    if (!picked.length) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const staged: Attachment[] = [];
+      for (const file of picked) staged.push(await api.stageEvidence(detail.id, file));
+      setEvidence((current) => [...current, ...staged]);
+    } catch (cause) {
+      setUploadError(cause instanceof Error ? cause.message : 'Gagal mengunggah bukti.');
+    } finally {
+      setUploading(false);
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  };
+
   return (
     <Stack gap="md">
-      <Textarea
-        label="Catatan penutupan"
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        rows={4}
-        maxLength={4000}
-        required
-      />
-      <p className="dialog-copy">
-        Catatan bukti penutupan (foto) diperlukan pada versi penuh. Konsekuensi tidak dapat diubah
-        setelah tersimpan.
-      </p>
+      <div className="closure-evidence">
+        <Textarea
+          label="Catatan penutupan"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={4}
+          maxLength={4000}
+          required
+        />
+        <p className="dialog-copy">
+          Bukti penutupan (foto) diperlukan. Bukti dan catatan bersifat permanen setelah tersimpan.
+        </p>
+        <button
+          type="button"
+          className="closure-evidence__add"
+          onClick={() => fileInput.current?.click()}
+          disabled={uploading || evidence.length >= 5}
+        >
+          <ImagePlus size={16} /> Tambah foto bukti ({evidence.length}/5)
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          hidden
+          onChange={(event) => {
+            if (event.target.files) void uploadEvidence(event.target.files);
+          }}
+        />
+        {uploading ? <p className="dialog-copy">Memproses foto…</p> : null}
+        {uploadError ? (
+          <Alert tone="danger" title="Bukti gagal">
+            {uploadError}
+          </Alert>
+        ) : null}
+        {evidence.length ? (
+          <MediaGallery attachments={evidence} label="Bukti penutupan" />
+        ) : (
+          <p className="dialog-copy">Minimal satu foto bukti wajib dilampirkan.</p>
+        )}
+      </div>
       <div className="dialog-actions">
         <Button variant="ghost" onClick={onCancel}>
           Batal
@@ -354,7 +410,7 @@ function CloseDialog({
         <Button
           variant="primary"
           loading={loading}
-          disabled={!note.trim()}
+          disabled={!note.trim() || evidence.length === 0}
           onClick={() => onConfirm({ note, version: detail.version })}
         >
           Tutup Voice

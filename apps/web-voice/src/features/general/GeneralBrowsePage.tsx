@@ -6,9 +6,10 @@ import { useAuth } from '@care/frontend-core';
 import { DashboardChartCard } from '../../components/DashboardChartCard';
 import { Pager } from '../../components/Pager';
 import { VoiceCard } from '../../components/VoiceCard';
-import { AREA_LABELS, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
+import { AREA_LABELS, formatRelative, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
+import type { DashboardAggregate } from '../../workforce-api';
 
 export function GeneralBrowsePage() {
   const { session } = useAuth();
@@ -23,8 +24,13 @@ export function GeneralBrowsePage() {
   const area = searchParams.get('area') ?? undefined;
 
   const chart = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'general'),
-    queryFn: () => api.dashboardGeneral(),
+    queryKey: voiceQuery(sessionId, 'dashboard', 'general', status, severity, area),
+    queryFn: () =>
+      api.dashboardGeneral({
+        ...(status ? { status: status as never } : {}),
+        ...(severity ? { severity: severity as never } : {}),
+        ...(area ? { area } : {}),
+      }),
     enabled: !!session,
     refetchInterval: 3000,
   });
@@ -74,6 +80,8 @@ export function GeneralBrowsePage() {
       ) : (
         <Skeleton label="Memuat aggregate" />
       )}
+
+      {chart.data ? <DashboardNote data={chart.data} /> : null}
 
       <Card className="history-filters">
         <div className="history-filters__row">
@@ -130,5 +138,20 @@ export function GeneralBrowsePage() {
         </Stack>
       )}
     </Stack>
+  );
+}
+
+function DashboardNote({ data }: { data: DashboardAggregate }) {
+  const suppressed =
+    data.suppression.enabled &&
+    (data.suppression.division.suppressedValue > 0 ||
+      data.suppression.department.suppressedValue > 0);
+  return (
+    <p className="care-note">
+      {suppressed
+        ? `Kelompok kecil digabungkan (ambang ${data.suppression.threshold}) demi privasi. `
+        : ''}
+      Diperbarui {formatRelative(data.generatedAt)}.
+    </p>
   );
 }

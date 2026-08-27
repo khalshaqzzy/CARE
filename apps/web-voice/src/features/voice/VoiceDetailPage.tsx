@@ -1,4 +1,4 @@
-import { Badge, Card, EmptyState, SeverityBadge, Skeleton, Stack } from '@care/ui';
+import { Badge, Button, Card, EmptyState, SeverityBadge, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
@@ -12,7 +12,8 @@ import {
   VISIBILITY_LABELS,
 } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
-import type { Attachment } from '../../workforce-api';
+import { useCursorFeed } from '../../lib/useCursorFeed';
+import type { Attachment, TimelineEvent } from '../../workforce-api';
 
 export function VoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,13 +24,6 @@ export function VoiceDetailPage() {
   const detail = useQuery({
     queryKey: voiceQuery(sessionId, 'voice', id),
     queryFn: () => api.voiceDetail(id!),
-    enabled: !!id && !!session,
-    refetchInterval: 3000,
-  });
-
-  const timeline = useQuery({
-    queryKey: voiceQuery(sessionId, 'voice', id, 'timeline'),
-    queryFn: () => api.voiceTimeline(id!),
     enabled: !!id && !!session,
     refetchInterval: 3000,
   });
@@ -123,7 +117,7 @@ export function VoiceDetailPage() {
 
       <ClosureCycles voice={voice} />
 
-      <Timeline events={timeline.data ?? []} loading={timeline.isLoading} />
+      <Timeline voiceId={voice.id} />
     </Stack>
   );
 }
@@ -174,21 +168,31 @@ function ClosureCycles({ voice }: { voice: { closureCycles: unknown[] } }) {
   );
 }
 
-function Timeline({
-  events,
-  loading,
-}: {
-  events: { id: string; type: string; occurredAt: string }[];
-  loading: boolean;
-}) {
-  if (loading) return <Skeleton label="Memuat timeline" />;
-  if (!events.length) return null;
+function Timeline({ voiceId }: { voiceId: string }) {
+  const api = useApi();
+  const sessionId = useSessionId();
+  const { session } = useAuth();
+  const feed = useCursorFeed<TimelineEvent>({
+    queryKey: voiceQuery(sessionId, 'voice', voiceId, 'timeline'),
+    fetchPage: (cursor) =>
+      api.voiceTimeline(voiceId, {
+        limit: 30,
+        order: 'desc',
+        ...(cursor ? { cursor } : {}),
+      }),
+    enabled: !!session,
+    refetchInterval: 3000,
+    resetKey: voiceId,
+  });
+
+  if (feed.isLoading) return <Skeleton label="Memuat timeline" />;
+  if (!feed.items.length) return null;
   return (
     <Card>
       <Stack gap="md">
         <h3 className="section-title">Timeline</h3>
         <ol className="care-timeline" role="list">
-          {events.map((event) => (
+          {feed.items.map((event) => (
             <li className="care-timeline__item" key={event.id}>
               <span className="care-timeline__marker" aria-hidden="true" />
               <div className="care-timeline__body">
@@ -200,6 +204,16 @@ function Timeline({
             </li>
           ))}
         </ol>
+        {feed.canLoadMore ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => feed.loadMore()}
+            loading={feed.isFetching}
+          >
+            Muat lebih
+          </Button>
+        ) : null}
       </Stack>
     </Card>
   );

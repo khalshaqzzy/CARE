@@ -159,6 +159,17 @@ const remediationCodes: Record<string, string> = {
   UNION_HEAD_UNAVAILABLE: 'UNION_HEAD_UNAVAILABLE',
   CLASSIFICATION_REQUIRED: 'MANUAL_CLASSIFICATION_REQUIRED',
 };
+
+type DashboardFilter = {
+  area?: string;
+  category?: RoutingCategory;
+  severity?: Severity;
+  status?: VoiceStatus;
+  from?: string;
+  to?: string;
+};
+
+const DASHBOARD_SUPPRESSION_THRESHOLD = 5;
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
   const result = schema.safeParse(value);
   if (!result.success)
@@ -660,15 +671,30 @@ export class VoicesService {
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
     return this.serialize(actor, voice);
   }
-  async timeline(actor: AuthActor, id: string) {
+  async timeline(
+    actor: AuthActor,
+    id: string,
+    query: { limit?: string; cursor?: string; order?: 'asc' | 'desc' },
+  ) {
     const voice = await this.authorizedVoice(actor, id);
     if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_TIMELINE_READ');
-    return this.prisma.voiceEvent.findMany({
+    const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const descending = query.order === 'desc';
+    const items = await this.prisma.voiceEvent.findMany({
       where: { voiceId: id },
-      orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy: descending
+        ? [{ occurredAt: 'desc' }, { id: 'desc' }]
+        : [{ occurredAt: 'asc' }, { id: 'asc' }],
       select: { id: true, type: true, occurredAt: true, payload: true },
     });
+    const hasNext = items.length > take;
+    const data = hasNext ? items.slice(0, take) : items;
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    return { items: data, nextCursor };
   }
 
   async assign(actor: AuthActor, id: string, input: unknown, key: string, reassign = false) {
@@ -676,6 +702,13 @@ export class VoicesService {
       throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
     const data = parse(assignmentSchema, input);
     const voice = await this.actionVoice(actor, id);
+    // Only a route-owning Manager (General) or the Union Head (Private) may
+    // assign/reassign; a Section Head handler must not be able to assign.
+    const authorizedAssigner =
+      voice.visibility === VoiceVisibility.GENERAL
+        ? actor.capabilities.includes('MANAGER') && voice.routeOwnerId === actor.accountId
+        : actor.capabilities.includes('UNION_HEAD');
+    if (!authorizedAssigner) throw forbiddenAsNotFound();
     if (data.expectedVersion !== undefined && data.expectedVersion !== voice.version)
       throw conflict('VERSION_CONFLICT', 'Voice version changed');
     if (voice.status === VoiceStatus.IN_PROGRESS || voice.status === VoiceStatus.CLOSED)
@@ -850,13 +883,24 @@ export class VoicesService {
     });
   }
 
-  async messages(actor: AuthActor, id: string) {
+  async messages(
+    actor: AuthActor,
+    id: string,
+    query: { limit?: string; cursor?: string; order?: 'asc' | 'desc' },
+  ) {
     const voice = await this.authorizedVoice(actor, id);
     if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_MESSAGE_READ');
+    const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const descending = query.order === 'desc';
     const messages = await this.prisma.message.findMany({
       where: { conversation: { voiceId: id } },
-      orderBy: { createdAt: 'asc' },
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy: descending
+        ? [{ createdAt: 'desc' }, { id: 'desc' }]
+        : [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
         text: true,
@@ -866,20 +910,25 @@ export class VoicesService {
         attachments: { select: attachmentResponseSelect },
       },
     });
+    const hasNext = messages.length > take;
+    const data = hasNext ? messages.slice(0, take) : messages;
     const anonymousUnion =
       voice.visibility === VoiceVisibility.PRIVATE &&
       !voice.showReporterIdentity &&
       !actor.capabilities.includes('CARE_ADMIN') &&
       voice.reporterId !== actor.accountId;
-    return messages.map((message) => ({
-      ...message,
-      senderId:
-        anonymousUnion && message.senderId === voice.reporterId ? undefined : message.senderId,
-      sender:
-        anonymousUnion && message.senderId === voice.reporterId
-          ? { kind: 'ANONYMOUS_REPORTER', alias: voice.anonymousAlias }
-          : { kind: message.senderAccountKind },
-    }));
+    return {
+      items: data.map((message) => ({
+        ...message,
+        senderId:
+          anonymousUnion && message.senderId === voice.reporterId ? undefined : message.senderId,
+        sender:
+          anonymousUnion && message.senderId === voice.reporterId
+            ? { kind: 'ANONYMOUS_REPORTER', alias: voice.anonymousAlias }
+            : { kind: message.senderAccountKind },
+      })),
+      nextCursor: hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null,
+    };
   }
   async conversations(actor: AuthActor) {
     const scope = await this.policy.detailScope(actor);
@@ -1067,17 +1116,17 @@ export class VoicesService {
     );
   }
 
-  async dashboardGeneral(actor: AuthActor) {
-    return this.dashboard(actor, VoiceVisibility.GENERAL);
+  async dashboardGeneral(actor: AuthActor, filter: DashboardFilter = {}) {
+    return this.dashboard(actor, VoiceVisibility.GENERAL, filter);
   }
-  async dashboardPrivate(actor: AuthActor) {
+  async dashboardPrivate(actor: AuthActor, filter: DashboardFilter = {}) {
     let where: Prisma.VoiceWhereInput;
     if (actor.capabilities.includes('CARE_ADMIN') || actor.capabilities.includes('UNION_HEAD'))
       where = { visibility: VoiceVisibility.PRIVATE };
     else if (actor.capabilities.includes('UNION_OFFICER'))
       where = { visibility: VoiceVisibility.PRIVATE, currentHandlerId: actor.accountId };
     else where = { visibility: VoiceVisibility.PRIVATE, reporterId: actor.accountId };
-    return this.aggregate(where, false);
+    return this.aggregate(where, false, filter);
   }
   async dashboardMember(actor: AuthActor) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
@@ -1113,12 +1162,20 @@ export class VoicesService {
     };
   }
 
-  private async dashboard(actor: AuthActor, visibility: VoiceVisibility) {
+  private async dashboard(
+    actor: AuthActor,
+    visibility: VoiceVisibility,
+    filter: DashboardFilter = {},
+  ) {
     let where: Prisma.VoiceWhereInput = { visibility };
     const full = actor.capabilities.some((capability) =>
       ['CARE_ADMIN', 'DIRECTOR', 'UNION_HEAD', 'UNION_OFFICER'].includes(capability),
     );
-    if (actor.capabilities.includes('MANAGER') && !full)
+    // A Section Head's aggregate overview is scoped to voices currently assigned
+    // to them, not to voices they happened to report.
+    if (actor.capabilities.includes('SECTION_HEAD') && !full)
+      where = { visibility, currentHandlerId: actor.accountId };
+    else if (actor.capabilities.includes('MANAGER') && !full)
       where = {
         visibility,
         reporterDirectorateSnapshot: actor.directorate ?? '__none__',
@@ -1126,9 +1183,13 @@ export class VoicesService {
       };
     else if (!full && !actor.capabilities.includes('DIVISION_LEADERSHIP'))
       where = { visibility, reporterId: actor.accountId };
-    return this.aggregate(where, full);
+    return this.aggregate(where, full, filter);
   }
-  private async aggregate(where: Prisma.VoiceWhereInput, full: boolean) {
+  private async aggregate(
+    where: Prisma.VoiceWhereInput,
+    full: boolean,
+    filter: DashboardFilter = {},
+  ) {
     const scope = where as {
       visibility: VoiceVisibility;
       reporterDirectorateSnapshot?: string;
@@ -1146,15 +1207,44 @@ export class VoicesService {
     if (scope.reporterId) conditions.push(Prisma.sql`"reporterId" = ${scope.reporterId}::uuid`);
     if (scope.currentHandlerId)
       conditions.push(Prisma.sql`"currentHandlerId" = ${scope.currentHandlerId}::uuid`);
+    if (filter.area) conditions.push(Prisma.sql`"area" = ${filter.area}::"Area"`);
+    if (filter.category)
+      conditions.push(Prisma.sql`"category" = ${filter.category}::"RoutingCategory"`);
+    if (filter.severity) conditions.push(Prisma.sql`"severity" = ${filter.severity}::"Severity"`);
+    if (filter.status) conditions.push(Prisma.sql`"status" = ${filter.status}::"VoiceStatus"`);
+    if (filter.from) conditions.push(Prisma.sql`"submittedAt" >= ${new Date(filter.from)}`);
+    if (filter.to) conditions.push(Prisma.sql`"submittedAt" <= ${new Date(filter.to)}`);
+
+    const and: Prisma.VoiceWhereInput[] = [where];
+    if (filter.area) and.push({ area: filter.area as never });
+    if (filter.category) and.push({ category: filter.category });
+    if (filter.severity) and.push({ severity: filter.severity as Severity });
+    if (filter.status) and.push({ status: filter.status as VoiceStatus });
+    if (filter.from || filter.to) {
+      const submittedAt: Prisma.DateTimeFilter = {};
+      if (filter.from) submittedAt.gte = new Date(filter.from);
+      if (filter.to) submittedAt.lte = new Date(filter.to);
+      and.push({ submittedAt });
+    }
+    const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
+
     const [total, statuses, severities, categories, divisions, departments, trendRows] =
       await Promise.all([
-        this.prisma.voice.count({ where }),
-        this.prisma.voice.groupBy({ by: ['status'], where, _count: { _all: true } }),
-        this.prisma.voice.groupBy({ by: ['severity'], where, _count: { _all: true } }),
-        this.prisma.voice.groupBy({ by: ['category'], where, _count: { _all: true } }),
+        this.prisma.voice.count({ where: combinedWhere }),
+        this.prisma.voice.groupBy({ by: ['status'], where: combinedWhere, _count: { _all: true } }),
+        this.prisma.voice.groupBy({
+          by: ['severity'],
+          where: combinedWhere,
+          _count: { _all: true },
+        }),
+        this.prisma.voice.groupBy({
+          by: ['category'],
+          where: combinedWhere,
+          _count: { _all: true },
+        }),
         this.prisma.voice.groupBy({
           by: ['reporterDirectorateSnapshot', 'reporterDivisionSnapshot'],
-          where,
+          where: combinedWhere,
           _count: { _all: true },
         }),
         this.prisma.voice.groupBy({
@@ -1163,7 +1253,7 @@ export class VoicesService {
             'reporterDivisionSnapshot',
             'reporterDepartmentSnapshot',
           ],
-          where,
+          where: combinedWhere,
           _count: { _all: true },
         }),
         this.prisma.$queryRaw<Array<{ label: string; value: bigint }>>(
@@ -1175,36 +1265,60 @@ export class VoicesService {
         label: String(item[key] ?? 'NONE'),
         value: (item._count as { _all: number })._all,
       }));
-    const suppress = (items: { label: string; value: number }[]) =>
-      full
-        ? items
-        : [
-            ...items.filter((item) => item.value >= 5),
-            {
-              label: 'OTHER_SUPPRESSED',
-              value: items
-                .filter((item) => item.value < 5)
-                .reduce((sum, item) => sum + item.value, 0),
-            },
-          ].filter((item) => item.value > 0);
+    const suppress = (items: { label: string; value: number }[]) => {
+      if (full) return { buckets: items, suppressedBuckets: 0, suppressedValue: 0 };
+      const kept = items.filter((item) => item.value >= DASHBOARD_SUPPRESSION_THRESHOLD);
+      const removed = items.filter((item) => item.value < DASHBOARD_SUPPRESSION_THRESHOLD);
+      const removedValue = removed.reduce((sum, item) => sum + item.value, 0);
+      const merged = kept.map((item) => ({ label: item.label, value: item.value }));
+      if (removedValue > 0) merged.push({ label: 'OTHER_SUPPRESSED', value: removedValue });
+      return {
+        buckets: merged.filter((item) => item.value > 0),
+        suppressedBuckets: removed.length,
+        suppressedValue: removedValue,
+      };
+    };
+    const division = suppress(
+      divisions.map((item) => ({
+        label: `${item.reporterDirectorateSnapshot} / ${item.reporterDivisionSnapshot}`,
+        value: item._count._all,
+      })),
+    );
+    const department = suppress(
+      departments.map((item) => ({
+        label: `${item.reporterDirectorateSnapshot} / ${item.reporterDivisionSnapshot} / ${item.reporterDepartmentSnapshot}`,
+        value: item._count._all,
+      })),
+    );
     return {
       total,
       status: buckets(statuses, 'status'),
       severity: buckets(severities, 'severity'),
       category: buckets(categories, 'category'),
       trend: trendRows.map((item) => ({ label: item.label, value: Number(item.value) })),
-      division: suppress(
-        divisions.map((item) => ({
-          label: `${item.reporterDirectorateSnapshot} / ${item.reporterDivisionSnapshot}`,
-          value: item._count._all,
-        })),
-      ),
-      department: suppress(
-        departments.map((item) => ({
-          label: `${item.reporterDirectorateSnapshot} / ${item.reporterDivisionSnapshot} / ${item.reporterDepartmentSnapshot}`,
-          value: item._count._all,
-        })),
-      ),
+      division: division.buckets,
+      department: department.buckets,
+      suppression: {
+        enabled: !full,
+        threshold: DASHBOARD_SUPPRESSION_THRESHOLD,
+        division: {
+          suppressedBuckets: division.suppressedBuckets,
+          suppressedValue: division.suppressedValue,
+        },
+        department: {
+          suppressedBuckets: department.suppressedBuckets,
+          suppressedValue: department.suppressedValue,
+        },
+      },
+      filters: {
+        area: filter.area ?? null,
+        category: filter.category ?? null,
+        severity: filter.severity ?? null,
+        status: filter.status ?? null,
+        from: filter.from ?? null,
+        to: filter.to ?? null,
+      },
+      generatedAt: new Date().toISOString(),
     };
   }
 

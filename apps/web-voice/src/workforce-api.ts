@@ -22,7 +22,9 @@ export type VoiceListItem = components['schemas']['VoiceListItem'];
 export type VoiceList = components['schemas']['VoiceListResponse'];
 export type Attachment = components['schemas']['AttachmentResponse'];
 export type Message = components['schemas']['MessageResponse'];
-export type TimelineResponse = components['schemas']['TimelineResponse'];
+export type TimelinePage = components['schemas']['TimelinePage'];
+export type MessagePage = components['schemas']['MessagePage'];
+export type TimelineEvent = components['schemas']['TimelineEvent'];
 export type LocationReview = components['schemas']['LocationReviewSnapshot'];
 export type NotificationItem = components['schemas']['NotificationPage']['items'][number];
 export type NotificationPage = components['schemas']['NotificationPage'];
@@ -37,6 +39,11 @@ export type ClassificationPreview =
 type VoicesQuery = NonNullable<operations['VoicesController_list']['parameters']['query']>;
 type WorkItemsQuery = NonNullable<operations['VoicesController_workItems']['parameters']['query']>;
 type DraftsQuery = NonNullable<operations['VoicesController_listDrafts']['parameters']['query']>;
+type TimelineQuery = NonNullable<operations['VoicesController_timeline']['parameters']['query']>;
+type MessagesQuery = NonNullable<operations['VoicesController_messages']['parameters']['query']>;
+type DashboardQuery = NonNullable<
+  operations['VoicesController_dashboardGeneral']['parameters']['query']
+>;
 type NotificationsQuery = NonNullable<
   operations['NotificationsController_list']['parameters']['query']
 >;
@@ -62,10 +69,14 @@ export function createWorkforceApi(transport: CareTransport) {
   const { client } = transport;
   return {
     dashboardMember: () => dataOrThrow<MemberDashboard>(client.GET('/api/v1/dashboard/member')),
-    dashboardGeneral: () =>
-      dataOrThrow<DashboardAggregate>(client.GET('/api/v1/dashboard/general')),
-    dashboardPrivate: () =>
-      dataOrThrow<DashboardAggregate>(client.GET('/api/v1/dashboard/private')),
+    dashboardGeneral: (query: QueryInput<DashboardQuery> = {}) =>
+      dataOrThrow<DashboardAggregate>(
+        client.GET('/api/v1/dashboard/general', { params: { query: compactQuery(query) } }),
+      ),
+    dashboardPrivate: (query: QueryInput<DashboardQuery> = {}) =>
+      dataOrThrow<DashboardAggregate>(
+        client.GET('/api/v1/dashboard/private', { params: { query: compactQuery(query) } }),
+      ),
     listDrafts: (query: QueryInput<DraftsQuery>) =>
       dataOrThrow<DraftList>(
         client.GET('/api/v1/drafts', { params: { query: compactQuery(query) } }),
@@ -169,13 +180,17 @@ export function createWorkforceApi(transport: CareTransport) {
       ),
     voiceDetail: (id: string) =>
       dataOrThrow<VoiceDetail>(client.GET('/api/v1/voices/{id}', { params: { path: { id } } })),
-    voiceTimeline: (id: string) =>
-      dataOrThrow<TimelineResponse>(
-        client.GET('/api/v1/voices/{id}/timeline', { params: { path: { id } } }),
+    voiceTimeline: (id: string, query: QueryInput<TimelineQuery> = {}) =>
+      dataOrThrow<TimelinePage>(
+        client.GET('/api/v1/voices/{id}/timeline', {
+          params: { path: { id }, query: compactQuery(query) },
+        }),
       ),
-    voiceMessages: (id: string) =>
-      dataOrThrow<Message[]>(
-        client.GET('/api/v1/voices/{id}/messages', { params: { path: { id } } }),
+    voiceMessages: (id: string, query: QueryInput<MessagesQuery> = {}) =>
+      dataOrThrow<MessagePage>(
+        client.GET('/api/v1/voices/{id}/messages', {
+          params: { path: { id }, query: compactQuery(query) },
+        }),
       ),
     sendMessage: (id: string, text: string, files: File[], key: string) => {
       const form = new FormData();
@@ -217,6 +232,17 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    stageEvidence: (id: string, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return dataOrThrow<Attachment>(
+        client.POST('/api/v1/voices/{id}/closure-evidence', {
+          params: { path: { id }, header: csrfHeader() },
+          body: { file: '' },
+          bodySerializer: () => form,
+        }),
+      );
+    },
     notifications: (query: QueryInput<NotificationsQuery>) =>
       dataOrThrow<NotificationPage>(
         client.GET('/api/v1/notifications', { params: { query: compactQuery(query) } }),

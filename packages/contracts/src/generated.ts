@@ -1627,6 +1627,31 @@ export interface components {
             trend: components["schemas"]["AggregateBuckets"];
             division: components["schemas"]["AggregateBuckets"];
             department: components["schemas"]["AggregateBuckets"];
+            suppression: {
+                enabled: boolean;
+                threshold: number;
+                division: components["schemas"]["SuppressionBreakdown"];
+                department: components["schemas"]["SuppressionBreakdown"];
+            };
+            filters: {
+                area: string | null;
+                /** @enum {string|null} */
+                category: "SAFETY" | "ENVIRONMENT" | "FACILITY" | "WORK_DIFFICULTY" | null;
+                /** @enum {string|null} */
+                severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+                /** @enum {string|null} */
+                status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED" | null;
+                /** Format: date-time */
+                from: string | null;
+                /** Format: date-time */
+                to: string | null;
+            };
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        SuppressionBreakdown: {
+            suppressedBuckets: number;
+            suppressedValue: number;
         };
         AggregateBuckets: {
             label: string;
@@ -2092,7 +2117,7 @@ export interface components {
             currentHandlerId?: string | null;
             handlerType?: string;
         };
-        TimelineResponse: {
+        TimelineEvent: {
             /** Format: uuid */
             id: string;
             type: string;
@@ -2101,7 +2126,12 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
-        }[];
+        };
+        TimelinePage: {
+            items: components["schemas"]["TimelineEvent"][];
+            /** @description Signed opaque cursor */
+            nextCursor: string | null;
+        };
         AttachmentResponse: {
             /** Format: uuid */
             id: string;
@@ -2132,7 +2162,11 @@ export interface components {
             };
             attachments: components["schemas"]["AttachmentResponse"][];
         };
-        MessageList: components["schemas"]["MessageResponse"][];
+        MessagePage: {
+            items: components["schemas"]["MessageResponse"][];
+            /** @description Signed opaque cursor */
+            nextCursor: string | null;
+        };
         ConversationList: {
             /** Format: uuid */
             id: string;
@@ -8104,7 +8138,11 @@ export interface operations {
     };
     VoicesController_timeline: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                order?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8118,7 +8156,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TimelineResponse"];
+                    "application/json": components["schemas"]["TimelinePage"];
                 };
             };
             /** @description Request validation failed */
@@ -8878,7 +8916,11 @@ export interface operations {
     };
     VoicesController_messages: {
         parameters: {
-            query?: never;
+            query?: {
+                cursor?: string;
+                limit?: number;
+                order?: string;
+            };
             header?: never;
             path: {
                 id: string;
@@ -8892,7 +8934,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageList"];
+                    "application/json": components["schemas"]["MessagePage"];
                 };
             };
             /** @description Request validation failed */
@@ -9648,7 +9690,14 @@ export interface operations {
     };
     VoicesController_dashboardGeneral: {
         parameters: {
-            query?: never;
+            query?: {
+                area?: string;
+                category?: string;
+                severity?: string;
+                status?: string;
+                from?: string;
+                to?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9769,7 +9818,14 @@ export interface operations {
     };
     VoicesController_dashboardPrivate: {
         parameters: {
-            query?: never;
+            query?: {
+                area?: string;
+                category?: string;
+                severity?: string;
+                status?: string;
+                from?: string;
+                to?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

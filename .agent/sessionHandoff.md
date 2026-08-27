@@ -1,16 +1,49 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Date                    | 27 Agustus 2026                                                                                                                |
-| Current objective       | Implementasi batch Phase 9–10: Member Voice journey + voice lifecycle contract + Phase 10 assign UI                            |
-| Current phase           | Phase 8.5 `in_progress`; Phase 9 Member journey partial; Phase 10 responder slice partial                                      |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                            |
-| Implementation status   | Phase 9 Member journey partial; Phase 10 responder slice + assign UI partial; Phase 8.5 in_progress                            |
-| Latest ADR              | ADR-0007 (Member journey) dan ADR-0008 (voice lifecycle idempotency/evidence/assignment)                                       |
-| Recommended next action | Timeline/messages cursor pagination, dashboard filter/suppression metadata, lalu full responder/leadership matrix + Playwright |
+| Atribut                 | Nilai                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 27 Agustus 2026                                                                                                                                                                           |
+| Current objective       | Menutup sisa Phase 9/10: timeline/messages pagination, dashboard filter+suppression metadata, responder/leadership matrix, Admin Explorer pagination, Playwright mocked/full-stack/visual |
+| Current phase           | Phase 8.5 `in_progress`; Phase 9 Member journey & Phase 10 responder/leadership matrix acceptance implemented; Frontend Complete Gate tetap diblokir                                      |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                       |
+| Implementation status   | Phase 9 Member journey selesai; Phase 10 responder/leadership matrix + assign/close-evidence selesai; Phase 8.5 `in_progress`; Frontend Complete Gate blocked                             |
+| Latest ADR              | ADR-0007 (Member journey), ADR-0008 (voice lifecycle idempotency/evidence/assignment), ADR-0009 (pagination/dashboard metadata/matrix)                                                    |
+| Recommended next action | Full-stack Playwright (gated) bila tersedia e2e runner + disposable DB; jalankan parity CI sebelum merge; Phase 8.5 & Phase 11 tetap menahan Frontend Complete Gate                       |
 
 ## Session Outcome
+
+### Phase 9/10 remaining completion — pagination, dashboard metadata, matrix, Admin Explorer, Playwright (27 Agustus 2026)
+
+Backend `apps/api/src/voices/voices.service.ts` + `apps/api/src/auth/policy.service.ts` (see ADR-0009):
+
+- `GET /voices/:id/timeline` dan `/messages` kini cursor-paginated (`limit`/`cursor`/optional `order`) dengan response `{ items, nextCursor }`; chat memakai `order=desc` agar halaman pertama = pesan terbaru;
+- `GET /dashboard/general` dan `/dashboard/private` menerima filter `area`/`category`/`severity`/`status`/`from`/`to` dan mengembalikan `suppression` (`enabled`, `threshold`, `suppressedBuckets`/`suppressedValue` per division/department), echo `filters`, serta `generatedAt`;
+- Section Head aggregate overview kini scope `currentHandlerId` (assigned) bukan `reporterId`; `assign`/`reassign` mewajibkan route-owning Manager (General) atau Union Head (Private);
+- perbaikan latent bug: `workItemScope` empty sentinel diganti `{ id: { in: [] } }` (valid Prisma match-nothing) dan `detailScope` men-drop clause kosong; sebelumnya Member (dan Admin) tidak bisa membuka detail/timeline/messages Voice sendiri karena koersi UUID `__none__`;
+- Section Head tidak lagi dapat assign (sebelumnya bisa via handler). Close dialog kini menyetage closure-evidence (1–5 foto) sebelum close.
+
+OpenAPI + `@care/contracts` regenerated: `TimelinePage`, `MessagePage`, dashboard query params, `DashboardAggregate` diperluas.
+
+Frontend `apps/web-voice`:
+
+- `useCursorFeed` hook (page terbaru + muat lebih); `ConversationPanel` & `VoiceDetailPage` timeline memakai pagination; `GeneralBrowsePage` mem-filter aggregate + menampilkan suppression/`generatedAt`; `ActionPanel` CloseDialog men-upload & mewajibkan bukti;
+- `workforce-api` menambah `stageEvidence`, dan `voiceTimeline`/`voiceMessages`/`dashboardGeneral`/`dashboardPrivate` menerima query.
+
+Frontend `apps/web-admin`:
+
+- `VoiceExplorerPage` drawer memakai `useInfiniteQuery` untuk timeline/messages yang kini paginated; `admin-api` type/method diperbarui.
+
+Infrastruktur & E2E:
+
+- `preview.proxy` ditambahkan pada `vite.config` workforce & Admin agar `vite preview` mem-proxy ke API untuk full-stack;
+- `e2e/member-voice.spec.ts`, `e2e/admin-explorer.spec.ts`, `e2e/fullstack.spec.ts` (gated `FULLSTACK_E2E=1`), `e2e/helpers/mock-api.ts`;
+- `foundation.spec.ts` & `design.visual.spec.ts` disesuaikan dengan Member Home (heading `Budi Santoso`); `e2e/design.visual.spec.ts-snapshots/workforce-shell-360.png` di-regenerate (Home baru; clock dipin agar greeting deterministik).
+
+Tests baru: `apps/api/test/integration/voice-pagination.integration.test.ts`, `dashboard-filter.integration.test.ts`, `responder-matrix.integration.test.ts`; `policy.test.ts` disesuaikan untuk empty sentinel.
+
+Validasi: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build` green; `pnpm test:integration` 31 passed (3 pagination + 3 dashboard filter/suppression + 6 responder-matrix) pada disposable PostgreSQL; `pnpm test:security` 5; `pnpm test:unit` (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2); Playwright chromium+visual+pwa 20 passed (full-stack gated skip). `pnpm openapi:check` drift hanya kontrak perubahan yang disengaja (pra-commit), akan hijau setelah commit.
+
+Outstanding: full-stack Playwright gated memerlukan e2e runner + disposable DB (bukan default CI quality job); bila Member Home berubah di masa depan wajib regenerate `workforce-shell-360.png`; Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 & Phase 11.
 
 ### Phase 9–10 batch — Voice lifecycle backend completion + Phase 10 assign UI (27 Agustus 2026)
 

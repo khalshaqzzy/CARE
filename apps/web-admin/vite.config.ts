@@ -13,5 +13,13 @@ export default defineConfig({
       ]),
     ),
   },
-  preview: { port: 4174 },
+  preview: {
+    port: 4174,
+    proxy: Object.fromEntries(
+      ['/api/v1', '/health', '/ready', '/release.json'].map((path) => [
+        path,
+        { target: 'http://127.0.0.1:3000', changeOrigin: false },
+      ]),
+    ),
+  },
 });

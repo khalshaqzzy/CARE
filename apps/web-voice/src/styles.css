@@ -473,6 +473,11 @@
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
 }
+.care-note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
 
 /* Wizard */
 .wizard-page {
@@ -901,6 +906,27 @@
 .dialog-copy {
   margin: 0;
   color: var(--text-secondary);
+}
+.closure-evidence {
+  display: grid;
+  gap: var(--space-3);
+}
+.closure-evidence__add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: center;
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong, var(--action-primary-bg));
+  border-radius: var(--radius-md);
+  color: var(--action-primary);
+  background: transparent;
+  font-weight: var(--weight-semibold);
+  min-height: 44px;
+}
+.closure-evidence__add:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Notifications */

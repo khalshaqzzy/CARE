@@ -1,12 +1,15 @@
 import { Button, Card, IconButton, Textarea } from '@care/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ImagePlus, Send } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { formatDateTime } from '../lib/formatters';
 import { useMutationKey, useApi, useSessionId, voiceQuery } from '../lib/query';
+import { useCursorFeed } from '../lib/useCursorFeed';
 import type { Message } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
+
+const PAGE_SIZE = 50;
 
 export function ConversationPanel({ voiceId }: { voiceId: string }) {
   const api = useApi();
@@ -18,11 +21,17 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const messageKey = useMutationKey('message');
 
-  const messages = useQuery({
+  const feed = useCursorFeed<Message>({
     queryKey: voiceQuery(sessionId, 'voice', voiceId, 'messages'),
-    queryFn: () => api.voiceMessages(voiceId),
+    fetchPage: (cursor) =>
+      api.voiceMessages(voiceId, {
+        limit: PAGE_SIZE,
+        order: 'desc',
+        ...(cursor ? { cursor } : {}),
+      }),
     enabled: !!session,
     refetchInterval: 3000,
+    resetKey: voiceId,
   });
 
   const send = useMutation({
@@ -38,7 +47,8 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
     onSettled: messageKey.reset,
   });
 
-  const items = messages.data ?? [];
+  // `feed.items` is newest-first; reverse so the newest message sits at the bottom.
+  const items = [...feed.items].reverse();
 
   return (
     <Card className="conversation">
@@ -47,12 +57,26 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
         <span className="conversation__count">{items.length} pesan</span>
       </div>
       <div className="conversation__list" role="log" aria-live="polite">
-        {messages.isLoading ? (
+        {feed.isLoading ? (
           <p className="conversation__empty">Memuat percakapan…</p>
         ) : items.length === 0 ? (
           <p className="conversation__empty">Belum ada pesan. Mulai percakapan untuk verifikasi.</p>
         ) : (
-          items.map((message) => <MessageBubble key={message.id} message={message} />)
+          <>
+            {feed.canLoadMore ? (
+              <button
+                type="button"
+                className="conversation__history"
+                onClick={() => feed.loadMore()}
+                disabled={feed.isFetching}
+              >
+                {feed.isFetching ? 'Memuat…' : 'Muat pesan sebelumnya'}
+              </button>
+            ) : null}
+            {items.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))}
+          </>
         )}
       </div>
       <form

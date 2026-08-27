@@ -56,7 +56,7 @@ describe('Authorization scopes', () => {
         },
       ],
     });
-    expect(policy.workItemScope(leadership)).toEqual({ id: '__none__' });
+    expect(policy.workItemScope(leadership)).toEqual({ id: { in: [] } });
     expect(await policy.browseScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({
       OR: [{ reporterId: 'account' }, { visibility: 'GENERAL' }],
     });

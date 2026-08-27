@@ -52,8 +52,23 @@ test('workforce shell visual', async ({ page }) => {
       }),
     }),
   );
+  await page.route('**/api/v1/dashboard/member', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total: 0,
+        counts: { OPEN: 0, IN_VERIFICATION: 0, IN_PROGRESS: 0, CLOSED: 0 },
+        recent: [],
+        draft: null,
+        generatedAt: '2026-08-01T10:00:00.000Z',
+      }),
+    }),
+  );
+  // Pin the clock so the time-of-day greeting in the hero is deterministic.
+  await page.clock.setFixedTime(new Date('2026-08-01T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Selamat datang, Budi Santoso' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
   await expect(page).toHaveScreenshot('workforce-shell-360.png', {
     animations: 'disabled',
     threshold: 0.25,
