@@ -8,7 +8,7 @@
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                       |
 | Implementation status   | Phase 9 Member journey selesai; Phase 10 responder/leadership matrix + assign/close-evidence selesai; Phase 8.5 `in_progress`; Frontend Complete Gate blocked                             |
 | Latest ADR              | ADR-0007 (Member journey), ADR-0008 (voice lifecycle idempotency/evidence/assignment), ADR-0009 (pagination/dashboard metadata/matrix)                                                    |
-| Recommended next action | Full-stack Playwright (gated) bila tersedia e2e runner + disposable DB; jalankan parity CI sebelum merge; Phase 8.5 & Phase 11 tetap menahan Frontend Complete Gate                       |
+| Recommended next action | Full-stack Playwright kini berjalan di CI `quality` job (gated `FULLSTACK_E2E=1`); jalankan parity CI penuh sebelum merge; Phase 8.5 & Phase 11 tetap menahan Frontend Complete Gate      |
 
 ## Session Outcome
 
@@ -41,9 +41,17 @@ Infrastruktur & E2E:
 
 Tests baru: `apps/api/test/integration/voice-pagination.integration.test.ts`, `dashboard-filter.integration.test.ts`, `responder-matrix.integration.test.ts`; `policy.test.ts` disesuaikan untuk empty sentinel.
 
-Validasi: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build` green; `pnpm test:integration` 31 passed (3 pagination + 3 dashboard filter/suppression + 6 responder-matrix) pada disposable PostgreSQL; `pnpm test:security` 5; `pnpm test:unit` (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2); Playwright chromium+visual+pwa 20 passed (full-stack gated skip). `pnpm openapi:check` drift hanya kontrak perubahan yang disengaja (pra-commit), akan hijau setelah commit.
+Validasi: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build` green; `pnpm test:integration` 31 passed (3 pagination + 3 dashboard filter/suppression + 6 responder-matrix) pada disposable PostgreSQL; `pnpm test:security` 5; `pnpm test:unit` (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2); Playwright chromium+visual+pwa 20 passed + project `fullstack` 1 passed (API hidup + disposable DB); `pnpm audit --audit-level high` (1 moderate, 0 high/critical), `pnpm migrations:destructive-check`, `pnpm seed:performance` + `pnpm test:performance` (10k/50k), `pnpm maintenance:reconcile` (0) green; `pnpm openapi:check` green setelah commit.
 
-Outstanding: full-stack Playwright gated memerlukan e2e runner + disposable DB (bukan default CI quality job); bila Member Home berubah di masa depan wajib regenerate `workforce-shell-360.png`; Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 & Phase 11.
+### CI full-stack wiring + remaining parity checks (27 Agustus 2026)
+
+- `playwright.config.ts`: API `webServer` (`pnpm --filter @care/api start`, `/health`, timeout 120s) dan project `fullstack` di-gate oleh `FULLSTACK_E2E=1`; project `chromium` meng-exclude spec `fullstack`; default `test:frontend:e2e` tidak berubah;
+- `e2e/fullstack.spec.ts`: smoke diperluas — `/health` 200, `/ready` `checks.database === 'ok'`, dan `GET /api/v1/auth/session` via preview proxy mengembalikan `401 UNAUTHENTICATED` dari API nyata;
+- `.github/workflows/ci.yml`: step `FULLSTACK_E2E=1 pnpm exec playwright test --project=fullstack` ditambahkan setelah `test:frontend:e2e` (backend sudah dibuild + DB test sudah migrate);
+- `.agent/rules.md` §4.2 parity baseline di-reconcile (menambah step e2e mocked + fullstack);
+- parity checks tersisa dijalankan hijau: `pnpm install --frozen-lockfile`, `pnpm audit --audit-level high`, `pnpm migrations:destructive-check`, `pnpm seed:performance`/`test:performance`, `pnpm maintenance:reconcile`.
+
+Outstanding: bila Member Home berubah di masa depan wajib regenerate `workforce-shell-360.png`; full-stack smoke hanya memvalidasi wiring API/DB/proxy (business flow acceptance tetap di `test:integration`); Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 & Phase 11.
 
 ### Phase 9–10 batch — Voice lifecycle backend completion + Phase 10 assign UI (27 Agustus 2026)
 
