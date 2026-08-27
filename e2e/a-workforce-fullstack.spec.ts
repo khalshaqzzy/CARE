@@ -16,15 +16,15 @@ test.skip(
 
 test('member full-stack smoke: login, forced password, home and voice detail', async ({ page }) => {
   await page.goto(`${ORIGIN}/login`);
-  await page.getByLabel('Username').fill(USERNAME);
-  await page.getByLabel('Password').fill(PASSWORD);
+  await page.getByLabel('Username', { exact: true }).fill(USERNAME);
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Masuk' }).click();
 
   // First login is restricted and forces a password change.
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
-  await page.getByLabel('Password saat ini').fill(USERNAME);
-  await page.getByLabel('Password baru').fill(NEW_PASSWORD);
-  await page.getByLabel('Konfirmasi password baru').fill(NEW_PASSWORD);
+  await page.getByLabel('Password saat ini', { exact: true }).fill(USERNAME);
+  await page.getByLabel('Password baru', { exact: true }).fill(NEW_PASSWORD);
+  await page.getByLabel('Konfirmasi password baru', { exact: true }).fill(NEW_PASSWORD);
   await page.getByRole('button', { name: 'Simpan password' }).click();
 
   // Member home loads real dashboard data from the seeded voices.
