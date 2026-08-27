@@ -371,6 +371,9 @@ Scope:
 - detail DTO sesuai runtime (route owner, current handler, attachment metadata, classification, location review, version, reporter snapshot); `AdminPrivateVoiceDetail.reporter` exact 7 fields;
 - semua Admin read terhadap Private (list/detail/timeline/message/media) mencatat audit event teredaksi; mutation Voice oleh Admin ditolak;
 - system status memakai typed `/health`, `/ready`, `/release.json` dengan diagnostic tereduksi.
+- PR review hardening: account/read attachment storage redaction, transactional idempotency replay tanpa plaintext temporary password, account `version` CAS, resource advisory locks plus partial unique active-route/Union indexes, database-backed `ImportChange`, terminal raw-import deletion, dan actual XLSX inflate limits;
+- post-review concurrency hardening: expiry raw-file deletion memakai locked state reread + `PREVIEWED→EXPIRED` CAS; route assignment, status deactivation, Union replacement, dan monthly-import deactivation memakai deterministic account row locks; migration menghapus legacy reset/Union replay records yang berpotensi berisi plaintext;
+- shared Admin API boundary mengambil request/query/response type langsung dari generated operations; test filenames dan suite names phase-neutral agar reusable lintas roadmap.
 
 Acceptance:
 
@@ -381,6 +384,7 @@ Acceptance:
 - security CARE_ADMIN-only, CSRF, IDOR, forbidden Admin Voice mutation, audited Private access, sanitized audit hijau;
 - performance 10k accounts/50k Voices untuk account search, import changes, Voice Explorer, audit hijau;
 - fresh/upgrade migration, lint/typecheck, unit/integration/security/performance/build, Gitleaks hijau.
+- remediation evidence: API unit `25`, integration `13`, security `5`, seeded performance `10k/50k/50`, deterministic OpenAPI hashes, build, dan Playwright functional/visual/PWA hijau; PWA CI dijalankan lima kali (`10/10`) tanpa flaky; satu Moderate dependency advisory tetap tercatat, tanpa High/Critical.
 
 ### Phase 8.1 — Admin Data Layer and Routing
 
@@ -586,4 +590,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Lanjutkan Phase 8.5: lengkapi Axe/keyboard/focus/reduced-motion, Playwright mocked-contract dan full-stack (bootstrap→import→remediation→Union→accounts→Private audit→system status), serta Admin build assertion, sebelum menandai Phase 8 `done`. Branch aktif: `feat/phase-8-admin-operations`.
+PR #2 review remediation telah selesai. Lanjutkan Phase 8.5 dengan mocked-contract dan full-stack Admin journeys (bootstrap→import→remediation→Union→accounts→Private audit→system status) sebelum menandai Phase 8 `done`. Foundation Axe/keyboard/no-overflow, Admin gate/build split, visual, dan PWA assertions saat ini hijau. Branch aktif: `feat/phase-8-admin-operations`.

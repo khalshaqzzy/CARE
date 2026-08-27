@@ -71,7 +71,9 @@ No Section Head mutation, raw import download, Voice/Private export, bulk accoun
 - Every large list is cursor-paginated with `Idempotency-Key`/`expectedVersion` semantics, so duplicate confirms, simultaneous PIC replacements, and stale previews are handled with stable `409` codes and targeted invalidation.
 - Sensitive Admin mutations and import confirmation require a bounded `Idempotency-Key`. Advisory idempotency/resource locks, the business mutation, audit event, and sanitized replay record execute in one PostgreSQL transaction; active route and Union-slot partial unique indexes provide a final database invariant.
 - Temporary passwords are returned only on the immediate/replayed wire response and are deterministically reconstructed when needed; plaintext never enters `IdempotencyRecord`, audit, or account read DTOs. Account status uses a persisted `version` compare-and-swap and cannot deactivate an active route owner.
+- Existing reset/Union idempotency records created before this invariant are removed by migration. Route assignment, account deactivation, Union replacement, and monthly-import deactivation serialize on deterministic `UserAccount` row locks, preventing an active route from retaining an `INACTIVE` or `LEGACY_HANDLER` owner.
 - XLSX parsing validates actual deflate expansion before ExcelJS, with bounded entries/per-entry/total inflated bytes. Raw import files are removed on `CONFIRMED`, terminal `FAILED`, and `EXPIRED`, with reconciliation covering terminal/orphan leftovers.
+- Expiry rereads the batch under the same advisory resource lock used by confirmation and deletes raw input only after a successful `PREVIEWED→EXPIRED` compare-and-swap; a concurrent `QUEUED` transition therefore retains its input. Truncated ZIP/XLSX input returns the stable `XLSX_INVALID` contract.
 - Voice and message attachment DTOs expose only safe metadata; `storageKey` and checksum remain internal. Admin can inspect safe attachment links, structured timeline, and structured conversation data, while Private media reads remain authorized and redacted-audited.
 - Account search eligibility (`default-pic`/`global-pic`) is server-side, so the browser never filters candidates.
 - Private access is audited and redacted everywhere, and `AdminPrivateVoiceDetail` is type-exact, closing accidental disclosure via optional identity fields.
@@ -82,15 +84,16 @@ No Section Head mutation, raw import download, Voice/Private export, bulk accoun
 ## Validation
 
 - `pnpm format:check` `pnpm lint` `pnpm typecheck` (api, contracts, ui, frontend-core, web-admin, web-voice) — passed.
-- `pnpm test:unit` — `24` (api) + `8` (ui) + `9` (frontend-core) + `2` (web-admin) + `2` (web-voice) passed, including adversarial XLSX expansion rejection.
+- `pnpm test:unit` — `25` (api) + `8` (ui) + `9` (frontend-core) + `2` (web-admin) + `2` (web-voice) passed, including adversarial XLSX expansion and truncated archive rejection.
 - `pnpm db:generate` `pnpm migrations:destructive-check` `docker compose config --quiet` — passed.
 - `prisma migrate deploy` on `care_test` — `20260824043057_init`, `20260825090000_v11_backend_remediation`, `20260827000000_phase8_admin_ops`, and `20260827090000_phase8_review_fixes` applied.
-- `pnpm test:integration` — `11` passed, including parallel sanitized idempotency replay, account version conflicts, database-backed import-change pagination, raw-file terminal deletion, XLSX/CSV confirmation, `DEPARTMENT_14`, `ENVIRONMENT` routing, and Private head routing.
+- `pnpm test:integration` — `13` passed, including parallel sanitized idempotency replay, account version conflicts, route-owner/deactivation serialization, expiry/queue raw-file retention, database-backed import-change pagination, raw-file terminal deletion, XLSX/CSV confirmation, `DEPARTMENT_14`, `ENVIRONMENT` routing, and Private head routing.
 - `pnpm test:security` — `5` passed (media/push, privacy serializers, CARE_ADMIN-only, CSRF/IDOR, Private audit).
 - `pnpm seed:performance` + `pnpm test:performance` — `10 000 accounts`/`50 000 Voices`/`50 concurrent users` — passed.
 - `pnpm maintenance:reconcile` — dry-run `0` orphans.
 - `pnpm openapi:generate` — deterministic; `apps/api/openapi.json` and `packages/contracts/src/generated.ts` in sync.
 - `pnpm build` — `web-voice` PWA `12` precache entries and `web-admin` `616 kB` non-PWA; Playwright functional/visual/PWA suite `16` passed; `git diff --check` — passed.
+- CI-mode PWA artifact tests register the worker from the static offline page, wait for an active controller, and passed five repeated runs (`10/10`) without relying on an API process.
 
 ## Risks and Mitigations
 

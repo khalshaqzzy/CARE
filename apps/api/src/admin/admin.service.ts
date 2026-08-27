@@ -366,6 +366,7 @@ export class AdminService {
       resourceLock: `account:${id}`,
       serialize: (result) => result as unknown as Prisma.InputJsonValue,
       work: async (tx) => {
+        await this.lockAccountRow(tx, id);
         const account = await tx.userAccount.findUnique({
           where: { id },
           include: { employee: true },
@@ -578,6 +579,7 @@ export class AdminService {
       resourceLock: `route:${RouteKind.DEFAULT_DEPARTMENT}:${unitId}`,
       serialize: (result) => result as unknown as Prisma.InputJsonValue,
       work: async (tx) => {
+        await this.lockAccountRow(tx, parsed.data.accountId);
         const [unit, activeHead, owner, currentRoute] = await Promise.all([
           tx.organizationUnit.findUnique({ where: { id: unitId } }),
           tx.routeMapping.findFirst({
@@ -649,6 +651,7 @@ export class AdminService {
       resourceLock: `route:${RouteKind.GLOBAL_SPECIAL}:global`,
       serialize: (result) => result as unknown as Prisma.InputJsonValue,
       work: async (tx) => {
+        await this.lockAccountRow(tx, parsed.data.accountId);
         const [owner, currentRoute] = await Promise.all([
           tx.userAccount.findUnique({
             where: { id: parsed.data.accountId },
@@ -736,6 +739,17 @@ export class AdminService {
         passwordChangeRequired: true,
       }),
       work: async (tx) => {
+        const [initialUsername, initialCurrent] = await Promise.all([
+          tx.userAccount.findUnique({ where: { username }, select: { id: true } }),
+          tx.unionAccountTerm.findFirst({
+            where: { slot, effectiveTo: null },
+            select: { accountId: true },
+          }),
+        ]);
+        for (const accountId of [...new Set([initialUsername?.id, initialCurrent?.accountId])]
+          .filter((value): value is string => Boolean(value))
+          .sort())
+          await this.lockAccountRow(tx, accountId);
         const existingUsername = await tx.userAccount.findUnique({ where: { username } });
         const current = await tx.unionAccountTerm.findFirst({
           where: { slot, effectiveTo: null },
@@ -1041,6 +1055,10 @@ export class AdminService {
   private requireIdempotencyKey(key?: string) {
     if (!key || key.length > 100)
       throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
+  }
+
+  private async lockAccountRow(tx: Prisma.TransactionClient, accountId: string) {
+    await tx.$queryRaw`SELECT "id"::text FROM "UserAccount" WHERE "id" = ${accountId}::uuid FOR UPDATE`;
   }
 
   private audit(

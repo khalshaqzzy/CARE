@@ -106,6 +106,11 @@ describe('XLSX import contract', () => {
     const archive = adversarialZipEntry(Buffer.alloc(21 * 1024 * 1024, 65), 1);
     await expect(service.parse(archive)).rejects.toMatchObject({ code: 'XLSX_ARCHIVE_LIMIT' });
   });
+  it('returns a stable validation error for a truncated XLSX archive', async () => {
+    await expect(service.parse(Buffer.from([0x50, 0x4b]))).rejects.toMatchObject({
+      code: 'XLSX_INVALID',
+    });
+  });
 });
 
 describe('CSV import contract', () => {

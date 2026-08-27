@@ -291,11 +291,15 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         batch.expiresAt &&
         batch.expiresAt.getTime() < Date.now()
       ) {
-        await this.prisma.importBatch
-          .update({ where: { id: batch.id }, data: { status: ImportStatus.EXPIRED } })
-          .catch(() => undefined);
-        await this.deleteRawImport(batch.storageKey);
-        (batch as { status: ImportStatus }).status = ImportStatus.EXPIRED;
+        if (await this.expirePreview(batch.id)) {
+          (batch as { status: ImportStatus }).status = ImportStatus.EXPIRED;
+        } else {
+          const current = await this.prisma.importBatch.findUnique({
+            where: { id: batch.id },
+            select: { status: true, version: true, confirmedAt: true, failureCode: true },
+          });
+          if (current) Object.assign(batch, current);
+        }
       }
     }
     const hasNext = items.length > take;
@@ -310,7 +314,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     return { items: data, nextCursor };
   }
   async detail(id: string) {
-    const batch = await this.prisma.importBatch.findUnique({
+    let batch = await this.prisma.importBatch.findUnique({
       where: { id },
       include: { issues: true },
     });
@@ -320,11 +324,14 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       batch.expiresAt &&
       batch.expiresAt.getTime() < Date.now()
     ) {
-      await this.prisma.importBatch
-        .update({ where: { id }, data: { status: ImportStatus.EXPIRED } })
-        .catch(() => undefined);
-      await this.deleteRawImport(batch.storageKey);
-      batch.status = ImportStatus.EXPIRED;
+      if (await this.expirePreview(id)) batch.status = ImportStatus.EXPIRED;
+      else {
+        batch = await this.prisma.importBatch.findUnique({
+          where: { id },
+          include: { issues: true },
+        });
+        if (!batch) throw forbiddenAsNotFound();
+      }
     }
     const { storageKey, ...safeBatch } = batch;
     void storageKey;
@@ -539,24 +546,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       checksum,
       expectedVersion,
     });
-    const expiredBatch = await this.prisma.importBatch.findFirst({
-      where: { id, actorId: actor.accountId },
-      select: { expiresAt: true, status: true, storageKey: true },
-    });
-    if (
-      expiredBatch?.expiresAt &&
-      expiredBatch.expiresAt.getTime() < Date.now() &&
-      expiredBatch.status === ImportStatus.PREVIEWED
-    ) {
-      await this.prisma.importBatch
-        .updateMany({
-          where: { id, actorId: actor.accountId, status: ImportStatus.PREVIEWED },
-          data: { status: ImportStatus.EXPIRED },
-        })
-        .catch(() => undefined);
-      await this.deleteRawImport(expiredBatch.storageKey);
+    if (await this.expirePreview(id, actor.accountId))
       throw conflict('IMPORT_EXPIRED', 'Import preview has expired');
-    }
     const response = await this.executeIdempotent({
       actor,
       scope: `import:confirm:${id}`,
@@ -769,6 +760,12 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           where: { accountKind: AccountKind.WORKFORCE, username: { notIn: [...incoming] } },
           select: { id: true, employeeId: true },
         });
+        if (omitted.length)
+          await tx.$queryRaw(
+            Prisma.sql`SELECT "id"::text FROM "UserAccount" WHERE "id"::text IN (${Prisma.join(
+              omitted.map((account) => account.id),
+            )}) ORDER BY "id" FOR UPDATE`,
+          );
         for (const account of omitted) {
           const activeVoices = await tx.voice.findMany({
             where: {
@@ -1067,6 +1064,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private assertSafeXlsxArchive(buffer: Buffer) {
+    if (buffer.length < 22) throw badRequest('XLSX_INVALID', 'XLSX ZIP directory is missing');
     const maxEntries = 100;
     const maxInflatedBytes = 50_000_000;
     const maxEntryBytes = 20_000_000;
@@ -1143,6 +1141,35 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
     if (!path.startsWith(`${importsRoot}/`)) return;
     await unlink(path).catch(() => undefined);
+  }
+
+  private async expirePreview(id: string, actorId?: string) {
+    const storageKey = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`import-batch:${id}`}, 0))::text AS lock`;
+      const batch = await tx.importBatch.findFirst({
+        where: { id, ...(actorId ? { actorId } : {}) },
+        select: { status: true, expiresAt: true, storageKey: true },
+      });
+      if (
+        !batch ||
+        batch.status !== ImportStatus.PREVIEWED ||
+        batch.expiresAt.getTime() >= Date.now()
+      )
+        return null;
+      const expired = await tx.importBatch.updateMany({
+        where: {
+          id,
+          ...(actorId ? { actorId } : {}),
+          status: ImportStatus.PREVIEWED,
+          expiresAt: { lt: new Date() },
+        },
+        data: { status: ImportStatus.EXPIRED },
+      });
+      return expired.count ? batch.storageKey : null;
+    });
+    if (!storageKey) return false;
+    await this.deleteRawImport(storageKey);
+    return true;
   }
 
   private async executeIdempotent<T extends Record<string, unknown>>(options: {

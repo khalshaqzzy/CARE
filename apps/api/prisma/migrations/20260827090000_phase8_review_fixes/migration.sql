@@ -23,3 +23,10 @@ WHERE "effectiveTo" IS NULL;
 CREATE UNIQUE INDEX "UnionAccountTerm_one_active_term_per_slot"
 ON "UnionAccountTerm"("slot")
 WHERE "effectiveTo" IS NULL;
+
+-- Older Admin reset/Union handlers persisted the one-time temporary password in
+-- replay JSON. Drop those short-lived replay rows so an upgrade never retains
+-- a usable credential at rest; a retry will safely perform a fresh mutation.
+DELETE FROM "IdempotencyRecord"
+WHERE "scope" LIKE 'admin:reset:%'
+   OR "scope" LIKE 'admin:union:%';

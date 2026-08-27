@@ -1,5 +1,7 @@
 import { AccountKind, ImportStatus, PrismaClient } from '@prisma/client';
 import { hash } from 'argon2';
+import { access, mkdir, unlink, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AdminService } from '../../src/admin/admin.service';
 import type { AuthActor } from '../../src/auth/auth.types';
@@ -48,6 +50,9 @@ describe('Admin safety invariants', () => {
   afterAll(async () => prisma.$disconnect());
 
   it('keeps password fields out of account reads and persisted reset replay data', async () => {
+    await expect(adminService.resetPassword(admin, workforceId)).rejects.toMatchObject({
+      code: 'IDEMPOTENCY_KEY_REQUIRED',
+    });
     const [first, replay] = (await Promise.all([
       adminService.resetPassword(admin, workforceId, 'admin-safety-reset-key'),
       adminService.resetPassword(admin, workforceId, 'admin-safety-reset-key'),
@@ -152,5 +157,113 @@ describe('Admin safety invariants', () => {
     const detail = (await imports.detail(batch.id)) as Record<string, unknown>;
     expect(detail).not.toHaveProperty('storageKey');
     expect(detail.summary).not.toHaveProperty('changes');
+  });
+
+  it('serializes route assignment with account deactivation', async () => {
+    const passwordHash = await hash('route-owner-race-password');
+    const employee = await prisma.employee.create({
+      data: { noReg: 'admin-safety-route-owner', name: 'Route Owner Race' },
+    });
+    const candidate = await prisma.userAccount.create({
+      data: {
+        employeeId: employee.id,
+        username: 'admin-safety-route-owner',
+        displayName: 'Route Owner Race',
+        passwordHash,
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+      },
+    });
+    const snapshot = await prisma.organizationSnapshot.create({
+      data: { status: 'ACTIVE', checksum: 'b'.repeat(64), rowCount: 1 },
+    });
+    const unit = await prisma.organizationUnit.create({
+      data: { directorate: 'Safety', division: 'Concurrency', department: 'Routing' },
+    });
+    await prisma.organizationMembership.create({
+      data: {
+        snapshotId: snapshot.id,
+        employeeId: employee.id,
+        organizationUnitId: unit.id,
+        employeeName: employee.name,
+        structuralPosition: 'Department Head',
+        section: 'Management',
+        sourceRow: 2,
+      },
+    });
+
+    const results = await Promise.allSettled([
+      adminService.setGlobalPic(
+        admin,
+        {
+          accountId: candidate.id,
+          expectedCurrentRouteId: null,
+          reason: 'Concurrency invariant test',
+        },
+        'admin-safety-route-race',
+      ),
+      adminService.setAccountStatus(
+        admin,
+        candidate.id,
+        { status: 'INACTIVE', reason: 'Concurrency invariant test', expectedVersion: 1 },
+        'admin-safety-deactivation-race',
+      ),
+    ]);
+
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+    expect(
+      await prisma.routeMapping.count({
+        where: { effectiveTo: null, owner: { status: { not: 'ACTIVE' } } },
+      }),
+    ).toBe(0);
+  });
+
+  it('does not expire or delete a raw import after a concurrent queue transition', async () => {
+    const storageKey = `imports/admin-safety-expiry-${crypto.randomUUID()}.xlsx`;
+    const rawPath = resolve(process.env.MEDIA_ROOT!, storageKey);
+    await mkdir(dirname(rawPath), { recursive: true });
+    await writeFile(rawPath, 'raw import retained after queue transition');
+    const batch = await prisma.importBatch.create({
+      data: {
+        actorId: admin.accountId,
+        status: ImportStatus.PREVIEWED,
+        checksum: 'c'.repeat(64),
+        storageKey,
+        summary: { rowCount: 1 },
+        errors: [],
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    let releaseLock!: () => void;
+    const release = new Promise<void>((resolveRelease) => {
+      releaseLock = resolveRelease;
+    });
+    let announceLock!: () => void;
+    const locked = new Promise<void>((resolveLocked) => {
+      announceLock = resolveLocked;
+    });
+    const queueTransition = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`import-batch:${batch.id}`}, 0))::text AS lock`;
+        announceLock();
+        await release;
+        await tx.importBatch.update({
+          where: { id: batch.id },
+          data: { status: ImportStatus.QUEUED, version: { increment: 1 } },
+        });
+      },
+      { timeout: 10_000 },
+    );
+
+    await locked;
+    const detail = imports.detail(batch.id);
+    await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    releaseLock();
+    await queueTransition;
+
+    await expect(detail).resolves.toMatchObject({ status: ImportStatus.QUEUED });
+    await expect(access(rawPath)).resolves.toBeUndefined();
+    await unlink(rawPath);
   });
 });

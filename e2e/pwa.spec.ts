@@ -12,7 +12,12 @@ test('precache excludes design/API and provides an explicit offline fallback', a
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
 
-  await page.goto('/');
+  // Register from a static same-origin page so this artifact-level test does
+  // not depend on the application session bootstrap or an API process.
+  await page.goto('/offline.html');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  });
   // navigator.serviceWorker.ready can remain pending forever when activation
   // stalls on a busy runner, hiding the real registration state. Poll the
   // registration directly so failures report the last observed worker state.
@@ -47,11 +52,14 @@ test('precache excludes design/API and provides an explicit offline fallback', a
   });
   expect(cachedUrls.some((url) => /design-system/.test(url))).toBe(false);
   expect(cachedUrls.some((url) => /\/api\//.test(url))).toBe(false);
+  await expect
+    .poll(() => controlledPage.evaluate(() => navigator.serviceWorker.controller?.state ?? null))
+    .toBe('activated');
   await context.setOffline(true);
-  await controlledPage.goto('/route-not-precached');
+  await controlledPage.goto('/route-not-precached', { waitUntil: 'domcontentloaded' });
   await expect(
     controlledPage.getByRole('heading', { name: 'CARE tidak dapat terhubung' }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test('cookie, IndexedDB, and CacheStorage remain origin isolated', async ({ context, page }) => {
