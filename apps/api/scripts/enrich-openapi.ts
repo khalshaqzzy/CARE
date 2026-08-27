@@ -142,6 +142,19 @@ const queryParameters: Record<string, string[]> = {
     'dateTo',
     'sort',
   ],
+  VoicesController_workItems: [
+    'cursor',
+    'limit',
+    'search',
+    'status',
+    'severity',
+    'area',
+    'category',
+    'dateFrom',
+    'dateTo',
+  ],
+  VoicesController_listDrafts: ['cursor', 'limit'],
+  NotificationsController_list: ['cursor', 'limit'],
 };
 
 const idempotentOperations = new Set([
@@ -228,6 +241,10 @@ function successSchema(operationId: string) {
     operationId === 'VoicesController_dashboardPrivate'
   )
     return { $ref: '#/components/schemas/DashboardAggregate' };
+  if (operationId === 'VoicesController_dashboardMember')
+    return { $ref: '#/components/schemas/MemberDashboard' };
+  if (operationId === 'VoicesController_listDrafts')
+    return { $ref: '#/components/schemas/DraftListResponse' };
   if (operationId === 'ImportsController_preview' || operationId === 'ImportsController_detail')
     return { $ref: '#/components/schemas/OrganizationImportPreview' };
   if (operationId === 'HealthController_health') return { $ref: '#/components/schemas/Health' };
@@ -357,6 +374,18 @@ const baseVoiceProperties = {
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
+  submittedAt: { type: 'string', format: 'date-time' },
+  updatedAt: { type: 'string', format: 'date-time' },
+  classificationSource: {
+    type: 'string',
+    nullable: true,
+    enum: ['AI', 'MANUAL_FALLBACK'],
+  },
+  availableActions: { type: 'array', items: { type: 'string' } },
+  closureCycles: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/ClosureCycleResponse' },
+  },
   routeOwner: {
     type: 'object',
     required: ['id', 'displayName'],
@@ -919,6 +948,95 @@ const schemas: Record<string, any> = {
       properties: { label: { type: 'string' }, value: { type: 'integer' } },
     },
   },
+  ClosureCycleResponse: {
+    type: 'object',
+    required: ['id', 'cycleNumber', 'note', 'closedAt', 'actor', 'evidence', 'rating'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      cycleNumber: { type: 'integer' },
+      note: { type: 'string' },
+      closedAt: { type: 'string', format: 'date-time' },
+      reopenedAt: { type: 'string', format: 'date-time', nullable: true },
+      actor: {
+        type: 'object',
+        required: ['id', 'displayName'],
+        properties: { id: { type: 'string', format: 'uuid' }, displayName: { type: 'string' } },
+      },
+      evidence: { type: 'array', items: { $ref: '#/components/schemas/AttachmentResponse' } },
+      rating: {
+        type: 'object',
+        nullable: true,
+        required: ['score', 'feedback', 'reopen', 'createdAt'],
+        properties: {
+          score: { type: 'integer', minimum: 1, maximum: 5 },
+          feedback: { type: 'string', nullable: true },
+          reopen: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  },
+  MemberDashboard: {
+    type: 'object',
+    required: ['total', 'counts', 'recent', 'draft', 'generatedAt'],
+    additionalProperties: false,
+    properties: {
+      total: { type: 'integer' },
+      counts: {
+        type: 'object',
+        required: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'],
+        additionalProperties: false,
+        properties: {
+          OPEN: { type: 'integer' },
+          IN_VERIFICATION: { type: 'integer' },
+          IN_PROGRESS: { type: 'integer' },
+          CLOSED: { type: 'integer' },
+        },
+      },
+      recent: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
+      draft: {
+        allOf: [{ $ref: '#/components/schemas/DraftListItem' }],
+        nullable: true,
+      },
+      generatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  DraftListItem: {
+    type: 'object',
+    required: [
+      'id',
+      'visibility',
+      'area',
+      'locationDetail',
+      'title',
+      'detail',
+      'version',
+      'expiresAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      visibility: baseVoiceProperties.visibility,
+      area: baseVoiceProperties.area,
+      locationDetail: { type: 'string' },
+      title: { type: 'string' },
+      detail: { type: 'string' },
+      showReporterIdentity: { type: 'boolean', nullable: true },
+      version: { type: 'integer', minimum: 1 },
+      expiresAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  DraftListResponse: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/DraftListItem' } },
+      nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+    },
+  },
   OrganizationImportSummary: {
     type: 'object',
     required: [
@@ -1468,6 +1586,7 @@ const schemas: Record<string, any> = {
       locationContentHash: { type: 'string' },
       classification: { $ref: '#/components/schemas/ClassificationPreview' },
       locationReview: { $ref: '#/components/schemas/LocationReviewSnapshot' },
+      attachments: { type: 'array', items: { $ref: '#/components/schemas/AttachmentResponse' } },
     },
   },
   VoiceDraftPreview: {
@@ -1480,8 +1599,14 @@ const schemas: Record<string, any> = {
           routeReadiness: {
             type: 'object',
             required: ['ready'],
-            properties: { ready: { type: 'boolean' }, reason: { type: 'string' } },
+            properties: {
+              ready: { type: 'boolean' },
+              reason: { type: 'string' },
+              targetLabel: { type: 'string' },
+              remediationCode: { type: 'string' },
+            },
           },
+          routeTarget: { type: 'string', nullable: true },
         },
       },
     ],

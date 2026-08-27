@@ -77,6 +77,24 @@ export type VoiceDetailBase = {
   severity: Severity;
   status: VoiceStatus;
   version: number;
+  submittedAt: Date;
+  updatedAt: Date;
+  classificationSource: ClassificationSource | null;
+  routeOwner: { id: string; displayName: string };
+  currentHandler: { id: string; displayName: string } | null;
+  attachments: unknown[];
+  locationReview: LocationReviewSnapshot | null;
+  closureCycles: Array<{
+    id: string;
+    cycleNumber: number;
+    note: string;
+    closedAt: Date;
+    reopenedAt: Date | null;
+    actor: { id: string; displayName: string };
+    evidence: unknown[];
+    rating: { score: number; feedback: string | null; reopen: boolean; createdAt: Date } | null;
+  }>;
+  availableActions: string[];
 };
 export type ReporterSelfVoiceDetail = VoiceDetailBase & {
   audience: 'REPORTER_SELF';
@@ -117,4 +135,43 @@ export type DashboardAggregate = {
   trend: Array<{ label: string; value: number }>;
   division: Array<{ label: string; value: number }>;
   department: Array<{ label: string; value: number }>;
+};
+export type RouteReadiness = {
+  ready: boolean;
+  reason?: string;
+  targetLabel?: string;
+  remediationCode?: string;
+};
+export type DraftListItem = {
+  id: string;
+  visibility: VoiceVisibility;
+  area: Area;
+  locationDetail: string;
+  title: string;
+  detail: string;
+  showReporterIdentity: boolean | null;
+  version: number;
+  expiresAt: Date;
+  updatedAt: Date;
+};
+export type DraftListResponse = {
+  items: DraftListItem[];
+  nextCursor: string | null;
+};
+export type MemberDashboard = {
+  total: number;
+  counts: Record<VoiceStatus, number>;
+  recent: Array<{
+    id: string;
+    displayId: string;
+    visibility: VoiceVisibility;
+    area: Area;
+    title: string;
+    category: RoutingCategory | null;
+    severity: Severity;
+    status: VoiceStatus;
+    updatedAt: Date;
+  }>;
+  draft: DraftListItem | null;
+  generatedAt: string;
 };

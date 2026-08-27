@@ -35,6 +35,12 @@ export class VoicesController {
   @Post('drafts') createDraft(@Actor() a: AuthActor, @Body() b: unknown) {
     return this.voices.createDraft(a, b);
   }
+  @Get('drafts') listDrafts(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['listDrafts']>[1],
+  ) {
+    return this.voices.listDrafts(a, q ?? {});
+  }
   @Get('drafts/:id') getDraft(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
     return this.voices.getDraft(a, id);
   }
@@ -108,8 +114,11 @@ export class VoicesController {
   @Get('voices') list(@Actor() a: AuthActor, @Query() q: Parameters<VoicesService['list']>[1]) {
     return this.voices.list(a, q);
   }
-  @Get('work-items') workItems(@Actor() a: AuthActor) {
-    return this.voices.workItems(a);
+  @Get('work-items') workItems(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['workItems']>[1],
+  ) {
+    return this.voices.workItems(a, q ?? {});
   }
   @Get('voices/:id') detail(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
     return this.voices.detail(a, id);
@@ -204,6 +213,9 @@ export class VoicesController {
   }
   @Get('dashboard/private') dashboardPrivate(@Actor() a: AuthActor) {
     return this.voices.dashboardPrivate(a);
+  }
+  @Get('dashboard/member') dashboardMember(@Actor() a: AuthActor) {
+    return this.voices.dashboardMember(a);
   }
 
   @Get('media/:id')

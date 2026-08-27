@@ -4559,6 +4559,145 @@
             }
           }
         }
+      },
+      "get": {
+        "operationId": "VoicesController_listDrafts",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
       }
     },
     "/api/v1/drafts/{id}": {
@@ -6349,7 +6488,82 @@
     "/api/v1/work-items": {
       "get": {
         "operationId": "VoicesController_workItems",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "area",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -8518,6 +8732,128 @@
         ]
       }
     },
+    "/api/v1/dashboard/member": {
+      "get": {
+        "operationId": "VoicesController_dashboardMember",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
     "/api/v1/media/{id}": {
       "get": {
         "operationId": "VoicesController_mediaFile",
@@ -8652,7 +8988,26 @@
     "/api/v1/notifications": {
       "get": {
         "operationId": "NotificationsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -10699,6 +11054,11 @@
           "severity",
           "status",
           "version",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "closureCycles",
           "routeOwner",
           "currentHandler",
           "attachments",
@@ -10778,6 +11138,34 @@
             "type": "integer",
             "minimum": 1
           },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
+          },
           "routeOwner": {
             "type": "object",
             "required": [
@@ -10856,6 +11244,11 @@
           "severity",
           "status",
           "version",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "closureCycles",
           "routeOwner",
           "currentHandler",
           "attachments",
@@ -10934,6 +11327,34 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
           },
           "routeOwner": {
             "type": "object",
@@ -11022,6 +11443,11 @@
           "severity",
           "status",
           "version",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "closureCycles",
           "routeOwner",
           "currentHandler",
           "attachments",
@@ -11101,6 +11527,34 @@
             "type": "integer",
             "minimum": 1
           },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
+          },
           "routeOwner": {
             "type": "object",
             "required": [
@@ -11169,6 +11623,11 @@
           "severity",
           "status",
           "version",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "closureCycles",
           "routeOwner",
           "currentHandler",
           "attachments",
@@ -11248,6 +11707,34 @@
             "type": "integer",
             "minimum": 1
           },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
+          },
           "routeOwner": {
             "type": "object",
             "required": [
@@ -11324,6 +11811,11 @@
           "severity",
           "status",
           "version",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "closureCycles",
           "routeOwner",
           "currentHandler",
           "attachments",
@@ -11402,6 +11894,34 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
           },
           "routeOwner": {
             "type": "object",
@@ -11490,6 +12010,11 @@
           "severity",
           "status",
           "version",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "closureCycles",
           "routeOwner",
           "currentHandler",
           "attachments",
@@ -11569,6 +12094,34 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
           },
           "routeOwner": {
             "type": "object",
@@ -11746,6 +12299,231 @@
             "value": {
               "type": "integer"
             }
+          }
+        }
+      },
+      "ClosureCycleResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "cycleNumber",
+          "note",
+          "closedAt",
+          "actor",
+          "evidence",
+          "rating"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycleNumber": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string"
+          },
+          "closedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reopenedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "actor": {
+            "type": "object",
+            "required": [
+              "id",
+              "displayName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentResponse"
+            }
+          },
+          "rating": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "score",
+              "feedback",
+              "reopen",
+              "createdAt"
+            ],
+            "properties": {
+              "score": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "feedback": {
+                "type": "string",
+                "nullable": true
+              },
+              "reopen": {
+                "type": "boolean"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "MemberDashboard": {
+        "type": "object",
+        "required": [
+          "total",
+          "counts",
+          "recent",
+          "draft",
+          "generatedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "OPEN",
+              "IN_VERIFICATION",
+              "IN_PROGRESS",
+              "CLOSED"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "OPEN": {
+                "type": "integer"
+              },
+              "IN_VERIFICATION": {
+                "type": "integer"
+              },
+              "IN_PROGRESS": {
+                "type": "integer"
+              },
+              "CLOSED": {
+                "type": "integer"
+              }
+            }
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoiceListItem"
+            }
+          },
+          "draft": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DraftListItem"
+              }
+            ],
+            "nullable": true
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DraftListItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "visibility",
+          "area",
+          "locationDetail",
+          "title",
+          "detail",
+          "version",
+          "expiresAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "showReporterIdentity": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DraftListResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftListItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Signed opaque cursor"
           }
         }
       },
@@ -13092,6 +13870,12 @@
           },
           "locationReview": {
             "$ref": "#/components/schemas/LocationReviewSnapshot"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentResponse"
+            }
           }
         }
       },
@@ -13117,8 +13901,18 @@
                   },
                   "reason": {
                     "type": "string"
+                  },
+                  "targetLabel": {
+                    "type": "string"
+                  },
+                  "remediationCode": {
+                    "type": "string"
                   }
                 }
+              },
+              "routeTarget": {
+                "type": "string",
+                "nullable": true
               }
             }
           }

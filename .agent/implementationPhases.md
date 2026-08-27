@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                         |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 8 Admin Application & Organization Operations 8.0–8.4 done, 8.5 in progress             |
-| Last updated           | 27 Agustus 2026                                                                               |
-| Product contract       | `.agent/PRD.md` v1.1                                                                          |
-| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress  |
-| Current phase          | Phase 8.5 `in_progress`                                                                       |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment |
+| Atribut                | Nilai                                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 8.5 `in_progress`; Phase 9–10 batch iniziato (scoped acceptance partial, sequencing exception recorded)                          |
+| Last updated           | 27 Agustus 2026                                                                                                                        |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                   |
+| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress; Phase 9 Member journey partial per batch |
+| Current phase          | Phase 8.5 `in_progress` (sequencing exception allows concurrent Phase 9–10 batch work)                                                 |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                          |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -460,47 +460,35 @@ Acceptance:
 
 ## Phase 9 — Member Voice Journey
 
-Status: `pending`
+Status: `in_progress` — batch-scoped work started per sequencing exception; Phase 8.5 remains `in_progress` and Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
 
-Dependencies: Phase 8.
+Dependencies: Phase 8 (sequencing exception granted; Phase 9–10 may receive scoped acceptance without opening the Frontend Complete Gate).
 
-Scope:
+Scope (implemented so far — Member journey in `apps/web-voice`):
 
-- Member Home dan pilihan awal Private Voice/General Voice;
-- Private identity consent `Ya/Tidak` dan contract-aware preview;
-- form/media validation, automatic location review, warning/suggestions, confirmation acknowledgment, cache invalidation;
-- General category/severity dan Private severity AI/fallback previews;
-- submit result, history/detail, status/PIC/timeline/chat, closure/rating/reopen, notification deep links.
+- architecture: typed `workforce-api` derived from generated operations, session-scoped `careQueryKey`, shared formatters, capability-aware `AppShell`/`BottomNav`/`Sidebar` and feature routes (`/`, `/voices/new`, `/drafts/:id/edit`, `/drafts/:id/preview`, `/history`, `/work-items`, `/general`, `/voices/:id`, `/notifications`, `/account`);
+- Member Home with cobalt hero, greeting/profile, notification entry, `StatusSummary` status cards, recent Voice cards, resume-draft card, and Buat Voice CTA;
+- Create Voice wizard: Private/General choice → details (area, location, title, detail, Private identity consent, photos) → save draft + AI classification + location review → manual fallback → review (route readiness, severity/category, attachments, location warning, consent) → idempotent submit; dirty-form guard, char counters, media preview/remove, upload progress, focus-to-error;
+- preview page and closed-chat read-only rules; History with search/filter/cursor; Voice detail with metadata, PIC privacy label, media, classification source, location review, timeline, conversation, closure cycles/evidence/rating/reopen; Notifications center with unread count/pagination/mark-read/deep-link; Account session/capability/profile;
+- Phase 10 partial responder slice: capability-aware responder Home, `WorkItems` severity-first inbox with filters/search/cursor, `General` read-only browse, and `ActionPanel` responder actions (ask/proceed/close) with server-computed `availableActions`.
 
-Acceptance:
-
-- Private/General paths, conditional consent, no-category Private, and route failure preserve draft;
-- warning lokasi tampil di bawah field tanpa field tambahan wajib; stale review/ack ditolak;
-- provider failure tidak memblokir form dan fallback sesuai jenis Voice;
-- `Department=14` General remediation dan Private continuation lulus;
-- responsive Member Playwright journeys green.
+Acceptance status: partial Member journey implemented, wired to the real backend and verified via typecheck/lint/build/unit; outstanding full Phase 9/10 acceptance and the complete Phase 10 responder/leadership matrix remain (see `sessionHandoff.md`).
 
 ## Phase 10 — Responder and Leadership Journeys
 
-Status: `pending`
+Status: `pending` — batch-scoped responder slice started; the full responder/leadership matrix and acceptance remain outstanding.
 
-Dependencies: Phase 9.
+Dependencies: Phase 9 (batch sequencing exception applies as above).
 
-Scope:
+Scope (implemented so far):
 
-- Section Head assigned inbox/action journey;
-- Manager department detail/action, division overview, dan separate global/default operational inbox;
-- Union Head Private all/assign/reassign, Union Officer assigned-only, conditional identity, dan General read-only journey;
-- Division/Deputy/Pjt. Head, Director, dan Union General aggregate/detail read-only dashboards;
-- minimum charts, scoped filters, timeline/chat/notifications, proceed/assign/reassign/close conflict states.
+- capability-aware responder Home split (division aggregate vs operational inbox);
+- `WorkItems` severity-first operational inbox with search/filter/cursor pagination and typed `nextCursor`;
+- `General` read-only browse aggregate/detail for Union and Leadership;
+- server-computed `availableActions` plus `ActionPanel` (ask/proceed/close) wired to lifecycle mutation endpoints;
+- backend `work-items` aligned to `/voices` cursor/filter/search contract.
 
-Acceptance:
-
-- full dashboard/detail/action matrix dan aggregate leakage checks lulus;
-- Environment tampil pada form/filter/chart;
-- action controls mengikuti capability/object scope tetapi server tetap authoritative;
-- conditional Private identity dan Officer assignment isolation lulus;
-- all responder/leadership Playwright journeys green.
+Acceptance status: partial; the complete dashboard/detail/action matrix, aggregate leakage checks, conditional Private identity/Officer assignment isolation, and responder/leadership Playwright journeys remain (see `sessionHandoff.md`).
 
 ## Phase 11 — Frontend Completion, Workforce PWA, Accessibility, and Two-App E2E Gate
 
@@ -590,4 +578,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-PR #2 review remediation telah selesai. Lanjutkan Phase 8.5 dengan mocked-contract dan full-stack Admin journeys (bootstrap→import→remediation→Union→accounts→Private audit→system status) sebelum menandai Phase 8 `done`. Foundation Axe/keyboard/no-overflow, Admin gate/build split, visual, dan PWA assertions saat ini hijau. Branch aktif: `feat/phase-8-admin-operations`.
+Member journey (Phase 9 batch) telah diimplementasikan pada branch workforce; lanjutkan dengan menutup sisa Phase 9/10 acceptance: backend contract completion yang tersisa (assignment-candidates, close evidence linkage, idempotency ask/proceed/close/rate/message, reopen last-PIC resiliensi, timeline/messages cursor pagination, assign expectedVersion, dashboard filter/suppression metadata), lalu lengkapi responder/leadership matrix dan Playwright mocked/full-stack + visual regression. Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 dan Phase 11 selesai.

@@ -32,6 +32,7 @@ import {
 import { loadConfig } from '../config';
 import { MediaService } from '../media/media.service';
 import { PrismaService } from '../prisma.service';
+import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
 
 const attachmentResponseSelect = Prisma.validator<Prisma.AttachmentSelect>()({
@@ -44,6 +45,19 @@ const attachmentResponseSelect = Prisma.validator<Prisma.AttachmentSelect>()({
   height: true,
   createdAt: true,
   readyAt: true,
+});
+
+const draftListItemSelect = Prisma.validator<Prisma.VoiceDraftSelect>()({
+  id: true,
+  visibility: true,
+  area: true,
+  locationDetail: true,
+  title: true,
+  detail: true,
+  showReporterIdentity: true,
+  version: true,
+  expiresAt: true,
+  updatedAt: true,
 });
 
 const draftSchema = z
@@ -64,6 +78,32 @@ const draftSchema = z
         message: 'Required for Private Voice',
       });
     if (value.visibility === VoiceVisibility.GENERAL && value.showReporterIdentity !== undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['showReporterIdentity'],
+        message: 'Not accepted for General Voice',
+      });
+  });
+const draftPatchSchema = z
+  .object({
+    area: z.enum(['KARAWANG_1', 'KARAWANG_2', 'KARAWANG_3', 'SUNTER_1', 'SUNTER_2']).optional(),
+    locationDetail: z.string().trim().min(1).max(200).optional(),
+    title: z.string().trim().min(1).max(150).optional(),
+    detail: z.string().trim().min(1).max(5000).optional(),
+    visibility: z.nativeEnum(VoiceVisibility).optional(),
+    showReporterIdentity: z.boolean().optional(),
+    expectedVersion: z.number().int().positive().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const effectiveVisibility = value.visibility;
+    if (effectiveVisibility === VoiceVisibility.PRIVATE && value.showReporterIdentity === undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['showReporterIdentity'],
+        message: 'Required when switching to Private Voice',
+      });
+    if (effectiveVisibility === VoiceVisibility.GENERAL && value.showReporterIdentity !== undefined)
       context.addIssue({
         code: 'custom',
         path: ['showReporterIdentity'],
@@ -102,6 +142,18 @@ const ratingSchema = z
   .strict();
 const locationWarning =
   'Detail lokasi Anda belum lengkap, dan Voice berpotensi tidak ditangani dengan baik.';
+const routeTargetLabels: Record<RouteKind, string> = {
+  DEPARTMENT_HEAD: 'Department Head',
+  DEFAULT_DEPARTMENT: 'Default PIC',
+  GLOBAL_SPECIAL: 'PIC Global',
+  LEGACY: 'Legacy PIC',
+};
+const remediationCodes: Record<string, string> = {
+  GENERAL_ROUTE_FORBIDDEN: 'GENERAL_ROUTE_FORBIDDEN',
+  GENERAL_ROUTE_UNAVAILABLE: 'GENERAL_ROUTE_UNAVAILABLE',
+  UNION_HEAD_UNAVAILABLE: 'UNION_HEAD_UNAVAILABLE',
+  CLASSIFICATION_REQUIRED: 'MANUAL_CLASSIFICATION_REQUIRED',
+};
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
   const result = schema.safeParse(value);
   if (!result.success)
@@ -138,27 +190,48 @@ export class VoicesService {
         organizationSnapshotId: organization.snapshotId,
         organizationUnitId: organization.organizationUnitId,
         ...hashes,
-        expiresAt: new Date(Date.now() + 7 * 86_400_000),
+        expiresAt: new Date(Date.now() + 30 * 86_400_000),
       },
     });
   }
   async getDraft(actor: AuthActor, id: string) {
     return this.ownedDraft(actor, id);
   }
+  async listDrafts(actor: AuthActor, query: { limit?: string; cursor?: string }) {
+    if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
+    const take = Math.min(Math.max(Number(query.limit ?? 20), 1), 50);
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const items = await this.prisma.voiceDraft.findMany({
+      where: { reporterId: actor.accountId, submittedAt: null, expiresAt: { gt: new Date() } },
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      select: draftListItemSelect,
+    });
+    const hasNext = items.length > take;
+    const data = hasNext ? items.slice(0, take) : items;
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    return { items: data, nextCursor };
+  }
   async updateDraft(actor: AuthActor, id: string, input: unknown) {
-    const data = parse(draftSchema, input);
+    const { expectedVersion, ...patch } = parse(draftPatchSchema, input);
     const draft = await this.ownedDraft(actor, id);
     if (draft.submittedAt) throw conflict('DRAFT_SUBMITTED', 'Draft was already submitted');
-    const hashes = this.hashes(data);
+    if (expectedVersion !== undefined && expectedVersion !== draft.version)
+      throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
+    const { visibility, area, locationDetail, title, detail } = { ...draft, ...patch };
+    const merged = { visibility, area, locationDetail, title, detail };
+    const hashes = this.hashes(merged);
     const classificationChanged =
       hashes.classificationContentHash !== draft.classificationContentHash;
     const locationChanged = hashes.locationContentHash !== draft.locationContentHash;
+    const data = { ...patch, ...hashes };
     return this.prisma.$transaction(async (tx) => {
       if (classificationChanged) await tx.aIClassification.deleteMany({ where: { draftId: id } });
       if (locationChanged) await tx.locationReviewSnapshot.deleteMany({ where: { draftId: id } });
       return tx.voiceDraft.update({
         where: { id },
-        data: { ...data, ...hashes, version: { increment: 1 } },
+        data: { ...data, version: { increment: 1 } },
         include: { classification: true, locationReview: true },
       });
     });
@@ -281,7 +354,11 @@ export class VoicesService {
   }
   async previewDraft(actor: AuthActor, id: string) {
     const draft = await this.ownedDraft(actor, id);
-    return { ...draft, routeReadiness: await this.routeReadiness(draft) };
+    return {
+      ...draft,
+      routeReadiness: await this.routeReadiness(draft),
+      routeTarget: await this.routeTargetLabel(draft),
+    };
   }
 
   async submit(actor: AuthActor, id: string, input: unknown, key: string) {
@@ -504,14 +581,54 @@ export class VoicesService {
     }
     return { items: data, nextCursor };
   }
-  async workItems(actor: AuthActor) {
-    return {
-      items: await this.prisma.voice.findMany({
-        where: this.policy.workItemScope(actor),
-        orderBy: [{ severity: 'desc' }, { submittedAt: 'asc' }],
-        select: this.listSelect(),
-      }),
-    };
+  async workItems(
+    actor: AuthActor,
+    query: {
+      status?: VoiceStatus;
+      limit?: string;
+      cursor?: string;
+      search?: string;
+      severity?: Severity;
+      area?: string;
+      category?: RoutingCategory;
+      from?: string;
+      to?: string;
+    } = {},
+  ) {
+    const where = this.policy.workItemScope(actor);
+    const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const and: Prisma.VoiceWhereInput[] = [where];
+    if (query.status) and.push({ status: query.status });
+    if (query.severity) and.push({ severity: query.severity as Severity });
+    if (query.area) and.push({ area: query.area as never });
+    if (query.category) and.push({ category: query.category as RoutingCategory });
+    if (query.search) {
+      and.push({
+        OR: [
+          { displayId: { contains: query.search, mode: 'insensitive' } },
+          { title: { contains: query.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (query.from || query.to) {
+      const submittedAt: Prisma.DateTimeFilter = {};
+      if (query.from) submittedAt.gte = new Date(query.from);
+      if (query.to) submittedAt.lte = new Date(query.to);
+      and.push({ submittedAt });
+    }
+    const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
+    const items = await this.prisma.voice.findMany({
+      where: combinedWhere,
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
+      select: this.listSelect(),
+    });
+    const hasNext = items.length > take;
+    const data = hasNext ? items.slice(0, take) : items;
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    return { items: data, nextCursor };
   }
   async detail(actor: AuthActor, id: string) {
     const scope = await this.policy.detailScope(actor);
@@ -523,6 +640,14 @@ export class VoicesService {
         classification: true,
         locationReview: true,
         attachments: { select: attachmentResponseSelect },
+        closureCycles: {
+          orderBy: { cycleNumber: 'asc' },
+          include: {
+            evidence: { select: attachmentResponseSelect },
+            rating: true,
+            actor: { select: { id: true, displayName: true } },
+          },
+        },
       },
     });
     if (!voice) throw forbiddenAsNotFound();
@@ -845,6 +970,39 @@ export class VoicesService {
     else where = { visibility: VoiceVisibility.PRIVATE, reporterId: actor.accountId };
     return this.aggregate(where, false);
   }
+  async dashboardMember(actor: AuthActor) {
+    if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
+    const where: Prisma.VoiceWhereInput = { reporterId: actor.accountId };
+    const [total, grouped, recent, draft] = await Promise.all([
+      this.prisma.voice.count({ where }),
+      this.prisma.voice.groupBy({ by: ['status'], where, _count: { _all: true } }),
+      this.prisma.voice.findMany({
+        where,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        take: 5,
+        select: this.listSelect(),
+      }),
+      this.prisma.voiceDraft.findFirst({
+        where: { reporterId: actor.accountId, submittedAt: null, expiresAt: { gt: new Date() } },
+        orderBy: { updatedAt: 'desc' },
+        select: draftListItemSelect,
+      }),
+    ]);
+    const counts: Record<VoiceStatus, number> = {
+      OPEN: 0,
+      IN_VERIFICATION: 0,
+      IN_PROGRESS: 0,
+      CLOSED: 0,
+    };
+    for (const row of grouped) counts[row.status] = row._count._all;
+    return {
+      total,
+      counts,
+      recent,
+      draft,
+      generatedAt: new Date().toISOString(),
+    };
+  }
 
   private async dashboard(actor: AuthActor, visibility: VoiceVisibility) {
     let where: Prisma.VoiceWhereInput = { visibility };
@@ -1026,23 +1184,44 @@ export class VoicesService {
               account: { status: AccountStatus.ACTIVE },
             },
           })) === 1,
+        targetLabel: 'Union Head',
       };
     if (!draft.organizationUnitId || !draft.classification)
-      return { ready: false, reason: 'CLASSIFICATION_REQUIRED' };
-    try {
-      await this.resolveRoute(draft, draft.classification.category);
-      return { ready: true };
-    } catch (error) {
       return {
         ready: false,
-        reason: error instanceof AppError ? error.code : 'GENERAL_ROUTE_UNAVAILABLE',
+        reason: 'CLASSIFICATION_REQUIRED',
+        remediationCode: 'MANUAL_CLASSIFICATION_REQUIRED',
       };
+    try {
+      const route = await this.resolveRoute(draft, draft.classification.category);
+      return { ready: true, targetLabel: routeTargetLabels[route.kind as RouteKind] };
+    } catch (error) {
+      const code = error instanceof AppError ? error.code : 'GENERAL_ROUTE_UNAVAILABLE';
+      return {
+        ready: false,
+        reason: code,
+        remediationCode: remediationCodes[code as keyof typeof remediationCodes] ?? code,
+      };
+    }
+  }
+  private async routeTargetLabel(draft: {
+    visibility: VoiceVisibility;
+    organizationUnitId: string | null;
+    classification?: { category: RoutingCategory | null } | null;
+  }) {
+    if (draft.visibility === VoiceVisibility.PRIVATE) return 'Union Head';
+    if (!draft.organizationUnitId || !draft.classification) return null;
+    try {
+      const route = await this.resolveRoute(draft, draft.classification.category);
+      return routeTargetLabels[route.kind as RouteKind];
+    } catch {
+      return null;
     }
   }
   private async resolveRoute(
     draft: { visibility: VoiceVisibility; organizationUnitId: string | null },
     category: RoutingCategory | null,
-  ) {
+  ): Promise<{ id: string | null; ownerAccountId: string; kind?: RouteKind }> {
     if (draft.visibility === VoiceVisibility.PRIVATE) {
       const heads = await this.prisma.unionAccountTerm.findMany({
         where: {
@@ -1182,6 +1361,26 @@ export class VoicesService {
       };
     });
   }
+  private actionSet(
+    actor: AuthActor,
+    voice: {
+      reporterId: string;
+      routeOwnerId: string;
+      currentHandlerId: string | null;
+      visibility: VoiceVisibility;
+      status: VoiceStatus;
+      handlerType: HandlerType;
+      closureCycles?: Array<{
+        reopenedAt: Date | null;
+        rating?: { score: number } | null;
+      }>;
+    },
+  ) {
+    return computeAvailableActions(
+      { accountId: actor.accountId, capabilities: actor.capabilities } satisfies ActionActor,
+      voice,
+    );
+  }
   private serialize(actor: AuthActor, voice: any) {
     const base = {
       id: voice.id,
@@ -1195,10 +1394,31 @@ export class VoicesService {
       severity: voice.severity,
       status: voice.status,
       version: voice.version,
+      submittedAt: voice.submittedAt,
+      updatedAt: voice.updatedAt,
+      classificationSource: voice.classification?.source ?? null,
       routeOwner: voice.routeOwner,
       currentHandler: voice.currentHandler,
       attachments: voice.attachments,
       locationReview: voice.locationReview,
+      closureCycles: (voice.closureCycles ?? []).map((cycle: any) => ({
+        id: cycle.id,
+        cycleNumber: cycle.cycleNumber,
+        note: cycle.note,
+        closedAt: cycle.closedAt,
+        reopenedAt: cycle.reopenedAt,
+        actor: cycle.actor,
+        evidence: cycle.evidence,
+        rating: cycle.rating
+          ? {
+              score: cycle.rating.score,
+              feedback: cycle.rating.feedback,
+              reopen: cycle.rating.reopen,
+              createdAt: cycle.rating.createdAt,
+            }
+          : null,
+      })),
+      availableActions: this.actionSet(actor, voice),
     };
     if (voice.reporterId === actor.accountId)
       return { ...base, audience: 'REPORTER_SELF', reporter: { self: true } };
