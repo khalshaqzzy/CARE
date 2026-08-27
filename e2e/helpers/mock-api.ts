@@ -587,10 +587,10 @@ export async function mockAdminApi(
   });
 }
 
-const defaultVoice: MockVoice = {
+export const defaultVoice: MockVoice = {
   id: 'voice-1',
   displayId: 'CARE-202608-000001',
-  audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY',
+  audience: 'REPORTER_SELF',
   visibility: 'PRIVATE',
   status: 'IN_PROGRESS',
   area: 'KARAWANG_1',
@@ -599,75 +599,97 @@ const defaultVoice: MockVoice = {
   availableActions: [],
 };
 
-/**
- * Install a deterministic mock for a workforce session + the endpoints the
- * Member/responder detail pages call. Unmatched `/api/v1` requests return a
- * generic 404 envelope so the UI degrades visibly instead of hitting a
- * non-running API.
- */
-export async function mockApi(page: Page, voice: MockVoice) {
-  await page.route('**/api/v1/**', async (route) => {
-    const url = new URL(route.request().url());
-    const path = url.pathname;
-    const method = route.request().method();
-    const fulfill = (status: number, body: unknown) =>
-      route.fulfill({
-        status,
-        contentType: 'application/json',
-        body: typeof body === 'string' ? body : JSON.stringify(body),
-      });
+export type MockApiOptions = {
+  session?: Session;
+  /** Return 401 for the session endpoint (login / unauthenticated surfaces). */
+  unauthenticated?: boolean;
+  voice?: MockVoice;
+  /** Force every data endpoint to return a safe error envelope. */
+  error?: { status: number; code: string };
+  /** Override for the selected voice detail (per-audience contracts). */
+  voiceDetail?: unknown;
+  /** Voice list response for `/voices` and `/work-items`. */
+  voiceList?: unknown;
+  memberDashboard?: unknown;
+  generalDashboard?: unknown;
+  privateDashboard?: unknown;
+  draft?: unknown;
+  draftPreview?: unknown;
+  classification?: unknown;
+  locationReview?: unknown;
+  notifications?: unknown;
+  unread?: number;
+  push?: {
+    configured?: boolean;
+    publicKey?: string | null;
+    status?: {
+      configured: boolean;
+      subscriptions: {
+        id: string;
+        installationId: string;
+        environment: string;
+        lastSuccessAt?: string;
+      }[];
+    };
+  };
+};
 
-    if (method === 'GET' && path === '/api/v1/auth/session') return fulfill(200, memberSession());
-    if (method === 'GET' && path === '/api/v1/notifications/unread-count')
-      return fulfill(200, { count: 0 });
+const PNG_1x1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
 
-    if (method === 'GET' && path === '/api/v1/dashboard/member')
-      return fulfill(200, {
-        total: 1,
-        counts: { OPEN: 0, IN_VERIFICATION: 0, IN_PROGRESS: 1, CLOSED: 0 },
-        recent: [voice],
-        draft: null,
-        generatedAt: new Date().toISOString(),
-      });
-    if (method === 'GET' && path === '/api/v1/voices')
-      return fulfill(200, { items: [voice], nextCursor: null });
-    if (method === 'GET' && path === `/api/v1/voices/${voice.id}`)
-      return fulfill(200, detail(voice));
-    if (method === 'GET' && path === `/api/v1/voices/${voice.id}/timeline`)
-      return fulfill(200, {
-        items: [
-          { id: 'evt-1', type: 'SUBMITTED', occurredAt: '2026-08-01T00:00:00.000Z', payload: {} },
-          { id: 'evt-2', type: 'PROCEEDED', occurredAt: '2026-08-02T00:00:00.000Z', payload: {} },
-          {
-            id: 'evt-3',
-            type: 'MESSAGE_SENT',
-            occurredAt: '2026-08-03T00:00:00.000Z',
-            payload: {},
-          },
-        ],
-        nextCursor: null,
-      });
-    if (method === 'GET' && path === `/api/v1/voices/${voice.id}/messages`)
-      return fulfill(200, {
-        items: [
-          {
-            id: 'msg-1',
-            text: 'Mohon konfirmasi lokasi kejadian.',
-            createdAt: '2026-08-02T01:00:00.000Z',
-            senderId: 'handler-1',
-            senderAccountKind: 'WORKFORCE',
-            sender: { kind: 'WORKFORCE' },
-            attachments: [],
-          },
-        ],
-        nextCursor: 'msg-next',
-      });
-    if (method === 'GET' && path === `/api/v1/voices/${voice.id}/assignment-candidates`)
-      return fulfill(200, []);
+const defaultGENERAL_DASHBOARD = (): DashboardAggregate => ({
+  total: 0,
+  status: [],
+  severity: [],
+  category: [],
+  trend: [],
+  division: [],
+  department: [],
+  suppression: {
+    enabled: false,
+    threshold: 0,
+    division: { suppressedBuckets: 0, suppressedValue: 0 },
+    department: { suppressedBuckets: 0, suppressedValue: 0 },
+  },
+  filters: { area: null, category: null, severity: null, status: null, from: null, to: null },
+  generatedAt: new Date().toISOString(),
+});
 
-    return fulfill(404, errorBody('NOT_FOUND'));
-  });
-}
+const draftFixture = (voice?: MockVoice): unknown => ({
+  id: 'draft-1',
+  visibility: 'GENERAL',
+  area: 'KARAWANG_1',
+  locationDetail: 'Lantai 3, dekat mesin produksi',
+  title: voice?.title ?? 'Pencahayaan area produksi kurang',
+  detail: voice?.detail ?? 'Lampu di stasiun 3 redup.',
+  showReporterIdentity: false,
+  version: 1,
+  classificationContentHash: 'a'.repeat(64),
+  locationContentHash: 'b'.repeat(64),
+  classification: {
+    source: 'AI',
+    category: 'SAFETY',
+    severity: 'HIGH',
+    confidence: 0.9,
+    rationaleCode: 'CLEAR_HAZARD',
+  },
+  locationReview: {
+    id: 'lr-1',
+    completeness: 'COMPLETE',
+    warning: null,
+    questions: [],
+    contentHash: 'c'.repeat(64),
+  },
+  attachments: [],
+});
+
+const previewFixture = (): unknown => ({
+  ...(draftFixture() as Record<string, unknown>),
+  routeReadiness: { ready: true, targetLabel: 'Department Head' },
+  routeTarget: 'Department Head',
+});
 
 function detail(voice: MockVoice) {
   return {
@@ -710,4 +732,260 @@ function detail(voice: MockVoice) {
   };
 }
 
-export { accountFixtures, auditFixture, baseVoiceItem, importPreviewFixture, voiceDetail };
+const notificationPageFixture = (): unknown => ({
+  items: [
+    {
+      id: 'note-1',
+      type: 'VOICE_SUBMITTED',
+      title: 'Voice baru ditugaskan',
+      body: 'Sebuah Voice baru telah dirutekan kepada Anda.',
+      deepLink: '/voices/voice-1',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      readAt: null,
+    },
+  ],
+  nextCursor: null,
+});
+
+/**
+ * Install a deterministic workforce API mock. By default it uses a Member
+ * session and, when a `voice` is supplied, seeds the dashboard/list/detail
+ * endpoints with that voice. `error` mode forces every data endpoint into a
+ * safe error envelope so the protected tree still mounts but each page shows
+ * its error state.
+ */
+export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
+  const session = opts.session ?? memberSession();
+  const voice = opts.voice;
+
+  await page.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    const method = route.request().method();
+    const satisfy = (status: number, body: unknown) =>
+      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+
+    if (method === 'GET' && path === '/api/v1/auth/session') {
+      if (opts.unauthenticated)
+        return satisfy(401, errorBody('UNAUTHENTICATED', 'Sesi tidak tersedia.'));
+      return satisfy(200, session);
+    }
+    if (method === 'GET' && path === '/api/v1/auth/csrf')
+      return satisfy(200, { token: 'csrf-token' });
+    if (opts.error)
+      return satisfy(opts.error.status, errorBody(opts.error.code, 'Mocked state error'));
+
+    // Dashboards
+    if (method === 'GET' && path === '/api/v1/dashboard/member') {
+      return satisfy(
+        200,
+        opts.memberDashboard ?? {
+          total: voice ? 1 : 0,
+          counts: {
+            OPEN: 0,
+            IN_VERIFICATION: 0,
+            IN_PROGRESS: voice?.status === 'IN_PROGRESS' ? 1 : 0,
+            CLOSED: 0,
+          },
+          recent: voice ? [baseVoiceItem(voice)] : [],
+          draft: null,
+          generatedAt: new Date().toISOString(),
+        },
+      );
+    }
+    if (method === 'GET' && path === '/api/v1/dashboard/general')
+      return satisfy(200, opts.generalDashboard ?? defaultGENERAL_DASHBOARD());
+    if (method === 'GET' && path === '/api/v1/dashboard/private')
+      return satisfy(200, opts.privateDashboard ?? defaultGENERAL_DASHBOARD());
+
+    // Voice lists / work items
+    if (method === 'GET' && (path === '/api/v1/voices' || path === '/api/v1/work-items')) {
+      return satisfy(
+        200,
+        opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
+      );
+    }
+
+    const messagesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/messages$/);
+    if (method === 'GET' && messagesMatch) {
+      return satisfy(200, {
+        items: [
+          {
+            id: 'msg-1',
+            text: 'Mohon konfirmasi lokasi kejadian.',
+            createdAt: '2026-08-02T01:00:00.000Z',
+            senderId: 'handler-1',
+            senderAccountKind: 'WORKFORCE',
+            sender: { kind: 'WORKFORCE' },
+            attachments: [],
+          },
+        ],
+        nextCursor: 'msg-next',
+      });
+    }
+    const timelineMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/timeline$/);
+    if (method === 'GET' && timelineMatch) {
+      return satisfy(200, {
+        items: [
+          { id: 'evt-1', type: 'SUBMITTED', occurredAt: '2026-08-01T00:00:00.000Z', payload: {} },
+          { id: 'evt-2', type: 'PROCEEDED', occurredAt: '2026-08-02T00:00:00.000Z', payload: {} },
+          {
+            id: 'evt-3',
+            type: 'MESSAGE_SENT',
+            occurredAt: '2026-08-03T00:00:00.000Z',
+            payload: {},
+          },
+        ],
+        nextCursor: null,
+      });
+    }
+    const candidatesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/assignment-candidates$/);
+    if (method === 'GET' && candidatesMatch) return satisfy(200, []);
+    const voiceDetailMatch = path.match(/^\/api\/v1\/voices\/([^/]+)$/);
+    if (method === 'GET' && voiceDetailMatch) {
+      return satisfy(200, opts.voiceDetail ?? (voice ? detail(voice) : {}));
+    }
+    // Lifecycle mutations
+    if (
+      method === 'POST' &&
+      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|ask|proceed|close|rate)$/.test(
+        path,
+      )
+    ) {
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: 'IN_PROGRESS',
+        version: 4,
+      });
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/closure-evidence$/.test(path)) {
+      return satisfy(200, {
+        id: 'att-evidence',
+        purpose: 'CLOSURE_EVIDENCE',
+        mimeType: 'image/png',
+        size: 68,
+        state: 'READY',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Drafts
+    if (method === 'GET' && path === '/api/v1/drafts')
+      return satisfy(200, { items: [draftFixture(voice)], nextCursor: null });
+    if (method === 'POST' && path === '/api/v1/drafts') return satisfy(201, draftFixture(voice));
+    const draftPreviewMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/preview$/);
+    if (method === 'GET' && draftPreviewMatch)
+      return satisfy(200, opts.draftPreview ?? previewFixture());
+    const draftClassifyMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/classify$/);
+    if (method === 'POST' && draftClassifyMatch)
+      return satisfy(
+        200,
+        opts.classification ?? {
+          source: 'AI',
+          category: 'SAFETY',
+          severity: 'HIGH',
+          confidence: 0.9,
+          rationaleCode: 'CLEAR_HAZARD',
+        },
+      );
+    const draftManualMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/manual-classification$/);
+    if (method === 'POST' && draftManualMatch)
+      return satisfy(200, {
+        source: 'MANUAL_FALLBACK',
+        category: 'SAFETY',
+        severity: 'MEDIUM',
+        confidence: 1,
+        rationaleCode: 'MANUAL',
+      });
+    const draftLocationMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/location-review$/);
+    if (method === 'GET' && draftLocationMatch) return satisfy(200, opts.locationReview ?? null);
+    if (method === 'POST' && draftLocationMatch)
+      return satisfy(
+        200,
+        opts.locationReview ?? {
+          id: 'lr-1',
+          completeness: 'COMPLETE',
+          warning: null,
+          questions: [],
+          contentHash: 'c'.repeat(64),
+        },
+      );
+    const draftAttachmentsMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/attachments$/);
+    if (method === 'POST' && draftAttachmentsMatch) {
+      return satisfy(200, {
+        id: 'att-draft',
+        purpose: 'VOICE',
+        mimeType: 'image/png',
+        size: 68,
+        state: 'READY',
+        createdAt: new Date().toISOString(),
+      });
+    }
+    const draftAttachmentRemove = path.match(/^\/api\/v1\/drafts\/([^/]+)\/attachments\/([^/]+)$/);
+    if (method === 'DELETE' && draftAttachmentRemove) return satisfy(200, { success: true });
+    const draftSubmitMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/submit$/);
+    if (method === 'POST' && draftSubmitMatch)
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: 'OPEN',
+      });
+    const draftMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)$/);
+    if (method === 'GET' && draftMatch) return satisfy(200, opts.draft ?? draftFixture(voice));
+    if (method === 'PATCH' && draftMatch) return satisfy(200, opts.draft ?? draftFixture(voice));
+    if (method === 'DELETE' && draftMatch) return satisfy(200, { success: true });
+
+    // Notifications
+    if (method === 'GET' && path === '/api/v1/notifications')
+      return satisfy(200, opts.notifications ?? notificationPageFixture());
+    if (method === 'GET' && path === '/api/v1/notifications/unread-count')
+      return satisfy(200, { count: opts.unread ?? 1 });
+    if (method === 'PATCH' && path === '/api/v1/notifications/read-all')
+      return satisfy(200, { updated: 1 });
+    const readMatch = path.match(/^\/api\/v1\/notifications\/([^/]+)\/read$/);
+    if (method === 'PATCH' && readMatch) return satisfy(200, { success: true });
+
+    // Push
+    if (method === 'GET' && path === '/api/v1/notifications/push/public-key') {
+      const push = opts.push ?? {};
+      return satisfy(200, {
+        publicKey: push.publicKey ?? null,
+        configured: push.configured ?? false,
+      });
+    }
+    if (method === 'GET' && path === '/api/v1/notifications/push/status') {
+      const push = opts.push ?? {};
+      return satisfy(200, {
+        configured: push.configured ?? false,
+        subscriptions: push.status?.subscriptions ?? [],
+      });
+    }
+    if (method === 'POST' && path === '/api/v1/notifications/push/subscriptions') {
+      const body = await route.request().postDataJSON();
+      return satisfy(200, { id: 'sub-1', active: true, installationId: body?.installationId });
+    }
+    const unsubscribeMatch = path.match(/^\/api\/v1\/notifications\/push\/subscriptions\/([^/]+)$/);
+    if (method === 'DELETE' && unsubscribeMatch) return satisfy(200, { success: true });
+
+    return satisfy(404, errorBody('NOT_FOUND'));
+  });
+
+  await page.route('**/api/v1/media/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1x1 }),
+  );
+}
+
+/** Legacy thin wrapper used by earlier specs: a Member session + one voice. */
+export async function mockApi(page: Page, voice: MockVoice) {
+  await mockWorkforceApi(page, { voice });
+}
+
+export {
+  accountFixtures,
+  auditFixture,
+  baseVoiceItem,
+  importPreviewFixture,
+  voiceDetail,
+  notificationPageFixture,
+};

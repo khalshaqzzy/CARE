@@ -7,6 +7,7 @@ import { Pager } from '../../components/Pager';
 import { formatDateTime } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
+import { PushSettingsCard } from './PushSettingsCard';
 
 const TYPE_LABELS: Record<string, string> = {
   VOICE_SUBMITTED: 'Voice baru',
@@ -76,6 +77,8 @@ export function NotificationsPage() {
           <CheckCheck size={18} /> Tandai semua dibaca
         </Button>
       ) : null}
+
+      <PushSettingsCard />
 
       {list.isLoading ? (
         <Skeleton label="Memuat notifikasi" />

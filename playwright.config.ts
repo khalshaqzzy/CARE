@@ -10,6 +10,9 @@ export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
+  // The gated fullstack project mutates one shared disposable database across
+  // several spec files; a single worker guarantees deterministic ordering.
+  workers: isFullStack ? 1 : undefined,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',

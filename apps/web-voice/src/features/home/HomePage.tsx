@@ -8,6 +8,7 @@ import { StatusSummary } from '../../components/StatusSummary';
 import { VoiceCard } from '../../components/VoiceCard';
 import { formatDateTime, formatRelative } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
+import { useOnlineStatus } from '../../lib/use-online-status';
 
 export function HomePage() {
   const { session } = useAuth();
@@ -15,6 +16,8 @@ export function HomePage() {
   const api = useApi();
   const sessionId = useSessionId();
   const caps = session?.capabilities ?? [];
+  const isOnline = useOnlineStatus();
+  const offline = !isOnline;
 
   const isUnion = caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER'].includes(c));
   const isLeadership = caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c));
@@ -98,10 +101,17 @@ export function HomePage() {
         </Alert>
       ) : null}
 
+      {offline ? (
+        <Alert tone="warning" title="Anda sedang offline">
+          Ringkasan status mungkin sudah usang. Detail Voice dan seluruh tindakan memerlukan
+          koneksi.
+        </Alert>
+      ) : null}
+
       {member.isLoading ? (
         <Skeleton className="home-skeleton" label="Memuat ringkasan" />
       ) : member.data ? (
-        <StatusSummary dashboard={member.data} />
+        <StatusSummary dashboard={member.data} cached={offline} />
       ) : null}
 
       {isUnion ? (
@@ -207,7 +217,15 @@ export function HomePage() {
             Riwayat
           </Button>
         </div>
-        {member.data?.draft ? (
+        {offline ? (
+          <Card>
+            <EmptyState
+              icon={<Inbox size={24} />}
+              title="Detail memerlukan koneksi"
+              description="Sambungkan kembali untuk melihat daftar Voice Anda, draft tersimpan, dan pembaruan terbaru."
+            />
+          </Card>
+        ) : member.data?.draft ? (
           <Card className="home-resume" data-tone="accent">
             <div>
               <p className="home-resume__eyebrow">Draft tersimpan</p>
@@ -226,7 +244,7 @@ export function HomePage() {
             </Button>
           </Card>
         ) : null}
-        {member.isLoading ? (
+        {offline ? null : member.isLoading ? (
           <Skeleton label="Memuat Voice terbaru" />
         ) : (member.data?.recent.length ?? 0) === 0 ? (
           <Card>

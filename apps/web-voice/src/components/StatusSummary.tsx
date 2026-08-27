@@ -4,7 +4,13 @@ import { STATUS_LABELS } from '../lib/formatters';
 
 const ORDER = ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] as const;
 
-export function StatusSummary({ dashboard }: { dashboard: MemberDashboard }) {
+export function StatusSummary({
+  dashboard,
+  cached = false,
+}: {
+  dashboard: MemberDashboard;
+  cached?: boolean;
+}) {
   if (!dashboard) return null;
   const active =
     dashboard.counts.OPEN + dashboard.counts.IN_VERIFICATION + dashboard.counts.IN_PROGRESS;
@@ -14,7 +20,9 @@ export function StatusSummary({ dashboard }: { dashboard: MemberDashboard }) {
     <Card className="status-summary" data-tone="hero">
       <div className="status-summary__head">
         <span className="status-summary__label">Status Voice Anda</span>
-        <span className="status-summary__total">{dashboard.total} total</span>
+        <span className="status-summary__total">
+          {dashboard.total} total{cached ? ' · usang' : ''}
+        </span>
       </div>
       <div className="status-summary__grid">
         {ORDER.map((key) => (
@@ -27,7 +35,7 @@ export function StatusSummary({ dashboard }: { dashboard: MemberDashboard }) {
       <Progress
         value={pct}
         label={`${pct}% aktif`}
-        description={`${active} Voice sedang ditindaklanjuti`}
+        description={`${active} Voice sedang ditindaklanjuti${cached ? ' · diperbarui terakhir saat online' : ''}`}
       />
     </Card>
   );
