@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 8.5 `in_progress`; Phase 9–10 batch iniziato (scoped acceptance partial, sequencing exception recorded)                          |
-| Last updated           | 27 Agustus 2026                                                                                                                        |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                   |
-| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress; Phase 9 Member journey partial per batch |
-| Current phase          | Phase 8.5 `in_progress` (sequencing exception allows concurrent Phase 9–10 batch work)                                                 |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                          |
+| Atribut                | Nilai                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status roadmap         | Phase 8.5 `in_progress`; Phase 9–10 batch in progress (scoped acceptance partial, sequencing exception recorded)                                                                     |
+| Last updated           | 27 Agustus 2026                                                                                                                                                                      |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                 |
+| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress; Phase 9 Member journey partial per batch; Phase 10 responder slice + assign UI partial |
+| Current phase          | Phase 8.5 `in_progress` (sequencing exception allows concurrent Phase 9–10 batch work)                                                                                               |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                        |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 

@@ -7,13 +7,14 @@
 | Current phase           | Phase 8.5 `in_progress`; Phase 9 Member journey partial; Phase 10 responder slice partial                                      |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                            |
 | Implementation status   | Phase 9 Member journey partial; Phase 10 responder slice + assign UI partial; Phase 8.5 in_progress                            |
+| Latest ADR              | ADR-0007 (Member journey) dan ADR-0008 (voice lifecycle idempotency/evidence/assignment)                                       |
 | Recommended next action | Timeline/messages cursor pagination, dashboard filter/suppression metadata, lalu full responder/leadership matrix + Playwright |
 
 ## Session Outcome
 
 ### Phase 9–10 batch — Voice lifecycle backend completion + Phase 10 assign UI (27 Agustus 2026)
 
-Backend `apps/api/src/voices/voices.service.ts` contract completion validated against disposable PostgreSQL:
+Backend `apps/api/src/voices/voices.service.ts` contract completion validated against disposable PostgreSQL (see ADR-0008):
 
 - assign/reassign accept `expectedVersion` and reject stale version (`VERSION_CONFLICT`);
 - `close` links staged closure evidence (1–5 cap, `EVIDENCE_LIMIT`) to the closure cycle and drops the voice parent (`Attachment_exactly_one_parent`); evidence stays discoverable under `closureCycles.evidence`;
@@ -28,7 +29,9 @@ Frontend `apps/web-voice`:
 - `ActionPanel` gained `ASSIGN`/`REASSIGN` affordances bound to `availableActions` and an `AssignDialog` that lists eligible candidates and submits the assignment with `expectedVersion`;
 - stable idempotency keys per logical mutation via `useMutationKey` (applied to ActionPanel ask/proceed/close/rate/assign, ConversationPanel send, and draft submit) so transport retries reuse the same key.
 
-Validation: API `typecheck`/`lint`/`format`, full integration (19 tests, +6 new lifecycle), security (5), unit (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2), `pnpm build`, and `pnpm openapi:check` (intended pre-commit contract drift) green.
+Files changed (this batch): `apps/api/src/voices/{voices.service.ts,voices.controller.ts}`, `apps/api/scripts/enrich-openapi.ts`, `apps/api/openapi.json`, `packages/contracts/src/generated.ts`, `apps/api/test/integration/voice-lifecycle.integration.test.ts`, `apps/web-voice/src/lib/{query.ts}`, `apps/web-voice/src/workforce-api.ts`, `apps/web-voice/src/components/{ActionPanel.tsx,ConversationPanel.tsx}`, `apps/web-voice/src/features/create/DraftPreviewPage.tsx`, and `docs/adr/0008-...md`.
+
+Validation (this batch): API `typecheck`/`lint`/`format`, full integration (19 tests, +6 new lifecycle), security (5), unit (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2), `pnpm build`, and `pnpm openapi:check` (intended pre-commit contract drift) green.
 
 Outstanding (Phase 9/10 full acceptance): timeline/messages cursor pagination, dashboard filter tanggal/area/kategori/severity/status + suppression metadata, full responder/leadership matrix (Manager dept detail/action, Section Head assigned-only, Union Head officer assignment isolation, leadership read-only detail, close-evidence UI), Admin Voice Explorer compatibility ketika kontrak dipaginasi, dan Playwright mocked/full-stack + visual regression.
 
@@ -51,7 +54,7 @@ Frontend `apps/web-voice`:
 
 Files berubah: `apps/api/src/voices/{voices.service.ts,voices.controller.ts,voice.contracts.ts,actions.ts}`, `apps/api/scripts/enrich-openapi.ts`, `apps/api/test/unit/actions.test.ts`, `apps/api/openapi.json`, `packages/contracts/src/generated.ts`, dan seluruh `apps/web-voice/src` (App, workforce-api, lib, components, features) + `styles.css`.
 
-Validasi: `pnpm openapi:generate` + `pnpm openapi:check` (drift hanya perubahan kontrak yang disengaja, pra-commit), `pnpm typecheck` green (full monorepo), `pnpm lint` green, `pnpm format:check` green, `pnpm build` green (workforce PWA 12 precache, design chunk excluded), `pnpm test:unit` green (API 34, UI 10, frontend-core 9, web-voice 12, web-admin 2). Integration/security/performance and Playwright mocked/full-stack journeys belum dijalankan (perlu disposable PostgreSQL dan tidak termasuk lingkup sesi ini).
+Validasi: `pnpm openapi:generate` + `pnpm openapi:check` (drift hanya perubahan kontrak yang disengaja, pra-commit), `pnpm typecheck` green (full monorepo), `pnpm lint` green, `pnpm format:check` green, `pnpm build` green (workforce PWA 12 precache, design chunk excluded), `pnpm test:unit` green (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2). Integration/security/performance and Playwright mocked/full-stack journeys belum dijalankan (perlu disposable PostgreSQL dan tidak termasuk lingkup sesi ini).
 
 Outstanding (Phase 9/10 full acceptance): timeline/messages cursor pagination, dashboard filter tanggal/area/kategori/severity/status + suppression metadata, full responder/leadership matrix (Manager dept detail/action, Section Head assigned-only, Union Head officer assignment isolation, leadership read-only detail, close-evidence UI), Admin Voice Explorer compatibility ketika kontrak dipaginasi, dan Playwright mocked/full-stack + visual regression.
 
