@@ -27,6 +27,11 @@ export function OverviewPage() {
         description="Ringkasan akun, import, remediation, dan kesehatan sistem."
       />
       {overview.isLoading ? <Loader label="Memuat overview" /> : null}
+      {overview.error ? (
+        <Alert tone="danger" title="Gagal memuat overview">
+          {String((overview.error as Error).message)}
+        </Alert>
+      ) : null}
       <div
         className="care-grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))', gap: '1rem' }}
