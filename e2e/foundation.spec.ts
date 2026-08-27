@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { mockAdminApi } from './helpers/mock-api';
 
 const unauthenticated = {
   code: 'UNAUTHENTICATED',
@@ -127,4 +128,25 @@ test('production artifacts preserve PWA split', async () => {
     ]),
   );
   expect(adminFiles.some((file) => /manifest|sw\.(?:js|mjs)/.test(file))).toBe(false);
+});
+
+test('Admin origin stays network-only at runtime (no service worker / cache / IndexedDB)', async ({
+  page,
+}) => {
+  await mockAdminApi(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('http://127.0.0.1:4174/');
+  await expect(page.getByRole('heading', { name: 'Overview operasional' })).toBeVisible();
+
+  const registration = await page.evaluate(async () => {
+    const worker = await navigator.serviceWorker.getRegistration('/');
+    return worker
+      ? (worker.active?.state ?? worker.installing?.state ?? worker.waiting?.state ?? 'registered')
+      : null;
+  });
+  expect(registration).toBeNull();
+  expect(await page.evaluate(async () => caches.keys())).toEqual([]);
+  expect(
+    await page.evaluate(async () => (await indexedDB.databases()).map((db) => db.name)),
+  ).toEqual([]);
 });
