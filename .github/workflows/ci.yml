@@ -170,7 +170,9 @@ jobs:
       - name: Prepare persistent paths
         run: |
           mkdir -p /tmp/care-staging/shared/{postgres-data,media,caddy-data,caddy-config,deployment-state}
-          chmod 0777 /tmp/care-staging/shared/{postgres-data,media,caddy-data,caddy-config}
+          sudo chown 70:70 /tmp/care-staging/shared/postgres-data
+          sudo chmod 0700 /tmp/care-staging/shared/postgres-data
+          chmod 0777 /tmp/care-staging/shared/{media,caddy-data,caddy-config}
       - name: Build and start production-like stack
         run: |
           compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")

@@ -57,6 +57,20 @@ Future agents must treat runtime cleanup as part of finishing a task:
 - Before final response, confirm there are no agent-started long-running processes or containers still needed for the completed task.
 - If a process or container must remain running for the user to inspect the app, state that explicitly and include the URL or reason.
 
+The production-like local full stack is operated only through these root scripts:
+
+```text
+pnpm local:up
+pnpm local:status
+pnpm local:logs
+pnpm local:down
+```
+
+It reads the ignored mode-`0600` `.env.local`, exposes the workforce and Admin
+origins through Caddy, and preserves its Docker-managed PostgreSQL volume across
+`local:down`. Do not source `.env.local` in shell code or connect frontend code
+directly to its database.
+
 ## 4.2 Mandatory Local GitHub Actions Parity Checks
 
 Before creating any commit, future agents must inspect every workflow under `.github/workflows/`

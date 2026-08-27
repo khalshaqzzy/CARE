@@ -45,7 +45,11 @@
     "security:exceptions:check": "deploy/scripts/check-security-exceptions.sh .agent/securityExceptions.json",
     "security:audit": "pnpm audit --audit-level high",
     "git:diff-check": "git diff --check",
-    "setup:local": "pnpm --filter @care/api setup:local"
+    "setup:local": "pnpm --filter @care/api setup:local",
+    "local:up": "bash deploy/scripts/local-stack.sh up",
+    "local:down": "bash deploy/scripts/local-stack.sh down",
+    "local:status": "bash deploy/scripts/local-stack.sh status",
+    "local:logs": "bash deploy/scripts/local-stack.sh logs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

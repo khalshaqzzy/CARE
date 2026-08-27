@@ -65,6 +65,31 @@ that environment and populate the exact values listed in `deploymentGuide.md`
 before a hosted deploy can pass. Phase 14 remains `pending`; Delivery Complete
 Gate is not passed.
 
+### Local full-stack container runner — 28 Agustus 2026
+
+Added `.env.local.example`, ignored mode-0600 `.env.local`, the local Compose
+overlay, and `pnpm local:up|down|status|logs`. The local runner builds and starts
+PostgreSQL/migration/bootstrap/API/workforce/Admin/Caddy, verifies exact release
+identity and readiness, persists PostgreSQL in `care-local-postgres-data`, and
+persists media/Caddy state under ignored `local-data/fullstack`. OpenAI/VAPID are
+optional and empty by default, so no external service is required.
+
+The first Linux-like named-volume run exposed that `postgres:16-alpine` uses UID
+70, while the production scripts had assumed UID 999. Dockerfile, VM bootstrap,
+remote preflight, CI bind ownership, and local volume initialization were corrected
+to UID 70; the full local stack then started healthy on both origins.
+
+Validation after the final local-runner lock hardening: concurrent mutating local
+operations were rejected; merged Compose exposed ports only from Caddy; full-stack
+startup and exact-SHA routing passed; and a down/up cycle retained PostgreSQL system
+identifier `7678851906417971221`. Format, ESLint, TypeScript, unit (73), OpenAPI,
+build, mocked Playwright (97), fresh migrations, historical migration reconciliation,
+integration (31), security (5), performance (10,000 accounts/50,000 Voices),
+maintenance reconciliation, serial full-stack Playwright (3), actionlint, ShellCheck,
+Hadolint, deployment validation/harness, security registry/audit, directory Gitleaks,
+and PostgreSQL-image Trivy High/Critical all passed. The local Web Push canary remains
+implemented but outside automated tests, matching the accepted scope.
+
 ### Phase 11 completion — workforce Web Push opt-in, offline summary cache, accessibility polish, and two-app Playwright gate (27 Agustus 2026)
 
 Phase 11 (Frontend Complete Gate) was closed on branch `feat/phase-11-frontend-complete` (cut from `staging`). Work completed:

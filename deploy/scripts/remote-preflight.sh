@@ -21,7 +21,7 @@ version_ge "$(docker version --format '{{.Server.Version}}')" 24.0.0 || die "Doc
 version_ge "$(docker compose version --short)" 2.20.0 || die "Docker Compose 2.20+ is required."
 for path in "${BASE_DIR}" "${BASE_DIR}/releases" "${BASE_DIR}/incoming" "${BASE_DIR}/shared"; do [[ -d "${path}" && -w "${path}" ]] || die "Required writable path unavailable: ${path}"; done
 for path in media caddy-data caddy-config deployment-state; do [[ -d "${BASE_DIR}/shared/${path}" && -w "${BASE_DIR}/shared/${path}" ]] || die "Shared path unavailable: ${path}"; done
-[[ -d "${BASE_DIR}/shared/postgres-data" && "$(stat -c '%u' "${BASE_DIR}/shared/postgres-data")" == 999 ]] || die "PostgreSQL data must be owned by UID 999."
+[[ -d "${BASE_DIR}/shared/postgres-data" && "$(stat -c '%u' "${BASE_DIR}/shared/postgres-data")" == 70 ]] || die "PostgreSQL data must be owned by UID 70."
 available_kib="$(df -Pk "${BASE_DIR}" | awk 'NR==2 {print $4}')"; (( available_kib >= 5 * 1024 * 1024 )) || die "At least 5 GiB free disk is required."
 config_json="$(compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" --profile operations config --format json)"
 jq -e '(.services.postgres.ports // [] | length) == 0 and ([.services | to_entries[] | select(.key != "caddy") | (.value.ports // []) | length] | add) == 0 and (.networks.data.internal == true)' <<<"${config_json}" >/dev/null || die "Compose exposure policy failed."

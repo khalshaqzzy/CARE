@@ -70,7 +70,7 @@ docker buildx version
 id <deploy-user>
 sudo -u <deploy-user> test -w /opt/care/staging/incoming
 sudo -u <deploy-user> test -w /opt/care/staging/shared/deployment-state
-test "$(stat -c '%u' /opt/care/staging/shared/postgres-data)" = 999
+test "$(stat -c '%u' /opt/care/staging/shared/postgres-data)" = 70
 ```
 
 Bootstrap is staging-only and rejects any OS other than Ubuntu 22.04.
@@ -257,3 +257,31 @@ Never paste `.runtime.env`, database rows, request bodies, push identifiers, or 
 Use `.agent/releaseExecutionChecklist.md`. Retain exact SHA and successful run/deploy links; origin release/readiness and security/routing evidence; live Responses; acceptance-data journeys; persistence; overlapping/stale ordering; and two-release forced-failure rollback with unchanged database identity/media sentinel. Label optional canary evidence non-gating.
 
 Phase 13 is not complete from local evidence alone. Mark it `done` only after hosted SHA and rehearsal evidence are green. Phase 14 remains pending and the Delivery Complete Gate stays open until production-readiness criteria and accepted-risk approvals pass.
+
+## 15. Local Full-stack Containers
+
+The repository includes a local overlay that runs the same PostgreSQL, migration,
+bootstrap, API, workforce nginx, Admin nginx, and Caddy topology without external
+services or public DNS/TLS.
+
+```bash
+cp .env.local.example .env.local # only when .env.local does not exist
+pnpm local:up
+pnpm local:status
+pnpm local:logs
+pnpm local:down
+```
+
+Local URLs are `http://care.localhost:8080` and
+`http://admin.care.localhost:8080`. The command builds images from the current
+checkout, applies forward migrations, idempotently bootstraps the local Admin,
+waits for every health check, and verifies both frontend release identities plus
+API readiness.
+
+`.env.local` is mode `0600`, ignored by Git, and may hold developer-only values.
+`.env.local.example` is the committed non-secret template. OpenAI and VAPID are
+empty by default, so readiness reports those optional integrations as degraded
+while the full local application remains ready; configure developer-owned values
+only when explicitly testing those integrations. PostgreSQL uses the persistent
+named volume `care-local-postgres-data`; media and Caddy state live under ignored
+`local-data/fullstack`. `pnpm local:down` preserves both kinds of state.

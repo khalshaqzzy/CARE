@@ -584,6 +584,13 @@ Evidence 28 Agustus 2026:
 - PostgreSQL system identity and a media sentinel survived restart;
 - Trivy filesystem and all five runtime images reported zero High/Critical
   findings. See ADR-0011.
+- a production-like local overlay and `pnpm local:up|down|status|logs` now run
+  the full PostgreSQL/migration/bootstrap/API/workforce/Admin/Caddy graph on
+  `care.localhost:8080` and `admin.care.localhost:8080` without requiring
+  OpenAI or Web Push; exact-SHA smoke and PostgreSQL down/up persistence passed;
+- PostgreSQL Alpine's runtime UID/GID was verified as `70:70`; production VM
+  ownership checks, CI bind setup, and local volume initialization use that
+  image-defined identity.
 
 ## Phase 13 — Staging Deployment and Rehearsal
 

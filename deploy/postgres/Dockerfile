@@ -14,7 +14,7 @@ RUN apk add --no-cache build-base ca-certificates \
   && tar --extract --gzip --file=/tmp/pgvector.tar.gz --directory=/tmp \
   && make -C "/tmp/pgvector-${PGVECTOR_VERSION}" OPTFLAGS='' with_llvm=no \
   && make -C "/tmp/pgvector-${PGVECTOR_VERSION}" install with_llvm=no
-USER 999:999
+USER 70:70
 
 FROM ${POSTGRES_IMAGE}
 LABEL org.opencontainers.image.title="care-postgres" \
@@ -26,4 +26,4 @@ RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 \
 COPY --from=pgvector-build /usr/local/lib/postgresql/vector.so /usr/local/lib/postgresql/vector.so
 COPY --from=pgvector-build /usr/local/share/postgresql/extension/vector* /usr/local/share/postgresql/extension/
 COPY deploy/postgres/init/001-init.sql /docker-entrypoint-initdb.d/001-init.sql
-USER 999:999
+USER 70:70

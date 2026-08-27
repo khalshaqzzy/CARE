@@ -33,7 +33,7 @@ USER_HOME="$(getent passwd "${DEPLOY_USER}" | cut -d: -f6)"; SSH_DIR="${USER_HOM
 install -d -m 700 -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" "${SSH_DIR}"; touch "${KEYS}"; chmod 600 "${KEYS}"; chown "${DEPLOY_USER}:${DEPLOY_USER}" "${KEYS}"
 grep -Fqx "${DEPLOY_KEY}" "${KEYS}" || printf '%s\n' "${DEPLOY_KEY}" >>"${KEYS}"
 install -d -m 755 -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" "${BASE}" "${BASE}/releases" "${BASE}/incoming" "${BASE}/shared" "${BASE}/shared/deployment-state"
-install -d -m 0700 -o 999 -g 999 "${BASE}/shared/postgres-data"
+install -d -m 0700 -o 70 -g 70 "${BASE}/shared/postgres-data"
 install -d -m 2770 -o 65532 -g 2000 "${BASE}/shared/media"
 install -d -m 2770 -o "${DEPLOY_USER}" -g 2000 "${BASE}/shared/caddy-data" "${BASE}/shared/caddy-config"
 ufw allow "${SSH_PORT}/tcp"; ufw allow 80/tcp; ufw allow 443/tcp; ufw allow 443/udp; ufw --force enable

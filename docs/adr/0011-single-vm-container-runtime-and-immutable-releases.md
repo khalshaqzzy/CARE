@@ -29,6 +29,8 @@ The active release, its previous release, and up to five releases in total are r
 
 The Web Push canary remains an explicitly invoked operational profile. It selects one enrolled active staging subscription by exact endpoint hash, sends a generic redacted payload through the CARE delivery path, and requires provider acceptance plus a new `lastSuccessAt`. It is intentionally outside automated tests, deployment smoke, and the automatic deployment gate. Live Responses classification/location validation remains an automatic staging deployment gate.
 
+Local production-like testing composes the same release images and remote service graph through a thin local overlay. The overlay replaces host bind mounts with an isolated PostgreSQL named volume and repository-ignored local media/Caddy paths, exposes only Caddy on `care.localhost:8080` and `admin.care.localhost:8080`, and keeps OpenAI and Web Push optional. A single runner owns validation, image build, migration, idempotent Admin bootstrap, dependency-ordered startup, and exact-SHA smoke checks. Runtime environment contents are parsed rather than sourced. PostgreSQL Alpine runs as its image-defined UID/GID `70:70`; VM bind mounts and local named-volume initialization must use that identity.
+
 ## Consequences
 
 - No external deployment, queue, callback, or observability service is required. Browser push providers and the configured Responses API are the only application integrations exercised operationally.
@@ -37,6 +39,7 @@ The Web Push canary remains an explicitly invoked operational profile. It select
 - Code rollback is not data recovery. An incompatible or destructive migration cannot be repaired by this mechanism.
 - A single VM, single database, and bind-mounted state remain single points of failure. The system must not be represented as backed up, highly available, or disaster-recoverable.
 - Production activation is a separate decision. Checks run on `main`, but no production deployment caller exists until its domains, VM, secrets, approvals, and operational ownership are ready.
+- Developers can exercise the complete production topology without external services. Blank local OpenAI/VAPID configuration is reported as degraded while database, migration, storage, routing, and release identity remain testable.
 
 ## Alternatives Considered
 
@@ -48,4 +51,4 @@ The Web Push canary remains an explicitly invoked operational profile. It select
 
 ## Verification
 
-The repository enforces Dockerfile/Compose validation, Linux lock and archive-safety tests, fresh and upgrade migration checks, dual-host routing, exact SHA readiness, non-root users, private PostgreSQL networking, persistent PostgreSQL/media checks, and High/Critical filesystem/image scans. Hosted release and rollback evidence is recorded separately for each candidate; local evidence alone does not prove a successful VM deployment.
+The repository enforces Dockerfile/Compose validation, Linux lock and archive-safety tests, fresh and upgrade migration checks, dual-host routing, exact SHA readiness, non-root users, private PostgreSQL networking, persistent PostgreSQL/media checks, and High/Critical filesystem/image scans. The local runner additionally verifies both frontend release documents and API readiness against the current full Git SHA; a down/up rehearsal preserves the PostgreSQL system identifier. Hosted release and rollback evidence is recorded separately for each candidate; local evidence alone does not prove a successful VM deployment.
