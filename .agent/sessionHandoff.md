@@ -1,14 +1,14 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 27 Agustus 2026                                                                                                                                                                           |
-| Current objective       | Phase 8.5 accessibility/security/performance/full-stack acceptance selesai; Phase 8 complete; Phase 9/10 ditandai done; Frontend Complete Gate kini diblokir hanya oleh Phase 11           |
-| Current phase           | Phase 11 `in_progress` (single in_progress); Phase 8.5 done; Phase 8 complete; Phase 9/10 done                                                                                            |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                       |
-| Implementation status   | Phase 8.5 done; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix done; Frontend Complete Gate blocked only by Phase 11                                   |
-| Latest ADR              | ADR-0006 (extended for Phase 8.5 completion), ADR-0007 (Member journey), ADR-0008 (voice lifecycle), ADR-0009 (pagination/dashboard metadata/matrix)                                       |
-| Recommended next action | Lanjutkan Phase 11 (Frontend Complete Gate): workforce Web Push opt-in, Admin network-only, responsive/WCAG polish, two-origin full Playwright; jalankan parity CI penuh sebelum merge      |
+| Atribut                 | Nilai                                                                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 27 Agustus 2026                                                                                                                                                                        |
+| Current objective       | Phase 8.5 accessibility/security/performance/full-stack acceptance selesai; Phase 8 complete; Phase 9/10 ditandai done; Frontend Complete Gate kini diblokir hanya oleh Phase 11       |
+| Current phase           | Phase 11 `in_progress` (single in_progress); Phase 8.5 done; Phase 8 complete; Phase 9/10 done                                                                                         |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                    |
+| Implementation status   | Phase 8.5 done; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix done; Frontend Complete Gate blocked only by Phase 11                              |
+| Latest ADR              | ADR-0006 (extended for Phase 8.5 completion), ADR-0007 (Member journey), ADR-0008 (voice lifecycle), ADR-0009 (pagination/dashboard metadata/matrix)                                   |
+| Recommended next action | Lanjutkan Phase 11 (Frontend Complete Gate): workforce Web Push opt-in, Admin network-only, responsive/WCAG polish, two-origin full Playwright; jalankan parity CI penuh sebelum merge |
 
 ## Session Outcome
 
@@ -36,8 +36,6 @@ Compat notes:
 - `e2e/admin-explorer.spec.ts` was updated to the new `mockAdminApi(page, opts)` signature. The old `(page, voice)` signature was removed.
 - `e2e/admin-a11y.spec.ts` and `e2e/admin-journeys.spec.ts` run under the default `chromium` project (mocked); they are part of `test:frontend:e2e`.
 - Phase statuses reconciled: Phase 8 → `done`, Phase 8.5 → `done`, Phase 9 → `done`, Phase 10 → `done`; the single `in_progress` phase is now Phase 11. The Frontend Complete Gate remains blocked only by Phase 11; production containerization (Phase 12+) stays out of scope.
-
-
 
 Backend `apps/api/src/voices/voices.service.ts` + `apps/api/src/auth/policy.service.ts` (see ADR-0009):
 
