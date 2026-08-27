@@ -1,17 +1,25 @@
 import { Alert, Button, Card, Checkbox, Dialog, Select, Stack, Textarea } from '@care/ui';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ACTION_LABELS, STATUS_LABELS } from '../lib/formatters';
-import { idempotencyKey, useApi, useSessionId, voiceQuery } from '../lib/query';
+import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { VoiceDetail } from '../workforce-api';
+
+type Action = 'ask' | 'proceed' | 'close' | 'rate' | 'assign' | 'reassign' | 'none';
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const api = useApi();
   const sessionId = useSessionId();
   const queryClient = useQueryClient();
   const actions = detail.availableActions ?? [];
-  const [active, setActive] = useState<'ask' | 'proceed' | 'close' | 'rate' | 'none'>('none');
+  const [active, setActive] = useState<Action>('none');
   const [error, setError] = useState<string | null>(null);
+
+  const askKey = useMutationKey('ask');
+  const proceedKey = useMutationKey('proceed');
+  const closeKey = useMutationKey('close');
+  const rateKey = useMutationKey('rate');
+  const assignKey = useMutationKey('assign');
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', detail.id) });
@@ -20,30 +28,52 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
 
   const ask = useMutation({
     mutationFn: async (text: string) =>
-      api.ask(detail.id, { text, version: detail.version }, idempotencyKey('ask')),
-    onSuccess: invalidate,
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-  });
-  const proceed = useMutation({
-    mutationFn: () =>
-      api.proceed(detail.id, { version: detail.version }, idempotencyKey('proceed')),
-    onSuccess: invalidate,
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-  });
-  const close = useMutation({
-    mutationFn: (body: { note: string; version: number }) =>
-      api.close(detail.id, body, idempotencyKey('close')),
-    onSuccess: invalidate,
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-  });
-  const rate = useMutation({
-    mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
-      api.rate(detail.id, body, idempotencyKey('rate')),
+      api.ask(detail.id, { text, version: detail.version }, askKey.key()),
     onSuccess: () => {
       invalidate();
       setActive('none');
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
+    onSettled: askKey.reset,
+  });
+  const proceed = useMutation({
+    mutationFn: () => api.proceed(detail.id, { version: detail.version }, proceedKey.key()),
+    onSuccess: () => {
+      invalidate();
+      setActive('none');
+    },
+    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
+    onSettled: proceedKey.reset,
+  });
+  const close = useMutation({
+    mutationFn: (body: { note: string; version: number }) =>
+      api.close(detail.id, body, closeKey.key()),
+    onSuccess: () => {
+      invalidate();
+      setActive('none');
+    },
+    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
+    onSettled: closeKey.reset,
+  });
+  const rate = useMutation({
+    mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
+      api.rate(detail.id, body, rateKey.key()),
+    onSuccess: () => {
+      invalidate();
+      setActive('none');
+    },
+    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
+    onSettled: rateKey.reset,
+  });
+  const assign = useMutation({
+    mutationFn: (body: { handlerAccountId: string; reason?: string }) =>
+      api.assign(detail.id, { ...body, expectedVersion: detail.version }, assignKey.key()),
+    onSuccess: () => {
+      invalidate();
+      setActive('none');
+    },
+    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
+    onSettled: assignKey.reset,
   });
 
   if (!actions.length) return null;
@@ -62,6 +92,12 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       <div className="action-panel__grid">
         {actions.includes('ASK') ? (
           <Button onClick={() => setActive('ask')}>{ACTION_LABELS.ASK}</Button>
+        ) : null}
+        {actions.includes('ASSIGN') ? (
+          <Button onClick={() => setActive('assign')}>{ACTION_LABELS.ASSIGN}</Button>
+        ) : null}
+        {actions.includes('REASSIGN') ? (
+          <Button onClick={() => setActive('reassign')}>{ACTION_LABELS.REASSIGN}</Button>
         ) : null}
         {actions.includes('PROCEED') ? (
           <Button onClick={() => setActive('proceed')}>{ACTION_LABELS.PROCEED}</Button>
@@ -86,6 +122,24 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           onCancel={() => setActive('none')}
           onSend={(text) => ask.mutate(text)}
           loading={ask.isPending}
+        />
+      </Dialog>
+
+      <Dialog
+        open={active === 'assign' || active === 'reassign'}
+        onOpenChange={(open) => setActive(open ? active : 'none')}
+        title={active === 'reassign' ? 'Alihkan Penanggung' : 'Tugaskan Penanggung'}
+        description={
+          active === 'reassign'
+            ? 'Pilih Section Head lain untuk melanjutkan penanganan Voice ini.'
+            : 'Pilih Section Head yang akan menangani Voice ini.'
+        }
+      >
+        <AssignDialog
+          detail={detail}
+          onCancel={() => setActive('none')}
+          onConfirm={(body) => assign.mutate(body)}
+          loading={assign.isPending}
         />
       </Dialog>
 
@@ -129,6 +183,78 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         />
       </Dialog>
     </Card>
+  );
+}
+
+function AssignDialog({
+  detail,
+  onCancel,
+  onConfirm,
+  loading,
+}: {
+  detail: VoiceDetail;
+  onCancel: () => void;
+  onConfirm: (body: { handlerAccountId: string; reason?: string }) => void;
+  loading: boolean;
+}) {
+  const api = useApi();
+  const sessionId = useSessionId();
+  const candidates = useQuery({
+    queryKey: voiceQuery(sessionId, 'assign-candidates', detail.id),
+    queryFn: () => api.assignmentCandidates(detail.id),
+  });
+  const [selected, setSelected] = useState('');
+  const [reason, setReason] = useState('');
+  const options: { value: string; label: string }[] = (candidates.data ?? []).map((candidate) => ({
+    value: candidate.id,
+    label: candidate.slot
+      ? `${candidate.displayName} (${candidate.slot.replace('_', ' ')})`
+      : candidate.displayName,
+  }));
+  const empty = (candidates.data ?? []).length === 0;
+  return (
+    <Stack gap="md">
+      {candidates.isLoading ? (
+        <p className="dialog-copy">Memuat penanggung yang tersedia…</p>
+      ) : empty ? (
+        <Alert tone="warning" title="Tidak ada penanggung">
+          Tidak ada kandidat eligible untuk Voice ini.
+        </Alert>
+      ) : (
+        <Select
+          label="Penanggung"
+          value={selected}
+          onValueChange={setSelected}
+          options={options}
+          {...(detail.visibility === 'PRIVATE'
+            ? { helperText: 'Hanya Union Officer yang dapat ditugaskan.' }
+            : {})}
+        />
+      )}
+      <Textarea
+        label="Alasan (opsional)"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+        rows={2}
+        maxLength={500}
+      />
+      <div className="dialog-actions">
+        <Button variant="ghost" onClick={onCancel}>
+          Batal
+        </Button>
+        <Button
+          variant="primary"
+          loading={loading}
+          disabled={!selected}
+          onClick={() => {
+            const trimmed = reason.trim();
+            onConfirm({ handlerAccountId: selected, ...(trimmed ? { reason: trimmed } : {}) });
+          }}
+        >
+          Tugaskan
+        </Button>
+      </div>
+    </Stack>
   );
 }
 

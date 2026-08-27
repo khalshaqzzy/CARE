@@ -1,15 +1,36 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| Date                    | 27 Agustus 2026                                                                                   |
-| Current objective       | Implementasi batch Phase 9–10: Member Voice journey workforce dibangun pada kontrak backend nyata |
-| Current phase           | Phase 8.5 `in_progress`; Phase 9 Member journey partial (batch scoped acceptance)                 |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                               |
-| Implementation status   | Phase 9 Member journey partial; Phase 10 responder slice partial; Phase 8.5 remains in_progress   |
-| Recommended next action | Selesaikan sisa backend contract completion dan full responder/leadership/accepter matrix         |
+| Atribut                 | Nilai                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Date                    | 27 Agustus 2026                                                                                                                |
+| Current objective       | Implementasi batch Phase 9–10: Member Voice journey + voice lifecycle contract + Phase 10 assign UI                            |
+| Current phase           | Phase 8.5 `in_progress`; Phase 9 Member journey partial; Phase 10 responder slice partial                                      |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                            |
+| Implementation status   | Phase 9 Member journey partial; Phase 10 responder slice + assign UI partial; Phase 8.5 in_progress                            |
+| Recommended next action | Timeline/messages cursor pagination, dashboard filter/suppression metadata, lalu full responder/leadership matrix + Playwright |
 
 ## Session Outcome
+
+### Phase 9–10 batch — Voice lifecycle backend completion + Phase 10 assign UI (27 Agustus 2026)
+
+Backend `apps/api/src/voices/voices.service.ts` contract completion validated against disposable PostgreSQL:
+
+- assign/reassign accept `expectedVersion` and reject stale version (`VERSION_CONFLICT`);
+- `close` links staged closure evidence (1–5 cap, `EVIDENCE_LIMIT`) to the closure cycle and drops the voice parent (`Attachment_exactly_one_parent`); evidence stays discoverable under `closureCycles.evidence`;
+- reopen falls back to the route owner (resp. `handlerType`) when the last PIC is deactivated, so a reopened voice is not stranded;
+- `ask`/`proceed`/`close`/`rate`/`addMessage` now honor the `Idempotency-Key` (plus `assign`), with an atomic replay record + `IDEMPOTENCY_CONFLICT` on key reuse with a different body; `ask` message + transition run in a single transaction;
+- new `GET /voices/:id/assignment-candidates` returning eligible section heads (General) or union officers (Private);
+- OpenAPI + `@care/contracts` regenerated; `AssignmentCandidateList` schema added.
+
+Frontend `apps/web-voice`:
+
+- `workforce-api` added `assignmentCandidates` / `assign` / `reassign` typed to generated operations;
+- `ActionPanel` gained `ASSIGN`/`REASSIGN` affordances bound to `availableActions` and an `AssignDialog` that lists eligible candidates and submits the assignment with `expectedVersion`;
+- stable idempotency keys per logical mutation via `useMutationKey` (applied to ActionPanel ask/proceed/close/rate/assign, ConversationPanel send, and draft submit) so transport retries reuse the same key.
+
+Validation: API `typecheck`/`lint`/`format`, full integration (19 tests, +6 new lifecycle), security (5), unit (API 34, UI 8, frontend-core 9, web-voice 12, web-admin 2), `pnpm build`, and `pnpm openapi:check` (intended pre-commit contract drift) green.
+
+Outstanding (Phase 9/10 full acceptance): timeline/messages cursor pagination, dashboard filter tanggal/area/kategori/severity/status + suppression metadata, full responder/leadership matrix (Manager dept detail/action, Section Head assigned-only, Union Head officer assignment isolation, leadership read-only detail, close-evidence UI), Admin Voice Explorer compatibility ketika kontrak dipaginasi, dan Playwright mocked/full-stack + visual regression.
 
 ### Phase 9–10 batch — Member Voice journey (27 Agustus 2026)
 
@@ -32,7 +53,7 @@ Files berubah: `apps/api/src/voices/{voices.service.ts,voices.controller.ts,voic
 
 Validasi: `pnpm openapi:generate` + `pnpm openapi:check` (drift hanya perubahan kontrak yang disengaja, pra-commit), `pnpm typecheck` green (full monorepo), `pnpm lint` green, `pnpm format:check` green, `pnpm build` green (workforce PWA 12 precache, design chunk excluded), `pnpm test:unit` green (API 34, UI 10, frontend-core 9, web-voice 12, web-admin 2). Integration/security/performance and Playwright mocked/full-stack journeys belum dijalankan (perlu disposable PostgreSQL dan tidak termasuk lingkup sesi ini).
 
-Outstanding (Phase 9/10 full acceptance): assignment-candidates endpoint, close 1–5 processed evidence linkage, idempotency untuk ask/proceed/close/rate/message, reopen validation PIC terakhir masih eligible, timeline/messages cursor pagination, assign/reassign `expectedVersion`, dashboard filter tanggal/area/kategori/severity/status + suppression metadata, full responder/leadership matrix, Admin Voice Explorer compatibility ketika kontrak dipaginasi, dan Playwright mocked/full-stack + visual regression.
+Outstanding (Phase 9/10 full acceptance): timeline/messages cursor pagination, dashboard filter tanggal/area/kategori/severity/status + suppression metadata, full responder/leadership matrix (Manager dept detail/action, Section Head assigned-only, Union Head officer assignment isolation, leadership read-only detail, close-evidence UI), Admin Voice Explorer compatibility ketika kontrak dipaginasi, dan Playwright mocked/full-stack + visual regression.
 
 ### PR #2 CI remediation — 27 Agustus 2026
 

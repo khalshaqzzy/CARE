@@ -476,7 +476,7 @@ Acceptance status: partial Member journey implemented, wired to the real backend
 
 ## Phase 10 — Responder and Leadership Journeys
 
-Status: `pending` — batch-scoped responder slice started; the full responder/leadership matrix and acceptance remain outstanding.
+Status: `in_progress` — full responder/leadership matrix and acceptance remain outstanding.
 
 Dependencies: Phase 9 (batch sequencing exception applies as above).
 
@@ -486,9 +486,12 @@ Scope (implemented so far):
 - `WorkItems` severity-first operational inbox with search/filter/cursor pagination and typed `nextCursor`;
 - `General` read-only browse aggregate/detail for Union and Leadership;
 - server-computed `availableActions` plus `ActionPanel` (ask/proceed/close) wired to lifecycle mutation endpoints;
-- backend `work-items` aligned to `/voices` cursor/filter/search contract.
+- backend `work-items` aligned to `/voices` cursor/filter/search contract;
+- assign/reassign `expectedVersion` CAS; `GET /voices/:id/assignment-candidates` (section heads for General, union officers for Private); `ActionPanel` Assign/Alihkan dialogs listing eligible candidates;
+- close links staged closure evidence (1–5 cap, `EVIDENCE_LIMIT`) to the closure cycle; reopen falls back to the route owner when the last PIC is deactivated;
+- ask/proceed/close/rate/addMessage honor `Idempotency-Key` (atomic replay record + conflict handling) and the frontend now reuses a stable key per logical mutation so transport retries are deduplicated.
 
-Acceptance status: partial; the complete dashboard/detail/action matrix, aggregate leakage checks, conditional Private identity/Officer assignment isolation, and responder/leadership Playwright journeys remain (see `sessionHandoff.md`).
+Acceptance status: partial; the complete dashboard/detail/action matrix, aggregate leakage checks, conditional Private identity/Officer assignment isolation, timeline/messages cursor pagination, dashboard filter/suppression metadata, and responder/leadership Playwright journeys remain (see `sessionHandoff.md`).
 
 ## Phase 11 — Frontend Completion, Workforce PWA, Accessibility, and Two-App E2E Gate
 
@@ -578,4 +581,4 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Member journey (Phase 9 batch) telah diimplementasikan pada branch workforce; lanjutkan dengan menutup sisa Phase 9/10 acceptance: backend contract completion yang tersisa (assignment-candidates, close evidence linkage, idempotency ask/proceed/close/rate/message, reopen last-PIC resiliensi, timeline/messages cursor pagination, assign expectedVersion, dashboard filter/suppression metadata), lalu lengkapi responder/leadership matrix dan Playwright mocked/full-stack + visual regression. Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 dan Phase 11 selesai.
+Member journey (Phase 9 batch) telah diimplementasikan pada branch workforce; lanjutkan dengan menutup sisa Phase 9/10 acceptance: backend contract completion yang tersisa (timeline/messages cursor pagination, dashboard filter tanggal/area/kategori/severity/status + suppression metadata), lengkapi responder/leadership matrix (Manager dept detail/action, Section Head assigned-only, Union Head officer assignment isolation, leadership read-only detail, assign/close-evidence UI), lalu jalankan Playwright mocked/full-stack + visual regression. Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 dan Phase 11 selesai.

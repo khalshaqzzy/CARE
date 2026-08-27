@@ -26,6 +26,7 @@ export type TimelineResponse = components['schemas']['TimelineResponse'];
 export type LocationReview = components['schemas']['LocationReviewSnapshot'];
 export type NotificationItem = components['schemas']['NotificationPage']['items'][number];
 export type NotificationPage = components['schemas']['NotificationPage'];
+export type AssignmentCandidate = components['schemas']['AssignmentCandidateList'][number];
 
 export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
@@ -147,6 +148,24 @@ export function createWorkforceApi(transport: CareTransport) {
     workItems: (query: QueryInput<WorkItemsQuery>) =>
       dataOrThrow<VoiceList>(
         client.GET('/api/v1/work-items', { params: { query: compactQuery(query) } }),
+      ),
+    assignmentCandidates: (id: string) =>
+      dataOrThrow<AssignmentCandidate[]>(
+        client.GET('/api/v1/voices/{id}/assignment-candidates', { params: { path: { id } } }),
+      ),
+    assign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/assignments', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    reassign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/assignments/reassign', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
       ),
     voiceDetail: (id: string) =>
       dataOrThrow<VoiceDetail>(client.GET('/api/v1/voices/{id}', { params: { path: { id } } })),

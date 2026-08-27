@@ -4,7 +4,7 @@ import { ImagePlus, Send } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { formatDateTime } from '../lib/formatters';
-import { idempotencyKey, useApi, useSessionId, voiceQuery } from '../lib/query';
+import { useMutationKey, useApi, useSessionId, voiceQuery } from '../lib/query';
 import type { Message } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
 
@@ -16,6 +16,7 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const messageKey = useMutationKey('message');
 
   const messages = useQuery({
     queryKey: voiceQuery(sessionId, 'voice', voiceId, 'messages'),
@@ -25,7 +26,7 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
   });
 
   const send = useMutation({
-    mutationFn: () => api.sendMessage(voiceId, text, files, idempotencyKey('message')),
+    mutationFn: () => api.sendMessage(voiceId, text, files, messageKey.key()),
     onSuccess: () => {
       setText('');
       setFiles([]);
@@ -34,6 +35,7 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
       });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', voiceId) });
     },
+    onSettled: messageKey.reset,
   });
 
   const items = messages.data ?? [];

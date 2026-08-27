@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { MediaGallery } from '../../components/MediaGallery';
 import { AREA_LABELS, CATEGORY_LABELS } from '../../lib/formatters';
-import { idempotencyKey, useApi, useSessionId, voiceQuery } from '../../lib/query';
+import { useMutationKey, useApi, useSessionId, voiceQuery } from '../../lib/query';
 
 export function DraftPreviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +17,7 @@ export function DraftPreviewPage() {
   const queryClient = useQueryClient();
   const [ack, setAck] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitKey = useMutationKey('submit');
 
   const preview = useQuery({
     queryKey: voiceQuery(sessionId, 'draft', id, 'preview'),
@@ -40,7 +41,7 @@ export function DraftPreviewPage() {
               }
             : { acknowledgeIncompleteLocation: false }),
         },
-        idempotencyKey('submit'),
+        submitKey.key(),
       );
     },
     onSuccess: (data) => {
@@ -51,6 +52,7 @@ export function DraftPreviewPage() {
       void navigate(`/voices/${payload.id}`, { replace: true });
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Voice gagal dikirim.'),
+    onSettled: submitKey.reset,
   });
 
   if (preview.isLoading) {
