@@ -103,5 +103,21 @@ No Section Head mutation, raw import download, Voice/Private export, bulk accoun
 
 ## Follow-up Work
 
-- Complete Phase 8.5: Axe, keyboard/focus-return, reduced-motion, `1280`/`1440` no-overflow, `Playwright` mocked-contract and full-stack, and the Admin artifact assertion (no manifest/sw/offline cache/fetch below gate).
-- Do not start Phase 9 (Member Voice journey) or production containerization until the Frontend Complete Gate is green.
+- Phase 8.5 is **complete** (see the added evidence below). Phase 8 is fully `done`, and the Frontend Complete Gate is now blocked only by Phase 11, not by Phase 8. No production containerization was started.
+
+## Phase 8.5 Completion (Accessibility, Security, Performance, Full-Stack Acceptance)
+
+Phase 8.5 was implemented to close the Admin application's accessibility, performance, and full-stack acceptance:
+
+- **`e2e/admin-a11y.spec.ts`** — Axe WCAG 2.1 AA plus no document-overflow for all nine authenticated Admin pages at 1280 and 1440; long-content title clamp; keyboard focus trap/return; and `prefers-reduced-motion` overlay render.
+- **Focus-return defect fixed in `packages/ui/src/overlays.tsx`.** Controlled `Dialog`/`Drawer` components opened by an external trigger returned focus to `<body>` instead of the opening control. `onOpenAutoFocus` now records the pre-open `document.activeElement` and `onCloseAutoFocus` restores it, so keyboard users keep their place. This is a strict improvement for both apps.
+- **`e2e/admin-journeys.spec.ts`** — mocked-contract happy/error/empty state per Admin page. `OverviewPage` gained a retryable error `Alert` (status/ready/release queries previously rendered only a degraded dash). Error assertions confirm no stack frame or machine code leaks into the surface.
+- **`e2e/admin-fullstack.spec.ts` + `apps/api/scripts/seed-admin-e2e.ts` + `e2e/global-setup.ts`** — a real API/Admin-proxy/PostgreSQL wiring smoke (gated `FULLSTACK_E2E=1`, serial): bootstrap → login → forced password → Overview → Imports (invalid upload rejected) → Remediation → Union → Accounts reset → Private full-identity read-only → Audit filter → System Status → valid-import preview/confirm to `CONFIRMED`. The seed is test-only (`NODE_ENV=test`), deterministic, and invoked by the Playwright `globalSetup` only when full-stack is enabled, so the mocked default suite never needs a database.
+- **`e2e/foundation.spec.ts`** — Admin origin is network-only at runtime (no service worker, `CacheStorage`, or `IndexedDB`), no protected fetch below the 1280 px gate, and the production Admin build contains no manifest/service worker.
+
+Validation:
+
+- Mocked Playwright (chromium/visual/pwa) `test:frontend:e2e` — `65` passed; gated full-stack `--project=fullstack` — `2` passed.
+- `pnpm lint`, `pnpm format:check`, `pnpm typecheck` (monorepo), `pnpm test:unit`, `pnpm build` (workforce PWA 12 precache / Admin non-PWA) — passed.
+- `pnpm test:integration` — `31` passed; `pnpm test:security` — `5` passed (both against the disposable PostgreSQL).
+- The single CLI-managed Admin (`PRD §6.1/§8.3`) remains locked; no Admin provisioning/reset/deactivation UI, no Section Head mutation, no raw download/export/bulk, and no PWA/offline surface were added.

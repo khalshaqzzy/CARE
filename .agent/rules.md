@@ -120,6 +120,9 @@ FULLSTACK_E2E=1 NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci 
   SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
   AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
   OUTBOX_ENABLED=false pnpm exec playwright test --project=fullstack
+# The gated fullstack project seeds the Admin e2e baseline automatically via its
+# Playwright globalSetup (`pnpm --filter @care/api seed:admin:e2e`), so no
+# explicit seeding step is required before that command.
 docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.24.3 \
   dir /repo --config=/repo/.gitleaks.toml --redact --verbose
 git diff --check

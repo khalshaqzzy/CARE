@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockAdminApi, type MockVoice } from './helpers/mock-api';
+import { mockAdminApi, voiceDetail, type MockVoice } from './helpers/mock-api';
 
 const voice: MockVoice = {
   id: 'voice-1',
@@ -14,7 +14,24 @@ const voice: MockVoice = {
 };
 
 test('renders the Admin Voice Explorer table and read-only drawer', async ({ page }) => {
-  await mockAdminApi(page, voice);
+  await mockAdminApi(page, {
+    voices: { items: [voice], nextCursor: null },
+    voiceDetail: voiceDetail(voice),
+    messages: {
+      items: [
+        {
+          id: 'msg-1',
+          text: 'Hello',
+          createdAt: '2026-08-02T01:00:00.000Z',
+          senderId: 'handler-1',
+          senderAccountKind: 'WORKFORCE',
+          sender: { kind: 'WORKFORCE' },
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    },
+  });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('http://127.0.0.1:4174/voices');
 

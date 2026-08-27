@@ -18,6 +18,7 @@
     "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "vapid:generate": "tsx scripts/generate-vapid.ts",
     "seed:performance": "tsx scripts/seed-performance.ts",
+    "seed:admin:e2e": "tsx scripts/seed-admin-e2e.ts",
     "maintenance:reconcile": "tsx scripts/reconcile-storage.ts",
     "test:openai:smoke": "tsx scripts/openai-smoke.ts",
     "setup:local": "tsx scripts/setup-local.ts"

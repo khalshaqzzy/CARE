@@ -2,7 +2,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { X } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { choreographyTokens } from './tokens.js';
 import { Button } from './primitives.js';
 import { cn } from './utils.js';
@@ -139,6 +139,7 @@ export function Dialog({
   mobileSheet,
   drawerSide,
 }: DialogProps) {
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
   const rootProps = {
     ...(open === undefined ? {} : { open }),
     ...(defaultOpen === undefined ? {} : { defaultOpen }),
@@ -156,6 +157,21 @@ export function Dialog({
             mobileSheet && 'care-dialog--mobile-sheet',
             drawerSide && `care-dialog--drawer-${drawerSide}`,
           )}
+          onOpenAutoFocus={() => {
+            // Record the element that had focus just before Radix moved focus
+            // into the dialog, so we can reliably restore it on close even for
+            // controlled dialogs opened by an external trigger.
+            lastFocusedRef.current = document.activeElement as HTMLElement | null;
+          }}
+          onCloseAutoFocus={(event) => {
+            // A controlled dialog with an external trigger can have focus go to
+            // <body> instead of returning to the opening control; restore it.
+            const last = lastFocusedRef.current;
+            if (last && last.isConnected) {
+              event.preventDefault();
+              last.focus();
+            }
+          }}
         >
           <div className="care-dialog__header">
             <div>

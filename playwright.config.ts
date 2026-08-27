@@ -8,6 +8,7 @@ const isFullStack = process.env.FULLSTACK_E2E === '1';
 
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
@@ -59,6 +60,11 @@ export default defineConfig({
             name: 'fullstack',
             use: { ...devices['Desktop Chrome'], serviceWorkers: 'block' },
             testMatch: /fullstack\.spec\.ts/,
+            // A single serial journey that mutates shared DB state (forced
+            // password, import confirm, reset); retries would replay with a
+            // changed password, so disable them for this project.
+            fullyParallel: false,
+            retries: 0,
           },
         ]
       : []),
