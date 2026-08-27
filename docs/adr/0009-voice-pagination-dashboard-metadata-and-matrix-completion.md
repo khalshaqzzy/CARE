@@ -108,7 +108,9 @@ Two latent authorization/scope defects were also present and are corrected here:
   `policy.test.ts` updated for the empty sentinel. e2e:
   `member-voice.spec.ts`, `admin-explorer.spec.ts`, `fullstack.spec.ts`,
   `helpers/mock-api.ts`; `foundation.spec.ts` and `design.visual.spec.ts` updated
-  for the Member Home; `workforce-shell-360.png` regenerated.
+  for the Member Home; `workforce-shell-360.png` regenerated; the API
+  `webServer`/`fullstack` project are gated in `playwright.config.ts` and the
+  full-stack step added to `.github/workflows/ci.yml`.
 
 ## Consequences
 
@@ -132,14 +134,21 @@ Two latent authorization/scope defects were also present and are corrected here:
 - `pnpm test:security` — 5 passed.
 - `pnpm test:unit` — API 34, `packages/ui` 8, `packages/frontend-core` 9,
   `apps/web-voice` 12, `apps/web-admin` 2.
-- Playwright (chromium + visual + pwa) — 20 passed, 1 gated-skip (full-stack).
+- Playwright (chromium + visual + pwa) — 20 passed; the `fullstack` project also
+  passes (1) against a running API + disposable DB.
+- `pnpm install --frozen-lockfile`, `pnpm audit --audit-level high` (1 known
+  moderate, 0 high/critical), `pnpm migrations:destructive-check`,
+  `pnpm seed:performance` (10k accounts / 50k Voices) + `pnpm test:performance`,
+  and `pnpm maintenance:reconcile` (dry-run, 0 counters) — green.
 
 ## Risks and Follow-up
 
-- The full-stack Playwright suite is gated behind `FULLSTACK_E2E=1` and a running
-  API on :3000 attached to the disposable test DB; it is exercised alongside the
-  disposable-PostgreSQL `test:integration` suite rather than in the default CI
-  `quality` job.
+- The full-stack Playwright suite is wired into the CI `quality` job, gated by
+  `FULLSTACK_E2E=1`, against a running API on :3000 attached to the disposable
+  test DB. The smoke validates API health, DB reachability, and the built
+  preview proxy; business-flow acceptance remains the disposable-PostgreSQL
+  `test:integration` suite, and the `.agent/rules.md` §4.2 parity baseline
+  mirrors the new e2e steps.
 - `ConversationList` inline message previews remain unpaginated (single latest
   message); if that surface ever paginates it should be its own change.
 - The workforce shell visual baseline was regenerated for the Member Home and

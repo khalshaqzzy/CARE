@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                     |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 8.5 `in_progress`; Phase 9 Member journey selesai; Phase 10 responder/leadership matrix + acceptance selesai (Frontend Complete Gate tetap diblokir sampai Phase 8.5 & Phase 11)                    |
-| Last updated           | 27 Agustus 2026                                                                                                                                                                                           |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                      |
-| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress; Phase 9 Member journey done; Phase 10 responder/leadership matrix + Admin Explorer + Playwright mocked done |
-| Current phase          | Phase 8.5 `in_progress` (sequencing exception allows concurrent Phase 9–10 batch work)                                                                                                                    |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                             |
+| Atribut                | Nilai                                                                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 8.5 `in_progress`; Phase 9 Member journey selesai; Phase 10 responder/leadership matrix + acceptance selesai (Frontend Complete Gate tetap diblokir sampai Phase 8.5 & Phase 11)                                                                   |
+| Last updated           | 27 Agustus 2026                                                                                                                                                                                                                                          |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                     |
+| Current implementation | Phase 0–7 done; Phase 8.0–8.4 done; Phase 8.5 accessibility/security/performance in progress; Phase 9 Member journey done; Phase 10 responder/leadership matrix + Admin Explorer done; Playwright mocked + CI full-stack (gated `FULLSTACK_E2E=1`) wired |
+| Current phase          | Phase 8.5 `in_progress` (sequencing exception allows concurrent Phase 9–10 batch work)                                                                                                                                                                   |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                            |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -582,8 +582,8 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Sisa Phase 9/10 yang tercatat kini telah ditutup: timeline/messages cursor pagination, dashboard filter + suppression metadata, responder/leadership matrix (Section Head assigned-only, assign guard, leadership read-only, close-evidence UI), Admin Voice Explorer pagination compatibility, dan Playwright mocked-contract (member/responder + admin). Langkah berikutnya:
+Sisa Phase 9/10 yang tercatat kini telah ditutup: timeline/messages cursor pagination, dashboard filter + suppression metadata, responder/leadership matrix (Section Head assigned-only, assign guard, leadership read-only, close-evidence UI), Admin Voice Explorer pagination compatibility, dan Playwright mocked-contract (member/responder + admin) serta full-stack yang kini berjalan di CI `quality` job (gated `FULLSTACK_E2E=1`). Langkah berikutnya:
 
-1. jalankan full-stack Playwright (gated `FULLSTACK_E2E=1`) dengan disposable PostgreSQL + API berjalan pada `:3000` bila e2e runner tersedia, lalu daftarkan parity CI penuh sebelum merge;
+1. jalankan parity CI penuh sebelum merge (termasuk step fullstack Playwright yang baru); full-stack smoke hanya memvalidasi wiring API/DB/proxy — business flow acceptance tetap di `test:integration`;
 2. refresh visual baseline `workforce-shell-360.png` jika Member Home berubah di masa depan;
 3. Phase 8.5 tetap `in_progress`; Frontend Complete Gate tetap diblokir sampai Phase 8.5 dan Phase 11 selesai; jangan mulai production containerization/deployment (Phase 12+) sebelum gate tersebut passed.
