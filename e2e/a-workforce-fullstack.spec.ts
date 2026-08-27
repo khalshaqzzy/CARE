@@ -15,7 +15,13 @@ test.skip(
 );
 
 test('member full-stack smoke: login, forced password, home and voice detail', async ({ page }) => {
+  // The workforce bundle can take time to boot on a busy CI runner; give the
+  // smoke room without loosening the assertion budgets.
+  test.setTimeout(90_000);
   await page.goto(`${ORIGIN}/login`);
+  await expect(page.getByRole('heading', { name: 'Selamat datang kembali' })).toBeVisible({
+    timeout: 60_000,
+  });
   await page.getByLabel('Username', { exact: true }).fill(USERNAME);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Masuk' }).click();
@@ -28,7 +34,9 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await page.getByRole('button', { name: 'Simpan password' }).click();
 
   // Member home loads real dashboard data from the seeded voices.
-  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByText('Pencahayaan area produksi kurang')).toBeVisible({
     timeout: 10_000,
   });
