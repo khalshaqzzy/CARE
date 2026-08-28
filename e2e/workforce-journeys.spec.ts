@@ -29,6 +29,19 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Pencahayaan area produksi kurang')).toBeVisible();
   });
 
+  test('mobile dock navigates to history and the create wizard', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { voice: generalVoice });
+    await page.goto('/');
+    const dock = page.getByRole('navigation', { name: 'Navigasi utama' });
+    await dock.getByRole('button', { name: 'Riwayat' }).click();
+    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
+    await dock.getByRole('button', { name: 'Buat', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Pilih jenis Voice' })).toBeVisible();
+  });
+
   test('create wizard transitions from type choice to the detail form', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {});

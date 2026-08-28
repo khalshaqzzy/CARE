@@ -1423,15 +1423,6 @@ select,
 }
 
 @media (max-width: 767px) {
-  /* Reference mobile dock keeps labels available to assistive tech while visually icon-only. */
-  .care-bottom-nav button > span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
   .care-page-header {
     display: grid;
   }
@@ -1486,12 +1477,26 @@ select,
     left: var(--space-4);
     width: auto;
   }
+}
+
+/* The workforce dock stays visible up to the 1280px desktop gate. Labels remain
+   available to assistive technology while visually icon-only, and page content
+   clears the taller floating dock. */
+@media (max-width: 1279px) {
+  .care-bottom-nav button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .care-app-shell__content {
-    padding: var(--space-4) var(--space-4) calc(var(--space-20) + env(safe-area-inset-bottom));
+    padding: var(--space-4) var(--space-4) calc(6.75rem + env(safe-area-inset-bottom));
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1280px) {
   .care-bottom-nav {
     display: none;
   }

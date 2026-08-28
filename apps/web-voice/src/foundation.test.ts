@@ -38,6 +38,20 @@ describe('workforce foundation boundaries', () => {
     expect(serviceWorker).toContain('new NetworkOnly()');
   });
 
+  it('keeps the mobile dock navigable through BottomNav onNavigate', () => {
+    const app = readFileSync(join(sourceDir, 'App.tsx'), 'utf8');
+    // BottomNav only invokes onNavigate(id); per-item onClick props are ignored.
+    expect(app).toContain('onNavigate={');
+    // Every dock destination must resolve to a route in the shared map.
+    expect(app).toContain("home: '/'");
+    expect(app).toContain("create: '/voices/new'");
+    expect(app).toContain("history: '/history'");
+    expect(app).toContain("'work-items': '/work-items'");
+    expect(app).toContain("general: '/general'");
+    expect(app).toContain("notifications: '/notifications'");
+    expect(app).toContain("account: '/account'");
+  });
+
   it('keeps the push handler generic and free of Private identity fields', () => {
     const serviceWorker = readFileSync(join(sourceDir, 'sw.ts'), 'utf8');
     const pushHandler = serviceWorker.slice(

@@ -130,7 +130,7 @@ jobs:
           git archive "$BASE_SHA" apps/api/prisma | tar -x -C /tmp/care-base
           pnpm --filter @care/api exec prisma migrate deploy --schema /tmp/care-base/apps/api/prisma/schema.prisma
           pnpm --filter @care/api prisma:migrate:deploy
-          pnpm --filter @care/api exec prisma migrate status --schema apps/api/prisma/schema.prisma
+          pnpm --filter @care/api exec prisma migrate status --schema prisma/schema.prisma
 
   deployment-quality:
     name: Workflow, Dockerfile, and deployment scripts

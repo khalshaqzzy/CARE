@@ -288,6 +288,17 @@ function WrongApp() {
 
 type NavItem = { id: string; label: string; icon: React.ReactNode; to?: string };
 
+/** Dock/route map so every mobile bottom-nav tap resolves to a real route. */
+const NAV_ROUTES: Record<string, string> = {
+  home: '/',
+  create: '/voices/new',
+  history: '/history',
+  'work-items': '/work-items',
+  general: '/general',
+  notifications: '/notifications',
+  account: '/account',
+};
+
 function capabilityFor(session: ReturnType<typeof useAuth>['session']): {
   isMember: boolean;
   isResponder: boolean;
@@ -362,38 +373,43 @@ function WorkforceShell() {
     id: item.id,
     label: item.label,
     icon: item.icon,
-    ...(item.to ? { onClick: () => void navigate(item.to!) } : {}),
   }));
 
   const isDesktop =
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches;
+  // The reference home leads with the hero identity, so the chrome topbar yields on mobile.
+  const showTopbar = !(!isDesktop && current === 'home');
 
   return (
     <AppShell
       density="roomy"
-      topbar={
-        <div className="workforce-topbar">
-          <div className="brand-lockup">
-            <span>C</span>
-            <strong>CARE</strong>
-          </div>
-          <div>
-            <Avatar name={session.account.displayName} />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void logout().then(() => navigate('/login'))}
-            >
-              Keluar
-            </Button>
-          </div>
-        </div>
-      }
+      {...(showTopbar
+        ? {
+            topbar: (
+              <div className="workforce-topbar">
+                <div className="brand-lockup">
+                  <span>C</span>
+                  <strong>CARE</strong>
+                </div>
+                <div>
+                  <Avatar name={session.account.displayName} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void logout().then(() => navigate('/login'))}
+                  >
+                    Keluar
+                  </Button>
+                </div>
+              </div>
+            ),
+          }
+        : {})}
       {...(isDesktop
         ? {
             sidebar: (
               <Sidebar
-                items={bottomNav as never}
+                items={bottomNav}
                 current={current}
                 header={
                   <div className="workforce-sidebar-brand">
@@ -422,7 +438,13 @@ function WorkforceShell() {
             ),
           }
         : {
-            bottomNav: <BottomNav items={bottomNav as never} current={current} />,
+            bottomNav: (
+              <BottomNav
+                items={bottomNav}
+                current={current}
+                onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
+              />
+            ),
           })}
     >
       <Outlet />
