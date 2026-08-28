@@ -1,24 +1,43 @@
-# CARE Staging Deployment Guide
+# Deployment Guide — CARE Staging
 
-This is the operator runbook for CARE staging. It adapts the single-VM release pattern in `supplier-henkaten/deploy` to CARE's two origins, five runtime images, forward-only Prisma migrations, and full-SHA release identity. It contains no IP address, credential, private key, push endpoint/hash, or workforce PII.
+Dokumen ini adalah runbook operator untuk Phase 13. Scope aktif hanya staging. Push ke `main`
+tetap menjalankan CI, tetapi `workflow_dispatch` deployment dan deployment production sengaja belum
+dikonfigurasi. Production tidak boleh diaktifkan sebelum seluruh prerequisite Phase 14 tersedia dan
+disetujui.
 
-## 1. Scope and Risk Boundary
+Runbook ini mengadaptasi pola operasional `supplier-henkaten` untuk dua origin CARE, lima runtime
+image, satu API bersama, forward-only Prisma migration, live Responses validation, dan release
+identity berbasis full Git SHA. Jangan menulis IP, credential, private key, endpoint/hash Web Push,
+atau PII workforce ke repository maupun release evidence.
 
-Staging serves:
+## 1. Topologi dan Batas Risiko
 
-- workforce PWA: `https://care.qd-tmmin.site`;
-- Admin SPA: `https://admin-ped.qd-tmmin.site`;
-- one shared CARE API and PostgreSQL database behind those origins.
+Satu VM Ubuntu 22.04 LTS menjalankan satu Compose project bernama `care-staging`:
 
-One Ubuntu 22.04 VM runs Caddy, workforce web, Admin web, API, and PostgreSQL. Caddy alone publishes TCP 80/443 and UDP 443. PostgreSQL is on an internal Compose network and has no host port. The Responses API and normal browser push providers are the only operational application integrations; no external deployment/callback service is required.
+- Caddy adalah satu-satunya service yang membuka host port TCP `80`/`443` dan UDP `443`;
+- workforce web, Admin web, dan API hanya berada pada network Compose;
+- PostgreSQL hanya berada pada internal data network dan tidak memiliki published port;
+- workforce dan Admin memakai satu API serta satu PostgreSQL, tetapi session/cookie tetap host-scoped;
+- data PostgreSQL, media, state Caddy, dan state deployment berada di `/opt/care/staging/shared`;
+- source dan runtime env per SHA berada di `/opt/care/staging/releases`.
 
-Critical accepted limitation: this topology has no database/media backup, WAL archive/PITR, restore procedure, DR, replica, failover, or HA. The VM, database, and media are single points of failure. Code rollback never restores data/schema. Do not describe this deployment as backed up, recoverable, or highly available.
+| Surface       | URL                                       |
+| ------------- | ----------------------------------------- |
+| Workforce PWA | `https://care.qd-tmmin.site`              |
+| CARE Admin    | `https://admin-ped.qd-tmmin.site`         |
+| API           | same-origin `/api/v1/*` pada kedua domain |
 
-Production is outside this guide. Push/PR to `main` runs CI only; no production deployment caller exists.
+Responses API dan browser push provider adalah integrasi operasional aplikasi. Tidak ada callback
+atau deployment service eksternal tambahan.
 
-## 2. Runtime Layout
+> **Critical Accepted Risk:** v1 tidak memiliki backup database/media, WAL archive/PITR, restore
+> procedure, disaster recovery, replica, failover, RPO/RTO, atau high availability. Kehilangan
+> VM/disk/volume atau operator error dapat menghilangkan data secara permanen. Code rollback bukan
+> schema/data restore. CARE tidak boleh diklaim backed up, recoverable, atau highly available.
 
-The hosted root is fixed:
+## 2. Layout Runtime
+
+Hosted root dikunci sebagai berikut:
 
 ```text
 /opt/care/staging/
@@ -28,6 +47,8 @@ The hosted root is fixed:
   deploy.lock
   incoming/
   releases/<full-sha>/
+    .runtime.env
+    .source.sha
   shared/
     postgres-data/
     media/
@@ -36,172 +57,313 @@ The hosted root is fixed:
     deployment-state/highest_seen_run
 ```
 
-Never delete or prune any `shared` subpath. Runtime env lives as mode `0600` at `releases/<sha>/.runtime.env`; never print it, copy it into evidence, or execute it as shell code.
+`releases/<sha>/.runtime.env` wajib mode `0600`. Jangan menampilkan, menyalin ke evidence, atau
+mengeksekusi file tersebut sebagai shell script. Jangan menghapus atau melakukan prune terhadap
+subpath `shared`.
 
-## 3. DNS, Network, and SSH
+## 3. DNS dan Firewall
 
-Before bootstrap:
+Buat dua record DNS yang menunjuk ke public IP VM staging yang sama:
 
-1. Point both staging A/AAAA records at the same VM.
-2. Allow inbound TCP 80/443, UDP 443, and the chosen SSH TCP port. Do not expose PostgreSQL/API/web container ports.
-3. Create a dedicated deployment SSH keypair. Store only its public key during VM bootstrap.
-4. Obtain the VM's real SSH host-key line through a trusted channel. Do not trust an unauthenticated first connection.
-5. Confirm GitHub-hosted runners can reach SSH and both names resolve to the VM.
+| Record                    | Target               |
+| ------------------------- | -------------------- |
+| `care.qd-tmmin.site`      | public IP VM staging |
+| `admin-ped.qd-tmmin.site` | public IP VM staging |
 
-Caddy obtains certificates automatically after DNS and ports are correct. Its persistent data/config preserve certificate state across releases.
-
-## 4. Bootstrap Ubuntu 22.04
-
-From a trusted checkout, validate and then run as root on the VM:
+Verifikasi dari jaringan publik:
 
 ```bash
-bash deploy/scripts/bootstrap-vm.sh --check staging <deploy-user> "<ssh-public-key>" <ssh-port>
-bash deploy/scripts/bootstrap-vm.sh staging <deploy-user> "<ssh-public-key>" <ssh-port>
+dig +short care.qd-tmmin.site
+dig +short admin-ped.qd-tmmin.site
 ```
 
-The idempotent script installs Docker Engine from Docker's official repository plus Compose/Buildx, creates the deployment user and `care-data` GID 2000, prepares `/opt/care/staging`, applies required UID/GID ownership, enrolls the public key, and configures UFW. Reconnect so Docker group membership is active.
+Kedua hasil harus beririsan dengan address `VM_HOST`. Buka port SSH final, TCP 80/443, dan UDP 443
+pada firewall VM/provider. Jangan membuka port PostgreSQL, API, workforce web, atau Admin web.
+Caddy baru dapat memperoleh sertifikat setelah DNS dan TCP 80/443 dapat dijangkau publik.
 
-Verify:
+## 4. SSH Key Deployment
+
+Buat key khusus CI pada workstation operator; jangan memakai key personal:
 
 ```bash
+ssh-keygen -t ed25519 -a 100 -f ./care-staging-ci -C care-staging-ci
+```
+
+- isi private key lengkap menjadi GitHub environment secret `VM_SSH_PRIVATE_KEY`;
+- berikan public key `care-staging-ci.pub` kepada operator bootstrap;
+- simpan salinan private key di password manager yang disetujui; jangan commit ke repository.
+
+Setelah bootstrap, ambil host key melalui jaringan terpercaya:
+
+```bash
+ssh-keyscan -p 22 -H VM_HOST > care-staging-known-hosts
+ssh-keygen -lf care-staging-known-hosts
+```
+
+Ganti `22` bila memakai port lain. Cocokkan fingerprint dengan console/provider VM sebelum mengisi
+`VM_SSH_KNOWN_HOSTS`. Workflow tidak boleh mengambil `ssh-keyscan` secara dinamis karena hal itu
+menghilangkan verifikasi host identity.
+
+## 5. Bootstrap VM
+
+Requirement:
+
+- VM baru Ubuntu 22.04 LTS;
+- akses awal `root`/`sudo` melalui console atau key provider;
+- Docker Engine 24+, Compose 2.20+, dan Buildx akan dipasang oleh script;
+- minimum 5 GiB free disk saat preflight; sediakan kapasitas lebih besar untuk image dan data;
+- public key deployment dan port SSH final sudah ditentukan.
+
+Kirim script melalui akses awal VM:
+
+```bash
+scp deploy/scripts/bootstrap-vm.sh ubuntu@VM_HOST:/tmp/bootstrap-vm.sh
+ssh ubuntu@VM_HOST
+```
+
+Validasi input dan OS dahulu, lalu jalankan bootstrap sebagai root. Ganti contoh user/key/port
+dengan nilai aktual:
+
+```bash
+bash /tmp/bootstrap-vm.sh --check staging care-deploy \
+  "ssh-ed25519 AAAA... care-staging-ci" 22
+
+sudo bash /tmp/bootstrap-vm.sh staging care-deploy \
+  "ssh-ed25519 AAAA... care-staging-ci" 22
+```
+
+Script idempotent tersebut memasang Docker dari repository resmi, membuat deploy user, memasukkan
+user ke group Docker, membuat group `care-data` GID 2000, menyiapkan `/opt/care/staging`, memberi
+`postgres-data` kepada UID/GID `70:70`, dan mengaktifkan UFW. Script hanya menerima `staging` dan
+Ubuntu 22.04.
+
+Putuskan sesi lalu login ulang agar membership group berlaku:
+
+```bash
+ssh -i ./care-staging-ci -p 22 care-deploy@VM_HOST
 docker version
 docker compose version
 docker buildx version
-id <deploy-user>
-sudo -u <deploy-user> test -w /opt/care/staging/incoming
-sudo -u <deploy-user> test -w /opt/care/staging/shared/deployment-state
+id
+test -w /opt/care/staging/incoming
+test -w /opt/care/staging/shared/deployment-state
 test "$(stat -c '%u' /opt/care/staging/shared/postgres-data)" = 70
 ```
 
-Bootstrap is staging-only and rejects any OS other than Ubuntu 22.04.
+## 6. GitHub Environment
 
-## 5. GitHub Environment
+Di repository GitHub buka **Settings → Environments**, lalu buat environment bernama tepat
+`staging`.
 
-Create/protect the GitHub environment `staging`. Required environment secrets:
+Tambahkan environment secrets berikut:
 
-- `VM_HOST`
-- `VM_USER`
-- `VM_SSH_PRIVATE_KEY`
-- `VM_SSH_KNOWN_HOSTS`
-- `CADDY_EMAIL`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_DATABASE`
-- `SESSION_HASH_SECRET`
-- `SESSION_CSRF_SECRET`
-- `AUTH_THROTTLE_SECRET`
-- `CURSOR_SIGNING_SECRET`
-- `METRICS_TOKEN`
-- `CARE_ADMIN_USERNAME`
-- `CARE_ADMIN_PASSWORD`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `OPENAI_BASE_URL`
-- `VAPID_SUBJECT`
-- `VAPID_PUBLIC_KEY`
-- `VAPID_PRIVATE_KEY`
+| Secret                  | Isi                                                         |
+| ----------------------- | ----------------------------------------------------------- |
+| `VM_HOST`               | hostname atau IPv4 VM tanpa scheme/port                     |
+| `VM_USER`               | deploy user, misalnya `care-deploy`                         |
+| `VM_SSH_PRIVATE_KEY`    | private key OpenSSH lengkap                                 |
+| `VM_SSH_KNOWN_HOSTS`    | output known-hosts yang fingerprint-nya telah diverifikasi  |
+| `CADDY_EMAIL`           | email valid untuk ACME                                      |
+| `POSTGRES_USER`         | identifier dotenv-safe, misalnya `care`                     |
+| `POSTGRES_PASSWORD`     | random minimum 32 karakter                                  |
+| `POSTGRES_DATABASE`     | identifier dotenv-safe, misalnya `care`                     |
+| `SESSION_HASH_SECRET`   | random minimum 32 karakter                                  |
+| `SESSION_CSRF_SECRET`   | random minimum 32 karakter dan berbeda                      |
+| `AUTH_THROTTLE_SECRET`  | random minimum 32 karakter dan berbeda                      |
+| `CURSOR_SIGNING_SECRET` | random minimum 32 karakter dan berbeda                      |
+| `METRICS_TOKEN`         | random minimum 32 karakter dan berbeda                      |
+| `CARE_ADMIN_USERNAME`   | username tunggal CARE Admin                                 |
+| `CARE_ADMIN_PASSWORD`   | initial password minimum 12 karakter, berbeda dari username |
+| `OPENAI_API_KEY`        | server-only provider key staging                            |
+| `OPENAI_MODEL`          | model Responses API yang sudah disetujui                    |
+| `OPENAI_BASE_URL`       | HTTPS base URL provider yang sudah disetujui                |
+| `VAPID_SUBJECT`         | `mailto:` atau HTTPS contact subject                        |
+| `VAPID_PUBLIC_KEY`      | public key dari CLI CARE                                    |
+| `VAPID_PRIVATE_KEY`     | private key pasangan VAPID staging                          |
 
 Optional environment secret:
 
-- `PUSH_CANARY_ENDPOINT_HASH` — exact lowercase SHA-256 of one enrolled staging subscription endpoint. Leave empty until enrollment. It is used only by the manual canary.
+| Secret                      | Isi                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `PUSH_CANARY_ENDPOINT_HASH` | SHA-256 lowercase dari satu endpoint subscription staging; kosongkan sebelum enrollment |
 
-Optional environment variable:
+Tambahkan environment variables:
 
-- `VM_SSH_PORT` — defaults to `22`.
-- `OPENAI_REASONING_EFFORT` — one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`; unset/empty renders as `medium`.
+| Variable                  | Isi                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                              |
+| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; kosong berarti `medium` |
 
-Rendering enforces distinct protection secrets, minimum lengths, dotenv-safe scalar values, HTTPS provider URL, valid VAPID subject, no placeholders/newlines, and mode `0600`. Domains, ports, project, root, and SHA are workflow-generated.
+Secret proteksi yang berbeda fungsi harus memiliki value berbeda. Untuk secret dotenv-safe:
 
-## 6. First Deployment and Trigger
+```bash
+openssl rand -base64 48 | tr '+/' '_-' | tr -d '=\n' | cut -c1-48
+```
 
-Before the first push, confirm bootstrap, GitHub environment, DNS, provider quota/config, and all required secrets. The first release has no previous code to restore; failure stops its application surface while PostgreSQL/media remain.
+Buat VAPID key pair di terminal operator yang terkontrol, lalu langsung pindahkan nilainya ke secret
+store:
 
-A push to `staging` runs quality/database/browser/migration/deployment/container/security jobs and a release gate. The reusable deploy runs only when all gates succeed and the candidate remains branch HEAD. It checks freshness twice, archives the exact SHA, verifies SHA-256 and safe archive members, uses strict known-host SSH, and uploads to a unique SHA/run/attempt path.
+```bash
+pnpm vapid:generate -- --output /secure/operator/path/care-staging-vapid.env
+```
 
-Remote order is PostgreSQL → migration → Admin bootstrap → API → live Responses classification/location → both web apps → Caddy → two-origin smoke. The active pointer changes only afterward.
+Jangan menyimpan output tersebut di repository. Runtime renderer menolak placeholder, newline,
+karakter dotenv yang tidak didukung, secret proteksi yang sama, URL non-HTTPS, dan VAPID subject
+invalid. Domain, published port, Compose project, remote path, dan release SHA dikunci oleh workflow.
 
-Monitor:
+Rekomendasi branch protection `staging`:
+
+- require pull request dan branch up-to-date;
+- require status check **Release candidate gate**;
+- block force push dan branch deletion;
+- jangan menambahkan manual environment approval bila kontrak yang diinginkan tetap auto-deploy
+  setelah gate hijau.
+
+## 7. Trigger dan First Deployment
+
+Pull request ke `staging` menjalankan seluruh gate tetapi tidak deploy. Hanya event `push` pada
+branch `staging` yang masih menjadi HEAD terbaru dapat memanggil reusable deployment workflow.
+Gunakan squash merge agar satu commit menjadi satu release candidate.
+
+Sebelum push pertama, pastikan VM/bootstrap, DNS, GitHub environment, provider quota/privacy
+approval, VAPID, dan semua required secrets tersedia. First release belum memiliki previous code
+untuk dipulihkan; bila gagal, application surface dihentikan sedangkan PostgreSQL/media tetap ada.
+
+```bash
+git switch staging
+git pull --ff-only
+```
+
+Pantau **Actions → CARE CI and Staging Delivery**, atau:
 
 ```bash
 gh run list --branch staging --limit 10
-gh run view <run-id> --json status,conclusion,jobs,url
-gh run view <run-id> --log-failed
+gh run view RUN_ID --json status,conclusion,jobs,url
+gh run view RUN_ID --log-failed
 ```
 
-Do not call a release successful until `release-gate`, `Deploy staging`, and hosted verification are green.
+Urutan deployment:
 
-## 7. Post-deploy Verification
+1. seluruh quality, database, migration, browser, deployment, container, dan security job hijau;
+2. `Release candidate gate` sukses dan candidate dicek masih menjadi HEAD;
+3. exact SHA diarsipkan, checksum dan archive member divalidasi, lalu di-upload via strict SSH;
+4. remote preflight memeriksa OS, Docker/Compose, disk, permission, Compose exposure, dan DNS;
+5. PostgreSQL dimulai, lalu `prisma migrate deploy` dan idempotent Admin bootstrap;
+6. API healthy, live Responses classification/location schema check sukses;
+7. workforce/Admin web healthy, kemudian Caddy dimulai terakhir;
+8. internal dan external two-origin smoke harus sukses sebelum pointer `current` diaktifkan.
 
-Let `<sha>` be the full current staging SHA:
+Keberhasilan workflow berarti exact SHA telah lolos smoke dari VM dan GitHub runner. Bootstrap
+Admin hanya membuat akun bila username belum ada dan tidak mencetak password. Perubahan secret
+bootstrap pada deployment berikutnya tidak merotasi password akun yang sudah ada.
+
+## 8. Verifikasi Setelah Deploy
+
+Set `SHA` ke full 40-character SHA hasil merge:
 
 ```bash
-curl -fsS https://care.qd-tmmin.site/release.json | jq -e --arg sha "<sha>" '.application=="care-web-voice" and .releaseSha==$sha'
-curl -fsS https://admin-ped.qd-tmmin.site/release.json | jq -e --arg sha "<sha>" '.application=="care-web-admin" and .releaseSha==$sha'
-curl -fsS https://admin-ped.qd-tmmin.site/ready | jq -e --arg sha "<sha>" '.status=="ready" and .releaseSha==$sha'
-bash deploy/scripts/smoke-check.sh "<sha>" https://care.qd-tmmin.site https://admin-ped.qd-tmmin.site
+SHA=0123456789abcdef0123456789abcdef01234567
+
+curl -fsS https://care.qd-tmmin.site/release.json \
+  | jq -e --arg sha "$SHA" '.application=="care-web-voice" and .releaseSha==$sha'
+curl -fsS https://admin-ped.qd-tmmin.site/release.json \
+  | jq -e --arg sha "$SHA" '.application=="care-web-admin" and .releaseSha==$sha'
+curl -fsS https://admin-ped.qd-tmmin.site/ready \
+  | jq -e --arg sha "$SHA" '.status=="ready" and .releaseSha==$sha'
+
+deploy/scripts/smoke-check.sh "$SHA" \
+  https://care.qd-tmmin.site \
+  https://admin-ped.qd-tmmin.site
 ```
 
-Complete `.agent/releaseExecutionChecklist.md`: TLS/security/cache headers, deep links, Admin PWA files absent, host-scoped cookies, same-origin API, no public database exposure, and acceptance-data business journeys. Record redacted evidence, never business response bodies.
+Login ke Admin origin menggunakan credential bootstrap, lalu segera ganti password melalui halaman
+Account dan perbarui secret store sesuai prosedur operator. Lengkapi
+`.agent/releaseExecutionChecklist.md`, termasuk:
 
-## 8. Race Control and Retention
+- deep link kedua SPA, same-origin `/api/v1`, dan host-scoped auth/cookie isolation;
+- HSTS, CSP, anti-framing, `nosniff`, Referrer-Policy, Permissions-Policy, dan cache policy;
+- workforce manifest/service worker tersedia, sedangkan Admin manifest/service worker 404;
+- semua long-running container non-root dan PostgreSQL tidak memiliki host port;
+- live Responses, Admin bootstrap/import/remediation, Union/privacy/media, dan critical workforce
+  journey memakai staging acceptance data.
 
-Ordering is protected by:
+Simpan evidence yang teredaksi. Jangan menyimpan business response body, PII, token, atau secret.
 
-- GitHub `deploy-staging` concurrency with `cancel-in-progress: false`;
-- branch-head checks at job start and immediately before SSH;
-- one VM `flock` shared by deploy, rollback, and rehearsal;
-- persistent highest run number bound to its SHA;
-- unique incoming path per SHA/run/attempt;
-- atomic `current` and `current_release` replacement.
+## 9. Release, Race Control, dan Retention
 
-A lower run is rejected. An equal run is accepted only for the same SHA. Never edit the high-water file to force an older candidate. Retention keeps active, previous, and at most five exact releases. Cleanup removes only validated SHA directories/tags and never shared state.
+Ordering dilindungi oleh empat lapis:
 
-## 9. Migration and Rollback
+- GitHub concurrency `deploy-staging` dengan `cancel-in-progress: false`;
+- branch-head check saat job dimulai dan tepat sebelum SSH;
+- satu VM `flock` untuk deploy, rollback, dan rehearsal;
+- persistent high-water run number yang terikat pada SHA.
 
-Only `prisma migrate deploy` is allowed. Never run `prisma migrate reset`, down migration, or database reset on staging. Schema changes must be forward-only and compatible with retained previous code.
+Run lebih rendah ditolak. Run yang sama hanya diterima untuk SHA yang sama. Jangan mengedit
+`highest_seen_run` untuk memaksa candidate lama. `current` dan `current_release` hanya berubah setelah
+smoke sukses. Retention mempertahankan current, previous, dan maksimal lima exact release; cleanup
+hanya menghapus directory/tag SHA yang tervalidasi dan tidak pernah menyentuh shared state.
 
-Candidate failure before smoke never activates it. If previous exists, its code/images restart against the already migrated schema and shared volumes. If none exists, the application surface stops while PostgreSQL/media remain. Rollback failure never triggers database rollback.
+Untuk acceptance ordering, merge dua candidate berdekatan. Hasil akhir wajib SHA HEAD terbaru;
+candidate lama boleh tercatat superseded, tetapi tidak boleh mengaktifkan SHA lama.
 
-Manual code rollback:
+## 10. Migration dan Rollback
+
+- Hosted deployment hanya menjalankan `prisma migrate deploy`.
+- Migration wajib forward-only, expand/contract, dan backward-compatible dengan setidaknya satu
+  retained code release sebelumnya.
+- `prisma migrate reset`, down migration, database reset, atau destructive one-step migration
+  dilarang.
+- Migration failure tidak mencoba database rollback. Schema yang sudah berubah tidak dipulihkan.
+- Rotasi `POSTGRES_PASSWORD` bukan secret-only change; role database dan runtime secret harus
+  diubah terkoordinasi dengan rollback plan.
+
+Manual code rollback ke SHA yang masih retained:
 
 ```bash
-bash /opt/care/staging/releases/<target-sha>/deploy/scripts/remote-rollback.sh \
-  staging <target-sha> /opt/care/staging
+ssh -p 22 care-deploy@VM_HOST
+bash /opt/care/staging/releases/TARGET_40_CHARACTER_SHA/deploy/scripts/remote-rollback.sh \
+  staging TARGET_40_CHARACTER_SHA /opt/care/staging
 ```
 
-Confirm the target is a retained full SHA with known migration compatibility, then rerun external smoke.
+Pastikan target kompatibel dengan schema yang telah maju, lalu jalankan external smoke. Code
+rollback menghidupkan image/env lama terhadap PostgreSQL/media yang sama; tidak ada down migration
+atau data restore.
 
-## 10. Guarded Rehearsal
+## 11. Guarded Rollback Rehearsal
 
-After two known-good releases are retained, run the GitHub Actions workflow
-`CARE staging rollback rehearsal` with the previous/current full SHAs and the
-confirmation phrase `I_ACCEPT_STAGING_INTERRUPTION`. The workflow uses the same
-`deploy-staging` concurrency group as auto-deploy and the script then acquires the
-same VM lock.
+Setelah minimal dua release sehat tersedia, buka **Actions → CARE staging rollback rehearsal → Run
+workflow**. Isi previous/current full SHA dan confirmation phrase:
 
-The equivalent VM command below is for diagnosis only; routine evidence must use
-the guarded GitHub workflow so both coordination layers apply:
+```text
+I_ACCEPT_STAGING_INTERRUPTION
+```
+
+Workflow memakai concurrency group `deploy-staging`, strict SSH, memverifikasi current SHA masih
+HEAD `staging`, lalu script mengambil VM lock yang sama. Command VM ekuivalen berikut hanya untuk
+diagnosis; evidence rutin harus memakai guarded GitHub workflow:
 
 ```bash
 bash /opt/care/staging/current/deploy/scripts/rehearse-staging.sh \
-  <previous-sha> <current-sha> /opt/care/staging <vm-hostname> \
-  I_ACCEPT_STAGING_INTERRUPTION
+  PREVIOUS_40_CHARACTER_SHA CURRENT_40_CHARACTER_SHA \
+  /opt/care/staging VM_HOST I_ACCEPT_STAGING_INTERRUPTION
 ```
 
-Rehearsal holds the same lock, records PostgreSQL identity, creates a media sentinel, activates previous code, attempts current with forced smoke failure, verifies automatic rollback, restores current, and proves persistence. It never reverses migrations. Record redacted results.
+Rehearsal mencatat identitas cluster PostgreSQL, membuat media sentinel, mengaktifkan previous code,
+mencoba current release dengan forced smoke failure, membuktikan automatic rollback, mengembalikan
+current release, dan memverifikasi persistence. Jalankan hanya dalam maintenance window staging.
+Rehearsal tidak pernah membalik migration.
 
-## 11. Manual Web Push Canary
+## 12. Manual Web Push Canary
 
-Web Push canary is optional operational evidence. It is implemented but explicitly outside automated tests, deployment smoke, and the auto-deploy gate.
+Canary bersifat optional operational evidence. Ia bukan automated test, deployment smoke, atau
+syarat auto-deploy.
 
-Enrollment:
-
-1. Sign in to the staging workforce PWA on the designated browser/device and enable notifications through CARE.
-2. Confirm exactly one active staging subscription is designated. Obtain its endpoint hash via an authorized database/operational lookup; never copy the raw endpoint into Git/docs.
-3. Store the 64-character lowercase hash as `PUSH_CANARY_ENDPOINT_HASH` in the staging GitHub environment.
-4. Deploy a later candidate so its mode-`0600` runtime env contains the hash.
-
-Run manually on the VM:
+1. Login ke workforce PWA staging pada device/browser yang ditunjuk dan aktifkan notification.
+2. Pilih tepat satu active staging subscription melalui lookup operasional yang berizin.
+3. Simpan hanya SHA-256 lowercase endpoint tersebut sebagai `PUSH_CANARY_ENDPOINT_HASH`; jangan
+   menyalin raw endpoint ke Git/docs/evidence.
+4. Deploy candidate berikutnya agar hash masuk ke `.runtime.env` release baru.
+5. Jalankan manual pada VM:
 
 ```bash
 cd /opt/care/staging/current
@@ -210,79 +372,100 @@ docker compose --env-file .runtime.env \
   --profile operations run --rm push-canary
 ```
 
-Success means the provider accepted the generic redacted payload and CARE advanced `lastSuccessAt` after the operation start. Visible notification display is not the criterion. Missing/inactive/duplicate subscription, rejection, or timeout is a failed manual canary. A 404/410 deactivates it; re-enroll before retrying.
+Sukses berarti provider menerima generic redacted payload dan `lastSuccessAt` subscription lebih
+baru dari waktu mulai operasi; visible notification bukan kriterianya. Missing/inactive/duplicate,
+provider rejection, atau timeout berarti gagal. Respons 404/410 menonaktifkan subscription dan
+memerlukan re-enrollment sebelum retry.
 
-## 12. Secret Rotation
+## 13. Secret Rotation
 
-Rotate one concern at a time and preserve the old value until replacement deployment is verified.
+Rotasi satu concern per waktu dan pertahankan nilai lama sampai replacement tervalidasi:
 
-- Session/CSRF/throttle/cursor rotation can invalidate sessions/tokens; schedule it.
-- PostgreSQL rotation coordinates the database role password and GitHub secret.
-- VAPID public/private keys rotate together; existing subscriptions must re-enroll.
-- Admin bootstrap input is not a normal reset channel; use the application reset workflow.
-- SSH rotation enrolls the new public key and verifies it before removing the old key.
-- OpenAI key/model/base URL changes must pass live schema validation and provider/privacy approval.
+- SSH: tambahkan key baru, verifikasi login, ganti private key/known-hosts bila relevan, deploy,
+  kemudian hapus key lama;
+- session/CSRF/throttle/cursor: ganti secret lalu deploy; rencanakan invalidasi session/token;
+- database: ubah password role PostgreSQL dan GitHub secret secara terkoordinasi;
+- VAPID: public/private key harus berpasangan; subscription lama harus re-enroll;
+- OpenAI base/model/key: wajib melewati live schema validation serta approval provider/privacy;
+- Admin: ganti password melalui halaman Account. Bootstrap bersifat create-only; mengubah
+  `CARE_ADMIN_PASSWORD` saja tidak merotasi akun existing.
 
-Never print secret values in commands or evidence.
+Jangan mencetak secret di terminal bersama, workflow log, issue, pull request, atau evidence.
 
-## 13. Diagnostics
+## 14. Diagnostics
 
-- **Superseded candidate:** expected; a newer branch HEAD won.
-- **Stale/equal-run rejection:** use the correct run; never lower the high-water mark.
-- **Lock unavailable:** wait for active deploy/rollback/rehearsal; do not delete a held lock.
-- **Checksum/archive failure:** treat upload as untrusted; do not extract manually.
-- **Preflight DNS failure:** both names must resolve to the expected VM.
-- **Runtime env rejection:** fix the named GitHub value; do not weaken validation.
-- **PostgreSQL unhealthy:** inspect logs, disk, and ownership; never delete existing data.
-- **Migration failure:** retain logs and fix with a new forward migration.
-- **API/web/Caddy unhealthy:** inspect exact candidate logs, bind permissions, SHA, and ports.
-- **Live Responses failure:** fix endpoint/model/key/quota/schema; auto-deploy remains failed.
-- **TLS/smoke failure:** inspect Caddy, DNS, firewall, certificates, routing, and exact SHA.
-- **Rollback failure:** keep database/media untouched; diagnose retained code/schema compatibility.
-- **Push canary failure:** manual only; verify enrollment/hash/VAPID/provider and re-enroll after 404/410. It does not retroactively fail automatic deployment.
-
-Useful read-only VM commands:
+Login ke VM, lalu jalankan read-only diagnostics:
 
 ```bash
-cd /opt/care/staging/current
-docker compose --env-file .runtime.env -f deploy/compose/docker-compose.remote.yml ps
-docker compose --env-file .runtime.env -f deploy/compose/docker-compose.remote.yml logs --tail=200 api caddy postgres
-cat /opt/care/staging/current_release
-readlink /opt/care/staging/current
+BASE=/opt/care/staging
+cd "$BASE/current"
+
+cat "$BASE/current_release"
+readlink "$BASE/current"
+docker compose --env-file .runtime.env \
+  -f deploy/compose/docker-compose.remote.yml ps
+docker compose --env-file .runtime.env \
+  -f deploy/compose/docker-compose.remote.yml logs --tail=200 api caddy postgres
+df -h "$BASE"
+sudo ufw status verbose
+docker version
+docker compose version
 ```
 
-Never paste `.runtime.env`, database rows, request bodies, push identifiers, or private logs into tickets/chat.
-
-## 14. Acceptance Evidence
-
-Use `.agent/releaseExecutionChecklist.md`. Retain exact SHA and successful run/deploy links; origin release/readiness and security/routing evidence; live Responses; acceptance-data journeys; persistence; overlapping/stale ordering; and two-release forced-failure rollback with unchanged database identity/media sentinel. Label optional canary evidence non-gating.
-
-Phase 13 is not complete from local evidence alone. Mark it `done` only after hosted SHA and rehearsal evidence are green. Phase 14 remains pending and the Delivery Complete Gate stays open until production-readiness criteria and accepted-risk approvals pass.
-
-## 15. Local Full-stack Containers
-
-The repository includes a local overlay that runs the same PostgreSQL, migration,
-bootstrap, API, workforce nginx, Admin nginx, and Caddy topology without external
-services or public DNS/TLS.
+Jangan menampilkan `.runtime.env`. State release yang aman untuk diperiksa:
 
 ```bash
-cp .env.local.example .env.local # only when .env.local does not exist
+ls -la /opt/care/staging/releases
+cat /opt/care/staging/shared/deployment-state/highest_seen_run
+```
+
+Common failures:
+
+- **superseded candidate:** HEAD `staging` sudah berubah; biarkan candidate terbaru berjalan;
+- **lock contention:** deploy/rollback/rehearsal lain aktif; tunggu dan jangan hapus lock;
+- **checksum/archive:** perlakukan upload sebagai tidak terpercaya; jangan extract manual;
+- **DNS/TLS:** perbaiki record, propagasi, firewall, atau ACME reachability;
+- **runtime env:** perbaiki GitHub secret/variable yang disebut; jangan melemahkan validator;
+- **disk/ownership/PostgreSQL:** tambah disk atau perbaiki permission; jangan hapus data existing;
+- **migration:** simpan log dan perbaiki dengan forward migration baru; jangan reset/down migrate;
+- **live Responses:** periksa endpoint/model/key/quota/schema tanpa mencetak payload/secret;
+- **API/web/Caddy/smoke:** periksa exact candidate log, health, route, header, port, dan SHA;
+- **rollback:** biarkan database/media tetap utuh dan review code/schema compatibility;
+- **push canary:** verifikasi enrollment/hash/VAPID/provider; kegagalannya tidak mengubah hasil
+  automatic deployment.
+
+## 15. Acceptance Setelah Bootstrap
+
+Phase 13 hanya boleh ditandai `done` setelah evidence berikut tersimpan sesuai
+`.agent/releaseExecutionChecklist.md`:
+
+1. first deployment exact SHA dan kedua HTTPS origin sukses;
+2. bootstrap Admin/login/change-password dan acceptance-data critical journeys terbukti;
+3. release kedua membuktikan upgrade migration;
+4. dua candidate berdekatan tidak menghasilkan out-of-order activation;
+5. controlled failed smoke melakukan automatic code rollback;
+6. identitas database dan media sentinel bertahan setelah restart/rehearsal;
+7. GitHub environment deployment serta seluruh quality/security gate hijau.
+
+Reusable workflow memiliki jalur internal untuk parameter `production`, tetapi production activation
+tetap deferred: tidak ada caller `main`, manual deployment dispatch, production domain wiring, atau
+klaim deployment production. Phase 14 tetap `pending` sampai seluruh external dependency, UAT,
+operational ownership, dan written Critical Accepted Risk approval lengkap.
+
+## 16. Local Full-stack (Bukan Hosted Deployment)
+
+Untuk production-like local verification tanpa DNS/TLS publik:
+
+```bash
+cp .env.local.example .env.local # hanya bila .env.local belum ada
 pnpm local:up
 pnpm local:status
 pnpm local:logs
 pnpm local:down
 ```
 
-Local URLs are `http://care.localhost:8080` and
-`http://admin.care.localhost:8080`. The command builds images from the current
-checkout, applies forward migrations, idempotently bootstraps the local Admin,
-waits for every health check, and verifies both frontend release identities plus
-API readiness.
-
-`.env.local` is mode `0600`, ignored by Git, and may hold developer-only values.
-`.env.local.example` is the committed non-secret template. OpenAI and VAPID are
-empty by default, so readiness reports those optional integrations as degraded
-while the full local application remains ready; configure developer-owned values
-only when explicitly testing those integrations. PostgreSQL uses the persistent
-named volume `care-local-postgres-data`; media and Caddy state live under ignored
-`local-data/fullstack`. `pnpm local:down` preserves both kinds of state.
+Origin lokal adalah `http://care.localhost:8080` dan `http://admin.care.localhost:8080`.
+`.env.local` wajib mode `0600` dan ignored. OpenAI/VAPID kosong secara default sehingga integration
+tersebut dilaporkan degraded tetapi stack lokal tetap ready. PostgreSQL memakai named volume
+`care-local-postgres-data`; media/Caddy state berada di ignored `local-data/fullstack` dan dipertahankan
+oleh `pnpm local:down`.
