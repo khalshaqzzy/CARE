@@ -1,0 +1,39 @@
+services:
+  local-volume-init:
+    profiles: [local]
+    image: care-postgres:16-pgvector
+    user: '0:0'
+    entrypoint: [/bin/sh, -c]
+    command: ['chown -R 70:70 /postgres-data && chmod 0700 /postgres-data']
+    network_mode: none
+    volumes:
+      - care_local_postgres_data:/postgres-data
+    restart: 'no'
+
+  postgres:
+    volumes:
+      - care_local_postgres_data:/var/lib/postgresql/data
+    tmpfs:
+      - /var/run/postgresql:uid=70,gid=70,mode=0775
+
+  migrate:
+    volumes:
+      - ${LOCAL_SHARED_DIR}/media:/var/lib/care/media
+
+  bootstrap-admin:
+    volumes:
+      - ${LOCAL_SHARED_DIR}/media:/var/lib/care/media
+
+  api:
+    volumes:
+      - ${LOCAL_SHARED_DIR}/media:/var/lib/care/media
+
+  caddy:
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${LOCAL_SHARED_DIR}/caddy-data:/data
+      - ${LOCAL_SHARED_DIR}/caddy-config:/config
+
+volumes:
+  care_local_postgres_data:
+    name: care-local-postgres-data

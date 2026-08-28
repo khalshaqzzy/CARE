@@ -7,7 +7,13 @@ import { resetConfigForTests } from '../../src/config';
 import { ImportsService, ORGANIZATION_HEADERS } from '../../src/imports/imports.service';
 
 afterEach(() => {
-  for (const key of ['OPENAI_API_KEY', 'OPENAI_MODEL', 'OPENAI_BASE_URL']) delete process.env[key];
+  for (const key of [
+    'OPENAI_API_KEY',
+    'OPENAI_MODEL',
+    'OPENAI_BASE_URL',
+    'OPENAI_REASONING_EFFORT',
+  ])
+    delete process.env[key];
   resetConfigForTests();
 });
 
@@ -209,6 +215,7 @@ describe('OpenAI Responses adapter', () => {
         OPENAI_API_KEY: 'test-openai-key-that-is-long-enough',
         OPENAI_MODEL: 'test-model',
         OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+        OPENAI_REASONING_EFFORT: 'high',
       });
       resetConfigForTests();
       const service = new AiService();
@@ -228,6 +235,7 @@ describe('OpenAI Responses adapter', () => {
       for (const item of requests) {
         expect(item.url).toBe('/v1/responses');
         expect(item.body.store).toBe(false);
+        expect(item.body.reasoning).toEqual({ effort: 'high' });
         expect(item.body.tools).toBeUndefined();
         expect(item.body.conversation).toBeUndefined();
         expect(item.body.text.format.strict).toBe(true);

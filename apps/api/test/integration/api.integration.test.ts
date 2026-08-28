@@ -39,6 +39,7 @@ describe('API session boundary', () => {
     const ready = await request(app.getHttpServer()).get('/ready').expect(200);
     expect(ready.body).toMatchObject({
       status: 'ready',
+      releaseSha: 'ci',
       checks: { database: 'ok', migrations: 'ok', storage: 'ok', outbox: 'ok' },
     });
     const release = await request(app.getHttpServer()).get('/release.json').expect(200);

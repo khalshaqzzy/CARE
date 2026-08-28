@@ -66,6 +66,7 @@ async function main() {
       OPENAI_API_KEY: 'local-mock-credential-not-a-real-api-key',
       OPENAI_MODEL: 'care-mock-responses-model',
       OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+      OPENAI_REASONING_EFFORT: '',
     });
     resetConfigForTests();
     const service = new AiService();
@@ -89,6 +90,7 @@ async function main() {
         ({ path, body }) =>
           path !== '/v1/responses' ||
           body.store !== false ||
+          (body.reasoning as { effort?: string } | undefined)?.effort !== 'medium' ||
           'tools' in body ||
           'conversation' in body,
       )

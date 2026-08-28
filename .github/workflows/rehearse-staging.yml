@@ -1,0 +1,77 @@
+name: CARE staging rollback rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      previous_sha:
+        description: Retained previous full Git SHA
+        required: true
+        type: string
+      current_sha:
+        description: Active current full Git SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type I_ACCEPT_STAGING_INTERRUPTION
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    environment: staging
+    env:
+      REMOTE_HOST: ${{ secrets.VM_HOST }}
+      REMOTE_USER: ${{ secrets.VM_USER }}
+      REMOTE_PORT: ${{ vars.VM_SSH_PORT || '22' }}
+      SSH_KEY: /tmp/care-rehearsal-key
+      KNOWN_HOSTS: /tmp/care-rehearsal-known-hosts
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.current_sha }}
+          fetch-depth: 0
+      - name: Validate guarded inputs
+        env:
+          PREVIOUS_SHA: ${{ inputs.previous_sha }}
+          CURRENT_SHA: ${{ inputs.current_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          HOST_KEYS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          [[ "$PREVIOUS_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CURRENT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$PREVIOUS_SHA" != "$CURRENT_SHA" ]]
+          [[ "$CONFIRMATION" == I_ACCEPT_STAGING_INTERRUPTION ]]
+          [[ "$REMOTE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$REMOTE_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+          [[ "$REMOTE_PORT" =~ ^[0-9]+$ ]] && ((REMOTE_PORT>=1 && REMOTE_PORT<=65535))
+          [[ -n "$PRIVATE_KEY" && -n "$HOST_KEYS" ]]
+          [[ "$(git ls-remote origin refs/heads/staging | cut -f1)" == "$CURRENT_SHA" ]]
+      - name: Configure strict SSH
+        env:
+          PRIVATE_KEY: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          HOST_KEYS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          printf '%s\n' "$PRIVATE_KEY" > "$SSH_KEY"
+          printf '%s\n' "$HOST_KEYS" > "$KNOWN_HOSTS"
+      - name: Rehearse previous, forced failure, rollback, and restore
+        env:
+          PREVIOUS_SHA: ${{ inputs.previous_sha }}
+          CURRENT_SHA: ${{ inputs.current_sha }}
+        run: |
+          [[ "$(git ls-remote origin refs/heads/staging | cut -f1)" == "$CURRENT_SHA" ]]
+          ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "bash '/opt/care/staging/current/deploy/scripts/rehearse-staging.sh' '$PREVIOUS_SHA' '$CURRENT_SHA' '/opt/care/staging' '$REMOTE_HOST' 'I_ACCEPT_STAGING_INTERRUPTION'"
+      - name: Remove runner secret material
+        if: always()
+        run: rm -f -- "$SSH_KEY" "$KNOWN_HOSTS"

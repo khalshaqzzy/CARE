@@ -149,6 +149,7 @@ export class AiService {
       try {
         const result = await client.responses.create({
           model: config.OPENAI_MODEL,
+          reasoning: { effort: config.OPENAI_REASONING_EFFORT },
           store: false,
           instructions,
           input: JSON.stringify(input),

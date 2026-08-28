@@ -1,0 +1,223 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+x-api-environment: &api-environment
+  NODE_ENV: ${APP_ENV}
+  PORT: 3000
+  TRUST_PROXY_HOPS: '1'
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DATABASE}
+  MEDIA_ROOT: /var/lib/care/media
+  RELEASE_SHA: ${RELEASE_SHA}
+  SESSION_COOKIE_NAME: care_session
+  SESSION_HASH_SECRET: ${SESSION_HASH_SECRET}
+  SESSION_CSRF_SECRET: ${SESSION_CSRF_SECRET}
+  AUTH_THROTTLE_SECRET: ${AUTH_THROTTLE_SECRET}
+  CURSOR_SIGNING_SECRET: ${CURSOR_SIGNING_SECRET}
+  SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-8}
+  SESSION_ABSOLUTE_DAYS: ${SESSION_ABSOLUTE_DAYS:-7}
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  OPENAI_MODEL: ${OPENAI_MODEL}
+  OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+  OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-medium}
+  OPENAI_CONFIDENCE_THRESHOLD: ${OPENAI_CONFIDENCE_THRESHOLD:-0.75}
+  OPENAI_TIMEOUT_MS: ${OPENAI_TIMEOUT_MS:-10000}
+  VAPID_SUBJECT: ${VAPID_SUBJECT}
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+  PUSH_ENDPOINT_HOSTS: ${PUSH_ENDPOINT_HOSTS:-fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com}
+  METRICS_TOKEN: ${METRICS_TOKEN}
+  OUTBOX_ENABLED: 'true'
+  PUSH_CANARY_ENDPOINT_HASH: ${PUSH_CANARY_ENDPOINT_HASH:-}
+
+services:
+  postgres:
+    image: care-postgres:16-pgvector
+    build:
+      context: ../..
+      dockerfile: deploy/postgres/Dockerfile
+    init: true
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+    volumes:
+      - ${SHARED_DIR}/postgres-data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+    logging: *default-logging
+
+  migrate:
+    profiles: [operations]
+    image: care-api:${RELEASE_SHA}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      args: { RELEASE_SHA: '${RELEASE_SHA}' }
+    init: true
+    group_add: ['2000']
+    command:
+      [node, node_modules/prisma/build/index.js, migrate, deploy, --schema, prisma/schema.prisma]
+    environment: *api-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data]
+    volumes:
+      - ${SHARED_DIR}/media:/var/lib/care/media
+    restart: 'no'
+    logging: *default-logging
+
+  bootstrap-admin:
+    profiles: [operations]
+    image: care-api:${RELEASE_SHA}
+    init: true
+    group_add: ['2000']
+    command: [node, dist/cli/bootstrap-admin.js]
+    environment:
+      <<: *api-environment
+      CARE_ADMIN_USERNAME: ${CARE_ADMIN_USERNAME}
+      CARE_ADMIN_PASSWORD: ${CARE_ADMIN_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data]
+    volumes:
+      - ${SHARED_DIR}/media:/var/lib/care/media
+    restart: 'no'
+    logging: *default-logging
+
+  live-provider-smoke:
+    profiles: [operations]
+    image: care-api:${RELEASE_SHA}
+    init: true
+    command: [node, dist/cli/live-provider-smoke.js]
+    environment: *api-environment
+    networks: [data]
+    restart: 'no'
+    logging: *default-logging
+
+  push-canary:
+    profiles: [operations]
+    image: care-api:${RELEASE_SHA}
+    init: true
+    command: [node, dist/cli/push-canary.js]
+    environment: *api-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [data]
+    restart: 'no'
+    logging: *default-logging
+
+  api:
+    image: care-api:${RELEASE_SHA}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      args: { RELEASE_SHA: '${RELEASE_SHA}' }
+    init: true
+    group_add: ['2000']
+    restart: unless-stopped
+    environment: *api-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [edge, data]
+    volumes:
+      - ${SHARED_DIR}/media:/var/lib/care/media
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/ready').then(async(r)=>{const b=await r.json();if(!r.ok||b.status!=='ready'||b.releaseSha!==process.env.RELEASE_SHA)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+    logging: *default-logging
+
+  workforce-web:
+    image: care-web-voice:${RELEASE_SHA}
+    build:
+      context: ../..
+      dockerfile: apps/web-voice/Dockerfile
+      args: { RELEASE_SHA: '${RELEASE_SHA}' }
+    init: true
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, --quiet, --tries=1, --spider, http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging: *default-logging
+
+  admin-web:
+    image: care-web-admin:${RELEASE_SHA}
+    build:
+      context: ../..
+      dockerfile: apps/web-admin/Dockerfile
+      args: { RELEASE_SHA: '${RELEASE_SHA}' }
+    init: true
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, --quiet, --tries=1, --spider, http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    logging: *default-logging
+
+  caddy:
+    image: care-caddy:${RELEASE_SHA}
+    build:
+      context: ../..
+      dockerfile: deploy/caddy/Dockerfile
+      args: { RELEASE_SHA: '${RELEASE_SHA}' }
+    init: true
+    group_add: ['2000']
+    restart: unless-stopped
+    environment:
+      CADDY_EMAIL: ${CADDY_EMAIL}
+      CADDY_SCHEME: ${CADDY_SCHEME:-}
+      WORKFORCE_DOMAIN: ${WORKFORCE_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+    ports:
+      - ${PUBLISHED_HTTP_PORT:-80}:80
+      - ${PUBLISHED_HTTPS_PORT:-443}:443
+      - ${PUBLISHED_HTTPS_PORT:-443}:443/udp
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${SHARED_DIR}/caddy-data:/data
+      - ${SHARED_DIR}/caddy-config:/config
+    depends_on:
+      api: { condition: service_healthy }
+      workforce-web: { condition: service_healthy }
+      admin-web: { condition: service_healthy }
+    networks: [edge]
+    healthcheck:
+      test: [CMD, caddy, validate, --config, /etc/caddy/Caddyfile]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    logging: *default-logging
+
+networks:
+  edge:
+  data:
+    internal: true

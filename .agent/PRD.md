@@ -1,15 +1,15 @@
 # Product Requirements Document (PRD): CARE Enterprise Member Voice
 
-| Atribut             | Nilai                                                                                                      |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Status dokumen      | **Active product contract v1.1**                                                                           |
-| Status implementasi | **Backend Phase 8.0 dan Admin Phase 8.1–8.4 complete; Phase 8.5 in progress; Phase 9–10 pending**          |
-| Versi dokumen       | 1.1                                                                                                        |
-| Tanggal             | 26 Agustus 2026                                                                                            |
-| Product owner       | TMMIN                                                                                                      |
-| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                  |
-| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama |
-| Source of truth     | Dokumen ini                                                                                                |
+| Atribut             | Nilai                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Status dokumen      | **Active product contract v1.1**                                                                                           |
+| Status implementasi | **Phase 0–12 complete; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
+| Versi dokumen       | 1.1                                                                                                                        |
+| Tanggal             | 28 Agustus 2026                                                                                                            |
+| Product owner       | TMMIN                                                                                                                      |
+| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                  |
+| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                 |
+| Source of truth     | Dokumen ini                                                                                                                |
 
 Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**, **MUST NOT/dilarang**, **SHOULD/sebaiknya**, dan **MAY/dapat** bersifat normatif. Bila source code, prototype, fixture, atau asumsi implementasi berbeda dengan dokumen ini, perbedaan wajib diekskalasi dan source of truth terkait wajib diperbarui; implementer tidak boleh memilih perilaku secara diam-diam.
 
@@ -506,10 +506,10 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 - Protocol: OpenAI-compatible Responses API, endpoint `/responses`.
 - SDK: official `openai` JavaScript/TypeScript package dengan `responses.create`.
 - Base URL, model, dan API key tidak memiliki non-test production default dan akan diberikan melalui runtime environment.
-- Runtime config: `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_TIMEOUT_MS`, dan `OPENAI_CONFIDENCE_THRESHOLD`.
-- Prompt version, timeout, dan confidence threshold berasal dari runtime/config; default threshold tetap `0.75` dan timeout maksimum per attempt tetap 10 detik sampai product config menggantinya.
+- Runtime config: `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, dan `OPENAI_CONFIDENCE_THRESHOLD`.
+- Prompt version, reasoning effort, timeout, dan confidence threshold berasal dari runtime/config; reasoning effort kosong memakai default `medium`, default threshold tetap `0.75`, dan timeout maksimum per attempt tetap 10 detik sampai product config menggantinya.
 - Authentication menggunakan server-only API key dari runtime environment. API key tidak boleh masuk repository, dokumentasi, log, response, metric, atau client bundle.
-- Request menetapkan `store: false`, tidak mengirim tools, conversation, atau `previous_response_id`, dan memakai `text.format` JSON Schema Structured Outputs.
+- Request menetapkan `reasoning.effort` dari runtime config, `store: false`, tidak mengirim tools, conversation, atau `previous_response_id`, dan memakai `text.format` JSON Schema Structured Outputs.
 
 Structured response minimum:
 
@@ -1394,7 +1394,7 @@ Tidak ada database, media volume, secret, certificate state, atau Compose projec
 
 - Domain production workforce/Admin belum ditentukan dan menjadi placeholder `PRODUCTION_CARE_DOMAIN` serta `PRODUCTION_CARE_ADMIN_DOMAIN`.
 - Production deploy tidak boleh aktif sampai VM, kedua DNS/TLS reachability, GitHub environment, runtime secrets, Responses provider, dan VAPID tervalidasi.
-- Push ke `main` menjadi trigger deployment production setelah seluruh prerequisite tersedia.
+- Push/PR ke `main` menjalankan CI, tetapi tidak memiliki production deployment caller pada scope saat ini. Aktivasi production baru dapat ditambahkan pada pekerjaan production readiness setelah seluruh prerequisite tersedia.
 
 ### 30.4 Caddy
 
@@ -1420,10 +1420,8 @@ Push/PR ke `staging`:
 Push ke `main`:
 
 1. menjalankan checks yang sama;
-2. auto-deploy ke production hanya setelah production environment lengkap;
-3. stale candidate ditolak;
-4. smoke/readiness dijalankan;
-5. code rollback dilakukan jika aman dan previous release tersedia.
+2. tidak memanggil production deployment;
+3. production auto-deploy, smoke, dan rollback tetap pending sampai production readiness selesai dan workflow caller terpisah disetujui.
 
 Repository rule menetapkan commit default hanya ke `staging` kecuali branch lain diminta.
 
@@ -1460,6 +1458,8 @@ Adaptasi pola `supplier-henkaten`:
 - atomic `current` symlink/release pointer;
 - retain candidate, previous, dan hingga total lima release;
 - stale image/release cleanup dengan validated target path.
+
+Web Push canary tersedia sebagai operational one-shot profile yang memilih satu subscription staging aktif berdasarkan exact endpoint hash, mengirim payload generik teredaksi melalui delivery helper CARE, dan memverifikasi penerimaan provider serta pembaruan `lastSuccessAt`. Canary dijalankan manual oleh operator dan bukan automated test, deployment smoke, atau syarat auto-deploy. Tidak ada callback/service tambahan.
 
 ### 31.4 Migration dan Rollback
 
@@ -1663,7 +1663,7 @@ Minimum journeys:
 - [ ] Performance baseline memenuhi Section 29.
 - [ ] Unit, integration, E2E, AI contract validation, security, migration, build, dan deployment checks lulus.
 - [ ] Push `staging` auto-deploy ke `care.qd-tmmin.site` dan `admin-ped.qd-tmmin.site` setelah green CI.
-- [ ] Push `main` contract tersedia tetapi production activation diblokir sampai prerequisite lengkap.
+- [x] Push/PR `main` menjalankan checks tanpa production deployment caller; production activation tetap diblokir sampai prerequisite lengkap.
 - [ ] Release-by-SHA, health/readiness, smoke, dan code rollback rehearsal lulus.
 - [ ] Critical Accepted Risks memperoleh approval sebelum production.
 
@@ -1725,7 +1725,7 @@ Adoption, average verification time, average closure time, reopen rate, rating d
 | Snapshot organisasi bulanan terlambat/salah                                      | High     | Mitigated       | Preview/diff, atomic confirm, remediation queue, audit, dan legacy-handler preservation               |
 | Web Push tidak terkirim/terlambat                                                | Medium   | Accepted        | Notification Center authoritative dan delivery retry/metrics                                          |
 | Media berbahaya/oversized                                                        | High     | Mitigated       | Decode/re-encode, EXIF strip, limits, authorized serving                                              |
-| Auto production deploy dari main                                                 | High     | Accepted        | Mandatory CI/security/smoke, stale rejection, code rollback                                           |
+| Production deployment diaktifkan sebelum prerequisite lengkap                    | High     | Mitigated       | `main` hanya CI; caller production tidak tersedia sampai readiness dan approval                       |
 | Migration gagal tanpa backup                                                     | Critical | Accepted        | Forward-only expand/contract dan fresh/upgrade tests; recovery tidak tersedia                         |
 
 ---
@@ -1736,7 +1736,7 @@ Staging/production membutuhkan:
 
 - authoritative workforce workbook sesuai contract `MFG + QD`, designated data owner, dan monthly publication process;
 - designated CARE Admin, default/global PIC mapping owner, serta pemilik individual Union Head/Union 1/Union 2;
-- `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, timeout/threshold, quota, dan server-only secret per environment;
+- `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, reasoning effort, timeout/threshold, quota, dan server-only secret per environment;
 - approval terms/DPA, residency, retention, dan privacy posture untuk configured OpenAI-compatible endpoint/model;
 - VAPID contact subject per environment; key pairs are generated by the project CLI and private keys remain runtime secrets;
 - staging VM, deploy user, SSH known-hosts/key, DNS, ports, Caddy email, dan runtime secrets;
@@ -1783,7 +1783,7 @@ V1 siap production bila:
 - Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
 - General bukan public feed.
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
-- AI memakai official OpenAI JavaScript SDK melalui configurable `OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY`; tidak ada production default.
+- AI memakai official OpenAI JavaScript SDK melalui configurable `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, dan `OPENAI_REASONING_EFFORT`; base URL/model/key tidak memiliki production default, sedangkan reasoning effort kosong default ke `medium`.
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
@@ -1798,4 +1798,6 @@ V1 siap production bila:
 - Single VM terpisah per environment.
 - Backend v1.1 remediation/re-freeze wajib lulus sebelum frontend dimulai, lalu Frontend Complete → production containerization/deployment.
 - Staging memakai `care.qd-tmmin.site` dan `admin-ped.qd-tmmin.site`; kedua production domain merupakan external dependency.
-- Push `staging` dan `main` menjadi trigger deployment environment masing-masing setelah checks/prerequisite.
+- Push `staging` menjadi trigger deployment staging setelah seluruh checks hijau dan candidate masih menjadi branch HEAD.
+- Push/PR `main` hanya menjalankan CI pada scope saat ini; production deployment caller belum tersedia.
+- Web Push canary adalah operasi staging manual, bukan automated test, deployment smoke, atau auto-deploy gate.

@@ -1,4 +1,4 @@
-name: CARE CI
+name: CARE CI and Staging Delivery
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-22.04
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: care
           POSTGRES_PASSWORD: care_ci
@@ -41,7 +41,7 @@ jobs:
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm audit --audit-level high
+      - run: pnpm security:audit
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
@@ -55,6 +55,7 @@ jobs:
       - run: pnpm test:security
       - run: pnpm seed:performance
       - run: pnpm test:performance
+      - run: pnpm maintenance:reconcile
       - run: pnpm openapi:check
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
@@ -72,14 +73,258 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { fetch-depth: 0 }
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: 8.24.3
 
   codeql:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: github/codeql-action/init@42947a340483f03ba47bb1a039b2c519aab3df85 # v3
-        with: { languages: javascript-typescript }
-      - uses: github/codeql-action/analyze@42947a340483f03ba47bb1a039b2c519aab3df85 # v3
+      - uses: github/codeql-action/init@adfda868f108ac4222129de456ea554034a27db7 # v4
+        with: { languages: javascript-typescript, build-mode: none, queries: security-extended }
+      - uses: github/codeql-action/analyze@adfda868f108ac4222129de456ea554034a27db7 # v4
+
+  migration-release:
+    name: Previous-SHA to current migration
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+        env:
+          POSTGRES_USER: care
+          POSTGRES_PASSWORD: care_ci
+          POSTGRES_DB: care_release_upgrade
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U care -d care_release_upgrade"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_release_upgrade
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with: { version: 11.8.0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version-file: .node-version }
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve and check base
+        id: base
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == pull_request ]]; then base="$PR_BASE"; else base="$PUSH_BEFORE"; fi
+          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then base="$(git rev-parse HEAD^)"; fi
+          git cat-file -e "$base^{commit}"
+          pnpm migrations:destructive-check "$base"
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+      - name: Apply previous release then current migrations
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          mkdir -p /tmp/care-base
+          git archive "$BASE_SHA" apps/api/prisma | tar -x -C /tmp/care-base
+          pnpm --filter @care/api exec prisma migrate deploy --schema /tmp/care-base/apps/api/prisma/schema.prisma
+          pnpm --filter @care/api prisma:migrate:deploy
+          pnpm --filter @care/api exec prisma migrate status --schema apps/api/prisma/schema.prisma
+
+  deployment-quality:
+    name: Workflow, Dockerfile, and deployment scripts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with: { version: 11.8.0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version-file: .node-version }
+      - name: Actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
+      - name: ShellCheck
+        run: docker run --rm -v "$PWD:/repo" -w /repo koalaman/shellcheck-alpine:v0.11.0@sha256:9955be09ea7f0dbf7ae942ac1f2094355bb30d96fffba0ec09f5432207544002 shellcheck deploy/scripts/*.sh deploy/tests/*.sh
+      - name: Hadolint
+        run: |
+          for file in apps/api/Dockerfile apps/web-voice/Dockerfile apps/web-admin/Dockerfile deploy/postgres/Dockerfile deploy/caddy/Dockerfile; do
+            docker run --rm -i hadolint/hadolint:v2.14.0-alpine@sha256:7aba693c1442eb31c0b015c129697cb3b6cb7da589d85c7562f9deb435a6657c < "$file"
+          done
+      - run: pnpm deployment:validate
+      - run: pnpm test:deployment
+      - run: pnpm security:exceptions:check
+      - name: Ubuntu bootstrap contract
+        run: docker run --rm -v "$PWD:/repo:ro" ubuntu:22.04@sha256:0e0a0fc6d18feda9db1590da249ac93e8d5abfea8f4c3c0c849ce512b5ef8982 bash /repo/deploy/scripts/bootstrap-vm.sh --check staging care-deploy "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGZha2VidXR2YWxpZGJhc2U2NGtleWJ5dGVzZm9ydGVzdA ci" 22
+
+  containers:
+    name: Production containers and routing
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      RUNTIME_ENV: deploy/env/runtime.staging.env.example
+      REMOTE_COMPOSE: deploy/compose/docker-compose.remote.yml
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Prepare persistent paths
+        run: |
+          mkdir -p /tmp/care-staging/shared/{postgres-data,media,caddy-data,caddy-config,deployment-state}
+          sudo chown 70:70 /tmp/care-staging/shared/postgres-data
+          sudo chmod 0700 /tmp/care-staging/shared/postgres-data
+          chmod 0777 /tmp/care-staging/shared/{media,caddy-data,caddy-config}
+      - name: Build and start production-like stack
+        run: |
+          compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")
+          "${compose[@]}" --profile operations config --quiet
+          "${compose[@]}" build --pull postgres api workforce-web admin-web caddy
+          "${compose[@]}" up -d --no-deps postgres
+          "${compose[@]}" --profile operations run --rm migrate
+          "${compose[@]}" --profile operations run --rm bootstrap-admin
+          "${compose[@]}" up -d api workforce-web admin-web caddy
+          "${compose[@]}" up --wait --wait-timeout 240 api workforce-web admin-web caddy
+      - name: Verify release, routing, headers, and non-root policy
+        run: |
+          sha=0000000000000000000000000000000000000000
+          curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-voice" and .releaseSha==$sha'
+          curl -fsS -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-admin" and .releaseSha==$sha'
+          curl -fsS -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/ready | jq -e --arg sha "$sha" '.status=="ready" and .releaseSha==$sha'
+          curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/a/deep/link | grep -F '<div id="root"></div>'
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/api/v1/auth/session)" == 401 ]]
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/manifest.webmanifest)" == 404 ]]
+          curl -fsSI -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/ | grep -Eiq '^content-security-policy:'
+          compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")
+          for service in api workforce-web admin-web caddy postgres; do
+            id="$("${compose[@]}" ps -q "$service")"
+            user="$(docker inspect --format '{{.Config.User}}' "$id")"
+            [[ -n "$user" && "$user" != 0 ]]
+          done
+          [[ -z "$(docker port "$("${compose[@]}" ps -q postgres)")" ]]
+      - name: Verify persistent database and media
+        run: |
+          touch /tmp/care-staging/shared/media/ci-persistence
+          compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")
+          before="$("${compose[@]}" exec -T postgres psql -U care -d care -tA -c 'SELECT system_identifier FROM pg_control_system();')"
+          "${compose[@]}" restart postgres api
+          "${compose[@]}" up --wait --wait-timeout 240 postgres api
+          test -f /tmp/care-staging/shared/media/ci-persistence
+          [[ "$("${compose[@]}" exec -T postgres psql -U care -d care -tA -c 'SELECT system_identifier FROM pg_control_system();')" == "$before" ]]
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          {
+            scan-type: fs,
+            scan-ref: .,
+            scanners: 'vuln,secret,misconfig',
+            severity: 'HIGH,CRITICAL',
+            ignore-unfixed: false,
+            trivyignores: .trivyignore,
+            exit-code: '1',
+          }
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          {
+            image-ref: 'care-api:0000000000000000000000000000000000000000',
+            scanners: vuln,
+            severity: 'HIGH,CRITICAL',
+            ignore-unfixed: false,
+            exit-code: '1',
+          }
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          {
+            image-ref: 'care-web-voice:0000000000000000000000000000000000000000',
+            scanners: vuln,
+            severity: 'HIGH,CRITICAL',
+            ignore-unfixed: false,
+            exit-code: '1',
+          }
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          {
+            image-ref: 'care-web-admin:0000000000000000000000000000000000000000',
+            scanners: vuln,
+            severity: 'HIGH,CRITICAL',
+            ignore-unfixed: false,
+            exit-code: '1',
+          }
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          {
+            image-ref: 'care-postgres:16-pgvector',
+            scanners: vuln,
+            severity: 'HIGH,CRITICAL',
+            ignore-unfixed: false,
+            exit-code: '1',
+          }
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          {
+            image-ref: 'care-caddy:0000000000000000000000000000000000000000',
+            scanners: vuln,
+            severity: 'HIGH,CRITICAL',
+            ignore-unfixed: false,
+            exit-code: '1',
+          }
+      - if: always()
+        run: docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE" --profile operations down --remove-orphans
+
+  dependency-security:
+    name: Dependency security
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with: { fail-on-severity: high }
+      - if: github.event_name == 'push'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with: { version: 11.8.0 }
+      - if: github.event_name == 'push'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version-file: .node-version, cache: pnpm }
+      - if: github.event_name == 'push'
+        run: pnpm security:audit
+
+  release-gate:
+    name: Release candidate gate
+    if: always()
+    needs:
+      [
+        quality,
+        migration-release,
+        deployment-quality,
+        containers,
+        secrets,
+        dependency-security,
+        codeql,
+      ]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Require every gate
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          MIGRATION: ${{ needs.migration-release.result }}
+          DEPLOYMENT: ${{ needs.deployment-quality.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+          SECRETS: ${{ needs.secrets.result }}
+          DEPENDENCY: ${{ needs.dependency-security.result }}
+          CODEQL: ${{ needs.codeql.result }}
+        run: |
+          for result in "$QUALITY" "$MIGRATION" "$DEPLOYMENT" "$CONTAINERS" "$SECRETS" "$DEPENDENCY" "$CODEQL"; do [[ "$result" == success ]]; done
+
+  deploy-staging:
+    name: Deploy staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    needs: release-gate
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      app_env: staging
+      expected_branch: staging
+      release_sha: ${{ github.sha }}
+      deploy_run_number: ${{ format('{0}', github.run_number) }}
+      deploy_run_attempt: ${{ format('{0}', github.run_attempt) }}
+      environment_url: https://care.qd-tmmin.site
+      remote_base_dir: /opt/care/staging
+      workforce_domain: care.qd-tmmin.site
+      admin_domain: admin-ped.qd-tmmin.site
+    secrets: inherit

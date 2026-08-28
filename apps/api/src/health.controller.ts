@@ -62,6 +62,7 @@ export class HealthController {
     const degraded = [checks.database, checks.migrations, checks.storage].includes('failed');
     return {
       status: degraded ? 'not_ready' : 'ready',
+      releaseSha: config.RELEASE_SHA,
       checks,
       dependencies: {
         openai:

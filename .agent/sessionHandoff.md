@@ -1,16 +1,104 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                                      |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 27 Agustus 2026                                                                                                                                                                                                            |
-| Current objective       | Phase 11 (Frontend Complete Gate) selesai; workforce Web Push opt-in, offline summary cache, WCAG/responsive polish, two-app Playwright + security probes, gated workforce full-stack smoke; Frontend Complete Gate passed |
-| Current phase           | Phase 11 `done`; Frontend Complete Gate `passed`; Phase 12 (production containerization) is the next pending phase; no `in_progress` phase until Phase 12 starts                                                           |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                                                        |
-| Implementation status   | Phase 8.5 done; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix done; Phase 11 Frontend Complete Gate done                                                                             |
-| Latest ADR              | ADR-0006 (extended for Phase 8.5 completion), ADR-0007 (Member journey), ADR-0008 (voice lifecycle), ADR-0009 (pagination/dashboard metadata/matrix), ADR-0010 (frontend complete gate & two-app e2e)                      |
-| Recommended next action | Mulai Phase 12 (production containerization) setelah Frontend Complete Gate passed; jalankan parity CI penuh sebelum merge (termasuk step fullstack `FULLSTACK_E2E=1` single-worker)                                       |
+| Atribut                 | Nilai                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 28 Agustus 2026                                                                                                                                                                       |
+| Current objective       | Phase 12 production container runtime complete; Phase 13 immutable staging release implementation complete locally, awaiting GitHub/hosted deployment and rehearsal evidence          |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                      |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                   |
+| Implementation status   | Phase 0–12 done; staging images/Compose/scripts/workflows/docs implemented; local parity green; hosted evidence not yet claimed                                                       |
+| Latest ADR              | ADR-0011 (single-VM containers, two-origin routing, forward-only migration, immutable SHA releases, rollback, and race control)                                                       |
+| Recommended next action | Push exact candidate to `staging`, monitor every required job and deployment, verify both hosted origins, then execute guarded two-release rollback rehearsal before closing Phase 13 |
 
 ## Session Outcome
+
+### Configurable OpenAI reasoning effort — 28 Agustus 2026
+
+Added `OPENAI_REASONING_EFFORT` to direct `.env`, local full-stack, rendered hosted
+runtime, Compose, and validation contracts. Empty or unset values normalize to
+`medium`; explicit SDK-supported values are preserved, invalid values fail closed,
+and both classification and location Responses requests now send
+`reasoning: { effort }`. Mock provider and deployment harness assertions cover the
+default, override, request payload, render, and rejection behavior without a live
+provider call.
+
+### Production containers and immutable staging delivery — 28 Agustus 2026
+
+Implemented the production runtime and staging delivery system:
+
+- digest-pinned multi-stage images for API, workforce, Admin, PostgreSQL 16 +
+  pgvector 0.8.6, and Caddy; long-running containers are non-root and only Caddy
+  publishes ports;
+- dual-host Caddy plus nginx SPA/cache/security policies, exact frontend
+  `/release.json`, additive API readiness SHA, and exact-one-hop proxy trust;
+- internal PostgreSQL/API networking and separate persistent PostgreSQL, media,
+  Caddy, and deployment-state bind mounts;
+- compiled Admin bootstrap and live Responses/Web Push operational CLIs without
+  a TypeScript runtime in the production image;
+- allowlisted runtime env rendering/validation with mode/path/SHA/domain/secret
+  constraints and no shell execution of environment contents;
+- checksum-first safe archive ingestion, unique incoming paths, GitHub freshness
+  checks, no-cancel concurrency, VM `flock`, persistent run/SHA high-water mark,
+  atomic activation, five-release retention, forward-only migration, and code-only
+  rollback;
+- explicit CI jobs for quality/database/browser/migration/deployment/container and
+  security gates, followed by staging deployment only on a current `staging` push;
+  `main` runs CI but has no production deployment caller;
+- ADR-0011, per-release evidence checklist, and CARE deployment runbook.
+
+Scope decision: Web Push canary is implemented as a manually invoked one-shot
+profile using an exact enrolled subscription hash. It is not an automated test,
+deployment smoke, or automatic deployment gate. Live Responses classification and
+location validation remains part of the automatic staging deployment.
+
+Local evidence:
+
+- install/generate/audit/format/lint/typecheck; unit API 35, UI 8,
+  frontend-core 9, workforce 19, Admin 2; mocked Responses smoke;
+- destructive migration policy, fresh migration, historical upgrade/reconciliation,
+  integration 31, security 5, 10k-account/50k-Voice performance, OpenAPI drift,
+  clean-artifact build;
+- mocked Playwright 97 and serial full-stack Playwright 3;
+- actionlint, ShellCheck, Hadolint, bash syntax, runtime/Compose validation,
+  Ubuntu bootstrap check, deployment harness including Linux `flock`, and security
+  exception registry validation;
+- fresh production-like Compose start, migration/bootstrap, exact SHA, dual-host
+  routing/deep links, Admin no-PWA, CSP, non-root/port isolation, pgvector 0.8.6,
+  PostgreSQL identity and media persistence;
+- Trivy filesystem and all five runtime images: zero High/Critical findings.
+
+Hosted GitHub/deployment, live origin, acceptance-data, overlapping-candidate, and
+forced-failure rollback evidence must be recorded before Phase 13 changes to
+`done`. A read-only GitHub API check on 28 Agustus 2026 found no repository
+environment named `staging` (environment secrets endpoint returned 404); create
+that environment and populate the exact values listed in `deploymentGuide.md`
+before a hosted deploy can pass. Phase 14 remains `pending`; Delivery Complete
+Gate is not passed.
+
+### Local full-stack container runner — 28 Agustus 2026
+
+Added `.env.local.example`, ignored mode-0600 `.env.local`, the local Compose
+overlay, and `pnpm local:up|down|status|logs`. The local runner builds and starts
+PostgreSQL/migration/bootstrap/API/workforce/Admin/Caddy, verifies exact release
+identity and readiness, persists PostgreSQL in `care-local-postgres-data`, and
+persists media/Caddy state under ignored `local-data/fullstack`. OpenAI/VAPID are
+optional and empty by default, so no external service is required.
+
+The first Linux-like named-volume run exposed that `postgres:16-alpine` uses UID
+70, while the production scripts had assumed UID 999. Dockerfile, VM bootstrap,
+remote preflight, CI bind ownership, and local volume initialization were corrected
+to UID 70; the full local stack then started healthy on both origins.
+
+Validation after the final local-runner lock hardening: concurrent mutating local
+operations were rejected; merged Compose exposed ports only from Caddy; full-stack
+startup and exact-SHA routing passed; and a down/up cycle retained PostgreSQL system
+identifier `7678851906417971221`. Format, ESLint, TypeScript, unit (73), OpenAPI,
+build, mocked Playwright (97), fresh migrations, historical migration reconciliation,
+integration (31), security (5), performance (10,000 accounts/50,000 Voices),
+maintenance reconciliation, serial full-stack Playwright (3), actionlint, ShellCheck,
+Hadolint, deployment validation/harness, security registry/audit, directory Gitleaks,
+and PostgreSQL-image Trivy High/Critical all passed. The local Web Push canary remains
+implemented but outside automated tests, matching the accepted scope.
 
 ### Phase 11 completion — workforce Web Push opt-in, offline summary cache, accessibility polish, and two-app Playwright gate (27 Agustus 2026)
 

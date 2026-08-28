@@ -57,6 +57,20 @@ Future agents must treat runtime cleanup as part of finishing a task:
 - Before final response, confirm there are no agent-started long-running processes or containers still needed for the completed task.
 - If a process or container must remain running for the user to inspect the app, state that explicitly and include the URL or reason.
 
+The production-like local full stack is operated only through these root scripts:
+
+```text
+pnpm local:up
+pnpm local:status
+pnpm local:logs
+pnpm local:down
+```
+
+It reads the ignored mode-`0600` `.env.local`, exposes the workforce and Admin
+origins through Caddy, and preserves its Docker-managed PostgreSQL volume across
+`local:down`. Do not source `.env.local` in shell code or connect frontend code
+directly to its database.
+
 ## 4.2 Mandatory Local GitHub Actions Parity Checks
 
 Before creating any commit, future agents must inspect every workflow under `.github/workflows/`
@@ -129,8 +143,8 @@ git diff --check
 pnpm db:down
 ```
 
-Production containerization and deployment remain deferred. When those workflows are introduced,
-the baseline above must be extended with their exact commands, including:
+Production containerization and staging deployment are active. The baseline above is extended by
+the following required checks:
 
 ```text
 pnpm migrations:destructive-check <staging-base-sha>
@@ -138,17 +152,25 @@ pnpm deployment:validate
 pnpm test:deployment
 pnpm security:exceptions:check
 pnpm security:audit
-actionlint, ShellCheck, Hadolint, and bash -n using the workflow-pinned tool images
-bootstrap-vm.sh --check inside the workflow-pinned Ubuntu 22.04 image
-fresh and previous-SHA-to-current migration execution
-the production Compose build/start/routing/non-root/persistence acceptance sequence
-Trivy filesystem plus every production runtime image at HIGH,CRITICAL
+docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
+docker run --rm -v "$PWD:/repo" -w /repo koalaman/shellcheck-alpine:v0.11.0@sha256:9955be09ea7f0dbf7ae942ac1f2094355bb30d96fffba0ec09f5432207544002 shellcheck deploy/scripts/*.sh deploy/tests/*.sh
+for file in apps/api/Dockerfile apps/web-voice/Dockerfile apps/web-admin/Dockerfile deploy/postgres/Dockerfile deploy/caddy/Dockerfile; do docker run --rm -i hadolint/hadolint:v2.14.0-alpine@sha256:7aba693c1442eb31c0b015c129697cb3b6cb7da589d85c7562f9deb435a6657c < "$file"; done
+find deploy -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+docker run --rm -v "$PWD:/repo:ro" ubuntu:22.04@sha256:0e0a0fc6d18feda9db1590da249ac93e8d5abfea8f4c3c0c849ce512b5ef8982 bash /repo/deploy/scripts/bootstrap-vm.sh --check staging care-deploy "<valid-test-public-key>" 22
+fresh and previous-SHA-to-current `prisma migrate deploy` plus `prisma migrate status`
+the exact production Compose build/start/routing/non-root/persistence sequence from `.github/workflows/ci.yml`
+Trivy filesystem plus API, workforce, Admin, PostgreSQL, and Caddy runtime images at HIGH,CRITICAL
 ```
 
 The deployment-script harness must run on Linux before commit so real `flock` contention is tested;
 a macOS run that reports `flock` unavailable is supplemental only. Trivy must use the committed
 exact ignore file, and every ignore entry must have a rationale and future expiry in
 `.agent/securityExceptions.json`.
+
+The real Web Push canary is implemented but explicitly excluded from automated tests, CI,
+deployment smoke, and the automatic staging gate. It may only be invoked manually against the
+enrolled staging subscription according to `.agent/deploymentGuide.md`. The live Responses
+classification/location operation remains part of automatic staging deployment.
 
 The directory-mode Gitleaks command is the mandatory pre-commit scan because it includes
 uncommitted files. After committing and before pushing, also mirror the current GitHub Action

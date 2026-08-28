@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                                          |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 8.5 selesai; Phase 8 complete; Phase 9 Member journey done; Phase 10 responder/leadership matrix + acceptance done; Phase 11 Frontend Complete Gate done (Frontend Complete Gate: passed)                                                                                                |
-| Last updated           | 27 Agustus 2026                                                                                                                                                                                                                                                                                |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                           |
-| Current implementation | Phase 0–8 done (Phase 8.5 accessibility/security/performance/full-stack acceptance passed); Phase 9 Member journey done; Phase 10 responder/leadership matrix + Admin Explorer done; Phase 11 Frontend Complete Gate passed; Playwright mocked + CI full-stack (gated `FULLSTACK_E2E=1`) wired |
-| Current phase          | Frontend Complete Gate `passed`; production containerization (Phase 12) is the next pending phase; no `in_progress` phase until Phase 12 starts                                                                                                                                                |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                  |
+| Atribut                | Nilai                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12 done; Phase 13 staging delivery implementation complete locally and hosted acceptance in progress; Phase 14 pending                                                                                                  |
+| Last updated           | 28 Agustus 2026                                                                                                                                                                                                                 |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                            |
+| Current implementation | Production images, remote Compose, dual-host edge routing, runtime validation, immutable release scripts, rollback/race controls, security gates, and reusable staging deployment workflow are implemented and locally verified |
+| Current phase          | Phase 13 `in_progress`: repository implementation and local parity are complete; GitHub and hosted two-origin/rehearsal evidence must still pass before `done`                                                                  |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                   |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -237,7 +237,7 @@ Scope:
 
 - hapus Gemini/Vertex, `@google/genai`, location provider, dan seluruh `VERTEX_*` runtime contract;
 - official JavaScript SDK, `responses.create`, `/responses`, Structured Outputs JSON Schema, `store:false`, tanpa tools/conversation state;
-- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key;
+- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key dan dengan reasoning effort kosong default `medium`;
 - minimized payload, bounded timeout/retry, schema validation, sanitized errors, versioned prompts/contracts;
 - classification: nullable category untuk Private, severity, confidence, rationale code; tidak ada fixed category priority;
 - location review: `COMPLETE | INCOMPLETE | UNKNOWN`, warning, maksimal tiga suggestion questions;
@@ -555,7 +555,7 @@ rehearsal concern (Phase 13), not this gate.
 
 ## Phase 12 — Production Containerization for API, Workforce, Admin, and Caddy
 
-Status: `pending`
+Status: `done`
 
 Dependencies: Phase 11 Frontend Complete Gate.
 
@@ -572,9 +572,29 @@ Acceptance:
 - dependency order, persistence, health/readiness/release identity, dual SPA/API routing, dan security headers lulus;
 - tidak ada secret baked into image/repository.
 
+Evidence 28 Agustus 2026:
+
+- clean production-like build/start passed for PostgreSQL 16 + pgvector 0.8.6,
+  API, workforce, Admin, and Caddy;
+- every long-running container ran non-root; only Caddy published ports and the
+  PostgreSQL/API data network remained internal;
+- fresh migration/bootstrap, exact SHA on API and both frontends, dual-host SPA
+  deep links/API proxy, Admin no-PWA contract, security headers, and cache policy
+  passed;
+- PostgreSQL system identity and a media sentinel survived restart;
+- Trivy filesystem and all five runtime images reported zero High/Critical
+  findings. See ADR-0011.
+- a production-like local overlay and `pnpm local:up|down|status|logs` now run
+  the full PostgreSQL/migration/bootstrap/API/workforce/Admin/Caddy graph on
+  `care.localhost:8080` and `admin.care.localhost:8080` without requiring
+  OpenAI or Web Push; exact-SHA smoke and PostgreSQL down/up persistence passed;
+- PostgreSQL Alpine's runtime UID/GID was verified as `70:70`; production VM
+  ownership checks, CI bind setup, and local volume initialization use that
+  image-defined identity.
+
 ## Phase 13 — Staging Deployment and Rehearsal
 
-Status: `pending`
+Status: `in_progress`
 
 Dependencies: Phase 12.
 
@@ -590,6 +610,27 @@ Acceptance:
 - exact staging SHA tersedia pada kedua origin setelah green CI;
 - Linux deployment lock, fresh/current-schema upgrade, persistent volumes, compatible code rollback, and release evidence lulus;
 - end-to-end bootstrap/import/remediation serta critical workforce/Admin journeys green.
+
+Implementation state 28 Agustus 2026:
+
+- release-by-full-SHA, checksum-before-extraction, archive member validation,
+  atomic activation, retention, high-water run/SHA binding, Linux `flock`,
+  explicit current/previous pointers, forward-only migration, automatic code
+  rollback, and a guarded rehearsal using the same GitHub concurrency group and
+  VM lock are implemented and locally tested;
+- staging workflow gates quality, PostgreSQL integration/security/performance,
+  fresh and previous-SHA migrations, mocked/serial full-stack browser journeys,
+  workflow/shell/container acceptance, Gitleaks, dependency audit/review,
+  CodeQL, and Trivy before calling the reusable deployment workflow;
+- automatic staging deploy includes live Responses classification/location
+  validation and two-origin smoke. Web Push canary is implemented as a manually
+  invoked operational profile and is deliberately outside automated tests,
+  deployment smoke, and the automatic deploy gate;
+- hosted GitHub run, exact-SHA origin verification, acceptance-data journeys,
+  overlapping-candidate evidence, and forced-failure rollback rehearsal remain
+  required. The GitHub `staging` environment was absent at the final pre-push
+  check, so environment/secrets provisioning is an external blocker to hosted
+  deploy. Therefore this phase is not yet `done`.
 
 ## Phase 14 — Production Readiness and Launch
 
@@ -616,8 +657,14 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Frontend Complete Gate telah passed dan satu-satunya phase `in_progress` sebelumnya (Phase 11) kini `done`. Langkah berikutnya:
+Phase 12 selesai dan Phase 13 adalah satu-satunya phase `in_progress`. Langkah berikutnya:
 
-1. jalankan parity CI penuh sebelum merge (termasuk step fullstack Playwright `FULLSTACK_E2E=1` yang men-seed `care_test` melalui Playwright globalSetup; full-stack smoke memvalidasi wiring API/DB/proxy dan kini memuat journey workflow single-worker: Admin (_admin-fullstack_) dan member (_a-workforce-fullstack_, dijalankan terlebih dahulu agar member aktif) — business flow acceptance tetap di `test:integration` (31) & `test:security` (5); aturan single-worker wajib dipertahankan agar urutan file deterministik;
-2. refresh visual baseline workforce (_workforce-history-360.png_, _workforce-notifications-360.png_) jika layout berubah di masa depan; `workforce-shell-360.png` tetap valid karena perubahan Home tidak mengubah render online;
-3. mulai **Phase 12 (production containerization)** hanya setelah Frontend Complete Gate tercatat passed; Web Push delivery riil + VAPID credential tetap menjadi staging rehearsal (Phase 13).
+1. push candidate ke `staging`, pantau seluruh required GitHub job dan reusable
+   deploy sampai hijau, lalu cocokkan `/ready` dan kedua `/release.json` dengan
+   exact branch HEAD;
+2. jalankan hosted acceptance-data journeys dan staging rehearsal guarded setelah
+   dua release tersedia; rekam bukti pada `.agent/releaseExecutionChecklist.md`;
+3. enroll dan jalankan Web Push canary secara manual bila operator membutuhkan
+   bukti provider delivery. Canary bukan automated test atau deployment gate;
+4. hanya setelah seluruh hosted evidence hijau, ubah Phase 13 menjadi `done`.
+   Phase 14 dan seluruh production activation tetap `pending`.
