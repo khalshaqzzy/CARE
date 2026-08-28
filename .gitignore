@@ -15,5 +15,7 @@ coverage/
 /media/
 /apps/api/media/
 local-data/
+.local/
+.secret
 apps/api/prisma/dev.db
 packages/contracts/src/generated.ts.tmp
