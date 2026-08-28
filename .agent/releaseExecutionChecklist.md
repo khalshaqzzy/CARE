@@ -30,7 +30,7 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 - [ ] Remote `flock` was acquired; high-water run/SHA checks accepted the candidate.
 - [ ] PostgreSQL healthy; forward-only migration completed; Admin bootstrap completed without credential output.
 - [ ] API exact-SHA readiness passed.
-- [ ] Live Responses classification and location schemas passed.
+- [ ] Live DeepSeek Chat Completions classification and location function schemas passed.
 - [ ] Workforce, Admin, and Caddy became healthy in order.
 - [ ] Internal and external two-origin smoke passed.
 - [ ] `current` and `current_release` changed only after smoke success.

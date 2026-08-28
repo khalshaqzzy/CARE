@@ -61,7 +61,7 @@ async function main() {
     throw new Error(
       `Live location contract validation failed (fallbackCode=${location.fallbackCode})`,
     );
-  say('Live Responses classification and location contracts passed');
+  say('Live DeepSeek Chat Completions classification and location contracts passed');
 }
 
 void main();

@@ -4,6 +4,7 @@
 - Date: 2026-08-25
 - Decision owners: CARE/TMMIN product and engineering
 - Supersedes: identity, provisioning, routing, Union, AI, Private visibility, capacity, and single-frontend decisions in ADR 0001 and ADR 0003 where they conflict with this record
+- AI transport note: the Responses API portions of this record are superseded by ADR-0017; routing, privacy, fallback, and snapshot decisions remain active
 
 ## Context
 

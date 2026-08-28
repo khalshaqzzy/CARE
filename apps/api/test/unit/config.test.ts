@@ -34,7 +34,7 @@ describe('runtime configuration', () => {
     expect(value).not.toContain('secret-api-key');
     expect(value).toContain('"configured":true');
   });
-  it('defaults an empty OpenAI reasoning effort and preserves a supported override', () => {
+  it('defaults an empty OpenAI reasoning effort to none and preserves a supported override', () => {
     Object.assign(process.env, {
       NODE_ENV: 'test',
       DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
@@ -44,7 +44,7 @@ describe('runtime configuration', () => {
       CURSOR_SIGNING_SECRET: 'd'.repeat(32),
       OPENAI_REASONING_EFFORT: '',
     });
-    expect(loadConfig().OPENAI_REASONING_EFFORT).toBe('medium');
+    expect(loadConfig().OPENAI_REASONING_EFFORT).toBe('none');
 
     resetConfigForTests();
     process.env.OPENAI_REASONING_EFFORT = 'high';

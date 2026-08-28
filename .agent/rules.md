@@ -169,7 +169,7 @@ exact ignore file, and every ignore entry must have a rationale and future expir
 
 The real Web Push canary is implemented but explicitly excluded from automated tests, CI,
 deployment smoke, and the automatic staging gate. It may only be invoked manually against the
-enrolled staging subscription according to `.agent/deploymentGuide.md`. The live Responses
+enrolled staging subscription according to `.agent/deploymentGuide.md`. The live DeepSeek Chat Completions
 classification/location operation remains part of automatic staging deployment.
 
 The directory-mode Gitleaks command is the mandatory pre-commit scan because it includes

@@ -6,13 +6,13 @@
 
 ## Context
 
-Staging auto-deploy runs a live OpenAI-compatible Responses contract check
+Staging auto-deploy runs a live DeepSeek Chat Completions contract check
 (`live-provider-smoke`, a one-shot container that calls the configured provider
-with the exact `responses.create` JSON-Schema shape) once the API is healthy.
+with the exact forced-function classification/location shape) once the API is healthy.
 Before this decision, any smoke failure failed the candidate and triggered an
 automatic rollback to the previous release. The product contract explicitly
 wants a live classification/location schema check during staging deployment
-(PRD §28.3, §31.1, §33.4), and the check remains valuable because formatting,
+(PRD §28.3, §31.1, §33.4), and the check remains valuable because function-call formatting,
 provider incompatibility, or a broken tunnel can otherwise pass all unit,
 integration, and container tests.
 
@@ -22,7 +22,7 @@ configured staging provider (the local SGLang tunnel behind
 deployment environment at the time this decision was made, which blocked every
 otherwise-green staging release. The product already treats an unavailable AI
 provider as a degraded, non-fatal condition (PRD §13.5 Manual Fallback and
-§28.3 readiness: "Responses provider transient outage tidak mematikan core
+§28.3 readiness: "DeepSeek provider transient outage tidak mematikan core
 readiness karena Manual Fallback tersedia"). A deployment that fails only
 because the AI provider is unreachable carries no product-behavior regression:
 classification and location review degrade to reporter-facing Manual Fallback
@@ -30,14 +30,14 @@ and the location degraded state exactly as designed.
 
 ## Decision
 
-The OpenAI-compatible provider smoke during automated deployment becomes
+The DeepSeek Chat Completions provider smoke during automated deployment becomes
 **advisory** instead of a gate:
 
 1. `remote-deploy.sh` still runs `live-provider-smoke` in the same position
    (after the API is healthy, before the web containers start).
 2. A smoke failure no longer fails the candidate and no longer triggers
    automatic rollback. The deploy continues; the operator-facing log prints an
-   explicit `Live OpenAI-compatible provider smoke FAILED; release continues
+   explicit `Live DeepSeek Chat Completions provider smoke FAILED; release continues
 with Manual Fallback active.` warning.
 3. The outcome is recorded in the environment deployment state at
    `shared/deployment-state/live-provider-smoke.result` as
@@ -109,7 +109,7 @@ with Manual Fallback active.` warning.
   whose marker says `failed`; the formal release-readiness gate (§39) still
   requires the live smoke to pass.
 - The provider itself still needs remediation: the `OPENAI_*` secrets must
-  resolve to a reachable, schema-compatible `/responses` endpoint before the
+  resolve to a reachable, function-compatible `/chat/completions` endpoint before the
   staging acceptance evidence is complete (ADR-0007 follow-up).
 
 ## Validation

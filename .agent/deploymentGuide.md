@@ -6,7 +6,7 @@ dikonfigurasi. Production tidak boleh diaktifkan sebelum seluruh prerequisite Ph
 disetujui.
 
 Runbook ini mengadaptasi pola operasional `supplier-henkaten` untuk dua origin CARE, lima runtime
-image, satu API bersama, forward-only Prisma migration, live Responses validation, dan release
+image, satu API bersama, forward-only Prisma migration, live DeepSeek Chat Completions validation, dan release
 identity berbasis full Git SHA. Jangan menulis IP, credential, private key, endpoint/hash Web Push,
 atau PII workforce ke repository maupun release evidence.
 
@@ -27,7 +27,7 @@ Satu VM Ubuntu 22.04 LTS menjalankan satu Compose project bernama `care-staging`
 | CARE Admin    | `https://admin-ped.qd-tmmin.site`         |
 | API           | same-origin `/api/v1/*` pada kedua domain |
 
-Responses API dan browser push provider adalah integrasi operasional aplikasi. Tidak ada callback
+DeepSeek Chat Completions API dan browser push provider adalah integrasi operasional aplikasi. Tidak ada callback
 atau deployment service eksternal tambahan.
 
 > **Critical Accepted Risk:** v1 tidak memiliki backup database/media, WAL archive/PITR, restore
@@ -174,9 +174,9 @@ Tambahkan environment secrets berikut:
 | `METRICS_TOKEN`         | random minimum 32 karakter dan berbeda                      |
 | `CARE_ADMIN_USERNAME`   | username tunggal CARE Admin                                 |
 | `CARE_ADMIN_PASSWORD`   | initial password minimum 12 karakter, berbeda dari username |
-| `OPENAI_API_KEY`        | server-only provider key staging                            |
-| `OPENAI_MODEL`          | model Responses API yang sudah disetujui                    |
-| `OPENAI_BASE_URL`       | HTTPS base URL provider yang sudah disetujui                |
+| `OPENAI_API_KEY`        | server-only DeepSeek key staging                            |
+| `OPENAI_MODEL`          | `deepseek-v4-flash`                                         |
+| `OPENAI_BASE_URL`       | `https://api.deepseek.com`                                  |
 | `VAPID_SUBJECT`         | `mailto:` atau HTTPS contact subject                        |
 | `VAPID_PUBLIC_KEY`      | public key dari CLI CARE                                    |
 | `VAPID_PRIVATE_KEY`     | private key pasangan VAPID staging                          |
@@ -189,10 +189,10 @@ Optional environment secret:
 
 Tambahkan environment variables:
 
-| Variable                  | Isi                                                                                      |
-| ------------------------- | ---------------------------------------------------------------------------------------- |
-| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                              |
-| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; kosong berarti `medium` |
+| Variable                  | Isi                                                                                    |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                            |
+| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; kosong berarti `none` |
 
 Secret proteksi yang berbeda fungsi harus memiliki value berbeda. Untuk secret dotenv-safe:
 
@@ -249,7 +249,7 @@ Urutan deployment:
 3. exact SHA diarsipkan, checksum dan archive member divalidasi, lalu di-upload via strict SSH;
 4. remote preflight memeriksa OS, Docker/Compose, disk, permission, Compose exposure, dan DNS;
 5. PostgreSQL dimulai, lalu `prisma migrate deploy` dan idempotent Admin bootstrap;
-6. API healthy, live Responses classification/location schema check sukses;
+6. API healthy, live DeepSeek Chat Completions classification/location function-schema check sukses;
 7. workforce/Admin web healthy, kemudian Caddy dimulai terakhir;
 8. internal dan external two-origin smoke harus sukses sebelum pointer `current` diaktifkan.
 
@@ -284,7 +284,7 @@ Account dan perbarui secret store sesuai prosedur operator. Lengkapi
 - HSTS, CSP, anti-framing, `nosniff`, Referrer-Policy, Permissions-Policy, dan cache policy;
 - workforce manifest/service worker tersedia, sedangkan Admin manifest/service worker 404;
 - semua long-running container non-root dan PostgreSQL tidak memiliki host port;
-- live Responses, Admin bootstrap/import/remediation, Union/privacy/media, dan critical workforce
+- live DeepSeek Chat Completions, Admin bootstrap/import/remediation, Union/privacy/media, dan critical workforce
   journey memakai staging acceptance data.
 
 Simpan evidence yang teredaksi. Jangan menyimpan business response body, PII, token, atau secret.
@@ -428,7 +428,7 @@ Common failures:
 - **runtime env:** perbaiki GitHub secret/variable yang disebut; jangan melemahkan validator;
 - **disk/ownership/PostgreSQL:** tambah disk atau perbaiki permission; jangan hapus data existing;
 - **migration:** simpan log dan perbaiki dengan forward migration baru; jangan reset/down migrate;
-- **live Responses:** periksa endpoint/model/key/quota/schema tanpa mencetak payload/secret;
+- **live DeepSeek Chat Completions:** periksa endpoint/model/key/quota/function schema tanpa mencetak payload/secret;
 - **API/web/Caddy/smoke:** periksa exact candidate log, health, route, header, port, dan SHA;
 - **rollback:** biarkan database/media tetap utuh dan review code/schema compatibility;
 - **push canary:** verifikasi enrollment/hash/VAPID/provider; kegagalannya tidak mengubah hasil

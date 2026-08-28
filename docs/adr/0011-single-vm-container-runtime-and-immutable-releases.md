@@ -15,7 +15,7 @@ CARE uses one Compose project per environment with these production services:
 - a distroless, non-root API image;
 - separate non-root nginx images for the workforce PWA and network-only Admin SPA;
 - a non-root Caddy edge image as the only service publishing ports 80/443;
-- one-shot migration, Admin bootstrap, live Responses smoke, and Web Push canary profiles.
+- one-shot migration, Admin bootstrap, live DeepSeek Chat Completions smoke, and Web Push canary profiles.
 
 The workforce and Admin origins proxy `/api/v1`, `/health`, and `/ready` to the same API. Each frontend owns its `/release.json`. Caddy supplies host-specific security policy; nginx supplies SPA fallback and cache policy. The API trusts exactly one proxy hop.
 
@@ -27,13 +27,13 @@ Database migrations are forward-only. A failed candidate never runs a down migra
 
 The active release, its previous release, and up to five releases in total are retained. Cleanup validates the exact release path and SHA-tagged images and never prunes PostgreSQL, media, Caddy state, or deployment state.
 
-The Web Push canary remains an explicitly invoked operational profile. It selects one enrolled active staging subscription by exact endpoint hash, sends a generic redacted payload through the CARE delivery path, and requires provider acceptance plus a new `lastSuccessAt`. It is intentionally outside automated tests, deployment smoke, and the automatic deployment gate. Live Responses classification/location validation remains an automatic staging deployment gate.
+The Web Push canary remains an explicitly invoked operational profile. It selects one enrolled active staging subscription by exact endpoint hash, sends a generic redacted payload through the CARE delivery path, and requires provider acceptance plus a new `lastSuccessAt`. It is intentionally outside automated tests, deployment smoke, and the automatic deployment gate. Live DeepSeek Chat Completions classification/location validation remains an automatic staging check whose failure is advisory under ADR-0015.
 
 Local production-like testing composes the same release images and remote service graph through a thin local overlay. The overlay replaces host bind mounts with an isolated PostgreSQL named volume and repository-ignored local media/Caddy paths, exposes only Caddy on `care.localhost:8080` and `admin.care.localhost:8080`, and keeps OpenAI and Web Push optional. A single runner owns validation, image build, migration, idempotent Admin bootstrap, dependency-ordered startup, and exact-SHA smoke checks. Runtime environment contents are parsed rather than sourced. PostgreSQL Alpine runs as its image-defined UID/GID `70:70`; VM bind mounts and local named-volume initialization must use that identity.
 
 ## Consequences
 
-- No external deployment, queue, callback, or observability service is required. Browser push providers and the configured Responses API are the only application integrations exercised operationally.
+- No external deployment, queue, callback, or observability service is required. Browser push providers and the configured DeepSeek Chat Completions API are the only application integrations exercised operationally.
 - Two origins remain isolated at the browser boundary while sharing one API and database.
 - A candidate can be rejected or rolled back without mutating the active pointer.
 - Code rollback is not data recovery. An incompatible or destructive migration cannot be repaired by this mechanism.

@@ -6,7 +6,7 @@ loadLocalEnv();
 const optionalSecret = z.string().min(24).optional().or(z.literal(''));
 const openAiReasoningEffort = z.preprocess(
   (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-  z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).default('medium'),
+  z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).default('none'),
 );
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),

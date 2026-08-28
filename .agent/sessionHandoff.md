@@ -1,16 +1,68 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 28 Agustus 2026                                                                                                                                                                              |
-| Current objective       | Route remediation UX, Union dashboard, and mobile dashboard containment fixed locally; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                             |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                          |
-| Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                                  |
-| Latest ADR              | ADR-0016 (No. Reg route remediation, affected-department workspace, Union dashboard gating, and mobile card containment)                                                                     |
-| Recommended next action | Deploy/retest the remediation and Union/mobile dashboard fixes on staging, complete authenticated Safari operator retest, then resume exact-SHA acceptance and rollback rehearsal            |
+| Atribut                 | Nilai                                                                                                                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 28 Agustus 2026                                                                                                                                                                               |
+| Current objective       | DeepSeek Chat Completions/function-calling migration implemented and locally validated; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                              |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                           |
+| Implementation status   | Phase 0–12 done; AI now targets `deepseek-v4-flash` via Chat Completions and forced functions; QA-005 deferred; Phase 13 hosted evidence not yet claimed                                      |
+| Latest ADR              | ADR-0017 (DeepSeek Chat Completions with function-call results and local schema validation)                                                                                                   |
+| Recommended next action | Review/merge the feature branch to `staging`, then complete hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                |
 
 ## Session Outcome
+
+### DeepSeek Chat Completions and function calling — 28 Agustus 2026
+
+The CARE AI transport now uses the official OpenAI JavaScript SDK's
+`chat.completions.create` method against `/chat/completions`, targeting
+`deepseek-v4-flash`. Existing `OPENAI_*` environment names, secret boundaries,
+timeout/confidence controls, health response shape, deterministic routing, and
+Manual Fallback semantics remain unchanged. Empty reasoning effort now defaults
+to `none`; it maps to `thinking.disabled` without `reasoning_effort`, while the
+remaining accepted values map to DeepSeek `low`, `high`, or `max` thinking.
+
+Classification and location review each send a versioned system prompt plus an
+explicitly untrusted JSON user message, expose one standard function, and force
+that named function through `tool_choice`. The adapter accepts exactly one
+matching function call, parses its arguments, and then applies strict Zod domain
+validation. Missing, duplicate, unexpected, malformed, truncated, filtered, or
+resource-interrupted output falls back safely without schema retries; timeout,
+429, connection, and 5xx behavior retain one bounded retry. Strict Beta `/beta`
+is intentionally not used. Prompt versions advanced to
+`care-classification-v1.2` and `care-location-v1.2`, invalidating stale draft AI
+snapshots through the existing prompt-bound hashes.
+
+The live non-sensitive smoke passed against `https://api.deepseek.com` with
+`deepseek-v4-flash` and reasoning `none`: classification returned AI source,
+`SAFETY`, `HIGH`, confidence `0.9` in 1773 ms; location returned `COMPLETE` in
+1738 ms. The key was supplied to the process through non-echoing stdin, was
+never written to disk or logged, and must still be rotated. The compatibility
+command `pnpm test:openai:smoke` passed against a local mock that asserts the
+DeepSeek Chat Completions/function-calling request contract.
+
+Mandatory local parity completed green: frozen install, Prisma generation,
+format, lint, typecheck, deterministic OpenAPI, production build, destructive
+migration check, Compose config, and dependency audit (zero High/Critical; the
+documented ExcelJS transitive Moderate remains). Unit suites passed with API 60,
+UI 8, frontend-core 14, workforce web 20, and Admin web 2 tests. Playwright
+passed 106 mocked/visual/PWA tests and 3 full-stack tests. PostgreSQL passed 33
+integration and 5 security tests, upgrade reconciliation, the 10k-account/
+50k-Voice seeded performance test, and maintenance reconciliation with all
+counts at zero. Deployment validation and harness, security-exception checks,
+actionlint, ShellCheck, Hadolint, Bash syntax, and Ubuntu bootstrap contracts
+all passed. The production-like five-image stack passed exact-SHA routing,
+health/readiness, deep-link, authentication, CSP, non-root, unexposed-database,
+restart, media, and database-persistence checks. Trivy found zero High/Critical
+vulnerabilities or applicable filesystem secret/misconfiguration findings, and
+Gitleaks found no repository leaks. Started Compose stacks were stopped after
+validation.
+
+ADR-0017 supersedes only the Responses transport portions of ADR-0004. PRD,
+roadmap, backend guide, deployment guide/checklist, runtime examples, advisory
+provider-smoke documentation, and deployment messages now describe DeepSeek
+Chat Completions. No HTTP/OpenAPI/database/frontend contract changed and Phase
+13 remains `in_progress`.
 
 ### Route remediation and workforce dashboard corrections — 28 Agustus 2026
 
@@ -608,9 +660,17 @@ Workbook aktual tetap hanya dibaca untuk UAT shape validation dan tidak dimasukk
 
 ## AI Test Decision
 
-Automated AI test tidak memakai API key nyata. `pnpm test:openai:smoke` menyalakan mock HTTP `/responses` lokal, menyuntikkan credential dummy hanya agar SDK dapat membangun request, lalu memvalidasi classification dan location schemas, `store:false`, serta absence of tools/conversation. Tidak ada external network call.
+Automated AI test tidak memakai API key nyata. Perintah compatibility
+`pnpm test:openai:smoke` menyalakan mock HTTP `/chat/completions` lokal,
+menyuntikkan credential dummy hanya agar SDK dapat membangun request, lalu
+memvalidasi DeepSeek non-thinking mode, forced classification/location
+functions, dan local schema boundary. Tidak ada external network call.
 
-`OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` tetap kosong secara default dan baru diperlukan pada runtime staging/production. Live provider validation dipindahkan ke Phase 13 staging rehearsal dan bukan dependency Backend Complete Gate.
+`OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` tetap kosong secara
+default dan baru diperlukan pada runtime staging/production. Target yang
+disetujui adalah `https://api.deepseek.com`, `deepseek-v4-flash`, dan effort
+`none`. Live provider validation tetap menjadi Phase 13 staging evidence dan
+bukan dependency Backend Complete Gate.
 
 ## Backend Complete Gate Evidence
 

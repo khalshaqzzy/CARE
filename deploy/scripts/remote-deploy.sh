@@ -61,14 +61,14 @@ candidate_deploy() {
   compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" --profile operations run --rm bootstrap-admin || return 1
   compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps api || return 1
   wait_for_service "${RELEASE_DIR}" "${RUNTIME_ENV}" api 240 || return 1
-  # Live OpenAI-compatible provider smoke is advisory, not a deploy gate: a
+  # Live DeepSeek Chat Completions provider smoke is advisory, not a deploy gate: a
   # failed provider is a degraded dependency (Manual Fallback keeps
   # classification available per PRD §13.5/§28.3) and must not roll back an
   # otherwise healthy candidate. The outcome is recorded for audit and still
   # appears in the deployment log. See docs/adr/0015-non-blocking-provider-smoke.md.
   if ! compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" --profile operations run --rm live-provider-smoke; then
     record_provider_smoke_state failed "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "${RUNTIME_ENV}" "${REQUESTED_SHA}"
-    echo "Live OpenAI-compatible provider smoke FAILED; release continues with Manual Fallback active." >&2
+    echo "Live DeepSeek Chat Completions provider smoke FAILED; release continues with Manual Fallback active." >&2
   else
     record_provider_smoke_state passed "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "${RUNTIME_ENV}" "${REQUESTED_SHA}"
   fi
