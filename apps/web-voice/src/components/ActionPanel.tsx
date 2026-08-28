@@ -16,6 +16,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const actions = detail.availableActions ?? [];
   const [active, setActive] = useState<Action>('none');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const askKey = useMutationKey('ask');
   const proceedKey = useMutationKey('proceed');
@@ -33,6 +34,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       api.ask(detail.id, { text, version: detail.version }, askKey.key()),
     onSuccess: () => {
       invalidate();
+      setNotice('Percakapan verifikasi telah dibuka.');
       setActive('none');
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
@@ -42,6 +44,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     mutationFn: () => api.proceed(detail.id, { version: detail.version }, proceedKey.key()),
     onSuccess: () => {
       invalidate();
+      setNotice('Voice dipindahkan ke In Progress.');
       setActive('none');
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
@@ -52,6 +55,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       api.close(detail.id, body, closeKey.key()),
     onSuccess: () => {
       invalidate();
+      setNotice('Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.');
       setActive('none');
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
@@ -62,6 +66,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       api.rate(detail.id, body, rateKey.key()),
     onSuccess: () => {
       invalidate();
+      setNotice('Rating berhasil disimpan.');
       setActive('none');
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
@@ -72,6 +77,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       api.assign(detail.id, { ...body, expectedVersion: detail.version }, assignKey.key()),
     onSuccess: () => {
       invalidate();
+      setNotice('Penanggung jawab diperbarui dan percakapan verifikasi tersedia.');
       setActive('none');
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
@@ -89,6 +95,11 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       {error ? (
         <Alert tone="danger" title="Periksa kembali">
           {error}
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert tone="success" title="Perubahan tersimpan">
+          {notice}
         </Alert>
       ) : null}
       <div className="action-panel__grid">

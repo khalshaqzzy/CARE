@@ -54,10 +54,11 @@ describe('workforce foundation boundaries', () => {
 
   it('exposes the Private Voice destination for Union accounts on dock and sidebar', () => {
     const app = readFileSync(join(sourceDir, 'App.tsx'), 'utf8');
+    const navigation = readFileSync(join(sourceDir, 'lib/navigation.ts'), 'utf8');
     // Union nav carries a Private item pointing at the same operational inbox,
     // and the active-state resolution is role-aware.
     expect(app).toContain("private: '/work-items'");
-    expect(app).toContain("{ id: 'private', label: 'Private', icon: <Lock size={20} /> }");
+    expect(navigation).toContain("{ id: 'private', label: 'Private' }");
     expect(app).toContain('resolveCurrent(location.pathname, caps.isUnion)');
     expect(app).toContain("isUnion ? 'private' : 'work-items'");
   });

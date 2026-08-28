@@ -6,6 +6,7 @@ import {
   BottomNav,
   Button,
   Card,
+  Dialog,
   EmptyState,
   Input,
   Loader,
@@ -20,6 +21,7 @@ import {
   Home,
   Inbox,
   Lock,
+  MoreHorizontal,
   Plus,
   ScrollText,
   ShieldCheck,
@@ -38,6 +40,7 @@ import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
 import { desktopQuery, useMediaQuery } from './lib/use-media-query';
+import { navigationForCapabilities } from './lib/navigation';
 
 export function App() {
   useEffect(() => registerCareServiceWorker(), []);
@@ -67,7 +70,7 @@ export function App() {
           <Route path="drafts/:id/preview" element={<DraftPreviewPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="work-items" element={<WorkItemsPage />} />
-          <Route path="general" element={<GeneralBrowsePage />} />
+          <Route path="general" element={<GeneralRoute />} />
           <Route path="voices/:id" element={<VoiceDetailPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
@@ -288,8 +291,6 @@ function WrongApp() {
   );
 }
 
-type NavItem = { id: string; label: string; icon: React.ReactNode; to?: string };
-
 /** Dock/route map so every mobile bottom-nav tap resolves to a real route. */
 const NAV_ROUTES: Record<string, string> = {
   home: '/',
@@ -319,6 +320,14 @@ function capabilityFor(session: ReturnType<typeof useAuth>['session']): {
   };
 }
 
+function GeneralRoute() {
+  const { session } = useAuth();
+  const isUnion = session?.capabilities.some((capability) =>
+    ['UNION_HEAD', 'UNION_OFFICER'].includes(capability),
+  );
+  return isUnion ? <GeneralBrowsePage /> : <Navigate to="/work-items" replace />;
+}
+
 function resolveCurrent(pathname: string, isUnion: boolean): string {
   const p = pathname;
   if (p === '/') return 'home';
@@ -338,48 +347,32 @@ function WorkforceShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery(desktopQuery);
+  const [moreOpen, setMoreOpen] = useState(false);
   if (!session) return null;
   const caps = capabilityFor(session);
   const current = resolveCurrent(location.pathname, caps.isUnion);
-  const createNav = (): NavItem[] => {
-    if (caps.isUnion)
-      return [
-        { id: 'home', label: 'Beranda', icon: <ShieldCheck size={20} /> },
-        { id: 'private', label: 'Private', icon: <Lock size={20} /> },
-        { id: 'general', label: 'General', icon: <ScrollText size={20} /> },
-        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
-        { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
-      ];
-    if (caps.isLeadership)
-      return [
-        { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
-        { id: 'general', label: 'General', icon: <ScrollText size={20} /> },
-        { id: 'create', label: 'Buat', icon: <Plus size={20} />, to: '/voices/new' },
-        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
-        { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
-      ];
-    if (caps.isResponder)
-      return [
-        { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
-        { id: 'work-items', label: 'Voice Member', icon: <Inbox size={20} /> },
-        { id: 'create', label: 'Buat', icon: <Plus size={20} />, to: '/voices/new' },
-        { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
-        { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
-      ];
-    return [
-      { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
-      { id: 'create', label: 'Buat', icon: <Plus size={20} />, to: '/voices/new' },
-      { id: 'history', label: 'Riwayat', icon: <ClipboardList size={20} /> },
-      { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
-      { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
-    ];
+  const iconFor = (id: string) => {
+    const Icon =
+      {
+        home: caps.isUnion ? ShieldCheck : Home,
+        private: Lock,
+        general: ScrollText,
+        'work-items': Inbox,
+        create: Plus,
+        history: ClipboardList,
+        notifications: Bell,
+        account: UserRound,
+        more: MoreHorizontal,
+      }[id] ?? Home;
+    return <Icon size={20} />;
   };
-
-  const bottomNav = createNav().map((item) => ({
-    id: item.id,
-    label: item.label,
-    icon: item.icon,
-  }));
+  const withIcons = (desktop: boolean) =>
+    navigationForCapabilities(session.capabilities, desktop).map((item) => ({
+      ...item,
+      icon: iconFor(item.id),
+    }));
+  const desktopNav = withIcons(true);
+  const bottomNav = withIcons(false);
 
   // The reference home leads with the hero identity, so the chrome topbar yields on mobile.
   const showTopbar = !(!isDesktop && current === 'home');
@@ -413,7 +406,7 @@ function WorkforceShell() {
         ? {
             sidebar: (
               <Sidebar
-                items={bottomNav}
+                items={desktopNav}
                 current={current}
                 onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
                 header={
@@ -446,13 +439,56 @@ function WorkforceShell() {
             bottomNav: (
               <BottomNav
                 items={bottomNav}
-                current={current}
-                onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
+                current={
+                  moreOpen || ['notifications', 'account'].includes(current) ? 'more' : current
+                }
+                onNavigate={(id) => {
+                  if (id === 'more') setMoreOpen(true);
+                  else void navigate(NAV_ROUTES[id] ?? '/');
+                }}
               />
             ),
           })}
     >
       <Outlet />
+      {!isDesktop && !caps.isUnion ? (
+        <Dialog
+          open={moreOpen}
+          onOpenChange={setMoreOpen}
+          title="Lainnya"
+          description="Notifikasi dan pengaturan akun CARE."
+          mobileSheet
+        >
+          <div className="more-menu">
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                void navigate('/notifications');
+              }}
+            >
+              <Bell size={20} />
+              <span>
+                <strong>Notifikasi</strong>
+                <small>Lihat pembaruan Voice terbaru</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                void navigate('/account');
+              }}
+            >
+              <UserRound size={20} />
+              <span>
+                <strong>Akun</strong>
+                <small>Profil, akses, dan keamanan</small>
+              </span>
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
     </AppShell>
   );
 }

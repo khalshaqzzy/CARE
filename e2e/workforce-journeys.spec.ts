@@ -22,7 +22,7 @@ const generalVoice = {
   area: 'KARAWANG_1',
   title: 'Pencahayaan area produksi kurang',
   detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi.',
-  availableActions: ['ASK', 'PROCEED'],
+  availableActions: ['ASK', 'MESSAGE', 'PROCEED'],
 };
 
 test.describe('workforce journeys (mocked contract)', () => {
@@ -40,7 +40,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await mockWorkforceApi(page, { voice: generalVoice });
     await page.goto('/');
     const dock = page.getByRole('navigation', { name: 'Navigasi utama' });
-    await dock.getByRole('button', { name: 'Riwayat' }).click();
+    await dock.getByRole('button', { name: 'Voice Saya' }).click();
     await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
@@ -53,7 +53,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await mockWorkforceApi(page, { voice: generalVoice });
     await page.goto('/');
     const sidebar = page.getByRole('navigation', { name: 'Navigasi aplikasi' });
-    await sidebar.getByRole('button', { name: 'Riwayat' }).click();
+    await sidebar.getByRole('button', { name: 'Voice Saya' }).click();
     await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
   });
 
@@ -86,7 +86,7 @@ test.describe('workforce journeys (mocked contract)', () => {
       page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
     ).toBeVisible();
     await expect(page.getByText('Timeline')).toBeVisible();
-    await expect(page.getByText('Percakapan')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Tindakan' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
   });
@@ -342,7 +342,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/account');
     await expect(page.getByRole('heading', { name: 'Pengaturan akun' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Notifikasi push' })).toBeVisible();
-    await expect(page.getByText('Member')).toBeVisible();
+    await expect(page.getByText('Member', { exact: true })).toBeVisible();
   });
 
   test('error states never leak stack frames or machine codes', async ({ page }) => {

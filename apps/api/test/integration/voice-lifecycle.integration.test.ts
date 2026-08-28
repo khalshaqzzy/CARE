@@ -159,6 +159,82 @@ describe('Voice lifecycle backend completion', () => {
     ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
   });
 
+  it('keeps chat absent for OPEN and for a direct OPEN to IN_PROGRESS transition', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    const openDetail = await voices.detail(manager, voice.id);
+    expect(openDetail.conversationState).toBe('UNAVAILABLE');
+    expect(openDetail.availableActions).not.toContain('MESSAGE');
+    await expect(voices.messages(manager, voice.id, {})).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+
+    const progressed = await voices.proceed(manager, voice.id, { version: 1 }, 'proceed-no-chat');
+    expect(progressed.status).toBe(VoiceStatus.IN_PROGRESS);
+    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
+    const progressedDetail = await voices.detail(manager, voice.id);
+    expect(progressedDetail.conversationState).toBe('UNAVAILABLE');
+    await expect(
+      voices.addMessage(manager, voice.id, { text: 'should fail' }, [], 'message-no-chat'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+  });
+
+  it('opens an empty active room on assignment and creates records on the first message', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    await voices.assign(
+      manager,
+      voice.id,
+      { handlerAccountId: sectionHead.accountId, expectedVersion: 1 },
+      'assign-chat-room',
+    );
+
+    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
+    const assignedDetail = await voices.detail(sectionHead, voice.id);
+    expect(assignedDetail.conversationState).toBe('ACTIVE');
+    expect(assignedDetail.availableActions).toContain('MESSAGE');
+    expect(await voices.messages(sectionHead, voice.id, {})).toMatchObject({ items: [] });
+
+    await voices.addMessage(
+      sectionHead,
+      voice.id,
+      { text: 'Mohon lengkapi lokasi.' },
+      [],
+      'message-first',
+    );
+    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(1);
+    expect((await voices.messages(reporter, voice.id, {})).items).toHaveLength(1);
+  });
+
+  it('preserves an asked conversation through IN_PROGRESS and makes it read-only when CLOSED', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    const asked = await voices.ask(
+      manager,
+      voice.id,
+      { text: 'Bisa beri detail tambahan?', version: 1 },
+      'ask-chat-lifecycle',
+    );
+    expect((await voices.detail(reporter, voice.id)).conversationState).toBe('ACTIVE');
+
+    const progressed = await voices.proceed(
+      manager,
+      voice.id,
+      { version: asked.version },
+      'proceed-chat-lifecycle',
+    );
+    expect((await voices.detail(manager, voice.id)).conversationState).toBe('ACTIVE');
+
+    await evidence(voice.id, manager.accountId, 'chat-close');
+    await voices.close(
+      manager,
+      voice.id,
+      { note: 'resolved', version: progressed.version },
+      'close-chat-lifecycle',
+    );
+    expect((await voices.detail(reporter, voice.id)).conversationState).toBe('READ_ONLY');
+    await expect(
+      voices.addMessage(reporter, voice.id, { text: 'too late' }, [], 'message-closed'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+  });
+
   it('lists section head candidates for General and union officers for Private', async () => {
     const general = await createVoice({
       status: VoiceStatus.OPEN,

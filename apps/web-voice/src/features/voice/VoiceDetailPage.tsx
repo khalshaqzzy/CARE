@@ -1,6 +1,7 @@
 import { Badge, Button, Card, EmptyState, SeverityBadge, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { ActionPanel } from '../../components/ActionPanel';
 import { ConversationPanel } from '../../components/ConversationPanel';
@@ -29,6 +30,16 @@ export function VoiceDetailPage() {
     enabled: !!id && !!session,
     refetchInterval: 3000,
   });
+  const conversationState = detail.data?.conversationState;
+  const previousConversationState = useRef(conversationState);
+  useEffect(() => {
+    if (previousConversationState.current === 'UNAVAILABLE' && conversationState === 'ACTIVE') {
+      document
+        .getElementById('voice-conversation')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    previousConversationState.current = conversationState;
+  }, [conversationState]);
 
   if (detail.isLoading) {
     return (
@@ -46,7 +57,6 @@ export function VoiceDetailPage() {
     );
   }
   const voice = detail.data;
-  const canMessage = voice.availableActions?.includes('MESSAGE') || voice.status !== 'CLOSED';
 
   return (
     <Stack gap="lg">
@@ -117,7 +127,9 @@ export function VoiceDetailPage() {
 
       {voice.attachments?.length ? <MediaGallery attachments={voice.attachments} /> : null}
 
-      {canMessage ? <ConversationPanel voiceId={voice.id} /> : null}
+      {voice.conversationState !== 'UNAVAILABLE' ? (
+        <ConversationPanel voiceId={voice.id} state={voice.conversationState} />
+      ) : null}
 
       <ClosureCycles voice={voice} />
 

@@ -120,6 +120,9 @@ export class VoicesController {
   ) {
     return this.voices.workItems(a, q ?? {});
   }
+  @Get('voices/monitoring-options') monitoringOptions(@Actor() a: AuthActor) {
+    return this.voices.monitoringOptions(a);
+  }
   @Get('voices/:id') detail(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
     return this.voices.detail(a, id);
   }

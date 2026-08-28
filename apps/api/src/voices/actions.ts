@@ -7,6 +7,7 @@ export type ActionableVoice = {
   visibility: VoiceVisibility;
   status: VoiceStatus;
   handlerType: HandlerType;
+  hasConversation?: boolean;
   closureCycles?: Array<{ reopenedAt: Date | null; rating?: { score: number } | null }>;
 };
 
@@ -37,17 +38,19 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
   const actions: string[] = [];
   if (canOperate) {
     if (voice.status === 'OPEN') {
-      actions.push('ASK', 'PROCEED', 'MESSAGE');
+      actions.push('ASK', 'PROCEED');
       if (canAssign) actions.push('ASSIGN');
     } else if (voice.status === 'IN_VERIFICATION') {
       actions.push('ASK', 'MESSAGE', 'PROCEED');
       if (canAssign) actions.push('REASSIGN');
     } else if (voice.status === 'IN_PROGRESS') {
-      actions.push('CLOSE', 'MESSAGE');
+      actions.push('CLOSE');
+      if (voice.hasConversation) actions.push('MESSAGE');
     }
   } else if (isReporter) {
-    if (voice.status !== 'CLOSED') actions.push('MESSAGE');
-    else {
+    if (voice.status === 'IN_VERIFICATION') actions.push('MESSAGE');
+    else if (voice.status === 'IN_PROGRESS' && voice.hasConversation) actions.push('MESSAGE');
+    else if (voice.status === 'CLOSED') {
       const latest = voice.closureCycles?.at(-1);
       if (latest && !latest.reopenedAt) {
         actions.push('RATE');

@@ -153,6 +153,7 @@ export type MockVoice = {
   title: string;
   detail: string;
   availableActions: string[];
+  conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY' | null;
 };
@@ -174,6 +175,13 @@ const voiceDetail = (voice: MockVoice): VoiceDetail => ({
   updatedAt: '2026-08-03T00:00:00.000Z',
   classificationSource: 'AI',
   availableActions: voice.availableActions,
+  conversationState:
+    voice.conversationState ??
+    (voice.status === 'OPEN'
+      ? 'UNAVAILABLE'
+      : voice.availableActions.includes('MESSAGE')
+        ? 'ACTIVE'
+        : 'READ_ONLY'),
   closureCycles: [],
   routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
   currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
@@ -232,6 +240,13 @@ export function unionPrivateVoiceDetail(
     updatedAt: '2026-08-03T00:00:00.000Z',
     classificationSource: 'AI' as const,
     availableActions: voice.availableActions,
+    conversationState:
+      voice.conversationState ??
+      (voice.status === 'OPEN'
+        ? 'UNAVAILABLE'
+        : voice.availableActions.includes('MESSAGE')
+          ? 'ACTIVE'
+          : 'READ_ONLY'),
     closureCycles: [],
     routeOwner: { id: 'union-head-1', displayName: 'Union Head' },
     currentHandler: null,
@@ -855,6 +870,13 @@ function detail(voice: MockVoice) {
     },
     closureCycles: [],
     availableActions: voice.availableActions,
+    conversationState:
+      voice.conversationState ??
+      (voice.status === 'OPEN'
+        ? 'UNAVAILABLE'
+        : voice.availableActions.includes('MESSAGE')
+          ? 'ACTIVE'
+          : 'READ_ONLY'),
     reporter: {
       noReg: '000128',
       name: 'Budi Santoso',
@@ -954,6 +976,12 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         200,
         opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
       );
+    }
+    if (method === 'GET' && path === '/api/v1/voices/monitoring-options') {
+      return satisfy(200, {
+        handlers: [{ id: 'handler-1', displayName: 'Manager PIC' }],
+        generatedAt: new Date().toISOString(),
+      });
     }
 
     const messagesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/messages$/);

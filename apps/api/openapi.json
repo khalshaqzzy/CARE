@@ -6303,6 +6303,19 @@
             }
           },
           {
+            "name": "statusGroup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "CLOSED",
+                "ALL"
+              ]
+            }
+          },
+          {
             "name": "visibility",
             "in": "query",
             "required": false,
@@ -6343,7 +6356,7 @@
             }
           },
           {
-            "name": "dateFrom",
+            "name": "from",
             "in": "query",
             "required": false,
             "schema": {
@@ -6351,7 +6364,7 @@
             }
           },
           {
-            "name": "dateTo",
+            "name": "to",
             "in": "query",
             "required": false,
             "schema": {
@@ -6524,6 +6537,19 @@
             }
           },
           {
+            "name": "statusGroup",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "CLOSED",
+                "ALL"
+              ]
+            }
+          },
+          {
             "name": "severity",
             "in": "query",
             "required": false,
@@ -6548,7 +6574,7 @@
             }
           },
           {
-            "name": "dateFrom",
+            "name": "from",
             "in": "query",
             "required": false,
             "schema": {
@@ -6556,7 +6582,7 @@
             }
           },
           {
-            "name": "dateTo",
+            "name": "to",
             "in": "query",
             "required": false,
             "schema": {
@@ -6565,6 +6591,14 @@
           },
           {
             "name": "unassigned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "handler",
             "in": "query",
             "required": false,
             "schema": {
@@ -6579,6 +6613,128 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VoiceListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
+    "/api/v1/voices/monitoring-options": {
+      "get": {
+        "operationId": "VoicesController_monitoringOptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringOptions"
                 }
               }
             }
@@ -10568,6 +10724,40 @@
           }
         }
       },
+      "MonitoringOptions": {
+        "type": "object",
+        "required": [
+          "handlers",
+          "generatedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "handlers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "displayName"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "displayName": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AccountSelectionRequest": {
         "type": "object",
         "required": [
@@ -11371,6 +11561,7 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "conversationState",
           "closureCycles",
           "routeOwner",
           "currentHandler",
@@ -11473,6 +11664,14 @@
               "type": "string"
             }
           },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
+          },
           "closureCycles": {
             "type": "array",
             "items": {
@@ -11561,6 +11760,7 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "conversationState",
           "closureCycles",
           "routeOwner",
           "currentHandler",
@@ -11663,6 +11863,14 @@
               "type": "string"
             }
           },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
+          },
           "closureCycles": {
             "type": "array",
             "items": {
@@ -11760,6 +11968,7 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "conversationState",
           "closureCycles",
           "routeOwner",
           "currentHandler",
@@ -11862,6 +12071,14 @@
               "type": "string"
             }
           },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
+          },
           "closureCycles": {
             "type": "array",
             "items": {
@@ -11940,6 +12157,7 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "conversationState",
           "closureCycles",
           "routeOwner",
           "currentHandler",
@@ -12042,6 +12260,14 @@
               "type": "string"
             }
           },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
+          },
           "closureCycles": {
             "type": "array",
             "items": {
@@ -12128,6 +12354,7 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "conversationState",
           "closureCycles",
           "routeOwner",
           "currentHandler",
@@ -12230,6 +12457,14 @@
               "type": "string"
             }
           },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
+          },
           "closureCycles": {
             "type": "array",
             "items": {
@@ -12327,6 +12562,7 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "conversationState",
           "closureCycles",
           "routeOwner",
           "currentHandler",
@@ -12429,6 +12665,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
           },
           "closureCycles": {
             "type": "array",

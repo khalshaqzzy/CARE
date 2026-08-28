@@ -534,9 +534,10 @@ export default function DesignPage() {
                 current="home"
                 items={[
                   { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
-                  { id: 'voices', label: 'Riwayat', icon: <ClipboardList size={20} /> },
-                  { id: 'calendar', label: 'Aktivitas', icon: <CalendarDays size={20} /> },
-                  { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
+                  { id: 'members', label: 'Voice Member', icon: <UsersRound size={20} /> },
+                  { id: 'create', label: 'Buat', icon: <Plus size={20} /> },
+                  { id: 'mine', label: 'Voice Saya', icon: <ClipboardList size={20} /> },
+                  { id: 'more', label: 'Lainnya', icon: <MoreHorizontal size={20} /> },
                 ]}
               />
             </div>
