@@ -5,7 +5,7 @@ import { CLASSIFICATION_PROMPT_VERSION, CLASSIFICATION_SYSTEM_PROMPT } from '../
 import { ratingError, transitionTarget } from '../../src/voices/policies';
 import { decodeCursor, encodeCursor } from '../../src/common/cursor';
 import { resetConfigForTests } from '../../src/config';
-import { AiService } from '../../src/ai/ai.service';
+import { AiService, deepSeekReasoningConfig } from '../../src/ai/ai.service';
 
 describe('CARE domain contracts', () => {
   it('uses deterministic canonical request hashes', () => {
@@ -27,7 +27,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.1');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.2');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -40,7 +40,23 @@ describe('CARE domain contracts', () => {
     ])
       expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(value);
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('no fixed category priority');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('untrusted report data');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('submit_care_classification');
   });
+  it.each([
+    ['none', { thinking: { type: 'disabled' } }],
+    ['minimal', { thinking: { type: 'enabled' }, reasoning_effort: 'low' }],
+    ['low', { thinking: { type: 'enabled' }, reasoning_effort: 'low' }],
+    ['medium', { thinking: { type: 'enabled' }, reasoning_effort: 'high' }],
+    ['high', { thinking: { type: 'enabled' }, reasoning_effort: 'high' }],
+    ['xhigh', { thinking: { type: 'enabled' }, reasoning_effort: 'high' }],
+    ['max', { thinking: { type: 'enabled' }, reasoning_effort: 'max' }],
+  ] as const)(
+    'maps configured reasoning effort %s to DeepSeek chat parameters',
+    (effort, expected) => {
+      expect(deepSeekReasoningConfig(effort)).toEqual(expected);
+    },
+  );
   it('requires manual fallback without exposing a missing provider secret', async () => {
     delete process.env.OPENAI_API_KEY;
     resetConfigForTests();

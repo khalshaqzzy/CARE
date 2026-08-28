@@ -12,6 +12,7 @@ afterEach(() => {
     'OPENAI_MODEL',
     'OPENAI_BASE_URL',
     'OPENAI_REASONING_EFFORT',
+    'OPENAI_TIMEOUT_MS',
   ])
     delete process.env[key];
   resetConfigForTests();
@@ -160,8 +161,8 @@ describe('CSV import contract', () => {
   });
 });
 
-describe('OpenAI Responses adapter', () => {
-  it('uses store:false, strict structured output, no tools, and separate classification/location schemas', async () => {
+describe('DeepSeek Chat Completions adapter', () => {
+  it('uses non-thinking named function calls and separate classification/location schemas', async () => {
     const requests: any[] = [];
     const server = createServer((request, response) => {
       let raw = '';
@@ -169,40 +170,48 @@ describe('OpenAI Responses adapter', () => {
       request.on('end', () => {
         const body = JSON.parse(raw);
         requests.push({ url: request.url, body });
-        const location = body.text.format.name === 'care_location_review';
-        const text = location
-          ? JSON.stringify({
+        const tool = body.tools[0].function;
+        const location = tool.name === 'submit_care_location_review';
+        const value = location
+          ? {
               completeness: 'INCOMPLETE',
               warning: 'Lokasi belum rinci',
               questions: ['Di gedung atau line mana?'],
-            })
-          : JSON.stringify({
+            }
+          : {
               category: 'ENVIRONMENT',
               severity: 'HIGH',
               confidence: 0.91,
               rationaleCode: 'ENVIRONMENTAL_RISK',
-            });
+            };
         response.writeHead(200, {
           'content-type': 'application/json',
           'x-request-id': 'safe-request',
         });
         response.end(
           JSON.stringify({
-            id: `resp_${requests.length}`,
-            object: 'response',
-            created_at: 1,
-            status: 'completed',
+            id: `chatcmpl_${requests.length}`,
+            object: 'chat.completion',
+            created: 1,
             model: body.model,
-            output: [
+            choices: [
               {
-                id: 'msg_1',
-                type: 'message',
-                status: 'completed',
-                role: 'assistant',
-                content: [{ type: 'output_text', text, annotations: [] }],
+                index: 0,
+                finish_reason: 'tool_calls',
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: { name: tool.name, arguments: JSON.stringify(value) },
+                    },
+                  ],
+                },
               },
             ],
-            usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 },
+            usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
           }),
         );
       });
@@ -215,7 +224,7 @@ describe('OpenAI Responses adapter', () => {
         OPENAI_API_KEY: 'test-openai-key-that-is-long-enough',
         OPENAI_MODEL: 'test-model',
         OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
-        OPENAI_REASONING_EFFORT: 'high',
+        OPENAI_REASONING_EFFORT: 'none',
       });
       resetConfigForTests();
       const service = new AiService();
@@ -233,12 +242,18 @@ describe('OpenAI Responses adapter', () => {
       expect(location).toMatchObject({ completeness: 'INCOMPLETE' });
       expect(requests).toHaveLength(2);
       for (const item of requests) {
-        expect(item.url).toBe('/v1/responses');
-        expect(item.body.store).toBe(false);
-        expect(item.body.reasoning).toEqual({ effort: 'high' });
-        expect(item.body.tools).toBeUndefined();
-        expect(item.body.conversation).toBeUndefined();
-        expect(item.body.text.format.strict).toBe(true);
+        expect(item.url).toBe('/v1/chat/completions');
+        expect(item.body.thinking).toEqual({ type: 'disabled' });
+        expect(item.body.reasoning_effort).toBeUndefined();
+        expect(item.body.messages).toHaveLength(2);
+        expect(item.body.messages[0].role).toBe('system');
+        expect(item.body.messages[1].content).toContain('untrusted CARE report data');
+        expect(item.body.tools).toHaveLength(1);
+        expect(item.body.tools[0].function.strict).toBeUndefined();
+        expect(item.body.tool_choice).toEqual({
+          type: 'function',
+          function: { name: item.body.tools[0].function.name },
+        });
       }
     } finally {
       await new Promise<void>((resolve, reject) =>
@@ -262,30 +277,40 @@ describe('OpenAI Responses adapter', () => {
           return;
         }
         const body = JSON.parse(raw);
-        const text = JSON.stringify({
+        const value = {
           category: null,
           severity: 'CRITICAL',
           confidence: 0.95,
           rationaleCode: 'PEOPLE_ISSUE',
-        });
+        };
         response.writeHead(200, { 'content-type': 'application/json' });
         response.end(
           JSON.stringify({
-            id: 'resp_private',
-            object: 'response',
-            created_at: 1,
-            status: 'completed',
+            id: 'chatcmpl_private',
+            object: 'chat.completion',
+            created: 1,
             model: body.model,
-            output: [
+            choices: [
               {
-                id: 'msg_1',
-                type: 'message',
-                status: 'completed',
-                role: 'assistant',
-                content: [{ type: 'output_text', text, annotations: [] }],
+                index: 0,
+                finish_reason: 'tool_calls',
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call_private',
+                      type: 'function',
+                      function: {
+                        name: body.tools[0].function.name,
+                        arguments: JSON.stringify(value),
+                      },
+                    },
+                  ],
+                },
               },
             ],
-            usage: { input_tokens: 10, output_tokens: 10, total_tokens: 20 },
+            usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
           }),
         );
       });
@@ -311,6 +336,243 @@ describe('OpenAI Responses adapter', () => {
       });
       expect(requests).toBe(2);
     } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+
+  it.each([
+    ['length', undefined, 'INCOMPLETE'],
+    ['content_filter', undefined, 'INCOMPLETE'],
+    ['insufficient_system_resource', undefined, 'INCOMPLETE'],
+    ['stop', undefined, 'EMPTY_OUTPUT'],
+    ['tool_calls', [], 'INVALID_SCHEMA'],
+    [
+      'tool_calls',
+      [
+        {
+          id: 'wrong',
+          type: 'function',
+          function: { name: 'unexpected_tool', arguments: '{}' },
+        },
+      ],
+      'INVALID_SCHEMA',
+    ],
+    [
+      'tool_calls',
+      [
+        {
+          id: 'duplicate-1',
+          type: 'function',
+          function: { name: 'submit_care_classification', arguments: '{}' },
+        },
+        {
+          id: 'duplicate-2',
+          type: 'function',
+          function: { name: 'submit_care_classification', arguments: '{}' },
+        },
+      ],
+      'INVALID_SCHEMA',
+    ],
+    [
+      'tool_calls',
+      [
+        {
+          id: 'malformed',
+          type: 'function',
+          function: { name: 'submit_care_classification', arguments: '{not-json' },
+        },
+      ],
+      'INVALID_SCHEMA',
+    ],
+    [
+      'tool_calls',
+      [
+        {
+          id: 'invalid-domain',
+          type: 'function',
+          function: {
+            name: 'submit_care_classification',
+            arguments: JSON.stringify({
+              category: 'NOT_ALLOWED',
+              severity: 'HIGH',
+              confidence: 0.9,
+              rationaleCode: 'AMBIGUOUS',
+            }),
+          },
+        },
+      ],
+      'INVALID_SCHEMA',
+    ],
+  ] as const)(
+    'maps finish reason %s and malformed tool output to %s',
+    async (finishReason, toolCalls, expectedFallback) => {
+      let requests = 0;
+      const server = createServer((request, response) => {
+        request.resume();
+        request.on('end', () => {
+          requests += 1;
+          response.writeHead(200, { 'content-type': 'application/json' });
+          response.end(
+            JSON.stringify({
+              id: `chatcmpl_failure_${requests}`,
+              object: 'chat.completion',
+              created: 1,
+              model: 'deepseek-v4-flash',
+              choices: [
+                {
+                  index: 0,
+                  finish_reason: finishReason,
+                  message: {
+                    role: 'assistant',
+                    content: finishReason === 'stop' ? 'unexpected prose' : null,
+                    ...(toolCalls === undefined ? {} : { tool_calls: toolCalls }),
+                  },
+                },
+              ],
+              usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+            }),
+          );
+        });
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      try {
+        const address = server.address();
+        if (!address || typeof address === 'string') throw new Error('Server address missing');
+        Object.assign(process.env, {
+          OPENAI_API_KEY: 'test-openai-key-that-is-long-enough',
+          OPENAI_MODEL: 'deepseek-v4-flash',
+          OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+          OPENAI_REASONING_EFFORT: 'none',
+        });
+        resetConfigForTests();
+        const result = await new AiService().classify({
+          visibility: 'GENERAL',
+          area: 'KARAWANG_1',
+          title: 'Test output contract',
+          detail: 'Provider output must be rejected safely.',
+        });
+        expect(result).toMatchObject({
+          source: 'MANUAL_FALLBACK',
+          fallbackCode: expectedFallback,
+        });
+        expect(requests).toBe(1);
+      } finally {
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+    },
+  );
+
+  it('retries one provider 5xx and accepts the second function call', async () => {
+    let requests = 0;
+    const server = createServer((request, response) => {
+      let raw = '';
+      request.on('data', (chunk) => (raw += chunk));
+      request.on('end', () => {
+        requests += 1;
+        if (requests === 1) {
+          response.writeHead(503, { 'content-type': 'application/json' });
+          response.end(
+            JSON.stringify({ error: { message: 'temporarily unavailable', type: 'server_error' } }),
+          );
+          return;
+        }
+        const body = JSON.parse(raw);
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            id: 'chatcmpl_after_503',
+            object: 'chat.completion',
+            created: 1,
+            model: body.model,
+            choices: [
+              {
+                index: 0,
+                finish_reason: 'tool_calls',
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call_after_503',
+                      type: 'function',
+                      function: {
+                        name: body.tools[0].function.name,
+                        arguments: JSON.stringify({
+                          category: 'FACILITY',
+                          severity: 'MEDIUM',
+                          confidence: 0.88,
+                          rationaleCode: 'FACILITY_ISSUE',
+                        }),
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Server address missing');
+      Object.assign(process.env, {
+        OPENAI_API_KEY: 'test-openai-key-that-is-long-enough',
+        OPENAI_MODEL: 'deepseek-v4-flash',
+        OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+        OPENAI_REASONING_EFFORT: 'none',
+      });
+      resetConfigForTests();
+      const result = await new AiService().classify({
+        visibility: 'GENERAL',
+        area: 'KARAWANG_1',
+        title: 'Lampu area rusak',
+        detail: 'Lampu lorong produksi tidak menyala.',
+      });
+      expect(result).toMatchObject({ source: 'AI', result: { category: 'FACILITY' } });
+      expect(requests).toBe(2);
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+
+  it('retries one timeout and then returns a sanitized timeout fallback', async () => {
+    let requests = 0;
+    const server = createServer((request) => {
+      requests += 1;
+      request.resume();
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Server address missing');
+      Object.assign(process.env, {
+        OPENAI_API_KEY: 'test-openai-key-that-is-long-enough',
+        OPENAI_MODEL: 'deepseek-v4-flash',
+        OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+        OPENAI_REASONING_EFFORT: 'none',
+        OPENAI_TIMEOUT_MS: '1000',
+      });
+      resetConfigForTests();
+      const result = await new AiService().classify({
+        visibility: 'GENERAL',
+        area: 'KARAWANG_1',
+        title: 'Timeout fixture',
+        detail: 'The provider does not answer this non-sensitive fixture.',
+      });
+      expect(result).toMatchObject({ source: 'MANUAL_FALLBACK', fallbackCode: 'TIMEOUT' });
+      expect(JSON.stringify(result)).not.toContain('test-openai-key');
+      expect(requests).toBe(2);
+    } finally {
+      server.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );

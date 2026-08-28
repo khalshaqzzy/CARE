@@ -18,13 +18,20 @@ async function main() {
     request.on('end', () => {
       const body = JSON.parse(raw) as {
         model: string;
-        store: boolean;
-        text: { format: { name: string; strict: boolean } };
+        thinking: { type: string };
+        reasoning_effort?: string;
+        messages: Array<{ role: string; content: string }>;
+        tools: Array<{
+          type: string;
+          function: { name: string; strict?: boolean; parameters: Record<string, unknown> };
+        }>;
+        tool_choice: { type: string; function: { name: string } };
       };
       requests.push({ path: request.url, body: body as unknown as Record<string, unknown> });
       sequence += 1;
+      const toolName = body.tools[0]?.function.name;
       const value =
-        body.text.format.name === 'care_location_review'
+        toolName === 'submit_care_location_review'
           ? { completeness: 'COMPLETE', warning: null, questions: [] }
           : {
               category: 'ENVIRONMENT',
@@ -38,21 +45,28 @@ async function main() {
       });
       response.end(
         JSON.stringify({
-          id: `resp_mock_${sequence}`,
-          object: 'response',
-          created_at: 1,
-          status: 'completed',
+          id: `chatcmpl_mock_${sequence}`,
+          object: 'chat.completion',
+          created: 1,
           model: body.model,
-          output: [
+          choices: [
             {
-              id: `msg_mock_${sequence}`,
-              type: 'message',
-              status: 'completed',
-              role: 'assistant',
-              content: [{ type: 'output_text', text: JSON.stringify(value), annotations: [] }],
+              index: 0,
+              finish_reason: 'tool_calls',
+              message: {
+                role: 'assistant',
+                content: null,
+                tool_calls: [
+                  {
+                    id: `call_mock_${sequence}`,
+                    type: 'function',
+                    function: { name: toolName, arguments: JSON.stringify(value) },
+                  },
+                ],
+              },
             },
           ],
-          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
         }),
       );
     });
@@ -64,7 +78,7 @@ async function main() {
     if (!address || typeof address === 'string') throw new Error('Mock server address missing');
     Object.assign(process.env, {
       OPENAI_API_KEY: 'local-mock-credential-not-a-real-api-key',
-      OPENAI_MODEL: 'care-mock-responses-model',
+      OPENAI_MODEL: 'deepseek-v4-flash',
       OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
       OPENAI_REASONING_EFFORT: '',
     });
@@ -83,24 +97,30 @@ async function main() {
       }),
     ]);
     if (classification.source !== 'AI' || location.completeness !== 'COMPLETE')
-      throw new Error('Mock Responses smoke did not return both valid schemas');
+      throw new Error('Mock DeepSeek Chat Completions smoke did not return both valid schemas');
     if (
       requests.length !== 2 ||
       requests.some(
         ({ path, body }) =>
-          path !== '/v1/responses' ||
-          body.store !== false ||
-          (body.reasoning as { effort?: string } | undefined)?.effort !== 'medium' ||
-          'tools' in body ||
-          'conversation' in body,
+          path !== '/v1/chat/completions' ||
+          (body.thinking as { type?: string } | undefined)?.type !== 'disabled' ||
+          'reasoning_effort' in body ||
+          !Array.isArray(body.messages) ||
+          (body.messages as Array<{ role?: string }>).length !== 2 ||
+          !Array.isArray(body.tools) ||
+          (body.tools as Array<unknown>).length !== 1 ||
+          (body.tools as Array<{ function?: { strict?: boolean } }>)[0]?.function?.strict !==
+            undefined ||
+          (body.tool_choice as { function?: { name?: string } } | undefined)?.function?.name !==
+            (body.tools as Array<{ function: { name: string } }>)[0]?.function.name,
       )
     )
-      throw new Error('Mock Responses smoke observed an invalid request contract');
+      throw new Error('Mock DeepSeek Chat Completions smoke observed an invalid request contract');
     process.stdout.write(
       `${JSON.stringify({
         status: 'ok',
-        provider: 'mock-openai-responses',
-        model: 'care-mock-responses-model',
+        provider: 'mock-deepseek-chat-completions',
+        model: 'deepseek-v4-flash',
         schemas: ['classification', 'location'],
         requestIds: [classification.responseId, location.responseId],
       })}\n`,

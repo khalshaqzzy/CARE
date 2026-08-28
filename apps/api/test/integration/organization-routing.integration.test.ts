@@ -233,7 +233,7 @@ describe('Organization, remediation, and routing journey', () => {
     const locationReview = await prisma.locationReviewSnapshot.create({
       data: {
         draftId: generalDraft.id,
-        promptVersion: 'care-location-v1.1',
+        promptVersion: 'care-location-v1.2',
         completeness: 'INCOMPLETE',
         warning: 'Lokasi belum rinci',
         questions: ['Di station mana?'],

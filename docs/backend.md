@@ -19,7 +19,7 @@ Stop the database with `pnpm db:down`. Tests use the disposable `care_test` data
 
 ## Security configuration
 
-Run `pnpm setup:local` once to create an ignored root `.env` with generated secrets and environment-specific VAPID keys. OpenAI base URL, model, and API key are intentionally empty. The command refuses to overwrite existing setup files. It also creates an ignored synthetic `organization.xlsx`, Admin remediation data, and a mode-0600 `LOCAL_CREDENTIALS.txt`. Never commit API keys, VAPID private keys, session secrets, bootstrap passwords, or actual workforce imports.
+Run `pnpm setup:local` once to create an ignored root `.env` with generated secrets and environment-specific VAPID keys. DeepSeek base URL, model, and API key remain represented by the existing `OPENAI_*` names and are intentionally empty. The command refuses to overwrite existing setup files. It also creates an ignored synthetic `organization.xlsx`, Admin remediation data, and a mode-0600 `LOCAL_CREDENTIALS.txt`. Never commit API keys, VAPID private keys, session secrets, bootstrap passwords, or actual workforce imports.
 
 | Variable                      | Purpose                                                    | Secret |
 | ----------------------------- | ---------------------------------------------------------- | ------ |
@@ -35,10 +35,10 @@ Run `pnpm setup:local` once to create an ignored root `.env` with generated secr
 | `CURSOR_SIGNING_SECRET`       | HMAC key for opaque pagination cursors.                    | Yes    |
 | `SESSION_IDLE_HOURS`          | Sliding idle expiry.                                       | No     |
 | `SESSION_ABSOLUTE_DAYS`       | Absolute session expiry.                                   | No     |
-| `OPENAI_API_KEY`              | Server-only Responses API key.                             | Yes    |
-| `OPENAI_MODEL`                | Externally supplied Responses-capable model.               | No     |
-| `OPENAI_BASE_URL`             | API root whose `/responses` surface is available.          | No     |
-| `OPENAI_REASONING_EFFORT`     | Responses reasoning effort; blank defaults to `medium`.    | No     |
+| `OPENAI_API_KEY`              | Server-only DeepSeek API key.                              | Yes    |
+| `OPENAI_MODEL`                | DeepSeek model; target is `deepseek-v4-flash`.             | No     |
+| `OPENAI_BASE_URL`             | DeepSeek API root; target is `https://api.deepseek.com`.   | No     |
+| `OPENAI_REASONING_EFFORT`     | CARE reasoning setting; blank defaults to `none`.          | No     |
 | `OPENAI_CONFIDENCE_THRESHOLD` | AI-to-manual-fallback boundary.                            | No     |
 | `OPENAI_TIMEOUT_MS`           | Timeout for each provider attempt.                         | No     |
 | `VAPID_SUBJECT`               | Web Push operator contact subject.                         | No     |
@@ -52,7 +52,7 @@ Run `pnpm setup:local` once to create an ignored root `.env` with generated secr
 
 The initial Admin is created idempotently with `CARE_ADMIN_USERNAME`, `CARE_ADMIN_PASSWORD`, and `pnpm bootstrap:admin`. Generate each environment's Web Push credentials with either `pnpm vapid:generate -- --stdout` for a controlled operator terminal or `pnpm vapid:generate -- --output /secure/operator/path`; the CLI refuses to overwrite a file. Place the values directly in the environment secret store.
 
-AI tests never require a real API key. `pnpm test:openai:smoke` starts a local mock `/responses` server and validates both strict structured contracts and the minimized request envelope. Real provider credentials are used only for an explicitly configured staging/production runtime validation.
+AI tests never require a real API key. `pnpm test:openai:smoke` is retained for compatibility and starts a local mock `/chat/completions` server. It validates DeepSeek non-thinking mode, forced named function calls, local schema validation, and the minimized request envelope. Real provider credentials are used only for an explicitly configured staging/production runtime validation.
 
 ## API behavior
 
