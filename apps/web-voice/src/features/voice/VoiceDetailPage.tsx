@@ -9,11 +9,13 @@ import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatDateTime,
+  STATUS_LABELS,
   VISIBILITY_LABELS,
+  VOICE_ACTION_LABELS,
 } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorFeed } from '../../lib/useCursorFeed';
-import type { Attachment, TimelineEvent } from '../../workforce-api';
+import type { Attachment, TimelineEvent, VoiceDetail } from '../../workforce-api';
 
 export function VoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -63,7 +65,7 @@ export function VoiceDetailPage() {
         <dl className="voice-detail__grid">
           <div>
             <dt>Status</dt>
-            <dd>{voice.status}</dd>
+            <dd>{STATUS_LABELS[voice.status] ?? voice.status}</dd>
           </div>
           <div>
             <dt>Diajukan</dt>
@@ -102,6 +104,8 @@ export function VoiceDetailPage() {
         </dl>
       </Card>
 
+      <ReporterCard voice={voice} />
+
       <ActionPanel detail={voice} />
 
       <Card>
@@ -120,6 +124,55 @@ export function VoiceDetailPage() {
       <Timeline voiceId={voice.id} />
     </Stack>
   );
+}
+
+function ReporterCard({ voice }: { voice: VoiceDetail }) {
+  // The reporter block exists only where the contract grants it: the Union sees
+  // the immutable consent snapshot (SHOW) or a per-Voice alias (HIDE). Other
+  // audiences keep the existing surfaces unchanged.
+  if (voice.audience === 'UNION_IDENTIFIED') {
+    return (
+      <Card className="voice-reporter">
+        <div className="voice-reporter__head">
+          <h3 className="section-title">Pelapor</h3>
+          <Badge tone="info">Identitas ditampilkan</Badge>
+        </div>
+        <dl className="voice-detail__grid">
+          <div>
+            <dt>Nama</dt>
+            <dd>{voice.reporter.name}</dd>
+          </div>
+          <div>
+            <dt>No. Reg</dt>
+            <dd>{voice.reporter.noReg}</dd>
+          </div>
+          <div>
+            <dt>Divisi</dt>
+            <dd>{voice.reporter.division}</dd>
+          </div>
+          <div>
+            <dt>Department</dt>
+            <dd>{voice.reporter.department}</dd>
+          </div>
+        </dl>
+      </Card>
+    );
+  }
+  if (voice.audience === 'UNION_ANONYMOUS') {
+    return (
+      <Card className="voice-reporter">
+        <div className="voice-reporter__head">
+          <h3 className="section-title">Pelapor</h3>
+          <Badge tone="neutral">Identitas disembunyikan</Badge>
+        </div>
+        <p className="voice-reporter__alias">{voice.anonymousReporter.alias}</p>
+        <p className="care-note">
+          Alias hanya berlaku untuk Voice ini dan tidak dapat dikaitkan dengan Voice lain.
+        </p>
+      </Card>
+    );
+  }
+  return null;
 }
 
 function ClosureCycles({ voice }: { voice: { closureCycles: unknown[] } }) {
@@ -196,7 +249,9 @@ function Timeline({ voiceId }: { voiceId: string }) {
             <li className="care-timeline__item" key={event.id}>
               <span className="care-timeline__marker" aria-hidden="true" />
               <div className="care-timeline__body">
-                <strong className="care-timeline__title">{event.type}</strong>
+                <strong className="care-timeline__title">
+                  {VOICE_ACTION_LABELS[event.type] ?? event.type}
+                </strong>
                 <time className="care-timeline__time" dateTime={event.occurredAt}>
                   {formatDateTime(event.occurredAt)}
                 </time>

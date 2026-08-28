@@ -1,6 +1,6 @@
-import { Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
+import { Alert, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Inbox, Search } from 'lucide-react';
+import { Inbox, Lock, Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { Pager } from '../../components/Pager';
@@ -8,6 +8,7 @@ import { VoiceCard } from '../../components/VoiceCard';
 import { AREA_LABELS, STATUS_LABELS, SEVERITY_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
+import { useOnlineStatus } from '../../lib/use-online-status';
 
 export function WorkItemsPage() {
   const { session } = useAuth();
@@ -16,6 +17,14 @@ export function WorkItemsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const nav = useCursorPagination(searchParams, setSearchParams);
+  const offline = !useOnlineStatus();
+
+  const caps = session?.capabilities ?? [];
+  const isUnion = caps.some((c) => c === 'UNION_HEAD' || c === 'UNION_OFFICER');
+  const isUnionHead = caps.includes('UNION_HEAD');
+  // The unassigned queue is a Union Head concept; the flag is ignored server-side
+  // for every other actor.
+  const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
 
   const status = searchParams.get('status') ?? undefined;
   const severity = searchParams.get('severity') ?? undefined;
@@ -23,7 +32,16 @@ export function WorkItemsPage() {
   const search = searchParams.get('search') ?? undefined;
 
   const inbox = useQuery({
-    queryKey: voiceQuery(sessionId, 'work-items', status, severity, area, search, nav.cursor),
+    queryKey: voiceQuery(
+      sessionId,
+      'work-items',
+      status,
+      severity,
+      area,
+      search,
+      unassignedOnly ? 'unassigned' : 'all',
+      nav.cursor,
+    ),
     queryFn: () =>
       api.workItems({
         limit: 10,
@@ -31,6 +49,7 @@ export function WorkItemsPage() {
         ...(severity ? { severity: severity as never } : {}),
         ...(area ? { area } : {}),
         ...(search ? { search } : {}),
+        ...(unassignedOnly ? { unassigned: 'true' } : {}),
         ...(nav.cursor ? { cursor: nav.cursor } : {}),
       }),
     enabled: !!session,
@@ -49,13 +68,64 @@ export function WorkItemsPage() {
   const items = inbox.data?.items ?? [];
   const nextCursor = inbox.data?.nextCursor ?? null;
 
+  const intro = isUnionHead
+    ? {
+        eyebrow: 'Union',
+        title: 'Private Voice',
+        description: unassignedOnly
+          ? 'Private Voice yang masih menunggu penugasan Union Officer.'
+          : 'Seluruh Private Voice melalui Union Head, diurutkan berdasarkan severity.',
+      }
+    : isUnion
+      ? {
+          eyebrow: 'Union',
+          title: 'Private Voice',
+          description: 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
+        }
+      : {
+          eyebrow: 'Inbox operasional',
+          title: 'Voice Member',
+          description:
+            'Voice yang menjadi tanggung jawab Anda diurutkan berdasarkan prioritas severity.',
+        };
+
+  const emptyState = unassignedOnly
+    ? {
+        icon: <Lock size={24} />,
+        title: 'Semua Private Voice sudah ditugaskan',
+        description: 'Tidak ada Private Voice yang menunggu penugasan Union Officer.',
+      }
+    : isUnionHead
+      ? {
+          icon: <Lock size={24} />,
+          title: 'Belum ada Private Voice',
+          description: 'Private Voice dari reporter akan muncul di sini untuk ditindaklanjuti.',
+        }
+      : isUnion
+        ? {
+            icon: <Inbox size={24} />,
+            title: 'Belum ada penugasan',
+            description: 'Private Voice yang ditugaskan kepada Anda akan muncul di sini.',
+          }
+        : {
+            icon: <Inbox size={24} />,
+            title: 'Inbox kosong',
+            description: 'Tidak ada Voice yang ditugaskan kepada Anda.',
+          };
+
   return (
     <Stack gap="lg">
       <header className="page-intro">
-        <p className="care-eyebrow">Inbox operasional</p>
-        <h1>Voice Member</h1>
-        <p>Voice yang menjadi tanggung jawab Anda diurutkan berdasarkan prioritas severity.</p>
+        <p className="care-eyebrow">{intro.eyebrow}</p>
+        <h1>{intro.title}</h1>
+        <p>{intro.description}</p>
       </header>
+
+      {offline ? (
+        <Alert tone="warning" title="Anda sedang offline">
+          Daftar terbaru dan seluruh tindakan memerlukan koneksi.
+        </Alert>
+      ) : null}
 
       <Card className="history-filters">
         <div className="history-filters__row">
@@ -85,18 +155,27 @@ export function WorkItemsPage() {
             onValueChange={(value) => setParam('area', value || undefined)}
             options={Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }))}
           />
+          {isUnionHead ? (
+            <Select
+              label="Penugasan"
+              value={unassignedOnly ? 'unassigned' : 'all'}
+              onValueChange={(value) =>
+                setParam('unassigned', value === 'unassigned' ? 'true' : undefined)
+              }
+              options={[
+                { value: 'all', label: 'Semua' },
+                { value: 'unassigned', label: 'Perlu ditugaskan' },
+              ]}
+            />
+          ) : null}
         </div>
       </Card>
 
       {inbox.isLoading ? (
-        <Skeleton label="Memuat inbox" />
+        <Skeleton label="Memuat daftar" />
       ) : items.length === 0 ? (
         <Card>
-          <EmptyState
-            icon={<Inbox size={24} />}
-            title="Inbox kosong"
-            description="Tidak ada Voice yang ditugaskan kepada Anda."
-          />
+          <EmptyState {...emptyState} />
         </Card>
       ) : (
         <Stack gap="md">

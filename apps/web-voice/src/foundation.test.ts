@@ -52,6 +52,26 @@ describe('workforce foundation boundaries', () => {
     expect(app).toContain("account: '/account'");
   });
 
+  it('exposes the Private Voice destination for Union accounts on dock and sidebar', () => {
+    const app = readFileSync(join(sourceDir, 'App.tsx'), 'utf8');
+    // Union nav carries a Private item pointing at the same operational inbox,
+    // and the active-state resolution is role-aware.
+    expect(app).toContain("private: '/work-items'");
+    expect(app).toContain("{ id: 'private', label: 'Private', icon: <Lock size={20} /> }");
+    expect(app).toContain('resolveCurrent(location.pathname, caps.isUnion)');
+    expect(app).toContain("isUnion ? 'private' : 'work-items'");
+  });
+
+  it('switches the shell reactively through the shared desktop breakpoint', () => {
+    const app = readFileSync(join(sourceDir, 'App.tsx'), 'utf8');
+    // The desktop breakpoint must be a live subscription, not a one-shot read.
+    expect(app).toContain('useMediaQuery(desktopQuery)');
+    expect(app).not.toContain("window.matchMedia('(min-width: 1280px)').matches");
+    const hook = readFileSync(join(sourceDir, 'lib/use-media-query.ts'), 'utf8');
+    expect(hook).toContain('useSyncExternalStore');
+    expect(hook).toContain("'(min-width: 1280px)'");
+  });
+
   it('keeps the push handler generic and free of Private identity fields', () => {
     const serviceWorker = readFileSync(join(sourceDir, 'sw.ts'), 'utf8');
     const pushHandler = serviceWorker.slice(

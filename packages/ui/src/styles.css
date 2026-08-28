@@ -472,7 +472,9 @@ select,
 }
 .care-select-content,
 .care-combobox__panel {
-  z-index: var(--layer-popover);
+  /* Popovers portal to <body>; when opened inside a modal they must stack
+     above the dialog overlay/content (layer-modal + 1). */
+  z-index: calc(var(--layer-modal) + 2);
   min-width: var(--radix-select-trigger-width, 16rem);
   max-height: 20rem;
   overflow: auto;

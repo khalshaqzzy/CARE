@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { memberSession, mockWorkforceApi } from './helpers/mock-api';
+import { memberSession, mockWorkforceApi, unionSession } from './helpers/mock-api';
 
 type RouteCase = {
   path: string;
@@ -42,7 +42,8 @@ const responder = memberSession({
   capabilities: ['MEMBER', 'MANAGER'],
   structuralPosition: 'Manager',
 });
-const union = memberSession({ capabilities: ['MEMBER', 'UNION_HEAD'], structuralPosition: null });
+const unionHead = unionSession({ slot: 'HEAD' });
+const unionOfficer = unionSession({ slot: 'OFFICER_1' });
 
 test.describe('workforce accessibility and responsive surface', () => {
   for (const route of memberRoutes) {
@@ -106,10 +107,56 @@ test.describe('workforce accessibility and responsive surface', () => {
       path: '/general',
       heading: 'Tinjauan General',
       viewport: { width: 360, height: 800 },
-      opts: { session: union },
+      opts: { session: unionHead },
     });
     expect(await axe(page)).toEqual([]);
     expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('union private inbox is axe clean for head and officer at 360 and 1440', async ({
+    page,
+  }) => {
+    for (const session of [unionHead, unionOfficer]) {
+      for (const viewport of [360, 1440]) {
+        await open(page, {
+          path: '/work-items',
+          heading: 'Private Voice',
+          viewport: { width: viewport, height: 900 },
+          opts: {
+            session,
+            voice: {
+              id: 'voice-1',
+              displayId: 'CARE-202608-000002',
+              audience: 'UNION_ANONYMOUS',
+              visibility: 'PRIVATE',
+              status: 'OPEN',
+              area: 'KARAWANG_1',
+              title: 'Laporan papan nama rusak',
+              detail: 'Papan nama area shift 3 tergantung satu baut saja.',
+              availableActions: session.capabilities.includes('UNION_HEAD')
+                ? ['ASK', 'PROCEED', 'ASSIGN', 'MESSAGE']
+                : [],
+            },
+          },
+        });
+        expect(await axe(page)).toEqual([]);
+        expect(await overflow(page)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  test('union home is axe clean at 1440 with the desktop sidebar', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Union Head',
+      viewport: { width: 1440, height: 900 },
+      opts: { session: unionHead },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+    // Desktop shell renders the sidebar; the dock stays mobile/tablet-only.
+    await expect(page.getByRole('navigation', { name: 'Navigasi aplikasi' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Navigasi utama' })).toHaveCount(0);
   });
 
   test('login page is axe clean and keyboard focusable', async ({ page }) => {

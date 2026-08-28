@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Home,
   Inbox,
+  Lock,
   Plus,
   ScrollText,
   ShieldCheck,
@@ -36,6 +37,7 @@ import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
+import { desktopQuery, useMediaQuery } from './lib/use-media-query';
 
 export function App() {
   useEffect(() => registerCareServiceWorker(), []);
@@ -294,6 +296,7 @@ const NAV_ROUTES: Record<string, string> = {
   create: '/voices/new',
   history: '/history',
   'work-items': '/work-items',
+  private: '/work-items',
   general: '/general',
   notifications: '/notifications',
   account: '/account',
@@ -316,12 +319,13 @@ function capabilityFor(session: ReturnType<typeof useAuth>['session']): {
   };
 }
 
-function resolveCurrent(location: ReturnType<typeof useLocation>): string {
-  const p = location.pathname;
+function resolveCurrent(pathname: string, isUnion: boolean): string {
+  const p = pathname;
   if (p === '/') return 'home';
   if (p.startsWith('/voices/new') || p.startsWith('/drafts/')) return 'create';
   if (p.startsWith('/history')) return 'history';
-  if (p.startsWith('/work-items')) return 'work-items';
+  // Union reads the same operational inbox as "Private Voice".
+  if (p.startsWith('/work-items')) return isUnion ? 'private' : 'work-items';
   if (p.startsWith('/general')) return 'general';
   if (p.startsWith('/voices/')) return 'voices';
   if (p.startsWith('/notifications')) return 'notifications';
@@ -333,13 +337,15 @@ function WorkforceShell() {
   const { session, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery(desktopQuery);
   if (!session) return null;
   const caps = capabilityFor(session);
-  const current = resolveCurrent(location);
+  const current = resolveCurrent(location.pathname, caps.isUnion);
   const createNav = (): NavItem[] => {
     if (caps.isUnion)
       return [
         { id: 'home', label: 'Beranda', icon: <ShieldCheck size={20} /> },
+        { id: 'private', label: 'Private', icon: <Lock size={20} /> },
         { id: 'general', label: 'General', icon: <ScrollText size={20} /> },
         { id: 'notifications', label: 'Notifikasi', icon: <Bell size={20} /> },
         { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
@@ -375,8 +381,6 @@ function WorkforceShell() {
     icon: item.icon,
   }));
 
-  const isDesktop =
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches;
   // The reference home leads with the hero identity, so the chrome topbar yields on mobile.
   const showTopbar = !(!isDesktop && current === 'home');
 

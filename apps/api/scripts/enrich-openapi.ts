@@ -152,6 +152,7 @@ const queryParameters: Record<string, string[]> = {
     'category',
     'dateFrom',
     'dateTo',
+    'unassigned',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
   VoicesController_dashboardGeneral: ['area', 'category', 'severity', 'status', 'from', 'to'],
@@ -993,6 +994,9 @@ const schemas: Record<string, any> = {
         },
       },
       generatedAt: { type: 'string', format: 'date-time' },
+      // Only populated for the Union Head private dashboard: the number of
+      // Private Voices still awaiting a Union Officer assignment.
+      pendingAssignment: { type: 'integer', minimum: 0 },
     },
   },
   SuppressionBreakdown: {

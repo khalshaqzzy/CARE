@@ -1,16 +1,100 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 28 Agustus 2026                                                                                                                                                                               |
-| Current objective       | DeepSeek Chat Completions/function-calling migration implemented and locally validated; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                              |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                           |
-| Implementation status   | Phase 0–12 done; AI now targets `deepseek-v4-flash` via Chat Completions and forced functions; QA-005 deferred; Phase 13 hosted evidence not yet claimed                                      |
-| Latest ADR              | ADR-0017 (DeepSeek Chat Completions with function-call results and local schema validation)                                                                                                   |
-| Recommended next action | Review/merge the feature branch to `staging`, then complete hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                |
+| Atribut                 | Nilai                                                                                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 28 Agustus 2026                                                                                                                                                                                                  |
+| Current objective       | Union Private Voice surface and workforce desktop presentation implemented on `fix/union-page` (ADR-0018); Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                 |
+| Backend Complete Gate   | Passed (PRD v1.1); additive contract fields (`work-items?unassigned`, `dashboard/private pendingAssignment`) added without breaking the gate                                                                     |
+| Implementation status   | Phase 0–12 done; Union Private Voice inbox now reachable and role-aware; whole workforce app usable and polished at ≥1280 px; QA-005 deferred; Phase 13 hosted evidence not yet claimed                          |
+| Latest ADR              | ADR-0018 (Union Private Voice surface and workforce desktop presentation)                                                                                                                                        |
+| Recommended next action | Merge `fix/union-page` to `staging` after CI green, then complete hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                             |
 
 ## Session Outcome
+
+### Union Private Voice surface and workforce desktop presentation — 28 Agustus 2026
+
+Branch `fix/union-page`. Backend kontrak Union sebenarnya sudah benar sejak
+re-freeze (`workItemScope`, serializer consent, action matrix); gap ada di
+presentasi. Perubahan yang diimplementasikan:
+
+- **Navigasi Union** (`apps/web-voice/src/App.tsx`): item "Private" (ikon Lock)
+  ditambahkan ke dock dan sidebar, menunjuk `/work-items`; `NAV_ROUTES.private`
+  ditambahkan; `resolveCurrent` menjadi role-aware (`private` untuk Union,
+  `work-items` untuk responder) dengan satu route untuk dua label nav.
+- **Reactive desktop breakpoint**: `lib/use-media-query.ts` baru
+  (`createMediaQueryStore` + `useSyncExternalStore`, store per query di-cache)
+  menggantikan pembacaan `matchMedia` sekali pakai, sehingga shell berpindah
+  dock ↔ sidebar saat resize. Unit test `use-media-query.test.ts`.
+- **Halaman Private Voice union-aware** (`features/work/WorkItemsPage.tsx`):
+  header/copy/empty state per role (Head: seluruh Private; Officer: assigned);
+  filter "Penugasan" (Semua / Perlu ditugaskan) khusus Head yang mengirim
+  `unassigned=true`; offline banner; copy responder "Voice Member" tidak berubah.
+- **Beranda Union** (`features/home/HomePage.tsx`): section "Private Voice"
+  (enam item pertama dari work-items + Lihat semua), kartu assignment Union
+  Head dari `pendingAssignment` (CTA ke `/work-items?unassigned=true`, tone
+  accent saat > 0), tile quick action "Private Voice", copy kartu akses per
+  role. Query key inbox dipisah (`private-home` / `responder-home`).
+- **Blok Pelapor consent-driven** (`features/voice/VoiceDetailPage.tsx`):
+  `UNION_IDENTIFIED` menampilkan nama/no.reg/divisi/department + badge
+  "Identitas ditampilkan"; `UNION_ANONYMOUS` menampilkan alias per-Voice +
+  badge "Identitas disembunyikan"; audience lain tidak berubah. Status meta dan
+  timeline kini memakai `STATUS_LABELS`/`VOICE_ACTION_LABELS`.
+- **Label chart terlokalisasi** (`components/DashboardChartCard.tsx`): bucket
+  enum dipetakan via lookup status/severity/kategori (fallback raw, `NONE` →
+  "Tanpa kategori"); `barColor` tetap membaca label mentah.
+- **Copy dialog assign** (`components/ActionPanel.tsx`): description menjadi
+  union-aware ("Pilih Union Officer…" untuk PRIVATE).
+- **Kontrak additive**: `GET /work-items` menerima `unassigned=true`
+  (dihormati hanya untuk Union Head → `currentHandlerId IS NULL`; diabaikan
+  untuk actor lain); `GET /dashboard/private` menyertakan `pendingAssignment`
+  opsional yang hanya diisi untuk Union Head. `enrich-openapi.ts` diperbarui
+  (param work-items + properti opsional `DashboardAggregate`); OpenAPI dan
+  `@care/contracts` diregenerasi.
+- **Desktop CSS** (`apps/web-voice/src/styles.css`): lapisan
+  `@media (min-width: 1280px)` — container keterbacaan 72 rem (konten dan
+  topbar), padding konten `--space-8`, hero 56 rem, quick-action tile 7 rem,
+  percakapan 28 rem, sidebar aktif tinta gelap di atas `surface-subtle`
+  (konsisten pola dock ADR-0012). Style `.voice-reporter` baru. Baseline 360 px
+  tidak berubah byte-identik.
+- **Perbaikan defect shared UI** (`packages/ui/src/styles.css`):
+  `.care-select-content`/`.care-combobox__panel` naik ke
+  `calc(var(--layer-modal) + 2)`; sebelumnya popover Select di dalam Dialog
+  tertutup overlay (`--layer-popover` 40 vs `--layer-modal` 60) sehingga opsi
+  tidak bisa diklik pointer — defect lintas workforce dan Admin.
+- **E2E**: fixture `unionSession({slot})` dan `unionPrivateVoiceDetail`
+  akurat di `e2e/helpers/mock-api.ts` (accountKind UNION, tanpa capability
+  MEMBER; mock menghormati `unassigned=true` dan override kandidat assignment
+  ber-slot Officer); journey Union Head (list → filter antrian → assign dialog
+  → sukses menutup dialog), Union Officer, anonimitas/identified, axe +
+  no-overflow 1440 px (union home/inbox/head+officer), baseline visual desktop
+  baru `workforce-union-private-1440.png` (pin jam, 0.06).
+- **Integration**: `union-inbox.integration.test.ts` baru (5 test) — scope
+  inbox Head/Officer, filter antrian, pengabaian flag untuk non-Head,
+  `pendingAssignment` sebelum/sesudah assign, tanpa field untuk
+  Officer/reporter.
+
+Validasi (semua hijau): `pnpm db:generate`; typecheck dan lint monorepo;
+`pnpm format` + `format:check`; unit API 60, ui 8, frontend-core 14,
+web-voice 25, web-admin 2; integration 38 (termasuk 5 baru) dan security 5 di
+PostgreSQL disposable; `openapi:check` hijau pada state ter-commit (drift
+pra-commit adalah perubahan kontrak yang disengaja); build monorepo (workforce
+precache 12 entries); Playwright mocked `test:frontend:e2e` **115 passed**;
+`FULLSTACK_E2E=1 --project=fullstack` 3 passed (DATABASE_URL lokal
+`postgresql://care:care_local@localhost:54329/care_test`, secret test ≥32
+karakter); `seed:performance` + `test:performance` (10k/50k);
+`maintenance:reconcile` (orphanedImportFiles 0, terminalImports 2 adalah batch
+CONFIRMED dari fullstack e2e); `migrations:destructive-check`;
+`docker compose config --quiet`; audit 0 High/Critical (Moderate ExcelJS
+transitive tetap terdokumentasi); Gitleaks v8.24.3 directory scan tanpa
+temuan; `git diff --check`. Compose dimatikan setelah validasi
+(`pnpm db:down`), tidak ada container/proses yang tersisa.
+
+Keputusan yang dikunci bersama product owner: (1) nav Union lima item dengan
+antrian penugasan sebagai filter di halaman Private; (2) additive backend untuk
+`unassigned` + `pendingAssignment`; (3) lapisan desktop konservatif (container
+72 rem, tanpa layout dua kolom); (4) blok Pelapor hanya untuk audience Union.
+Lihat ADR-0018.
 
 ### DeepSeek Chat Completions and function calling — 28 Agustus 2026
 

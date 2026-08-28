@@ -1357,3 +1357,53 @@
     align-items: stretch;
   }
 }
+
+/* ===== Reporter identity card (Union audiences; consent-driven) ===== */
+.voice-reporter {
+  display: grid;
+  gap: var(--space-4);
+}
+.voice-reporter__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.voice-reporter__alias {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--weight-semibold);
+}
+
+/* ===== Desktop (≥1280px): the workforce app stays mobile-first; the desktop
+   layer adds a centered reading container, an aligned topbar, and an
+   ink-active sidebar consistent with the mobile dock. ===== */
+@media (min-width: 1280px) {
+  .care-app-shell__content {
+    padding: var(--space-8);
+  }
+  .care-app-shell__content > .care-stack {
+    max-width: 72rem;
+  }
+  .care-app-shell__topbar .workforce-topbar {
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+  .care-app-shell .care-sidebar nav button:hover {
+    color: var(--text-primary);
+  }
+  .care-app-shell .care-sidebar nav button[aria-current='page'] {
+    color: var(--text-primary);
+    background: var(--surface-subtle);
+  }
+  .member-hero {
+    max-width: 56rem;
+    padding: var(--space-8);
+  }
+  .home-quick__grid {
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  }
+  .conversation__list {
+    max-height: 28rem;
+  }
+}
