@@ -1417,6 +1417,16 @@ Push/PR ke `staging`:
 3. menjalankan migration, health/readiness, two-origin smoke, dan live Responses contract check;
 4. melakukan automatic code rollback bila candidate gagal dan previous release tersedia.
 
+> **Live Responses contract check bersifat advisory pada auto-deploy (ADR-0015).**
+> `live-provider-smoke` tetap dijalankan pada setiap auto-deploy dan hasilnya dicatat
+> pada `shared/deployment-state/live-provider-smoke.result` serta deployment log,
+> tetapi kegagalannya tidak menggagalkan candidate dan tidak memicu rollback:
+> provider AI yang tidak dapat dijangkau hanya menurunkan klasifikasi ke Manual
+> Fallback dan location review ke degraded state (PRD §13.5/§28.3). Seluruh gate
+> lain (build, migration, health/readiness, web, Caddy, dan two-origin smoke) tetap
+> blocking terhadap rollback. Live smoke yang `failed` tetap tidak memenuhi release
+> readiness §39 dan acceptance §33.4/§34.7 sampai lulus.
+
 Push ke `main`:
 
 1. menjalankan checks yang sama;
