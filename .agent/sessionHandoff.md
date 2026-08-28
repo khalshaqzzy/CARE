@@ -1,16 +1,52 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 28 Agustus 2026                                                                                                                                                                       |
+| Atribut                 | Nilai                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date                    | 28 Agustus 2026                                                                                                                                                                            |
 | Current objective       | Member home visual polish complete on `feat/frontend-polish`; Phase 13 immutable staging release implementation complete locally, awaiting GitHub/hosted deployment and rehearsal evidence |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                      |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                   |
-| Implementation status   | Phase 0–12 done; staging images/Compose/scripts/workflows/docs implemented; local parity green; hosted evidence not yet claimed                                                       |
-| Latest ADR              | ADR-0012 (workforce member home visual polish aligned to the mobile dashboard reference)                                                                                              |
-| Recommended next action | Open PR for `feat/frontend-polish` into `staging`, monitor CI, then resume Phase 13: push exact candidate, verify both hosted origins, execute guarded two-release rollback rehearsal   |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                           |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                        |
+| Implementation status   | Phase 0–12 done; staging images/Compose/scripts/workflows/docs implemented; local parity green; hosted evidence not yet claimed                                                            |
+| Latest ADR              | ADR-0012 (workforce member home visual polish aligned to the mobile dashboard reference)                                                                                                   |
+| Recommended next action | Open PR for `feat/frontend-polish` into `staging`, monitor CI, then resume Phase 13: push exact candidate, verify both hosted origins, execute guarded two-release rollback rehearsal      |
 
 ## Session Outcome
+
+### PR #7 hosted CI remediation — 28 Agustus 2026
+
+Run hosted pertama untuk workflow CI/staging (PR #7, run 33137764783) gagal pada
+tiga job dan mengungkap tiga penyebab berbeda:
+
+1. **`quality` — format:check gagal pada dua file `.agent`.**
+   `.agent/sessionHandoff.md` dan `.agent/implementationPhases.md` diedit
+   setelah `pnpm format` terakhir dijalankan sehingga ter-commit tanpa
+   Prettier. Pola kegagalan yang sama dengan PR #2 historis; pelajarannya
+   format:check wajib diulang pada state commit final, bukan sebelum edit
+   dokumen. Diperbaiki dengan `pnpm format` pada kedua file.
+2. **`Previous-SHA to current migration` — bug path workflow (pre-existing).**
+   `ci.yml` menjalankan `pnpm --filter @care/api exec prisma migrate status
+--schema apps/api/prisma/schema.prisma`; `pnpm --filter … exec` mengeksekusi
+   dengan CWD `apps/api`, sehingga path relatif tersebut resolve ke
+   `apps/api/apps/api/prisma/schema.prisma` dan gagal "file or directory not
+   found". Dua langkah sebelumnya pada job yang sama lolos karena memakai path
+   absolut dan package script. Bug ini pre-existing pada workflow yang baru
+   dibuat 28 Agustus dan baru terekspose pada run hosted pertama (evidence
+   hosted memang belum pernah dijalankan sebelumnya). Diperbaiki menjadi
+   `--schema prisma/schema.prisma` dan direplikasi lokal terhadap disposable
+   PostgreSQL: base-SHA migrations → current `migrate deploy` → `migrate
+status` dengan path corrected, semuanya hijau.
+3. **`Dependency security` — Dependency graph repositori nonaktif.**
+   `actions/dependency-review-action` menolak berjalan: "Dependency review is
+   not supported on this repository. Please ensure that Dependency graph is
+   enabled". Ini kondisi settings repositori, bukan kode. Owner mengaktifkan
+   Dependency graph melalui API (`PATCH /repos/…` `security_and_analysis
+[dependency_graph]=enabled`, accepted tanpa error) untuk mempertahankan
+   gate tanpa melemahkan pemindaian.
+
+`Release candidate gate` gagal hanya karena agregasi tiga job di atas;
+`Deploy staging` ter-skip dengan benar karena gate merah. Perbaikan
+di-commit sebagai `ci:` (path) dan `docs:` (format + catatan ini), lalu run
+baru dipantau sampai seluruh required job hijau sebelum PR #7 dapat di-merge.
 
 ### Member home visual polish + dock navigation fix — 28 Agustus 2026
 
@@ -37,7 +73,7 @@ API, atau perilaku offline/privacy:
   chip konteks role dipertahankan; topbar disembunyikan hanya pada route
   home mobile (logout tetap tersedia di Akun dan di topbar route lain).
 - **StatusSummary tertanam di hero.** Kartu putih: header ikon + `{total}
-  Voice`, baris besar `aktif/total` + persen, segmented bar 24 segmen
+Voice`, baris besar `aktif/total` + persen, segmented bar 24 segmen
   (`role="progressbar"` + `aria-valuenow`, segmen dekoratif), legend empat
   status (kontrak PRD tetap), catatan tindak lanjut, dan penanda
   `· usang` saat offline cache dipakai.
