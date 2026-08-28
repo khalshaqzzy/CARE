@@ -7,10 +7,60 @@
 | Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                               |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                            |
 | Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                    |
-| Latest ADR              | ADR-0014 (Admin workspace visual polish aligned to the product design language)                                                                                                |
+| Latest ADR              | ADR-0015 (live provider smoke diagnostics + advisory, non-blocking deploy behavior; ADR-0014 admin visual polish)                                                              |
 | Recommended next action | Review QA Report 2, complete authenticated Safari operator retest with the current rotated credential, then resume hosted Phase 13 exact-SHA acceptance and rollback rehearsal |
 
 ## Session Outcome
+
+### Live provider smoke diagnostics and non-blocking deploy behavior — 28 Agustus 2026
+
+The failed `staging` auto-deploy (run 33148573976) was traced to the
+`live-provider-smoke` step of `Deploy under remote lock`, which threw only the
+generic message `Live classification contract validation failed`. Investigation
+showed the configured OpenAI-compatible provider host (`pad-llm-api.qd-tmmin.site`)
+has **no DNS record** in the authoritative Cloudflare `qd-tmmin.site` zone
+(verified against `dax.ns.cloudflare.com`), so the deployed API container could
+not reach it; the CLI smoke gave no diagnostic whatsoever.
+
+Two changes were made together:
+
+- **Traceable provider diagnostics.** New `apps/api/src/ai/error-detail.ts`
+  exposes `sanitizedErrorDetail(error)` — a bounded (≤300 chars) redacted reason
+  built from the OpenAI SDK error class, HTTP status, and wrapped network cause
+  (e.g. `APIConnectionError: getaddrinfo ENOTFOUND pad-llm-api.qd-tmmin.site`),
+  scrubbed for `sk-…`, `Bearer …`, and `api_key=`/`authorization=` patterns.
+  `apps/api/src/ai/ai.service.ts` now logs every provider failure path
+  (`care_ai_request …` with name/fallbackCode/attempt/latency/detail) plus
+  schema-invalid outcomes, and classification fallback results carry a sanitized
+  `errorDetail`. `apps/api/src/cli/live-provider-smoke.ts` prints provider config
+  (never the API key), per-call outcome (source/fallbackCode/latency/candidate),
+  and throws errors whose message includes the fallbackCode.
+- **Provider smoke is advisory, not a deploy gate (ADR-0015).**
+  `deploy/scripts/remote-deploy.sh` still runs `live-provider-smoke` at the same
+  position, but failure no longer fails the candidate or triggers rollback; it
+  logs `Live OpenAI-compatible provider smoke FAILED; release continues with
+Manual Fallback active.` and records `status=passed|failed … releaseSha=…` to
+  `shared/deployment-state/live-provider-smoke.result` (mode 0600). All other
+  gates (build, migrate, health/readiness, web, Caddy, two-origin smoke,
+  rollback) remain blocking. PRD §31.1 gained an explicit advisory note; the
+  formal release-readiness check (§39) still requires the live smoke to pass.
+  `deploy/tests/deployment-scripts.sh` gained a fake-docker
+  `TEST_PROVIDER_SMOKE_FAIL` switch and a harness case proving a provider smoke
+  failure still activates the release and records the `failed` marker, while the
+  existing smoke-check rollback case is unchanged.
+
+Validation (all green): API unit 42 (incl. 6 new `ai-error-detail` tests), API
+typecheck, monorepo lint/typecheck, Prettier check, `pnpm test:openai:smoke`
+(mock), monorepo build, `pnpm deployment:validate`, `pnpm test:deployment`
+(provider-smoke non-blocking case + rollback case both pass; `flock` contention
+remains a Linux CI requirement), ShellCheck, Actionlint, `bash -n`, Gitleaks
+v8.24.3 (no leaks; fake key fixtures are assembled at runtime so no secret-shaped
+source literals remain), `git diff --check`.
+
+Branch `fix/deploy-live-provider` was fast-forwarded to `origin/staging`
+(5b3a41e, PR #9 admin polish) under an uncommitted stash; the change set is
+**not yet committed**. The rename from ADR-0014 to ADR-0015 was required because
+staging consumed ADR-0014 for the admin polish decision.
 
 ### Admin workspace visual polish — 28 Agustus 2026
 

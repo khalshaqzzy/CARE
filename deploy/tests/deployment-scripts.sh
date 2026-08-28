@@ -55,6 +55,7 @@ if [[ "${1:-}" == compose ]]; then
   for arg in "$@"; do
     [[ "${arg}" != build || "${TEST_BUILD_FAIL:-false}" != true ]] || exit 1
     [[ "${arg}" != migrate || "${TEST_MIGRATE_FAIL:-false}" != true ]] || exit 1
+    [[ "${arg}" != "live-provider-smoke" || "${TEST_PROVIDER_SMOKE_FAIL:-false}" != true ]] || exit 1
   done
   previous=''; for arg in "$@"; do [[ "${previous}" != -q ]] || { echo "${arg}-container"; exit 0; }; previous="${arg}"; done
   exit 0
@@ -113,6 +114,11 @@ if TEST_PREFLIGHT_EXIT=1 run_candidate "${preflight}" 22222222222222222222222222
 migration="${DEPLOY_TEST_BASE}/migration"; prepare_base "${migration}"
 if TEST_MIGRATE_FAIL=true run_candidate "${migration}" 3333333333333333333333333333333333333333 33 >/dev/null 2>&1; then fail "Migration failure returned success"; fi
 [[ ! -f "${migration}/current_release" && -d "${migration}/shared/postgres-data" ]] || fail "Migration failure changed pointer or database path"
+
+provider_smoke="${DEPLOY_TEST_BASE}/provider-smoke"; prepare_base "${provider_smoke}"
+TEST_PROVIDER_SMOKE_FAIL=true run_candidate "${provider_smoke}" 4444444444444444444444444444444444444444 34 >/dev/null
+[[ "$(<"${provider_smoke}/current_release")" == 4444444444444444444444444444444444444444 ]] || fail "Provider smoke failure blocked activation"
+[[ "$(grep -E '^status=failed ' "${provider_smoke}/shared/deployment-state/live-provider-smoke.result")" != "" ]] || fail "Provider smoke failure was not recorded"
 
 rollback="${DEPLOY_TEST_BASE}/rollback"; prepare_base "${rollback}"; previous=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 mkdir -p "${rollback}/releases/${previous}/deploy/scripts"; printf '%s\n' "${previous}" >"${rollback}/current_release"
