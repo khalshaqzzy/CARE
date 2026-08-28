@@ -1,14 +1,26 @@
 import { Alert, Button, Card, EmptyState, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Home as HomeIcon, Inbox, Plus, ShieldCheck, ScrollText } from 'lucide-react';
+import {
+  Bell,
+  ChevronRight,
+  ClipboardList,
+  Home as HomeIcon,
+  Inbox,
+  Plus,
+  ScrollText,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { DashboardChartCard } from '../../components/DashboardChartCard';
 import { StatusSummary } from '../../components/StatusSummary';
 import { VoiceCard } from '../../components/VoiceCard';
-import { formatDateTime, formatRelative } from '../../lib/formatters';
+import { formatDate, formatRelative } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
+
+type QuickAction = { label: string; icon: React.ReactNode; to: string };
 
 export function HomePage() {
   const { session } = useAuth();
@@ -55,44 +67,79 @@ export function HomePage() {
   const greeting = greetingForNow();
   const displayName = session?.account.displayName ?? '';
 
+  const quickActions: QuickAction[] = isUnion
+    ? [
+        { label: 'General', icon: <ScrollText size={20} />, to: '/general' },
+        { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
+        { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
+      ]
+    : isLeadership
+      ? [
+          { label: 'General', icon: <ScrollText size={20} />, to: '/general' },
+          { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
+          { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
+        ]
+      : isResponder
+        ? [
+            { label: 'Buat Voice', icon: <Plus size={20} />, to: '/voices/new' },
+            { label: 'Voice Member', icon: <Inbox size={20} />, to: '/work-items' },
+            { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
+            { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
+          ]
+        : [
+            { label: 'Buat Voice', icon: <Plus size={20} />, to: '/voices/new' },
+            { label: 'Riwayat', icon: <ClipboardList size={20} />, to: '/history' },
+            { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
+            { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
+          ];
+
   return (
     <Stack gap="lg">
       <section className="member-hero">
         <div className="member-hero__top">
           <div className="member-hero__identity">
             <span className="member-hero__avatar">{initialOf(displayName)}</span>
-            <div>
+            <div className="member-hero__who">
               <p className="member-hero__greeting">{greeting},</p>
               <h1 className="member-hero__name">{displayName}</h1>
-              <p className="member-hero__date">{formatDateTime(new Date())}</p>
+              <p className="member-hero__date">{formatDate(new Date())}</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Lihat notifikasi"
-            onClick={() => void navigate('/notifications')}
-            className="member-hero__bell"
-          >
-            <Bell size={22} />
-          </Button>
+          <div className="member-hero__actions">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Buat Voice"
+              className="member-hero__orb"
+              onClick={() => void navigate('/voices/new')}
+            >
+              <Plus size={20} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Lihat notifikasi"
+              className="member-hero__orb"
+              onClick={() => void navigate('/notifications')}
+            >
+              <Bell size={20} />
+            </Button>
+          </div>
         </div>
         {isResponder || isUnion || isLeadership ? (
-          <div className="member-hero__context">
-            <span className="member-hero__cap">
-              {isUnion
-                ? 'Operasional Union'
-                : isLeadership
-                  ? 'Tampilan Leadership'
-                  : 'Operasional Responder'}
-            </span>
-          </div>
+          <span className="member-hero__context">
+            {isUnion
+              ? 'Operasional Union'
+              : isLeadership
+                ? 'Tampilan Leadership'
+                : 'Operasional Responder'}
+          </span>
         ) : null}
-        <div className="member-hero__cta">
-          <Button variant="primary" onClick={() => void navigate('/voices/new')}>
-            <Plus size={18} /> Buat Voice
-          </Button>
-        </div>
+        {member.isLoading ? (
+          <Skeleton className="home-skeleton" label="Memuat ringkasan" />
+        ) : member.data ? (
+          <StatusSummary dashboard={member.data} cached={offline} />
+        ) : null}
       </section>
 
       {member.isError ? (
@@ -106,12 +153,6 @@ export function HomePage() {
           Ringkasan status mungkin sudah usang. Detail Voice dan seluruh tindakan memerlukan
           koneksi.
         </Alert>
-      ) : null}
-
-      {member.isLoading ? (
-        <Skeleton className="home-skeleton" label="Memuat ringkasan" />
-      ) : member.data ? (
-        <StatusSummary dashboard={member.data} cached={offline} />
       ) : null}
 
       {isUnion ? (
@@ -136,10 +177,7 @@ export function HomePage() {
       {isResponder ? (
         <section className="home-inbox">
           <div className="home-section__head">
-            <div>
-              <p className="care-eyebrow">Operasional</p>
-              <h2 className="home-section__title">Inbox Voice Member</h2>
-            </div>
+            <h2 className="home-section__title">Inbox Voice Member</h2>
             <Button variant="ghost" size="sm" onClick={() => void navigate('/work-items')}>
               Lihat semua
             </Button>
@@ -171,10 +209,7 @@ export function HomePage() {
       {isLeadership && general.data ? (
         <section>
           <div className="home-section__head">
-            <div>
-              <p className="care-eyebrow">Leadership (read-only)</p>
-              <h2 className="home-section__title">Ringkasan General</h2>
-            </div>
+            <h2 className="home-section__title">Ringkasan General</h2>
           </div>
           <div className="home-dash-row">
             <DashboardChartCard
@@ -191,10 +226,7 @@ export function HomePage() {
       {isSectionHead && general.data ? (
         <section>
           <div className="home-section__head">
-            <div>
-              <p className="care-eyebrow">Section Head</p>
-              <h2 className="home-section__title">Voice Ditugaskan</h2>
-            </div>
+            <h2 className="home-section__title">Voice Ditugaskan</h2>
           </div>
           <div className="home-dash-row">
             <DashboardChartCard
@@ -209,12 +241,9 @@ export function HomePage() {
 
       <section className="home-recent">
         <div className="home-section__head">
-          <div>
-            <p className="care-eyebrow">Aktivitas terbaru</p>
-            <h2 className="home-section__title">Voice Anda</h2>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => void navigate('/history')}>
-            Riwayat
+          <h2 className="home-section__title">Voice Anda</h2>
+          <Button size="sm" className="home-cta" onClick={() => void navigate('/voices/new')}>
+            <Plus size={16} /> Buat Voice
           </Button>
         </div>
         {offline ? (
@@ -260,16 +289,43 @@ export function HomePage() {
             />
           </Card>
         ) : (
-          <div className="voice-grid">
-            {member.data?.recent.map((voice) => (
-              <VoiceCard
-                key={voice.id}
-                voice={voice}
-                onOpen={() => void navigate(`/voices/${voice.id}`)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="voice-grid">
+              {member.data?.recent.map((voice) => (
+                <VoiceCard
+                  key={voice.id}
+                  voice={voice}
+                  onOpen={() => void navigate(`/voices/${voice.id}`)}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              className="home-viewall"
+              onClick={() => void navigate('/history')}
+            >
+              Lihat semua
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </>
         )}
+      </section>
+
+      <section className="home-quick" aria-label="Aksi cepat">
+        <h2 className="home-section__title">Aksi cepat</h2>
+        <div className="home-quick__grid">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              className="home-quick__tile"
+              onClick={() => void navigate(action.to)}
+            >
+              {action.icon}
+              <span>{action.label}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {isUnion || isLeadership ? (
