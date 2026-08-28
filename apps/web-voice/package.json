@@ -1,0 +1,34 @@
+{
+  "name": "@care/web-voice",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc -b --pretty false",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@care/contracts": "workspace:*",
+    "@care/frontend-core": "workspace:*",
+    "@care/ui": "workspace:*",
+    "@tanstack/react-query": "5.102.4",
+    "lucide-react": "1.34.0",
+    "motion": "13.1.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router-dom": "7.18.2",
+    "vite-plugin-pwa": "1.3.0",
+    "workbox-core": "7.4.1",
+    "workbox-precaching": "7.4.1",
+    "workbox-routing": "7.4.1",
+    "workbox-strategies": "7.4.1",
+    "workbox-window": "7.4.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "tailwindcss": "4.3.3"
+  }
+}

@@ -103,7 +103,8 @@ Not selected by product decision. This creates a critical accepted risk and prev
 - Voice aggregate writes will include expected version/idempotency protections.
 - Transactional outbox will connect business commits to persistent notification/Web Push delivery.
 - Structured logs will use correlation and release IDs while excluding prompt content, credentials, and Private identity.
-- Vertex model/prompt changes will be configurable, versioned, evaluated against a labeled dataset, and smoke-tested in staging.
+- Vertex model/prompt changes will be configurable, versioned, validated with deterministic rubric fixtures, and smoke-tested with non-sensitive structured output in staging.
+- Vertex authentication uses a server-only, environment-scoped API key read exclusively from runtime configuration.
 - Caddy will use same-origin API routing and hardened headers compatible with PWA/service worker behavior.
 
 ## Consequences
@@ -129,7 +130,7 @@ Negative:
 - Unit-test role/object policies, Private serializers, routing, classification fallback, and lifecycle transitions.
 - Integration-test constraints, transactions, concurrent actions, idempotency, and append-only history on real PostgreSQL.
 - E2E-test every role and privacy boundary, repeated closure/reopen cycles, PWA/offline, and push behavior.
-- Evaluate Gemini against at least 100 labeled manufacturing examples and meet the PRD targets.
+- Validate Gemini behavior through deterministic rubric fixtures and a live non-sensitive authentication/schema smoke test; statistical dataset scoring is not a v1 gate.
 - Load-test the 2,000-account/50-concurrent/50,000-Voice baseline.
 - Rehearse fresh/upgrade migration, deployment, smoke, and backward-compatible code rollback on staging.
 

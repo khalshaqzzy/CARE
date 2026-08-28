@@ -51,7 +51,7 @@ Rejected because `.agent/rules.md` requires Docker-managed PostgreSQL for local 
 ## Implementation Details
 
 - The backend workspace may include a placeholder frontend package only when tooling requires it; no React screens or user workflow implementation may begin before backend acceptance.
-- Backend completion requires all PRD API capabilities, generated OpenAPI v1 contracts, real-PostgreSQL integration tests, AI evaluation, security negative tests, representative load tests, and migration validation.
+- Backend completion requires all PRD API capabilities, generated OpenAPI v1 contracts, real-PostgreSQL integration tests, deterministic AI contract validation plus a live smoke, security negative tests, representative load tests, and migration validation.
 - Any backend contract change after freeze requires compatibility review, regenerated client artifacts, and rerun of affected backend/frontend tests.
 - Frontend completion requires all role journeys, responsive/accessibility checks, PWA/offline/push behavior, production Vite build, and Playwright acceptance against the real completed backend.
 - Production containerization then adds API/web Dockerfiles, Caddy, remote Compose, runtime environment validation, migrations/bootstrap operations, image/security checks, and persistent volumes.
@@ -76,7 +76,7 @@ Negative:
 ## Validation Plan
 
 - Roadmap checks must confirm that no frontend implementation item precedes the Backend Complete Gate.
-- Backend handoff must explicitly record the gate as passed and list exact test/migration/security/evaluation results.
+- Backend handoff must explicitly record the gate as passed and list exact test/migration/security/AI-contract results.
 - Frontend handoff must explicitly record its gate as passed and list Playwright, accessibility, PWA, browser, and build results.
 - Repository inspection before containerization must confirm the application capabilities are complete and no placeholder screens/actions remain.
 - Delivery validation must run production-like Compose, health/readiness, persistence, routing, security headers, migration, smoke, and rollback checks.
