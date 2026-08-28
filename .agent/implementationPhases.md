@@ -237,7 +237,7 @@ Scope:
 
 - hapus Gemini/Vertex, `@google/genai`, location provider, dan seluruh `VERTEX_*` runtime contract;
 - official JavaScript SDK, `responses.create`, `/responses`, Structured Outputs JSON Schema, `store:false`, tanpa tools/conversation state;
-- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key;
+- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key dan dengan reasoning effort kosong default `medium`;
 - minimized payload, bounded timeout/retry, schema validation, sanitized errors, versioned prompts/contracts;
 - classification: nullable category untuk Private, severity, confidence, rationale code; tidak ada fixed category priority;
 - location review: `COMPLETE | INCOMPLETE | UNKNOWN`, warning, maksimal tiga suggestion questions;

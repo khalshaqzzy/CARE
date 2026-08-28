@@ -9,5 +9,6 @@ process.env.CURSOR_SIGNING_SECRET ??= 'test-cursor-signing-secret-0000000000';
 process.env.OPENAI_API_KEY ??= '';
 process.env.OPENAI_MODEL ??= '';
 process.env.OPENAI_BASE_URL ??= '';
+process.env.OPENAI_REASONING_EFFORT ??= '';
 process.env.METRICS_TOKEN ??= 'test-metrics-token-0000000000000000';
 process.env.OUTBOX_ENABLED ??= 'true';

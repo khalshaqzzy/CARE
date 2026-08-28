@@ -45,13 +45,13 @@ Private Voice requires an immutable `showReporterIdentity` consent snapshot. Whe
 
 Gemini, Vertex AI, `@google/genai`, location-specific provider configuration, and `VERTEX_*` runtime contracts are removed. The backend uses the official JavaScript SDK with `responses.create` against `/responses`, Structured Outputs through JSON Schema, `store: false`, no tools, and no conversation state.
 
-Runtime configuration uses `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_TIMEOUT_MS`, and `OPENAI_CONFIDENCE_THRESHOLD`. Base URL, model, and API key have no production defaults.
+Runtime configuration uses `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, and `OPENAI_CONFIDENCE_THRESHOLD`. Base URL, model, and API key have no production defaults. Reasoning effort accepts only the SDK-supported `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`; an unset or empty value resolves to `medium` before every classification and location request.
 
 Classification returns category, severity, confidence, and an allowlisted rationale code. Category is nullable for Private Voice, which uses AI only for severity. No fixed category priority is imposed; ambiguous, low-confidence, refused, incomplete, invalid, timed-out, or unavailable results use a type-specific Manual Fallback.
 
 Location review is a separate structured contract returning `COMPLETE`, `INCOMPLETE`, or `UNKNOWN`, a warning, and up to three suggested questions. It runs automatically after debounce or blur and is cached by content hash. Location changes invalidate the review. An incomplete result is advisory but requires confirmation tied to the current review snapshot before submit. Provider failure never blocks the form.
 
-Requests minimize content, validate output schemas, use bounded timeout/retry, sanitize errors, and never ask AI to choose a Manager or other account identifier.
+Requests minimize content, validate output schemas, pass the configured `reasoning.effort`, use bounded timeout/retry, sanitize errors, and never ask AI to choose a Manager or other account identifier.
 
 ### Authorization and dashboards
 

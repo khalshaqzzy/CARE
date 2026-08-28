@@ -108,6 +108,7 @@ Optional environment secret:
 Optional environment variable:
 
 - `VM_SSH_PORT` — defaults to `22`.
+- `OPENAI_REASONING_EFFORT` — one of `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`; unset/empty renders as `medium`.
 
 Rendering enforces distinct protection secrets, minimum lengths, dotenv-safe scalar values, HTTPS provider URL, valid VAPID subject, no placeholders/newlines, and mode `0600`. Domains, ports, project, root, and SHA are workflow-generated.
 

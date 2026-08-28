@@ -4,6 +4,10 @@ import { loadLocalEnv } from './load-local-env';
 loadLocalEnv();
 
 const optionalSecret = z.string().min(24).optional().or(z.literal(''));
+const openAiReasoningEffort = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).default('medium'),
+);
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -21,6 +25,7 @@ const schema = z.object({
   OPENAI_API_KEY: optionalSecret,
   OPENAI_MODEL: z.string().optional().or(z.literal('')),
   OPENAI_BASE_URL: z.string().url().optional().or(z.literal('')),
+  OPENAI_REASONING_EFFORT: openAiReasoningEffort,
   OPENAI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.75),
   OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   VAPID_SUBJECT: z.string().optional().or(z.literal('')),

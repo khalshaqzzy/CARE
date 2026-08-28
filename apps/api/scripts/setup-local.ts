@@ -52,6 +52,7 @@ async function main() {
     'OPENAI_API_KEY=',
     'OPENAI_MODEL=',
     'OPENAI_BASE_URL=',
+    'OPENAI_REASONING_EFFORT=',
     'OPENAI_CONFIDENCE_THRESHOLD=0.75',
     'OPENAI_TIMEOUT_MS=10000',
     'VAPID_SUBJECT=mailto:care-local@example.invalid',

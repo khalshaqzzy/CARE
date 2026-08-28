@@ -12,6 +12,16 @@
 
 ## Session Outcome
 
+### Configurable OpenAI reasoning effort — 28 Agustus 2026
+
+Added `OPENAI_REASONING_EFFORT` to direct `.env`, local full-stack, rendered hosted
+runtime, Compose, and validation contracts. Empty or unset values normalize to
+`medium`; explicit SDK-supported values are preserved, invalid values fail closed,
+and both classification and location Responses requests now send
+`reasoning: { effort }`. Mock provider and deployment harness assertions cover the
+default, override, request payload, render, and rejection behavior without a live
+provider call.
+
 ### Production containers and immutable staging delivery — 28 Agustus 2026
 
 Implemented the production runtime and staging delivery system:

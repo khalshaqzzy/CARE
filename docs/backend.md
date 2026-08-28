@@ -38,6 +38,7 @@ Run `pnpm setup:local` once to create an ignored root `.env` with generated secr
 | `OPENAI_API_KEY`              | Server-only Responses API key.                             | Yes    |
 | `OPENAI_MODEL`                | Externally supplied Responses-capable model.               | No     |
 | `OPENAI_BASE_URL`             | API root whose `/responses` surface is available.          | No     |
+| `OPENAI_REASONING_EFFORT`     | Responses reasoning effort; blank defaults to `medium`.    | No     |
 | `OPENAI_CONFIDENCE_THRESHOLD` | AI-to-manual-fallback boundary.                            | No     |
 | `OPENAI_TIMEOUT_MS`           | Timeout for each provider attempt.                         | No     |
 | `VAPID_SUBJECT`               | Web Push operator contact subject.                         | No     |

@@ -16,8 +16,11 @@ OPENAI_API_KEY=sk-live-000000000000000000000000 OPENAI_MODEL=care-model OPENAI_B
 VAPID_SUBJECT=mailto:operator@care.test VAPID_PUBLIC_KEY=hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh VAPID_PRIVATE_KEY=iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii \
   "${SCRIPTS}/render-runtime-env.sh" staging aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 42 >"${rendered}"
 chmod 600 "${rendered}"; "${SCRIPTS}/validate-runtime-env.sh" "${rendered}" >/dev/null
+grep -qx 'OPENAI_REASONING_EFFORT=medium' "${rendered}" || fail "Default OpenAI reasoning effort was not rendered"
 invalid="${TEST_ROOT}/invalid.env"; sed 's/SESSION_HASH_SECRET=.*/UNKNOWN_KEY=bad/' "${rendered}" >"${invalid}"
 if "${SCRIPTS}/validate-runtime-env.sh" "${invalid}" >/dev/null 2>&1; then fail "Unknown env key accepted"; fi
+invalid_effort="${TEST_ROOT}/invalid-effort.env"; sed 's/OPENAI_REASONING_EFFORT=.*/OPENAI_REASONING_EFFORT=extreme/' "${rendered}" >"${invalid_effort}"
+if "${SCRIPTS}/validate-runtime-env.sh" "${invalid_effort}" >/dev/null 2>&1; then fail "Invalid OpenAI reasoning effort accepted"; fi
 hosted_invalid="${TEST_ROOT}/hosted-invalid.env"
 sed -e 's#^SHARED_DIR=.*#SHARED_DIR=/opt/care/staging/shared#' -e 's#^OPENAI_MODEL=.*#OPENAI_MODEL=placeholder#' "${rendered}" >"${hosted_invalid}"
 chmod 600 "${hosted_invalid}"
