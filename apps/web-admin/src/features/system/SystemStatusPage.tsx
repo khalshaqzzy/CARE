@@ -1,8 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, careQueryKey } from '@care/frontend-core';
-import { Alert, Button, Card, Loader, PageHeader, Stack } from '@care/ui';
+import { Alert, Badge, Button, Card, Loader, PageHeader, Stack } from '@care/ui';
+import { Database, HardDrive, Rocket, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createAdminApi } from '../../admin-api';
+
+function statusTone(value: string | undefined): 'success' | 'warning' {
+  return value === 'ok' || value === 'ready' ? 'success' : 'warning';
+}
 
 export function SystemStatusPage() {
   const { session, transport } = useAuth();
@@ -55,7 +60,7 @@ export function SystemStatusPage() {
           </Button>
         }
       />
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+      <p className="admin-meta">
         Terakhir diperbarui:{' '}
         {lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : 'belum tersedia'}
       </p>
@@ -70,7 +75,12 @@ export function SystemStatusPage() {
       >
         <Card>
           <Stack gap="sm">
-            <strong>/health</strong>
+            <div className="admin-section__head">
+              <strong>/health</strong>
+              {health.data ? (
+                <Badge tone={statusTone(health.data.status)}>{health.data.status}</Badge>
+              ) : null}
+            </div>
             {health.isLoading ? (
               <Loader label="Memuat health" />
             ) : health.error ? (
@@ -78,16 +88,31 @@ export function SystemStatusPage() {
                 {String((health.error as Error).message)}
               </Alert>
             ) : (
-              <dl>
-                <dt>Status API</dt>
-                <dd>{health.data?.status ?? '-'}</dd>
-              </dl>
+              <div className="admin-kv">
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">
+                    <ShieldCheck size={14} aria-hidden="true" />
+                    Status API
+                  </span>
+                  <span
+                    className="admin-kv__value"
+                    data-tone={health.data?.status === 'ok' ? 'success' : undefined}
+                  >
+                    {health.data?.status ?? '-'}
+                  </span>
+                </div>
+              </div>
             )}
           </Stack>
         </Card>
         <Card>
           <Stack gap="sm">
-            <strong>/ready</strong>
+            <div className="admin-section__head">
+              <strong>/ready</strong>
+              {ready.data ? (
+                <Badge tone={statusTone(ready.data.status)}>{ready.data.status}</Badge>
+              ) : null}
+            </div>
             {ready.isLoading ? (
               <Loader label="Memuat ready" />
             ) : ready.error ? (
@@ -95,22 +120,44 @@ export function SystemStatusPage() {
                 {String((ready.error as Error).message)}
               </Alert>
             ) : (
-              <dl>
-                <dt>Status readiness</dt>
-                <dd>{ready.data?.status ?? '-'}</dd>
-                <dt>Database</dt>
-                <dd>{ready.data?.checks.database ?? '-'}</dd>
-                <dt>Storage</dt>
-                <dd>{ready.data?.checks.storage ?? '-'}</dd>
-                <dt>Migration</dt>
-                <dd>{ready.data?.checks.migrations ?? '-'}</dd>
-              </dl>
+              <div className="admin-kv">
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">Status readiness</span>
+                  <Badge tone={statusTone(ready.data?.status)}>{ready.data?.status ?? '-'}</Badge>
+                </div>
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">
+                    <Database size={14} aria-hidden="true" />
+                    Database
+                  </span>
+                  <Badge tone={statusTone(ready.data?.checks.database)}>
+                    {ready.data?.checks.database ?? '-'}
+                  </Badge>
+                </div>
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">
+                    <HardDrive size={14} aria-hidden="true" />
+                    Storage
+                  </span>
+                  <Badge tone={statusTone(ready.data?.checks.storage)}>
+                    {ready.data?.checks.storage ?? '-'}
+                  </Badge>
+                </div>
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">Migration</span>
+                  <Badge tone={statusTone(ready.data?.checks.migrations)}>
+                    {ready.data?.checks.migrations ?? '-'}
+                  </Badge>
+                </div>
+              </div>
             )}
           </Stack>
         </Card>
         <Card>
           <Stack gap="sm">
-            <strong>/release.json</strong>
+            <div className="admin-section__head">
+              <strong>/release.json</strong>
+            </div>
             {release.isLoading ? (
               <Loader label="Memuat release" />
             ) : release.error ? (
@@ -118,10 +165,15 @@ export function SystemStatusPage() {
                 {String((release.error as Error).message)}
               </Alert>
             ) : (
-              <dl>
-                <dt>Release SHA</dt>
-                <dd>{release.data?.releaseSha ?? '-'}</dd>
-              </dl>
+              <div className="admin-kv">
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">
+                    <Rocket size={14} aria-hidden="true" />
+                    Release SHA
+                  </span>
+                  <span className="admin-kv__value">{release.data?.releaseSha ?? '-'}</span>
+                </div>
+              </div>
             )}
           </Stack>
         </Card>

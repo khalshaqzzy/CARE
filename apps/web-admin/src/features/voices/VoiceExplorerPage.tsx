@@ -3,6 +3,7 @@ import { careQueryKey, useAuth } from '@care/frontend-core';
 import {
   Alert,
   Badge,
+  Button,
   Card,
   DataTable,
   Drawer,
@@ -135,7 +136,7 @@ export function VoiceExplorerPage() {
       </Alert>
       <Card>
         <Stack gap="sm">
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="admin-toolbar">
             <Input
               label="Search ID/Judul"
               value={search}
@@ -231,18 +232,7 @@ export function VoiceExplorerPage() {
                   {
                     key: 'title',
                     header: 'Judul',
-                    cell: (r: VoiceItem) => (
-                      <span
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {r.title}
-                      </span>
-                    ),
+                    cell: (r: VoiceItem) => <span className="admin-clamp-2">{r.title}</span>,
                   },
                   {
                     key: 'visibility',
@@ -277,15 +267,16 @@ export function VoiceExplorerPage() {
                     key: 'action',
                     header: '',
                     cell: (r: VoiceItem) => (
-                      <button
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => {
                           setSelected(r);
                           setOpen(true);
                         }}
-                        style={{ fontSize: '0.75rem', color: 'var(--action-primary)' }}
                       >
                         Detail
-                      </button>
+                      </Button>
                     ),
                   },
                 ]}
@@ -317,35 +308,45 @@ export function VoiceExplorerPage() {
       >
         {detail.data ? (
           <Stack gap="sm">
-            <dl>
-              <dt>Status</dt>
-              <dd>{detail.data.status}</dd>
-              <dt>Area</dt>
-              <dd>{detail.data.area}</dd>
-              <dt>Kategori / severity</dt>
-              <dd>
-                {detail.data.category ?? '-'} / {detail.data.severity}
-              </dd>
-              <dt>Lokasi</dt>
-              <dd>{detail.data.locationDetail}</dd>
-              <dt>Detail</dt>
-              <dd>{detail.data.detail}</dd>
+            <dl className="admin-dl">
+              <div>
+                <dt>Status</dt>
+                <dd>{detail.data.status}</dd>
+              </div>
+              <div>
+                <dt>Area</dt>
+                <dd>{detail.data.area}</dd>
+              </div>
+              <div>
+                <dt>Kategori / severity</dt>
+                <dd>
+                  {detail.data.category ?? '-'} / {detail.data.severity}
+                </dd>
+              </div>
+              <div>
+                <dt>Lokasi</dt>
+                <dd>{detail.data.locationDetail}</dd>
+              </div>
+              <div>
+                <dt>Detail</dt>
+                <dd>{detail.data.detail}</dd>
+              </div>
               {detail.data.audience === 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY' ||
               detail.data.audience === 'GENERAL_RESPONDER' ? (
-                <>
+                <div>
                   <dt>Reporter</dt>
                   <dd>
                     {detail.data.reporter.name} ({detail.data.reporter.noReg}) —{' '}
                     {detail.data.reporter.division} / {detail.data.reporter.department}
                   </dd>
-                </>
+                </div>
               ) : null}
             </dl>
             <Card>
               <Stack gap="xs">
                 <strong>Lampiran Voice</strong>
                 {detail.data.attachments.length ? (
-                  <ul>
+                  <ul className="admin-feed">
                     {detail.data.attachments.map((attachment) => (
                       <li key={attachment.id}>
                         {attachment.state === 'READY' ? (
@@ -376,7 +377,7 @@ export function VoiceExplorerPage() {
                 {timeline.isLoading ? (
                   <Loader label="Memuat timeline" />
                 ) : timelineItems.length ? (
-                  <ol>
+                  <ol className="admin-feed">
                     {timelineItems.map((event) => (
                       <li key={event.id}>
                         <strong>{event.type}</strong> —{' '}
@@ -390,13 +391,14 @@ export function VoiceExplorerPage() {
                     ))}
                     {timeline.hasNextPage ? (
                       <li>
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => void timeline.fetchNextPage()}
                           disabled={timeline.isFetching}
                         >
                           {timeline.isFetching ? 'Memuat…' : 'Muat lebih'}
-                        </button>
+                        </Button>
                       </li>
                     ) : null}
                   </ol>
@@ -411,7 +413,7 @@ export function VoiceExplorerPage() {
                 {messages.isLoading ? (
                   <Loader label="Memuat percakapan" />
                 ) : messageItems.length ? (
-                  <ol>
+                  <ol className="admin-feed">
                     {messageItems.map((message) => (
                       <li key={message.id}>
                         <div>
@@ -420,7 +422,7 @@ export function VoiceExplorerPage() {
                         </div>
                         <p>{message.text || '(hanya lampiran)'}</p>
                         {message.attachments.length ? (
-                          <ul>
+                          <ul className="admin-feed">
                             {message.attachments.map((attachment) => (
                               <li key={attachment.id}>
                                 <a
@@ -438,13 +440,14 @@ export function VoiceExplorerPage() {
                     ))}
                     {messages.hasNextPage ? (
                       <li>
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => void messages.fetchNextPage()}
                           disabled={messages.isFetching}
                         >
                           {messages.isFetching ? 'Memuat…' : 'Muat lebih'}
-                        </button>
+                        </Button>
                       </li>
                     ) : null}
                   </ol>
@@ -453,7 +456,7 @@ export function VoiceExplorerPage() {
                 )}
               </Stack>
             </Card>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <p className="admin-meta--xs">
               Reporter untuk Private menampilkan identitas lengkap immutable (noReg, nama,
               directorate, division, department, section, posisi). Tidak ada kontrol aksi.
             </p>

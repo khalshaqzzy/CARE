@@ -108,8 +108,13 @@ function LoginPage() {
   return (
     <main className="admin-auth">
       <section>
-        <div className="admin-brand">
-          CARE <span>Admin</span>
+        <div className="admin-auth__brandrow">
+          <span className="admin-auth__mark" aria-hidden="true">
+            <Building2 size={20} />
+          </span>
+          <div className="admin-brand">
+            CARE <span>Admin</span>
+          </div>
         </div>
         <p className="care-eyebrow">Operasional dan governance</p>
         <h1>Kelola fondasi CARE dari satu workspace.</h1>
@@ -334,8 +339,10 @@ function AdminShell() {
           onNavigate={(id) => void navigate(ADMIN_NAV_ROUTES[id] ?? '/')}
           header={
             <div className="admin-sidebar-brand">
-              <Building2 size={22} />
-              <span>
+              <span className="admin-sidebar-brand__mark" aria-hidden="true">
+                <Building2 size={16} />
+              </span>
+              <span className="admin-sidebar-brand__text">
                 <strong>CARE</strong>
                 <small>Admin</small>
               </span>
@@ -359,11 +366,11 @@ function AdminShell() {
       }
       topbar={
         <div className="admin-topbar">
-          <div>
+          <div className="admin-topbar__context">
             <strong>Operational workspace</strong>
             <Badge tone="success">Session active</Badge>
           </div>
-          <div>
+          <div className="admin-topbar__user">
             <span>{session.account.displayName}</span>
             <Avatar name={session.account.displayName} size="sm" />
           </div>

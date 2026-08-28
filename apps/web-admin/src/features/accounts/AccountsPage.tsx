@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -110,7 +111,7 @@ export function AccountsPage() {
       />
       <Card>
         <Stack gap="sm">
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="admin-toolbar">
             <Input
               label="Search"
               value={search}
@@ -238,26 +239,43 @@ export function AccountsPage() {
       >
         {detail ? (
           <Stack gap="md">
-            <div style={{ fontSize: '0.875rem' }}>
+            <div className="admin-identity">
+              <Avatar name={detail.displayName || detail.username} size="md" />
               <div>
-                Kind: {detail.accountKind} • Status: {detail.status}
+                <strong>{detail.displayName || detail.username}</strong>
+                <p className="admin-meta--xs">
+                  Kind: {detail.accountKind} • Status: {detail.status}
+                </p>
               </div>
-              {detail.employee ? (
-                <div>
-                  NoReg {detail.employee.noReg} •{' '}
-                  {detail.employee.memberships[0]?.structuralPosition ?? '-'} •{' '}
-                  {detail.employee.memberships[0]?.organizationUnit.division ?? '-'} /{' '}
-                  {detail.employee.memberships[0]?.organizationUnit.department ?? '-'}
-                </div>
-              ) : (
-                <div>Tidak ada employee snapshot</div>
-              )}
-              {detail.accountKind === 'CARE_ADMIN' ? (
-                <Alert tone="info" title="Read-only">
-                  Akun CARE Admin tidak dapat direset/dinonaktifkan via UI ini.
-                </Alert>
-              ) : null}
             </div>
+            {detail.employee ? (
+              <div className="admin-kv">
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">NoReg</span>
+                  <span className="admin-kv__value">{detail.employee.noReg}</span>
+                </div>
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">Posisi</span>
+                  <span className="admin-kv__value">
+                    {detail.employee.memberships[0]?.structuralPosition ?? '-'}
+                  </span>
+                </div>
+                <div className="admin-kv__row">
+                  <span className="admin-kv__label">Unit</span>
+                  <span className="admin-kv__value">
+                    {detail.employee.memberships[0]?.organizationUnit.division ?? '-'} /{' '}
+                    {detail.employee.memberships[0]?.organizationUnit.department ?? '-'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="admin-meta--xs">Tidak ada employee snapshot</p>
+            )}
+            {detail.accountKind === 'CARE_ADMIN' ? (
+              <Alert tone="info" title="Read-only">
+                Akun CARE Admin tidak dapat direset/dinonaktifkan via UI ini.
+              </Alert>
+            ) : null}
             {detail.accountKind !== 'CARE_ADMIN' ? (
               <Stack gap="sm">
                 <Button
