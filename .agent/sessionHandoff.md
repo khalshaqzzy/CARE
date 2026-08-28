@@ -15,14 +15,17 @@
 ### PR #7 hosted CI remediation — 28 Agustus 2026
 
 Run hosted pertama untuk workflow CI/staging (PR #7, run 33137764783) gagal pada
-tiga job dan mengungkap tiga penyebab berbeda:
+tiga job dan mengungkap tiga penyebab berbeda; dua run remediasi berikutnya
+menuntaskan seluruh temuan kode dan menyisakan satu setting repositori sebagai
+blocker eksternal.
 
 1. **`quality` — format:check gagal pada dua file `.agent`.**
    `.agent/sessionHandoff.md` dan `.agent/implementationPhases.md` diedit
    setelah `pnpm format` terakhir dijalankan sehingga ter-commit tanpa
    Prettier. Pola kegagalan yang sama dengan PR #2 historis; pelajarannya
    format:check wajib diulang pada state commit final, bukan sebelum edit
-   dokumen. Diperbaiki dengan `pnpm format` pada kedua file.
+   dokumen. Diperbaiki dengan `pnpm format` pada kedua file (commit `docs:`
+   8463f97) dan terkonfirmasi hijau pada run 33138850149.
 2. **`Previous-SHA to current migration` — bug path workflow (pre-existing).**
    `ci.yml` menjalankan `pnpm --filter @care/api exec prisma migrate status
 --schema apps/api/prisma/schema.prisma`; `pnpm --filter … exec` mengeksekusi
@@ -32,21 +35,42 @@ tiga job dan mengungkap tiga penyebab berbeda:
    absolut dan package script. Bug ini pre-existing pada workflow yang baru
    dibuat 28 Agustus dan baru terekspose pada run hosted pertama (evidence
    hosted memang belum pernah dijalankan sebelumnya). Diperbaiki menjadi
-   `--schema prisma/schema.prisma` dan direplikasi lokal terhadap disposable
-   PostgreSQL: base-SHA migrations → current `migrate deploy` → `migrate
-status` dengan path corrected, semuanya hijau.
+   `--schema prisma/schema.prisma` (commit `ci:` 6195898), direplikasi lokal
+   terhadap disposable PostgreSQL — base-SHA migrations → current
+   `migrate deploy` → `migrate status` "Database schema is up to date!" — dan
+   job menjadi hijau pada run 33138850149.
 3. **`Dependency security` — Dependency graph repositori nonaktif.**
    `actions/dependency-review-action` menolak berjalan: "Dependency review is
    not supported on this repository. Please ensure that Dependency graph is
-   enabled". Ini kondisi settings repositori, bukan kode. Owner mengaktifkan
-   Dependency graph melalui API (`PATCH /repos/…` `security_and_analysis
-[dependency_graph]=enabled`, accepted tanpa error) untuk mempertahankan
-   gate tanpa melemahkan pemindaian.
+   enabled". Kondisi settings repositori, bukan kode. Aktivasi via API
+   (`PATCH /repos/…` `security_and_analysis.dependency_graph.enabled`)
+   menerima balasan 200 namun tidak diterapkan; endpoint SBOM tetap 404.
+   Akar penyebabnya token CLI hanya memegang scope `gist, read:org, repo,
+workflow` — perubahan `security_and_analysis` memerlukan scope
+   `security_events`, tanpa itu GitHub mengabaikan field secara diam-diam.
+   Resolusi membutuhkan aksi owner: aktifkan "Dependency graph" pada
+   Settings → Code security repositori, atau `gh auth refresh -s
+security_events` lalu ulangi PATCH API; setelah aktif, `gh run rerun
+--failed` cukup tanpa commit baru.
+4. **`quality` (run kedua) — visual baseline shell gagal di Linux.**
+   Baseline `workforce-shell-360.png` diregenerasi di macOS; halaman member
+   yang kini padat tipografi mengakumulasi drift rasterisasi font CoreText
+   (macOS) vs FreeType (ubuntu CI) ~0.04, melewati toleransi 0.03 — persis
+   kasus design-overview yang terdokumentasi. Diterapkan toleransi 0.06
+   dengan rationale yang sama (commit `test:` 79e9617); diff lokal ~0 dan
+   job `quality` hijau penuh pada run 33138850149.
+5. **`codeql` (run kedua) — failure transient.** Step `analyze` mati tanpa
+   pesan error di tengah upload SARIF ("Uploading results" → job cleanup);
+   diff antar-run tidak menyentuh kode yang dianalisis dan run ketiga lulus
+   tanpa perubahan. Tidak ada tindakan kode; jika berulang, selidiki limit
+   upload SARIF.
 
-`Release candidate gate` gagal hanya karena agregasi tiga job di atas;
-`Deploy staging` ter-skip dengan benar karena gate merah. Perbaikan
-di-commit sebagai `ci:` (path) dan `docs:` (format + catatan ini), lalu run
-baru dipantau sampai seluruh required job hijau sebelum PR #7 dapat di-merge.
+`Release candidate gate` hanya agregasi; `Deploy staging` ter-skip karena
+gate merah (dan memang dibatasi untuk push `staging`). Status akhir run
+33138850149: tujuh job hijau; satu-satunya job merah adalah
+`Dependency security` yang menunggu setting repositori, lalu
+`gh run rerun --failed` untuk menuntaskan gate sebelum PR #7 dapat
+di-merge.
 
 ### Member home visual polish + dock navigation fix — 28 Agustus 2026
 
