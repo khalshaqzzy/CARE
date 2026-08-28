@@ -1,11 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { memberSession, mockWorkforceApi } from './helpers/mock-api';
+import {
+  memberSession,
+  mockWorkforceApi,
+  unionPrivateVoiceDetail,
+  unionSession,
+} from './helpers/mock-api';
 
 const responder = memberSession({
   capabilities: ['MEMBER', 'MANAGER'],
   structuralPosition: 'Manager',
 });
-const union = memberSession({ capabilities: ['UNION_HEAD'], structuralPosition: null });
+const unionHead = unionSession({ slot: 'HEAD' });
+const unionOfficer = unionSession({ slot: 'OFFICER_1' });
 
 const generalVoice = {
   id: 'voice-1',
@@ -98,7 +104,7 @@ test.describe('workforce journeys (mocked contract)', () => {
 
   test('union general browse is read-only with a suppression surface', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
-    await mockWorkforceApi(page, { session: union });
+    await mockWorkforceApi(page, { session: unionHead });
     await page.goto('/general');
     await expect(page.getByRole('heading', { name: 'Tinjauan General' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Status' })).toBeVisible();
@@ -108,7 +114,7 @@ test.describe('workforce journeys (mocked contract)', () => {
 
   test('union home does not request or show the unavailable Member summary', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
-    await mockWorkforceApi(page, { session: union });
+    await mockWorkforceApi(page, { session: unionHead });
     let memberDashboardRequests = 0;
     await page.route('**/api/v1/dashboard/member', async (route) => {
       memberDashboardRequests += 1;
@@ -119,11 +125,192 @@ test.describe('workforce journeys (mocked contract)', () => {
       });
     });
     await page.goto('/');
-    await expect(page.getByText('Private Voice')).toBeVisible();
+    await expect(page.getByText('Private Voice').first()).toBeVisible();
     await expect(page.getByText('General (read-only)')).toBeVisible();
     await expect(page.getByText('Gagal memuat ringkasan')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Buat Voice' })).toHaveCount(0);
     expect(memberDashboardRequests).toBe(0);
+  });
+
+  test('union home lists private voices with the assignment queue for the head', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      session: unionHead,
+      privateDashboard: {
+        total: 4,
+        status: [
+          { label: 'OPEN', value: 2 },
+          { label: 'IN_PROGRESS', value: 2 },
+        ],
+        severity: [],
+        category: [],
+        trend: [],
+        division: [],
+        department: [],
+        suppression: {
+          enabled: false,
+          threshold: 0,
+          division: { suppressedBuckets: 0, suppressedValue: 0 },
+          department: { suppressedBuckets: 0, suppressedValue: 0 },
+        },
+        filters: {
+          area: null,
+          category: null,
+          severity: null,
+          status: null,
+          from: null,
+          to: null,
+        },
+        generatedAt: '2026-08-03T00:00:00.000Z',
+        pendingAssignment: 2,
+      },
+      voice: {
+        id: 'voice-p1',
+        displayId: 'CARE-202608-000002',
+        audience: 'UNION_ANONYMOUS',
+        visibility: 'PRIVATE',
+        status: 'OPEN',
+        area: 'KARAWANG_2',
+        title: 'Laporan papan nama rusak',
+        detail: 'Papan nama area shift 3 tergantung satu baut saja.',
+        availableActions: [],
+        category: null,
+      },
+    });
+    await page.goto('/');
+    // Assignment summary card for the Union Head.
+    await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
+    // Localized dashboard labels, never raw enums.
+    await expect(page.getByText('Terbuka').first()).toBeVisible();
+    await expect(page.getByText('Diproses').first()).toBeVisible();
+    // Private operational list with the shared voice card.
+    await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
+    // Union never sees reporter self surfaces.
+    await expect(page.getByText('Voice Anda')).toHaveCount(0);
+  });
+
+  test('union officer home hides the assignment queue', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: unionOfficer });
+    await page.goto('/');
+    await expect(page.getByText('menunggu penugasan')).toHaveCount(0);
+    await expect(page.getByText('Private Voice').first()).toBeVisible();
+  });
+
+  test('union private inbox is role-aware and filterable for the head', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      session: unionHead,
+      voice: {
+        id: 'voice-p1',
+        displayId: 'CARE-202608-000002',
+        audience: 'UNION_ANONYMOUS',
+        visibility: 'PRIVATE',
+        status: 'OPEN',
+        area: 'KARAWANG_2',
+        title: 'Laporan papan nama rusak',
+        detail: 'Papan nama area shift 3 tergantung satu baut saja.',
+        availableActions: [],
+        category: null,
+      },
+      unassignedVoiceList: { items: [], nextCursor: null },
+    });
+    await page.goto('/work-items');
+    await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
+    await expect(
+      page.getByText('Seluruh Private Voice melalui Union Head, diurutkan berdasarkan severity.'),
+    ).toBeVisible();
+    await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
+
+    // Switching the assignment filter drains the queue view.
+    await page.getByRole('combobox', { name: 'Penugasan' }).click();
+    await page.getByRole('option', { name: 'Perlu ditugaskan' }).click();
+    await expect(page.getByText('Semua Private Voice sudah ditugaskan')).toBeVisible();
+
+    // Returning to "Semua" restores the full private list.
+    await page.getByRole('combobox', { name: 'Penugasan' }).click();
+    await page.getByRole('option', { name: 'Semua' }).click();
+    await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
+  });
+
+  test('union officer private inbox copy reflects the assigned scope', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: unionOfficer });
+    await page.goto('/work-items');
+    await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
+    await expect(
+      page.getByText('Private Voice yang ditugaskan kepada Anda untuk ditangani.'),
+    ).toBeVisible();
+    // Officers never get the assignment filter.
+    await expect(page.getByRole('combobox', { name: 'Penugasan' })).toHaveCount(0);
+    await expect(page.getByText('Belum ada penugasan')).toBeVisible();
+  });
+
+  test('union head can assign a union officer from the private voice detail', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      session: unionHead,
+      voiceDetail: unionPrivateVoiceDetail({
+        id: 'voice-p1',
+        displayId: 'CARE-202608-000002',
+        audience: 'UNION_ANONYMOUS',
+        visibility: 'PRIVATE',
+        status: 'OPEN',
+        area: 'KARAWANG_2',
+        title: 'Laporan papan nama rusak',
+        detail: 'Papan nama area shift 3 tergantung satu baut saja.',
+        availableActions: ['ASK', 'PROCEED', 'ASSIGN', 'MESSAGE'],
+        identified: false,
+        alias: 'Reporter Biru 47',
+      }),
+    });
+    await page.goto('/voices/voice-p1');
+    await expect(page.getByRole('heading', { name: 'Laporan papan nama rusak' })).toBeVisible();
+    // Anonymous consent surface: alias only, never identity fields.
+    await expect(page.getByText('Reporter Biru 47')).toBeVisible();
+    await expect(page.getByText('Identitas disembunyikan')).toBeVisible();
+    await expect(page.getByText('Sari Wulandari')).toHaveCount(0);
+    // Localized status in the meta grid.
+    await expect(page.getByText('Terbuka').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(
+      page.getByText('Pilih Union Officer yang akan menangani Voice ini.'),
+    ).toBeVisible();
+    await dialog.getByRole('combobox', { name: 'Penanggung' }).click();
+    await expect(page.getByRole('option', { name: /Union Officer 1/ })).toBeVisible();
+    await page.getByRole('option', { name: /Union Officer 1/ }).click();
+    await dialog.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('union identified detail shows the consented reporter snapshot', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      session: unionHead,
+      voiceDetail: unionPrivateVoiceDetail({
+        id: 'voice-p2',
+        displayId: 'CARE-202608-000003',
+        audience: 'UNION_IDENTIFIED',
+        visibility: 'PRIVATE',
+        status: 'IN_VERIFICATION',
+        area: 'SUNTER_1',
+        title: 'Permintaan penggantian kursi istirahat',
+        detail: 'Kursi area istirahat shift 2 rusak pada sandaran.',
+        availableActions: ['ASK', 'PROCEED', 'REASSIGN', 'MESSAGE'],
+        identified: true,
+      }),
+    });
+    await page.goto('/voices/voice-p2');
+    await expect(page.getByText('Sari Wulandari')).toBeVisible();
+    await expect(page.getByText('000129')).toBeVisible();
+    await expect(page.getByText('Identitas ditampilkan')).toBeVisible();
+    // Verifikasi status terlokalisasi.
+    await expect(page.getByText('Verifikasi').first()).toBeVisible();
   });
 
   test('member status card stays within the mobile viewport', async ({ page }) => {

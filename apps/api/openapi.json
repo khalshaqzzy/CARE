@@ -6562,6 +6562,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "unassigned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -12676,6 +12684,10 @@
           "generatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "pendingAssignment": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },

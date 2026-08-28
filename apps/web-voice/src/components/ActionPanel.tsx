@@ -132,9 +132,13 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         onOpenChange={(open) => setActive(open ? active : 'none')}
         title={active === 'reassign' ? 'Alihkan Penanggung' : 'Tugaskan Penanggung'}
         description={
-          active === 'reassign'
-            ? 'Pilih Section Head lain untuk melanjutkan penanganan Voice ini.'
-            : 'Pilih Section Head yang akan menangani Voice ini.'
+          detail.visibility === 'PRIVATE'
+            ? active === 'reassign'
+              ? 'Pilih Union Officer lain untuk melanjutkan penanganan Voice ini.'
+              : 'Pilih Union Officer yang akan menangani Voice ini.'
+            : active === 'reassign'
+              ? 'Pilih Section Head lain untuk melanjutkan penanganan Voice ini.'
+              : 'Pilih Section Head yang akan menangani Voice ini.'
         }
       >
         <AssignDialog

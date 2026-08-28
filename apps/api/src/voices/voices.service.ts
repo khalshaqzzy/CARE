@@ -609,12 +609,18 @@ export class VoicesService {
       category?: RoutingCategory;
       from?: string;
       to?: string;
+      unassigned?: string;
     } = {},
   ) {
     const where = this.policy.workItemScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
+    // The Union Head assignment queue: only voices still awaiting an officer.
+    // The flag is deliberately ignored for every other actor so existing inbox
+    // semantics (Manager route inbox, Section Head assigned inbox) never change.
+    if (query.unassigned === 'true' && actor.capabilities.includes('UNION_HEAD'))
+      and.push({ currentHandlerId: null });
     if (query.status) and.push({ status: query.status });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
@@ -1126,7 +1132,19 @@ export class VoicesService {
     else if (actor.capabilities.includes('UNION_OFFICER'))
       where = { visibility: VoiceVisibility.PRIVATE, currentHandlerId: actor.accountId };
     else where = { visibility: VoiceVisibility.PRIVATE, reporterId: actor.accountId };
-    return this.aggregate(where, false, filter);
+    // Union Head assignment summary: Private Voices still awaiting an officer.
+    // Deliberately independent of dashboard filters; the home card links to the
+    // unassigned queue on /work-items which applies no status/severity filter.
+    const isUnionHead = actor.capabilities.includes('UNION_HEAD');
+    const [aggregate, pendingAssignment] = await Promise.all([
+      this.aggregate(where, false, filter),
+      isUnionHead
+        ? this.prisma.voice.count({
+            where: { visibility: VoiceVisibility.PRIVATE, currentHandlerId: null },
+          })
+        : Promise.resolve(undefined),
+    ]);
+    return { ...aggregate, pendingAssignment };
   }
   async dashboardMember(actor: AuthActor) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();

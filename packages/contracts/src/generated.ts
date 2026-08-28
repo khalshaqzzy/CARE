@@ -1645,6 +1645,7 @@ export interface components {
             };
             /** Format: date-time */
             generatedAt: string;
+            pendingAssignment?: number;
         };
         SuppressionBreakdown: {
             suppressedBuckets: number;
@@ -7899,6 +7900,7 @@ export interface operations {
                 category?: string;
                 dateFrom?: string;
                 dateTo?: string;
+                unassigned?: string;
             };
             header?: never;
             path?: never;

@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Home as HomeIcon,
   Inbox,
+  Lock,
   Plus,
   ScrollText,
   ShieldCheck,
@@ -32,6 +33,7 @@ export function HomePage() {
   const offline = !isOnline;
 
   const isUnion = caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER'].includes(c));
+  const isUnionHead = caps.includes('UNION_HEAD');
   const isMember = caps.includes('MEMBER');
   const isLeadership = caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c));
   const isResponder = caps.some((c) => ['MANAGER', 'SECTION_HEAD'].includes(c));
@@ -58,8 +60,15 @@ export function HomePage() {
     refetchInterval: 3000,
   });
 
+  const privateInbox = useQuery({
+    queryKey: voiceQuery(sessionId, 'work-items', 'private-home'),
+    queryFn: () => api.workItems({ limit: 6 }),
+    enabled: !!session && isUnion,
+    refetchInterval: 3000,
+  });
+
   const inbox = useQuery({
-    queryKey: voiceQuery(sessionId, 'work-items'),
+    queryKey: voiceQuery(sessionId, 'work-items', 'responder-home'),
     queryFn: () => api.workItems({ limit: 15 }),
     enabled: !!session && isResponder,
     refetchInterval: 3000,
@@ -70,6 +79,7 @@ export function HomePage() {
 
   const quickActions: QuickAction[] = isUnion
     ? [
+        { label: 'Private Voice', icon: <Lock size={20} />, to: '/work-items' },
         { label: 'General', icon: <ScrollText size={20} />, to: '/general' },
         { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
         { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
@@ -175,6 +185,68 @@ export function HomePage() {
             />
           ) : null}
         </Stack>
+      ) : null}
+
+      {isUnionHead && privateDash.data?.pendingAssignment !== undefined ? (
+        <Card
+          className="home-resume"
+          {...(privateDash.data.pendingAssignment > 0 ? { 'data-tone': 'accent' } : {})}
+        >
+          <div>
+            <p className="home-resume__eyebrow">Penugasan</p>
+            <h3 className="home-resume__title">
+              {privateDash.data.pendingAssignment > 0
+                ? `${privateDash.data.pendingAssignment} Private Voice menunggu penugasan`
+                : 'Semua Private Voice sudah ditugaskan'}
+            </h3>
+            <p className="home-resume__meta">
+              Tugaskan Union 1 atau Union 2 sebelum Voice diproses lebih lanjut.
+            </p>
+          </div>
+          <Button
+            variant={privateDash.data.pendingAssignment > 0 ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={() => void navigate('/work-items?unassigned=true')}
+          >
+            Tinjau
+          </Button>
+        </Card>
+      ) : null}
+
+      {isUnion ? (
+        <section className="home-inbox">
+          <div className="home-section__head">
+            <h2 className="home-section__title">Private Voice</h2>
+            <Button variant="ghost" size="sm" onClick={() => void navigate('/work-items')}>
+              Lihat semua
+            </Button>
+          </div>
+          {privateInbox.isLoading ? (
+            <Skeleton label="Memuat Private Voice" />
+          ) : (privateInbox.data?.items.length ?? 0) === 0 ? (
+            <Card>
+              <EmptyState
+                icon={<Lock size={24} />}
+                title={isUnionHead ? 'Belum ada Private Voice' : 'Belum ada penugasan'}
+                description={
+                  isUnionHead
+                    ? 'Private Voice dari reporter akan muncul di sini.'
+                    : 'Private Voice yang ditugaskan kepada Anda akan muncul di sini.'
+                }
+              />
+            </Card>
+          ) : (
+            <div className="voice-grid">
+              {privateInbox.data?.items.map((voice) => (
+                <VoiceCard
+                  key={voice.id}
+                  voice={voice}
+                  onOpen={() => void navigate(`/voices/${voice.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       ) : null}
 
       {isResponder ? (
@@ -339,9 +411,11 @@ export function HomePage() {
             icon={isUnion ? <ShieldCheck size={24} /> : <ScrollText size={24} />}
             title={isUnion ? 'Akses Union' : 'Akses Leadership'}
             description={
-              isUnion
-                ? 'Akses detail General bersifat read-only dan Private terisolasi berdasarkan scope.'
-                : 'Detail General hanya dapat dibaca pada scope yang diizinkan; tidak ada aksi lifecycle.'
+              isUnionHead
+                ? 'Anda menangani seluruh Private Voice dan dapat menugaskan Union Officer. Detail General bersifat read-only.'
+                : isUnion
+                  ? 'Anda menangani Private Voice yang ditugaskan. Detail General bersifat read-only.'
+                  : 'Detail General hanya dapat dibaca pada scope yang diizinkan; tidak ada aksi lifecycle.'
             }
           />
         </Card>
