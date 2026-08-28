@@ -3,14 +3,89 @@
 | Atribut                 | Nilai                                                                                                                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Date                    | 28 Agustus 2026                                                                                                                                                                       |
-| Current objective       | Phase 12 production container runtime complete; Phase 13 immutable staging release implementation complete locally, awaiting GitHub/hosted deployment and rehearsal evidence          |
+| Current objective       | Member home visual polish complete on `feat/frontend-polish`; Phase 13 immutable staging release implementation complete locally, awaiting GitHub/hosted deployment and rehearsal evidence |
 | Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                      |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                   |
 | Implementation status   | Phase 0–12 done; staging images/Compose/scripts/workflows/docs implemented; local parity green; hosted evidence not yet claimed                                                       |
-| Latest ADR              | ADR-0011 (single-VM containers, two-origin routing, forward-only migration, immutable SHA releases, rollback, and race control)                                                       |
-| Recommended next action | Push exact candidate to `staging`, monitor every required job and deployment, verify both hosted origins, then execute guarded two-release rollback rehearsal before closing Phase 13 |
+| Latest ADR              | ADR-0012 (workforce member home visual polish aligned to the mobile dashboard reference)                                                                                              |
+| Recommended next action | Open PR for `feat/frontend-polish` into `staging`, monitor CI, then resume Phase 13: push exact candidate, verify both hosted origins, execute guarded two-release rollback rehearsal   |
 
 ## Session Outcome
+
+### Member home visual polish + dock navigation fix — 28 Agustus 2026
+
+Branch `feat/frontend-polish`. Member Voice home direstyle mengikuti referensi
+`.agent/design/design.jpg` (hero cobalt dengan kartu progres tersemat, kartu
+Voice berpola panel nilai, CTA pill gradient, quick actions, dock putih
+ikon-only dengan state aktif tinta) tanpa mengubah kontrak produk, kontrak
+API, atau perilaku offline/privacy:
+
+- **Bug fix navigasi dock.** `App.tsx` sebelumnya mengirim `onClick` per item,
+  sedangkan `BottomNav` hanya memanggil `onNavigate(id)` yang tidak pernah
+  di-wire — tap dock di mobile tidak melakukan apa pun. Kini `onNavigate`
+  terhubung ke peta rute (`NAV_ROUTES`) untuk seluruh id dock, dikunci oleh
+  asersi sumber di `foundation.test.ts` dan journey Playwright baru
+  (dock → Riwayat → kembali → dock → Buat).
+- **Gap navigasi tablet tertutup.** `packages/ui/src/styles.css`: dock
+  terlihat hingga 1279 px (sebelumnya hilang pada 768–1279 px), label dock
+  tetap tersembunyi secara visual namun tersedia bagi assistive technology,
+  dan padding bawah konten mengikuti tinggi dock baru; Admin tidak terdampak
+  karena tidak merender dock.
+- **Hero member.** Gradient cobalt same-hue + glow cyan, radius 2.25rem,
+  dua orb bulat (`Buat Voice`, notifikasi) dengan focus ring putih, teks
+  hero putih solid (≥4.8:1 di kedua stop gradient, tanpa opacity),
+  chip konteks role dipertahankan; topbar disembunyikan hanya pada route
+  home mobile (logout tetap tersedia di Akun dan di topbar route lain).
+- **StatusSummary tertanam di hero.** Kartu putih: header ikon + `{total}
+  Voice`, baris besar `aktif/total` + persen, segmented bar 24 segmen
+  (`role="progressbar"` + `aria-valuenow`, segmen dekoratif), legend empat
+  status (kontrak PRD tetap), catatan tindak lanjut, dan penanda
+  `· usang` saat offline cache dipakai.
+- **VoiceCard baru.** Shell tinted + panel putih berisi baris
+  Status/Prioritas/Area/Kategori dengan nilai berwarna semantik (teks nilai
+  adalah labelnya sendiri sehingga warna bukan satu-satunya pembawa info;
+  palet mengikuti mapping badge yang ada; semua ≥4.5:1) dan tautan
+  `Lihat detail →` yang mempertahankan `aria-label="Buka <displayId>"`.
+  Styling dipakai bersama oleh Home, Riwayat, dan inbox responder.
+- **Section header + quick actions.** Judul gelap semibold (eyebrow biru
+  dihapus pada home saja), pil CTA gradient `brand-600→700` (accent-only
+  gagal AA untuk teks putih; aksen tetap lewat glow), tautan "Lihat semua"
+  terpusat ke Riwayat, dan baris quick action capability-aware yang hanya
+  menunjuk destination navigasi PRD yang sudah ada.
+- **Dock.** Override ter-scope di `apps/web-voice/src/styles.css`: panel
+  putih blur, radius atas 1.75rem, ikon-only, aktif tinta gelap, tombol
+  52 px (≥44 px), ikon nonaktif `neutral-500` (memenuhi non-text 3:1;
+  abu terang referensi gagal), `sw-update-prompt` menyesuaikan offset.
+
+Files changed: `apps/web-voice/src/App.tsx`,
+`apps/web-voice/src/features/home/HomePage.tsx`,
+`apps/web-voice/src/components/StatusSummary.tsx`,
+`apps/web-voice/src/components/VoiceCard.tsx`,
+`apps/web-voice/src/styles.css`,
+`packages/ui/src/styles.css` (breakpoint dock 768→1280 + media query
+label/padding), `apps/web-voice/src/foundation.test.ts`,
+`e2e/workforce-journeys.spec.ts`, baseline
+`e2e/design.visual.spec.ts-snapshots/workforce-shell-360.png`
+(regenerated; baseline history/notifications dan seluruh baseline `/design`
+tetap identik), `docs/adr/0012-member-home-visual-polish.md`.
+
+Validation (semua hijau): `pnpm install --frozen-lockfile` (lockfile tidak
+berubah), `pnpm db:generate` + build paket generated, `pnpm format:check`,
+`pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (API 36, ui 8, frontend-core
+9, web-voice 20, web-admin 2), `pnpm build` (PWA precache tetap), visual
+baseline regenerasi terkontrol, `pnpm test:frontend:e2e` **98 passed**
+(termasuk Axe home, target 44 px dock, reduced-motion, overflow
+360/768/1440, dock-navigation journey baru, security probes, PWA),
+`pnpm migrations:destructive-check`, `pnpm openapi:check`, disposable
+PostgreSQL: `db:up/wait/verify/test:reset/test:migrate`,
+`pnpm test:integration` 31, `pnpm test:security` 5,
+`seed:performance` + `test:performance` (10k/50k),
+`maintenance:reconcile` (0), `FULLSTACK_E2E=1 --project=fullstack` 3
+passed (smoke member login → home polish → detail via label `Buka
+CARE-…` pada API nyata), Gitleaks v8.24.3 directory scan (no leaks),
+`git diff --check`; `pnpm db:down` dijalankan dan tidak ada container/proses
+yang tersisa. Tidak ada perubahan phase status; pekerjaan ini polish
+frontend di feature branch di luar roadmap bernomor.
 
 ### Configurable OpenAI reasoning effort — 28 Agustus 2026
 
