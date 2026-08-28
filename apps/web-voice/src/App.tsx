@@ -411,6 +411,7 @@ function WorkforceShell() {
               <Sidebar
                 items={bottomNav}
                 current={current}
+                onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
                 header={
                   <div className="workforce-sidebar-brand">
                     <Bot size={22} />

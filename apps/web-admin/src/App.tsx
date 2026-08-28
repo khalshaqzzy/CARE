@@ -248,6 +248,17 @@ function WrongApp() {
   );
 }
 
+const ADMIN_NAV_ROUTES: Record<string, string> = {
+  overview: '/',
+  imports: '/imports',
+  remediation: '/remediation',
+  union: '/union',
+  accounts: '/accounts',
+  voices: '/voices',
+  audit: '/audit',
+  system: '/system',
+};
+
 function AdminShell() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
@@ -276,49 +287,41 @@ function AdminShell() {
       id: 'overview',
       label: 'Overview',
       icon: <CircleGauge size={19} />,
-      onClick: () => navigate('/'),
     },
     {
       id: 'imports',
       label: 'Import & Master Data',
       icon: <Archive size={19} />,
-      onClick: () => navigate('/imports'),
     },
     {
       id: 'remediation',
       label: 'Remediation & Route',
       icon: <RouteIcon size={19} />,
-      onClick: () => navigate('/remediation'),
     },
     {
       id: 'union',
       label: 'Union Accounts',
       icon: <ShieldCheck size={19} />,
-      onClick: () => navigate('/union'),
     },
     {
       id: 'accounts',
       label: 'Accounts',
       icon: <UsersRound size={19} />,
-      onClick: () => navigate('/accounts'),
     },
     {
       id: 'voices',
       label: 'Voice Explorer',
       icon: <FileSearch size={19} />,
-      onClick: () => navigate('/voices'),
     },
     {
       id: 'audit',
       label: 'Audit',
       icon: <Activity size={19} />,
-      onClick: () => navigate('/audit'),
     },
     {
       id: 'system',
       label: 'System Status',
       icon: <Settings size={19} />,
-      onClick: () => navigate('/system'),
     },
   ];
   return (
@@ -326,8 +329,9 @@ function AdminShell() {
       density="compact"
       sidebar={
         <Sidebar
-          items={items as never}
+          items={items}
           current={current}
+          onNavigate={(id) => void navigate(ADMIN_NAV_ROUTES[id] ?? '/')}
           header={
             <div className="admin-sidebar-brand">
               <Building2 size={22} />

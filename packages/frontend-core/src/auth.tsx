@@ -37,9 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSessionBoundQueries(queryClient);
     await clearPersistentUserState();
   }, [queryClient]);
+  const clearLocalSession = useCallback(async () => {
+    await queryClient.cancelQueries({ queryKey: sessionQueryKey });
+    queryClient.setQueryData(sessionQueryKey, null);
+    await purge();
+  }, [purge, queryClient]);
   const transport = useMemo(
-    () => createCareTransport({ onAuthInvalidated: () => void purge() }),
-    [purge],
+    () => createCareTransport({ onAuthInvalidated: () => void clearLocalSession() }),
+    [clearLocalSession],
   );
   const query = useQuery({
     queryKey: sessionQueryKey,
@@ -52,16 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
     const channel = new BroadcastChannel(AUTH_CHANNEL);
-    channel.onmessage = () => {
+    channel.onmessage = (event) => {
       transport.resetSecurityContext();
-      void purge().then(() => {
-        queryClient.removeQueries({ queryKey: sessionQueryKey });
-        void refetch();
+      void clearLocalSession().then(() => {
+        if ((event.data as { type?: string } | null)?.type !== 'logout') void refetch();
       });
     };
     channelRef.current = channel;
     return () => channel.close();
-  }, [purge, queryClient, refetch, transport]);
+  }, [clearLocalSession, refetch, transport]);
 
   useEffect(() => {
     const current = sessionData?.sessionId ?? null;
@@ -81,15 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    const localCleanup = clearLocalSession();
     try {
       await transport.logout();
     } finally {
       transport.resetSecurityContext();
-      await purge();
-      queryClient.removeQueries({ queryKey: sessionQueryKey });
+      await localCleanup;
       channelRef.current?.postMessage({ type: 'logout' });
     }
-  }, [purge, queryClient, transport]);
+  }, [clearLocalSession, transport]);
 
   const refresh = useCallback(async () => {
     const result = await refetch();

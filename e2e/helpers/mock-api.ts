@@ -458,6 +458,8 @@ export async function mockAdminApi(
     accountDetail?: AccountSummary;
     imports?: OrganizationImportList;
     importDetail?: OrganizationImportPreview;
+    importStatuses?: OrganizationImportPreview['status'][];
+    importFailureCode?: string;
     importChanges?: OrganizationChangeList;
     snapshot?: OrganizationSnapshot;
     remediation?: RemediationIssueList;
@@ -477,6 +479,8 @@ export async function mockAdminApi(
 ) {
   const session = opts.session ?? adminSession();
   const override = (key: keyof typeof opts) => opts[key] as unknown;
+  let importStatusIndex = 0;
+  let currentImportStatus = opts.importStatuses?.[0];
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -504,16 +508,44 @@ export async function mockAdminApi(
     if (method === 'GET' && path.startsWith('/api/v1/admin/accounts/')) {
       return fulfill(200, override('accountDetail') ?? accountFixtures()[0]);
     }
-    if (method === 'GET' && path === '/api/v1/admin/organization-imports')
-      return fulfill(200, override('imports') ?? importListFixture());
+    if (method === 'GET' && path === '/api/v1/admin/organization-imports') {
+      const imports = (override('imports') ?? importListFixture()) as OrganizationImportList;
+      const items: unknown[] = [];
+      for (const item of imports.items as OrganizationImportPreview[])
+        items.push({
+          ...item,
+          ...(currentImportStatus ? { status: currentImportStatus } : {}),
+          ...(currentImportStatus === 'FAILED' && opts.importFailureCode
+            ? { failureCode: opts.importFailureCode }
+            : {}),
+        });
+      return fulfill(200, {
+        ...imports,
+        items,
+      });
+    }
     if (method === 'GET' && path === '/api/v1/admin/organization-imports/preview')
       return error(400, 'UPLOAD_REQUIRED');
     if (method === 'POST' && path === '/api/v1/admin/organization-imports/preview')
       return fulfill(200, override('importDetail') ?? importPreviewFixture());
     if (method === 'GET' && /\/api\/v1\/admin\/organization-imports\/[^/]+\/changes$/.test(path))
       return fulfill(200, override('importChanges') ?? changeListFixture());
-    if (method === 'GET' && /\/api\/v1\/admin\/organization-imports\/[^/]+$/.test(path))
-      return fulfill(200, override('importDetail') ?? importPreviewFixture());
+    if (method === 'GET' && /\/api\/v1\/admin\/organization-imports\/[^/]+$/.test(path)) {
+      const detail = (override('importDetail') ??
+        importPreviewFixture()) as OrganizationImportPreview;
+      if (opts.importStatuses?.length) {
+        currentImportStatus =
+          opts.importStatuses[Math.min(importStatusIndex, opts.importStatuses.length - 1)];
+        importStatusIndex += 1;
+      }
+      return fulfill(200, {
+        ...detail,
+        ...(currentImportStatus ? { status: currentImportStatus } : {}),
+        ...(currentImportStatus === 'FAILED' && opts.importFailureCode
+          ? { failureCode: opts.importFailureCode }
+          : {}),
+      });
+    }
     if (method === 'POST' && /\/api\/v1\/admin\/organization-imports\/[^/]+\/confirm$/.test(path))
       return fulfill(202, { id: 'batch-1', status: 'QUEUED' });
     if (method === 'GET' && path === '/api/v1/admin/organization-snapshots/current')

@@ -29,6 +29,35 @@ async function actor(username: string) {
   return policy.resolvePrincipal(account, { id: crypto.randomUUID(), passwordRestricted: false });
 }
 
+function organizationRows(count: number) {
+  const headedUnits = new Set<number>();
+  return Array.from({ length: count }, (_, index) => {
+    const unit = index < 188 ? 0 : 1 + ((index - 188) % 57);
+    const department = unit === 0 ? '14' : `Department ${unit}`;
+    const isHead = unit >= 13 && !headedUnits.has(unit);
+    if (isHead) headedUnits.add(unit);
+    return [
+      String(100_000 + index),
+      `Synthetic Employee ${index + 1}`,
+      isHead ? 'Department Head' : 'Member',
+      'Manufacturing',
+      `Division ${Math.floor(unit / 10) + 1}`,
+      department,
+      `Section ${(index % 20) + 1}`,
+    ];
+  });
+}
+
+async function waitForImport(id: string, timeoutMs = 240_000) {
+  const startedAt = Date.now();
+  let batch = await prisma.importBatch.findUniqueOrThrow({ where: { id } });
+  while (['QUEUED', 'PROCESSING'].includes(batch.status) && Date.now() - startedAt < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    batch = await prisma.importBatch.findUniqueOrThrow({ where: { id } });
+  }
+  return batch;
+}
+
 describe('Organization, remediation, and routing journey', () => {
   beforeAll(async () => {
     await prisma.$connect();
@@ -300,4 +329,152 @@ describe('Organization, remediation, and routing journey', () => {
     ).rejects.toMatchObject({ code: 'GENERAL_ROUTE_FORBIDDEN' });
     expect(await prisma.voiceDraft.findUnique({ where: { id: blockedDraft.id } })).not.toBeNull();
   });
+
+  it('confirms the 7,018-row organization shape and a 10,000-account monthly profile within the transaction budget', async () => {
+    const measuredPrisma = new PrismaClient({ log: [{ emit: 'event', level: 'query' }] });
+    await measuredPrisma.$connect();
+    let queryCount = 0;
+    measuredPrisma.$on('query', () => {
+      queryCount += 1;
+    });
+    const measuredImports = new ImportsService(measuredPrisma as never);
+    try {
+      const omittedMember = await prisma.userAccount.findUniqueOrThrow({
+        where: { username: '000003' },
+      });
+      const omittedSession = await prisma.session.create({
+        data: {
+          accountId: omittedMember.id,
+          tokenHash: 'a'.repeat(64),
+          csrfSecret: 'b'.repeat(64),
+          expiresAt: new Date(Date.now() + 3_600_000),
+          absoluteExpiresAt: new Date(Date.now() + 7_200_000),
+        },
+      });
+      const actualShape = organizationRows(7_018);
+      const actualBuffer = await xlsx(actualShape);
+      const firstPreview = await measuredImports.preview(admin, {
+        buffer: actualBuffer,
+        size: actualBuffer.length,
+        originalname: 'synthetic-7018.xlsx',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      } as Express.Multer.File);
+      expect(firstPreview.summary).toMatchObject({
+        rowCount: 7_018,
+        unitCount: 58,
+        department14Rows: 188,
+      });
+      queryCount = 0;
+      await measuredImports.confirm(
+        admin,
+        firstPreview.id,
+        { checksum: firstPreview.checksum, expectedVersion: firstPreview.version },
+        'organization-routing-7018-confirm',
+      );
+      const firstBatch = await waitForImport(firstPreview.id);
+      expect(firstBatch.status).toBe('CONFIRMED');
+      expect(queryCount).toBeLessThan(500);
+      expect(
+        await prisma.organizationMembership.count({
+          where: { snapshotId: firstBatch.snapshotId! },
+        }),
+      ).toBe(7_018);
+      expect(
+        await prisma.importIssue.count({
+          where: { batchId: firstBatch.id, type: 'MISSING_DEPARTMENT_HEAD' },
+        }),
+      ).toBe(12);
+      expect(
+        await prisma.importIssue.count({
+          where: { batchId: firstBatch.id, type: 'DEPARTMENT_14' },
+        }),
+      ).toBe(1);
+      expect(
+        await prisma.userAccount.findUniqueOrThrow({ where: { username: '000001' } }),
+      ).toMatchObject({ status: 'LEGACY_HANDLER' });
+      expect(
+        await prisma.userAccount.findUniqueOrThrow({ where: { username: '000003' } }),
+      ).toMatchObject({ status: 'INACTIVE' });
+      expect(await prisma.session.findUniqueOrThrow({ where: { id: omittedSession.id } })).toEqual(
+        expect.objectContaining({ revokedAt: expect.any(Date) }),
+      );
+
+      const tenThousandRows = organizationRows(10_000);
+      const csvBuffer = Buffer.from(
+        `${ORGANIZATION_HEADERS.join(',')}\n${tenThousandRows.map((row) => row.join(',')).join('\n')}\n`,
+      );
+      const secondPreview = await measuredImports.preview(admin, {
+        buffer: csvBuffer,
+        size: csvBuffer.length,
+        originalname: 'synthetic-10000.csv',
+        mimetype: 'text/csv',
+      } as Express.Multer.File);
+      queryCount = 0;
+      await measuredImports.confirm(
+        admin,
+        secondPreview.id,
+        { checksum: secondPreview.checksum, expectedVersion: secondPreview.version },
+        'organization-routing-10000-confirm',
+      );
+      const secondBatch = await waitForImport(secondPreview.id);
+      expect(secondBatch.status).toBe('CONFIRMED');
+      expect(queryCount).toBeLessThan(500);
+      expect(
+        await prisma.organizationMembership.count({
+          where: { snapshotId: secondBatch.snapshotId! },
+        }),
+      ).toBe(10_000);
+      expect(
+        await prisma.userAccount.count({
+          where: { accountKind: AccountKind.WORKFORCE, status: 'ACTIVE' },
+        }),
+      ).toBe(10_000);
+
+      await prisma.$executeRawUnsafe(`
+          CREATE FUNCTION care_test_reject_membership() RETURNS trigger AS $$
+          BEGIN
+            RAISE EXCEPTION 'injected membership failure';
+          END;
+          $$ LANGUAGE plpgsql
+        `);
+      await prisma.$executeRawUnsafe(`
+          CREATE TRIGGER care_test_reject_membership
+          BEFORE INSERT ON "OrganizationMembership"
+          FOR EACH STATEMENT EXECUTE FUNCTION care_test_reject_membership()
+        `);
+      try {
+        const failureBuffer = Buffer.from(
+          `${ORGANIZATION_HEADERS.join(',')}\n999999,Failure Probe,Member,D,V,Department F,Section F\n`,
+        );
+        const failurePreview = await measuredImports.preview(admin, {
+          buffer: failureBuffer,
+          size: failureBuffer.length,
+          originalname: 'injected-failure.csv',
+          mimetype: 'text/csv',
+        } as Express.Multer.File);
+        await measuredImports.confirm(
+          admin,
+          failurePreview.id,
+          { checksum: failurePreview.checksum, expectedVersion: failurePreview.version },
+          'organization-routing-rollback-confirm',
+        );
+        const failedBatch = await waitForImport(failurePreview.id);
+        expect(failedBatch).toMatchObject({ status: 'FAILED', snapshotId: null });
+        expect(await prisma.organizationSnapshot.count({ where: { status: 'ACTIVE' } })).toBe(1);
+        expect(
+          await prisma.organizationMembership.count({
+            where: { snapshotId: secondBatch.snapshotId! },
+          }),
+        ).toBe(10_000);
+        expect(await prisma.userAccount.findUnique({ where: { username: '999999' } })).toBeNull();
+      } finally {
+        await prisma.$executeRawUnsafe(
+          'DROP TRIGGER IF EXISTS care_test_reject_membership ON "OrganizationMembership"',
+        );
+        await prisma.$executeRawUnsafe('DROP FUNCTION IF EXISTS care_test_reject_membership()');
+      }
+    } finally {
+      await measuredPrisma.$disconnect();
+    }
+  }, 300_000);
 });

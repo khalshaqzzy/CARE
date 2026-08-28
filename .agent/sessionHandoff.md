@@ -1,16 +1,69 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                      |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Date                    | 28 Agustus 2026                                                                                                                                                                            |
-| Current objective       | Member home visual polish complete on `feat/frontend-polish`; Phase 13 immutable staging release implementation complete locally, awaiting GitHub/hosted deployment and rehearsal evidence |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                           |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                        |
-| Implementation status   | Phase 0–12 done; staging images/Compose/scripts/workflows/docs implemented; local parity green; hosted evidence not yet claimed                                                            |
-| Latest ADR              | ADR-0012 (workforce member home visual polish aligned to the mobile dashboard reference)                                                                                                   |
-| Recommended next action | Open PR for `feat/frontend-polish` into `staging`, monitor CI, then resume Phase 13: push exact candidate, verify both hosted origins, execute guarded two-release rollback rehearsal      |
+| Atribut                 | Nilai                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date                    | 28 Agustus 2026                                                                                                                                                                |
+| Current objective       | QA Report 1 remediation complete locally; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest                                |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                               |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                            |
+| Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                    |
+| Latest ADR              | ADR-0013 (QA Report 1 bulk import, auth/cache invalidation, dependency deferral, and local secret handling)                                                                    |
+| Recommended next action | Review QA Report 2, complete authenticated Safari operator retest with the current rotated credential, then resume hosted Phase 13 exact-SHA acceptance and rollback rehearsal |
 
 ## Session Outcome
+
+### QA Report 1 remediation — 28 Agustus 2026
+
+QA-001–004 telah diremediasi tanpa migration, OpenAPI drift, schema database,
+endpoint, generated client, Argon2id, forced-password-change, atau perubahan
+timeout transaksi:
+
+- **Import set-oriented.** Reproduksi workbook aktual mengisolasi Prisma
+  `P2028`: 7.018 row sebelumnya menghasilkan 21.201 query event karena unit
+  di-upsert per member. Import kini menurunkan 58 unit sebelum transaksi,
+  menggunakan bulk `createMany` + satu `findMany`, membulk-kan route/issues dan
+  monthly deactivation/legacy/session revocation, serta mempertahankan advisory
+  lock dan atomic transaction 120 detik. `P2028` menjadi safe
+  `PROCESSING_TIMEOUT`; log hanya memuat batch ID, safe/Prisma code, elapsed,
+  dan retry outcome.
+- **Navigasi.** Admin dan desktop Workforce menggunakan kontrak resmi
+  `Sidebar.onNavigate` dengan satu route map per aplikasi; item `onClick` dan
+  cast `as never` dihapus.
+- **Auth/cache.** Logout dan `401` membatalkan request session, menetapkan cache
+  session `null`, membersihkan state terikat session, mereset CSRF, lalu
+  broadcast. Cross-tab logout tidak refetch. Polling import terminal
+  menginvalidasi history sekali; confirmed juga menyegarkan snapshot, overview,
+  accounts, dan remediation; failed history memakai error tone dan safe reason.
+- **Dependency/secret.** Moderate `exceljs -> uuid` tetap deferred tanpa
+  override/fork karena ExcelJS 4.4.0 hanya memanggil v4 tanpa output buffer;
+  review ulang sebelum Phase 14 atau upgrade upstream. `.secret` dan
+  `.local/.ssh/` diverifikasi byte-for-byte lalu dipindahkan recoverably ke
+  `$HOME/.config/care/secrets/` (directory `0700`, secret `0600`); tidak ada
+  Gitleaks allowlist baru.
+
+Workbook aktual yang di-ignore selesai `CONFIRMED` dalam 31.412 ms dengan 217
+query event, 7.018 employee/account membership, satu active snapshot, 58 unit,
+188 row Department 14, 12 missing-head issue, dan raw upload terhapus. Regression
+sintetis meliputi 7.018 row, monthly 10.000 akun, active legacy handler, session
+revocation, serta injected database failure yang membuktikan rollback tanpa
+partial account/membership/snapshot.
+
+Validation hijau: install frozen + Prisma generation; format/lint/typecheck;
+unit API 36, UI 8, frontend-core 14, Workforce 20, Admin 2; build; Playwright
+102; integration 32; security 5; performance 10.000 account/50.000 Voice;
+reconciliation 0; full-stack 3; destructive migration/OpenAPI; Compose/database;
+deployment validation/harness; dependency audit 0 High/Critical (1 Moderate
+deferred); actionlint/ShellCheck/Hadolint/bash syntax/bootstrap input; Gitleaks
+directory; whitespace. Detail lengkap berada di
+`docs/reports/qa-report-2.md` dan keputusan di ADR-0013.
+
+Safari membuka kedua origin lokal, tetapi authenticated retest dibatasi oleh
+password Admin database persisten yang sudah dirotasi pada QA sebelumnya dan
+tidak tersedia pada bootstrap/runtime secret. Credential bootstrap ditolak
+normal; tidak dilakukan reset credential atau destructive database reset.
+Operator Safari retest tetap follow-up eksplisit dan tidak diklaim selesai.
+Phase 13 tetap `in_progress` sampai bukti tersebut serta hosted exact-SHA dan
+rollback rehearsal tersedia.
 
 ### PR #7 hosted CI remediation — 28 Agustus 2026
 

@@ -52,6 +52,43 @@ test.describe('Admin mocked-contract journeys', () => {
         await expect(page.getByText(p.anchor).first()).toBeVisible();
       });
     }
+
+    test('navigates to every primary page through the Admin sidebar', async ({ page }) => {
+      await mockAdminApi(page, { voices: { items: [voice], nextCursor: null } });
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(ADMIN);
+      const sidebar = page.getByRole('navigation', { name: 'Navigasi aplikasi' });
+      for (const destination of [
+        { label: 'Import & Master Data', heading: 'Import & Master Data' },
+        { label: 'Remediation & Route', heading: 'Remediation & Route' },
+        { label: 'Union Accounts', heading: 'Union Accounts' },
+        { label: 'Accounts', heading: 'Accounts' },
+        { label: 'Voice Explorer', heading: 'Voice Explorer' },
+        { label: 'Audit', heading: 'Audit' },
+        { label: 'System Status', heading: 'System Status' },
+        { label: 'Overview', heading: 'Overview operasional' },
+      ]) {
+        await sidebar.getByRole('button', { name: destination.label, exact: true }).click();
+        await expect(page.getByRole('heading', { name: destination.heading })).toBeVisible();
+      }
+    });
+
+    for (const terminal of ['FAILED', 'CONFIRMED'] as const) {
+      test(`refreshes import history when detail polling reaches ${terminal}`, async ({ page }) => {
+        await mockAdminApi(page, {
+          importStatuses: ['PROCESSING', terminal],
+          importFailureCode: 'PROCESSING_TIMEOUT',
+        });
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto(`${ADMIN}/imports?previewId=batch-1`);
+        await expect(page.getByText('PROCESSING').first()).toBeVisible();
+        await expect(page.getByText(terminal).first()).toBeVisible({ timeout: 10_000 });
+        const history = page.getByRole('table').last();
+        await expect(history.getByText(terminal)).toBeVisible();
+        if (terminal === 'FAILED')
+          await expect(history.getByText('PROCESSING_TIMEOUT')).toBeVisible();
+      });
+    }
   });
 
   test.describe('error state', () => {

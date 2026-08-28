@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 0–12 done; Phase 13 staging delivery implementation complete locally and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                                                                                                                                                              |
-| Last updated           | 28 Agustus 2026 (member home visual polish on `feat/frontend-polish`; no phase-status change)                                                                                                                                                                                                                                                                                                                                                               |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Current implementation | Production images, remote Compose, dual-host edge routing, runtime validation, immutable release scripts, rollback/race controls, security gates, and reusable staging deployment workflow are implemented and locally verified. In parallel, the workforce member home received an out-of-roadmap visual polish (ADR-0012) on `feat/frontend-polish`, including the mobile dock navigation fix and tablet navigation gap fix, with full local parity green |
-| Current phase          | Phase 13 `in_progress`: repository implementation and local parity are complete; GitHub and hosted two-origin/rehearsal evidence must still pass before `done`                                                                                                                                                                                                                                                                                              |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                                                                                                                                                                               |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12 done; Phase 13 staging delivery implementation complete locally and hosted acceptance in progress; Phase 14 pending                                                                                                                                                  |
+| Last updated           | 28 Agustus 2026 (QA Report 1 remediation locally complete; no phase-status change)                                                                                                                                                                                              |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                            |
+| Current implementation | Production delivery remains locally verified. QA-001–004 are resolved through set-oriented import, Sidebar contract alignment, immediate auth invalidation, and terminal import cache refresh; QA-005 is deferred and QA-006 is resolved (ADR-0013). Full local parity is green |
+| Current phase          | Phase 13 `in_progress`: QA remediation is locally complete; authenticated operator Safari retest plus GitHub/hosted two-origin/rehearsal evidence must still pass before `done`                                                                                                 |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                   |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -613,6 +613,15 @@ Acceptance:
 
 Implementation state 28 Agustus 2026:
 
+- QA Report 1 remediation is complete locally before hosted acceptance resumes:
+  the authoritative 7.018-row import is `CONFIRMED` with set-oriented unit,
+  route, issue, omission, legacy-access, and session-revocation writes; Admin
+  and desktop Workforce use `Sidebar.onNavigate`; auth invalidation is immediate
+  for logout/401/cross-tab races; terminal import polling refreshes history and
+  confirmed-dependent caches. QA-005 (`exceljs -> uuid`) remains `deferred`
+  without an override and must be reviewed before Phase 14/upstream release;
+  QA-006 is resolved by relocating ignored secrets outside the workspace without
+  a Gitleaks exception. See ADR-0013 and `docs/reports/qa-report-2.md`;
 - release-by-full-SHA, checksum-before-extraction, archive member validation,
   atomic activation, retention, high-water run/SHA binding, Linux `flock`,
   explicit current/previous pointers, forward-only migration, automatic code
@@ -628,9 +637,12 @@ Implementation state 28 Agustus 2026:
   deployment smoke, and the automatic deploy gate;
 - hosted GitHub run, exact-SHA origin verification, acceptance-data journeys,
   overlapping-candidate evidence, and forced-failure rollback rehearsal remain
-  required. The GitHub `staging` environment was absent at the final pre-push
-  check, so environment/secrets provisioning is an external blocker to hosted
-  deploy. Therefore this phase is not yet `done`.
+  required. Authenticated Safari operator retest also remains required because
+  the persistent local Admin credential was previously rotated and is not
+  available in the retained bootstrap secret; no credential reset was performed
+  during remediation. The GitHub `staging` environment was absent at the final
+  pre-push check, so environment/secrets provisioning is an external blocker to
+  hosted deploy. Therefore this phase is not yet `done`.
 
 ## Phase 14 — Production Readiness and Launch
 

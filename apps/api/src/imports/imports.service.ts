@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import {
   AccountKind,
   AccountStatus,
@@ -61,6 +61,7 @@ const confirmBody = z
 
 @Injectable()
 export class ImportsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ImportsService.name);
   private timer?: NodeJS.Timeout;
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
@@ -605,6 +606,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       return rows[0].id;
     });
     if (!claimed) return null;
+    const startedAt = Date.now();
     try {
       await this.processBatch(claimed);
       const completed = await this.prisma.importBatch.findUniqueOrThrow({
@@ -616,14 +618,26 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       const retryable =
         error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+      const failureCode = this.failureCode(error);
       const batch = await this.prisma.importBatch.findUniqueOrThrow({ where: { id: claimed } });
       const updated = await this.prisma.importBatch.update({
         where: { id: claimed },
         data:
           retryable && batch.version < 3
             ? { status: ImportStatus.QUEUED, version: { increment: 1 }, failureCode: null }
-            : { status: ImportStatus.FAILED, failureCode: this.failureCode(error) },
+            : { status: ImportStatus.FAILED, failureCode },
       });
+      this.logger.error(
+        JSON.stringify({
+          event: 'organization_import_processing_failed',
+          batchId: claimed,
+          failureCode,
+          prismaCode:
+            error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined,
+          elapsedMs: Date.now() - startedAt,
+          outcome: updated.status === ImportStatus.QUEUED ? 'RETRY_QUEUED' : 'FAILED',
+        }),
+      );
       if (updated.status === ImportStatus.FAILED) await this.deleteRawImport(batch.storageKey);
     }
     return claimed;
@@ -635,6 +649,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     const buffer = await readFile(path);
     if (sha256(buffer) !== batch.checksum) throw new Error('CHECKSUM_MISMATCH');
     const rows = await this.parse(buffer, batch.storageKey.endsWith('.csv') ? 'csv' : 'xlsx');
+    const uniqueUnitRows = new Map<string, ImportRow>();
+    for (const row of rows) uniqueUnitRows.set(unitKey(row), row);
     const [currentAccounts, currentEmployees] = await Promise.all([
       this.prisma.userAccount.findMany({
         select: {
@@ -704,25 +720,24 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           },
         });
         const incoming = new Set<string>();
-        const unitIds = new Map<string, string>();
-        for (const row of rows) {
-          const unit = await tx.organizationUnit.upsert({
-            where: {
-              directorate_division_department: {
-                directorate: normalize(row.directorate),
-                division: normalize(row.division),
-                department: normalize(row.department),
-              },
-            },
-            create: {
-              directorate: normalize(row.directorate),
-              division: normalize(row.division),
-              department: normalize(row.department),
-            },
-            update: {},
-          });
-          unitIds.set(unitKey(row), unit.id);
-        }
+        const uniqueUnits = [...uniqueUnitRows.values()].map((row) => ({
+          directorate: normalize(row.directorate),
+          division: normalize(row.division),
+          department: normalize(row.department),
+        }));
+        await tx.organizationUnit.createMany({ data: uniqueUnits, skipDuplicates: true });
+        const persistedUnits = await tx.organizationUnit.findMany({
+          where: {
+            OR: uniqueUnits.map((unit) => ({
+              directorate: unit.directorate,
+              division: unit.division,
+              department: unit.department,
+            })),
+          },
+        });
+        const unitIds = new Map(persistedUnits.map((unit) => [unitKey(unit), unit.id]));
+        if (unitIds.size !== uniqueUnits.length)
+          throw new Error('ORGANIZATION_UNIT_RESOLUTION_FAILED');
         for (let offset = 0; offset < rows.length; offset += 500) {
           const chunk = rows.slice(offset, offset + 500);
           await tx.$executeRaw(
@@ -766,38 +781,61 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
               omitted.map((account) => account.id),
             )}) ORDER BY "id" FOR UPDATE`,
           );
-        for (const account of omitted) {
+        if (omitted.length) {
+          const omittedIds = omitted.map((account) => account.id);
+          const omittedIdSet = new Set(omittedIds);
           const activeVoices = await tx.voice.findMany({
             where: {
               status: { not: 'CLOSED' },
-              OR: [{ routeOwnerId: account.id }, { currentHandlerId: account.id }],
+              OR: [{ routeOwnerId: { in: omittedIds } }, { currentHandlerId: { in: omittedIds } }],
             },
-            select: { id: true },
+            select: { id: true, routeOwnerId: true, currentHandlerId: true },
           });
-          if (activeVoices.length)
-            await tx.legacyVoiceAccess.createMany({
-              data: activeVoices.map((voice) => ({
+          const legacyPairs = new Map<
+            string,
+            { voiceId: string; accountId: string; reason: string }
+          >();
+          const legacyHandlerIds = new Set<string>();
+          for (const voice of activeVoices) {
+            for (const accountId of [voice.routeOwnerId, voice.currentHandlerId]) {
+              if (!accountId || !omittedIdSet.has(accountId)) continue;
+              legacyHandlerIds.add(accountId);
+              legacyPairs.set(`${voice.id}:${accountId}`, {
                 voiceId: voice.id,
-                accountId: account.id,
+                accountId,
                 reason: 'MONTHLY_SNAPSHOT_REMOVAL',
-              })),
+              });
+            }
+          }
+          if (legacyPairs.size)
+            await tx.legacyVoiceAccess.createMany({
+              data: [...legacyPairs.values()],
               skipDuplicates: true,
             });
-          await tx.userAccount.update({
-            where: { id: account.id },
-            data: {
-              status: activeVoices.length ? AccountStatus.LEGACY_HANDLER : AccountStatus.INACTIVE,
-              deactivatedAt: new Date(),
-            },
-          });
-          if (account.employeeId)
-            await tx.employee.update({
-              where: { id: account.employeeId },
+          const deactivatedAt = new Date();
+          const legacyIds = [...legacyHandlerIds];
+          const inactiveIds = omittedIds.filter((id) => !legacyHandlerIds.has(id));
+          if (legacyIds.length)
+            await tx.userAccount.updateMany({
+              where: { id: { in: legacyIds } },
+              data: { status: AccountStatus.LEGACY_HANDLER, deactivatedAt },
+            });
+          if (inactiveIds.length)
+            await tx.userAccount.updateMany({
+              where: { id: { in: inactiveIds } },
+              data: { status: AccountStatus.INACTIVE, deactivatedAt },
+            });
+          const employeeIdsToDeactivate = omitted
+            .map((account) => account.employeeId)
+            .filter((id): id is string => Boolean(id));
+          if (employeeIdsToDeactivate.length)
+            await tx.employee.updateMany({
+              where: { id: { in: employeeIdsToDeactivate } },
               data: { active: false },
             });
           await tx.session.updateMany({
-            where: { accountId: account.id, revokedAt: null },
-            data: { revokedAt: new Date() },
+            where: { accountId: { in: omittedIds }, revokedAt: null },
+            data: { revokedAt: deactivatedAt },
           });
         }
         const headRows = rows.filter(
@@ -863,32 +901,24 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           where: { kind: RouteKind.DEPARTMENT_HEAD, effectiveTo: null },
           data: { effectiveTo: new Date() },
         });
-        for (const row of headRows) {
-          const owner = await tx.userAccount.findUniqueOrThrow({
-            where: { username: row.noReg.toLocaleLowerCase('en-US') },
-          });
-          await tx.routeMapping.create({
-            data: {
+        if (headRows.length)
+          await tx.routeMapping.createMany({
+            data: headRows.map((row) => ({
               kind: RouteKind.DEPARTMENT_HEAD,
-              organizationUnitId: unitIds.get(unitKey(row)),
-              ownerAccountId: owner.id,
+              organizationUnitId: unitIds.get(unitKey(row))!,
+              ownerAccountId: accountIds.get(row.noReg.toLocaleLowerCase('en-US'))!,
               createdById: batch.actorId,
               reason: `Organization import ${batch.id}`,
-            },
+            })),
           });
-        }
-        for (const row of rows.filter(
-          (candidate, index, all) =>
-            all.findIndex((item) => unitKey(item) === unitKey(candidate)) === index,
-        )) {
+        const derivedIssues: Prisma.ImportIssueCreateManyInput[] = [];
+        for (const row of uniqueUnitRows.values()) {
           if (normalize(row.department) === '14')
-            await tx.importIssue.create({
-              data: {
-                batchId: batch.id,
-                type: ImportIssueType.DEPARTMENT_14,
-                organizationUnitId: unitIds.get(unitKey(row)),
-                details: { department: '14' },
-              },
+            derivedIssues.push({
+              batchId: batch.id,
+              type: ImportIssueType.DEPARTMENT_14,
+              organizationUnitId: unitIds.get(unitKey(row)),
+              details: { department: '14' },
             });
           else if (!unitHeads.has(unitKey(row))) {
             const organizationUnitId = unitIds.get(unitKey(row));
@@ -900,16 +930,14 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
               },
             });
             if (!hasDefault)
-              await tx.importIssue.create({
-                data: {
-                  batchId: batch.id,
-                  type: ImportIssueType.MISSING_DEPARTMENT_HEAD,
-                  organizationUnitId,
-                  details: {
-                    directorate: row.directorate,
-                    division: row.division,
-                    department: row.department,
-                  },
+              derivedIssues.push({
+                batchId: batch.id,
+                type: ImportIssueType.MISSING_DEPARTMENT_HEAD,
+                organizationUnitId,
+                details: {
+                  directorate: row.directorate,
+                  division: row.division,
+                  department: row.department,
                 },
               });
           }
@@ -918,18 +946,19 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           where: { effectiveTo: null, account: { status: AccountStatus.ACTIVE } },
         });
         if (!unionTerms.some((term) => term.slot === 'HEAD'))
-          await tx.importIssue.create({
-            data: { batchId: batch.id, type: ImportIssueType.UNION_HEAD_MISSING, details: {} },
+          derivedIssues.push({
+            batchId: batch.id,
+            type: ImportIssueType.UNION_HEAD_MISSING,
+            details: {},
           });
         for (const slot of ['OFFICER_1', 'OFFICER_2'] as const)
           if (!unionTerms.some((term) => term.slot === slot))
-            await tx.importIssue.create({
-              data: {
-                batchId: batch.id,
-                type: ImportIssueType.UNION_OFFICER_MISSING,
-                details: { slot },
-              },
+            derivedIssues.push({
+              batchId: batch.id,
+              type: ImportIssueType.UNION_OFFICER_MISSING,
+              details: { slot },
             });
+        if (derivedIssues.length) await tx.importIssue.createMany({ data: derivedIssues });
         await tx.importBatch.update({
           where: { id: batch.id },
           data: {
@@ -1225,8 +1254,15 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private failureCode(error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2028')
+      return 'PROCESSING_TIMEOUT';
     const message = error instanceof Error ? error.message : '';
-    return ['CHECKSUM_MISMATCH', 'STALE_BASE_SNAPSHOT', 'ACCOUNT_KIND_COLLISION'].includes(message)
+    return [
+      'CHECKSUM_MISMATCH',
+      'STALE_BASE_SNAPSHOT',
+      'ACCOUNT_KIND_COLLISION',
+      'ORGANIZATION_UNIT_RESOLUTION_FAILED',
+    ].includes(message)
       ? message
       : 'PROCESSING_FAILED';
   }

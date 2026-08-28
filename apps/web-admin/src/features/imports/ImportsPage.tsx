@@ -14,7 +14,7 @@ import {
   Dialog,
   Tabs,
 } from '@care/ui';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { createAdminApi, type ImportPreview } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
@@ -32,6 +32,7 @@ export function ImportsPage() {
   const [changeCursor, setChangeCursor] = useState<string | undefined>();
   const [changeHistory, setChangeHistory] = useState<string[]>([]);
   const [changeFilter, setChangeFilter] = useState('');
+  const refreshedTerminal = useRef<string | null>(null);
 
   const list = useQuery({
     queryKey: careQueryKey(
@@ -77,6 +78,28 @@ export function ImportsPage() {
     queryFn: api.currentSnapshot,
     enabled: !!session,
   });
+
+  useEffect(() => {
+    const terminalDetail = detail.data;
+    if (!terminalDetail) return;
+    const status = terminalDetail.status;
+    if (status !== 'CONFIRMED' && status !== 'FAILED') return;
+    const terminalKey = `${terminalDetail.id}:${terminalDetail.version}:${status}`;
+    if (refreshedTerminal.current === terminalKey) return;
+    refreshedTerminal.current = terminalKey;
+    const sessionId = session?.sessionId ?? 'anon';
+    const invalidations = [
+      qc.invalidateQueries({ queryKey: careQueryKey(sessionId, 'imports', 'list') }),
+    ];
+    if (status === 'CONFIRMED')
+      invalidations.push(
+        qc.invalidateQueries({ queryKey: careQueryKey(sessionId, 'imports', 'snapshot') }),
+        qc.invalidateQueries({ queryKey: careQueryKey(sessionId, 'overview') }),
+        qc.invalidateQueries({ queryKey: careQueryKey(sessionId, 'accounts') }),
+        qc.invalidateQueries({ queryKey: careQueryKey(sessionId, 'remediation') }),
+      );
+    void Promise.all(invalidations);
+  }, [detail.data?.id, detail.data?.status, detail.data?.version, qc, session?.sessionId]);
 
   const previewMutation = useMutation({
     mutationFn: api.previewImport,
@@ -328,9 +351,28 @@ export function ImportsPage() {
                           key: 'status',
                           header: 'Status',
                           cell: (r: ImportPreview) => (
-                            <Badge tone={r.status === 'CONFIRMED' ? 'success' : 'info'}>
-                              {r.status}
-                            </Badge>
+                            <Stack gap="xs">
+                              <Badge
+                                tone={
+                                  r.status === 'CONFIRMED'
+                                    ? 'success'
+                                    : r.status === 'FAILED'
+                                      ? 'danger'
+                                      : 'info'
+                                }
+                              >
+                                {r.status}
+                              </Badge>
+                              {(r as ImportPreview & { failureCode?: string | null })
+                                .failureCode ? (
+                                <small>
+                                  {
+                                    (r as ImportPreview & { failureCode?: string | null })
+                                      .failureCode
+                                  }
+                                </small>
+                              ) : null}
+                            </Stack>
                           ),
                         },
                         {

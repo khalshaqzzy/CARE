@@ -42,6 +42,15 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('heading', { name: 'Pilih jenis Voice' })).toBeVisible();
   });
 
+  test('desktop sidebar navigates to member history', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await mockWorkforceApi(page, { voice: generalVoice });
+    await page.goto('/');
+    const sidebar = page.getByRole('navigation', { name: 'Navigasi aplikasi' });
+    await sidebar.getByRole('button', { name: 'Riwayat' }).click();
+    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+  });
+
   test('create wizard transitions from type choice to the detail form', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {});
