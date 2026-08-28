@@ -32,6 +32,7 @@ export function HomePage() {
   const offline = !isOnline;
 
   const isUnion = caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER'].includes(c));
+  const isMember = caps.includes('MEMBER');
   const isLeadership = caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c));
   const isResponder = caps.some((c) => ['MANAGER', 'SECTION_HEAD'].includes(c));
   const isSectionHead = caps.includes('SECTION_HEAD');
@@ -39,7 +40,7 @@ export function HomePage() {
   const member = useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'member'),
     queryFn: () => api.dashboardMember(),
-    enabled: !!session,
+    enabled: !!session && isMember && !isUnion,
     refetchInterval: 3000,
   });
 
@@ -106,15 +107,17 @@ export function HomePage() {
             </div>
           </div>
           <div className="member-hero__actions">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Buat Voice"
-              className="member-hero__orb"
-              onClick={() => void navigate('/voices/new')}
-            >
-              <Plus size={20} />
-            </Button>
+            {!isUnion ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Buat Voice"
+                className="member-hero__orb"
+                onClick={() => void navigate('/voices/new')}
+              >
+                <Plus size={20} />
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -239,77 +242,79 @@ export function HomePage() {
         </section>
       ) : null}
 
-      <section className="home-recent">
-        <div className="home-section__head">
-          <h2 className="home-section__title">Voice Anda</h2>
-          <Button size="sm" className="home-cta" onClick={() => void navigate('/voices/new')}>
-            <Plus size={16} /> Buat Voice
-          </Button>
-        </div>
-        {offline ? (
-          <Card>
-            <EmptyState
-              icon={<Inbox size={24} />}
-              title="Detail memerlukan koneksi"
-              description="Sambungkan kembali untuk melihat daftar Voice Anda, draft tersimpan, dan pembaruan terbaru."
-            />
-          </Card>
-        ) : member.data?.draft ? (
-          <Card className="home-resume" data-tone="accent">
-            <div>
-              <p className="home-resume__eyebrow">Draft tersimpan</p>
-              <h3 className="home-resume__title">{member.data.draft.title}</h3>
-              <p className="home-resume__meta">
-                Diperbarui {formatRelative(member.data.draft.updatedAt)} ·{' '}
-                {member.data.draft.visibility}
-              </p>
-            </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => void navigate(`/drafts/${member.data?.draft?.id}/edit`)}
-            >
-              Lanjutkan
+      {!isUnion ? (
+        <section className="home-recent">
+          <div className="home-section__head">
+            <h2 className="home-section__title">Voice Anda</h2>
+            <Button size="sm" className="home-cta" onClick={() => void navigate('/voices/new')}>
+              <Plus size={16} /> Buat Voice
             </Button>
-          </Card>
-        ) : null}
-        {offline ? null : member.isLoading ? (
-          <Skeleton label="Memuat Voice terbaru" />
-        ) : (member.data?.recent.length ?? 0) === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<HomeIcon size={24} />}
-              title="Belum ada Voice"
-              description="Buat Voice pertama Anda untuk mulai menyampaikan suara."
-              action={
-                <Button onClick={() => void navigate('/voices/new')}>
-                  <Plus size={18} /> Buat Voice
-                </Button>
-              }
-            />
-          </Card>
-        ) : (
-          <>
-            <div className="voice-grid">
-              {member.data?.recent.map((voice) => (
-                <VoiceCard
-                  key={voice.id}
-                  voice={voice}
-                  onOpen={() => void navigate(`/voices/${voice.id}`)}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              className="home-viewall"
-              onClick={() => void navigate('/history')}
-            >
-              Lihat semua
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          </>
-        )}
-      </section>
+          </div>
+          {offline ? (
+            <Card>
+              <EmptyState
+                icon={<Inbox size={24} />}
+                title="Detail memerlukan koneksi"
+                description="Sambungkan kembali untuk melihat daftar Voice Anda, draft tersimpan, dan pembaruan terbaru."
+              />
+            </Card>
+          ) : member.data?.draft ? (
+            <Card className="home-resume" data-tone="accent">
+              <div>
+                <p className="home-resume__eyebrow">Draft tersimpan</p>
+                <h3 className="home-resume__title">{member.data.draft.title}</h3>
+                <p className="home-resume__meta">
+                  Diperbarui {formatRelative(member.data.draft.updatedAt)} ·{' '}
+                  {member.data.draft.visibility}
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => void navigate(`/drafts/${member.data?.draft?.id}/edit`)}
+              >
+                Lanjutkan
+              </Button>
+            </Card>
+          ) : null}
+          {offline ? null : member.isLoading ? (
+            <Skeleton label="Memuat Voice terbaru" />
+          ) : (member.data?.recent.length ?? 0) === 0 ? (
+            <Card>
+              <EmptyState
+                icon={<HomeIcon size={24} />}
+                title="Belum ada Voice"
+                description="Buat Voice pertama Anda untuk mulai menyampaikan suara."
+                action={
+                  <Button onClick={() => void navigate('/voices/new')}>
+                    <Plus size={18} /> Buat Voice
+                  </Button>
+                }
+              />
+            </Card>
+          ) : (
+            <>
+              <div className="voice-grid">
+                {member.data?.recent.map((voice) => (
+                  <VoiceCard
+                    key={voice.id}
+                    voice={voice}
+                    onOpen={() => void navigate(`/voices/${voice.id}`)}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                className="home-viewall"
+                onClick={() => void navigate('/history')}
+              >
+                Lihat semua
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            </>
+          )}
+        </section>
+      ) : null}
 
       <section className="home-quick" aria-label="Aksi cepat">
         <h2 className="home-section__title">Aksi cepat</h2>

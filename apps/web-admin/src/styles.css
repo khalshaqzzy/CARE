@@ -250,6 +250,189 @@ body {
 .admin-toolbar > .care-field {
   min-width: 8rem;
 }
+
+/* ===== Remediation workspace ===== */
+
+.remediation-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.remediation-workspace {
+  overflow: hidden;
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+.remediation-workspace > .care-stack {
+  gap: 0;
+}
+.remediation-workspace__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.remediation-workspace__head > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+.remediation-workspace__head h2,
+.remediation-workspace__head p {
+  margin: 0;
+}
+.remediation-workspace__head h2 {
+  font-size: var(--font-size-lg);
+  letter-spacing: var(--tracking-tight);
+}
+.remediation-workspace__head p {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.remediation-workspace__icon,
+.remediation-issue__mark,
+.remediation-drawer-scope__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--raw-brand-700);
+  background: var(--raw-brand-50);
+}
+.remediation-workspace__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.remediation-filters {
+  justify-content: space-between;
+  border-width: 1px 0;
+  border-radius: 0;
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+.remediation-filters__copy {
+  display: grid;
+  gap: 2px;
+}
+.remediation-filters__copy span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.remediation-filters__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.remediation-filters__controls .care-field {
+  min-width: 10rem;
+}
+.remediation-workspace .care-table-wrap {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.remediation-workspace .care-pagination {
+  padding: var(--space-4) var(--space-5);
+}
+.remediation-issue {
+  display: flex;
+  min-width: 16rem;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.remediation-issue__mark {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.remediation-issue__mark[data-group='GLOBAL'] {
+  color: var(--state-warning);
+  background: var(--state-warning-bg);
+}
+.remediation-issue__mark[data-group='UNION'] {
+  color: var(--state-success);
+  background: var(--state-success-bg);
+}
+.remediation-issue > div,
+.remediation-scope,
+.remediation-status {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.remediation-issue strong,
+.remediation-scope strong {
+  line-height: var(--line-tight);
+}
+.remediation-issue span,
+.remediation-scope span,
+.remediation-status > span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.remediation-status > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.remediation-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  padding: var(--space-6);
+  text-align: center;
+}
+.remediation-empty svg {
+  color: var(--state-success);
+}
+.remediation-empty strong {
+  color: var(--text-primary);
+}
+.remediation-drawer-scope {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+  padding: var(--space-4);
+}
+.remediation-drawer-scope__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+.remediation-drawer-scope > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.remediation-drawer-scope span,
+.remediation-drawer-scope small,
+.remediation-form-intro span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.remediation-drawer-scope strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remediation-form-intro {
+  display: grid;
+  gap: var(--space-1);
+  border-left: 3px solid var(--raw-brand-600);
+  padding-left: var(--space-3);
+}
+
+@media (max-width: 1400px) {
+  .remediation-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .admin-mini-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));

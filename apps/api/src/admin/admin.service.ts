@@ -18,11 +18,9 @@ import { PrismaService } from '../prisma.service';
 import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
 
-const accountBody = z
+const routePicBody = z
   .object({
-    accountId: z.string().uuid(),
-    expectedCurrentRouteId: z.string().uuid().nullable(),
-    reason: z.string().trim().min(1).max(500),
+    noReg: z.string().trim().min(1).max(64),
   })
   .strict();
 const unionBody = z
@@ -564,12 +562,8 @@ export class AdminService {
     idempotencyKey?: string,
   ): Promise<unknown> {
     this.requireIdempotencyKey(idempotencyKey);
-    const parsed = accountBody.safeParse(body);
-    if (!parsed.success)
-      throw badRequest(
-        'VALIDATION_ERROR',
-        'accountId, expectedCurrentRouteId, and reason are required',
-      );
+    const parsed = routePicBody.safeParse(body);
+    if (!parsed.success) throw badRequest('VALIDATION_ERROR', 'noReg is required');
     const requestHash = canonicalHash({ unitId, ...parsed.data });
     return this.executeIdempotent({
       actor,
@@ -579,8 +573,13 @@ export class AdminService {
       resourceLock: `route:${RouteKind.DEFAULT_DEPARTMENT}:${unitId}`,
       serialize: (result) => result as unknown as Prisma.InputJsonValue,
       work: async (tx) => {
-        await this.lockAccountRow(tx, parsed.data.accountId);
-        const [unit, activeHead, owner, currentRoute] = await Promise.all([
+        const employee = await tx.employee.findUnique({
+          where: { noReg: parsed.data.noReg },
+          select: { account: { select: { id: true } } },
+        });
+        if (!employee?.account) throw forbiddenAsNotFound();
+        await this.lockAccountRow(tx, employee.account.id);
+        const [unit, activeHead, owner] = await Promise.all([
           tx.organizationUnit.findUnique({ where: { id: unitId } }),
           tx.routeMapping.findFirst({
             where: {
@@ -590,18 +589,11 @@ export class AdminService {
             },
           }),
           tx.userAccount.findUnique({
-            where: { id: parsed.data.accountId },
+            where: { id: employee.account.id },
             include: {
               employee: {
                 include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } },
               },
-            },
-          }),
-          tx.routeMapping.findFirst({
-            where: {
-              organizationUnitId: unitId,
-              kind: RouteKind.DEFAULT_DEPARTMENT,
-              effectiveTo: null,
             },
           }),
         ]);
@@ -610,6 +602,7 @@ export class AdminService {
           !owner ||
           owner.accountKind !== AccountKind.WORKFORCE ||
           owner.status !== AccountStatus.ACTIVE ||
+          !owner.employee?.active ||
           !owner.employee?.memberships.length
         )
           throw forbiddenAsNotFound();
@@ -620,15 +613,13 @@ export class AdminService {
             'DEPARTMENT_HEAD_EXISTS',
             'Default PIC is only allowed when no active Department Head exists',
           );
-        if (parsed.data.expectedCurrentRouteId !== (currentRoute?.id ?? null))
-          throw conflict('VERSION_CONFLICT', 'Default PIC route has changed; reload and retry');
         return this.replaceRoute(
           tx,
           actor,
           RouteKind.DEFAULT_DEPARTMENT,
-          parsed.data.accountId,
+          owner.id,
           unitId,
-          parsed.data.reason,
+          'Assigned by registration number through remediation',
         );
       },
     });
@@ -636,12 +627,8 @@ export class AdminService {
 
   async setGlobalPic(actor: AuthActor, body: unknown, idempotencyKey?: string): Promise<unknown> {
     this.requireIdempotencyKey(idempotencyKey);
-    const parsed = accountBody.safeParse(body);
-    if (!parsed.success)
-      throw badRequest(
-        'VALIDATION_ERROR',
-        'accountId, expectedCurrentRouteId, and reason are required',
-      );
+    const parsed = routePicBody.safeParse(body);
+    if (!parsed.success) throw badRequest('VALIDATION_ERROR', 'noReg is required');
     const requestHash = canonicalHash(parsed.data);
     return this.executeIdempotent({
       actor,
@@ -651,36 +638,37 @@ export class AdminService {
       resourceLock: `route:${RouteKind.GLOBAL_SPECIAL}:global`,
       serialize: (result) => result as unknown as Prisma.InputJsonValue,
       work: async (tx) => {
-        await this.lockAccountRow(tx, parsed.data.accountId);
-        const [owner, currentRoute] = await Promise.all([
-          tx.userAccount.findUnique({
-            where: { id: parsed.data.accountId },
-            include: {
-              employee: {
-                include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } },
-              },
+        const employee = await tx.employee.findUnique({
+          where: { noReg: parsed.data.noReg },
+          select: { account: { select: { id: true } } },
+        });
+        if (!employee?.account) throw badRequest('GLOBAL_PIC_INVALID', 'No. Reg is not eligible');
+        await this.lockAccountRow(tx, employee.account.id);
+        const owner = await tx.userAccount.findUnique({
+          where: { id: employee.account.id },
+          include: {
+            employee: {
+              include: { memberships: { where: { snapshot: { status: 'ACTIVE' } } } },
             },
-          }),
-          tx.routeMapping.findFirst({
-            where: { kind: RouteKind.GLOBAL_SPECIAL, effectiveTo: null },
-          }),
-        ]);
+          },
+        });
         if (
           !owner ||
           owner.status !== AccountStatus.ACTIVE ||
           owner.accountKind !== AccountKind.WORKFORCE ||
-          !isDepartmentHead(owner.employee?.memberships[0]?.structuralPosition)
+          !owner.employee?.active ||
+          !owner.employee.memberships.some((membership) =>
+            isDepartmentHead(membership.structuralPosition),
+          )
         )
           throw badRequest('GLOBAL_PIC_INVALID', 'Global PIC must be an active Department Head');
-        if (parsed.data.expectedCurrentRouteId !== (currentRoute?.id ?? null))
-          throw conflict('VERSION_CONFLICT', 'Global PIC route has changed; reload and retry');
         return this.replaceRoute(
           tx,
           actor,
           RouteKind.GLOBAL_SPECIAL,
           owner.id,
           null,
-          parsed.data.reason,
+          'Assigned by registration number through remediation',
         );
       },
     });

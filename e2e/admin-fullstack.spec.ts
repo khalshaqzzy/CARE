@@ -64,7 +64,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   // Remediation shows the open routing issue.
   await page.goto(`${ADMIN}/remediation`);
   await expect(page.getByRole('heading', { name: 'Remediation & Route' })).toBeVisible();
-  await expect(page.getByText('MISSING_DEPARTMENT_HEAD').first()).toBeVisible();
+  await expect(page.getByText('Department Head belum tersedia').first()).toBeVisible();
 
   // Union: the three fixed slots are populated from the seed.
   await page.goto(`${ADMIN}/union`);

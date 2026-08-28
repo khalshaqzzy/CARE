@@ -1122,11 +1122,8 @@ export interface components {
             structuralPosition?: string;
         }[];
         AccountSelectionRequest: {
-            /** Format: uuid */
-            accountId: string;
-            /** Format: uuid */
-            expectedCurrentRouteId: string | null;
-            reason: string;
+            /** @example 000128 */
+            noReg: string;
         };
         UnionAccountRequest: {
             username: string;
@@ -1865,6 +1862,7 @@ export interface components {
             status: "OPEN" | "RESOLVED" | "SUPERSEDED";
             /** Format: uuid */
             organizationUnitId?: string | null;
+            organizationUnit: components["schemas"]["RemediationOrganizationUnit"] | null;
             /** Format: uuid */
             accountId?: string | null;
             details: {
@@ -1874,6 +1872,13 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             resolvedAt?: string | null;
+        };
+        RemediationOrganizationUnit: {
+            /** Format: uuid */
+            id: string;
+            directorate: string;
+            division: string;
+            department: string;
         };
         RemediationResolutionList: {
             items: {

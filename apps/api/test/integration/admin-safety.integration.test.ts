@@ -193,15 +193,7 @@ describe('Admin safety invariants', () => {
     });
 
     const results = await Promise.allSettled([
-      adminService.setGlobalPic(
-        admin,
-        {
-          accountId: candidate.id,
-          expectedCurrentRouteId: null,
-          reason: 'Concurrency invariant test',
-        },
-        'admin-safety-route-race',
-      ),
+      adminService.setGlobalPic(admin, { noReg: employee.noReg }, 'admin-safety-route-race'),
       adminService.setAccountStatus(
         admin,
         candidate.id,

@@ -1,16 +1,54 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Date                    | 28 Agustus 2026                                                                                                                                                                |
-| Current objective       | QA Report 1 remediation complete locally; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest                                |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                               |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                            |
-| Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                    |
-| Latest ADR              | ADR-0015 (live provider smoke diagnostics + advisory, non-blocking deploy behavior; ADR-0014 admin visual polish)                                                              |
-| Recommended next action | Review QA Report 2, complete authenticated Safari operator retest with the current rotated credential, then resume hosted Phase 13 exact-SHA acceptance and rollback rehearsal |
+| Atribut                 | Nilai                                                                                                                                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 28 Agustus 2026                                                                                                                                                                              |
+| Current objective       | Route remediation UX, Union dashboard, and mobile dashboard containment fixed locally; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                             |
+| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                          |
+| Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                                  |
+| Latest ADR              | ADR-0016 (No. Reg route remediation, affected-department workspace, Union dashboard gating, and mobile card containment)                                                                     |
+| Recommended next action | Deploy/retest the remediation and Union/mobile dashboard fixes on staging, complete authenticated Safari operator retest, then resume exact-SHA acceptance and rollback rehearsal            |
 
 ## Session Outcome
+
+### Route remediation and workforce dashboard corrections — 28 Agustus 2026
+
+- Default PIC and global PIC remediation now accept only `{ noReg }`. The API
+  resolves the active workforce account server-side, preserves leading zeroes,
+  validates default/global eligibility, serializes route replacement, and writes
+  a system audit reason. Account UUID, route UUID, and free-text reason are no
+  longer part of either remediation form or request contract.
+- Remediation issue responses expose a bounded organization-unit summary. The
+  Admin page is now an operational workspace with open-issue/affected-department/
+  route/Union KPI cards, submission-blocking guidance, complete issue filters,
+  human-readable issue impact, organization hierarchy, detected timestamps, and
+  status-aware actions. The table shows the affected department name, while
+  global PIC issues show `Seluruh department`; the drawer repeats the affected
+  scope before any action.
+- Union accounts no longer request `/dashboard/member`; this request was invalid
+  because Union accounts intentionally do not have `MEMBER`. Union Home renders
+  only Private and read-only General aggregates and does not expose create/own
+  Voice actions.
+- The blue dashboard hero and its white status card are explicitly centered.
+  Zero-minimum grid tracks, bounded widths, responsive padding, and shrink-safe
+  status cells prevent mobile overflow with long display names and 360 px
+  viewports.
+- OpenAPI and the generated TypeScript client were regenerated. PostgreSQL
+  integration coverage proves No. Reg route lookup and route/deactivation
+  serialization; Playwright covers both PIC forms, the comprehensive remediation
+  workspace, Union Home, and mobile containment/centering.
+
+Validation completed: frozen install and Prisma generation; format, lint,
+typecheck, unit (86), mock OpenAI smoke, deterministic OpenAPI, clean production
+build, Compose config, and migration destructive check; PostgreSQL integration
+(33), security (5), upgrade reconciliation, 10k-account/50k-Voice performance,
+and maintenance reconciliation; Playwright mocked/visual/PWA (106) plus
+full-stack (3), including Admin WCAG 2.1 AA/no-overflow; deployment validation,
+deployment script tests, security-exception validation, actionlint, ShellCheck,
+Hadolint, Bash syntax, and Ubuntu bootstrap contract. The dependency threshold
+has zero High/Critical advisories and retains the documented ExcelJS transitive
+Moderate. See ADR-0016.
 
 ### Live provider smoke diagnostics and non-blocking deploy behavior — 28 Agustus 2026
 

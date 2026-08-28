@@ -197,18 +197,10 @@ describe('Organization, remediation, and routing journey', () => {
   });
 
   it('provisions one global PIC and three Union slots, then routes General and Private correctly', async () => {
+    await adminService.setGlobalPic(admin, { noReg: '000001' }, 'organization-routing-global-pic');
     const departmentHead = await prisma.userAccount.findUniqueOrThrow({
       where: { username: '000001' },
     });
-    await adminService.setGlobalPic(
-      admin,
-      {
-        accountId: departmentHead.id,
-        expectedCurrentRouteId: null,
-        reason: 'Integration test global PIC',
-      },
-      'organization-routing-global-pic',
-    );
     for (const item of [
       { slot: 'HEAD', username: 'union-head' },
       { slot: 'OFFICER_1', username: 'union-1' },
@@ -328,6 +320,24 @@ describe('Organization, remediation, and routing journey', () => {
       ),
     ).rejects.toMatchObject({ code: 'GENERAL_ROUTE_FORBIDDEN' });
     expect(await prisma.voiceDraft.findUnique({ where: { id: blockedDraft.id } })).not.toBeNull();
+  });
+
+  it('resolves a missing department route from No. Reg without an account ID', async () => {
+    const unit = await prisma.organizationUnit.create({
+      data: {
+        directorate: 'Manufacturing',
+        division: 'Division A',
+        department: 'Department Without Head',
+      },
+    });
+    const route = (await adminService.setDefaultPic(
+      admin,
+      unit.id,
+      { noReg: '000003' },
+      'organization-routing-default-pic-by-no-reg',
+    )) as { organizationUnitId: string; ownerAccountId: string };
+    const owner = await prisma.userAccount.findUniqueOrThrow({ where: { username: '000003' } });
+    expect(route).toMatchObject({ organizationUnitId: unit.id, ownerAccountId: owner.id });
   });
 
   it('confirms the 7,018-row organization shape and a 10,000-account monthly profile within the transaction budget', async () => {

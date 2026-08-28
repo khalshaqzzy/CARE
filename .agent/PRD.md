@@ -356,6 +356,12 @@ Setelah confirm, Admin remediation queue menyediakan minimum action berikut:
 - membuat/memperbaiki tepat satu Union Head dan dua Union Officer;
 - mengganti mapping yang invalid karena monthly snapshot dengan audit reason.
 
+Setiap issue route wajib menampilkan nama department yang terdampak; issue PIC global
+menampilkan scope seluruh department. Penyelesaian default PIC dan PIC global hanya
+meminta satu input **No. Reg**. Backend mencari account workforce aktif dari No. Reg,
+memvalidasi eligibility route, dan membuat audit reason sistem; Account ID, expected
+route ID, dan alasan bebas tidak ditampilkan atau diterima dari form remediation.
+
 Default PIC memperoleh Manager capability hanya pada unit target dan hanya dapat assign Section Head unit target. PIC global hanya dapat assign Section Head department asalnya. Mapping tidak memindahkan ownership Voice yang sudah disubmit.
 
 ### 9.4 Import Audit dan Raw File

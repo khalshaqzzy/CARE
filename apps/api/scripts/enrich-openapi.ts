@@ -542,12 +542,10 @@ const schemas: Record<string, any> = {
   },
   AccountSelectionRequest: {
     type: 'object',
-    required: ['accountId', 'expectedCurrentRouteId', 'reason'],
+    required: ['noReg'],
     additionalProperties: false,
     properties: {
-      accountId: { type: 'string', format: 'uuid' },
-      expectedCurrentRouteId: { type: 'string', format: 'uuid', nullable: true },
-      reason: { type: 'string', minLength: 1, maxLength: 500 },
+      noReg: { type: 'string', minLength: 1, maxLength: 64, example: '000128' },
     },
   },
   UnionAccountRequest: {
@@ -1332,16 +1330,30 @@ const schemas: Record<string, any> = {
   },
   RemediationIssue: {
     type: 'object',
-    required: ['id', 'type', 'status', 'details', 'createdAt'],
+    required: ['id', 'type', 'status', 'organizationUnit', 'details', 'createdAt'],
     properties: {
       id: { type: 'string', format: 'uuid' },
       type: { type: 'string' },
       status: { type: 'string', enum: ['OPEN', 'RESOLVED', 'SUPERSEDED'] },
       organizationUnitId: { type: 'string', format: 'uuid', nullable: true },
+      organizationUnit: {
+        allOf: [{ $ref: '#/components/schemas/RemediationOrganizationUnit' }],
+        nullable: true,
+      },
       accountId: { type: 'string', format: 'uuid', nullable: true },
       details: { type: 'object', additionalProperties: true },
       createdAt: { type: 'string', format: 'date-time' },
       resolvedAt: { type: 'string', format: 'date-time', nullable: true },
+    },
+  },
+  RemediationOrganizationUnit: {
+    type: 'object',
+    required: ['id', 'directorate', 'division', 'department'],
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      directorate: { type: 'string' },
+      division: { type: 'string' },
+      department: { type: 'string' },
     },
   },
   RemediationResolutionList: {

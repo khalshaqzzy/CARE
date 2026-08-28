@@ -295,6 +295,12 @@ const remediationFixture = (): RemediationIssueList => ({
       type: 'MISSING_DEPARTMENT_HEAD',
       status: 'OPEN',
       organizationUnitId: 'unit-1',
+      organizationUnit: {
+        id: 'unit-1',
+        directorate: 'Manufacturing',
+        division: 'Division A',
+        department: 'Assembly',
+      },
       details: { currentRouteId: null },
       createdAt: '2026-08-01T00:00:00.000Z',
     },
@@ -302,6 +308,7 @@ const remediationFixture = (): RemediationIssueList => ({
       id: 'issue-2',
       type: 'UNION_HEAD_MISSING',
       status: 'OPEN',
+      organizationUnit: null,
       details: {},
       createdAt: '2026-08-01T00:00:00.000Z',
     },
@@ -490,6 +497,8 @@ export async function mockAdminApi(
     const error = (status: number, code: string) => fulfill(status, errorBody(code));
 
     if (method === 'GET' && path === '/api/v1/auth/session') return fulfill(200, session);
+    if (method === 'GET' && path === '/api/v1/auth/csrf')
+      return fulfill(200, { token: 'csrf-admin-mock' });
 
     // Error mode affects every data endpoint so the protected tree still mounts
     // (the session above is always resolved) but the page shows its error state.
@@ -554,6 +563,12 @@ export async function mockAdminApi(
       return fulfill(200, override('remediation') ?? remediationFixture());
     if (method === 'GET' && path === '/api/v1/admin/remediation-issues/history')
       return fulfill(200, override('remediationHistory') ?? remediationHistoryFixture());
+    if (
+      method === 'PUT' &&
+      (/\/api\/v1\/admin\/organization-units\/[^/]+\/default-pic$/.test(path) ||
+        path === '/api/v1/admin/routes/global-special-pic')
+    )
+      return fulfill(200, { id: 'route-1' });
     if (
       method === 'GET' &&
       /\/api\/v1\/admin\/organization-units\/[^/]+\/section-head-candidates$/.test(path)

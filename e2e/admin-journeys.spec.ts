@@ -19,7 +19,11 @@ const voice: MockVoice = {
 const happy: { path: string; heading: RegExp | string; anchor: string }[] = [
   { path: '/', heading: 'Overview operasional', anchor: 'Akun aktif' },
   { path: '/imports', heading: 'Import & Master Data', anchor: 'Unggah file organisasi' },
-  { path: '/remediation', heading: 'Remediation & Route', anchor: 'MISSING_DEPARTMENT_HEAD' },
+  {
+    path: '/remediation',
+    heading: 'Remediation & Route',
+    anchor: 'Department Head belum tersedia',
+  },
   { path: '/union', heading: 'Union Accounts', anchor: 'Union Head' },
   { path: '/accounts', heading: 'Accounts', anchor: '000128' },
   { path: '/voices', heading: 'Voice Explorer', anchor: voice.title },
@@ -71,6 +75,59 @@ test.describe('Admin mocked-contract journeys', () => {
         await sidebar.getByRole('button', { name: destination.label, exact: true }).click();
         await expect(page.getByRole('heading', { name: destination.heading })).toBeVisible();
       }
+    });
+
+    test('resolves a department route using only No. Reg', async ({ page }) => {
+      await mockAdminApi(page, {});
+      await page.setViewportSize({ width: 1280, height: 900 });
+      let submittedBody: unknown;
+      page.on('request', (request) => {
+        if (request.url().includes('/api/v1/admin/organization-units/unit-1/default-pic'))
+          submittedBody = request.postDataJSON();
+      });
+      await page.goto(`${ADMIN}/remediation`);
+      await expect(page.getByRole('heading', { name: 'Antrian remediation' })).toBeVisible();
+      await expect(page.getByText('Department Head belum tersedia')).toBeVisible();
+      await expect(page.getByText('Assembly')).toBeVisible();
+      await expect(page.getByText('Manufacturing · Division A')).toBeVisible();
+      await page.getByRole('button', { name: 'Tangani' }).first().click();
+      await expect(page.getByText('Scope terdampak')).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'No. Reg' })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: 'Alasan' })).toHaveCount(0);
+      await page.getByRole('textbox', { name: 'No. Reg' }).fill('000128');
+      await page.getByRole('button', { name: 'Simpan default PIC' }).click();
+      await expect.poll(() => submittedBody).toEqual({ noReg: '000128' });
+    });
+
+    test('resolves the global PIC using only No. Reg', async ({ page }) => {
+      await mockAdminApi(page, {
+        remediation: {
+          items: [
+            {
+              id: 'issue-global',
+              type: 'INVALID_GLOBAL_PIC',
+              status: 'OPEN',
+              organizationUnit: null,
+              details: {},
+              createdAt: '2026-08-01T00:00:00.000Z',
+            },
+          ],
+          nextCursor: null,
+        },
+      });
+      await page.setViewportSize({ width: 1280, height: 900 });
+      let submittedBody: unknown;
+      page.on('request', (request) => {
+        if (request.url().endsWith('/api/v1/admin/routes/global-special-pic'))
+          submittedBody = request.postDataJSON();
+      });
+      await page.goto(`${ADMIN}/remediation`);
+      await expect(page.getByText('Seluruh department')).toBeVisible();
+      await page.getByRole('button', { name: 'Tangani' }).click();
+      await expect(page.getByRole('textbox', { name: 'Alasan' })).toHaveCount(0);
+      await page.getByRole('textbox', { name: 'No. Reg' }).fill('000001');
+      await page.getByRole('button', { name: 'Simpan global PIC' }).click();
+      await expect.poll(() => submittedBody).toEqual({ noReg: '000001' });
     });
 
     for (const terminal of ['FAILED', 'CONFIRMED'] as const) {

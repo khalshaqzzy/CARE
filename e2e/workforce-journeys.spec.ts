@@ -5,7 +5,7 @@ const responder = memberSession({
   capabilities: ['MEMBER', 'MANAGER'],
   structuralPosition: 'Manager',
 });
-const union = memberSession({ capabilities: ['MEMBER', 'UNION_HEAD'], structuralPosition: null });
+const union = memberSession({ capabilities: ['UNION_HEAD'], structuralPosition: null });
 
 const generalVoice = {
   id: 'voice-1',
@@ -104,6 +104,49 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('heading', { name: 'Status' })).toBeVisible();
     // Leadership/union reads have no lifecycle mutations.
     await expect(page.getByRole('button', { name: 'Tutup' })).toHaveCount(0);
+  });
+
+  test('union home does not request or show the unavailable Member summary', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: union });
+    let memberDashboardRequests = 0;
+    await page.route('**/api/v1/dashboard/member', async (route) => {
+      memberDashboardRequests += 1;
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'NOT_FOUND', message: 'Not found' }),
+      });
+    });
+    await page.goto('/');
+    await expect(page.getByText('Private Voice')).toBeVisible();
+    await expect(page.getByText('General (read-only)')).toBeVisible();
+    await expect(page.getByText('Gagal memuat ringkasan')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Buat Voice' })).toHaveCount(0);
+    expect(memberDashboardRequests).toBe(0);
+  });
+
+  test('member status card stays within the mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      session: memberSession({ displayName: 'VIANTEO SUHANDI' }),
+    });
+    await page.goto('/');
+    const hero = page.locator('.member-hero');
+    const summary = page.locator('.status-summary__card');
+    await expect(hero).toBeVisible();
+    await expect(summary).toBeVisible();
+    for (const locator of [hero, summary, page.locator('.status-summary__segments')]) {
+      const box = await locator.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+    }
+    const heroBox = await hero.boundingBox();
+    expect(heroBox!.x).toBeCloseTo((360 - heroBox!.width) / 2, 0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
   });
 
   test('account page renders capabilities and push entry', async ({ page }) => {
