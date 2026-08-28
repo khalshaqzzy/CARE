@@ -7,10 +7,64 @@
 | Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                               |
 | Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                            |
 | Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                    |
-| Latest ADR              | ADR-0013 (QA Report 1 bulk import, auth/cache invalidation, dependency deferral, and local secret handling)                                                                    |
+| Latest ADR              | ADR-0014 (Admin workspace visual polish aligned to the product design language)                                                                                                |
 | Recommended next action | Review QA Report 2, complete authenticated Safari operator retest with the current rotated credential, then resume hosted Phase 13 exact-SHA acceptance and rollback rehearsal |
 
 ## Session Outcome
+
+### Admin workspace visual polish — 28 Agustus 2026
+
+Admin frontend dipoles mengikuti bahasa desain referensi produk (target yang sama
+dengan ADR-0012) yang diterjemahkan ke register enterprise desktop, tanpa
+perubahan kontrak produk, API, routing, PWA, atau shared UI package. Keputusan
+desain dikunci bersama product owner: sidebar aktif memakai pill cobalt solid,
+overview tetap light header (tanpa hero cobalt), tombol primary tetap flat
+brand-600, dan cakupan satu pass penuh (shell + 9 halaman + login).
+
+- **CSS ter-scope ke bundle Admin** (`apps/web-admin/src/styles.css`): sidebar
+  putih dengan brand chip cobalt dan pill aktif brand-600 (teks putih, AA),
+  topbar translusen, header tabel uppercase letterspaced di atas permukaan
+  putih dengan divider lebih halus dan elevasi kartu, toolbar filter,
+  mini-stat, baris key-value `admin-kv` dengan nilai ber-ton semantik, section
+  head, quick-action tiles, dan polish login (brand chip, display type, radial
+  tint). Tidak ada perubahan `packages/ui`; seluruh baseline workforce/`/design`
+  tetap byte-identical.
+- **Overview flagship**: kartu "Ringkasan akun" (pulse) dengan segmented bar
+  dekoratif (`role="progressbar"` + `aria-valuenow`), legend empat sel
+  (Aktif/Legacy/Nonaktif/Remediation ber-ton warning), pill Union slot, dan
+  catatan remediation. JSON readiness `<pre>` diganti baris terstruktur Health/
+  Ready/Release + badge per-check. Quick actions hanya menunjuk route existing.
+- **Halaman lain**: filter dipindah ke `admin-toolbar`; sel aksi tabel memakai
+  `Button` ghost (nama aksesibel `Detail`/`Tangani` tetap); drawer Accounts
+  memakai blok identitas Avatar + KV; drawer Voice Explorer/Audit memakai
+  `admin-dl`/`admin-feed`/`admin-pre`; Union cards memakai KV rows; System
+  Status memakai badge status (`ready`/`ok` dipetakan success); Account page
+  memakai blok identitas. Seluruh teks anchor test dipertahankan.
+- **Test visual**: `admin-shell-1440.png` diregenerasi; test kini memasang
+  `mockAdminApi` + pin clock agar pulse card dan timestamp "Validasi terakhir"
+  deterministik, dengan toleransi 0.06 berikut rationale font-rasterization
+  yang sama dengan baseline lain. Salinan fraksi pulse disesuaikan ("/8 aktif")
+  agar anchor `getByText('Akun aktif')` tetap unik.
+
+Files changed: `apps/web-admin/src/styles.css`, `apps/web-admin/src/App.tsx`,
+seluruh `apps/web-admin/src/features/**` (9 halaman),
+`e2e/design.visual.spec.ts`, baseline
+`e2e/design.visual.spec.ts-snapshots/admin-shell-1440.png` (regenerated),
+`docs/adr/0014-admin-frontend-visual-polish.md`.
+
+Validasi (semua hijau): `pnpm install` (node_modules segar) + `pnpm db:generate`;
+`pnpm format:check`; `pnpm lint`; `pnpm typecheck`; `pnpm test:unit` (API 36,
+UI 8, frontend-core 14, web-voice 20, web-admin 2); `pnpm build`;
+`pnpm openapi:check` (tanpa drift); `pnpm migrations:destructive-check`;
+`docker compose config --quiet` + `db:up/wait/verify/test:reset/test:migrate`;
+`pnpm test:integration` 32; `pnpm test:security` 5; `seed:performance` +
+`test:performance` (10.000 akun/50.000 Voice); `maintenance:reconcile` dry-run
+(nol counter); `pnpm test:frontend:e2e` **102 passed** (Axe AA + no-overflow 9
+halaman Admin pada 1280/1440, journeys, explorer, foundation, visual, PWA);
+`FULLSTACK_E2E=1 --project=fullstack` 3 passed terhadap API + disposable DB;
+Gitleaks v8.24.3 directory scan (no leaks); `git diff --check`; `pnpm db:down`
+dan tidak ada container/proses yang tersisa. Tidak ada perubahan phase status;
+pekerjaan ini polish frontend pada feature branch di luar roadmap bernomor.
 
 ### QA Report 1 remediation — 28 Agustus 2026
 

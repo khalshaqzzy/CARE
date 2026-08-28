@@ -3,6 +3,7 @@ import { careQueryKey, useAuth } from '@care/frontend-core';
 import {
   Alert,
   Badge,
+  Button,
   Card,
   DataTable,
   Drawer,
@@ -84,7 +85,7 @@ export function AuditPage() {
       />
       <Card>
         <Stack gap="sm">
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="admin-toolbar">
             <Input
               label="Filter action"
               value={action}
@@ -161,15 +162,16 @@ export function AuditPage() {
                     key: 'detail',
                     header: '',
                     cell: (r: Audit) => (
-                      <button
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => {
                           setSelectedId(r.id);
                           setOpen(true);
                         }}
-                        style={{ fontSize: '0.75rem', color: 'var(--action-primary)' }}
                       >
                         Detail
-                      </button>
+                      </Button>
                     ),
                   },
                 ]}
@@ -201,33 +203,49 @@ export function AuditPage() {
       >
         {detail ? (
           <Stack gap="sm">
-            <div style={{ fontSize: '0.875rem' }}>
-              <div>
-                Aksi: {detail.action} • Hasil: {detail.result}
+            <div className="admin-kv">
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Aksi</span>
+                <span className="admin-kv__value">{detail.action}</span>
               </div>
-              <div>
-                Resource: {detail.resourceType} {detail.resourceId ?? ''}
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Hasil</span>
+                <span
+                  className="admin-kv__value"
+                  data-tone={detail.result === 'SUCCESS' ? 'success' : 'danger'}
+                >
+                  {detail.result}
+                </span>
               </div>
-              <div>Waktu: {new Date(detail.occurredAt).toLocaleString('id-ID')}</div>
-              <div>Alasan: {detail.reason ?? '-'}</div>
-              <div>Release: {detail.releaseSha}</div>
-              <div>
-                Actor snapshot: {detail.actorAccountKind ?? '-'} /{' '}
-                {detail.actorStructuralPosition ?? '-'}
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Resource</span>
+                <span className="admin-kv__value">
+                  {detail.resourceType} {detail.resourceId ?? ''}
+                </span>
+              </div>
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Waktu</span>
+                <span className="admin-kv__value">
+                  {new Date(detail.occurredAt).toLocaleString('id-ID')}
+                </span>
+              </div>
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Alasan</span>
+                <span className="admin-kv__value">{detail.reason ?? '-'}</span>
+              </div>
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Release</span>
+                <span className="admin-kv__value">{detail.releaseSha}</span>
+              </div>
+              <div className="admin-kv__row">
+                <span className="admin-kv__label">Actor snapshot</span>
+                <span className="admin-kv__value">
+                  {detail.actorAccountKind ?? '-'} / {detail.actorStructuralPosition ?? '-'}
+                </span>
               </div>
             </div>
-            <pre
-              style={{
-                fontSize: '0.75rem',
-                overflow: 'auto',
-                background: 'var(--surface-subtle)',
-                padding: '0.5rem',
-                borderRadius: '0.5rem',
-              }}
-            >
-              {JSON.stringify(detail.summary, null, 2)}
-            </pre>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <pre className="admin-pre">{JSON.stringify(detail.summary, null, 2)}</pre>
+            <p className="admin-meta--xs">
               Password, token, cookie, raw file, message body, dan identitas Private telah
               diredaksi.
             </p>

@@ -159,7 +159,7 @@ export function ImportsPage() {
             onFilesAdded={(files) => setFile(files[0] ?? null)}
           />
           {file ? (
-            <p style={{ fontSize: '0.875rem' }}>
+            <p className="admin-meta">
               Terpilih: {file.name} ({(file.size / 1024).toFixed(1)} KB)
             </p>
           ) : null}
@@ -181,7 +181,7 @@ export function ImportsPage() {
       {detail.data ? (
         <Card>
           <Stack gap="md">
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="admin-card__head">
               <Badge
                 tone={
                   detail.data.status === 'CONFIRMED'
@@ -193,34 +193,31 @@ export function ImportsPage() {
               >
                 {detail.data.status}
               </Badge>
-              <span style={{ fontSize: '0.875rem' }}>
+              <span className="admin-meta">
                 Checksum {detail.data.checksum.slice(0, 12)} • v{detail.data.version} • exp{' '}
                 {new Date(detail.data.expiresAt).toLocaleString('id-ID')}
               </span>
             </div>
-            <div
-              className="care-grid"
-              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(8rem, 1fr))', gap: '0.5rem' }}
-            >
-              <div>
+            <div className="admin-mini-stats">
+              <div className="admin-mini-stat">
                 <strong>{detail.data.summary.rowCount}</strong>
-                <div style={{ fontSize: '0.75rem' }}>Rows</div>
+                <span>Rows</span>
               </div>
-              <div>
+              <div className="admin-mini-stat">
                 <strong>{detail.data.summary.create}</strong>
-                <div style={{ fontSize: '0.75rem' }}>Create</div>
+                <span>Create</span>
               </div>
-              <div>
+              <div className="admin-mini-stat">
                 <strong>{detail.data.summary.update}</strong>
-                <div style={{ fontSize: '0.75rem' }}>Update</div>
+                <span>Update</span>
               </div>
-              <div>
+              <div className="admin-mini-stat">
                 <strong>{detail.data.summary.deactivate}</strong>
-                <div style={{ fontSize: '0.75rem' }}>Deactivate</div>
+                <span>Deactivate</span>
               </div>
-              <div>
+              <div className="admin-mini-stat">
                 <strong>{detail.data.summary.department14Rows}</strong>
-                <div style={{ fontSize: '0.75rem' }}>Dept 14</div>
+                <span>Dept 14</span>
               </div>
             </div>
             {detail.data.errors?.length ? (
@@ -413,21 +410,31 @@ export function ImportsPage() {
             content: snapshot.isLoading ? (
               <Loader label="Memuat snapshot" />
             ) : (
-              <dl>
-                <dt>Snapshot ID</dt>
-                <dd>{snapshot.data?.id ?? '-'}</dd>
-                <dt>Status</dt>
-                <dd>{snapshot.data?.status ?? '-'}</dd>
-                <dt>Unit</dt>
-                <dd>{snapshot.data?.unitCount ?? 0}</dd>
-                <dt>Member</dt>
-                <dd>{snapshot.data?.memberCount ?? 0}</dd>
-                <dt>Efektif</dt>
-                <dd>
-                  {snapshot.data?.effectiveAt
-                    ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
-                    : '-'}
-                </dd>
+              <dl className="admin-dl">
+                <div>
+                  <dt>Snapshot ID</dt>
+                  <dd>{snapshot.data?.id ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{snapshot.data?.status ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt>Unit</dt>
+                  <dd>{snapshot.data?.unitCount ?? 0}</dd>
+                </div>
+                <div>
+                  <dt>Member</dt>
+                  <dd>{snapshot.data?.memberCount ?? 0}</dd>
+                </div>
+                <div>
+                  <dt>Efektif</dt>
+                  <dd>
+                    {snapshot.data?.effectiveAt
+                      ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
+                      : '-'}
+                  </dd>
+                </div>
               </dl>
             ),
           },

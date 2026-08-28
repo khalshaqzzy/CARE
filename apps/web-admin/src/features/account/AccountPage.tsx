@@ -1,5 +1,5 @@
 import { useAuth } from '@care/frontend-core';
-import { Alert, Button, Card, Input, PageHeader, Stack } from '@care/ui';
+import { Alert, Avatar, Button, Card, Input, PageHeader, Stack } from '@care/ui';
 import { useState, type FormEvent } from 'react';
 
 export function AccountPage() {
@@ -42,11 +42,32 @@ export function AccountPage() {
       />
       <Card>
         <Stack gap="sm">
-          <div>
-            Username: <strong>{session.account.username}</strong>
+          <div className="admin-identity">
+            <Avatar name={session.account.displayName || session.account.username} size="lg" />
+            <div>
+              <strong>{session.account.displayName || session.account.username}</strong>
+              <p className="admin-meta--xs">Single credential dikelola via CLI</p>
+            </div>
           </div>
-          <div>Display: {session.account.displayName}</div>
-          <div>Status: {session.account.status}</div>
+          <div className="admin-kv">
+            <div className="admin-kv__row">
+              <span className="admin-kv__label">Username</span>
+              <span className="admin-kv__value">{session.account.username}</span>
+            </div>
+            <div className="admin-kv__row">
+              <span className="admin-kv__label">Display</span>
+              <span className="admin-kv__value">{session.account.displayName}</span>
+            </div>
+            <div className="admin-kv__row">
+              <span className="admin-kv__label">Status</span>
+              <span
+                className="admin-kv__value"
+                data-tone={session.account.status === 'ACTIVE' ? 'success' : 'warning'}
+              >
+                {session.account.status}
+              </span>
+            </div>
+          </div>
           <Alert tone="info" title="Single credential">
             CARE Admin v1 hanya satu credential CLI-managed. Tidak ada pembuatan/reset/nonaktifkan
             via UI untuk Admin.

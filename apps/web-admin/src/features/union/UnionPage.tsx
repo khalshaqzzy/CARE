@@ -75,13 +75,7 @@ export function UnionPage() {
             return (
               <Card key={s}>
                 <Stack gap="sm">
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
+                  <div className="admin-section__head">
                     <strong>
                       {s === 'HEAD' ? 'Union Head' : s === 'OFFICER_1' ? 'Union 1' : 'Union 2'}
                     </strong>
@@ -92,18 +86,29 @@ export function UnionPage() {
                     )}
                   </div>
                   {term ? (
-                    <>
-                      <div style={{ fontSize: '0.875rem' }}>
-                        {term.account.displayName} ({term.account.username})
+                    <div className="admin-kv">
+                      <div className="admin-kv__row">
+                        <span className="admin-kv__label">Akun</span>
+                        <span className="admin-kv__value">
+                          {term.account.displayName} ({term.account.username})
+                        </span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Status {term.account.status} • ID {term.account.id.slice(0, 8)}
+                      <div className="admin-kv__row">
+                        <span className="admin-kv__label">Status</span>
+                        <span
+                          className="admin-kv__value"
+                          data-tone={term.account.status === 'ACTIVE' ? 'success' : 'warning'}
+                        >
+                          {term.account.status}
+                        </span>
                       </div>
-                    </>
+                      <div className="admin-kv__row">
+                        <span className="admin-kv__label">ID</span>
+                        <span className="admin-kv__value">{term.account.id.slice(0, 8)}</span>
+                      </div>
+                    </div>
                   ) : (
-                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      Belum ada akun untuk slot ini.
-                    </p>
+                    <p className="admin-meta">Belum ada akun untuk slot ini.</p>
                   )}
                   <Button
                     size="sm"
@@ -118,7 +123,7 @@ export function UnionPage() {
                   >
                     {term ? 'Ganti' : 'Buat'} akun
                   </Button>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <p className="admin-meta--xs">
                     Penggantian mempertahankan legacy access pada Voice aktif dan mencabut sesi
                     lama. Password sementara = username, wajib ganti.
                   </p>

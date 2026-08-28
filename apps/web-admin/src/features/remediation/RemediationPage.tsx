@@ -117,7 +117,7 @@ export function RemediationPage() {
       />
       <Card>
         <Stack gap="sm">
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="admin-toolbar">
             <Select
               label="Status"
               value={status}
@@ -216,7 +216,7 @@ export function RemediationPage() {
                 placeholder="UUID akun workforce aktif"
               />
               {candidates.data?.length ? (
-                <p style={{ fontSize: '0.75rem' }}>
+                <p className="admin-meta--xs">
                   Candidates Section Head: {candidates.data.length} (read-only, tidak dapat promote)
                 </p>
               ) : null}
