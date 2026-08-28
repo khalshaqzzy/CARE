@@ -29,6 +29,7 @@ export type LocationReview = components['schemas']['LocationReviewSnapshot'];
 export type NotificationItem = components['schemas']['NotificationPage']['items'][number];
 export type NotificationPage = components['schemas']['NotificationPage'];
 export type AssignmentCandidate = components['schemas']['AssignmentCandidateList'][number];
+export type MonitoringOptions = components['schemas']['MonitoringOptions'];
 
 export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
@@ -160,6 +161,8 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<VoiceList>(
         client.GET('/api/v1/work-items', { params: { query: compactQuery(query) } }),
       ),
+    monitoringOptions: () =>
+      dataOrThrow<MonitoringOptions>(client.GET('/api/v1/voices/monitoring-options')),
     assignmentCandidates: (id: string) =>
       dataOrThrow<AssignmentCandidate[]>(
         client.GET('/api/v1/voices/{id}/assignment-candidates', { params: { path: { id } } }),

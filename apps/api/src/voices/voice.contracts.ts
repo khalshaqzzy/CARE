@@ -95,6 +95,7 @@ export type VoiceDetailBase = {
     rating: { score: number; feedback: string | null; reopen: boolean; createdAt: Date } | null;
   }>;
   availableActions: string[];
+  conversationState: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
 };
 export type ReporterSelfVoiceDetail = VoiceDetailBase & {
   audience: 'REPORTER_SELF';

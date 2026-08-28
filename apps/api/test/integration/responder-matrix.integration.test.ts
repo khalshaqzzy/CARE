@@ -21,6 +21,8 @@ let reporter: Principal;
 let otherMember: Principal;
 let manager: Principal;
 let sectionHead: Principal;
+let divisionHead: Principal;
+let deputyDivisionHead: Principal;
 let director: Principal;
 let unionHead: Principal;
 let officer: Principal;
@@ -155,7 +157,11 @@ describe('Responder and leadership permission matrix', () => {
     otherMember = await resolve(await workforce('000002', 'Other Member', 'Member'));
     manager = await resolve(await workforce('000003', 'Manager', 'Department Head'));
     sectionHead = await resolve(await workforce('000004', 'Section Head', 'Section Head'));
-    director = await resolve(await workforce('000005', 'Director', 'Director'));
+    divisionHead = await resolve(await workforce('000005', 'Division Head', 'Division Head'));
+    deputyDivisionHead = await resolve(
+      await workforce('000006', 'Deputy Division Head', 'Deputy Division Head'),
+    );
+    director = await resolve(await workforce('000007', 'Director', 'Director'));
     unionHead = await resolve(await union(UnionSlot.HEAD));
     officer = await resolve(await union(UnionSlot.OFFICER_1));
     careAdmin = await resolve(careAdminAccount);
@@ -193,12 +199,45 @@ describe('Responder and leadership permission matrix', () => {
 
   it('gives leadership read-only detail and no lifecycle action', async () => {
     const voice = await seedVoice();
-    const detail = await voices.detail(director, voice.id);
-    expect(detail.audience).toBe('LEADERSHIP_GENERAL_READ_ONLY');
-    expect(detail.availableActions).toEqual([]);
+    for (const leader of [divisionHead, deputyDivisionHead, director]) {
+      const detail = await voices.detail(leader, voice.id);
+      expect(detail.audience).toBe('LEADERSHIP_GENERAL_READ_ONLY');
+      expect(detail.availableActions).toEqual([]);
+    }
     await expect(
-      voices.ask(director, voice.id, { text: 'x', version: detail.version as number }, 'ask-dir'),
+      voices.ask(director, voice.id, { text: 'x', version: 1 }, 'ask-dir'),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('filters monitoring by active group and scoped handler without exposing Private handlers', async () => {
+    const active = await seedVoice({
+      status: VoiceStatus.IN_VERIFICATION,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    const closed = await seedVoice({ status: VoiceStatus.CLOSED });
+    await seedVoice({
+      visibility: VoiceVisibility.PRIVATE,
+      routeOwnerId: unionHead.accountId,
+      currentHandlerId: officer.accountId,
+      handlerType: HandlerType.UNION_OFFICER,
+      status: VoiceStatus.IN_VERIFICATION,
+    });
+
+    const activeItems = await voices.workItems(manager, { statusGroup: 'ACTIVE' });
+    expect(activeItems.items.map((item) => item.id)).toContain(active.id);
+    expect(activeItems.items.map((item) => item.id)).not.toContain(closed.id);
+    const assigned = await voices.workItems(manager, { handler: sectionHead.accountId });
+    expect(assigned.items.map((item) => item.id)).toEqual(expect.arrayContaining([active.id]));
+
+    const options = await voices.monitoringOptions(manager);
+    expect(options.handlers).toContainEqual(
+      expect.objectContaining({ id: sectionHead.accountId, displayName: 'Section Head' }),
+    );
+    expect(options.handlers.map((handler) => handler.id)).not.toContain(officer.accountId);
+    await expect(
+      voices.workItems(manager, { status: VoiceStatus.OPEN, statusGroup: 'ACTIVE' }),
+    ).rejects.toMatchObject({ code: 'STATUS_FILTER_CONFLICT' });
   });
 
   it('isolates Union Officer access to assigned Private voices only', async () => {

@@ -1,7 +1,7 @@
 import { Button, Card, EmptyState, Select, Skeleton, Stack, Input } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardList, Search } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Pager } from '../../components/Pager';
 import { VoiceCard } from '../../components/VoiceCard';
 import { AREA_LABELS, STATUS_LABELS, SEVERITY_LABELS } from '../../lib/formatters';
@@ -11,6 +11,7 @@ import { useCursorPagination } from '../../lib/useCursorPagination';
 export function HistoryPage() {
   const api = useApi();
   const sessionId = useSessionId();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const nav = useCursorPagination(searchParams, setSearchParams);
 
@@ -49,7 +50,7 @@ export function HistoryPage() {
   return (
     <Stack gap="lg">
       <header className="page-intro">
-        <p className="care-eyebrow">Riwayat Voice</p>
+        <p className="care-eyebrow">Voice Saya</p>
         <h1>Voice milik Anda</h1>
         <p>Cari, saring, dan telusuri seluruh Voice yang pernah Anda laporkan.</p>
       </header>
@@ -111,7 +112,11 @@ export function HistoryPage() {
         <Stack gap="md">
           <div className="voice-grid">
             {items.map((voice) => (
-              <VoiceCard key={voice.id} voice={voice} />
+              <VoiceCard
+                key={voice.id}
+                voice={voice}
+                onOpen={() => void navigate(`/voices/${voice.id}`)}
+              />
             ))}
           </div>
           <Pager

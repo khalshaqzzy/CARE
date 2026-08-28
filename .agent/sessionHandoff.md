@@ -2,15 +2,70 @@
 
 | Atribut                 | Nilai                                                                                                                                                                                                            |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 28 Agustus 2026                                                                                                                                                                                                  |
-| Current objective       | Union Private Voice surface and workforce desktop presentation implemented on `fix/union-page` (ADR-0018); Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
+| Date                    | 29 Agustus 2026                                                                                                                                                                                                  |
+| Current objective       | Leadership dashboard, unified Voice Member/Voice Saya navigation, conversation lifecycle, and workforce UI polish implemented on `feat/workforce-polish` (ADR-0019); Phase 13 remains open for hosted acceptance |
 | Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                 |
-| Backend Complete Gate   | Passed (PRD v1.1); additive contract fields (`work-items?unassigned`, `dashboard/private pendingAssignment`) added without breaking the gate                                                                     |
-| Implementation status   | Phase 0–12 done; Union Private Voice inbox now reachable and role-aware; whole workforce app usable and polished at ≥1280 px; QA-005 deferred; Phase 13 hosted evidence not yet claimed                          |
-| Latest ADR              | ADR-0018 (Union Private Voice surface and workforce desktop presentation)                                                                                                                                        |
-| Recommended next action | Merge `fix/union-page` to `staging` after CI green, then complete hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                             |
+| Backend Complete Gate   | Passed (PRD v1.1); additive monitoring filters/options and `conversationState` regenerated without migration or authorization expansion                                                                          |
+| Implementation status   | Phase 0–12 done; ADR-0019 workforce dashboard/monitoring/chat/polish implementation locally complete; QA-005 deferred; Phase 13 hosted evidence not yet claimed                                                  |
+| Latest ADR              | ADR-0019 (Unified Monitoring, Leadership Dashboard, and Conversation State)                                                                                                                                      |
+| Recommended next action | Merge `feat/workforce-polish` to `staging` after CI, then complete hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                            |
 
 ## Session Outcome
+
+### Workforce dashboard, monitoring, conversation lifecycle, and polish — 28 Agustus 2026
+
+Branch `feat/workforce-polish`. Implementasi lokal:
+
+- capability-to-navigation dipusatkan pada pure helper: Member mobile empat
+  item; Manager/Section Head/Division-Leadership/Director lima item dengan Voice
+  Member; desktop mengekspos Notifikasi/Akun; Union contract tetap. `/history`
+  dilabel Voice Saya dan `/general` workforce diarahkan ke `/work-items`;
+- Manager dan leadership Home memperoleh filter URL 30/90 hari, tahun berjalan,
+  semua/custom range, area/category/severity/status; KPI, segmented status,
+  accessible severity/category bars, SVG trend, ranked organization breakdown,
+  last-updated, suppression, loading/error/offline/empty;
+- `/work-items` menjadi workspace Voice Member role-aware dengan active default,
+  Closed/All, search, handler/status/severity/category/area/date filter, scoped
+  monitoring options, severity-first cursor pagination, filter summary, dan
+  preserved URL state. Manager/Section Head tetap server-authoritative melalui
+  `availableActions`; leadership read-only; Private milik orang lain tidak masuk;
+- API menambah `statusGroup`, handler work-items, monitoring-options, dan
+  `conversationState`; Open tidak punya MESSAGE/chat, Assign membuka empty active
+  room logis, Ask membuat room, direct Proceed tidak membuat room, In Progress
+  hanya melanjutkan conversation yang ada, dan Closed history read-only. Read dan
+  send endpoint menegakkan state yang sama;
+- workforce styling dipoles berdasarkan `.agent/design-images/design.jpg` tanpa
+  mengubah shared Admin presentation: compact headers, cobalt/tinted surfaces,
+  filter/action bars, cards, focus/motion/responsive states. Account kini memakai
+  label manusiawi, no.reg dan organisasi aktual; UUID snapshot bukan informasi
+  utama; session tidak mengarang expiry. Push degraded state dibuat ringkas;
+- OpenAPI dan contracts diregenerasi tanpa migration. Baseline visual ditambah
+  untuk Manager dashboard, Voice Member, Account, dan active conversation; Push
+  Settings baseline diregenerasi.
+
+Final parity lokal — 29 Agustus 2026:
+
+- frozen install, Prisma generation, format, lint, typecheck, deterministic
+  OpenAPI/contracts, production build, destructive migration check, dan Compose
+  config hijau;
+- unit suites hijau: API 60, UI 8, frontend-core 14, workforce web 33, dan Admin
+  web 2. PostgreSQL integration 42, security 5, full-stack 3, serta Playwright
+  mocked/visual/PWA 119 seluruhnya lulus;
+- seeded performance 10k account/50k Voice lulus; maintenance reconciliation
+  tidak menemukan orphan; upgrade migration, deployment validation/harness,
+  security-exception policy, actionlint, ShellCheck, Hadolint, Bash syntax, dan
+  Ubuntu bootstrap contract hijau;
+- production-like stack lima image lulus exact-SHA release/readiness, routing,
+  deep-link, auth boundary, CSP, non-root policy, database tidak terpublikasi,
+  restart, media persistence, dan database identity persistence;
+- Trivy filesystem serta kelima image produksi menemukan nol High/Critical dan
+  nol applicable secret/misconfiguration. Gitleaks directory scan tidak
+  menemukan leak. Dependency audit tetap nol High/Critical dengan satu Moderate
+  transitive yang sudah terdokumentasi;
+- provider smoke live tetap advisory/manual-fallback pada environment lokal dan
+  `flock` tidak tersedia di macOS; Linux container harness yang menjadi kontrak
+  deployment tetap hijau. Seluruh Compose stack yang dimulai untuk verifikasi
+  sudah dihentikan.
 
 ### Union Private Voice surface and workforce desktop presentation — 28 Agustus 2026
 

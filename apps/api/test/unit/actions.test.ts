@@ -28,7 +28,7 @@ describe('computeAvailableActions', () => {
     const result = computeAvailableActions(actor(['MANAGER'], 'owner'), voice());
     expect(result).toContain('ASK');
     expect(result).toContain('PROCEED');
-    expect(result).toContain('MESSAGE');
+    expect(result).not.toContain('MESSAGE');
     expect(result).toContain('ASSIGN');
   });
 
@@ -42,12 +42,13 @@ describe('computeAvailableActions', () => {
     expect(result).not.toContain('ASSIGN');
   });
 
-  it('offers close only from IN_PROGRESS', () => {
+  it('offers close and message from IN_PROGRESS only when a conversation exists', () => {
     const result = computeAvailableActions(
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'IN_PROGRESS' as VoiceStatus }),
+      voice({ status: 'IN_PROGRESS' as VoiceStatus, hasConversation: true }),
     );
     expect(result).toContain('CLOSE');
+    expect(result).toContain('MESSAGE');
     expect(result).not.toContain('PROCEED');
   });
 
@@ -56,7 +57,7 @@ describe('computeAvailableActions', () => {
     expect(result).toEqual([]);
   });
 
-  it('gives the reporter message on active voices, and rate/reopen on closed', () => {
+  it('gives the reporter message only after verification begins, and rate/reopen on closed', () => {
     const replyer = actor(['MEMBER'], 'reporter');
     const closed = computeAvailableActions(
       replyer,
@@ -69,7 +70,12 @@ describe('computeAvailableActions', () => {
     expect(closed).toContain('RATE');
     expect(closed).toContain('REOPEN');
     const open = computeAvailableActions(replyer, voice({ reporterId: 'reporter' }));
-    expect(open).toContain('MESSAGE');
+    expect(open).not.toContain('MESSAGE');
+    const verification = computeAvailableActions(
+      replyer,
+      voice({ reporterId: 'reporter', status: 'IN_VERIFICATION' as VoiceStatus }),
+    );
+    expect(verification).toContain('MESSAGE');
   });
 
   it('does not offer reopen for a high rating', () => {

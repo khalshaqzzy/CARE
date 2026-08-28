@@ -535,6 +535,7 @@ export class VoicesService {
     actor: AuthActor,
     query: {
       status?: VoiceStatus;
+      statusGroup?: 'ACTIVE' | 'CLOSED' | 'ALL';
       visibility?: VoiceVisibility;
       limit?: string;
       cursor?: string;
@@ -548,11 +549,17 @@ export class VoicesService {
       sort?: string;
     },
   ) {
+    this.assertStatusFilter(query.status, query.statusGroup);
     const where = await this.policy.browseScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
     if (query.status) and.push({ status: query.status });
+    else if (query.statusGroup === 'ACTIVE')
+      and.push({
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION, VoiceStatus.IN_PROGRESS] },
+      });
+    else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.visibility) and.push({ visibility: query.visibility });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
@@ -601,6 +608,7 @@ export class VoicesService {
     actor: AuthActor,
     query: {
       status?: VoiceStatus;
+      statusGroup?: 'ACTIVE' | 'CLOSED' | 'ALL';
       limit?: string;
       cursor?: string;
       search?: string;
@@ -610,8 +618,10 @@ export class VoicesService {
       from?: string;
       to?: string;
       unassigned?: string;
+      handler?: string;
     } = {},
   ) {
+    this.assertStatusFilter(query.status, query.statusGroup);
     const where = this.policy.workItemScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
@@ -622,9 +632,16 @@ export class VoicesService {
     if (query.unassigned === 'true' && actor.capabilities.includes('UNION_HEAD'))
       and.push({ currentHandlerId: null });
     if (query.status) and.push({ status: query.status });
+    else if (query.statusGroup === 'ACTIVE')
+      and.push({
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION, VoiceStatus.IN_PROGRESS] },
+      });
+    else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
     if (query.category) and.push({ category: query.category as RoutingCategory });
+    if (query.handler)
+      and.push({ OR: [{ routeOwnerId: query.handler }, { currentHandlerId: query.handler }] });
     if (query.search) {
       and.push({
         OR: [
@@ -652,6 +669,36 @@ export class VoicesService {
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     return { items: data, nextCursor };
   }
+  async monitoringOptions(actor: AuthActor) {
+    const monitors = actor.capabilities.some((capability) =>
+      ['MANAGER', 'SECTION_HEAD', 'DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
+    );
+    if (!monitors) return { handlers: [], generatedAt: new Date().toISOString() };
+    const leadership = actor.capabilities.some((capability) =>
+      ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
+    );
+    const scope = leadership
+      ? { AND: [await this.policy.browseScope(actor), { visibility: VoiceVisibility.GENERAL }] }
+      : this.policy.workItemScope(actor);
+    const [owners, handlers] = await Promise.all([
+      this.prisma.voice.groupBy({ by: ['routeOwnerId'], where: scope }),
+      this.prisma.voice.groupBy({ by: ['currentHandlerId'], where: scope }),
+    ]);
+    const ids = [
+      ...new Set([
+        ...owners.map((row) => row.routeOwnerId),
+        ...handlers.map((row) => row.currentHandlerId).filter((id): id is string => Boolean(id)),
+      ]),
+    ];
+    const accounts = ids.length
+      ? await this.prisma.userAccount.findMany({
+          where: { id: { in: ids } },
+          orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+          select: { id: true, displayName: true },
+        })
+      : [];
+    return { handlers: accounts, generatedAt: new Date().toISOString() };
+  }
   async detail(actor: AuthActor, id: string) {
     const scope = await this.policy.detailScope(actor);
     const voice = await this.prisma.voice.findFirst({
@@ -670,6 +717,7 @@ export class VoicesService {
             actor: { select: { id: true, displayName: true } },
           },
         },
+        conversation: { select: { id: true } },
       },
     });
     if (!voice) throw forbiddenAsNotFound();
@@ -895,6 +943,7 @@ export class VoicesService {
     query: { limit?: string; cursor?: string; order?: 'asc' | 'desc' },
   ) {
     const voice = await this.authorizedVoice(actor, id);
+    if (this.conversationState(actor, voice) === 'UNAVAILABLE') throw forbiddenAsNotFound();
     if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_MESSAGE_READ');
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
@@ -963,6 +1012,8 @@ export class VoicesService {
       throw badRequest('MESSAGE_EMPTY', 'Message or attachment is required');
     const voice = await this.authorizedVoice(actor, id);
     if (voice.reporterId !== actor.accountId) await this.actionVoice(actor, id);
+    if (this.conversationState(actor, voice) !== 'ACTIVE')
+      throw invalidTransition('Conversation is not active for this Voice');
     const requestHash = canonicalHash({ text, fileSizes: files.map((file) => file.size) });
     const prior = await this.checkIdempotency<unknown>(actor, `message:${id}`, key, requestHash);
     if (prior.replayed) return prior.response as never;
@@ -1675,7 +1726,10 @@ export class VoicesService {
   }
   private async authorizedVoice(actor: AuthActor, id: string) {
     const scope = await this.policy.detailScope(actor);
-    const voice = await this.prisma.voice.findFirst({ where: { id, AND: [scope] } });
+    const voice = await this.prisma.voice.findFirst({
+      where: { id, AND: [scope] },
+      include: { conversation: { select: { id: true } } },
+    });
     if (!voice) throw forbiddenAsNotFound();
     return voice;
   }
@@ -1704,12 +1758,32 @@ export class VoicesService {
         reopenedAt: Date | null;
         rating?: { score: number } | null;
       }>;
+      conversation?: { id: string } | null;
     },
   ) {
     return computeAvailableActions(
       { accountId: actor.accountId, capabilities: actor.capabilities } satisfies ActionActor,
-      voice,
+      { ...voice, hasConversation: Boolean(voice.conversation) },
     );
+  }
+  private conversationState(
+    actor: AuthActor,
+    voice: {
+      reporterId: string;
+      routeOwnerId: string;
+      currentHandlerId: string | null;
+      visibility: VoiceVisibility;
+      status: VoiceStatus;
+      handlerType: HandlerType;
+      conversation?: { id: string } | null;
+      closureCycles?: Array<{ reopenedAt: Date | null; rating?: { score: number } | null }>;
+    },
+  ): 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY' {
+    if (voice.status === VoiceStatus.OPEN) return 'UNAVAILABLE';
+    const hasConversation = Boolean(voice.conversation);
+    if (voice.status !== VoiceStatus.IN_VERIFICATION && !hasConversation) return 'UNAVAILABLE';
+    const actions = this.actionSet(actor, voice);
+    return actions.includes('MESSAGE') ? 'ACTIVE' : 'READ_ONLY';
   }
   private serialize(actor: AuthActor, voice: any) {
     const base = {
@@ -1749,6 +1823,7 @@ export class VoicesService {
           : null,
       })),
       availableActions: this.actionSet(actor, voice),
+      conversationState: this.conversationState(actor, voice),
     };
     if (voice.reporterId === actor.accountId)
       return { ...base, audience: 'REPORTER_SELF', reporter: { self: true } };
@@ -1802,6 +1877,12 @@ export class VoicesService {
       audience: 'UNION_ANONYMOUS',
       anonymousReporter: { alias: voice.anonymousAlias },
     };
+  }
+  private assertStatusFilter(status?: VoiceStatus, group?: 'ACTIVE' | 'CLOSED' | 'ALL') {
+    if (status && group)
+      throw badRequest('STATUS_FILTER_CONFLICT', 'status and statusGroup cannot be combined');
+    if (group && !['ACTIVE', 'CLOSED', 'ALL'].includes(group))
+      throw badRequest('STATUS_FILTER_INVALID', 'statusGroup must be ACTIVE, CLOSED, or ALL');
   }
   private async auditPrivateRead(actor: AuthActor, voiceId: string, action: string) {
     await this.prisma.auditEvent.create({

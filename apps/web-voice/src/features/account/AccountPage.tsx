@@ -2,7 +2,6 @@ import { Badge, Button, Card, Stack } from '@care/ui';
 import { Bell, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
-import { formatDateTime } from '../../lib/formatters';
 
 const CAPABILITY_LABELS: Record<string, string> = {
   MEMBER: 'Member',
@@ -20,6 +19,7 @@ export function AccountPage() {
   const navigate = useNavigate();
   if (!session) return null;
   const profile = session.workforceProfile;
+  const employee = 'employee' in session ? session.employee : null;
   const union = session.unionProfile;
   return (
     <Stack gap="lg">
@@ -29,7 +29,7 @@ export function AccountPage() {
         <p>Informasi sesi, profil dependensi, dan akses Anda saat ini.</p>
       </header>
 
-      <Card variant="raised">
+      <Card variant="raised" className="account-profile-card">
         <Stack gap="md">
           <div className="account-identity">
             <span className="account-identity__avatar">
@@ -40,19 +40,33 @@ export function AccountPage() {
               <p className="account-identity__username">@{session.account.username}</p>
             </div>
           </div>
-          <dl className="voice-detail__grid">
+          <dl className="account-kv-grid">
             <div>
               <dt>Status akun</dt>
-              <dd>{session.account.status}</dd>
+              <dd>
+                {session.account.status === 'ACTIVE'
+                  ? 'Aktif'
+                  : session.account.status === 'LEGACY_HANDLER'
+                    ? 'Akses historis'
+                    : 'Nonaktif'}
+              </dd>
             </div>
             <div>
               <dt>Jenis akun</dt>
-              <dd>{session.account.accountKind}</dd>
+              <dd>
+                {session.account.accountKind === 'WORKFORCE'
+                  ? 'Karyawan'
+                  : session.account.accountKind === 'UNION'
+                    ? 'Union'
+                    : 'CARE Admin'}
+              </dd>
             </div>
-            <div>
-              <dt>ID sesi</dt>
-              <dd>{session.sessionId.slice(0, 8)}…</dd>
-            </div>
+            {employee ? (
+              <div>
+                <dt>No. Registrasi</dt>
+                <dd>{employee.noReg}</dd>
+              </div>
+            ) : null}
           </dl>
         </Stack>
       </Card>
@@ -63,21 +77,35 @@ export function AccountPage() {
             <h3 className="section-title">Profil organisasi</h3>
           </div>
           {profile ? (
-            <dl className="voice-detail__grid">
+            <dl className="account-kv-grid">
               <div>
                 <dt>Posisi struktural</dt>
-                <dd>{profile.structuralPosition ?? '—'}</dd>
+                <dd>
+                  {employee?.structuralPosition ?? profile.structuralPosition ?? 'Team Member'}
+                </dd>
               </div>
               <div>
-                <dt>Snapshot organisasi</dt>
-                <dd>{profile.organizationSnapshotId?.slice(0, 8) ?? '—'}</dd>
+                <dt>Directorate</dt>
+                <dd>{employee?.directorate ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Division</dt>
+                <dd>{employee?.division ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Department</dt>
+                <dd>{employee?.department ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Section</dt>
+                <dd>{employee?.section ?? '—'}</dd>
               </div>
             </dl>
           ) : (
             <p className="account-muted">Tidak ada profil workforce (akun Union).</p>
           )}
           {union ? (
-            <dl className="voice-detail__grid">
+            <dl className="account-kv-grid">
               <div>
                 <dt>Slot Union</dt>
                 <dd>{union.slot}</dd>
@@ -105,9 +133,12 @@ export function AccountPage() {
       <Card>
         <Stack gap="md">
           <div className="section-title-row">
-            <h3 className="section-title">Sesi</h3>
-            <Badge tone="neutral">Berlaku {formatDateTime(new Date())}</Badge>
+            <h3 className="section-title">Keamanan & sesi</h3>
+            <Badge tone="success">Sesi aktif</Badge>
           </div>
+          <p className="account-session-id">
+            ID sesi {session.sessionId.slice(0, 8)}… · hanya untuk diagnosis perangkat ini
+          </p>
           <div className="account-actions">
             <Button variant="secondary" onClick={() => void navigate('/notifications')}>
               <Bell size={18} /> Notifikasi push

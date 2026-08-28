@@ -388,29 +388,26 @@ Workforce PWA dan Admin web memakai navigation serta host authorization yang ber
 
 ### 11.1 Member
 
-- Beranda;
-- Buat Voice;
-- Riwayat;
-- Notifikasi;
-- Akun.
+- Mobile: Beranda, Buat, Voice Saya, dan Lainnya. Lainnya membuka bottom sheet
+  berisi Notifikasi dan Akun.
+- Desktop: Beranda, Buat, Voice Saya, Notifikasi, dan Akun ditampilkan langsung
+  pada sidebar.
+- URL kompatibel `/history` dipertahankan untuk Voice Saya.
 
 ### 11.2 Manager
 
-- Beranda responder;
-- Buat Voice;
-- Voice Member;
-- Riwayat saya;
-- Notifikasi;
-- Akun.
+- Mobile: Beranda, Voice Member, Buat, Voice Saya, dan Lainnya.
+- Desktop: Beranda, Voice Member, Buat, Voice Saya, Notifikasi, dan Akun.
 
 ### 11.3 Section Head
 
-- Beranda responder;
-- Buat Voice;
-- Voice Member yang ditugaskan;
-- Riwayat saya;
-- Notifikasi;
-- Akun.
+- Mengikuti navigasi Manager; scope Voice Member tetap assigned-only dan
+  server-authoritative.
+
+### 11.3.1 Division/Deputy dan Director
+
+- Mengikuti navigasi Manager, termasuk Voice Member dan Voice Saya.
+- Voice Member bersifat read-only sesuai detail scope hierarchy masing-masing.
 
 ### 11.4 Union
 
@@ -684,7 +681,16 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 ## 16. Conversation dan Tanya Reporter
 
-- Action **Tanya User** membuat conversation bila belum ada, mengubah status Open menjadi In Verification, dan membuka room chat.
+- `OPEN` tidak memiliki room chat, tidak menampilkan panel chat, dan endpoint
+  message menolak baca/kirim.
+- Action **Tanya User** membuat message/conversation, mengubah status Open menjadi
+  In Verification, lalu membuka dan memfokuskan room chat.
+- Assign mengubah status menjadi In Verification dan membuka empty room secara
+  logis; record conversation baru dibuat saat message pertama melalui upsert.
+- Direct Proceed dari Open ke In Progress tidak membuat conversation. In Progress
+  hanya mempertahankan chat jika conversation sudah pernah dibuat.
+- Detail Voice mengekspos `conversationState`: `UNAVAILABLE`, `ACTIVE`, atau
+  `READ_ONLY`; backend read/send message wajib menegakkan state yang sama.
 - Satu Voice memiliki maksimum satu conversation berkelanjutan lintas closure cycle.
 - Text message memiliki panjang 1–4.000 karakter.
 - Satu message dapat memiliki maksimum lima gambar, masing-masing maksimum 10 MB.
@@ -752,6 +758,9 @@ Closure yang sudah tersimpan tidak dapat diedit. Kesalahan diperbaiki melalui re
 ### 18.2 Manager Dashboard
 
 - aggregate-only General Voice pada division Manager: total, status, severity, category, trend, dan breakdown department;
+- default rentang 30 hari, dengan preset 90 hari, tahun berjalan, semua waktu,
+  custom date, serta filter area, category, severity, dan status berbasis URL;
+- KPI total, aktif, In Verification, In Progress, Closed, dan Critical;
 - operational inbox terpisah untuk General Voice yang berada pada department route, default route, atau global route miliknya;
 - recent/high-priority operational items;
 - assignment Section Head summary sesuai candidate scope;
@@ -778,6 +787,8 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 - Director melihat aggregate dan detail seluruh General Voice;
 - leadership view tidak menampilkan mutation action;
 - grafik minimum untuk semua overview yang berizin: status, severity, category termasuk Environment, trend waktu, dan breakdown division/department sesuai scope.
+- filter dan default rentang mengikuti Manager Dashboard; seluruh chart memiliki
+  nilai/label eksplisit dan ringkasan tekstual yang dapat diakses.
 
 ### 18.6 Aggregate dan Detail Authorization Boundary
 
@@ -787,16 +798,28 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 
 ### 18.7 Voice Member Inbox
 
+- `/work-items` merupakan workspace monitoring tunggal untuk Manager, Section
+  Head, Division/Deputy, dan Director; `/general` workforce diarahkan ke sana,
+  sedangkan Union tetap memakai General read-only pada `/general`;
 - default hanya active Voice; Closed dapat dipilih melalui filter;
 - urutan utama severity `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, kemudian `submittedAt DESC`;
 - server-side cursor pagination;
 - filter minimum: status, severity, area, category, handler, dan date range;
 - search minimum: Voice ID dan judul;
 - Private dan General tidak pernah tercampur pada unauthorized role.
+- Manager dan Section Head menerima action hanya melalui detail dan
+  `availableActions`; Division/Deputy dan Director tidak menerima mutation
+  affordance.
+- endpoint monitoring options hanya mengembalikan handler yang sudah berada di
+  dalam detail/work-item scope actor dan tidak memperluas identity.
 
 ### 18.8 Riwayat dan Detail
 
 Detail menampilkan field submission, attachment, classification source, severity, visibility, current status, PIC sesuai privacy, chat, closure cycles, rating, dan vertical timeline dengan timestamp.
+
+Seluruh akun workforce mempunyai Voice Saya untuk Voice miliknya sendiri;
+Private Voice milik orang lain tidak pernah muncul di Voice Member. Akun Union
+tidak mempunyai Voice Saya.
 
 ---
 
@@ -949,6 +972,10 @@ Path final dapat disesuaikan selama OpenAPI mempertahankan capability berikut:
 - confirm Manual Fallback;
 - submit;
 - list/detail/timeline;
+- list dan work-items menerima `statusGroup=ACTIVE|CLOSED|ALL`; kombinasi dengan
+  `status` individual ditolak sebagai ambigu. Work-items juga menerima filter
+  `handler`;
+- `GET /voices/monitoring-options` mengembalikan handler ter-scope;
 - ask reporter, proceed, assign/reassign Section Head atau Union Officer, close;
 - rate dan reopen.
 
