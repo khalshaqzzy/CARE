@@ -36,22 +36,22 @@ Tidak ada fix yang diterapkan.
 
 Workbook berhasil dibaca secara read-only.
 
-| Validasi | Hasil |
-|---|---|
-| Sheet | `MFG + QD` |
-| Total data rows | 7.018 |
-| Total rows termasuk header | 7.019 |
-| Total columns | 7 |
-| Header sesuai PRD | Ya |
-| Duplicate `Noreg` | Tidak ditemukan |
-| Blank rows | Tidak ditemukan |
-| Composite organization units | 58 |
-| Rows Department `14` | 188 |
-| Unit tanpa Department Head | 12 |
-| Union Head | Belum tersedia |
-| Union Officer 1 | Belum tersedia |
-| Union Officer 2 | Belum tersedia |
-| Global PIC | Invalid |
+| Validasi                     | Hasil           |
+| ---------------------------- | --------------- |
+| Sheet                        | `MFG + QD`      |
+| Total data rows              | 7.018           |
+| Total rows termasuk header   | 7.019           |
+| Total columns                | 7               |
+| Header sesuai PRD            | Ya              |
+| Duplicate `Noreg`            | Tidak ditemukan |
+| Blank rows                   | Tidak ditemukan |
+| Composite organization units | 58              |
+| Rows Department `14`         | 188             |
+| Unit tanpa Department Head   | 12              |
+| Union Head                   | Belum tersedia  |
+| Union Officer 1              | Belum tersedia  |
+| Union Officer 2              | Belum tersedia  |
+| Global PIC                   | Invalid         |
 
 Header yang ditemukan:
 
@@ -69,49 +69,49 @@ Section
 
 ### Admin — Tombol dan Controls
 
-| Fitur | Hasil |
-|---|---|
-| Sidebar collapse | Pass |
-| Sidebar expand | Pass |
-| Sidebar Overview | Fail |
-| Sidebar Import & Master Data | Fail |
-| Sidebar Remediation & Route | Fail |
-| Sidebar Union Accounts | Fail |
-| Sidebar Accounts | Fail |
-| Sidebar Voice Explorer | Fail |
-| Sidebar Audit | Fail |
-| Sidebar System Status | Fail |
-| Account navigation | Pass |
-| Logout | Partial fail |
-| Import file picker | Pass |
-| Preview import | Pass |
-| Confirm import | Pass, tetapi processing gagal |
-| Import change filter | Pass |
-| Import pagination | Pass |
-| Snapshot aktif tab | Pass |
-| Remediation status filter | Pass |
-| Remediation type filter | Pass |
-| Union create-account dialog | Pass |
-| Union dialog close/cancel | Pass |
-| Account kind filter | Pass |
-| Account detail drawer | Pass |
-| Audit detail drawer | Pass |
-| Audit redaction | Pass |
-| System Status refresh | Pass |
-| Password form required validation | Pass |
+| Fitur                             | Hasil                         |
+| --------------------------------- | ----------------------------- |
+| Sidebar collapse                  | Pass                          |
+| Sidebar expand                    | Pass                          |
+| Sidebar Overview                  | Fail                          |
+| Sidebar Import & Master Data      | Fail                          |
+| Sidebar Remediation & Route       | Fail                          |
+| Sidebar Union Accounts            | Fail                          |
+| Sidebar Accounts                  | Fail                          |
+| Sidebar Voice Explorer            | Fail                          |
+| Sidebar Audit                     | Fail                          |
+| Sidebar System Status             | Fail                          |
+| Account navigation                | Pass                          |
+| Logout                            | Partial fail                  |
+| Import file picker                | Pass                          |
+| Preview import                    | Pass                          |
+| Confirm import                    | Pass, tetapi processing gagal |
+| Import change filter              | Pass                          |
+| Import pagination                 | Pass                          |
+| Snapshot aktif tab                | Pass                          |
+| Remediation status filter         | Pass                          |
+| Remediation type filter           | Pass                          |
+| Union create-account dialog       | Pass                          |
+| Union dialog close/cancel         | Pass                          |
+| Account kind filter               | Pass                          |
+| Account detail drawer             | Pass                          |
+| Audit detail drawer               | Pass                          |
+| Audit redaction                   | Pass                          |
+| System Status refresh             | Pass                          |
+| Password form required validation | Pass                          |
 
 ### Workforce — Tombol dan Controls
 
-| Fitur | Hasil |
-|---|---|
-| Login required validation | Pass |
-| Invalid login handling | Pass |
-| Mobile bottom navigation | Pass setelah rebuild |
-| Riwayat navigation | Pass |
-| Buat Voice navigation | Pass |
-| Create Voice wizard | Pass |
-| Account route | Pass |
-| Notifications route | Pass |
+| Fitur                     | Hasil                |
+| ------------------------- | -------------------- |
+| Login required validation | Pass                 |
+| Invalid login handling    | Pass                 |
+| Mobile bottom navigation  | Pass setelah rebuild |
+| Riwayat navigation        | Pass                 |
+| Buat Voice navigation     | Pass                 |
+| Create Voice wizard       | Pass                 |
+| Account route             | Pass                 |
+| Notifications route       | Pass                 |
 
 ## Defect Details
 
@@ -312,26 +312,26 @@ File tersebut tidak tracked oleh Git. Tidak ada source repository secret yang te
 
 ## Automated QA Results
 
-| Test Area | Result |
-|---|---:|
-| Unit tests | 75 passed |
-| Security tests | 5 passed |
-| Integration tests | 31 passed |
-| Frontend E2E | 98 passed |
-| Full-stack E2E | 3 passed |
-| Performance tests | 1 passed |
-| Typecheck | Passed |
-| ESLint | Passed |
-| Prettier check | Passed |
-| Build | Passed |
-| OpenAPI check | Passed |
-| Migration destructive check | Passed |
-| Migration upgrade test | Passed |
-| Deployment tests | Passed |
-| Docker Compose validation | Passed |
-| Security exception check | Passed |
-| OpenAI smoke test | Passed |
-| Git history secret scan | Passed |
+| Test Area                   |    Result |
+| --------------------------- | --------: |
+| Unit tests                  | 75 passed |
+| Security tests              |  5 passed |
+| Integration tests           | 31 passed |
+| Frontend E2E                | 98 passed |
+| Full-stack E2E              |  3 passed |
+| Performance tests           |  1 passed |
+| Typecheck                   |    Passed |
+| ESLint                      |    Passed |
+| Prettier check              |    Passed |
+| Build                       |    Passed |
+| OpenAPI check               |    Passed |
+| Migration destructive check |    Passed |
+| Migration upgrade test      |    Passed |
+| Deployment tests            |    Passed |
+| Docker Compose validation   |    Passed |
+| Security exception check    |    Passed |
+| OpenAI smoke test           |    Passed |
+| Git history secret scan     |    Passed |
 
 ## Non-blocking Warnings
 
