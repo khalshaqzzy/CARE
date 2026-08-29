@@ -87,7 +87,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   if (!actions.length) return null;
 
   return (
-    <Card className="action-panel">
+    <Card className="action-panel" padding="md">
       <div className="action-panel__head">
         <h3>Tindakan</h3>
         <span className="action-panel__status">{STATUS_LABELS[detail.status]}</span>

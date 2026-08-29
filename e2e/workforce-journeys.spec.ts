@@ -65,8 +65,8 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.getByRole('radio', { name: /General Voice/ }).click();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
     await expect(page.getByRole('heading', { name: 'Detail Voice General' })).toBeVisible();
-    // The required detail fields are present.
-    await expect(page.getByRole('combobox', { name: 'Area Temuan' })).toBeVisible();
+    // The required detail fields are present; areas render as choice chips.
+    await expect(page.getByRole('radio', { name: 'Karawang 1' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toBeVisible();
   });
 

@@ -24,6 +24,7 @@ export function Field({
   errorText,
   required,
   htmlFor,
+  counter,
   children,
 }: {
   label: string;
@@ -31,14 +32,19 @@ export function Field({
   errorText?: string | undefined;
   required?: boolean | undefined;
   htmlFor: string;
+  /** Optional right-aligned counter (e.g. "12/150") rendered beside the label. */
+  counter?: string | undefined;
   children: ReactNode;
 }) {
   return (
     <div className="care-field" data-invalid={Boolean(errorText) || undefined}>
-      <label className="care-field__label" htmlFor={htmlFor}>
-        {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
-      </label>
+      <div className="care-field__labelrow">
+        <label className="care-field__label" htmlFor={htmlFor}>
+          {label}
+          {required ? <span aria-hidden="true"> *</span> : null}
+        </label>
+        {counter ? <span className="care-field__counter">{counter}</span> : null}
+      </div>
       {children}
       {errorText ? (
         <p className="care-field__error" id={`${htmlFor}-error`} role="alert">
@@ -59,6 +65,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   errorText?: string;
   leading?: ReactNode;
   trailing?: ReactNode;
+  counter?: string;
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   {
@@ -68,6 +75,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     errorText,
     leading,
     trailing,
+    counter,
     className,
     required,
     ...props
@@ -83,6 +91,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       errorText={errorText}
       required={required}
       htmlFor={id}
+      counter={counter}
     >
       <div className="care-input-shell">
         {leading ? (
@@ -113,9 +122,10 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   label: string;
   helperText?: string;
   errorText?: string;
+  counter?: string;
 }
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { id: suppliedId, label, helperText, errorText, className, required, ...props },
+  { id: suppliedId, label, helperText, errorText, counter, className, required, ...props },
   ref,
 ) {
   const generated = useId();
@@ -127,6 +137,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       errorText={errorText}
       required={required}
       htmlFor={id}
+      counter={counter}
     >
       <textarea
         ref={ref}

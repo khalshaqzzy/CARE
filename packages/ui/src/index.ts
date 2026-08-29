@@ -6,6 +6,7 @@ export * from './motion.js';
 export * from './navigation.js';
 export * from './overlays.js';
 export * from './primitives.js';
+export * from './sections.js';
 export * from './shells.js';
 export * from './tokens.js';
 export * from './utils.js';

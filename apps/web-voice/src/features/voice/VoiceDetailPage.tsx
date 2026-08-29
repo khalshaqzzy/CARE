@@ -66,7 +66,7 @@ export function VoiceDetailPage() {
         <p>{AREA_LABELS[voice.area] ?? voice.area}</p>
       </header>
 
-      <Card className="voice-detail__meta">
+      <Card className="voice-detail__meta" padding="md">
         <div className="voice-detail__badges">
           <Badge tone="neutral">{VISIBILITY_LABELS[voice.visibility] ?? voice.visibility}</Badge>
           {voice.category ? <Badge tone="info">{CATEGORY_LABELS[voice.category]}</Badge> : null}
@@ -118,7 +118,7 @@ export function VoiceDetailPage() {
 
       <ActionPanel detail={voice} />
 
-      <Card>
+      <Card padding="md">
         <Stack gap="md">
           <h3 className="section-title">Detail</h3>
           <p className="voice-detail__body">{voice.detail}</p>
@@ -144,7 +144,7 @@ function ReporterCard({ voice }: { voice: VoiceDetail }) {
   // audiences keep the existing surfaces unchanged.
   if (voice.audience === 'UNION_IDENTIFIED') {
     return (
-      <Card className="voice-reporter">
+      <Card className="voice-reporter" padding="md">
         <div className="voice-reporter__head">
           <h3 className="section-title">Pelapor</h3>
           <Badge tone="info">Identitas ditampilkan</Badge>
@@ -172,7 +172,7 @@ function ReporterCard({ voice }: { voice: VoiceDetail }) {
   }
   if (voice.audience === 'UNION_ANONYMOUS') {
     return (
-      <Card className="voice-reporter">
+      <Card className="voice-reporter" padding="md">
         <div className="voice-reporter__head">
           <h3 className="section-title">Pelapor</h3>
           <Badge tone="neutral">Identitas disembunyikan</Badge>
@@ -191,7 +191,7 @@ function ClosureCycles({ voice }: { voice: { closureCycles: unknown[] } }) {
   const cycles = voice.closureCycles ?? [];
   if (!cycles.length) return null;
   return (
-    <Card>
+    <Card padding="md">
       <Stack gap="md">
         <h3 className="section-title">Siklus Penutupan</h3>
         {(
@@ -253,7 +253,7 @@ function Timeline({ voiceId }: { voiceId: string }) {
   if (feed.isLoading) return <Skeleton label="Memuat timeline" />;
   if (!feed.items.length) return null;
   return (
-    <Card>
+    <Card padding="md">
       <Stack gap="md">
         <h3 className="section-title">Timeline</h3>
         <ol className="care-timeline" role="list">

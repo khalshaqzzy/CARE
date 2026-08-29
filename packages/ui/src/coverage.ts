@@ -27,6 +27,7 @@ export const publicComponentCoverage = {
     'MediaUpload',
   ],
   navigation: ['Tabs', 'BottomNav', 'Sidebar', 'Breadcrumbs', 'Pagination', 'Accordion'],
+  sections: ['SectionCard', 'ChoiceCardGroup', 'SettingsGroup', 'SettingsRow', 'KeyValueGrid'],
   feedback: [
     'Badge',
     'SeverityBadge',
