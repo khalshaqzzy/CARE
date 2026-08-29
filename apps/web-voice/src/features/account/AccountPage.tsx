@@ -1,5 +1,15 @@
-import { Badge, Button, Card, Stack } from '@care/ui';
-import { Bell, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Dialog,
+  KeyValueGrid,
+  SectionCard,
+  SettingsGroup,
+  SettingsRow,
+  Stack,
+} from '@care/ui';
+import { Bell, Building2, Fingerprint, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 
@@ -14,144 +24,165 @@ const CAPABILITY_LABELS: Record<string, string> = {
   CARE_ADMIN: 'CARE Admin',
 };
 
+const ACCOUNT_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Aktif',
+  LEGACY_HANDLER: 'Akses historis',
+  INACTIVE: 'Nonaktif',
+};
+
+const ACCOUNT_KIND_LABELS: Record<string, string> = {
+  WORKFORCE: 'Karyawan',
+  UNION: 'Union',
+  CARE_ADMIN: 'CARE Admin',
+};
+
 export function AccountPage() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
+  const [confirmLogout, setConfirmLogout] = useState(false);
   if (!session) return null;
   const profile = session.workforceProfile;
   const employee = 'employee' in session ? session.employee : null;
   const union = session.unionProfile;
+  const statusLabel = ACCOUNT_STATUS_LABELS[session.account.status] ?? session.account.status;
+  const kindLabel = ACCOUNT_KIND_LABELS[session.account.accountKind] ?? session.account.accountKind;
+
   return (
     <Stack gap="lg">
       <header className="page-intro">
         <p className="care-eyebrow">Akun</p>
         <h1>Pengaturan akun</h1>
-        <p>Informasi sesi, profil dependensi, dan akses Anda saat ini.</p>
+        <p>Informasi sesi, profil organisasi, dan akses Anda saat ini.</p>
       </header>
 
-      <Card variant="raised" className="account-profile-card">
-        <Stack gap="md">
-          <div className="account-identity">
-            <span className="account-identity__avatar">
-              {session.account.displayName.charAt(0).toUpperCase()}
-            </span>
-            <div>
-              <h2 className="account-identity__name">{session.account.displayName}</h2>
-              <p className="account-identity__username">@{session.account.username}</p>
-            </div>
+      <section className="account-hero" aria-label="Identitas akun">
+        <div className="account-hero__identity">
+          <span className="account-hero__avatar" aria-hidden="true">
+            {session.account.displayName.charAt(0).toUpperCase()}
+          </span>
+          <div className="account-hero__who">
+            <h2 className="account-hero__name">{session.account.displayName}</h2>
+            <p className="account-hero__meta">
+              {employee ? `No. Reg ${employee.noReg}` : `@${session.account.username}`}
+            </p>
           </div>
-          <dl className="account-kv-grid">
-            <div>
-              <dt>Status akun</dt>
-              <dd>
-                {session.account.status === 'ACTIVE'
-                  ? 'Aktif'
-                  : session.account.status === 'LEGACY_HANDLER'
-                    ? 'Akses historis'
-                    : 'Nonaktif'}
-              </dd>
-            </div>
-            <div>
-              <dt>Jenis akun</dt>
-              <dd>
-                {session.account.accountKind === 'WORKFORCE'
-                  ? 'Karyawan'
-                  : session.account.accountKind === 'UNION'
-                    ? 'Union'
-                    : 'CARE Admin'}
-              </dd>
-            </div>
-            {employee ? (
-              <div>
-                <dt>No. Registrasi</dt>
-                <dd>{employee.noReg}</dd>
-              </div>
-            ) : null}
-          </dl>
-        </Stack>
-      </Card>
+        </div>
+        <div className="account-hero__chips">
+          <span className="account-hero__chip">
+            <i aria-hidden="true" />
+            {statusLabel}
+          </span>
+          <span className="account-hero__chip">{kindLabel}</span>
+          {union ? <span className="account-hero__chip">Slot {union.slot}</span> : null}
+        </div>
+      </section>
 
-      <Card>
-        <Stack gap="md">
-          <div className="section-title-row">
-            <h3 className="section-title">Profil organisasi</h3>
-          </div>
-          {profile ? (
-            <dl className="account-kv-grid">
-              <div>
-                <dt>Posisi struktural</dt>
-                <dd>
-                  {employee?.structuralPosition ?? profile.structuralPosition ?? 'Team Member'}
-                </dd>
-              </div>
-              <div>
-                <dt>Directorate</dt>
-                <dd>{employee?.directorate ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Division</dt>
-                <dd>{employee?.division ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Department</dt>
-                <dd>{employee?.department ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Section</dt>
-                <dd>{employee?.section ?? '—'}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="account-muted">Tidak ada profil workforce (akun Union).</p>
-          )}
-          {union ? (
-            <dl className="account-kv-grid">
-              <div>
-                <dt>Slot Union</dt>
-                <dd>{union.slot}</dd>
-              </div>
-            </dl>
-          ) : null}
-        </Stack>
-      </Card>
+      <SectionCard
+        title="Profil organisasi"
+        description="Unit efektif dari snapshot organisasi terbaru."
+        icon={<Building2 size={16} />}
+        padding="md"
+      >
+        {profile ? (
+          <KeyValueGrid
+            aria-label="Profil organisasi"
+            columns={2}
+            items={[
+              {
+                label: 'Posisi struktural',
+                value: employee?.structuralPosition ?? profile.structuralPosition ?? 'Team Member',
+              },
+              { label: 'Directorat', value: employee?.directorate ?? '—' },
+              { label: 'Division', value: employee?.division ?? '—' },
+              { label: 'Department', value: employee?.department ?? '—' },
+              { label: 'Section', value: employee?.section ?? '—' },
+            ]}
+          />
+        ) : union ? (
+          <KeyValueGrid
+            aria-label="Profil Union"
+            columns={2}
+            items={[{ label: 'Slot Union', value: union.slot }]}
+          />
+        ) : (
+          <p className="account-note">Tidak ada profil workforce (akun Union).</p>
+        )}
+      </SectionCard>
 
-      <Card>
-        <Stack gap="md">
-          <div className="section-title-row">
-            <h3 className="section-title">Kemampuan akses</h3>
-          </div>
-          <div className="caps-list">
-            {session.capabilities.map((capability) => (
-              <Badge key={capability} tone="info">
-                <ShieldCheck size={14} /> {CAPABILITY_LABELS[capability] ?? capability}
-              </Badge>
-            ))}
-          </div>
-        </Stack>
-      </Card>
+      <SectionCard
+        title="Kemampuan akses"
+        description="Diturunkan dari posisi struktural dan penugasan aktif Anda."
+        icon={<ShieldCheck size={16} />}
+        padding="md"
+      >
+        <div className="caps-list">
+          {session.capabilities.map((capability) => (
+            <Badge key={capability} tone="info">
+              <ShieldCheck size={14} /> {CAPABILITY_LABELS[capability] ?? capability}
+            </Badge>
+          ))}
+        </div>
+      </SectionCard>
 
-      <Card>
-        <Stack gap="md">
-          <div className="section-title-row">
-            <h3 className="section-title">Keamanan & sesi</h3>
-            <Badge tone="success">Sesi aktif</Badge>
-          </div>
-          <p className="account-session-id">
-            ID sesi {session.sessionId.slice(0, 8)}… · hanya untuk diagnosis perangkat ini
-          </p>
-          <div className="account-actions">
-            <Button variant="secondary" onClick={() => void navigate('/notifications')}>
-              <Bell size={18} /> Notifikasi push
+      <SectionCard
+        title="Keamanan & sesi"
+        icon={<KeyRound size={16} />}
+        padding="md"
+        action={<Badge tone="success">Sesi aktif</Badge>}
+      >
+        <SettingsGroup>
+          <SettingsRow
+            icon={<Fingerprint size={15} />}
+            title={`ID sesi ${session.sessionId.slice(0, 8)}…`}
+            description="Hanya untuk diagnosis perangkat ini"
+          />
+          <SettingsRow
+            icon={<Bell size={15} />}
+            title="Notifikasi push"
+            description="Kelola izin dan perangkat terdaftar"
+            onClick={() => void navigate('/notifications')}
+          />
+          <SettingsRow
+            icon={<KeyRound size={15} />}
+            title="Ganti password"
+            description="Password baru 6–128 karakter"
+            onClick={() => void navigate('/change-password')}
+          />
+          <SettingsRow
+            icon={<LogOut size={15} />}
+            title="Keluar"
+            description="Akhiri sesi CARE pada perangkat ini"
+            tone="danger"
+            onClick={() => setConfirmLogout(true)}
+          />
+        </SettingsGroup>
+      </SectionCard>
+
+      <Dialog
+        open={confirmLogout}
+        onOpenChange={setConfirmLogout}
+        title="Keluar dari CARE?"
+        description="Sesi pada perangkat ini akan diakhiri. Anda dapat masuk kembali kapan saja."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmLogout(false)}>
+              Batal
             </Button>
-            <Button variant="secondary" onClick={() => void navigate('/change-password')}>
-              <KeyRound size={18} /> Ganti password
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmLogout(false);
+                void logout().then(() => navigate('/login'));
+              }}
+            >
+              Keluar
             </Button>
-            <Button variant="danger" onClick={() => void logout().then(() => navigate('/login'))}>
-              <LogOut size={18} /> Keluar
-            </Button>
-          </div>
-        </Stack>
-      </Card>
+          </>
+        }
+      >
+        <p className="dialog-copy">Pastikan pekerjaan Anda sudah disimpan sebelum keluar.</p>
+      </Dialog>
     </Stack>
   );
 }

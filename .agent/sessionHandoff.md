@@ -1,16 +1,70 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                            |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 29 Agustus 2026                                                                                                                                                                                                  |
-| Current objective       | Leadership dashboard, unified Voice Member/Voice Saya navigation, conversation lifecycle, and workforce UI polish implemented on `feat/workforce-polish` (ADR-0019); Phase 13 remains open for hosted acceptance |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                 |
-| Backend Complete Gate   | Passed (PRD v1.1); additive monitoring filters/options and `conversationState` regenerated without migration or authorization expansion                                                                          |
-| Implementation status   | Phase 0–12 done; ADR-0019 workforce dashboard/monitoring/chat/polish implementation locally complete; QA-005 deferred; Phase 13 hosted evidence not yet claimed                                                  |
-| Latest ADR              | ADR-0019 (Unified Monitoring, Leadership Dashboard, and Conversation State)                                                                                                                                      |
-| Recommended next action | Merge `feat/workforce-polish` to `staging` after CI, then complete hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                            |
+| Atribut                 | Nilai                                                                                                                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 29 Agustus 2026                                                                                                                                                                                                   |
+| Current objective       | Workforce secondary-surface polish (Account, Create Voice, Notifications) via shared padded-surface/section components on `feat/polish-member-pages` (ADR-0020); Phase 13 remains open for hosted acceptance      |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                  |
+| Backend Complete Gate   | Passed (PRD v1.1); no API/schema/contract change in this session                                                                                                                                                  |
+| Implementation status   | Phase 0–12 done; ADR-0020 secondary-surface polish locally complete with full parity green; Phase 13 hosted evidence not yet claimed                                                                              |
+| Latest ADR              | ADR-0020 (Workforce secondary surface polish)                                                                                                                                                                     |
+| Recommended next action | Open PR for `feat/polish-member-pages`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
 
 ## Session Outcome
+
+### Workforce secondary-surface polish: Account, Create Voice, Notifications — 29 Agustus 2026
+
+Branch `feat/polish-member-pages`. Akar masalah "teks menempel di tepi" bersifat sistemik:
+`care-surface` (Card) tidak memiliki padding sehingga setiap halaman yang meletakkan konten mentah
+di dalam Card merender flush ke border (Account, wizard, push card, notification items), sementara
+halaman yang terlihat rapi hanya aman karena komponennya membawa padding sendiri. Selector mati
+`.monitor-kpis .care-card` membuktikan padding KPI Voice Member memang dimaksudkan namun tidak
+pernah terpasang. Implementasi (ADR-0020):
+
+- **Foundations (`packages/ui`, aditif):** `Surface/Card` memperoleh prop `padding`
+  (`none|sm|md|lg`, default `none` sehingga Admin byte-identical); token baru
+  `--gradient-brand-hero`, `--on-brand-muted`, `--shadow-cta`; komponen baru `SectionCard`,
+  `ChoiceCardGroup` (varian `card`/`chip`, semantik radio Radix), `SettingsGroup`/`SettingsRow`,
+  `KeyValueGrid` (surface `subtle`/`brand`); `Field/Input/Textarea` menerima `counter`. Semua
+  terdaftar di coverage publik + spesimen `/design` + 4 test unit baru (UI 12 total).
+- **Account:** hero gradient diperbaiki (padding, avatar tidak terpotong, chips status/jenis,
+  teks on-brand AA — label 92% white, value putih penuh); Profil organisasi/Kemampuan akses/
+  Keamanan & sesi menjadi SectionCard (KV tiles tinted); aksi keamanan memakai SettingsRow
+  berikon; **Keluar kini lewat Dialog konfirmasi** (focus trap/return, destructive tone).
+- **Create Voice:** ChoiceCard untuk pilihan Private/General dan severity fallback; Area menjadi
+  chip grid 2 kolom di 360px; form satu kartu terbagi tiga seksi berikon (Lokasi/Detail/Foto);
+  counter inline di baris label; textarea mengikuti `rows` (override scoped workforce); media
+  picker diperbaiki (label programmatic, hitungan 0/5, dropzone 7.5rem, tombol hapus 24px dengan
+  halo ≥44px); **sticky action bar** di semua step yang membersihkan dock + safe area; langkah
+  stepper diperbarui (track + halo, label sr-only di ≤640px); DraftPreviewPage diselaraskan.
+- **Notifications:** header menumpuk di mobile dengan badge belum-dibaca + tombol Tandai semua
+  dibaca inline; push settings menjadi SectionCard (switch tetap satu kontrol berlabel — anchor
+  test `Aktifkan notifikasi push` dipertahankan); item notifikasi memakai tile ikon ber-tone per
+  tipe, dot + latar tint untuk unread (bukan warna saja), tombol `Buka` tetap.
+- **Sibling fixes:** chart cards, home resume/assignment cards, KPI Voice Member, seksi Voice
+  Detail (meta/detail/timeline/closure/reporter), ActionPanel memperoleh `padding="md"`;
+  selector `.care-card` mati dihapus; `.dashboard-filters` kini berpadding; field workforce
+  (input/textarea/select) menjadi tinted inset dengan fokus brand — scoped ke bundle workforce
+  sehingga Admin tidak berubah (`admin-shell-1440` baseline lolos tanpa regenerasi).
+
+Validasi (semua hijau): lockfile tidak berubah; `pnpm format:check`; `pnpm lint`; `pnpm typecheck`;
+unit API 60, UI 12, frontend-core 14, workforce 33, Admin 2; `pnpm openapi:check` tanpa drift;
+`pnpm build` (PWA precache 12); `migrations:destructive-check`; `docker compose config --quiet`;
+`db:up/wait/verify/test:reset/test:migrate`; integration 42; security 5; seed+test performance
+10k/50k; maintenance:reconcile nol; `pnpm test:frontend:e2e` **120 passed** (Axe AA, no-overflow,
+44px dock, halo media remove baru, journey wizard diperbarui ke radio chip `Karawang 1`);
+fullstack gated **3 passed**; `workforce-account-360.png` diregenerasi (satu-satunya baseline
+berubah; 12/12 visual lulus); Gitleaks directory scan bersih setelah allowlist diperluas ke
+`.env.local` (ignored mode-0600, rekonsiliasi rules §4.2 di change yang sama);
+`security:exceptions:check` valid; `git diff --check`. Compose database dihentikan; tidak ada
+container/proses tersisa. Catatan operasional: container `supplier-henkaten-local-api-1` yang
+mengunci 127.0.0.1:3000 dihentikan atas keputusan operator agar gate fullstack CARE dapat
+berjalan; dibiarkan mati.
+
+Keputusan yang dikunci bersama product owner: (1) sibling fixes ikut diperbaiki dengan baseline
+diregenerasi terkendali; (2) hero Account tetap gradient (diperbaiki) bukan kartu putih;
+(3) redesign form mencakup choice cards, chip area, sticky action bar; (4) komponen baru masuk
+`packages/ui` + `/design` + unit test. Lihat ADR-0020.
 
 ### Workforce dashboard, monitoring, conversation lifecycle, and polish — 28 Agustus 2026
 

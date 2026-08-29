@@ -35,7 +35,7 @@ export function DashboardChartCard({
 }) {
   const max = Math.max(...buckets.map((b) => b.value), 1);
   return (
-    <Card className="chart-card">
+    <Card className="chart-card" padding="md">
       <div className="chart-card__head">
         <h3>{title}</h3>
         {total !== undefined ? <span className="chart-card__total">{total}</span> : null}

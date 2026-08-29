@@ -234,6 +234,7 @@ export function HomePage() {
       {isUnionHead && privateDash.data?.pendingAssignment !== undefined ? (
         <Card
           className="home-resume"
+          padding="md"
           {...(privateDash.data.pendingAssignment > 0 ? { 'data-tone': 'accent' } : {})}
         >
           <div>
@@ -471,7 +472,7 @@ export function HomePage() {
               />
             </Card>
           ) : member.data?.draft ? (
-            <Card className="home-resume" data-tone="accent">
+            <Card className="home-resume" padding="md" data-tone="accent">
               <div>
                 <p className="home-resume__eyebrow">Draft tersimpan</p>
                 <h3 className="home-resume__title">{member.data.draft.title}</h3>

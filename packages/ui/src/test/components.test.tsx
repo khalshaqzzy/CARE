@@ -2,9 +2,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { useState } from 'react';
+import { vi } from 'vitest';
 import { Button } from '../primitives.js';
 import { Checkbox, Combobox, Input, SegmentedControl } from '../forms.js';
 import { Dialog } from '../overlays.js';
+import {
+  ChoiceCardGroup,
+  KeyValueGrid,
+  SectionCard,
+  SettingsGroup,
+  SettingsRow,
+} from '../sections.js';
 
 describe('interactive component contracts', () => {
   it('keeps a loading button named, busy, and disabled', () => {
@@ -88,5 +96,87 @@ describe('interactive component contracts', () => {
     );
     expect(await axe(container)).toHaveNoViolations();
     expect(screen.getByLabelText('Lokasi')).toHaveAccessibleDescription('Lokasi wajib diisi');
+  });
+});
+
+describe('composed section contracts', () => {
+  it('renders section header slots with an accessible counter field', () => {
+    render(
+      <SectionCard
+        title="Profil organisasi"
+        description="Unit efektif dari snapshot terbaru"
+        icon={<span>icon</span>}
+        action={<span>3 aktif</span>}
+      >
+        <Input label="Judul" counter="12/150" />
+      </SectionCard>,
+    );
+    expect(screen.getByRole('heading', { name: 'Profil organisasi' })).toBeInTheDocument();
+    expect(screen.getByText('3 aktif')).toBeInTheDocument();
+    expect(screen.getByText('12/150')).toBeInTheDocument();
+  });
+
+  it('supports controlled choice-card selection with radio semantics', async () => {
+    const user = userEvent.setup();
+    function Controlled() {
+      const [value, setValue] = useState('GENERAL');
+      return (
+        <ChoiceCardGroup
+          label="Jenis Voice"
+          value={value}
+          onValueChange={setValue}
+          options={[
+            {
+              value: 'GENERAL',
+              label: 'General Voice',
+              description: 'Ditangani route organisasi.',
+            },
+            { value: 'PRIVATE', label: 'Private Voice', description: 'Ditangani Union Head.' },
+          ]}
+        />
+      );
+    }
+    const { container } = render(<Controlled />);
+    await user.click(screen.getByRole('radio', { name: /Private Voice/ }));
+    expect(screen.getByRole('radio', { name: /Private Voice/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /General Voice/ })).not.toBeChecked();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('renders navigational and danger settings rows', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    render(
+      <SettingsGroup>
+        <SettingsRow
+          icon={<span>i</span>}
+          title="Ganti password"
+          description="Password baru 6–128 karakter"
+          onClick={() => undefined}
+        />
+        <SettingsRow title="Keluar" tone="danger" onClick={onOpen} />
+        <SettingsRow title="ID sesi" description="hanya diagnosis" />
+      </SettingsGroup>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Keluar' }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Ganti password')).toBeInTheDocument();
+  });
+
+  it('renders key-value tiles on both surfaces', async () => {
+    const { container } = render(
+      <KeyValueGrid
+        aria-label="Ringkasan akun"
+        surface="brand"
+        items={[
+          { label: 'Status akun', value: 'Aktif', tone: 'success' },
+          { label: 'Jenis akun', value: 'Karyawan' },
+        ]}
+      />,
+    );
+    expect(screen.getByLabelText('Ringkasan akun')).toBeInTheDocument();
+    expect(screen.getByText('Status akun')).toBeInTheDocument();
+    expect(container.querySelector('[data-tone="success"]')).toHaveTextContent('Aktif');
+    expect(container.querySelector('.care-kv-grid--brand')).not.toBeNull();
   });
 });

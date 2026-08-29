@@ -192,4 +192,26 @@ test.describe('workforce accessibility and responsive surface', () => {
       expect(target.w).toBeGreaterThanOrEqual(44);
     }
   });
+
+  test('media attachment remove control keeps an expanded touch halo', async ({ page }) => {
+    await open(page, {
+      path: '/voices/new',
+      heading: 'Pilih jenis Voice',
+      viewport: { width: 360, height: 800 },
+    });
+    await page.getByRole('radio', { name: /General Voice/ }).click();
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    await expect(page.getByRole('radio', { name: 'Karawang 1' })).toBeVisible();
+    // The remove control is 24px visually; its ::after halo must grow the hit
+    // area to ≥44px (24px + 2 × 10px inset).
+    const haloInset = await page.locator('.media-input').evaluate((media) => {
+      const probe = document.createElement('button');
+      probe.className = 'media-input__remove';
+      media.append(probe);
+      const inset = getComputedStyle(probe, '::after').top;
+      probe.remove();
+      return inset;
+    });
+    expect(haloInset).toBe('-10px');
+  });
 });

@@ -304,28 +304,28 @@ function MonitoringKpis({ data }: { data: DashboardAggregate }) {
   const active = count('OPEN') + count('IN_VERIFICATION') + count('IN_PROGRESS');
   return (
     <div className="monitor-kpis" aria-label="Ringkasan Voice Member">
-      <Card>
+      <Card padding="md">
         <Activity />
         <span>
           <strong>{active}</strong>
           <small>Aktif</small>
         </span>
       </Card>
-      <Card>
+      <Card padding="md">
         <Inbox />
         <span>
           <strong>{count('IN_VERIFICATION')}</strong>
           <small>Verifikasi</small>
         </span>
       </Card>
-      <Card>
+      <Card padding="md">
         <AlertTriangle />
         <span>
           <strong>{critical}</strong>
           <small>Critical</small>
         </span>
       </Card>
-      <Card>
+      <Card padding="md">
         <CheckCircle2 />
         <span>
           <strong>{count('CLOSED')}</strong>

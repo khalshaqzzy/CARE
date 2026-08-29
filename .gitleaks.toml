@@ -4,5 +4,5 @@ title = "CARE Gitleaks configuration"
 useDefault = true
 
 [allowlist]
-description = "The root .env is an intentionally untracked mode-0600 local runtime secret file"
-paths = ['''^/repo/\.env$''']
+description = "The root .env and .env.local are intentionally untracked mode-0600 local runtime secret files"
+paths = ['''^/repo/\.env$''', '''^/repo/\.env\.local$''']

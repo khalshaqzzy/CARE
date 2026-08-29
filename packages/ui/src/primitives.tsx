@@ -87,12 +87,18 @@ export function Link({ className, ...props }: AnchorHTMLAttributes<HTMLAnchorEle
 export interface SurfaceProps extends HTMLAttributes<HTMLElement> {
   as?: 'div' | 'section' | 'article';
   variant?: 'default' | 'raised' | 'selected' | 'inset';
+  /**
+   * Opt-in inner padding. The default keeps `care-surface` padding-free so
+   * composite components (tables, state panels) can control their own spacing.
+   */
+  padding?: 'none' | 'sm' | 'md' | 'lg';
   interactive?: boolean;
 }
 
 export function Surface({
   as: Element = 'div',
   variant = 'default',
+  padding = 'none',
   interactive,
   className,
   ...props
@@ -102,6 +108,7 @@ export function Surface({
       className={cn(
         'care-surface',
         `care-surface--${variant}`,
+        padding !== 'none' && `care-surface--pad-${padding}`,
         interactive && 'care-surface--interactive',
         className,
       )}
