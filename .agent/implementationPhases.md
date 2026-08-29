@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 0–12 done; Phase 13 staging delivery implementation complete locally and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Last updated           | 28 Agustus 2026 (live provider smoke diagnostics + advisory deploy behavior, ADR-0015; no phase-status change)                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Current implementation | Production delivery remains locally verified. QA-001–004 are resolved; route remediation now uses No. Reg-only default/global PIC assignment with affected-department display, Union Home no longer calls the unavailable Member summary, and the centered mobile dashboard is overflow-safe (ADR-0016). QA-005 is deferred and QA-006 is resolved (ADR-0013). Live provider smoke is traceable and advisory during auto-deploy while release readiness still requires it to pass (ADR-0015). Local affected-path verification is green |
-| Current phase          | Phase 13 `in_progress`: QA remediation is locally complete; authenticated operator Safari retest plus GitHub/hosted two-origin/rehearsal evidence must still pass before `done`                                                                                                                                                                                                                                                                                                                                                         |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status roadmap         | Phase 0–12 done; Phase 13 staging delivery implementation complete locally and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Last updated           | 29 Agustus 2026 (Workforce secondary-surface polish — Account, Create Voice, Notifications — ADR-0020; no phase-status change)                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Current implementation | Production delivery remains locally verified. AI targets `deepseek-v4-flash` via Chat Completions (ADR-0017). Union Private Voice is role-aware (ADR-0018); leadership dashboards, unified monitoring, and conversation-state enforcement are implemented (ADR-0019). Workforce secondary surfaces — Account, Create Voice, Notifications — are polished through shared padded-surface/section primitives added to `packages/ui` (ADR-0020), with no API or schema change. Full local parity for the latest change is recorded in the session handoff. |
+| Current phase          | Phase 13 `in_progress`: QA remediation is locally complete; authenticated operator Safari retest plus GitHub/hosted two-origin/rehearsal evidence must still pass before `done`                                                                                                                                                                                                                                                                                                                                                                        |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -17,7 +17,7 @@ Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
 
 Tiga gate berikut bersifat wajib:
 
-1. **Backend Complete Gate** — seluruh remediation schema, organization master, routing, authorization, Union, AI Responses, location review, dashboard, migration, OpenAPI, dan backend regression selesai sebelum frontend dimulai.
+1. **Backend Complete Gate** — seluruh remediation schema, organization master, routing, authorization, Union, AI classification/location review, dashboard, migration, OpenAPI, dan backend regression selesai sebelum frontend dimulai.
 2. **Frontend Complete Gate** — workforce PWA dan Admin app, generated-client integration, accessibility, responsive behavior, dan two-origin Playwright journeys selesai sebelum production containerization/deployment dimulai.
 3. **Delivery Complete Gate** — production Dockerfiles, Caddy/Compose, CI/CD release automation, staging rehearsal pada dua domain, dan production readiness selesai terakhir.
 
@@ -227,7 +227,7 @@ Acceptance:
 - anonymous Union DTO tidak memiliki identity field; `SHOW` dan Admin DTO hanya memuat contract yang diizinkan;
 - monthly master update tidak mengubah historical PIC/assignment/consent.
 
-### Phase 6.4 — OpenAI Responses, Classification, and Location Review
+### Phase 6.4 — DeepSeek Chat Completions, Classification, and Location Review
 
 Status: `done`
 
@@ -236,8 +236,8 @@ Dependencies: Phase 6.3.
 Scope:
 
 - hapus Gemini/Vertex, `@google/genai`, location provider, dan seluruh `VERTEX_*` runtime contract;
-- official JavaScript SDK, `responses.create`, `/responses`, Structured Outputs JSON Schema, `store:false`, tanpa tools/conversation state;
-- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key dan dengan reasoning effort kosong default `medium`;
+- official JavaScript SDK, `chat.completions.create`, `/chat/completions`, forced named function calls, dan local Zod validation;
+- config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key dan dengan reasoning effort kosong default `none`;
 - minimized payload, bounded timeout/retry, schema validation, sanitized errors, versioned prompts/contracts;
 - classification: nullable category untuk Private, severity, confidence, rationale code; tidak ada fixed category priority;
 - location review: `COMPLETE | INCOMPLETE | UNKNOWN`, warning, maksimal tiga suggestion questions;
@@ -248,7 +248,7 @@ Acceptance:
 
 - tests mencakup valid schema, refusal/incomplete, invalid schema, timeout, bounded retry, low confidence, missing config, Private severity-only, dan sanitized logs;
 - location cache hit/invalidation, stale acknowledgment rejection, `INCOMPLETE` confirmation, dan provider failure path lulus;
-- deterministic local mock `/responses` smoke lulus untuk classification dan location schemas tanpa external API key; live provider validation dipindahkan ke staging rehearsal setelah config tersedia;
+- deterministic local mock `/chat/completions` smoke lulus untuk classification dan location function schemas tanpa external API key; live provider validation dipindahkan ke staging rehearsal setelah config tersedia;
 - tidak ada Gemini/Vertex dependency, env, metadata, atau normative contract tersisa.
 
 ### Phase 6.5 — Dashboard, Detail/Action Authorization, and Cross-Cutting Services
@@ -300,7 +300,7 @@ Backend Complete Gate acceptance:
 - 10.000-account/50.000-Voice/50-concurrent profile memenuhi PRD target;
 - no unresolved Critical/High backend security finding;
 - OpenAPI drift check dan generated client green;
-- mock OpenAI-compatible `/responses` classification/location smoke green tanpa external API key, sesuai keputusan pengujian; live provider smoke menjadi staging validation dan bukan Phase 6 test dependency;
+- mock DeepSeek `/chat/completions` classification/location smoke green tanpa external API key, sesuai keputusan pengujian; live provider smoke menjadi staging validation dan bukan Phase 6 test dependency;
 - handoff mencatat **Backend Complete Gate: passed** sebelum Phase 7 dimulai.
 
 Gate saat ini: **passed** pada 26 Agustus 2026. Phase 7 boleh dimulai. Base URL/model/API key riil tetap external dependency untuk staging dan production, bukan dependency unit/integration/smoke test.
@@ -479,6 +479,10 @@ Scope (implemented — Member journey in `apps/web-voice`):
 - Create Voice wizard: Private/General choice → details (area, location, title, detail, Private identity consent, photos) → save draft + AI classification + location review → manual fallback → review (route readiness, severity/category, attachments, location warning, consent) → idempotent submit; dirty-form guard, char counters, media preview/remove, upload progress, focus-to-error;
 - preview page and closed-chat read-only rules; History with search/filter/cursor; Voice detail with metadata, PIC privacy label, media, classification source, location review, timeline, conversation, closure cycles/evidence/rating/reopen; Notifications center with unread count/pagination/mark-read/deep-link; Account session/capability/profile;
 - timeline/messages cursor pagination (`useCursorFeed`) with an optional `order=desc` for the live chat; dashboard aggregate filters + suppression metadata (`GeneralBrowsePage`).
+- capability-derived mobile/desktop navigation labels `/history` as Voice Saya for
+  every workforce account; mobile Lainnya sheet contains Notifikasi and Akun;
+  account/push/detail/create/history surfaces use the reference-led workforce
+  presentation without changing Admin product styling.
 
 Acceptance status: Member journey implemented on the real backend and verified via integration (31), security (5), unit, build, and Playwright (chromium/visual/pwa 20 passed). Full Phase 9/10 acceptance and the complete Phase 10 responder/leadership matrix now covered by `responder-matrix.integration.test.ts`.
 
@@ -499,6 +503,19 @@ Scope (implemented):
 - close links staged closure evidence (1–5 cap, `EVIDENCE_LIMIT`) to the closure cycle; reopen falls back to the route owner when the last PIC is deactivated; close dialog stages and requires evidence (close-evidence UI);
 - ask/proceed/close/rate/addMessage honor `Idempotency-Key` (atomic replay record + conflict handling) and the frontend reuses a stable key per logical mutation;
 - Section Head aggregate overview scoped to `currentHandlerId`; `detailScope`/`workItemScope` empty sentinel fixed; Admin Voice Explorer consumes paginated timeline/messages.
+- Manager and leadership Home use a comprehensive 30-day-default aggregate
+  dashboard with URL presets/custom range, KPI, accessible status/severity/
+  category/trend/organization charts, suppression explanation, and explicit
+  loading/offline/error states.
+- `/work-items` is the unified role-aware Voice Member workspace for workforce
+  monitoring roles; it uses active/closed/all views, scoped handler options,
+  search/filter/date state in the URL, severity-first cursor pagination, and
+  server-authoritative action availability. Leadership remains read-only and
+  Private Voice is excluded.
+- Voice detail consumes `conversationState`: chat is absent for Open/direct
+  Proceed without a room, active from In Verification and continuing In
+  Progress when created, and read-only after Closed. Ask/Assign focuses an
+  active/empty room and backend message endpoints enforce the same state.
 
 Acceptance status: the dashboard/detail/action matrix, aggregate/design leakage checks, conditional Private identity/Officer assignment isolation, timeline/messages cursor pagination, dashboard filter/suppression metadata, and responder/leadership mocked Playwright journeys are now covered by `responder-matrix.integration.test.ts` and the `member-voice`/`admin-explorer` e2e specs. Phase 8.5 remains `in_progress`; Frontend Complete Gate stays blocked until Phase 8.5 and Phase 11 pass.
 
@@ -603,7 +620,7 @@ Scope:
 - release-by-SHA, checksum/safe path/deploy lock/high-water run, preflight/deploy/rollback/smoke;
 - staging CI/CD with security/migration/container gates and stale-candidate rejection;
 - deploy workforce ke `care.qd-tmmin.site` dan Admin ke `admin-ped.qd-tmmin.site`;
-- live Responses, auth, import/remediation, routing/Union/privacy, push/media, host isolation, migration, dan rollback rehearsal.
+- live DeepSeek Chat Completions, auth, import/remediation, routing/Union/privacy, push/media, host isolation, migration, dan rollback rehearsal.
 
 Acceptance:
 
@@ -640,7 +657,7 @@ Implementation state 28 Agustus 2026:
   fresh and previous-SHA migrations, mocked/serial full-stack browser journeys,
   workflow/shell/container acceptance, Gitleaks, dependency audit/review,
   CodeQL, and Trivy before calling the reusable deployment workflow;
-- automatic staging deploy includes live Responses classification/location
+- automatic staging deploy includes live DeepSeek Chat Completions classification/location
   validation and two-origin smoke. Web Push canary is implemented as a manually
   invoked operational profile and is deliberately outside automated tests,
   deployment smoke, and the automatic deploy gate;

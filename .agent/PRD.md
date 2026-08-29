@@ -17,7 +17,7 @@ Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**,
 
 ## 1. Ringkasan Eksekutif
 
-CARE adalah aplikasi pelaporan suara member (_member voice_) untuk lingkungan enterprise manufacturing. CARE menyediakan jalur mobile yang aman dan dapat ditelusuri untuk menyampaikan temuan, keluhan, ide, informasi, atau apresiasi; mengklasifikasikan kategori dan severity melalui OpenAI-compatible Responses API; memberi peringatan kelengkapan lokasi; meneruskan General Voice kepada Manager/Department Head atau Section Head dan Private Voice kepada Union; menyediakan chat verifikasi; serta mencatat penyelesaian, bukti, rating, feedback, dan reopen.
+CARE adalah aplikasi pelaporan suara member (_member voice_) untuk lingkungan enterprise manufacturing. CARE menyediakan jalur mobile yang aman dan dapat ditelusuri untuk menyampaikan temuan, keluhan, ide, informasi, atau apresiasi; mengklasifikasikan kategori dan severity melalui DeepSeek Chat Completions dengan function calling; memberi peringatan kelengkapan lokasi; meneruskan General Voice kepada Manager/Department Head atau Section Head dan Private Voice kepada Union; menyediakan chat verifikasi; serta mencatat penyelesaian, bukti, rating, feedback, dan reopen.
 
 CARE memakai workforce PWA dan aplikasi Admin React yang terpisah, tetapi keduanya menggunakan satu backend dan generated OpenAPI client yang sama. Backend menjadi satu-satunya akses ke PostgreSQL dan media. Seluruh perubahan lifecycle disimpan sebagai timeline append-only dengan actor dan timestamp. General Voice memakai deterministic server routing dari organization master. Private Voice selalu masuk kepada Union Head dan dapat didelegasikan kepada Union 1 atau Union 2; identitas reporter kepada Union mengikuti consent immutable pada Voice, sedangkan CARE Admin memiliki read-only access ke content dan identitas lengkap.
 
@@ -45,16 +45,16 @@ CARE menyelesaikan kebutuhan berikut:
 - Revisi product requirement dan workbook organisasi `CARE_ORG DATA_AUG.xlsx` yang dianalisis pada 25 Agustus 2026.
 - `.agent/rules.md` pada repository CARE.
 - `.agent/PRD.md`, workflow GitHub Actions, Compose, Caddy, dan deployment scripts pada repository `supplier-henkaten` sebagai referensi pola kontrak dan operasional.
-- Dokumentasi resmi OpenAI untuk Responses API dan Structured Outputs.
+- Dokumentasi resmi DeepSeek untuk Chat Completions, Thinking Mode, dan Tool Calls.
 
 Referensi `supplier-henkaten` hanya menjadi pola. CARE wajib memakai nama service/path sendiri dan domain bisnis CARE. Workforce dan Admin merupakan dua frontend deployment terpisah yang berbagi backend dan contract package.
 
-### 2.3 Referensi OpenAI Responses API
+### 2.3 Referensi DeepSeek Chat Completions
 
-- API contract: [Create a model response](https://developers.openai.com/api/reference/cli/resources/responses/methods/create), endpoint `POST /responses`.
-- SDK TypeScript/JavaScript: official `openai` package dengan `client.responses.create(...)`.
-- Structured JSON memakai `text.format` dengan JSON Schema; JSON mode lama tidak menjadi contract CARE.
-- Request CARE menetapkan `store: false`, tidak memakai conversation state atau tools, dan membaca text output melalui SDK-supported output accessor sebelum schema validation lokal.
+- API contract: [Chat Completions API](https://api-docs.deepseek.com/api/create-chat-completion/), endpoint `POST /chat/completions`.
+- SDK TypeScript/JavaScript: official `openai` package dengan `client.chat.completions.create(...)` terhadap DeepSeek base URL.
+- Structured result memakai standard function calling dengan satu named tool yang dipaksa; strict Beta `/beta` tidak menjadi contract CARE.
+- Non-thinking target mengirim `thinking: { type: "disabled" }` tanpa `reasoning_effort`; function arguments selalu di-parse dan divalidasi lagi dengan Zod sebelum digunakan.
 
 Base URL, model, API key, lifecycle, pricing, dan kebijakan data dapat berubah. Base URL/model/key tidak mempunyai production default, wajib diberikan melalui runtime config, dan perubahan model/provider endpoint wajib melalui evaluation serta audit konfigurasi.
 
@@ -98,27 +98,27 @@ CARE v1 bukan:
 
 ## 4. Terminologi
 
-| Istilah             | Definisi                                                                                                                |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Voice               | Laporan, ide, informasi, apresiasi, keluhan, atau temuan yang dibuat reporter.                                          |
-| Reporter            | User yang membuat Voice.                                                                                                |
-| General Voice       | Voice non-publik yang identitas reporternya terlihat oleh responder berizin dan dirutekan secara deterministik.         |
-| Private Voice       | Voice yang selalu dirutekan ke Union Head; identitas reporter kepada Union mengikuti consent per Voice.                 |
-| Manager/Dept Head   | Istilah interchangeable untuk Department Head structural atau default/global PIC dengan capability Manager yang scoped. |
-| Route Owner         | Account yang dipilih deterministic server routing dan disnapshot pada Voice.                                            |
-| Handler/PIC         | Manager, Section Head, Union Head, atau Union Officer yang sedang menangani Voice.                                      |
-| Default PIC         | Karyawan aktif yang ditunjuk Admin untuk department tanpa Department Head dan memperoleh scoped Manager capability.     |
-| PIC Global          | Satu Department Head aktif yang menangani Safety, Environment, dan Facility untuk seluruh area.                         |
-| Union Head          | Route owner seluruh Private Voice dan actor yang dapat assign/reassign Union Officer.                                   |
-| Union Officer       | Tepat dua akun, berlabel Union 1 dan Union 2, yang hanya menangani Private Voice yang ditugaskan.                       |
-| Organization Unit   | Identitas komposit `Directorat + Division + Department`; nama department saja bukan identifier yang cukup.              |
-| Closure Cycle       | Satu siklus penutupan Voice; reopen memulai siklus berikutnya.                                                          |
-| AI Classification   | Snapshot Responses API yang memuat category nullable, severity, confidence, rationale, model, prompt, dan content hash. |
-| Location Review     | Snapshot advisory AI mengenai kelengkapan lokasi, warning, dan maksimal tiga pertanyaan saran.                          |
-| Manual Fallback     | Klasifikasi yang dikonfirmasi reporter saat AI gagal, invalid, atau confidence rendah.                                  |
-| Legacy Handler      | PIC dari master sebelumnya dengan akses terbatas hanya untuk Voice aktif/historis yang memang dimilikinya.              |
-| Timeline            | Urutan event bisnis Voice yang append-only.                                                                             |
-| Notification Center | Sumber notifikasi persisten dan authoritative di dalam aplikasi.                                                        |
+| Istilah             | Definisi                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Voice               | Laporan, ide, informasi, apresiasi, keluhan, atau temuan yang dibuat reporter.                                                   |
+| Reporter            | User yang membuat Voice.                                                                                                         |
+| General Voice       | Voice non-publik yang identitas reporternya terlihat oleh responder berizin dan dirutekan secara deterministik.                  |
+| Private Voice       | Voice yang selalu dirutekan ke Union Head; identitas reporter kepada Union mengikuti consent per Voice.                          |
+| Manager/Dept Head   | Istilah interchangeable untuk Department Head structural atau default/global PIC dengan capability Manager yang scoped.          |
+| Route Owner         | Account yang dipilih deterministic server routing dan disnapshot pada Voice.                                                     |
+| Handler/PIC         | Manager, Section Head, Union Head, atau Union Officer yang sedang menangani Voice.                                               |
+| Default PIC         | Karyawan aktif yang ditunjuk Admin untuk department tanpa Department Head dan memperoleh scoped Manager capability.              |
+| PIC Global          | Satu Department Head aktif yang menangani Safety, Environment, dan Facility untuk seluruh area.                                  |
+| Union Head          | Route owner seluruh Private Voice dan actor yang dapat assign/reassign Union Officer.                                            |
+| Union Officer       | Tepat dua akun, berlabel Union 1 dan Union 2, yang hanya menangani Private Voice yang ditugaskan.                                |
+| Organization Unit   | Identitas komposit `Directorat + Division + Department`; nama department saja bukan identifier yang cukup.                       |
+| Closure Cycle       | Satu siklus penutupan Voice; reopen memulai siklus berikutnya.                                                                   |
+| AI Classification   | Snapshot DeepSeek function call yang memuat category nullable, severity, confidence, rationale, model, prompt, dan content hash. |
+| Location Review     | Snapshot advisory AI mengenai kelengkapan lokasi, warning, dan maksimal tiga pertanyaan saran.                                   |
+| Manual Fallback     | Klasifikasi yang dikonfirmasi reporter saat AI gagal, invalid, atau confidence rendah.                                           |
+| Legacy Handler      | PIC dari master sebelumnya dengan akses terbatas hanya untuk Voice aktif/historis yang memang dimilikinya.                       |
+| Timeline            | Urutan event bisnis Voice yang append-only.                                                                                      |
+| Notification Center | Sumber notifikasi persisten dan authoritative di dalam aplikasi.                                                                 |
 
 ---
 
@@ -388,29 +388,26 @@ Workforce PWA dan Admin web memakai navigation serta host authorization yang ber
 
 ### 11.1 Member
 
-- Beranda;
-- Buat Voice;
-- Riwayat;
-- Notifikasi;
-- Akun.
+- Mobile: Beranda, Buat, Voice Saya, dan Lainnya. Lainnya membuka bottom sheet
+  berisi Notifikasi dan Akun.
+- Desktop: Beranda, Buat, Voice Saya, Notifikasi, dan Akun ditampilkan langsung
+  pada sidebar.
+- URL kompatibel `/history` dipertahankan untuk Voice Saya.
 
 ### 11.2 Manager
 
-- Beranda responder;
-- Buat Voice;
-- Voice Member;
-- Riwayat saya;
-- Notifikasi;
-- Akun.
+- Mobile: Beranda, Voice Member, Buat, Voice Saya, dan Lainnya.
+- Desktop: Beranda, Voice Member, Buat, Voice Saya, Notifikasi, dan Akun.
 
 ### 11.3 Section Head
 
-- Beranda responder;
-- Buat Voice;
-- Voice Member yang ditugaskan;
-- Riwayat saya;
-- Notifikasi;
-- Akun.
+- Mengikuti navigasi Manager; scope Voice Member tetap assigned-only dan
+  server-authoritative.
+
+### 11.3.1 Division/Deputy dan Director
+
+- Mengikuti navigasi Manager, termasuk Voice Member dan Voice Saya.
+- Voice Member bersifat read-only sesuai detail scope hierarchy masing-masing.
 
 ### 11.4 Union
 
@@ -509,13 +506,13 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 
 ### 13.1 Model Contract
 
-- Protocol: OpenAI-compatible Responses API, endpoint `/responses`.
-- SDK: official `openai` JavaScript/TypeScript package dengan `responses.create`.
+- Protocol: DeepSeek OpenAI-compatible Chat Completions API, endpoint `/chat/completions`.
+- SDK: official `openai` JavaScript/TypeScript package dengan `chat.completions.create`.
 - Base URL, model, dan API key tidak memiliki non-test production default dan akan diberikan melalui runtime environment.
 - Runtime config: `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, dan `OPENAI_CONFIDENCE_THRESHOLD`.
-- Prompt version, reasoning effort, timeout, dan confidence threshold berasal dari runtime/config; reasoning effort kosong memakai default `medium`, default threshold tetap `0.75`, dan timeout maksimum per attempt tetap 10 detik sampai product config menggantinya.
+- Prompt version, reasoning effort, timeout, dan confidence threshold berasal dari runtime/config; reasoning effort kosong memakai default `none`, default threshold tetap `0.75`, dan timeout maksimum per attempt tetap 10 detik sampai product config menggantinya.
 - Authentication menggunakan server-only API key dari runtime environment. API key tidak boleh masuk repository, dokumentasi, log, response, metric, atau client bundle.
-- Request menetapkan `reasoning.effort` dari runtime config, `store: false`, tidak mengirim tools, conversation, atau `previous_response_id`, dan memakai `text.format` JSON Schema Structured Outputs.
+- Request memakai dua messages, satu forced named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
 
 Structured response minimum:
 
@@ -596,7 +593,7 @@ Setiap submission menyimpan:
 - latency, token usage bila tersedia, dan timestamp;
 - sanitized fallback/error code.
 
-Location review menyimpan completeness, warning, pertanyaan, content hash, model/prompt version, latency, timestamp, dan sanitized fallback code. Raw chain-of-thought tidak diminta atau disimpan. Model/base URL upgrade memerlukan deterministic fixtures, live non-sensitive Responses structured-output smoke test, dan audit perubahan config.
+Location review menyimpan completeness, warning, pertanyaan, content hash, model/prompt version, latency, timestamp, dan sanitized fallback code. Raw chain-of-thought tidak diminta atau disimpan. Model/base URL upgrade memerlukan deterministic fixtures, live non-sensitive Chat Completions function-call smoke test, dan audit perubahan config.
 
 ---
 
@@ -684,7 +681,16 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 ## 16. Conversation dan Tanya Reporter
 
-- Action **Tanya User** membuat conversation bila belum ada, mengubah status Open menjadi In Verification, dan membuka room chat.
+- `OPEN` tidak memiliki room chat, tidak menampilkan panel chat, dan endpoint
+  message menolak baca/kirim.
+- Action **Tanya User** membuat message/conversation, mengubah status Open menjadi
+  In Verification, lalu membuka dan memfokuskan room chat.
+- Assign mengubah status menjadi In Verification dan membuka empty room secara
+  logis; record conversation baru dibuat saat message pertama melalui upsert.
+- Direct Proceed dari Open ke In Progress tidak membuat conversation. In Progress
+  hanya mempertahankan chat jika conversation sudah pernah dibuat.
+- Detail Voice mengekspos `conversationState`: `UNAVAILABLE`, `ACTIVE`, atau
+  `READ_ONLY`; backend read/send message wajib menegakkan state yang sama.
 - Satu Voice memiliki maksimum satu conversation berkelanjutan lintas closure cycle.
 - Text message memiliki panjang 1–4.000 karakter.
 - Satu message dapat memiliki maksimum lima gambar, masing-masing maksimum 10 MB.
@@ -752,6 +758,9 @@ Closure yang sudah tersimpan tidak dapat diedit. Kesalahan diperbaiki melalui re
 ### 18.2 Manager Dashboard
 
 - aggregate-only General Voice pada division Manager: total, status, severity, category, trend, dan breakdown department;
+- default rentang 30 hari, dengan preset 90 hari, tahun berjalan, semua waktu,
+  custom date, serta filter area, category, severity, dan status berbasis URL;
+- KPI total, aktif, In Verification, In Progress, Closed, dan Critical;
 - operational inbox terpisah untuk General Voice yang berada pada department route, default route, atau global route miliknya;
 - recent/high-priority operational items;
 - assignment Section Head summary sesuai candidate scope;
@@ -778,6 +787,8 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 - Director melihat aggregate dan detail seluruh General Voice;
 - leadership view tidak menampilkan mutation action;
 - grafik minimum untuk semua overview yang berizin: status, severity, category termasuk Environment, trend waktu, dan breakdown division/department sesuai scope.
+- filter dan default rentang mengikuti Manager Dashboard; seluruh chart memiliki
+  nilai/label eksplisit dan ringkasan tekstual yang dapat diakses.
 
 ### 18.6 Aggregate dan Detail Authorization Boundary
 
@@ -787,16 +798,28 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 
 ### 18.7 Voice Member Inbox
 
+- `/work-items` merupakan workspace monitoring tunggal untuk Manager, Section
+  Head, Division/Deputy, dan Director; `/general` workforce diarahkan ke sana,
+  sedangkan Union tetap memakai General read-only pada `/general`;
 - default hanya active Voice; Closed dapat dipilih melalui filter;
 - urutan utama severity `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, kemudian `submittedAt DESC`;
 - server-side cursor pagination;
 - filter minimum: status, severity, area, category, handler, dan date range;
 - search minimum: Voice ID dan judul;
 - Private dan General tidak pernah tercampur pada unauthorized role.
+- Manager dan Section Head menerima action hanya melalui detail dan
+  `availableActions`; Division/Deputy dan Director tidak menerima mutation
+  affordance.
+- endpoint monitoring options hanya mengembalikan handler yang sudah berada di
+  dalam detail/work-item scope actor dan tidak memperluas identity.
 
 ### 18.8 Riwayat dan Detail
 
 Detail menampilkan field submission, attachment, classification source, severity, visibility, current status, PIC sesuai privacy, chat, closure cycles, rating, dan vertical timeline dengan timestamp.
+
+Seluruh akun workforce mempunyai Voice Saya untuk Voice miliknya sendiri;
+Private Voice milik orang lain tidak pernah muncul di Voice Member. Akun Union
+tidak mempunyai Voice Saya.
 
 ---
 
@@ -949,6 +972,10 @@ Path final dapat disesuaikan selama OpenAPI mempertahankan capability berikut:
 - confirm Manual Fallback;
 - submit;
 - list/detail/timeline;
+- list dan work-items menerima `statusGroup=ACTIVE|CLOSED|ALL`; kombinasi dengan
+  `status` individual ditolak sebagai ambigu. Work-items juga menerima filter
+  `handler`;
+- `GET /voices/monitoring-options` mengembalikan handler ter-scope;
 - ask reporter, proceed, assign/reassign Section Head atau Union Officer, close;
 - rate dan reopen.
 
@@ -1093,7 +1120,7 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 - Reverse proxy/TLS: Caddy.
 - Unit/integration test runner: Vitest.
 - Browser E2E: Playwright.
-- AI: official `openai` SDK ke configurable OpenAI-compatible Responses API.
+- AI: official `openai` SDK ke DeepSeek OpenAI-compatible Chat Completions API.
 
 ### 24.2 Monorepo Logical Layout
 
@@ -1150,7 +1177,7 @@ Domain mutation lintas Voice, assignment, event, closure, notification, dan audi
 
 ### 24.6 Implementation Sequencing
 
-- Backend Phase 6 remediation untuk schema/capability/effective master, XLSX/CSV, routing, Union, Responses AI, dashboard authorization, migration, dan OpenAPI wajib complete sebelum frontend implementation dimulai.
+- Backend Phase 6 remediation untuk schema/capability/effective master, XLSX/CSV, routing, Union, AI provider, dashboard authorization, migration, dan OpenAPI wajib complete sebelum frontend implementation dimulai.
 - Admin web, workforce role journeys, responsive/PWA behavior, accessibility, generated-client integration, dan two-app browser E2E wajib complete sebelum production application containerization/deployment dimulai.
 - Docker-managed PostgreSQL tetap wajib sejak backend development untuk local/integration tests; hal ini adalah development/test infrastructure, bukan production application containerization.
 - Production API/workforce/Admin Dockerfiles, dual-host Caddy/remote Compose, release-by-SHA scripts, dan hosted CI/CD dikerjakan setelah Frontend Complete Gate.
@@ -1235,7 +1262,7 @@ Accepted formats: JPEG, PNG, WebP. SVG, GIF, HEIC, PDF, Office, archive, executa
 - Tepat tiga Union account individual memperbaiki actor attribution dibanding shared credential; credential/session sharing dilarang.
 - MFA dan SSO deferred.
 
-### 26.5 Responses API Privacy
+### 26.5 DeepSeek Chat Completions Privacy
 
 - Hanya minimized text payload yang dikirim; dedicated location review hanya memuat area dan detail lokasi.
 - Request menetapkan `store: false`; tools, grounding/web search, file/image input, conversation state, `previous_response_id`, dan prompt logging aplikasi tidak digunakan.
@@ -1245,7 +1272,7 @@ Accepted formats: JPEG, PNG, WebP. SVG, GIF, HEIC, PDF, Office, archive, executa
 ### 26.6 Secret Management
 
 - Runtime secret hanya melalui GitHub environment secrets/secure VM runtime file.
-- Secret minimum: database, session/CSRF, auth throttle, bootstrap Admin, OpenAI-compatible API key/base/model config, VAPID private key, SSH deploy material, dan Caddy email.
+- Secret minimum: database, session/CSRF, auth throttle, bootstrap Admin, DeepSeek API key/base/model config dengan nama env `OPENAI_*`, VAPID private key, SSH deploy material, dan Caddy email.
 - Example env hanya memakai placeholder aman.
 - Runtime env mode `0600`; log/deployment summary tidak mencetak nilai.
 
@@ -1331,8 +1358,8 @@ Metrics Private tidak boleh memakai label reporter atau freeform content.
 
 - `GET /health`: process alive.
 - `GET /ready`: database reachable, migration compatible, required configuration valid, storage readable/writable, dan critical initialization selesai.
-- Responses provider transient outage tidak mematikan core readiness karena Manual Fallback tersedia; readiness memaparkan degraded dependency secara aman.
-- Staging deployment smoke test wajib melakukan live OpenAI-compatible Responses classification/location schema check dengan non-sensitive fixture.
+- DeepSeek provider transient outage tidak mematikan core readiness karena Manual Fallback tersedia; readiness memaparkan degraded dependency secara aman.
+- Staging deployment smoke test wajib melakukan live DeepSeek Chat Completions classification/location function-schema check dengan non-sensitive fixture.
 - `release.json`/ready memuat release SHA untuk deployment verification tanpa secret.
 
 ### 28.4 Operational Diagnostics
@@ -1394,12 +1421,12 @@ Tidak ada database, media volume, secret, certificate state, atau Compose projec
 - Admin origin: `https://admin-ped.qd-tmmin.site`.
 - Setiap origin melayani frontend masing-masing dan same-origin `/api/v1` proxy ke CARE API yang sama.
 - Cookie/session/CSRF host-scoped; browser tidak memakai cross-origin API calls.
-- Staging memiliki database/media/OpenAI-compatible provider/VAPID credential sendiri.
+- Staging memiliki database/media/DeepSeek provider/VAPID credential sendiri.
 
 ### 30.3 Production
 
 - Domain production workforce/Admin belum ditentukan dan menjadi placeholder `PRODUCTION_CARE_DOMAIN` serta `PRODUCTION_CARE_ADMIN_DOMAIN`.
-- Production deploy tidak boleh aktif sampai VM, kedua DNS/TLS reachability, GitHub environment, runtime secrets, Responses provider, dan VAPID tervalidasi.
+- Production deploy tidak boleh aktif sampai VM, kedua DNS/TLS reachability, GitHub environment, runtime secrets, DeepSeek provider, dan VAPID tervalidasi.
 - Push/PR ke `main` menjalankan CI, tetapi tidak memiliki production deployment caller pada scope saat ini. Aktivasi production baru dapat ditambahkan pada pekerjaan production readiness setelah seluruh prerequisite tersedia.
 
 ### 30.4 Caddy
@@ -1420,10 +1447,10 @@ Push/PR ke `staging`:
 
 1. menjalankan seluruh CI/security checks;
 2. push yang sukses dan masih menjadi HEAD terbaru auto-deploy ke staging;
-3. menjalankan migration, health/readiness, two-origin smoke, dan live Responses contract check;
+3. menjalankan migration, health/readiness, two-origin smoke, dan live DeepSeek Chat Completions contract check;
 4. melakukan automatic code rollback bila candidate gagal dan previous release tersedia.
 
-> **Live Responses contract check bersifat advisory pada auto-deploy (ADR-0015).**
+> **Live DeepSeek Chat Completions contract check bersifat advisory pada auto-deploy (ADR-0015).**
 > `live-provider-smoke` tetap dijalankan pada setiap auto-deploy dan hasilnya dicatat
 > pada `shared/deployment-state/live-provider-smoke.result` serta deployment log,
 > tetapi kegagalannya tidak menggagalkan candidate dan tidak memicu rollback:
@@ -1470,7 +1497,7 @@ Adaptasi pola `supplier-henkaten`:
 - preflight Docker/Compose/disk/path/domain;
 - build/pull dan startup PostgreSQL → migrate/bootstrap → API → workforce/Admin web → Caddy;
 - per-service health wait;
-- smoke check kedua origin, API, release identity, host-scoped auth boundary, storage, dan Responses staging fixtures;
+- smoke check kedua origin, API, release identity, host-scoped auth boundary, storage, dan DeepSeek staging fixtures;
 - atomic `current` symlink/release pointer;
 - retain candidate, previous, dan hingga total lima release;
 - stale image/release cleanup dengan validated target path.
@@ -1519,7 +1546,7 @@ Minimum:
 - password/first-login/reset/session rules;
 - account-kind/capability/object permission matrix dan tiga Private serializer variants;
 - XLSX sheet serta XLSX/CSV header/row/effective-diff/default/global route/remediation validation;
-- AI Responses structured parsing, no-fixed-priority behavior, confidence/fallback, location hash invalidation/acknowledgment;
+- AI function-call parsing, no-fixed-priority behavior, confidence/fallback, location hash invalidation/acknowledgment;
 - severity rubric fixtures;
 - seluruh lifecycle transition dan invalid transition;
 - assignment/reassignment constraints;
@@ -1575,8 +1602,8 @@ Minimum journeys:
 
 - Tidak ada labeled dataset atau statistical accuracy/recall launch gate untuk v1.
 - Deterministic fixtures mencakup seluruh category termasuk Environment, severity, multi-topic tanpa fixed priority, ambiguous content, informal Indonesian, provider failure/refusal/incomplete, invalid schema, low confidence, Private nullable category, dan location review.
-- Unit/contract tests memverifikasi Responses request shape, `store:false`, no tools/conversation, prompt version, structured schemas, allowlisted rationale code, timeout/retry, location cache/acknowledgment, dan Manual Fallback.
-- Live Responses test memakai content Indonesia non-sensitive untuk memverifikasi configured base URL/key/model, `/responses`, classification/location schemas, timeout behavior, dan output compatibility; smoke ini tidak mengukur statistical accuracy.
+- Unit/contract tests memverifikasi Chat Completions request shape, non-thinking mapping, forced named functions, prompt version, local schemas, allowlisted rationale code, timeout/retry, malformed function output, location cache/acknowledgment, dan Manual Fallback.
+- Live DeepSeek test memakai content Indonesia non-sensitive untuk memverifikasi configured base URL/key/model, `/chat/completions`, classification/location function schemas, timeout behavior, dan output compatibility; smoke ini tidak mengukur statistical accuracy.
 - Backend tetap memilih actual route account secara deterministik dan tidak menerima user/Manager identifier dari AI.
 
 ### 33.5 Security Negative Tests
@@ -1620,7 +1647,7 @@ Minimum journeys:
 - [ ] Form dimulai dengan pilihan Private Voice atau General Voice dan photo limits tervalidasi frontend/backend.
 - [ ] Private mewajibkan pilihan `Tampilkan nama = Ya/Tidak`; snapshot consent dan profil yang boleh ditampilkan immutable setelah submit.
 - [ ] Preview menampilkan seluruh field, severity, category bila General, visibility, source classification, dan warning lokasi terbaru.
-- [ ] Official OpenAI JavaScript SDK memakai `responses.create`, `/responses`, `store:false`, tanpa tools/conversation state, payload tereduksi, dan Structured Outputs tervalidasi.
+- [ ] Official OpenAI JavaScript SDK memakai `chat.completions.create`, `/chat/completions`, DeepSeek `thinking.disabled` untuk effort `none`, forced named functions, payload tereduksi, dan function arguments tervalidasi lokal.
 - [ ] General menghasilkan category termasuk `ENVIRONMENT` dan severity; Private menghasilkan severity dengan category `null`.
 - [ ] Tidak ada category priority tetap; low confidence, ambiguity, refusal, incomplete response, timeout, atau invalid schema masuk Manual Fallback yang sesuai jenis Voice.
 - [ ] Location review otomatis menghasilkan `COMPLETE | INCOMPLETE | UNKNOWN`, warning, dan maksimal tiga pertanyaan saran tanpa memblokir form saat provider gagal.
@@ -1725,24 +1752,24 @@ Adoption, average verification time, average closure time, reopen rate, rating d
 
 ## 37. Risiko dan Mitigasi
 
-| Risiko                                                                           | Severity | Status          | Mitigasi/konsekuensi v1                                                                               |
-| -------------------------------------------------------------------------------- | -------- | --------------- | ----------------------------------------------------------------------------------------------------- |
-| Tidak ada backup/recovery                                                        | Critical | Accepted        | Pencegahan destructive action, expand/contract, health checks; data tetap dapat hilang permanen       |
-| Retensi tanpa batas pada local volume                                            | High     | Accepted        | Storage metrics/alerts dan capacity review; tidak ada purge otomatis                                  |
-| Single VM menjadi single point of failure                                        | Critical | Accepted        | Restart/health/readiness; bukan HA                                                                    |
-| Password minimum enam karakter tanpa complexity                                  | High     | Accepted        | Argon2id, TLS, rate limiting, forced change, session revocation                                       |
-| Salah konfigurasi tiga akun Union/berbagi credential                             | High     | Mitigated       | Exactly-one-Head/two-Officer constraint, individual session/audit, forced change, access review       |
-| Admin membaca isi dan identitas Private Voice                                    | High     | Accepted        | Read-only authorization, least privilege, access audit, dan negative tests                            |
-| Infrastructure operator dapat mengakses raw Private mapping                      | High     | Accepted        | Restricted VM/DB access; cryptographic anonymity deferred                                             |
-| AI salah category/severity/location review                                       | High     | Mitigated       | Structured schema, threshold/fallback, advisory warning, fixtures, dan deterministic account route    |
-| Self-reported confidence tidak terkalibrasi sempurna                             | Medium   | Accepted        | Configurable threshold, mandatory fallback, and deterministic boundary tests                          |
-| Endpoint/model OpenAI-compatible memiliki residency/retensi yang belum disetujui | High     | Open governance | Base URL/model/key tanpa production default, payload minimization, `store:false`, dan approval launch |
-| OpenAI-compatible provider outage/429                                            | Medium   | Mitigated       | Timeout/retry terbatas dan Manual Fallback; location review non-blocking                              |
-| Snapshot organisasi bulanan terlambat/salah                                      | High     | Mitigated       | Preview/diff, atomic confirm, remediation queue, audit, dan legacy-handler preservation               |
-| Web Push tidak terkirim/terlambat                                                | Medium   | Accepted        | Notification Center authoritative dan delivery retry/metrics                                          |
-| Media berbahaya/oversized                                                        | High     | Mitigated       | Decode/re-encode, EXIF strip, limits, authorized serving                                              |
-| Production deployment diaktifkan sebelum prerequisite lengkap                    | High     | Mitigated       | `main` hanya CI; caller production tidak tersedia sampai readiness dan approval                       |
-| Migration gagal tanpa backup                                                     | Critical | Accepted        | Forward-only expand/contract dan fresh/upgrade tests; recovery tidak tersedia                         |
+| Risiko                                                                  | Severity | Status          | Mitigasi/konsekuensi v1                                                                            |
+| ----------------------------------------------------------------------- | -------- | --------------- | -------------------------------------------------------------------------------------------------- |
+| Tidak ada backup/recovery                                               | Critical | Accepted        | Pencegahan destructive action, expand/contract, health checks; data tetap dapat hilang permanen    |
+| Retensi tanpa batas pada local volume                                   | High     | Accepted        | Storage metrics/alerts dan capacity review; tidak ada purge otomatis                               |
+| Single VM menjadi single point of failure                               | Critical | Accepted        | Restart/health/readiness; bukan HA                                                                 |
+| Password minimum enam karakter tanpa complexity                         | High     | Accepted        | Argon2id, TLS, rate limiting, forced change, session revocation                                    |
+| Salah konfigurasi tiga akun Union/berbagi credential                    | High     | Mitigated       | Exactly-one-Head/two-Officer constraint, individual session/audit, forced change, access review    |
+| Admin membaca isi dan identitas Private Voice                           | High     | Accepted        | Read-only authorization, least privilege, access audit, dan negative tests                         |
+| Infrastructure operator dapat mengakses raw Private mapping             | High     | Accepted        | Restricted VM/DB access; cryptographic anonymity deferred                                          |
+| AI salah category/severity/location review                              | High     | Mitigated       | Structured schema, threshold/fallback, advisory warning, fixtures, dan deterministic account route |
+| Self-reported confidence tidak terkalibrasi sempurna                    | Medium   | Accepted        | Configurable threshold, mandatory fallback, and deterministic boundary tests                       |
+| Endpoint/model DeepSeek memiliki residency/retensi yang belum disetujui | High     | Open governance | Base URL/model/key tanpa production default, payload minimization, dan approval launch             |
+| DeepSeek provider outage/429                                            | Medium   | Mitigated       | Timeout/retry terbatas dan Manual Fallback; location review non-blocking                           |
+| Snapshot organisasi bulanan terlambat/salah                             | High     | Mitigated       | Preview/diff, atomic confirm, remediation queue, audit, dan legacy-handler preservation            |
+| Web Push tidak terkirim/terlambat                                       | Medium   | Accepted        | Notification Center authoritative dan delivery retry/metrics                                       |
+| Media berbahaya/oversized                                               | High     | Mitigated       | Decode/re-encode, EXIF strip, limits, authorized serving                                           |
+| Production deployment diaktifkan sebelum prerequisite lengkap           | High     | Mitigated       | `main` hanya CI; caller production tidak tersedia sampai readiness dan approval                    |
+| Migration gagal tanpa backup                                            | Critical | Accepted        | Forward-only expand/contract dan fresh/upgrade tests; recovery tidak tersedia                      |
 
 ---
 
@@ -1753,7 +1780,7 @@ Staging/production membutuhkan:
 - authoritative workforce workbook sesuai contract `MFG + QD`, designated data owner, dan monthly publication process;
 - designated CARE Admin, default/global PIC mapping owner, serta pemilik individual Union Head/Union 1/Union 2;
 - `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, reasoning effort, timeout/threshold, quota, dan server-only secret per environment;
-- approval terms/DPA, residency, retention, dan privacy posture untuk configured OpenAI-compatible endpoint/model;
+- approval terms/DPA, residency, retention, dan privacy posture untuk configured DeepSeek endpoint/model;
 - VAPID contact subject per environment; key pairs are generated by the project CLI and private keys remain runtime secrets;
 - staging VM, deploy user, SSH known-hosts/key, DNS, ports, Caddy email, dan runtime secrets;
 - production VM, workforce/admin domains, DNS, GitHub environments, dan runtime secrets;
@@ -1771,7 +1798,7 @@ V1 siap production bila:
 
 1. seluruh acceptance criteria wajib lulus;
 2. tidak ada unresolved Critical/High security finding;
-3. deterministic Responses API fixtures dan live staging classification/location structured-output smoke lulus dengan external config;
+3. deterministic Chat Completions fixtures dan live staging classification/location function-call smoke lulus dengan external config;
 4. capability/scope/privacy/conditional-Private-identity negative tests lulus;
 5. PostgreSQL fresh dan previous-release upgrade lulus;
 6. performance baseline lulus;
@@ -1799,7 +1826,7 @@ V1 siap production bila:
 - Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
 - General bukan public feed.
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
-- AI memakai official OpenAI JavaScript SDK melalui configurable `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, dan `OPENAI_REASONING_EFFORT`; base URL/model/key tidak memiliki production default, sedangkan reasoning effort kosong default ke `medium`.
+- AI memakai official OpenAI JavaScript SDK untuk DeepSeek Chat Completions melalui configurable `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, dan `OPENAI_REASONING_EFFORT`; target model/base URL adalah `deepseek-v4-flash`/`https://api.deepseek.com`, base URL/model/key tidak memiliki production default, dan reasoning effort kosong default ke `none`.
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.

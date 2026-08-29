@@ -90,72 +90,72 @@ export function DraftPreviewPage() {
         </Alert>
       ) : null}
 
-      <Card variant="raised">
-        <Stack gap="md">
-          <div className="review-rows">
-            <div className="review-row">
-              <span className="review-row__label">Jenis</span>
-              <span className="review-row__value">
-                {data.visibility === 'PRIVATE' ? 'Private' : 'General'}
-              </span>
-            </div>
-            <div className="review-row">
-              <span className="review-row__label">Area</span>
-              <span className="review-row__value">{AREA_LABELS[data.area] ?? data.area}</span>
-            </div>
-            {severity ? (
-              <div className="review-row">
-                <span className="review-row__label">Severity</span>
-                <SeverityBadge severity={severity} />
-              </div>
-            ) : null}
-            {category ? (
-              <div className="review-row">
-                <span className="review-row__label">Kategori</span>
-                <span className="review-row__value">{CATEGORY_LABELS[category] ?? category}</span>
-              </div>
-            ) : null}
-            {data.showReporterIdentity !== null && data.visibility === 'PRIVATE' ? (
-              <div className="review-row">
-                <span className="review-row__label">Identitas</span>
-                <span className="review-row__value">
-                  {data.showReporterIdentity ? 'Tampilkan nama' : 'Sembunyikan (anonim)'}
-                </span>
-              </div>
-            ) : null}
-            {source ? (
-              <div className="review-row">
-                <span className="review-row__label">Sumber klasifikasi</span>
-                <span className="review-row__value">
-                  {source === 'AI' ? 'AI' : 'Manual Fallback'}
-                </span>
-              </div>
-            ) : null}
-            <div className="review-row">
-              <span className="review-row__label">Judul</span>
-              <span className="review-row__value">{data.title}</span>
-            </div>
-            <div className="review-row review-row--block">
-              <span className="review-row__label">Detail</span>
-              <p className="review-row__value review-row__text">{data.detail}</p>
-            </div>
-            <div className="review-row">
-              <span className="review-row__label">Lokasi</span>
-              <span className="review-row__value">{data.locationDetail}</span>
-            </div>
-            <div className="review-row">
-              <span className="review-row__label">Rute tujuan</span>
-              <span className="review-row__value">
-                {data.routeTarget ?? readiness.targetLabel ?? 'Akan ditentukan'}
-                {readiness.ready ? '' : ` · ${readiness.reason ?? 'belum siap'}`}
-              </span>
-            </div>
+      <Card variant="raised" padding="lg" className="wizard-form">
+        <div className="review-rows">
+          <div className="review-row">
+            <span className="review-row__label">Jenis</span>
+            <span className="review-row__value">
+              {data.visibility === 'PRIVATE' ? 'Private' : 'General'}
+            </span>
           </div>
-        </Stack>
+          <div className="review-row">
+            <span className="review-row__label">Area</span>
+            <span className="review-row__value">{AREA_LABELS[data.area] ?? data.area}</span>
+          </div>
+          {severity ? (
+            <div className="review-row">
+              <span className="review-row__label">Severity</span>
+              <span className="review-row__value">
+                <SeverityBadge severity={severity} />
+              </span>
+            </div>
+          ) : null}
+          {category ? (
+            <div className="review-row">
+              <span className="review-row__label">Kategori</span>
+              <span className="review-row__value">{CATEGORY_LABELS[category] ?? category}</span>
+            </div>
+          ) : null}
+          {data.showReporterIdentity !== null && data.visibility === 'PRIVATE' ? (
+            <div className="review-row">
+              <span className="review-row__label">Identitas</span>
+              <span className="review-row__value">
+                {data.showReporterIdentity ? 'Tampilkan nama' : 'Sembunyikan (anonim)'}
+              </span>
+            </div>
+          ) : null}
+          {source ? (
+            <div className="review-row">
+              <span className="review-row__label">Sumber klasifikasi</span>
+              <span className="review-row__value">
+                {source === 'AI' ? 'AI' : 'Manual Fallback'}
+              </span>
+            </div>
+          ) : null}
+          <div className="review-row">
+            <span className="review-row__label">Judul</span>
+            <span className="review-row__value">{data.title}</span>
+          </div>
+          <div className="review-row review-row--block">
+            <span className="review-row__label">Detail</span>
+            <p className="review-row__value review-row__text">{data.detail}</p>
+          </div>
+          <div className="review-row">
+            <span className="review-row__label">Lokasi</span>
+            <span className="review-row__value">{data.locationDetail}</span>
+          </div>
+          <div className="review-row">
+            <span className="review-row__label">Rute tujuan</span>
+            <span className="review-row__value">
+              {data.routeTarget ?? readiness.targetLabel ?? 'Akan ditentukan'}
+              {readiness.ready ? '' : ` · ${readiness.reason ?? 'belum siap'}`}
+            </span>
+          </div>
+        </div>
       </Card>
 
       {data.locationReview ? (
-        <Card>
+        <Card padding="md">
           <Stack gap="sm">
             <p className="review-row__label">Verifikasi lokasi</p>
             <p className={data.locationReview.completeness === 'INCOMPLETE' ? 'tag--warn' : ''}>
@@ -183,12 +183,13 @@ export function DraftPreviewPage() {
         </Alert>
       ) : null}
 
-      <div className="wizard-actions wizard-actions--between">
-        <Button variant="ghost" onClick={() => void navigate(`/drafts/${id}/edit`)}>
-          <ArrowLeft size={18} /> Kembali mengubah
+      <div className="wizard-actionsbar">
+        <Button variant="secondary" onClick={() => void navigate(`/drafts/${id}/edit`)}>
+          <ArrowLeft size={18} /> Kembali
         </Button>
         <Button
           variant="primary"
+          className="wizard-actionsbar__primary"
           loading={submit.isPending}
           disabled={data.locationReview?.completeness === 'INCOMPLETE' && !ack}
           onClick={() => void submit.mutate()}

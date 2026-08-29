@@ -676,6 +676,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voices/monitoring-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_monitoringOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voices/{id}": {
         parameters: {
             query?: never;
@@ -1121,6 +1137,15 @@ export interface components {
             slot?: "OFFICER_1" | "OFFICER_2";
             structuralPosition?: string;
         }[];
+        MonitoringOptions: {
+            handlers: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            }[];
+            /** Format: date-time */
+            generatedAt: string;
+        };
         AccountSelectionRequest: {
             /** @example 000128 */
             noReg: string;
@@ -1336,6 +1361,8 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
@@ -1385,6 +1412,8 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
@@ -1436,6 +1465,8 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
@@ -1484,6 +1515,8 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
@@ -1533,6 +1566,8 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
@@ -1584,6 +1619,8 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
             routeOwner: {
                 /** Format: uuid */
@@ -1645,6 +1682,7 @@ export interface components {
             };
             /** Format: date-time */
             generatedAt: string;
+            pendingAssignment?: number;
         };
         SuppressionBreakdown: {
             suppressedBuckets: number;
@@ -7760,13 +7798,14 @@ export interface operations {
                 limit?: number;
                 search?: string;
                 status?: string;
+                statusGroup?: "ACTIVE" | "CLOSED" | "ALL";
                 visibility?: string;
                 severity?: string;
                 area?: string;
                 category?: string;
                 handler?: string;
-                dateFrom?: string;
-                dateTo?: string;
+                from?: string;
+                to?: string;
                 sort?: string;
             };
             header?: never;
@@ -7894,11 +7933,14 @@ export interface operations {
                 limit?: number;
                 search?: string;
                 status?: string;
+                statusGroup?: "ACTIVE" | "CLOSED" | "ALL";
                 severity?: string;
                 area?: string;
                 category?: string;
-                dateFrom?: string;
-                dateTo?: string;
+                from?: string;
+                to?: string;
+                unassigned?: string;
+                handler?: string;
             };
             header?: never;
             path?: never;
@@ -7912,6 +7954,127 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoiceListResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_monitoringOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringOptions"];
                 };
             };
             /** @description Request validation failed */

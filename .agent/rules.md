@@ -92,9 +92,10 @@ Required behavior:
   Gitleaks version locally, preferably through a pinned Docker image;
 - never silence a scanner broadly. A false-positive exception must identify the exact finding,
   explain why it is safe, and preserve scanning for the rest of the file/repository;
-- the exact ignored root `.env` may be excluded from directory scanning because it is the local
-  runtime secret store generated mode `0600`; `.env.example`, nested files, imports, and all other
-  repository paths remain scanned;
+- the exact ignored root `.env` and the ignored root `.env.local` (the local
+  full-stack runner secret store, mode `0600`) may be excluded from directory
+  scanning because they are local runtime secret stores generated mode `0600`;
+  `.env.example`, nested files, imports, and all other repository paths remain scanned;
 - record the exact commands and results in `.agent/sessionHandoff.md`;
 - do not commit while any local CI-equivalent check is failing.
 
@@ -169,7 +170,7 @@ exact ignore file, and every ignore entry must have a rationale and future expir
 
 The real Web Push canary is implemented but explicitly excluded from automated tests, CI,
 deployment smoke, and the automatic staging gate. It may only be invoked manually against the
-enrolled staging subscription according to `.agent/deploymentGuide.md`. The live Responses
+enrolled staging subscription according to `.agent/deploymentGuide.md`. The live DeepSeek Chat Completions
 classification/location operation remains part of automatic staging deployment.
 
 The directory-mode Gitleaks command is the mandatory pre-commit scan because it includes

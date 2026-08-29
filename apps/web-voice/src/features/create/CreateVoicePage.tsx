@@ -3,14 +3,34 @@ import {
   Button,
   Card,
   Checkbox,
+  ChoiceCardGroup,
   Input,
-  Select,
-  RadioGroup,
   SeverityBadge,
+  Skeleton,
   Stack,
   Textarea,
 } from '@care/ui';
-import { FileImage, Info, Loader2, Radio } from 'lucide-react';
+import {
+  AlignLeft,
+  Eye,
+  EyeOff,
+  Factory,
+  FileText,
+  Flame,
+  ImagePlus,
+  Info,
+  Layers,
+  Leaf,
+  Loader2,
+  MapPin,
+  Radio,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  Warehouse,
+  Wrench,
+  Briefcase,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { MediaGallery } from '../../components/MediaGallery';
@@ -18,11 +38,51 @@ import { AREA_LABELS, CATEGORY_LABELS } from '../../lib/formatters';
 import type { Attachment } from '../../workforce-api';
 import { useDraftWizard, type Category, type Severity, type Visibility } from './useDraftWizard';
 
-const SEVERITY_OPTIONS: { value: Severity; label: string }[] = [
-  { value: 'LOW', label: 'Low — Tidak mendesak' },
-  { value: 'MEDIUM', label: 'Medium — Perlu follow-up' },
-  { value: 'HIGH', label: 'High — Dampak signifikan' },
-  { value: 'CRITICAL', label: 'Critical — Bahaya segera' },
+const AREA_OPTIONS = [
+  { value: 'KARAWANG_1', label: 'Karawang 1', icon: <Factory size={15} /> },
+  { value: 'KARAWANG_2', label: 'Karawang 2', icon: <Factory size={15} /> },
+  { value: 'KARAWANG_3', label: 'Karawang 3', icon: <Factory size={15} /> },
+  { value: 'SUNTER_1', label: 'Sunter 1', icon: <Warehouse size={15} /> },
+  { value: 'SUNTER_2', label: 'Sunter 2', icon: <Warehouse size={15} /> },
+];
+
+const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+  SAFETY: <Flame size={14} />,
+  ENVIRONMENT: <Leaf size={14} />,
+  FACILITY: <Wrench size={14} />,
+  WORK_DIFFICULTY: <Briefcase size={14} />,
+};
+
+const SEVERITY_OPTIONS: {
+  value: Severity;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    value: 'LOW',
+    label: 'Low',
+    description: 'Tidak mendesak, tanpa dampak langsung pada operasi.',
+    icon: <span className="sev-dot sev-dot--low" aria-hidden="true" />,
+  },
+  {
+    value: 'MEDIUM',
+    label: 'Medium',
+    description: 'Perlu follow-up tanpa bahaya langsung.',
+    icon: <span className="sev-dot sev-dot--medium" aria-hidden="true" />,
+  },
+  {
+    value: 'HIGH',
+    label: 'High',
+    description: 'Dampak signifikan pada safety, quality, atau people.',
+    icon: <span className="sev-dot sev-dot--high" aria-hidden="true" />,
+  },
+  {
+    value: 'CRITICAL',
+    label: 'Critical',
+    description: 'Bahaya segera atau isu serious/compliance.',
+    icon: <span className="sev-dot sev-dot--critical" aria-hidden="true" />,
+  },
 ];
 
 const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
@@ -73,53 +133,83 @@ function Stepper({ step }: { step: string }) {
   );
 }
 
+function ActionsBar({
+  onBack,
+  backLabel = 'Kembali',
+  primary,
+}: {
+  onBack?: () => void;
+  backLabel?: string;
+  primary: React.ReactNode;
+}) {
+  return (
+    <div className="wizard-actionsbar">
+      {onBack ? (
+        <Button variant="secondary" onClick={onBack}>
+          {backLabel}
+        </Button>
+      ) : null}
+      {primary}
+    </div>
+  );
+}
+
 function VisibilityStep({ wizard }: { wizard: Wizard }) {
   const [choice, setChoice] = useState<Visibility | null>(null);
   const onError = wizard.error;
   return (
-    <Stack gap="lg">
-      <header className="page-intro">
-        <p className="care-eyebrow">Langkah 1 dari 2</p>
-        <h1>Pilih jenis Voice</h1>
-        <p>Private Voice memerlukan Union; General Voice dirutekan ke Manager/departemen Anda.</p>
-      </header>
-      {onError ? (
-        <Alert tone="danger" title="Periksa kembali">
-          {onError}
-        </Alert>
-      ) : null}
-      <RadioGroup
-        label="Jenis Voice"
-        value={choice ?? ''}
-        onValueChange={(value) => setChoice(value as Visibility)}
-        options={[
-          {
-            value: 'GENERAL',
-            label: 'General Voice',
-            description:
-              'Dirutekan secara deterministik ke Manager/Department Head atau PIC sesuai kategori.',
-          },
-          {
-            value: 'PRIVATE',
-            label: 'Private Voice',
-            description:
-              'Selalu ditangani Union Head dengan opsi menampilkan atau menyembunyikan identitas Anda.',
-          },
-        ]}
-      />
-      <div className="wizard-actions">
-        <Button
-          variant="primary"
-          disabled={!choice}
-          onClick={() => {
-            wizard.setField({ visibility: choice! });
-            wizard.setStep('form');
-          }}
-        >
-          Lanjutkan
-        </Button>
-      </div>
-    </Stack>
+    <div className="wizard-page">
+      <Stepper step="visibility" />
+      <Stack gap="lg">
+        <header className="page-intro">
+          <p className="care-eyebrow">Langkah 1 dari 5</p>
+          <h1>Pilih jenis Voice</h1>
+          <p>Private Voice memerlukan Union; General Voice dirutekan ke Manager/departemen Anda.</p>
+        </header>
+        {onError ? (
+          <Alert tone="danger" title="Periksa kembali">
+            {onError}
+          </Alert>
+        ) : null}
+        <ChoiceCardGroup
+          label="Jenis Voice"
+          columns={2}
+          value={choice ?? undefined}
+          onValueChange={(value) => setChoice(value as Visibility)}
+          options={[
+            {
+              value: 'GENERAL',
+              label: 'General Voice',
+              description:
+                'Dirutekan secara deterministik ke Manager/Department Head atau PIC sesuai kategori.',
+              icon: <Layers size={16} />,
+            },
+            {
+              value: 'PRIVATE',
+              label: 'Private Voice',
+              description:
+                'Selalu ditangani Union Head dengan opsi menampilkan atau menyembunyikan identitas Anda.',
+              icon: <ShieldCheck size={16} />,
+            },
+          ]}
+        />
+        <ActionsBar
+          primary={
+            <Button
+              variant="primary"
+              className="wizard-actionsbar__primary"
+              disabled={!choice}
+              onClick={() => {
+                wizard.setField({ visibility: choice! });
+                wizard.setStep('form');
+              }}
+            >
+              Lanjutkan
+            </Button>
+          }
+        />
+      </Stack>
+    </div>
   );
 }
 
@@ -147,7 +237,7 @@ function FormStep({ wizard }: { wizard: Wizard }) {
       <Stepper step="form" />
       <Stack gap="lg">
         <header className="page-intro">
-          <p className="care-eyebrow">Langkah 2</p>
+          <p className="care-eyebrow">Langkah 2 dari 5</p>
           <h1>Detail Voice {form.visibility === 'PRIVATE' ? 'Private' : 'General'}</h1>
           <p>
             Lengkapi detail agar AInsight dapat mengklasifikasikan dan memverifikasi lokasi Anda.
@@ -160,52 +250,71 @@ function FormStep({ wizard }: { wizard: Wizard }) {
           </Alert>
         ) : null}
 
-        <Card variant="raised">
-          <Stack gap="md">
-            <Select
-              label="Area Temuan"
-              value={form.area ?? ''}
-              onValueChange={(value) => setField({ area: value })}
-              options={Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }))}
-            />
-            <Textarea
-              label="Detail Lokasi"
-              value={form.locationDetail}
-              onChange={(event) => setField({ locationDetail: event.target.value })}
-              rows={2}
-              maxLength={200}
-              helperText={`${form.locationDetail.length}/200 karakter`}
-              required
-            />
-            {form.locationDetail.trim().length >= 3 ? <LocationReviewHint wizard={wizard} /> : null}
-            <Input
-              label="Judul Voice"
-              value={form.title}
-              onChange={(event) => setField({ title: event.target.value })}
-              maxLength={150}
-              helperText={`${form.title.length}/150 karakter`}
-              required
-            />
-            <Textarea
-              label="Detail Voice"
-              value={form.detail}
-              onChange={(event) => setField({ detail: event.target.value })}
-              rows={6}
-              maxLength={5000}
-              helperText={`${form.detail.length}/5000 karakter`}
-              required
-            />
+        <Card variant="raised" padding="lg" className="wizard-form">
+          <Stack gap="lg">
+            <section className="wizard-section" aria-label="Lokasi temuan">
+              <div className="wizard-section__head">
+                <MapPin size={16} />
+                <h3>Lokasi temuan</h3>
+              </div>
+              <ChoiceCardGroup
+                label="Area Temuan"
+                variant="chip"
+                value={form.area || undefined}
+                onValueChange={(value) => setField({ area: value })}
+                options={AREA_OPTIONS}
+              />
+              <Textarea
+                label="Detail Lokasi"
+                value={form.locationDetail}
+                onChange={(event) => setField({ locationDetail: event.target.value })}
+                rows={3}
+                maxLength={200}
+                counter={`${form.locationDetail.length}/200`}
+                required
+              />
+              {form.locationDetail.trim().length >= 3 ? (
+                <LocationReviewHint wizard={wizard} />
+              ) : null}
+            </section>
+
+            <section className="wizard-section" aria-label="Detail Voice">
+              <div className="wizard-section__head">
+                <FileText size={16} />
+                <h3>Detail Voice</h3>
+              </div>
+              <Input
+                label="Judul Voice"
+                value={form.title}
+                onChange={(event) => setField({ title: event.target.value })}
+                maxLength={150}
+                counter={`${form.title.length}/150`}
+                required
+              />
+              <Textarea
+                label="Detail Voice"
+                value={form.detail}
+                onChange={(event) => setField({ detail: event.target.value })}
+                rows={6}
+                maxLength={5000}
+                counter={`${form.detail.length}/5000`}
+                required
+              />
+            </section>
+
             {form.visibility === 'PRIVATE' ? (
-              <div className="consent-card">
-                <p className="consent-card__title">Tampilkan nama Anda kepada Union?</p>
-                <RadioGroup
+              <section className="consent-card" aria-label="Identitas kepada Union">
+                <p className="consent-card__title">
+                  <ShieldCheck size={16} /> Tampilkan nama Anda kepada Union?
+                </p>
+                <ChoiceCardGroup
                   label="Tampilkan nama kepada Union"
                   value={
                     form.showReporterIdentity === true
                       ? 'YA'
                       : form.showReporterIdentity === false
                         ? 'TIDAK'
-                        : ''
+                        : undefined
                   }
                   onValueChange={(value) => setField({ showReporterIdentity: value === 'YA' })}
                   options={[
@@ -213,16 +322,19 @@ function FormStep({ wizard }: { wizard: Wizard }) {
                       value: 'YA',
                       label: 'Ya',
                       description: 'Union melihat nama, no.reg, division, dan department.',
+                      icon: <Eye size={15} />,
                     },
                     {
                       value: 'TIDAK',
                       label: 'Tidak',
                       description: 'Union melihat alias anonim yang tidak dapat dikorelasikan.',
+                      icon: <EyeOff size={15} />,
                     },
                   ]}
                 />
-              </div>
+              </section>
             ) : null}
+
             <MediaInput
               attachments={wizard.attachments}
               uploading={wizard.isUploading}
@@ -241,18 +353,19 @@ function FormStep({ wizard }: { wizard: Wizard }) {
           </Stack>
         </Card>
 
-        <div className="wizard-actions wizard-actions--between">
-          <Button variant="ghost" onClick={() => wizard.setStep('visibility')}>
-            Kembali
-          </Button>
-          <Button
-            variant="primary"
-            loading={wizard.busy || uploading}
-            onClick={() => void wizard.saveAndProcess()}
-          >
-            Simpan & Analisis
-          </Button>
-        </div>
+        <ActionsBar
+          onBack={() => wizard.setStep('visibility')}
+          primary={
+            <Button
+              variant="primary"
+              className="wizard-actionsbar__primary"
+              loading={wizard.busy || uploading}
+              onClick={() => void wizard.saveAndProcess()}
+            >
+              Simpan & Analisis
+            </Button>
+          }
+        />
       </Stack>
     </div>
   );
@@ -312,21 +425,23 @@ function MediaInput({
 }) {
   const remaining = max - attachments.length;
   return (
-    <div className="media-input">
-      <span className="media-input__label">
-        Foto Lampiran <small>(opsional, maks. {max})</small>
-      </span>
-      <div className="media-input__list">
-        {attachments.map((attachment) => (
+    <section className="media-input" aria-label="Foto lampiran">
+      <div className="media-input__head">
+        <span className="media-input__label" id="media-input-label">
+          Foto Lampiran <small>(opsional)</small>
+        </span>
+        <span className="media-input__count" aria-hidden="true">
+          {attachments.length}/{max}
+        </span>
+      </div>
+      <div className="media-input__list" role="group" aria-labelledby="media-input-label">
+        {attachments.map((attachment, index) => (
           <div className="media-input__item" key={attachment.id}>
-            <img
-              src={`/api/v1/media/${attachment.id}`}
-              alt={`Lampiran ${attachment.id.slice(0, 6)}`}
-            />
+            <img src={`/api/v1/media/${attachment.id}`} alt={`Lampiran ${index + 1}`} />
             <button
               type="button"
               className="media-input__remove"
-              aria-label="Hapus lampiran"
+              aria-label={`Hapus lampiran ${index + 1}`}
               onClick={() => onRemove(attachment.id)}
             >
               ×
@@ -339,8 +454,9 @@ function MediaInput({
             className="media-input__dropzone"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
+            aria-label={`Tambah foto, sisa ${remaining}`}
           >
-            {uploading ? <Loader2 size={18} className="spin" /> : <FileImage size={18} />}
+            {uploading ? <Loader2 size={18} className="spin" /> : <ImagePlus size={20} />}
             <span>{uploading ? 'Mengunggah…' : 'Tambah foto'}</span>
           </button>
         ) : null}
@@ -358,7 +474,7 @@ function MediaInput({
         }}
       />
       <p className="media-input__note">JPG, PNG, atau WebP · maksimum 10 MB per file.</p>
-    </div>
+    </section>
   );
 }
 
@@ -370,6 +486,10 @@ function ProcessingStep({ wizard }: { wizard: Wizard }) {
       </div>
       <h1>Menganalisis Voice Anda</h1>
       <p>Klasifikasi kategori/severity dan verifikasi lokasi sedang dijalankan.</p>
+      <div className="processing-page__lines" aria-hidden="true">
+        <Skeleton />
+        <Skeleton />
+      </div>
       {wizard.error ? (
         <Alert tone="danger" title="Gagal menganalisis">
           {wizard.error}
@@ -406,41 +526,64 @@ function FallbackStep({ wizard }: { wizard: Wizard }) {
             {wizard.error}
           </Alert>
         ) : null}
-        <Card variant="raised">
-          <Stack gap="md">
+        <Card variant="raised" padding="lg" className="wizard-form">
+          <Stack gap="lg">
             {needsCategory ? (
-              <Select
-                label="Kategori"
-                value={category ?? ''}
-                onValueChange={(value) => setCategory(value as Category)}
-                options={CATEGORY_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-              />
+              <section className="wizard-section" aria-label="Kategori">
+                <div className="wizard-section__head">
+                  <Tag size={16} />
+                  <h3>Kategori</h3>
+                </div>
+                <ChoiceCardGroup
+                  label="Kategori"
+                  variant="chip"
+                  value={category ?? undefined}
+                  onValueChange={(value) => setCategory(value as Category)}
+                  options={CATEGORY_OPTIONS.map((opt) => ({
+                    value: opt.value,
+                    label: opt.label,
+                    icon: CATEGORY_ICONS[opt.value],
+                  }))}
+                />
+              </section>
             ) : (
-              <p className="consent-card__title">Kategori tidak digunakan untuk Private Voice.</p>
+              <p className="consent-card__title">
+                <ShieldCheck size={16} /> Kategori tidak digunakan untuk Private Voice.
+              </p>
             )}
-            <Select
-              label="Severity"
-              value={severity ?? ''}
-              onValueChange={(value) => setSeverity(value as Severity)}
-              options={SEVERITY_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-            />
+            <section className="wizard-section" aria-label="Severity">
+              <div className="wizard-section__head">
+                <Sparkles size={16} />
+                <h3>Severity</h3>
+              </div>
+              <ChoiceCardGroup
+                label="Severity"
+                columns={2}
+                value={severity ?? undefined}
+                onValueChange={(value) => setSeverity(value as Severity)}
+                options={SEVERITY_OPTIONS}
+              />
+            </section>
           </Stack>
         </Card>
-        <div className="wizard-actions">
-          <Button
-            variant="primary"
-            disabled={!severity || (needsCategory && !category)}
-            loading={wizard.busy}
-            onClick={() =>
-              void wizard.runFallback({
-                category: needsCategory ? category : null,
-                severity: severity!,
-              })
-            }
-          >
-            Simpan &amp; Tinjau
-          </Button>
-        </div>
+        <ActionsBar
+          primary={
+            <Button
+              variant="primary"
+              className="wizard-actionsbar__primary"
+              disabled={!severity || (needsCategory && !category)}
+              loading={wizard.busy}
+              onClick={() =>
+                void wizard.runFallback({
+                  category: needsCategory ? category : null,
+                  severity: severity!,
+                })
+              }
+            >
+              Simpan &amp; Tinjau
+            </Button>
+          }
+        />
       </Stack>
     </div>
   );
@@ -472,64 +615,80 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           </Alert>
         ) : null}
 
-        <Card variant="raised">
-          <Stack gap="md">
-            <div className="review-rows">
-              <div className="review-row">
-                <span className="review-row__label">Jenis</span>
-                <span className="review-row__value">
-                  {form.visibility === 'PRIVATE' ? 'Private' : 'General'}
-                </span>
-              </div>
-              <div className="review-row">
-                <span className="review-row__label">Area</span>
-                <span className="review-row__value">
-                  {form.area ? AREA_LABELS[form.area] : '—'}
-                </span>
-              </div>
-              {severity ? (
-                <div className="review-row">
-                  <span className="review-row__label">Severity</span>
-                  <SeverityBadge severity={severity as Severity} />
-                </div>
-              ) : null}
-              {category ? (
-                <div className="review-row">
-                  <span className="review-row__label">Kategori</span>
-                  <span className="review-row__value">{CATEGORY_LABELS[category as Category]}</span>
-                </div>
-              ) : null}
-              {form.visibility === 'PRIVATE' ? (
-                <div className="review-row">
-                  <span className="review-row__label">Identitas</span>
-                  <span className="review-row__value">
-                    {form.showReporterIdentity ? 'Tampilkan nama' : 'Sembunyikan (anonim)'}
-                  </span>
-                </div>
-              ) : null}
-              {source ? (
-                <div className="review-row">
-                  <span className="review-row__label">Sumber klasifikasi</span>
-                  <span className="review-row__value">
-                    {source === 'AI' ? 'AI' : 'Manual Fallback'}
-                    {fallbackCode ? ` · ${fallbackCode}` : ''}
-                  </span>
-                </div>
-              ) : null}
-              <div className="review-row">
-                <span className="review-row__label">Judul</span>
-                <span className="review-row__value">{form.title}</span>
-              </div>
-              <div className="review-row review-row--block">
-                <span className="review-row__label">Detail</span>
-                <p className="review-row__value review-row__text">{form.detail}</p>
-              </div>
-              <div className="review-row">
-                <span className="review-row__label">Lokasi</span>
-                <span className="review-row__value">{form.locationDetail}</span>
-              </div>
+        <Card variant="raised" padding="lg" className="wizard-form">
+          <div className="review-rows">
+            <div className="review-row">
+              <span className="review-row__label">
+                <Layers size={14} /> Jenis
+              </span>
+              <span className="review-row__value">
+                {form.visibility === 'PRIVATE' ? 'Private' : 'General'}
+              </span>
             </div>
-          </Stack>
+            <div className="review-row">
+              <span className="review-row__label">
+                <MapPin size={14} /> Area
+              </span>
+              <span className="review-row__value">{form.area ? AREA_LABELS[form.area] : '—'}</span>
+            </div>
+            {severity ? (
+              <div className="review-row">
+                <span className="review-row__label">
+                  <Sparkles size={14} /> Severity
+                </span>
+                <span className="review-row__value">
+                  <SeverityBadge severity={severity as Severity} />
+                </span>
+              </div>
+            ) : null}
+            {category ? (
+              <div className="review-row">
+                <span className="review-row__label">
+                  <Tag size={14} /> Kategori
+                </span>
+                <span className="review-row__value">{CATEGORY_LABELS[category as Category]}</span>
+              </div>
+            ) : null}
+            {form.visibility === 'PRIVATE' ? (
+              <div className="review-row">
+                <span className="review-row__label">
+                  <Eye size={14} /> Identitas
+                </span>
+                <span className="review-row__value">
+                  {form.showReporterIdentity ? 'Tampilkan nama' : 'Sembunyikan (anonim)'}
+                </span>
+              </div>
+            ) : null}
+            {source ? (
+              <div className="review-row">
+                <span className="review-row__label">
+                  <Sparkles size={14} /> Sumber klasifikasi
+                </span>
+                <span className="review-row__value">
+                  {source === 'AI' ? 'AI' : 'Manual Fallback'}
+                  {fallbackCode ? ` · ${fallbackCode}` : ''}
+                </span>
+              </div>
+            ) : null}
+            <div className="review-row">
+              <span className="review-row__label">
+                <AlignLeft size={14} /> Judul
+              </span>
+              <span className="review-row__value">{form.title}</span>
+            </div>
+            <div className="review-row review-row--block">
+              <span className="review-row__label">
+                <FileText size={14} /> Detail
+              </span>
+              <p className="review-row__value review-row__text">{form.detail}</p>
+            </div>
+            <div className="review-row">
+              <span className="review-row__label">
+                <MapPin size={14} /> Lokasi
+              </span>
+              <span className="review-row__value">{form.locationDetail}</span>
+            </div>
+          </div>
         </Card>
 
         {wizard.attachments.length ? (
@@ -546,19 +705,20 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           </Alert>
         ) : null}
 
-        <div className="wizard-actions wizard-actions--between">
-          <Button variant="ghost" onClick={() => wizard.setStep('form')}>
-            Kembali
-          </Button>
-          <Button
-            variant="primary"
-            loading={wizard.isSubmitting}
-            disabled={isIncomplete && !ack}
-            onClick={() => void wizard.submit()}
-          >
-            <Radio size={18} /> Kirim Voice
-          </Button>
-        </div>
+        <ActionsBar
+          onBack={() => wizard.setStep('form')}
+          primary={
+            <Button
+              variant="primary"
+              className="wizard-actionsbar__primary"
+              loading={wizard.isSubmitting}
+              disabled={isIncomplete && !ack}
+              onClick={() => void wizard.submit()}
+            >
+              <Radio size={18} /> Kirim Voice
+            </Button>
+          }
+        />
       </Stack>
     </div>
   );

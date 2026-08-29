@@ -19,7 +19,7 @@ let unitId: string;
 let sourceRow = 0;
 let seq = 0;
 
-async function seedVoice() {
+async function seedVoice(status: VoiceStatus = VoiceStatus.OPEN) {
   seq += 1;
   return prisma.voice.create({
     data: {
@@ -33,7 +33,7 @@ async function seedVoice() {
       reporterDepartmentSnapshot: 'Department A',
       reporterOrganizationUnitId: unitId,
       routeOwnerId: reporter.accountId,
-      status: VoiceStatus.OPEN,
+      status,
       handlerType: HandlerType.MANAGER,
       locationDetail: 'line',
       title: 'pagination voice',
@@ -153,7 +153,7 @@ describe('Voice timeline and messages cursor pagination', () => {
   });
 
   it('pages messages newest-first with order=desc and honors limit', async () => {
-    const voice = await seedVoice();
+    const voice = await seedVoice(VoiceStatus.IN_VERIFICATION);
     await seedMessages(voice.id, 6);
     const first = await voices.messages(reporter, voice.id, { limit: '4', order: 'desc' });
     expect(first.items.map((message) => message.text)).toEqual([

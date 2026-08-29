@@ -1,16 +1,261 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 28 Agustus 2026                                                                                                                                                                              |
-| Current objective       | Route remediation UX, Union dashboard, and mobile dashboard containment fixed locally; Phase 13 remains open for hosted exact-SHA acceptance, rollback rehearsal, and operator Safari retest |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                             |
-| Backend Complete Gate   | Passed (PRD v1.1); Phase 8.0 backend extended without breaking gate                                                                                                                          |
-| Implementation status   | Phase 0–12 done; QA-001–004 resolved, QA-005 deferred, QA-006 resolved; local parity green; hosted evidence not yet claimed                                                                  |
-| Latest ADR              | ADR-0016 (No. Reg route remediation, affected-department workspace, Union dashboard gating, and mobile card containment)                                                                     |
-| Recommended next action | Deploy/retest the remediation and Union/mobile dashboard fixes on staging, complete authenticated Safari operator retest, then resume exact-SHA acceptance and rollback rehearsal            |
+| Atribut                 | Nilai                                                                                                                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 29 Agustus 2026                                                                                                                                                                                                   |
+| Current objective       | Workforce secondary-surface polish (Account, Create Voice, Notifications) via shared padded-surface/section components on `feat/polish-member-pages` (ADR-0020); Phase 13 remains open for hosted acceptance      |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                  |
+| Backend Complete Gate   | Passed (PRD v1.1); no API/schema/contract change in this session                                                                                                                                                  |
+| Implementation status   | Phase 0–12 done; ADR-0020 secondary-surface polish locally complete with full parity green; Phase 13 hosted evidence not yet claimed                                                                              |
+| Latest ADR              | ADR-0020 (Workforce secondary surface polish)                                                                                                                                                                     |
+| Recommended next action | Open PR for `feat/polish-member-pages`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
 
 ## Session Outcome
+
+### Workforce secondary-surface polish: Account, Create Voice, Notifications — 29 Agustus 2026
+
+Branch `feat/polish-member-pages`. Akar masalah "teks menempel di tepi" bersifat sistemik:
+`care-surface` (Card) tidak memiliki padding sehingga setiap halaman yang meletakkan konten mentah
+di dalam Card merender flush ke border (Account, wizard, push card, notification items), sementara
+halaman yang terlihat rapi hanya aman karena komponennya membawa padding sendiri. Selector mati
+`.monitor-kpis .care-card` membuktikan padding KPI Voice Member memang dimaksudkan namun tidak
+pernah terpasang. Implementasi (ADR-0020):
+
+- **Foundations (`packages/ui`, aditif):** `Surface/Card` memperoleh prop `padding`
+  (`none|sm|md|lg`, default `none` sehingga Admin byte-identical); token baru
+  `--gradient-brand-hero`, `--on-brand-muted`, `--shadow-cta`; komponen baru `SectionCard`,
+  `ChoiceCardGroup` (varian `card`/`chip`, semantik radio Radix), `SettingsGroup`/`SettingsRow`,
+  `KeyValueGrid` (surface `subtle`/`brand`); `Field/Input/Textarea` menerima `counter`. Semua
+  terdaftar di coverage publik + spesimen `/design` + 4 test unit baru (UI 12 total).
+- **Account:** hero gradient diperbaiki (padding, avatar tidak terpotong, chips status/jenis,
+  teks on-brand AA — label 92% white, value putih penuh); Profil organisasi/Kemampuan akses/
+  Keamanan & sesi menjadi SectionCard (KV tiles tinted); aksi keamanan memakai SettingsRow
+  berikon; **Keluar kini lewat Dialog konfirmasi** (focus trap/return, destructive tone).
+- **Create Voice:** ChoiceCard untuk pilihan Private/General dan severity fallback; Area menjadi
+  chip grid 2 kolom di 360px; form satu kartu terbagi tiga seksi berikon (Lokasi/Detail/Foto);
+  counter inline di baris label; textarea mengikuti `rows` (override scoped workforce); media
+  picker diperbaiki (label programmatic, hitungan 0/5, dropzone 7.5rem, tombol hapus 24px dengan
+  halo ≥44px); **sticky action bar** di semua step yang membersihkan dock + safe area; langkah
+  stepper diperbarui (track + halo, label sr-only di ≤640px); DraftPreviewPage diselaraskan.
+- **Notifications:** header menumpuk di mobile dengan badge belum-dibaca + tombol Tandai semua
+  dibaca inline; push settings menjadi SectionCard (switch tetap satu kontrol berlabel — anchor
+  test `Aktifkan notifikasi push` dipertahankan); item notifikasi memakai tile ikon ber-tone per
+  tipe, dot + latar tint untuk unread (bukan warna saja), tombol `Buka` tetap.
+- **Sibling fixes:** chart cards, home resume/assignment cards, KPI Voice Member, seksi Voice
+  Detail (meta/detail/timeline/closure/reporter), ActionPanel memperoleh `padding="md"`;
+  selector `.care-card` mati dihapus; `.dashboard-filters` kini berpadding; field workforce
+  (input/textarea/select) menjadi tinted inset dengan fokus brand — scoped ke bundle workforce
+  sehingga Admin tidak berubah (`admin-shell-1440` baseline lolos tanpa regenerasi).
+
+Validasi (semua hijau): lockfile tidak berubah; `pnpm format:check`; `pnpm lint`; `pnpm typecheck`;
+unit API 60, UI 12, frontend-core 14, workforce 33, Admin 2; `pnpm openapi:check` tanpa drift;
+`pnpm build` (PWA precache 12); `migrations:destructive-check`; `docker compose config --quiet`;
+`db:up/wait/verify/test:reset/test:migrate`; integration 42; security 5; seed+test performance
+10k/50k; maintenance:reconcile nol; `pnpm test:frontend:e2e` **120 passed** (Axe AA, no-overflow,
+44px dock, halo media remove baru, journey wizard diperbarui ke radio chip `Karawang 1`);
+fullstack gated **3 passed**; `workforce-account-360.png` diregenerasi (satu-satunya baseline
+berubah; 12/12 visual lulus); Gitleaks directory scan bersih setelah allowlist diperluas ke
+`.env.local` (ignored mode-0600, rekonsiliasi rules §4.2 di change yang sama);
+`security:exceptions:check` valid; `git diff --check`. Compose database dihentikan; tidak ada
+container/proses tersisa. Catatan operasional: container `supplier-henkaten-local-api-1` yang
+mengunci 127.0.0.1:3000 dihentikan atas keputusan operator agar gate fullstack CARE dapat
+berjalan; dibiarkan mati.
+
+Keputusan yang dikunci bersama product owner: (1) sibling fixes ikut diperbaiki dengan baseline
+diregenerasi terkendali; (2) hero Account tetap gradient (diperbaiki) bukan kartu putih;
+(3) redesign form mencakup choice cards, chip area, sticky action bar; (4) komponen baru masuk
+`packages/ui` + `/design` + unit test. Lihat ADR-0020.
+
+### Workforce dashboard, monitoring, conversation lifecycle, and polish — 28 Agustus 2026
+
+Branch `feat/workforce-polish`. Implementasi lokal:
+
+- capability-to-navigation dipusatkan pada pure helper: Member mobile empat
+  item; Manager/Section Head/Division-Leadership/Director lima item dengan Voice
+  Member; desktop mengekspos Notifikasi/Akun; Union contract tetap. `/history`
+  dilabel Voice Saya dan `/general` workforce diarahkan ke `/work-items`;
+- Manager dan leadership Home memperoleh filter URL 30/90 hari, tahun berjalan,
+  semua/custom range, area/category/severity/status; KPI, segmented status,
+  accessible severity/category bars, SVG trend, ranked organization breakdown,
+  last-updated, suppression, loading/error/offline/empty;
+- `/work-items` menjadi workspace Voice Member role-aware dengan active default,
+  Closed/All, search, handler/status/severity/category/area/date filter, scoped
+  monitoring options, severity-first cursor pagination, filter summary, dan
+  preserved URL state. Manager/Section Head tetap server-authoritative melalui
+  `availableActions`; leadership read-only; Private milik orang lain tidak masuk;
+- API menambah `statusGroup`, handler work-items, monitoring-options, dan
+  `conversationState`; Open tidak punya MESSAGE/chat, Assign membuka empty active
+  room logis, Ask membuat room, direct Proceed tidak membuat room, In Progress
+  hanya melanjutkan conversation yang ada, dan Closed history read-only. Read dan
+  send endpoint menegakkan state yang sama;
+- workforce styling dipoles berdasarkan `.agent/design-images/design.jpg` tanpa
+  mengubah shared Admin presentation: compact headers, cobalt/tinted surfaces,
+  filter/action bars, cards, focus/motion/responsive states. Account kini memakai
+  label manusiawi, no.reg dan organisasi aktual; UUID snapshot bukan informasi
+  utama; session tidak mengarang expiry. Push degraded state dibuat ringkas;
+- OpenAPI dan contracts diregenerasi tanpa migration. Baseline visual ditambah
+  untuk Manager dashboard, Voice Member, Account, dan active conversation; Push
+  Settings baseline diregenerasi.
+
+Final parity lokal — 29 Agustus 2026:
+
+- frozen install, Prisma generation, format, lint, typecheck, deterministic
+  OpenAPI/contracts, production build, destructive migration check, dan Compose
+  config hijau;
+- unit suites hijau: API 60, UI 8, frontend-core 14, workforce web 33, dan Admin
+  web 2. PostgreSQL integration 42, security 5, full-stack 3, serta Playwright
+  mocked/visual/PWA 119 seluruhnya lulus;
+- seeded performance 10k account/50k Voice lulus; maintenance reconciliation
+  tidak menemukan orphan; upgrade migration, deployment validation/harness,
+  security-exception policy, actionlint, ShellCheck, Hadolint, Bash syntax, dan
+  Ubuntu bootstrap contract hijau;
+- production-like stack lima image lulus exact-SHA release/readiness, routing,
+  deep-link, auth boundary, CSP, non-root policy, database tidak terpublikasi,
+  restart, media persistence, dan database identity persistence;
+- Trivy filesystem serta kelima image produksi menemukan nol High/Critical dan
+  nol applicable secret/misconfiguration. Gitleaks directory scan tidak
+  menemukan leak. Dependency audit tetap nol High/Critical dengan satu Moderate
+  transitive yang sudah terdokumentasi;
+- provider smoke live tetap advisory/manual-fallback pada environment lokal dan
+  `flock` tidak tersedia di macOS; Linux container harness yang menjadi kontrak
+  deployment tetap hijau. Seluruh Compose stack yang dimulai untuk verifikasi
+  sudah dihentikan.
+
+### Union Private Voice surface and workforce desktop presentation — 28 Agustus 2026
+
+Branch `fix/union-page`. Backend kontrak Union sebenarnya sudah benar sejak
+re-freeze (`workItemScope`, serializer consent, action matrix); gap ada di
+presentasi. Perubahan yang diimplementasikan:
+
+- **Navigasi Union** (`apps/web-voice/src/App.tsx`): item "Private" (ikon Lock)
+  ditambahkan ke dock dan sidebar, menunjuk `/work-items`; `NAV_ROUTES.private`
+  ditambahkan; `resolveCurrent` menjadi role-aware (`private` untuk Union,
+  `work-items` untuk responder) dengan satu route untuk dua label nav.
+- **Reactive desktop breakpoint**: `lib/use-media-query.ts` baru
+  (`createMediaQueryStore` + `useSyncExternalStore`, store per query di-cache)
+  menggantikan pembacaan `matchMedia` sekali pakai, sehingga shell berpindah
+  dock ↔ sidebar saat resize. Unit test `use-media-query.test.ts`.
+- **Halaman Private Voice union-aware** (`features/work/WorkItemsPage.tsx`):
+  header/copy/empty state per role (Head: seluruh Private; Officer: assigned);
+  filter "Penugasan" (Semua / Perlu ditugaskan) khusus Head yang mengirim
+  `unassigned=true`; offline banner; copy responder "Voice Member" tidak berubah.
+- **Beranda Union** (`features/home/HomePage.tsx`): section "Private Voice"
+  (enam item pertama dari work-items + Lihat semua), kartu assignment Union
+  Head dari `pendingAssignment` (CTA ke `/work-items?unassigned=true`, tone
+  accent saat > 0), tile quick action "Private Voice", copy kartu akses per
+  role. Query key inbox dipisah (`private-home` / `responder-home`).
+- **Blok Pelapor consent-driven** (`features/voice/VoiceDetailPage.tsx`):
+  `UNION_IDENTIFIED` menampilkan nama/no.reg/divisi/department + badge
+  "Identitas ditampilkan"; `UNION_ANONYMOUS` menampilkan alias per-Voice +
+  badge "Identitas disembunyikan"; audience lain tidak berubah. Status meta dan
+  timeline kini memakai `STATUS_LABELS`/`VOICE_ACTION_LABELS`.
+- **Label chart terlokalisasi** (`components/DashboardChartCard.tsx`): bucket
+  enum dipetakan via lookup status/severity/kategori (fallback raw, `NONE` →
+  "Tanpa kategori"); `barColor` tetap membaca label mentah.
+- **Copy dialog assign** (`components/ActionPanel.tsx`): description menjadi
+  union-aware ("Pilih Union Officer…" untuk PRIVATE).
+- **Kontrak additive**: `GET /work-items` menerima `unassigned=true`
+  (dihormati hanya untuk Union Head → `currentHandlerId IS NULL`; diabaikan
+  untuk actor lain); `GET /dashboard/private` menyertakan `pendingAssignment`
+  opsional yang hanya diisi untuk Union Head. `enrich-openapi.ts` diperbarui
+  (param work-items + properti opsional `DashboardAggregate`); OpenAPI dan
+  `@care/contracts` diregenerasi.
+- **Desktop CSS** (`apps/web-voice/src/styles.css`): lapisan
+  `@media (min-width: 1280px)` — container keterbacaan 72 rem (konten dan
+  topbar), padding konten `--space-8`, hero 56 rem, quick-action tile 7 rem,
+  percakapan 28 rem, sidebar aktif tinta gelap di atas `surface-subtle`
+  (konsisten pola dock ADR-0012). Style `.voice-reporter` baru. Baseline 360 px
+  tidak berubah byte-identik.
+- **Perbaikan defect shared UI** (`packages/ui/src/styles.css`):
+  `.care-select-content`/`.care-combobox__panel` naik ke
+  `calc(var(--layer-modal) + 2)`; sebelumnya popover Select di dalam Dialog
+  tertutup overlay (`--layer-popover` 40 vs `--layer-modal` 60) sehingga opsi
+  tidak bisa diklik pointer — defect lintas workforce dan Admin.
+- **E2E**: fixture `unionSession({slot})` dan `unionPrivateVoiceDetail`
+  akurat di `e2e/helpers/mock-api.ts` (accountKind UNION, tanpa capability
+  MEMBER; mock menghormati `unassigned=true` dan override kandidat assignment
+  ber-slot Officer); journey Union Head (list → filter antrian → assign dialog
+  → sukses menutup dialog), Union Officer, anonimitas/identified, axe +
+  no-overflow 1440 px (union home/inbox/head+officer), baseline visual desktop
+  baru `workforce-union-private-1440.png` (pin jam, 0.06).
+- **Integration**: `union-inbox.integration.test.ts` baru (5 test) — scope
+  inbox Head/Officer, filter antrian, pengabaian flag untuk non-Head,
+  `pendingAssignment` sebelum/sesudah assign, tanpa field untuk
+  Officer/reporter.
+
+Validasi (semua hijau): `pnpm db:generate`; typecheck dan lint monorepo;
+`pnpm format` + `format:check`; unit API 60, ui 8, frontend-core 14,
+web-voice 25, web-admin 2; integration 38 (termasuk 5 baru) dan security 5 di
+PostgreSQL disposable; `openapi:check` hijau pada state ter-commit (drift
+pra-commit adalah perubahan kontrak yang disengaja); build monorepo (workforce
+precache 12 entries); Playwright mocked `test:frontend:e2e` **115 passed**;
+`FULLSTACK_E2E=1 --project=fullstack` 3 passed (DATABASE_URL lokal
+`postgresql://care:care_local@localhost:54329/care_test`, secret test ≥32
+karakter); `seed:performance` + `test:performance` (10k/50k);
+`maintenance:reconcile` (orphanedImportFiles 0, terminalImports 2 adalah batch
+CONFIRMED dari fullstack e2e); `migrations:destructive-check`;
+`docker compose config --quiet`; audit 0 High/Critical (Moderate ExcelJS
+transitive tetap terdokumentasi); Gitleaks v8.24.3 directory scan tanpa
+temuan; `git diff --check`. Compose dimatikan setelah validasi
+(`pnpm db:down`), tidak ada container/proses yang tersisa.
+
+Keputusan yang dikunci bersama product owner: (1) nav Union lima item dengan
+antrian penugasan sebagai filter di halaman Private; (2) additive backend untuk
+`unassigned` + `pendingAssignment`; (3) lapisan desktop konservatif (container
+72 rem, tanpa layout dua kolom); (4) blok Pelapor hanya untuk audience Union.
+Lihat ADR-0018.
+
+### DeepSeek Chat Completions and function calling — 28 Agustus 2026
+
+The CARE AI transport now uses the official OpenAI JavaScript SDK's
+`chat.completions.create` method against `/chat/completions`, targeting
+`deepseek-v4-flash`. Existing `OPENAI_*` environment names, secret boundaries,
+timeout/confidence controls, health response shape, deterministic routing, and
+Manual Fallback semantics remain unchanged. Empty reasoning effort now defaults
+to `none`; it maps to `thinking.disabled` without `reasoning_effort`, while the
+remaining accepted values map to DeepSeek `low`, `high`, or `max` thinking.
+
+Classification and location review each send a versioned system prompt plus an
+explicitly untrusted JSON user message, expose one standard function, and force
+that named function through `tool_choice`. The adapter accepts exactly one
+matching function call, parses its arguments, and then applies strict Zod domain
+validation. Missing, duplicate, unexpected, malformed, truncated, filtered, or
+resource-interrupted output falls back safely without schema retries; timeout,
+429, connection, and 5xx behavior retain one bounded retry. Strict Beta `/beta`
+is intentionally not used. Prompt versions advanced to
+`care-classification-v1.2` and `care-location-v1.2`, invalidating stale draft AI
+snapshots through the existing prompt-bound hashes.
+
+The live non-sensitive smoke passed against `https://api.deepseek.com` with
+`deepseek-v4-flash` and reasoning `none`: classification returned AI source,
+`SAFETY`, `HIGH`, confidence `0.9` in 1773 ms; location returned `COMPLETE` in
+1738 ms. The key was supplied to the process through non-echoing stdin, was
+never written to disk or logged, and must still be rotated. The compatibility
+command `pnpm test:openai:smoke` passed against a local mock that asserts the
+DeepSeek Chat Completions/function-calling request contract.
+
+Mandatory local parity completed green: frozen install, Prisma generation,
+format, lint, typecheck, deterministic OpenAPI, production build, destructive
+migration check, Compose config, and dependency audit (zero High/Critical; the
+documented ExcelJS transitive Moderate remains). Unit suites passed with API 60,
+UI 8, frontend-core 14, workforce web 20, and Admin web 2 tests. Playwright
+passed 106 mocked/visual/PWA tests and 3 full-stack tests. PostgreSQL passed 33
+integration and 5 security tests, upgrade reconciliation, the 10k-account/
+50k-Voice seeded performance test, and maintenance reconciliation with all
+counts at zero. Deployment validation and harness, security-exception checks,
+actionlint, ShellCheck, Hadolint, Bash syntax, and Ubuntu bootstrap contracts
+all passed. The production-like five-image stack passed exact-SHA routing,
+health/readiness, deep-link, authentication, CSP, non-root, unexposed-database,
+restart, media, and database-persistence checks. Trivy found zero High/Critical
+vulnerabilities or applicable filesystem secret/misconfiguration findings, and
+Gitleaks found no repository leaks. Started Compose stacks were stopped after
+validation.
+
+ADR-0017 supersedes only the Responses transport portions of ADR-0004. PRD,
+roadmap, backend guide, deployment guide/checklist, runtime examples, advisory
+provider-smoke documentation, and deployment messages now describe DeepSeek
+Chat Completions. No HTTP/OpenAPI/database/frontend contract changed and Phase
+13 remains `in_progress`.
 
 ### Route remediation and workforce dashboard corrections — 28 Agustus 2026
 
@@ -608,9 +853,17 @@ Workbook aktual tetap hanya dibaca untuk UAT shape validation dan tidak dimasukk
 
 ## AI Test Decision
 
-Automated AI test tidak memakai API key nyata. `pnpm test:openai:smoke` menyalakan mock HTTP `/responses` lokal, menyuntikkan credential dummy hanya agar SDK dapat membangun request, lalu memvalidasi classification dan location schemas, `store:false`, serta absence of tools/conversation. Tidak ada external network call.
+Automated AI test tidak memakai API key nyata. Perintah compatibility
+`pnpm test:openai:smoke` menyalakan mock HTTP `/chat/completions` lokal,
+menyuntikkan credential dummy hanya agar SDK dapat membangun request, lalu
+memvalidasi DeepSeek non-thinking mode, forced classification/location
+functions, dan local schema boundary. Tidak ada external network call.
 
-`OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` tetap kosong secara default dan baru diperlukan pada runtime staging/production. Live provider validation dipindahkan ke Phase 13 staging rehearsal dan bukan dependency Backend Complete Gate.
+`OPENAI_BASE_URL`, `OPENAI_MODEL`, dan `OPENAI_API_KEY` tetap kosong secara
+default dan baru diperlukan pada runtime staging/production. Target yang
+disetujui adalah `https://api.deepseek.com`, `deepseek-v4-flash`, dan effort
+`none`. Live provider validation tetap menjadi Phase 13 staging evidence dan
+bukan dependency Backend Complete Gate.
 
 ## Backend Complete Gate Evidence
 

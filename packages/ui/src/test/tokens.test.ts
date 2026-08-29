@@ -39,6 +39,7 @@ describe('design token contract', () => {
       'feedback.tsx',
       'overlays.tsx',
       'data.tsx',
+      'sections.tsx',
       'shells.tsx',
     ];
     const source = files.map((file) => readFileSync(join(sourceDir, file), 'utf8')).join('\n');

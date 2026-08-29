@@ -1,4 +1,4 @@
-import { Button, Card, IconButton, Textarea } from '@care/ui';
+import { Alert, Button, Card, IconButton, Textarea } from '@care/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ImagePlus, Send } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -11,7 +11,13 @@ import { MediaGallery } from './MediaGallery';
 
 const PAGE_SIZE = 50;
 
-export function ConversationPanel({ voiceId }: { voiceId: string }) {
+export function ConversationPanel({
+  voiceId,
+  state,
+}: {
+  voiceId: string;
+  state: 'ACTIVE' | 'READ_ONLY';
+}) {
   const api = useApi();
   const sessionId = useSessionId();
   const queryClient = useQueryClient();
@@ -51,11 +57,26 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
   const items = [...feed.items].reverse();
 
   return (
-    <Card className="conversation">
+    <Card className="conversation" id="voice-conversation" tabIndex={-1}>
       <div className="conversation__head">
-        <h3>Percakapan</h3>
-        <span className="conversation__count">{items.length} pesan</span>
+        <div>
+          <p className="care-eyebrow">Verifikasi</p>
+          <h3>Percakapan</h3>
+        </div>
+        <span className="conversation__count">
+          {state === 'READ_ONLY' ? 'Hanya baca' : `${items.length} pesan`}
+        </span>
       </div>
+      {state === 'READ_ONLY' ? (
+        <Alert tone="info" title="Percakapan telah selesai">
+          Riwayat tetap tersedia, tetapi pesan baru tidak dapat dikirim pada status ini.
+        </Alert>
+      ) : null}
+      {send.isError ? (
+        <Alert tone="danger" title="Pesan gagal dikirim">
+          {send.error instanceof Error ? send.error.message : 'Coba kirim kembali.'}
+        </Alert>
+      ) : null}
       <div className="conversation__list" role="log" aria-live="polite">
         {feed.isLoading ? (
           <p className="conversation__empty">Memuat percakapan…</p>
@@ -79,67 +100,69 @@ export function ConversationPanel({ voiceId }: { voiceId: string }) {
           </>
         )}
       </div>
-      <form
-        className="conversation__composer"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (text.trim() || files.length) send.mutate();
-        }}
-      >
-        <div className="conversation__input">
-          <IconButton
-            aria-label="Lampirkan gambar"
-            onClick={() => fileInput.current?.click()}
-            disabled={files.length >= 5}
-          >
-            <ImagePlus size={18} />
-          </IconButton>
-          <Textarea
-            label="Pesan"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            rows={1}
-            maxLength={4000}
-            placeholder="Tulis pesan…"
-          />
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            hidden
-            onChange={(event) => {
-              const picked = Array.from(event.target.files ?? []).slice(0, 5 - files.length);
-              setFiles((current) => [...current, ...picked]);
-              event.currentTarget.value = '';
-            }}
-          />
-          <Button
-            type="submit"
-            size="icon"
-            aria-label="Kirim pesan"
-            loading={send.isPending}
-            disabled={!text.trim() && !files.length}
-          >
-            <Send size={18} />
-          </Button>
-        </div>
-        {files.length ? (
-          <div className="conversation__picked">
-            {files.map((file, index) => (
-              <span className="conversation__picked-item" key={`${file.name}-${index}`}>
-                {file.name}
-                <button
-                  type="button"
-                  onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+      {state === 'ACTIVE' ? (
+        <form
+          className="conversation__composer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (text.trim() || files.length) send.mutate();
+          }}
+        >
+          <div className="conversation__input">
+            <IconButton
+              aria-label="Lampirkan gambar"
+              onClick={() => fileInput.current?.click()}
+              disabled={files.length >= 5}
+            >
+              <ImagePlus size={18} />
+            </IconButton>
+            <Textarea
+              label="Pesan"
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={1}
+              maxLength={4000}
+              placeholder="Tulis pesan…"
+            />
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              hidden
+              onChange={(event) => {
+                const picked = Array.from(event.target.files ?? []).slice(0, 5 - files.length);
+                setFiles((current) => [...current, ...picked]);
+                event.currentTarget.value = '';
+              }}
+            />
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Kirim pesan"
+              loading={send.isPending}
+              disabled={!text.trim() && !files.length}
+            >
+              <Send size={18} />
+            </Button>
           </div>
-        ) : null}
-      </form>
+          {files.length ? (
+            <div className="conversation__picked">
+              {files.map((file, index) => (
+                <span className="conversation__picked-item" key={`${file.name}-${index}`}>
+                  {file.name}
+                  <button
+                    type="button"
+                    onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </form>
+      ) : null}
     </Card>
   );
 }

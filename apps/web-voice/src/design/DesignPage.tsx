@@ -10,6 +10,7 @@ import {
   Button,
   Card,
   Checkbox,
+  ChoiceCardGroup,
   Combobox,
   ConfirmDialog,
   ConflictState,
@@ -36,9 +37,12 @@ import {
   Popover,
   Progress,
   RadioGroup,
+  SectionCard,
   SegmentedControl,
   Select,
   SeverityBadge,
+  SettingsGroup,
+  SettingsRow,
   Sidebar,
   Skeleton,
   Stack,
@@ -50,6 +54,7 @@ import {
   Timeline,
   Toast,
   Tooltip,
+  KeyValueGrid,
   breakpointTokens,
   chartTokens,
   choreographyTokens,
@@ -464,6 +469,67 @@ export default function DesignPage() {
               </Stack>
             </Specimen>
           </Grid>
+          <Grid min="18rem">
+            <Specimen title="Choice cards">
+              <ChoiceCardGroup
+                label="Jenis Voice"
+                defaultValue="GENERAL"
+                options={[
+                  {
+                    value: 'GENERAL',
+                    label: 'General Voice',
+                    description: 'Ditangani route organisasi.',
+                    icon: <UsersRound size={16} />,
+                  },
+                  {
+                    value: 'PRIVATE',
+                    label: 'Private Voice',
+                    description: 'Ditangani Union Head.',
+                    icon: <ShieldCheck size={16} />,
+                  },
+                ]}
+              />
+              <ChoiceCardGroup
+                label="Area temuan"
+                variant="chip"
+                defaultValue="KARAWANG_1"
+                options={[
+                  { value: 'KARAWANG_1', label: 'Karawang 1', icon: <MapPin size={14} /> },
+                  { value: 'KARAWANG_2', label: 'Karawang 2', icon: <MapPin size={14} /> },
+                  { value: 'SUNTER_1', label: 'Sunter 1', icon: <MapPin size={14} /> },
+                ]}
+              />
+            </Specimen>
+            <Specimen title="Section, settings & key-value">
+              <Stack>
+                <SectionCard
+                  title="Keamanan & sesi"
+                  description="Perangkat dan kredensial Anda"
+                  icon={<ShieldCheck size={16} />}
+                  action={<Badge tone="success">Sesi aktif</Badge>}
+                >
+                  <SettingsGroup>
+                    <SettingsRow
+                      icon={<Bell size={15} />}
+                      title="Notifikasi push"
+                      description="Best-effort setelah izin"
+                      onClick={() => undefined}
+                    />
+                    <SettingsRow title="Keluar" tone="danger" onClick={() => undefined} />
+                  </SettingsGroup>
+                  <KeyValueGrid
+                    aria-label="Ringkasan akun"
+                    surface="brand"
+                    columns={2}
+                    items={[
+                      { label: 'Status akun', value: 'Aktif', tone: 'success' },
+                      { label: 'Jenis akun', value: 'Karyawan' },
+                    ]}
+                  />
+                </SectionCard>
+              </Stack>
+            </Specimen>
+          </Grid>
         </DesignSection>
 
         <DesignSection
@@ -534,9 +600,10 @@ export default function DesignPage() {
                 current="home"
                 items={[
                   { id: 'home', label: 'Beranda', icon: <Home size={20} /> },
-                  { id: 'voices', label: 'Riwayat', icon: <ClipboardList size={20} /> },
-                  { id: 'calendar', label: 'Aktivitas', icon: <CalendarDays size={20} /> },
-                  { id: 'account', label: 'Akun', icon: <UserRound size={20} /> },
+                  { id: 'members', label: 'Voice Member', icon: <UsersRound size={20} /> },
+                  { id: 'create', label: 'Buat', icon: <Plus size={20} /> },
+                  { id: 'mine', label: 'Voice Saya', icon: <ClipboardList size={20} /> },
+                  { id: 'more', label: 'Lainnya', icon: <MoreHorizontal size={20} /> },
                 ]}
               />
             </div>

@@ -110,6 +110,39 @@ export function adminSession(
   };
 }
 
+/** Build a Union session (HEAD or OFFICER) exactly as the backend serializes it. */
+export function unionSession(
+  opts: {
+    slot?: 'HEAD' | 'OFFICER_1' | 'OFFICER_2';
+    username?: string;
+    displayName?: string;
+    accountId?: string;
+  } = {},
+): Session {
+  const slot = opts.slot ?? 'HEAD';
+  const isHead = slot === 'HEAD';
+  return {
+    account: {
+      id: opts.accountId ?? (isHead ? 'union-head-1' : 'union-officer-1'),
+      username: opts.username ?? (isHead ? 'union-head' : 'union-1'),
+      displayName: opts.displayName ?? (isHead ? 'Union Head' : 'Union Officer 1'),
+      accountKind: 'UNION',
+      status: 'ACTIVE',
+    },
+    workforceProfile: null,
+    employee: null,
+    unionProfile: { slot },
+    capabilities: isHead ? ['UNION_HEAD'] : ['UNION_OFFICER'],
+    scopes: {
+      overview: ['GENERAL_GLOBAL'],
+      detail: ['GENERAL_ALL'],
+      action: [isHead ? 'PRIVATE_ALL' : 'PRIVATE_ASSIGNED'],
+    },
+    sessionId: isHead ? 'session-union-head' : 'session-union-officer',
+    passwordChangeRequired: false,
+  };
+}
+
 export type MockVoice = {
   id: string;
   displayId: string;
@@ -120,6 +153,9 @@ export type MockVoice = {
   title: string;
   detail: string;
   availableActions: string[];
+  conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  category?: 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY' | null;
 };
 
 const voiceDetail = (voice: MockVoice): VoiceDetail => ({
@@ -139,6 +175,13 @@ const voiceDetail = (voice: MockVoice): VoiceDetail => ({
   updatedAt: '2026-08-03T00:00:00.000Z',
   classificationSource: 'AI',
   availableActions: voice.availableActions,
+  conversationState:
+    voice.conversationState ??
+    (voice.status === 'OPEN'
+      ? 'UNAVAILABLE'
+      : voice.availableActions.includes('MESSAGE')
+        ? 'ACTIVE'
+        : 'READ_ONLY'),
   closureCycles: [],
   routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
   currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
@@ -167,11 +210,67 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
   visibility: voice.visibility,
   area: voice.area as VoiceListItem['area'],
   title: voice.title,
-  category: 'SAFETY',
-  severity: 'HIGH',
+  category: voice.category ?? (voice.visibility === 'PRIVATE' ? null : 'SAFETY'),
+  severity: voice.severity ?? 'HIGH',
   status: voice.status as VoiceListItem['status'],
   updatedAt: '2026-08-03T00:00:00.000Z',
 });
+
+/**
+ * A Private Voice detail shaped for a Union audience: consent SHOW carries the
+ * immutable four-field reporter snapshot, consent HIDE carries only the
+ * per-Voice alias. Never mixes identity fields across the two audiences.
+ */
+export function unionPrivateVoiceDetail(
+  voice: MockVoice & { identified?: boolean; alias?: string },
+): Record<string, unknown> {
+  const base = {
+    id: voice.id,
+    displayId: voice.displayId,
+    visibility: 'PRIVATE' as const,
+    area: voice.area,
+    locationDetail: 'Lantai 3, dekat mesin produksi',
+    title: voice.title,
+    detail: voice.detail,
+    category: null,
+    severity: voice.severity ?? ('HIGH' as const),
+    status: voice.status,
+    version: 3,
+    submittedAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-03T00:00:00.000Z',
+    classificationSource: 'AI' as const,
+    availableActions: voice.availableActions,
+    conversationState:
+      voice.conversationState ??
+      (voice.status === 'OPEN'
+        ? 'UNAVAILABLE'
+        : voice.availableActions.includes('MESSAGE')
+          ? 'ACTIVE'
+          : 'READ_ONLY'),
+    closureCycles: [],
+    routeOwner: { id: 'union-head-1', displayName: 'Union Head' },
+    currentHandler: null,
+    attachments: [],
+    locationReview: null,
+  };
+  if (voice.identified) {
+    return {
+      ...base,
+      audience: 'UNION_IDENTIFIED',
+      reporter: {
+        noReg: '000129',
+        name: 'Sari Wulandari',
+        division: 'Division A',
+        department: 'Department A',
+      },
+    };
+  }
+  return {
+    ...base,
+    audience: 'UNION_ANONYMOUS',
+    anonymousReporter: { alias: voice.alias ?? 'Reporter Biru 47' },
+  };
+}
 
 const healthFixture = (): Health => ({ status: 'ok' });
 
@@ -657,6 +756,10 @@ export type MockApiOptions = {
   voiceDetail?: unknown;
   /** Voice list response for `/voices` and `/work-items`. */
   voiceList?: unknown;
+  /** Voice list response when `/work-items` is called with `unassigned=true`. */
+  unassignedVoiceList?: unknown;
+  /** Override for `GET /voices/{id}/assignment-candidates`. */
+  assignmentCandidates?: unknown;
   memberDashboard?: unknown;
   generalDashboard?: unknown;
   privateDashboard?: unknown;
@@ -767,6 +870,13 @@ function detail(voice: MockVoice) {
     },
     closureCycles: [],
     availableActions: voice.availableActions,
+    conversationState:
+      voice.conversationState ??
+      (voice.status === 'OPEN'
+        ? 'UNAVAILABLE'
+        : voice.availableActions.includes('MESSAGE')
+          ? 'ACTIVE'
+          : 'READ_ONLY'),
     reporter: {
       noReg: '000128',
       name: 'Budi Santoso',
@@ -846,11 +956,32 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       return satisfy(200, opts.privateDashboard ?? defaultGENERAL_DASHBOARD());
 
     // Voice lists / work items
-    if (method === 'GET' && (path === '/api/v1/voices' || path === '/api/v1/work-items')) {
+    if (method === 'GET' && path === '/api/v1/voices') {
       return satisfy(
         200,
         opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
       );
+    }
+    if (method === 'GET' && path === '/api/v1/work-items') {
+      if (url.searchParams.get('unassigned') === 'true') {
+        return satisfy(
+          200,
+          opts.unassignedVoiceList ?? {
+            items: voice ? [baseVoiceItem(voice)] : [],
+            nextCursor: null,
+          },
+        );
+      }
+      return satisfy(
+        200,
+        opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
+      );
+    }
+    if (method === 'GET' && path === '/api/v1/voices/monitoring-options') {
+      return satisfy(200, {
+        handlers: [{ id: 'handler-1', displayName: 'Manager PIC' }],
+        generatedAt: new Date().toISOString(),
+      });
     }
 
     const messagesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/messages$/);
@@ -887,7 +1018,26 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       });
     }
     const candidatesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/assignment-candidates$/);
-    if (method === 'GET' && candidatesMatch) return satisfy(200, []);
+    if (method === 'GET' && candidatesMatch) {
+      return satisfy(
+        200,
+        opts.assignmentCandidates ??
+          (session.capabilities.includes('UNION_HEAD')
+            ? [
+                {
+                  id: 'union-officer-1',
+                  displayName: 'Union Officer 1',
+                  slot: 'OFFICER_1',
+                },
+                {
+                  id: 'union-officer-2',
+                  displayName: 'Union Officer 2',
+                  slot: 'OFFICER_2',
+                },
+              ]
+            : []),
+      );
+    }
     const voiceDetailMatch = path.match(/^\/api\/v1\/voices\/([^/]+)$/);
     if (method === 'GET' && voiceDetailMatch) {
       return satisfy(200, opts.voiceDetail ?? (voice ? detail(voice) : {}));

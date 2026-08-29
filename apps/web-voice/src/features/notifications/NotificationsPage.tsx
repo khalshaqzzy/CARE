@@ -1,6 +1,17 @@
 import { Badge, Button, Card, EmptyState, Skeleton, Stack } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCheck } from 'lucide-react';
+import {
+  Bell,
+  CheckCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  Inbox,
+  MessageSquare,
+  RotateCcw,
+  ShieldAlert,
+  Star,
+  RefreshCw,
+} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { Pager } from '../../components/Pager';
@@ -18,6 +29,18 @@ const TYPE_LABELS: Record<string, string> = {
   RATED: 'Rating',
   REOPENED: 'Dibuka kembali',
   SECURITY: 'Keamanan',
+};
+
+/** Icon + tone per notification type; unknown types fall back to a neutral bell. */
+const TYPE_ICONS: Record<string, { icon: React.ReactNode; tone: string }> = {
+  VOICE_SUBMITTED: { icon: <Inbox />, tone: 'info' },
+  ASSIGNED: { icon: <ClipboardCheck />, tone: 'info' },
+  MESSAGE: { icon: <MessageSquare />, tone: 'info' },
+  STATUS_CHANGED: { icon: <RefreshCw />, tone: 'warning' },
+  CLOSED: { icon: <CheckCircle2 />, tone: 'success' },
+  RATED: { icon: <Star />, tone: 'warning' },
+  REOPENED: { icon: <RotateCcw />, tone: 'warning' },
+  SECURITY: { icon: <ShieldAlert />, tone: 'danger' },
 };
 
 export function NotificationsPage() {
@@ -59,31 +82,34 @@ export function NotificationsPage() {
 
   const items = list.data?.items ?? [];
   const nextCursor = list.data?.nextCursor ?? null;
+  const unreadCount = unread.data?.count ?? 0;
 
   return (
     <Stack gap="lg">
-      <header className="page-intro">
-        <p className="care-eyebrow">Notifikasi</p>
-        <h1>Pusat notifikasi</h1>
-        <p>
-          {unread.data?.count
-            ? `${unread.data.count} belum dibaca`
-            : 'Semua notifikasi sudah dibaca'}
-        </p>
+      <header className="page-intro page-intro--monitoring">
+        <div>
+          <p className="care-eyebrow">Notifikasi</p>
+          <h1>Pusat notifikasi</h1>
+          <p>{unreadCount ? `${unreadCount} belum dibaca` : 'Semua notifikasi sudah dibaca'}</p>
+        </div>
+        {unreadCount ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => markAll.mutate()}
+            loading={markAll.isPending}
+          >
+            <CheckCheck size={16} /> Tandai semua dibaca
+          </Button>
+        ) : null}
       </header>
-
-      {unread.data?.count ? (
-        <Button variant="secondary" onClick={() => markAll.mutate()} loading={markAll.isPending}>
-          <CheckCheck size={18} /> Tandai semua dibaca
-        </Button>
-      ) : null}
 
       <PushSettingsCard />
 
       {list.isLoading ? (
         <Skeleton label="Memuat notifikasi" />
       ) : items.length === 0 ? (
-        <Card>
+        <Card padding="md">
           <EmptyState
             icon={<Bell size={24} />}
             title="Belum ada notifikasi"
@@ -95,12 +121,17 @@ export function NotificationsPage() {
           <div className="notification-list">
             {items.map((notification) => {
               const isRead = Boolean(notification.readAt);
+              const visual = TYPE_ICONS[notification.type] ?? { icon: <Bell />, tone: 'neutral' };
               return (
                 <Card
                   key={notification.id}
+                  padding="md"
                   className={isRead ? 'notification is-read' : 'notification is-unread'}
                   interactive
                 >
+                  <span className="notification__icon" data-tone={visual.tone} aria-hidden="true">
+                    {visual.icon}
+                  </span>
                   <div className="notification__main">
                     <div className="notification__head">
                       <Badge tone={isRead ? 'neutral' : 'info'}>
@@ -110,7 +141,10 @@ export function NotificationsPage() {
                         {formatDateTime(notification.createdAt)}
                       </time>
                     </div>
-                    <h3 className="notification__title">{notification.title}</h3>
+                    <h3 className="notification__title">
+                      {!isRead ? <span className="notification__dot" aria-hidden="true" /> : null}
+                      <span className="notification__title-text">{notification.title}</span>
+                    </h3>
                     <p className="notification__body">{notification.body}</p>
                   </div>
                   {!isRead ? (

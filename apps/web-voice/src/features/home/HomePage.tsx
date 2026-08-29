@@ -1,4 +1,4 @@
-import { Alert, Button, Card, EmptyState, Skeleton, Stack } from '@care/ui';
+import { Alert, Button, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
@@ -6,17 +6,28 @@ import {
   ClipboardList,
   Home as HomeIcon,
   Inbox,
+  Lock,
   Plus,
   ScrollText,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { DashboardChartCard } from '../../components/DashboardChartCard';
+import { DashboardOverview } from '../../components/DashboardOverview';
 import { StatusSummary } from '../../components/StatusSummary';
 import { VoiceCard } from '../../components/VoiceCard';
-import { formatDate, formatRelative } from '../../lib/formatters';
+import {
+  AREA_LABELS,
+  CATEGORY_LABELS,
+  formatDate,
+  formatRelative,
+  SEVERITY_LABELS,
+  STATUS_LABELS,
+} from '../../lib/formatters';
+import { dashboardDates, type DashboardRange } from '../../lib/dashboard-range';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
 
@@ -27,14 +38,17 @@ export function HomePage() {
   const navigate = useNavigate();
   const api = useApi();
   const sessionId = useSessionId();
+  const [searchParams, setSearchParams] = useSearchParams();
   const caps = session?.capabilities ?? [];
   const isOnline = useOnlineStatus();
   const offline = !isOnline;
 
   const isUnion = caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER'].includes(c));
+  const isUnionHead = caps.includes('UNION_HEAD');
   const isMember = caps.includes('MEMBER');
   const isLeadership = caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c));
   const isResponder = caps.some((c) => ['MANAGER', 'SECTION_HEAD'].includes(c));
+  const isManager = caps.includes('MANAGER');
   const isSectionHead = caps.includes('SECTION_HEAD');
 
   const member = useQuery({
@@ -44,9 +58,39 @@ export function HomePage() {
     refetchInterval: 3000,
   });
 
+  const range = (searchParams.get('range') ?? '30d') as DashboardRange;
+  const customFrom = searchParams.get('dashFrom') ?? undefined;
+  const customTo = searchParams.get('dashTo') ?? undefined;
+  const dashArea = searchParams.get('dashArea') ?? undefined;
+  const dashCategory = searchParams.get('dashCategory') ?? undefined;
+  const dashSeverity = searchParams.get('dashSeverity') ?? undefined;
+  const dashStatus = searchParams.get('dashStatus') ?? undefined;
+  const dates = useMemo(
+    () => dashboardDates(range, customFrom, customTo),
+    [range, customFrom, customTo],
+  );
+  const scopedDashboard = !isUnion && (isLeadership || isManager);
   const general = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'general'),
-    queryFn: () => api.dashboardGeneral(),
+    queryKey: voiceQuery(
+      sessionId,
+      'dashboard',
+      'general',
+      range,
+      customFrom,
+      customTo,
+      dashArea,
+      dashCategory,
+      dashSeverity,
+      dashStatus,
+    ),
+    queryFn: () =>
+      api.dashboardGeneral({
+        ...(scopedDashboard ? dates : {}),
+        ...(dashArea ? { area: dashArea } : {}),
+        ...(dashCategory ? { category: dashCategory as never } : {}),
+        ...(dashSeverity ? { severity: dashSeverity as never } : {}),
+        ...(dashStatus ? { status: dashStatus as never } : {}),
+      }),
     enabled: !!session && (isUnion || isLeadership || isResponder),
     refetchInterval: 3000,
   });
@@ -58,8 +102,15 @@ export function HomePage() {
     refetchInterval: 3000,
   });
 
+  const privateInbox = useQuery({
+    queryKey: voiceQuery(sessionId, 'work-items', 'private-home'),
+    queryFn: () => api.workItems({ limit: 6 }),
+    enabled: !!session && isUnion,
+    refetchInterval: 3000,
+  });
+
   const inbox = useQuery({
-    queryKey: voiceQuery(sessionId, 'work-items'),
+    queryKey: voiceQuery(sessionId, 'work-items', 'responder-home'),
     queryFn: () => api.workItems({ limit: 15 }),
     enabled: !!session && isResponder,
     refetchInterval: 3000,
@@ -70,13 +121,15 @@ export function HomePage() {
 
   const quickActions: QuickAction[] = isUnion
     ? [
+        { label: 'Private Voice', icon: <Lock size={20} />, to: '/work-items' },
         { label: 'General', icon: <ScrollText size={20} />, to: '/general' },
         { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
         { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
       ]
     : isLeadership
       ? [
-          { label: 'General', icon: <ScrollText size={20} />, to: '/general' },
+          { label: 'Voice Member', icon: <Inbox size={20} />, to: '/work-items' },
+          { label: 'Voice Saya', icon: <ClipboardList size={20} />, to: '/history' },
           { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
           { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
         ]
@@ -84,12 +137,13 @@ export function HomePage() {
         ? [
             { label: 'Buat Voice', icon: <Plus size={20} />, to: '/voices/new' },
             { label: 'Voice Member', icon: <Inbox size={20} />, to: '/work-items' },
+            { label: 'Voice Saya', icon: <ClipboardList size={20} />, to: '/history' },
             { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
             { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
           ]
         : [
             { label: 'Buat Voice', icon: <Plus size={20} />, to: '/voices/new' },
-            { label: 'Riwayat', icon: <ClipboardList size={20} />, to: '/history' },
+            { label: 'Voice Saya', icon: <ClipboardList size={20} />, to: '/history' },
             { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
             { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
           ];
@@ -177,6 +231,182 @@ export function HomePage() {
         </Stack>
       ) : null}
 
+      {isUnionHead && privateDash.data?.pendingAssignment !== undefined ? (
+        <Card
+          className="home-resume"
+          padding="md"
+          {...(privateDash.data.pendingAssignment > 0 ? { 'data-tone': 'accent' } : {})}
+        >
+          <div>
+            <p className="home-resume__eyebrow">Penugasan</p>
+            <h3 className="home-resume__title">
+              {privateDash.data.pendingAssignment > 0
+                ? `${privateDash.data.pendingAssignment} Private Voice menunggu penugasan`
+                : 'Semua Private Voice sudah ditugaskan'}
+            </h3>
+            <p className="home-resume__meta">
+              Tugaskan Union 1 atau Union 2 sebelum Voice diproses lebih lanjut.
+            </p>
+          </div>
+          <Button
+            variant={privateDash.data.pendingAssignment > 0 ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={() => void navigate('/work-items?unassigned=true')}
+          >
+            Tinjau
+          </Button>
+        </Card>
+      ) : null}
+
+      {isManager || isLeadership ? (
+        <section className="dashboard-section">
+          <Card className="dashboard-filters">
+            <div className="dashboard-filters__grid">
+              <Select
+                label="Rentang"
+                value={range}
+                onValueChange={(value) =>
+                  setDashboardParam(searchParams, setSearchParams, 'range', value)
+                }
+                options={[
+                  { value: '30d', label: '30 hari terakhir' },
+                  { value: '90d', label: '90 hari terakhir' },
+                  { value: 'year', label: 'Tahun berjalan' },
+                  { value: 'all', label: 'Semua waktu' },
+                  { value: 'custom', label: 'Pilih tanggal' },
+                ]}
+              />
+              <Select
+                label="Area"
+                value={dashArea ?? ''}
+                onValueChange={(value) =>
+                  setDashboardParam(searchParams, setSearchParams, 'dashArea', value || undefined)
+                }
+                options={Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }))}
+              />
+              <Select
+                label="Kategori"
+                value={dashCategory ?? ''}
+                onValueChange={(value) =>
+                  setDashboardParam(
+                    searchParams,
+                    setSearchParams,
+                    'dashCategory',
+                    value || undefined,
+                  )
+                }
+                options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
+              <Select
+                label="Severity"
+                value={dashSeverity ?? ''}
+                onValueChange={(value) =>
+                  setDashboardParam(
+                    searchParams,
+                    setSearchParams,
+                    'dashSeverity',
+                    value || undefined,
+                  )
+                }
+                options={Object.entries(SEVERITY_LABELS).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
+              <Select
+                label="Status"
+                value={dashStatus ?? ''}
+                onValueChange={(value) =>
+                  setDashboardParam(searchParams, setSearchParams, 'dashStatus', value || undefined)
+                }
+                options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+              />
+              {range === 'custom' ? (
+                <>
+                  <Input
+                    label="Dari tanggal"
+                    type="date"
+                    value={customFrom ?? ''}
+                    onChange={(event) =>
+                      setDashboardParam(
+                        searchParams,
+                        setSearchParams,
+                        'dashFrom',
+                        event.target.value || undefined,
+                      )
+                    }
+                  />
+                  <Input
+                    label="Sampai tanggal"
+                    type="date"
+                    value={customTo ?? ''}
+                    onChange={(event) =>
+                      setDashboardParam(
+                        searchParams,
+                        setSearchParams,
+                        'dashTo',
+                        event.target.value || undefined,
+                      )
+                    }
+                  />
+                </>
+              ) : null}
+            </div>
+          </Card>
+          {general.isLoading ? (
+            <Skeleton label="Memuat dashboard organisasi" />
+          ) : general.isError ? (
+            <Alert tone="danger" title="Dashboard gagal dimuat">
+              Coba muat ulang atau ubah rentang waktu.
+            </Alert>
+          ) : general.data ? (
+            <DashboardOverview
+              data={general.data}
+              organizationLevel={isLeadership ? 'division' : 'department'}
+            />
+          ) : null}
+        </section>
+      ) : null}
+
+      {isUnion ? (
+        <section className="home-inbox">
+          <div className="home-section__head">
+            <h2 className="home-section__title">Private Voice</h2>
+            <Button variant="ghost" size="sm" onClick={() => void navigate('/work-items')}>
+              Lihat semua
+            </Button>
+          </div>
+          {privateInbox.isLoading ? (
+            <Skeleton label="Memuat Private Voice" />
+          ) : (privateInbox.data?.items.length ?? 0) === 0 ? (
+            <Card>
+              <EmptyState
+                icon={<Lock size={24} />}
+                title={isUnionHead ? 'Belum ada Private Voice' : 'Belum ada penugasan'}
+                description={
+                  isUnionHead
+                    ? 'Private Voice dari reporter akan muncul di sini.'
+                    : 'Private Voice yang ditugaskan kepada Anda akan muncul di sini.'
+                }
+              />
+            </Card>
+          ) : (
+            <div className="voice-grid">
+              {privateInbox.data?.items.map((voice) => (
+                <VoiceCard
+                  key={voice.id}
+                  voice={voice}
+                  onOpen={() => void navigate(`/voices/${voice.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
       {isResponder ? (
         <section className="home-inbox">
           <div className="home-section__head">
@@ -209,24 +439,7 @@ export function HomePage() {
         </section>
       ) : null}
 
-      {isLeadership && general.data ? (
-        <section>
-          <div className="home-section__head">
-            <h2 className="home-section__title">Ringkasan General</h2>
-          </div>
-          <div className="home-dash-row">
-            <DashboardChartCard
-              title="Status"
-              buckets={general.data.status}
-              total={general.data.total}
-            />
-            <DashboardChartCard title="Severity" buckets={general.data.severity} />
-            <DashboardChartCard title="Kategori" buckets={general.data.category} />
-          </div>
-        </section>
-      ) : null}
-
-      {isSectionHead && general.data ? (
+      {isSectionHead && !isManager && general.data ? (
         <section>
           <div className="home-section__head">
             <h2 className="home-section__title">Voice Ditugaskan</h2>
@@ -259,7 +472,7 @@ export function HomePage() {
               />
             </Card>
           ) : member.data?.draft ? (
-            <Card className="home-resume" data-tone="accent">
+            <Card className="home-resume" padding="md" data-tone="accent">
               <div>
                 <p className="home-resume__eyebrow">Draft tersimpan</p>
                 <h3 className="home-resume__title">{member.data.draft.title}</h3>
@@ -339,9 +552,11 @@ export function HomePage() {
             icon={isUnion ? <ShieldCheck size={24} /> : <ScrollText size={24} />}
             title={isUnion ? 'Akses Union' : 'Akses Leadership'}
             description={
-              isUnion
-                ? 'Akses detail General bersifat read-only dan Private terisolasi berdasarkan scope.'
-                : 'Detail General hanya dapat dibaca pada scope yang diizinkan; tidak ada aksi lifecycle.'
+              isUnionHead
+                ? 'Anda menangani seluruh Private Voice dan dapat menugaskan Union Officer. Detail General bersifat read-only.'
+                : isUnion
+                  ? 'Anda menangani Private Voice yang ditugaskan. Detail General bersifat read-only.'
+                  : 'Detail General hanya dapat dibaca pada scope yang diizinkan; tidak ada aksi lifecycle.'
             }
           />
         </Card>
@@ -360,4 +575,20 @@ function greetingForNow(): string {
 
 function initialOf(name: string): string {
   return (name?.trim().charAt(0) ?? 'C').toUpperCase();
+}
+
+function setDashboardParam(
+  current: URLSearchParams,
+  setSearchParams: (next: URLSearchParams) => void,
+  key: string,
+  value?: string,
+) {
+  const params = new URLSearchParams(current);
+  if (value) params.set(key, value);
+  else params.delete(key);
+  if (key === 'range' && value !== 'custom') {
+    params.delete('dashFrom');
+    params.delete('dashTo');
+  }
+  setSearchParams(params);
 }

@@ -37,7 +37,9 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
             schema:
               parameter === 'limit'
                 ? { type: 'integer', minimum: 1, maximum: 100 }
-                : { type: 'string' },
+                : parameter === 'statusGroup'
+                  ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
+                  : { type: 'string' },
           });
       if (method !== 'get' && path !== '/api/v1/auth/login') {
         addHeader(operation, 'X-CSRF-Token', true, 'Session-bound CSRF token');
@@ -133,13 +135,14 @@ const queryParameters: Record<string, string[]> = {
     'limit',
     'search',
     'status',
+    'statusGroup',
     'visibility',
     'severity',
     'area',
     'category',
     'handler',
-    'dateFrom',
-    'dateTo',
+    'from',
+    'to',
     'sort',
   ],
   VoicesController_workItems: [
@@ -147,11 +150,14 @@ const queryParameters: Record<string, string[]> = {
     'limit',
     'search',
     'status',
+    'statusGroup',
     'severity',
     'area',
     'category',
-    'dateFrom',
-    'dateTo',
+    'from',
+    'to',
+    'unassigned',
+    'handler',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
   VoicesController_dashboardGeneral: ['area', 'category', 'severity', 'status', 'from', 'to'],
@@ -296,6 +302,7 @@ function successSchema(operationId: string) {
     VoicesController_ask: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
+    VoicesController_monitoringOptions: 'MonitoringOptions',
     VoicesController_close: 'ClosureResponse',
     VoicesController_conversations: 'ConversationList',
     VoicesController_createDraft: 'VoiceDraftResponse',
@@ -387,6 +394,10 @@ const baseVoiceProperties = {
     enum: ['AI', 'MANUAL_FALLBACK'],
   },
   availableActions: { type: 'array', items: { type: 'string' } },
+  conversationState: {
+    type: 'string',
+    enum: ['UNAVAILABLE', 'ACTIVE', 'READ_ONLY'],
+  },
   closureCycles: {
     type: 'array',
     items: { $ref: '#/components/schemas/ClosureCycleResponse' },
@@ -538,6 +549,26 @@ const schemas: Record<string, any> = {
         slot: { type: 'string', enum: ['OFFICER_1', 'OFFICER_2'] },
         structuralPosition: { type: 'string' },
       },
+    },
+  },
+  MonitoringOptions: {
+    type: 'object',
+    required: ['handlers', 'generatedAt'],
+    additionalProperties: false,
+    properties: {
+      handlers: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'displayName'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            displayName: { type: 'string' },
+          },
+        },
+      },
+      generatedAt: { type: 'string', format: 'date-time' },
     },
   },
   AccountSelectionRequest: {
@@ -993,6 +1024,9 @@ const schemas: Record<string, any> = {
         },
       },
       generatedAt: { type: 'string', format: 'date-time' },
+      // Only populated for the Union Head private dashboard: the number of
+      // Private Voices still awaiting a Union Officer assignment.
+      pendingAssignment: { type: 'integer', minimum: 0 },
     },
   },
   SuppressionBreakdown: {

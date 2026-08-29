@@ -1,6 +1,7 @@
 import { Badge, Button, Card, EmptyState, SeverityBadge, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { ActionPanel } from '../../components/ActionPanel';
 import { ConversationPanel } from '../../components/ConversationPanel';
@@ -9,11 +10,13 @@ import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatDateTime,
+  STATUS_LABELS,
   VISIBILITY_LABELS,
+  VOICE_ACTION_LABELS,
 } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorFeed } from '../../lib/useCursorFeed';
-import type { Attachment, TimelineEvent } from '../../workforce-api';
+import type { Attachment, TimelineEvent, VoiceDetail } from '../../workforce-api';
 
 export function VoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +30,16 @@ export function VoiceDetailPage() {
     enabled: !!id && !!session,
     refetchInterval: 3000,
   });
+  const conversationState = detail.data?.conversationState;
+  const previousConversationState = useRef(conversationState);
+  useEffect(() => {
+    if (previousConversationState.current === 'UNAVAILABLE' && conversationState === 'ACTIVE') {
+      document
+        .getElementById('voice-conversation')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    previousConversationState.current = conversationState;
+  }, [conversationState]);
 
   if (detail.isLoading) {
     return (
@@ -44,7 +57,6 @@ export function VoiceDetailPage() {
     );
   }
   const voice = detail.data;
-  const canMessage = voice.availableActions?.includes('MESSAGE') || voice.status !== 'CLOSED';
 
   return (
     <Stack gap="lg">
@@ -54,7 +66,7 @@ export function VoiceDetailPage() {
         <p>{AREA_LABELS[voice.area] ?? voice.area}</p>
       </header>
 
-      <Card className="voice-detail__meta">
+      <Card className="voice-detail__meta" padding="md">
         <div className="voice-detail__badges">
           <Badge tone="neutral">{VISIBILITY_LABELS[voice.visibility] ?? voice.visibility}</Badge>
           {voice.category ? <Badge tone="info">{CATEGORY_LABELS[voice.category]}</Badge> : null}
@@ -63,7 +75,7 @@ export function VoiceDetailPage() {
         <dl className="voice-detail__grid">
           <div>
             <dt>Status</dt>
-            <dd>{voice.status}</dd>
+            <dd>{STATUS_LABELS[voice.status] ?? voice.status}</dd>
           </div>
           <div>
             <dt>Diajukan</dt>
@@ -102,9 +114,11 @@ export function VoiceDetailPage() {
         </dl>
       </Card>
 
+      <ReporterCard voice={voice} />
+
       <ActionPanel detail={voice} />
 
-      <Card>
+      <Card padding="md">
         <Stack gap="md">
           <h3 className="section-title">Detail</h3>
           <p className="voice-detail__body">{voice.detail}</p>
@@ -113,7 +127,9 @@ export function VoiceDetailPage() {
 
       {voice.attachments?.length ? <MediaGallery attachments={voice.attachments} /> : null}
 
-      {canMessage ? <ConversationPanel voiceId={voice.id} /> : null}
+      {voice.conversationState !== 'UNAVAILABLE' ? (
+        <ConversationPanel voiceId={voice.id} state={voice.conversationState} />
+      ) : null}
 
       <ClosureCycles voice={voice} />
 
@@ -122,11 +138,60 @@ export function VoiceDetailPage() {
   );
 }
 
+function ReporterCard({ voice }: { voice: VoiceDetail }) {
+  // The reporter block exists only where the contract grants it: the Union sees
+  // the immutable consent snapshot (SHOW) or a per-Voice alias (HIDE). Other
+  // audiences keep the existing surfaces unchanged.
+  if (voice.audience === 'UNION_IDENTIFIED') {
+    return (
+      <Card className="voice-reporter" padding="md">
+        <div className="voice-reporter__head">
+          <h3 className="section-title">Pelapor</h3>
+          <Badge tone="info">Identitas ditampilkan</Badge>
+        </div>
+        <dl className="voice-detail__grid">
+          <div>
+            <dt>Nama</dt>
+            <dd>{voice.reporter.name}</dd>
+          </div>
+          <div>
+            <dt>No. Reg</dt>
+            <dd>{voice.reporter.noReg}</dd>
+          </div>
+          <div>
+            <dt>Divisi</dt>
+            <dd>{voice.reporter.division}</dd>
+          </div>
+          <div>
+            <dt>Department</dt>
+            <dd>{voice.reporter.department}</dd>
+          </div>
+        </dl>
+      </Card>
+    );
+  }
+  if (voice.audience === 'UNION_ANONYMOUS') {
+    return (
+      <Card className="voice-reporter" padding="md">
+        <div className="voice-reporter__head">
+          <h3 className="section-title">Pelapor</h3>
+          <Badge tone="neutral">Identitas disembunyikan</Badge>
+        </div>
+        <p className="voice-reporter__alias">{voice.anonymousReporter.alias}</p>
+        <p className="care-note">
+          Alias hanya berlaku untuk Voice ini dan tidak dapat dikaitkan dengan Voice lain.
+        </p>
+      </Card>
+    );
+  }
+  return null;
+}
+
 function ClosureCycles({ voice }: { voice: { closureCycles: unknown[] } }) {
   const cycles = voice.closureCycles ?? [];
   if (!cycles.length) return null;
   return (
-    <Card>
+    <Card padding="md">
       <Stack gap="md">
         <h3 className="section-title">Siklus Penutupan</h3>
         {(
@@ -188,7 +253,7 @@ function Timeline({ voiceId }: { voiceId: string }) {
   if (feed.isLoading) return <Skeleton label="Memuat timeline" />;
   if (!feed.items.length) return null;
   return (
-    <Card>
+    <Card padding="md">
       <Stack gap="md">
         <h3 className="section-title">Timeline</h3>
         <ol className="care-timeline" role="list">
@@ -196,7 +261,9 @@ function Timeline({ voiceId }: { voiceId: string }) {
             <li className="care-timeline__item" key={event.id}>
               <span className="care-timeline__marker" aria-hidden="true" />
               <div className="care-timeline__body">
-                <strong className="care-timeline__title">{event.type}</strong>
+                <strong className="care-timeline__title">
+                  {VOICE_ACTION_LABELS[event.type] ?? event.type}
+                </strong>
                 <time className="care-timeline__time" dateTime={event.occurredAt}>
                   {formatDateTime(event.occurredAt)}
                 </time>

@@ -1,4 +1,4 @@
-import { Alert, Badge, Card, Stack, Switch } from '@care/ui';
+import { Alert, Badge, SectionCard, SettingsGroup, Stack, Switch } from '@care/ui';
 import { BellRing, Smartphone } from 'lucide-react';
 import { formatDateTime } from '../../lib/formatters';
 import { useWebPush } from './use-web-push';
@@ -12,19 +12,18 @@ export function PushSettingsCard() {
   const web = useWebPush();
 
   return (
-    <Card className="push-settings">
-      <div className="section-title-row">
-        <h3 className="section-title">Notifikasi push</h3>
+    <SectionCard
+      title="Notifikasi push"
+      description="Pemberitahuan singkat saat Voice Anda atau yang Anda tangani diperbarui. Pusat notifikasi di dalam aplikasi tetap menjadi sumber utama."
+      icon={<BellRing size={16} />}
+      padding="md"
+      action={
         <Badge tone={web.enabled ? 'success' : 'neutral'} icon={<BellRing size={14} />}>
           {web.enabled ? 'Aktif' : 'Nonaktif'}
         </Badge>
-      </div>
-
-      <p className="push-settings__intro">
-        Dapatkan pemberitahuan singkat saat Voice Anda atau yang Anda tangani diperbarui. Pusat
-        notifikasi di dalam aplikasi tetap menjadi sumber utama.
-      </p>
-
+      }
+      className="push-settings"
+    >
       {web.error ? (
         <Alert tone="danger" title="Pengaturan push gagal diperbarui">
           {web.error instanceof Error ? web.error.message : 'Coba lagi dalam beberapa saat.'}
@@ -54,16 +53,18 @@ export function PushSettingsCard() {
         </Alert>
       ) : web.ios === false || web.standalone === true ? (
         <Stack gap="md">
-          <Switch
-            checked={web.enabled}
-            onCheckedChange={(next) => web.setEnabled(next)}
-            label={web.enabled ? 'Notifikasi push aktif' : 'Aktifkan notifikasi push'}
-            description={
-              web.enabled
-                ? `Terdaftar pada ${web.subscriptionCount} perangkat.`
-                : 'Izinkan CARE untuk mengirim pemberitahuan singkat.'
-            }
-          />
+          <SettingsGroup className="push-settings__toggle">
+            <Switch
+              checked={web.enabled}
+              onCheckedChange={(next) => web.setEnabled(next)}
+              label={web.enabled ? 'Notifikasi push aktif' : 'Aktifkan notifikasi push'}
+              description={
+                web.enabled
+                  ? `Terdaftar pada ${web.subscriptionCount} perangkat.`
+                  : 'Izinkan CARE untuk mengirim pemberitahuan singkat.'
+              }
+            />
+          </SettingsGroup>
           {web.enabled && web.subscriptions.length > 0 ? (
             <ul className="push-settings__devices">
               {web.subscriptions.map((subscription) => (
@@ -88,6 +89,6 @@ export function PushSettingsCard() {
           Layar Utama”, lalu buka dari sana.
         </Alert>
       )}
-    </Card>
+    </SectionCard>
   );
 }
