@@ -706,3 +706,15 @@ Phase 12 selesai dan Phase 13 adalah satu-satunya phase `in_progress`. Langkah b
    bukti provider delivery. Canary bukan automated test atau deployment gate;
 4. hanya setelah seluruh hosted evidence hijau, ubah Phase 13 menjadi `done`.
    Phase 14 dan seluruh production activation tetap `pending`.
+
+## Visual Exploration Track — Mobile Member Voice (done, 30 Agustus 2026)
+
+Status: `done` (non-code design artifact; tidak mengubah current Phase 13 status).
+
+- 25 current mobile states captured untuk Member, Manager/Section Head, Leadership, Union Head, dan Union Officer;
+- 25 standalone selected concepts tersusun per page/flow di `.design/member-voice-redesign/`;
+- Member Home core dipertahankan; Create Voice dan Voice detail mendapat focused visual redesign;
+- permission/read-only behavior dan anonymous/identified Private invariants tercatat dalam manifest dan prompt set;
+- implementation aplikasi sengaja deferred sampai ada approval terpisah atas visual direction.
+
+Acceptance evidence: `.design/member-voice-redesign/manifest.md` dan ADR-0021.

@@ -972,6 +972,28 @@ Selesaikan Phase 8.5 pada branch `feat/phase-8-admin-operations`:
 3. verifikasi Admin build tanpa manifest/sw/offline cache/fetch di bawah gate, lalu tandai Phase 8 `done` dan buat ADR Phase 8;
 4. jangan mulai Phase 9 atau production containerization sebelum Phase 8 gate passed.
 
+## Mobile Member Voice Image Redesign — 30 Agustus 2026
+
+**Objective:** audit seluruh core workforce mobile surface dan menghasilkan standalone image concepts tanpa mengubah application code, API, schema, atau design-system implementation.
+
+**Completed:**
+
+- 25 deterministic current-state captures pada viewport mobile disimpan di `.agent/design-images/member-voice-redesign/current/`;
+- 25 selected `image_gen` concepts disimpan secara canonical di `.design/member-voice-redesign/` dengan child folder per page/flow;
+- Member Home mempertahankan core dashboard saat ini; Create Voice dipoles menjadi lebih unique, sleek, minimalist, dengan solid-cobalt chosen route, taller cards, dan five-node hairline timeline;
+- Voice detail, Manager/Responder, Leadership read-only, serta Union anonymous/identified/read-only flows mendapatkan konsep terpisah;
+- anonymous Private invariant menghapus nama, nomor registrasi, unit organisasi, initials, portrait, dan identity hint; consented identified mode hanya menampilkan snapshot yang diizinkan;
+- manifest current-to-concept, acceptance audit, design lock, dan composable final prompt set tersedia di `.design/member-voice-redesign/`;
+- duplicate selected concepts pada lokasi kerja lama dan temporary Playwright capture spec telah dihapus setelah canonical copy diverifikasi.
+
+**Files changed:** `.agent/design-images/member-voice-redesign/current/`, `.design/member-voice-redesign/`, `.agent/sessionHandoff.md`, `.agent/implementationPhases.md`, dan `docs/adr/0021-mobile-member-voice-image-redesign.md`.
+
+**Checks:** 25 current captures; 25 final PNG; all expected child folders present; `git diff --check` passed. Tidak ada runtime/container yang dipertahankan dan tidak ada source-code test yang diperlukan untuk image-only handoff.
+
+**Decision:** output ini adalah visual-direction artifact, bukan authorization untuk mengubah React atau contract. Implementasi UI berikutnya harus dipilih/diotorisasi terpisah dan mengacu pada ADR-0021.
+
+**Open question / next action:** stakeholder review terhadap 25 concepts; bila diterima untuk implementation, turunkan design locks ke components/tokens dan buat scoped implementation plan tanpa mengubah privacy/permission invariants.
+
 ## Phase 7 Final Gate — 26 Agustus 2026
 
 - formatting, ESLint, TypeScript, serta production build dua aplikasi: passed;
