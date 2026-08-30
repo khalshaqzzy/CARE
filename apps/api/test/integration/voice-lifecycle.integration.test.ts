@@ -257,6 +257,17 @@ describe('Voice lifecycle backend completion', () => {
     expect(privateCandidates).toEqual([
       expect.objectContaining({ id: officer.accountId, slot: UnionSlot.OFFICER_1 }),
     ]);
+    // Workload subtitle: the candidate has no active voice yet, then gains one.
+    expect(privateCandidates[0]).toMatchObject({ activeCount: 0 });
+    await createVoice({
+      status: VoiceStatus.IN_VERIFICATION,
+      visibility: VoiceVisibility.PRIVATE,
+      routeOwnerId: unionHead.accountId,
+      handlerType: HandlerType.UNION_HEAD,
+      currentHandlerId: officer.accountId,
+    });
+    const reloaded = await voices.assignmentCandidates(unionHead, privateVoice.id);
+    expect(reloaded[0]).toMatchObject({ id: officer.accountId, activeCount: 1 });
   });
 
   it('links staged closure evidence to the closure cycle with a 1-5 cap', async () => {

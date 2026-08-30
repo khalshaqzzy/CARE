@@ -159,6 +159,10 @@ export type MockVoice = {
   attachments?: { id: string; mimeType: string; purpose?: string }[];
   closureCycles?: unknown[];
   updatedAt?: string;
+  /** PIC display name on work-item/general list items. */
+  currentHandlerName?: string | null;
+  /** Per-Voice alias on Union private list items. */
+  reporterAlias?: string | null;
 };
 
 const voiceDetail = (voice: MockVoice): VoiceDetail => ({
@@ -217,6 +221,10 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
   severity: voice.severity ?? 'HIGH',
   status: voice.status as VoiceListItem['status'],
   updatedAt: voice.updatedAt ?? '2026-08-03T00:00:00.000Z',
+  ...(voice.currentHandlerName !== undefined
+    ? { currentHandlerName: voice.currentHandlerName }
+    : {}),
+  ...(voice.reporterAlias !== undefined ? { reporterAlias: voice.reporterAlias } : {}),
 });
 
 /**
@@ -800,6 +808,8 @@ const defaultGENERAL_DASHBOARD = (): DashboardAggregate => ({
   trend: [],
   division: [],
   department: [],
+  area: [],
+  areaCritical: [],
   suppression: {
     enabled: false,
     threshold: 0,
@@ -1071,11 +1081,13 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
                   id: 'union-officer-1',
                   displayName: 'Union Officer 1',
                   slot: 'OFFICER_1',
+                  activeCount: 3,
                 },
                 {
                   id: 'union-officer-2',
                   displayName: 'Union Officer 2',
                   slot: 'OFFICER_2',
+                  activeCount: 2,
                 },
               ]
             : []),

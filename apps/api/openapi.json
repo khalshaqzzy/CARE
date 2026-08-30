@@ -10700,7 +10700,8 @@
           "type": "object",
           "required": [
             "id",
-            "displayName"
+            "displayName",
+            "activeCount"
           ],
           "additionalProperties": false,
           "properties": {
@@ -10720,6 +10721,10 @@
             },
             "structuralPosition": {
               "type": "string"
+            },
+            "activeCount": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         }
@@ -12816,6 +12821,8 @@
           "trend",
           "division",
           "department",
+          "area",
+          "areaCritical",
           "suppression",
           "filters",
           "generatedAt"
@@ -12842,6 +12849,16 @@
           },
           "department": {
             "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "area": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "areaCritical": {
+            "$ref": "#/components/schemas/AggregateBuckets"
+          },
+          "previousTotal": {
+            "type": "integer",
+            "minimum": 0
           },
           "suppression": {
             "type": "object",
@@ -14481,6 +14498,14 @@
               "IN_PROGRESS",
               "CLOSED"
             ]
+          },
+          "currentHandlerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "reporterAlias": {
+            "type": "string",
+            "nullable": true
           },
           "updatedAt": {
             "type": "string",

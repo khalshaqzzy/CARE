@@ -102,6 +102,46 @@ test.describe('workforce accessibility and responsive surface', () => {
     expect(await overflow(page)).toBeLessThanOrEqual(1);
   });
 
+  test('manager home is axe clean at 360px', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Budi Santoso',
+      viewport: { width: 360, height: 800 },
+      opts: {
+        session: responder,
+        voice: {
+          id: 'voice-1',
+          displayId: 'CARE-202608-000001',
+          audience: 'GENERAL_RESPONDER',
+          visibility: 'GENERAL',
+          status: 'IN_VERIFICATION',
+          area: 'KARAWANG_1',
+          title: 'Pencahayaan area produksi kurang',
+          detail: 'Lampu di stasiun 3 redup.',
+          availableActions: ['ASK', 'PROCEED'],
+        },
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('leadership home is axe clean at 360px', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Budi Santoso',
+      viewport: { width: 360, height: 800 },
+      opts: {
+        session: memberSession({
+          capabilities: ['MEMBER', 'DIVISION_LEADERSHIP'],
+          structuralPosition: 'Division Head',
+        }),
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
   test('union/leadership general browse is axe clean at 360px', async ({ page }) => {
     await open(page, {
       path: '/general',

@@ -30,6 +30,9 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      // Unit-test files are excluded from their package tsconfig, so the
+      // projectService resolves their imports as `any`.
+      '@typescript-eslint/no-unsafe-return': 'off',
     },
   },
 );

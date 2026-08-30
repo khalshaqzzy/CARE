@@ -541,13 +541,16 @@ const schemas: Record<string, any> = {
     type: 'array',
     items: {
       type: 'object',
-      required: ['id', 'displayName'],
+      required: ['id', 'displayName', 'activeCount'],
       additionalProperties: false,
       properties: {
         id: { type: 'string', format: 'uuid' },
         displayName: { type: 'string' },
         slot: { type: 'string', enum: ['OFFICER_1', 'OFFICER_2'] },
         structuralPosition: { type: 'string' },
+        // Active voices currently handled by this candidate (assignment sheet
+        // workload subtitle).
+        activeCount: { type: 'integer', minimum: 0 },
       },
     },
   },
@@ -986,6 +989,8 @@ const schemas: Record<string, any> = {
       'trend',
       'division',
       'department',
+      'area',
+      'areaCritical',
       'suppression',
       'filters',
       'generatedAt',
@@ -999,6 +1004,11 @@ const schemas: Record<string, any> = {
       trend: { $ref: '#/components/schemas/AggregateBuckets' },
       division: { $ref: '#/components/schemas/AggregateBuckets' },
       department: { $ref: '#/components/schemas/AggregateBuckets' },
+      area: { $ref: '#/components/schemas/AggregateBuckets' },
+      areaCritical: { $ref: '#/components/schemas/AggregateBuckets' },
+      // Only populated when the dashboard filters carry a from/to window: the
+      // total of the immediately preceding window of the same duration.
+      previousTotal: { type: 'integer', minimum: 0 },
       suppression: {
         type: 'object',
         required: ['enabled', 'threshold', 'division', 'department'],
@@ -1024,8 +1034,9 @@ const schemas: Record<string, any> = {
         },
       },
       generatedAt: { type: 'string', format: 'date-time' },
-      // Only populated for the Union Head private dashboard: the number of
-      // Private Voices still awaiting a Union Officer assignment.
+      // Operational "awaiting assignment" count: Private Voices without a Union
+      // Officer on the Union Head private dashboard, and route General Voices
+      // without a Section Head on the scoped Manager general dashboard.
       pendingAssignment: { type: 'integer', minimum: 0 },
     },
   },
@@ -1670,6 +1681,11 @@ const schemas: Record<string, any> = {
       category: baseVoiceProperties.category,
       severity: baseVoiceProperties.severity,
       status: baseVoiceProperties.status,
+      // PIC display name; only present on work-item/general lists for
+      // authorized responders, leadership, and Union (absent on reporter lists).
+      currentHandlerName: { type: 'string', nullable: true },
+      // Per-Voice reporter alias; only present on Union private inbox lists.
+      reporterAlias: { type: 'string', nullable: true },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },

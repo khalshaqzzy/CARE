@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Clock,
   MapPin,
+  ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -113,6 +114,12 @@ export function VoiceDetailPage() {
     : null;
   const closed = voice.status === 'CLOSED';
   const pic = voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—';
+  // Union private audiences get the consent-first hero (screens 23/24): the
+  // three-column meta strip and the identity plate live inside the hero, and
+  // the identified reporter card overlaps its bottom edge.
+  const unionAudience =
+    voice.audience === 'UNION_ANONYMOUS' || voice.audience === 'UNION_IDENTIFIED';
+  const alias = voice.audience === 'UNION_ANONYMOUS' ? voice.anonymousReporter.alias : null;
 
   const back = () => {
     // Deep links have no in-app history to return to; land on the root instead.
@@ -157,41 +164,116 @@ export function VoiceDetailPage() {
       ) : (
         <section className="voice-hero" aria-label={voice.displayId}>
           <h1 className="voice-hero__title">{voice.title}</h1>
-          <div className="voice-hero__meta">
-            <span className="voice-hero__item">
-              <ClipboardList size={16} aria-hidden="true" />
-              {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility} Voice
-            </span>
-            <span className="voice-hero__sep" aria-hidden="true" />
-            <span className="voice-hero__item">
-              <i
-                className="voice-hero__dot"
-                data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
-                aria-hidden="true"
-              />
-              {SEVERITY_LABELS[voice.severity] ?? voice.severity}
-            </span>
-            <span className="voice-hero__sep" aria-hidden="true" />
-            <span className="voice-hero__item">
-              <i
-                className="voice-hero__dot"
-                data-tone={HERO_FLAG_TONES[voice.status] ?? 'verification'}
-                aria-hidden="true"
-              />
-              {STATUS_LABELS[voice.status] ?? voice.status}
-            </span>
-          </div>
-          <div className="voice-hero__meta voice-hero__meta--secondary">
-            <span className="voice-hero__item">
-              <MapPin size={16} aria-hidden="true" />
-              {AREA_LABELS[voice.area] ?? voice.area}
-            </span>
-            <span className="voice-hero__sep" aria-hidden="true" />
-            <span className="voice-hero__item">
-              <UserRound size={16} aria-hidden="true" />
-              PIC: {pic}
-            </span>
-          </div>
+          {unionAudience ? (
+            <>
+              <p className="voice-hero__id">ID: {voice.displayId}</p>
+              <div className="voice-hero__columns">
+                {alias ? (
+                  <div className="voice-hero__column">
+                    <small>Alias</small>
+                    <span>
+                      <UserRound size={14} aria-hidden="true" />
+                      {alias}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="voice-hero__column">
+                  <small>Status</small>
+                  <span>
+                    <i
+                      className="voice-hero__dot"
+                      data-tone={HERO_FLAG_TONES[voice.status] ?? 'verification'}
+                      aria-hidden="true"
+                    />
+                    {STATUS_LABELS[voice.status] ?? voice.status}
+                  </span>
+                </div>
+                <div className="voice-hero__column">
+                  <small>Severity</small>
+                  <span>
+                    <i
+                      className="voice-hero__dot"
+                      data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
+                      aria-hidden="true"
+                    />
+                    {SEVERITY_LABELS[voice.severity] ?? voice.severity}
+                  </span>
+                </div>
+                {!alias ? (
+                  <div className="voice-hero__column">
+                    <small>PIC</small>
+                    <span>
+                      <UserRound size={14} aria-hidden="true" />
+                      {pic}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+              {voice.audience === 'UNION_ANONYMOUS' ? (
+                <div className="voice-hero__plate">
+                  <ShieldCheck size={20} aria-hidden="true" />
+                  <div className="voice-hero__plate-body">
+                    <p className="voice-hero__plate-title">Identitas disembunyikan</p>
+                    <p className="voice-hero__plate-text">
+                      Informasi pelapor dirahasiakan sepenuhnya. Alias hanya berlaku untuk Voice
+                      ini.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="voice-hero__plate voice-hero__plate--identified">
+                  <ShieldCheck size={20} aria-hidden="true" />
+                  <div className="voice-hero__plate-body">
+                    <p className="voice-hero__plate-title">
+                      Identitas ditampilkan atas persetujuan pelapor
+                    </p>
+                    <p className="voice-hero__plate-text">
+                      Informasi identitas ditampilkan secara terbatas dan hanya dapat diakses oleh
+                      pihak berwenang yang ditugaskan.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="voice-hero__meta">
+                <span className="voice-hero__item">
+                  <ClipboardList size={16} aria-hidden="true" />
+                  {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility} Voice
+                </span>
+                <span className="voice-hero__sep" aria-hidden="true" />
+                <span className="voice-hero__item">
+                  <i
+                    className="voice-hero__dot"
+                    data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
+                    aria-hidden="true"
+                  />
+                  {SEVERITY_LABELS[voice.severity] ?? voice.severity}
+                </span>
+                <span className="voice-hero__sep" aria-hidden="true" />
+                <span className="voice-hero__item">
+                  <i
+                    className="voice-hero__dot"
+                    data-tone={HERO_FLAG_TONES[voice.status] ?? 'verification'}
+                    aria-hidden="true"
+                  />
+                  {STATUS_LABELS[voice.status] ?? voice.status}
+                </span>
+              </div>
+              <div className="voice-hero__meta voice-hero__meta--secondary">
+                <span className="voice-hero__item">
+                  <MapPin size={16} aria-hidden="true" />
+                  {AREA_LABELS[voice.area] ?? voice.area}
+                </span>
+                <span className="voice-hero__sep" aria-hidden="true" />
+                <span className="voice-hero__item">
+                  <UserRound size={16} aria-hidden="true" />
+                  PIC: {pic}
+                </span>
+              </div>
+            </>
+          )}
         </section>
       )}
 
@@ -265,47 +347,25 @@ export function VoiceDetailPage() {
 
 function ReporterCard({ voice }: { voice: VoiceDetail }) {
   // The reporter block exists only where the contract grants it: the Union sees
-  // the immutable consent snapshot (SHOW) or a per-Voice alias (HIDE). Other
-  // audiences keep the existing surfaces unchanged.
+  // the immutable consent snapshot (SHOW) as a card overlapping the hero, or a
+  // per-Voice alias inside the hero plate (HIDE). Other audiences keep the
+  // existing surfaces unchanged.
   if (voice.audience === 'UNION_IDENTIFIED') {
     return (
-      <Card className="voice-reporter" padding="md">
-        <div className="voice-reporter__head">
-          <h3 className="section-title">Pelapor</h3>
-          <Badge tone="info">Identitas ditampilkan</Badge>
+      <Card className="voice-reporter voice-reporter--overlap" padding="md">
+        <div className="voice-reporter__identity">
+          <span className="voice-reporter__avatar" aria-hidden="true">
+            <UserRound size={24} />
+          </span>
+          <div className="voice-reporter__who">
+            <p className="voice-reporter__name">{voice.reporter.name}</p>
+            <p className="voice-reporter__detail">No. Registrasi</p>
+            <p className="voice-reporter__reg">{voice.reporter.noReg}</p>
+            <p className="voice-reporter__detail">
+              {voice.reporter.division} · {voice.reporter.department}
+            </p>
+          </div>
         </div>
-        <dl className="voice-meta">
-          <div>
-            <dt>Nama</dt>
-            <dd>{voice.reporter.name}</dd>
-          </div>
-          <div>
-            <dt>No. Reg</dt>
-            <dd>{voice.reporter.noReg}</dd>
-          </div>
-          <div>
-            <dt>Divisi</dt>
-            <dd>{voice.reporter.division}</dd>
-          </div>
-          <div>
-            <dt>Department</dt>
-            <dd>{voice.reporter.department}</dd>
-          </div>
-        </dl>
-      </Card>
-    );
-  }
-  if (voice.audience === 'UNION_ANONYMOUS') {
-    return (
-      <Card className="voice-reporter" padding="md">
-        <div className="voice-reporter__head">
-          <h3 className="section-title">Pelapor</h3>
-          <Badge tone="neutral">Identitas disembunyikan</Badge>
-        </div>
-        <p className="voice-reporter__alias">{voice.anonymousReporter.alias}</p>
-        <p className="care-note">
-          Alias hanya berlaku untuk Voice ini dan tidak dapat dikaitkan dengan Voice lain.
-        </p>
       </Card>
     );
   }

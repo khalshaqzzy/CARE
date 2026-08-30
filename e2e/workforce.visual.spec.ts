@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { baseVoiceItem, memberSession, mockWorkforceApi, unionSession } from './helpers/mock-api';
+import {
+  baseVoiceItem,
+  memberSession,
+  mockWorkforceApi,
+  unionPrivateVoiceDetail,
+  unionSession,
+} from './helpers/mock-api';
 
 const voice = {
   id: 'voice-1',
@@ -18,13 +24,21 @@ const managerSession = memberSession({
   structuralPosition: 'Department Head',
 });
 
+const leadershipSession = memberSession({
+  capabilities: ['MEMBER', 'DIVISION_LEADERSHIP'],
+  structuralPosition: 'Division Head',
+});
+
+const unionHead = unionSession({ slot: 'HEAD' });
+
+// Rich aggregate matching the concept numbers (42 total / 34 aktif / 3 kritis).
 const managerDashboard = {
   total: 42,
   status: [
-    { label: 'OPEN', value: 8 },
+    { label: 'OPEN', value: 18 },
     { label: 'IN_VERIFICATION', value: 7 },
-    { label: 'IN_PROGRESS', value: 15 },
-    { label: 'CLOSED', value: 12 },
+    { label: 'IN_PROGRESS', value: 9 },
+    { label: 'CLOSED', value: 8 },
   ],
   severity: [
     { label: 'CRITICAL', value: 3 },
@@ -45,11 +59,23 @@ const managerDashboard = {
     { label: '2026-07-29', value: 13 },
     { label: '2026-08-05', value: 11 },
   ],
-  division: [{ label: 'Division A', value: 42 }],
+  division: [{ label: 'Manufacturing / Division A', value: 42 }],
   department: [
-    { label: 'Department A', value: 25 },
-    { label: 'Department B', value: 17 },
+    { label: 'Manufacturing / Division A / Department A', value: 25 },
+    { label: 'Manufacturing / Division A / Department B', value: 17 },
   ],
+  area: [
+    { label: 'KARAWANG_1', value: 18 },
+    { label: 'KARAWANG_2', value: 14 },
+    { label: 'SUNTER_1', value: 10 },
+  ],
+  areaCritical: [
+    { label: 'KARAWANG_1', value: 3 },
+    { label: 'KARAWANG_2', value: 0 },
+  ],
+  previousTotal: 39,
+  // One OPEN unassigned item in workItemList keeps this stat coherent.
+  pendingAssignment: 1,
   suppression: {
     enabled: false,
     threshold: 0,
@@ -58,6 +84,103 @@ const managerDashboard = {
   },
   filters: { area: null, category: null, severity: null, status: null, from: null, to: null },
   generatedAt: '2026-08-05T10:00:00.000Z',
+};
+
+// Two operational work items for inbox/list surfaces: one unassigned critical,
+// one assigned high with a PIC label.
+const workItemList = {
+  items: [
+    baseVoiceItem({
+      ...voice,
+      displayId: 'CARE-202608-000001',
+      audience: 'GENERAL_RESPONDER',
+      status: 'OPEN',
+      severity: 'CRITICAL',
+      title: 'Pencahayaan area produksi kurang',
+      currentHandlerName: null,
+      updatedAt: '2026-08-05T09:48:00.000Z',
+    }),
+    baseVoiceItem({
+      ...voice,
+      id: 'voice-2',
+      displayId: 'CARE-202608-000007',
+      audience: 'GENERAL_RESPONDER',
+      status: 'IN_PROGRESS',
+      severity: 'HIGH',
+      area: 'KARAWANG_2',
+      title: 'Ventilasi ruang kerja tidak optimal',
+      currentHandlerName: 'Rina Marlina',
+      updatedAt: '2026-08-04T15:20:00.000Z',
+    }),
+    baseVoiceItem({
+      ...voice,
+      id: 'voice-3',
+      displayId: 'CARE-202608-000011',
+      audience: 'GENERAL_RESPONDER',
+      status: 'IN_VERIFICATION',
+      severity: 'MEDIUM',
+      area: 'SUNTER_1',
+      title: 'Peralatan kerja perlu pemeriksaan',
+      currentHandlerName: 'Budi Santoso',
+      updatedAt: '2026-08-04T08:05:00.000Z',
+    }),
+  ],
+  nextCursor: null,
+};
+
+const privateDashboard = {
+  ...managerDashboard,
+  total: 12,
+  status: [
+    { label: 'OPEN', value: 5 },
+    { label: 'IN_VERIFICATION', value: 4 },
+    { label: 'IN_PROGRESS', value: 3 },
+  ],
+  severity: [
+    { label: 'CRITICAL', value: 1 },
+    { label: 'HIGH', value: 4 },
+    { label: 'MEDIUM', value: 5 },
+    { label: 'LOW', value: 2 },
+  ],
+  department: [],
+  area: [],
+  areaCritical: [],
+  previousTotal: undefined,
+  pendingAssignment: 2,
+};
+
+const privateItemList = {
+  items: [
+    baseVoiceItem({
+      ...voice,
+      id: 'voice-p1',
+      displayId: 'CARE-202608-000012',
+      audience: 'UNION_ANONYMOUS',
+      visibility: 'PRIVATE',
+      status: 'OPEN',
+      severity: 'CRITICAL',
+      area: 'KARAWANG_2',
+      title: 'Tekanan kerja dan perlakuan tidak adil',
+      currentHandlerName: null,
+      reporterAlias: 'Reporter Biru 47',
+      updatedAt: '2026-08-05T09:48:00.000Z',
+    }),
+    baseVoiceItem({
+      ...voice,
+      id: 'voice-p2',
+      displayId: 'CARE-202608-000013',
+      audience: 'UNION_ANONYMOUS',
+      visibility: 'PRIVATE',
+      status: 'IN_VERIFICATION',
+      severity: 'HIGH',
+      area: 'SUNTER_1',
+      title: 'Keluhan terkait kondisi kerja',
+      currentHandlerName: 'Union Officer 1',
+      reporterAlias: 'Reporter Biru 12',
+      updatedAt: '2026-08-05T08:15:00.000Z',
+    }),
+  ],
+  nextCursor: null,
 };
 
 test('workforce history visual at 360', async ({ page }) => {
@@ -144,10 +267,11 @@ test('workforce manager dashboard visual at 1440', async ({ page }) => {
     session: managerSession,
     voice,
     generalDashboard: managerDashboard,
+    voiceList: workItemList,
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.locator('.dashboard-overview')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ringkasan General Voice' })).toBeVisible();
   await expect(page).toHaveScreenshot('workforce-manager-dashboard-1440.png', {
     animations: 'disabled',
     threshold: 0.25,
@@ -162,6 +286,7 @@ test('workforce Voice Member workspace visual at 1440', async ({ page }) => {
     session: managerSession,
     voice,
     generalDashboard: managerDashboard,
+    voiceList: workItemList,
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/work-items');
@@ -272,7 +397,7 @@ test('workforce union private inbox visual at 1440', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockWorkforceApi(page, {
-    session: unionSession({ slot: 'HEAD' }),
+    session: unionHead,
     voice: {
       id: 'voice-p1',
       displayId: 'CARE-202608-000002',
@@ -285,27 +410,8 @@ test('workforce union private inbox visual at 1440', async ({ page }) => {
       availableActions: [],
       category: null,
     },
-    privateDashboard: {
-      total: 4,
-      status: [
-        { label: 'OPEN', value: 2 },
-        { label: 'IN_PROGRESS', value: 2 },
-      ],
-      severity: [],
-      category: [],
-      trend: [],
-      division: [],
-      department: [],
-      suppression: {
-        enabled: false,
-        threshold: 0,
-        division: { suppressedBuckets: 0, suppressedValue: 0 },
-        department: { suppressedBuckets: 0, suppressedValue: 0 },
-      },
-      filters: { area: null, category: null, severity: null, status: null, from: null, to: null },
-      generatedAt: '2026-08-03T00:00:00.000Z',
-      pendingAssignment: 2,
-    },
+    voiceList: privateItemList,
+    privateDashboard,
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/work-items');
@@ -317,6 +423,215 @@ test('workforce union private inbox visual at 1440', async ({ page }) => {
     // (FreeType); the same tolerance rationale as the other baselines.
     maxDiffPixelRatio: 0.06,
   });
+});
+
+// Baselines for the redesigned manager/leadership/union surfaces (screens
+// 17–25). Each capture frames the surface from the top at 360px.
+
+test('workforce manager home visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: managerSession,
+    voice,
+    generalDashboard: managerDashboard,
+    voiceList: workItemList,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Ringkasan General Voice' })).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-manager-home-360.png', screenshotOptions);
+});
+
+test('workforce Voice Member inbox visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: managerSession,
+    voice,
+    generalDashboard: managerDashboard,
+    voiceList: workItemList,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/work-items');
+  await expect(page.getByRole('heading', { name: 'Voice Member' })).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-voice-member-360.png', screenshotOptions);
+});
+
+test('workforce leadership home visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: leadershipSession,
+    voice,
+    generalDashboard: managerDashboard,
+    voiceList: workItemList,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/');
+  await expect(page.getByText('Leadership · Read-only')).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-leadership-home-360.png', screenshotOptions);
+});
+
+test('workforce union home visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: unionHead,
+    voice: {
+      id: 'voice-p1',
+      displayId: 'CARE-202608-000002',
+      audience: 'UNION_ANONYMOUS',
+      visibility: 'PRIVATE',
+      status: 'OPEN',
+      area: 'KARAWANG_2',
+      title: 'Tekanan kerja dan perlakuan tidak adil',
+      detail: 'Deskripsi private.',
+      availableActions: [],
+      category: null,
+    },
+    voiceList: privateItemList,
+    privateDashboard,
+    generalDashboard: managerDashboard,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/');
+  await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-union-home-360.png', screenshotOptions);
+});
+
+test('workforce union private inbox visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: unionHead,
+    voice: {
+      id: 'voice-p1',
+      displayId: 'CARE-202608-000002',
+      audience: 'UNION_ANONYMOUS',
+      visibility: 'PRIVATE',
+      status: 'OPEN',
+      area: 'KARAWANG_2',
+      title: 'Tekanan kerja dan perlakuan tidak adil',
+      detail: 'Deskripsi private.',
+      availableActions: [],
+      category: null,
+    },
+    voiceList: privateItemList,
+    privateDashboard,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/work-items');
+  await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-union-private-inbox-360.png', screenshotOptions);
+});
+
+test('workforce union general overview visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: unionHead,
+    voice: {
+      id: 'voice-1',
+      displayId: 'CARE-202608-000001',
+      audience: 'LEADERSHIP_GENERAL_READ_ONLY',
+      visibility: 'GENERAL',
+      status: 'OPEN',
+      area: 'KARAWANG_1',
+      title: 'Pencahayaan area produksi kurang',
+      detail: 'Lampu redup.',
+      availableActions: [],
+    },
+    generalDashboard: managerDashboard,
+    voiceList: workItemList,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/general');
+  await expect(page.getByRole('heading', { name: 'Tinjauan General' })).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-union-general-360.png', screenshotOptions);
+});
+
+test('workforce union identified detail visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: unionHead,
+    voiceDetail: unionPrivateVoiceDetail({
+      id: 'voice-p2',
+      displayId: 'CARE-202608-000013',
+      audience: 'UNION_IDENTIFIED',
+      visibility: 'PRIVATE',
+      status: 'IN_VERIFICATION',
+      area: 'SUNTER_1',
+      title: 'Keluhan terkait kondisi kerja',
+      detail:
+        'Suasana kerja di Gedung B sangat panas pada siang hari karena AC tidak berfungsi optimal.',
+      availableActions: ['ASK', 'PROCEED', 'MESSAGE'],
+      identified: true,
+    }),
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-p2');
+  await expect(page.getByText('Sari Wulandari')).toBeVisible();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-union-identified-360.png', screenshotOptions);
+});
+
+test('workforce close sheet visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: managerSession,
+    voice: {
+      ...voice,
+      status: 'IN_PROGRESS',
+      availableActions: ['CLOSE'],
+      conversationState: 'READ_ONLY',
+    },
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-1');
+  await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
+  await page.getByRole('button', { name: 'Tutup', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.waitForTimeout(450);
+  await expect(page).toHaveScreenshot('workforce-close-sheet-360.png', screenshotOptions);
+});
+
+test('workforce assign sheet visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: unionHead,
+    voiceDetail: unionPrivateVoiceDetail({
+      id: 'voice-p1',
+      displayId: 'CARE-202608-000012',
+      audience: 'UNION_ANONYMOUS',
+      visibility: 'PRIVATE',
+      status: 'OPEN',
+      area: 'KARAWANG_2',
+      title: 'Tekanan kerja dan perlakuan tidak adil',
+      detail: 'Deskripsi private.',
+      availableActions: ['ASSIGN'],
+      identified: false,
+      alias: 'Reporter Biru 47',
+    }),
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-p1');
+  await expect(
+    page.getByRole('heading', { name: 'Tekanan kerja dan perlakuan tidak adil' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.waitForTimeout(450);
+  await expect(page).toHaveScreenshot('workforce-assign-sheet-360.png', screenshotOptions);
 });
 
 // Baselines for the redesigned auth and Create Voice surfaces (ADR-0022).

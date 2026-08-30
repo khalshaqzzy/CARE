@@ -128,6 +128,9 @@ describe('Union private inbox scope and assignment queue', () => {
     const headIds = headItems.items.map((item) => item.id);
     expect(headIds).toContain(unassigned.id);
     expect(headIds).toContain(assigned.id);
+    const headById = new Map(headItems.items.map((item) => [item.id, item]));
+    expect(headById.get(assigned.id)).toMatchObject({ currentHandlerName: 'Union' });
+    expect(headById.get(unassigned.id)).toMatchObject({ currentHandlerName: null });
 
     const officerItems = await voices.workItems(officer, {});
     const officerIds = officerItems.items.map((item) => item.id);

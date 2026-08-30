@@ -148,6 +148,13 @@ export function mediaUrl(id: string): string {
   return `/api/v1/media/${id}`;
 }
 
+/** Compact axis label for trend charts: "6 Jul" from a YYYY-MM-DD bucket. */
+export function formatAxisDate(value: string): string {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(date);
+}
+
 export function severityRank(severity: string): number {
   return { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }[severity] ?? 0;
 }

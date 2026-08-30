@@ -1,6 +1,6 @@
-import { Alert, Button, Card, Dialog, Select, Stack, Textarea } from '@care/ui';
+import { Alert, Button, Card, ChoiceCardGroup, Dialog, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, Lock, UserRound } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { ACTION_LABELS, STATUS_LABELS } from '../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
@@ -126,15 +126,16 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       <Dialog
         open={active === 'assign' || active === 'reassign'}
         onOpenChange={(open) => setActive(open ? active : 'none')}
+        mobileSheet
         title={active === 'reassign' ? 'Alihkan Penanggung' : 'Tugaskan Penanggung'}
         description={
           detail.visibility === 'PRIVATE'
             ? active === 'reassign'
               ? 'Pilih Union Officer lain untuk melanjutkan penanganan Voice ini.'
-              : 'Pilih Union Officer yang akan menangani Voice ini.'
+              : 'Pilih satu petugas untuk menangani Voice ini.'
             : active === 'reassign'
               ? 'Pilih Section Head lain untuk melanjutkan penanganan Voice ini.'
-              : 'Pilih Section Head yang akan menangani Voice ini.'
+              : 'Pilih satu petugas untuk menangani Voice ini.'
         }
       >
         <AssignDialog
@@ -161,8 +162,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       <Dialog
         open={active === 'close'}
         onOpenChange={(open) => setActive(open ? 'close' : 'none')}
+        mobileSheet
         title="Tutup Voice"
-        description="Voice hanya dapat ditutup dari In Progress dengan catatan penutupan."
+        description="Voice akan ditutup dan status berubah menjadi Selesai."
       >
         <CloseDialog
           detail={detail}
@@ -194,12 +196,6 @@ function AssignDialog({
   });
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
-  const options: { value: string; label: string }[] = (candidates.data ?? []).map((candidate) => ({
-    value: candidate.id,
-    label: candidate.slot
-      ? `${candidate.displayName} (${candidate.slot.replace('_', ' ')})`
-      : candidate.displayName,
-  }));
   const empty = (candidates.data ?? []).length === 0;
   return (
     <Stack gap="md">
@@ -210,16 +206,25 @@ function AssignDialog({
           Tidak ada kandidat eligible untuk Voice ini.
         </Alert>
       ) : (
-        <Select
+        <ChoiceCardGroup
           label="Penanggung"
           value={selected}
           onValueChange={setSelected}
-          options={options}
-          {...(detail.visibility === 'PRIVATE'
-            ? { helperText: 'Hanya Union Officer yang dapat ditugaskan.' }
-            : {})}
+          indicator="radio"
+          appearance="brand"
+          options={(candidates.data ?? []).map((candidate) => ({
+            value: candidate.id,
+            label: candidate.displayName,
+            ...(candidate.activeCount !== undefined
+              ? { description: `${candidate.activeCount} Voice aktif` }
+              : {}),
+            icon: <UserRound size={18} />,
+          }))}
         />
       )}
+      {detail.visibility === 'PRIVATE' ? (
+        <p className="dialog-copy">Hanya Union Officer yang dapat ditugaskan.</p>
+      ) : null}
       <Textarea
         label="Alasan (opsional)"
         value={reason}
@@ -350,24 +355,28 @@ function CloseDialog({
     <Stack gap="md">
       <div className="closure-evidence">
         <Textarea
-          label="Catatan penutupan"
+          label="Catatan penyelesaian"
           value={note}
           onChange={(event) => setNote(event.target.value)}
           rows={4}
           maxLength={4000}
           required
+          placeholder="Jelaskan tindakan yang telah dilakukan"
         />
-        <p className="dialog-copy">
-          Bukti penutupan (foto) diperlukan. Bukti dan catatan bersifat permanen setelah tersimpan.
-        </p>
-        <button
-          type="button"
-          className="closure-evidence__add"
-          onClick={() => fileInput.current?.click()}
-          disabled={uploading || evidence.length >= 5}
-        >
-          <ImagePlus size={16} /> Tambah foto bukti ({evidence.length}/5)
-        </button>
+        <p className="closure-evidence__label">Bukti penyelesaian</p>
+        <div className="closure-evidence__shelf">
+          {evidence.length ? (
+            <MediaGallery attachments={evidence} label="Bukti penyelesaian" />
+          ) : null}
+          <button
+            type="button"
+            className="closure-evidence__add"
+            onClick={() => fileInput.current?.click()}
+            disabled={uploading || evidence.length >= 5}
+          >
+            <ImagePlus size={16} /> Tambah foto
+          </button>
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -384,11 +393,12 @@ function CloseDialog({
             {uploadError}
           </Alert>
         ) : null}
-        {evidence.length ? (
-          <MediaGallery attachments={evidence} label="Bukti penutupan" />
-        ) : (
+        {evidence.length === 0 && !uploading ? (
           <p className="dialog-copy">Minimal satu foto bukti wajib dilampirkan.</p>
-        )}
+        ) : null}
+        <p className="closure-evidence__privacy">
+          <Lock size={14} aria-hidden="true" /> Catatan dan bukti akan terlihat oleh pelapor.
+        </p>
       </div>
       <div className="dialog-actions">
         <Button variant="ghost" onClick={onCancel}>

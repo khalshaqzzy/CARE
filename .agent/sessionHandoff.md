@@ -1,16 +1,94 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                                              |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 30 Agustus 2026                                                                                                                                                                                                                    |
-| Current objective       | Workforce history, voice detail, notifications, and account redesign implemented from `.design/member-voice-redesign/` screens 12–16 on `feat/member-page-redesign-imagen` (ADR-0023); Phase 13 remains open for hosted acceptance |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                                   |
-| Backend Complete Gate   | Passed (PRD v1.1); no API/schema/contract change in this session                                                                                                                                                                   |
-| Implementation status   | Phase 0–12 done; ADR-0022 dan ADR-0023 redesign slices locally complete with full mocked parity green; Phase 13 hosted evidence not yet claimed                                                                                    |
-| Latest ADR              | ADR-0023 (Workforce history, voice detail, notifications, and account redesign)                                                                                                                                                    |
-| Recommended next action | Open PR for `feat/member-page-redesign-imagen`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest          |
+| Atribut                 | Nilai                                                                                                                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 31 Agustus 2026                                                                                                                                                                                                           |
+| Current objective       | Workforce manager, leadership, and union redesign implemented from `.design/member-voice-redesign/` screens 17–25 on `feat/member-page-redesign-imagen` (ADR-0024); Phase 13 remains open for hosted acceptance           |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                          |
+| Backend Complete Gate   | Passed (PRD v1.1); this session adds six additive optional response fields only (no schema/migration)                                                                                                                     |
+| Implementation status   | Phase 0–12 done; ADR-0022/0023/0024 redesign slices locally complete with full mocked parity green; Phase 13 hosted evidence not yet claimed                                                                              |
+| Latest ADR              | ADR-0024 (Workforce manager, leadership, and union redesign)                                                                                                                                                              |
+| Recommended next action | Open PR for `feat/member-page-redesign-imagen`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
 
 ## Session Outcome
+
+### Workforce manager, leadership, and union redesign — 31 Agustus 2026
+
+Branch `feat/member-page-redesign-imagen` (slice ketiga, melengkapi 25 layar
+konsep). Implementasi layar 17–25 dari `.design/member-voice-redesign/`
+(ADR-0024). Kali ini API ikut berubah secara aditif — enam field respons
+opsional tanpa migrasi:
+
+- **Backend (aditif; tanpa schema/migration).** `DashboardAggregate`:
+  `area` + `areaCritical` (groupBy melalui `suppress()`), `previousTotal`
+  (window `from/to` digeser mundur selebar durasinya; absent tanpa window);
+  `pendingAssignment` untuk scoped MANAGER di `/dashboard/general` (OPEN +
+  unassigned dalam snapshot direktorat/divisi); `VoiceListItem`:
+  `currentHandlerName` (join display name) dan `reporterAlias` (hanya Union
+  pada baris PRIVATE); `AssignmentCandidate.activeCount` (satu groupBy
+  workload). OpenAPI + `@care/contracts` diregenerasi; `enrich-openapi.ts`
+  diperbarui; integrasi test untuk tiap field (scoping + suppression).
+- **Komponen app-level baru (`apps/web-voice`).** `HeroBand` (+`HeroInset`,
+  `HeroChip`), `KpiTrio` (`generalKpiItems`/`unionKpiItems`), `DonutChart`
+  - legend, `StatusDistribution`, `TrendCard` (y-ticks, sumbu tanggal,
+    area gradient, flag nilai ujung, badge delta "+n% vs periode
+    sebelumnya"), `InboxVoiceCard` (edge severity, tombol penuh
+    `Buka {displayId}`, varian identity alias, chip PIC), `FilterPills`
+    (pill Select berikon + funnel IconButton badge → `Dialog mobileSheet`),
+    `AttentionCard`. Math murni di `dashboard-math.ts` + unit test. CSS
+    seluruhnya di bundle workforce; `packages/ui` tidak berubah (handle
+    bottom-sheet digambar via `.care-dialog--mobile-sheet::before`).
+- **Halaman.** Manager (17): hero + StatusSummary tetap; filter jadi pill +
+  funnel; KPI trio, donut status, trend+delta, kartu severity/kategori,
+  breakdown organisasi, preview "Inbox Voice Member" 3 `InboxVoiceCard`;
+  `DashboardOverview` dihapus. Inbox operasional (18+22): `HeroBand` statistik
+  per peran (termasuk backlog manager dari `pendingAssignment`), search
+  "Cari judul atau ID", pill Prioritas/Status (+Area/PIC / Penugasan Union),
+  funnel sheet, list `InboxVoiceCard` + Pager. Leadership (20): chip
+  "Leadership · Read-only", inset KPI, trend+delta, distribusi status,
+  "Area yang perlu perhatian" (dari bucket area baru), catatan privasi.
+  Union home (21): inset "Private Voice" (officer: sel ketiga Kritis — tanpa
+  affordance penugasan), antrean penugasan head, "Private terbaru" alias-aware,
+  baris "General Voice · Read-only" → `/general`. Union general (25): param
+  `range` baru (default 30d) untuk dashboard + list, distribusi, "Kategori
+  utama", trend, "Perlu perhatian" dari list query (menjaga semantik probe
+  keamanan). Union detail (23+24): "ID: {displayId}", meta 3 kolom, plate
+  consent di hero (anonim gelap / identified terang + kartu reporter inset);
+  sheets Tutup/Tugaskan (19): "Catatan penyelesaian", shelf bukti, lock note,
+  kandidat radio card dengan "n Voice aktif". Kontrak mutasi/idempotensi
+  tidak berubah.
+- **Keputusan product owner (slice ini).** (1) Topbar bersama tetap (band
+  render di bawahnya, tanpa orb mockup); (2) keenam field backend aditif
+  diambil (termasuk `reporterAlias`); (3) filter pill + funnel sheet; (4)
+  branch sama. Deviasi mockup lain tercatat di ADR-0024 (label Indonesia,
+  quick-action tiles tetap, rumusan hitung "n Kritis/n Voice", placeholder
+  search sesuai kemampuan server, StatusSummary member tidak disentuh).
+- **Test.** Baseline dihapus-dahulu-lalu-regen: `workforce-manager-dashboard-1440`,
+  `workforce-voice-member-1440`, `workforce-union-private-1440` diganti; 9
+  baseline 360 baru (manager home, Voice Member inbox, leadership home, union
+  home, union private inbox, union general, union identified detail, close
+  sheet, assign sheet). Semua permukaan baru direview 360px terhadap mockup
+  (12/12 lolos gate visual) setelah tiga perbaikan: warna teks `.hero-inset`
+  di-reset (angka KPI putih-di-putih), sel statistik sempit di-stack agar
+  label panjang tidak terpotong, override `.voice-hero__column span` dipindah
+  setelah rule dasarnya (urutan cascade). Fixture mock diperkaya (area
+  buckets, previousTotal, pendingAssignment, currentHandlerName,
+  reporterAlias, activeCount); journey assign Union kini radio card.
+
+Validasi (semua hijau): lockfile tidak berubah; `pnpm format:check`; `pnpm
+lint`; `pnpm typecheck`; unit API 60, UI 18, frontend-core 14, workforce 43,
+Admin 2; `pnpm build`; `pnpm openapi:generate` dijalankan dua kali hasilnya
+byte-identical (CI `openapi:check` lolos pada hasil commit); `pnpm
+migrations:destructive-check`; `pnpm audit --audit-level high` (hanya
+Moderate transitive terdokumentasi). Berbasis database: `db:up/wait/verify/
+test:reset/test:migrate`; `pnpm test:integration` **45 passed**; `pnpm
+test:security` **5 passed**; `seed:performance` (50k Voice/10k akun,
+`NODE_ENV=test DATABASE_URL=...care_test`) + `pnpm test:performance` lolos;
+`maintenance:reconcile` dry-run bersih; `db:down`. Playwright mocked
+`test:frontend:e2e` **143 passed** (chromium + visual + pwa) dua run
+berturut-turut. Gitleaks v8.24.3 directory scan bersih; `git diff --check`
+bersih; `docker compose config --quiet`. OrbStack dihidupkan untuk compose;
+tidak ada container/proses yang tersisa.
 
 ### Workforce history, voice detail, notifications, and account redesign — 30 Agustus 2026
 
