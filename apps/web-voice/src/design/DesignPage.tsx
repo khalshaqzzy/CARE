@@ -17,7 +17,9 @@ import {
   DataTable,
   Dialog,
   Divider,
+  DotLabel,
   Drawer,
+  DisclosureRow,
   EmptyState,
   ErrorState,
   FileUpload,
@@ -38,6 +40,7 @@ import {
   Popover,
   Progress,
   RadioGroup,
+  RatingInput,
   SectionCard,
   SegmentedControl,
   Select,
@@ -555,6 +558,36 @@ export default function DesignPage() {
                     ]}
                   />
                 </SectionCard>
+                <DisclosureRow
+                  icon={<Bell size={16} />}
+                  title="Kemampuan akses"
+                  description="Diturunkan dari posisi struktural"
+                  defaultOpen
+                >
+                  <DotLabel tone="info">Member</DotLabel>
+                </DisclosureRow>
+                <DisclosureRow
+                  icon={<ShieldCheck size={16} />}
+                  title="Timeline"
+                  description="3 pembaruan"
+                  trailing={<Badge tone="neutral">Baru</Badge>}
+                >
+                  <p className="design-note">Konten tersembunyi sampai baris dibuka.</p>
+                </DisclosureRow>
+              </Stack>
+            </Specimen>
+            <Specimen title="Dot labels & rating">
+              <Stack>
+                <div className="design-dot-row">
+                  <DotLabel tone="danger">High</DotLabel>
+                  <DotLabel tone="warning">Medium</DotLabel>
+                  <DotLabel tone="info">Verifikasi</DotLabel>
+                  <DotLabel tone="success">Selesai</DotLabel>
+                  <DotLabel tone="brand">Diproses</DotLabel>
+                  <DotLabel tone="neutral">Arsip</DotLabel>
+                </div>
+                <RatingInput label="Beri rating" defaultValue={4} />
+                <RatingInput label="Rating terkirim" value={3} readOnly />
               </Stack>
             </Specimen>
           </Grid>

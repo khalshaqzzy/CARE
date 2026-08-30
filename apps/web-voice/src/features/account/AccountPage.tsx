@@ -2,13 +2,22 @@ import {
   Badge,
   Button,
   Dialog,
-  KeyValueGrid,
+  DisclosureRow,
   SectionCard,
   SettingsGroup,
   SettingsRow,
   Stack,
 } from '@care/ui';
-import { Bell, Building2, Fingerprint, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import {
+  BadgeCheck,
+  Bell,
+  Briefcase,
+  Building2,
+  Fingerprint,
+  KeyRound,
+  LogOut,
+  Lock,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
@@ -47,12 +56,25 @@ export function AccountPage() {
   const statusLabel = ACCOUNT_STATUS_LABELS[session.account.status] ?? session.account.status;
   const kindLabel = ACCOUNT_KIND_LABELS[session.account.accountKind] ?? session.account.accountKind;
 
+  const organizationRows = profile
+    ? [
+        {
+          label: 'Posisi struktural',
+          value: employee?.structuralPosition ?? profile.structuralPosition ?? 'Team Member',
+        },
+        { label: 'Directorat', value: employee?.directorate ?? '—' },
+        { label: 'Division', value: employee?.division ?? '—' },
+        { label: 'Department', value: employee?.department ?? '—' },
+        { label: 'Section', value: employee?.section ?? '—' },
+      ]
+    : union
+      ? [{ label: 'Slot Union', value: union.slot }]
+      : [];
+
   return (
     <Stack gap="lg">
       <header className="page-intro">
-        <p className="care-eyebrow">Akun</p>
         <h1>Pengaturan akun</h1>
-        <p>Informasi sesi, profil organisasi, dan akses Anda saat ini.</p>
       </header>
 
       <section className="account-hero" aria-label="Identitas akun">
@@ -69,10 +91,13 @@ export function AccountPage() {
         </div>
         <div className="account-hero__chips">
           <span className="account-hero__chip">
-            <i aria-hidden="true" />
+            <BadgeCheck size={14} aria-hidden="true" />
             {statusLabel}
           </span>
-          <span className="account-hero__chip">{kindLabel}</span>
+          <span className="account-hero__chip">
+            <Briefcase size={14} aria-hidden="true" />
+            {kindLabel}
+          </span>
           {union ? <span className="account-hero__chip">Slot {union.slot}</span> : null}
         </div>
       </section>
@@ -83,80 +108,61 @@ export function AccountPage() {
         icon={<Building2 size={16} />}
         padding="md"
       >
-        {profile ? (
-          <KeyValueGrid
-            aria-label="Profil organisasi"
-            columns={2}
-            items={[
-              {
-                label: 'Posisi struktural',
-                value: employee?.structuralPosition ?? profile.structuralPosition ?? 'Team Member',
-              },
-              { label: 'Directorat', value: employee?.directorate ?? '—' },
-              { label: 'Division', value: employee?.division ?? '—' },
-              { label: 'Department', value: employee?.department ?? '—' },
-              { label: 'Section', value: employee?.section ?? '—' },
-            ]}
-          />
-        ) : union ? (
-          <KeyValueGrid
-            aria-label="Profil Union"
-            columns={2}
-            items={[{ label: 'Slot Union', value: union.slot }]}
-          />
+        {organizationRows.length ? (
+          <dl className="account-kv" aria-label="Profil organisasi">
+            {organizationRows.map((row) => (
+              <div className="account-kv__row" key={row.label}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
         ) : (
           <p className="account-note">Tidak ada profil workforce (akun Union).</p>
         )}
       </SectionCard>
 
-      <SectionCard
-        title="Kemampuan akses"
-        description="Diturunkan dari posisi struktural dan penugasan aktif Anda."
-        icon={<ShieldCheck size={16} />}
-        padding="md"
-      >
-        <div className="caps-list">
-          {session.capabilities.map((capability) => (
-            <Badge key={capability} tone="info">
-              <ShieldCheck size={14} /> {CAPABILITY_LABELS[capability] ?? capability}
-            </Badge>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title="Keamanan & sesi"
-        icon={<KeyRound size={16} />}
-        padding="md"
-        action={<Badge tone="success">Sesi aktif</Badge>}
-      >
-        <SettingsGroup>
-          <SettingsRow
-            icon={<Fingerprint size={15} />}
-            title={`ID sesi ${session.sessionId.slice(0, 8)}…`}
-            description="Hanya untuk diagnosis perangkat ini"
-          />
-          <SettingsRow
-            icon={<Bell size={15} />}
-            title="Notifikasi push"
-            description="Kelola izin dan perangkat terdaftar"
-            onClick={() => void navigate('/notifications')}
-          />
-          <SettingsRow
-            icon={<KeyRound size={15} />}
-            title="Ganti password"
-            description="Password baru 6–128 karakter"
-            onClick={() => void navigate('/change-password')}
-          />
-          <SettingsRow
-            icon={<LogOut size={15} />}
-            title="Keluar"
-            description="Akhiri sesi CARE pada perangkat ini"
-            tone="danger"
-            onClick={() => setConfirmLogout(true)}
-          />
-        </SettingsGroup>
-      </SectionCard>
+      <SettingsGroup className="account-actions" aria-label="Keamanan dan tindakan akun">
+        <DisclosureRow
+          className="account-actions__disclosure"
+          icon={<KeyRound size={16} />}
+          title="Kemampuan akses"
+          description="Diturunkan dari posisi struktural dan penugasan aktif Anda."
+          defaultOpen
+        >
+          <div className="caps-list">
+            {session.capabilities.map((capability) => (
+              <Badge key={capability} tone="info">
+                {CAPABILITY_LABELS[capability] ?? capability}
+              </Badge>
+            ))}
+          </div>
+        </DisclosureRow>
+        <SettingsRow
+          icon={<Bell size={15} />}
+          title="Notifikasi push"
+          description="Kelola izin dan perangkat terdaftar"
+          onClick={() => void navigate('/notifications')}
+        />
+        <SettingsRow
+          icon={<Lock size={15} />}
+          title="Ganti password"
+          description="Password baru 6–128 karakter"
+          onClick={() => void navigate('/change-password')}
+        />
+        <SettingsRow
+          icon={<Fingerprint size={15} />}
+          title="ID sesi"
+          description={`Sesi aktif pada perangkat ini · ${session.sessionId.slice(0, 8)}…`}
+        />
+        <SettingsRow
+          icon={<LogOut size={15} />}
+          title="Keluar"
+          description="Akhiri sesi CARE pada perangkat ini"
+          tone="danger"
+          onClick={() => setConfirmLogout(true)}
+        />
+      </SettingsGroup>
 
       <Dialog
         open={confirmLogout}

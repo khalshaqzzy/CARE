@@ -4,10 +4,19 @@ import { axe } from 'jest-axe';
 import { useState } from 'react';
 import { vi } from 'vitest';
 import { Button } from '../primitives.js';
-import { Checkbox, Combobox, Input, PasswordInput, SegmentedControl } from '../forms.js';
+import {
+  Checkbox,
+  Combobox,
+  Input,
+  PasswordInput,
+  RatingInput,
+  SegmentedControl,
+} from '../forms.js';
 import { Dialog } from '../overlays.js';
+import { DotLabel } from '../feedback.js';
 import {
   ChoiceCardGroup,
+  DisclosureRow,
   KeyValueGrid,
   SectionCard,
   SettingsGroup,
@@ -226,5 +235,78 @@ describe('composed section contracts', () => {
     expect(screen.getByText('Status akun')).toBeInTheDocument();
     expect(container.querySelector('[data-tone="success"]')).toHaveTextContent('Aktif');
     expect(container.querySelector('.care-kv-grid--brand')).not.toBeNull();
+  });
+
+  it('toggles a disclosure row and exposes expanded semantics', async () => {
+    const user = userEvent.setup();
+    render(
+      <DisclosureRow
+        icon={<span>i</span>}
+        title="Kemampuan akses"
+        description="Diturunkan dari posisi struktural"
+        defaultOpen={false}
+      >
+        <DotLabel tone="info">Member</DotLabel>
+      </DisclosureRow>,
+    );
+    const trigger = screen.getByRole('button', { name: /Kemampuan akses/ });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Member')).not.toBeInTheDocument();
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('region', { name: /Kemampuan akses/ })).toBeInTheDocument();
+    expect(screen.getByText('Member')).toBeInTheDocument();
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Member')).not.toBeInTheDocument();
+  });
+
+  it('defaults a disclosure row open when asked', () => {
+    render(
+      <DisclosureRow title="Timeline" description="3 pembaruan" defaultOpen>
+        <p>Isi timeline</p>
+      </DisclosureRow>,
+    );
+    expect(screen.getByRole('button', { name: /Timeline/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByText('Isi timeline')).toBeInTheDocument();
+  });
+
+  it('selects a star rating through radio semantics and renders read-only summaries', async () => {
+    const user = userEvent.setup();
+    function Controlled() {
+      const [value, setValue] = useState<number | undefined>(undefined);
+      return (
+        <>
+          <RatingInput label="Beri rating" value={value} onValueChange={setValue} />
+          {value ? <RatingInput label="Rating terkirim" value={value} readOnly /> : null}
+        </>
+      );
+    }
+    const { container } = render(<Controlled />);
+    expect(screen.getByRole('radiogroup', { name: 'Beri rating' })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '4/5' }));
+    expect(screen.getByRole('radio', { name: '4/5' })).toBeChecked();
+    const summary = screen.getByRole('img', { name: 'Rating terkirim: 4/5' });
+    expect(summary).toBeInTheDocument();
+    expect(summary.querySelectorAll('svg[data-filled="true"]')).toHaveLength(4);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('keeps dot labels textual with a decorative dot', () => {
+    const { container } = render(
+      <main>
+        <DotLabel tone="danger">High</DotLabel>
+        <DotLabel>Netral</DotLabel>
+      </main>,
+    );
+    const danger = container.querySelector('.care-dot-label[data-tone="danger"]');
+    expect(danger).toHaveTextContent('High');
+    expect(danger?.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.care-dot-label[data-tone="neutral"]')).toHaveTextContent(
+      'Netral',
+    );
   });
 });

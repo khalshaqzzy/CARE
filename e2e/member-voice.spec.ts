@@ -28,7 +28,8 @@ test('renders a paginated voice detail with timeline and conversation', async ({
   await page.goto(`/voices/${voice.id}`);
 
   await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
-  await expect(page.getByText('Timeline')).toBeVisible();
+  // The Timeline row is collapsed by default; expand it to reveal the events.
+  await page.getByRole('button', { name: /Timeline/ }).click();
   await expect(page.getByRole('listitem').first()).toBeVisible();
   await expect(page.getByText('Percakapan')).toBeVisible();
   // The mock returns a nextCursor, so the "load older" affordance is shown.

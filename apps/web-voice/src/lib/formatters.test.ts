@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatDate,
   formatDateTime,
+  formatNotificationTime,
   formatRelative,
   mediaUrl,
   SEVERITY_LABELS,
@@ -75,6 +76,33 @@ describe('timestamp formatting uses Asia/Jakarta', () => {
   it('renders a relative future/past value', () => {
     const past = new Date(Date.now() - 90 * 60_000);
     expect(formatRelative(past)).toContain('lalu');
+  });
+
+  it('falls through day into week buckets before the absolute date', () => {
+    expect(formatRelative(new Date(Date.now() - 5 * 24 * 60 * 60_000))).toBe('5 hari lalu');
+    expect(formatRelative(new Date(Date.now() - 13 * 24 * 60 * 60_000))).toBe('2 minggu lalu');
+    const old = new Date(Date.now() - 40 * 24 * 60 * 60_000);
+    expect(formatRelative(old)).toBe(formatDate(old));
+  });
+
+  it('renders notification times as clock, yesterday, then absolute', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-05T03:00:00Z')); // 10.00 WIB
+    try {
+      const todayTenOclock = new Date('2026-08-05T00:00:00Z'); // 07.00 WIB
+      expect(formatNotificationTime(todayTenOclock)).toBe('07.00');
+
+      const yesterdayEvening = new Date('2026-08-04T08:45:00Z'); // 15.45 WIB
+      expect(formatNotificationTime(yesterdayEvening)).toBe('Kemarin, 15.45');
+
+      const older = new Date('2026-08-02T02:10:00Z'); // 09.10 WIB
+      expect(formatNotificationTime(older)).toContain('09.10');
+      expect(formatNotificationTime(older)).toContain('2026');
+
+      expect(formatNotificationTime(null)).toBe('—');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

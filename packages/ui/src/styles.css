@@ -486,6 +486,15 @@ select,
 .care-select-trigger:hover {
   border-color: var(--border-strong);
 }
+.care-select-trigger__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+.care-select-trigger__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
 .care-select-content,
 .care-combobox__panel {
   /* Popovers portal to <body>; when opened inside a modal they must stack
@@ -1592,6 +1601,165 @@ select,
   display: grid;
   gap: var(--space-4);
   padding-top: var(--space-4);
+}
+
+/* ===== Dot label — semantic dot with a text label (text is the value) ===== */
+.care-dot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-semibold);
+}
+.care-dot-label i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: currentcolor;
+}
+.care-dot-label[data-tone='neutral'] {
+  color: var(--text-secondary);
+}
+.care-dot-label[data-tone='info'] {
+  color: var(--raw-brand-700);
+}
+.care-dot-label[data-tone='brand'] {
+  color: var(--action-primary-bg);
+}
+.care-dot-label[data-tone='success'] {
+  color: var(--state-success);
+}
+.care-dot-label[data-tone='warning'] {
+  color: var(--state-warning);
+}
+.care-dot-label[data-tone='danger'] {
+  color: var(--state-danger);
+}
+
+/* ===== Rating — star radios (1–5); readOnly renders a labeled summary ===== */
+.care-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.care-rating__star {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--action-primary-bg);
+  cursor: pointer;
+}
+.care-rating__star svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  fill: transparent;
+  transition: fill var(--duration-fast) var(--ease-standard);
+}
+.care-rating__star:hover svg,
+.care-rating__star[data-state='checked'] svg {
+  fill: currentcolor;
+}
+.care-rating__star:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+.care-rating.is-readonly {
+  gap: 2px;
+}
+.care-rating.is-readonly svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--raw-brand-500);
+}
+.care-rating.is-readonly svg[data-filled='true'] {
+  fill: currentcolor;
+}
+.care-rating__value {
+  margin-left: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+}
+
+/* ===== Disclosure row — collapsible card with a rotating-chevron trigger ===== */
+.care-disclosure {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.care-disclosure__heading {
+  margin: 0;
+}
+.care-disclosure__trigger {
+  display: flex;
+  min-height: 3.25rem;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  border: 0;
+  color: var(--text-primary);
+  background: transparent;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  cursor: pointer;
+}
+.care-disclosure__trigger:hover {
+  background: var(--surface-subtle);
+}
+.care-disclosure__trigger:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: calc(-1 * var(--focus-width));
+}
+.care-disclosure__icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--raw-brand-700);
+  background: var(--surface-selected);
+}
+.care-disclosure__icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.care-disclosure__text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.care-disclosure__text strong {
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-control);
+}
+.care-disclosure__text small {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.care-disclosure__chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+.care-disclosure__trigger[aria-expanded='true'] .care-disclosure__chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .care-disclosure__chevron {
+    transition: none;
+  }
+}
+.care-disclosure__body {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-4);
 }
 
 /* ===== Choice cards (radio semantics, card or compact chip variant) ===== */

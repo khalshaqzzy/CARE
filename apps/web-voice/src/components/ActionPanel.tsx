@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Checkbox, Dialog, Select, Stack, Textarea } from '@care/ui';
+import { Alert, Button, Card, Dialog, Select, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ImagePlus } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -21,7 +21,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const askKey = useMutationKey('ask');
   const proceedKey = useMutationKey('proceed');
   const closeKey = useMutationKey('close');
-  const rateKey = useMutationKey('rate');
   const assignKey = useMutationKey('assign');
 
   const invalidate = () => {
@@ -60,17 +59,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
     onSettled: closeKey.reset,
-  });
-  const rate = useMutation({
-    mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
-      api.rate(detail.id, body, rateKey.key()),
-    onSuccess: () => {
-      invalidate();
-      setNotice('Rating berhasil disimpan.');
-      setActive('none');
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: rateKey.reset,
   });
   const assign = useMutation({
     mutationFn: (body: { handlerAccountId: string; reason?: string }) =>
@@ -119,9 +107,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           <Button variant="primary" onClick={() => setActive('close')}>
             {ACTION_LABELS.CLOSE}
           </Button>
-        ) : null}
-        {actions.includes('RATE') ? (
-          <Button onClick={() => setActive('rate')}>{ACTION_LABELS.RATE}</Button>
         ) : null}
       </div>
 
@@ -184,19 +169,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           onCancel={() => setActive('none')}
           onConfirm={(body) => close.mutate(body)}
           loading={close.isPending}
-        />
-      </Dialog>
-
-      <Dialog
-        open={active === 'rate'}
-        onOpenChange={(open) => setActive(open ? 'rate' : 'none')}
-        title="Beri rating"
-        description="Rating 1–2 mewajibkan feedback dan dapat membuka kembali Voice."
-      >
-        <RateDialog
-          onCancel={() => setActive('none')}
-          onConfirm={(body) => rate.mutate(body)}
-          loading={rate.isPending}
         />
       </Dialog>
     </Card>
@@ -429,68 +401,6 @@ function CloseDialog({
           onClick={() => onConfirm({ note, version: detail.version })}
         >
           Tutup Voice
-        </Button>
-      </div>
-    </Stack>
-  );
-}
-
-function RateDialog({
-  onCancel,
-  onConfirm,
-  loading,
-}: {
-  onCancel: () => void;
-  onConfirm: (body: { score: number; feedback?: string; reopen: boolean }) => void;
-  loading: boolean;
-}) {
-  const [score, setScore] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('');
-  const [reopen, setReopen] = useState(false);
-  const needsFeedback = score !== null && score <= 2;
-  return (
-    <Stack gap="md">
-      <Select
-        label="Rating"
-        value={score ? String(score) : ''}
-        onValueChange={(value) => setScore(Number(value))}
-        options={[1, 2, 3, 4, 5].map((value) => ({ value: String(value), label: `${value}/5` }))}
-      />
-      <Textarea
-        label="Feedback"
-        value={feedback}
-        onChange={(event) => setFeedback(event.target.value)}
-        rows={3}
-        maxLength={2000}
-        helperText={needsFeedback ? 'Wajib untuk rating 1–2' : 'Opsional untuk rating 3–5'}
-        required={needsFeedback}
-      />
-      {needsFeedback ? (
-        <Checkbox
-          checked={reopen}
-          onCheckedChange={setReopen}
-          label="Buka kembali Voice ini"
-          description="Membuka kembali memulai siklus penutupan baru dengan PIC terakhir."
-        />
-      ) : null}
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onCancel}>
-          Batal
-        </Button>
-        <Button
-          variant="primary"
-          loading={loading}
-          disabled={score === null || (needsFeedback && !feedback.trim())}
-          onClick={() => {
-            const trimmed = feedback.trim();
-            onConfirm({
-              score: score!,
-              reopen,
-              ...(trimmed ? { feedback: trimmed } : {}),
-            });
-          }}
-        >
-          Kirim Rating
         </Button>
       </div>
     </Stack>

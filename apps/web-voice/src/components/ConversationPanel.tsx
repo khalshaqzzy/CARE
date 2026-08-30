@@ -1,9 +1,9 @@
 import { Alert, Button, Card, IconButton, Textarea } from '@care/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus, Send } from 'lucide-react';
+import { ImagePlus, Send, UserRound } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
-import { formatDateTime } from '../lib/formatters';
+import { formatNotificationTime } from '../lib/formatters';
 import { useMutationKey, useApi, useSessionId, voiceQuery } from '../lib/query';
 import { useCursorFeed } from '../lib/useCursorFeed';
 import type { Message } from '../workforce-api';
@@ -118,6 +118,7 @@ export function ConversationPanel({
             </IconButton>
             <Textarea
               label="Pesan"
+              hideLabel
               value={text}
               onChange={(event) => setText(event.target.value)}
               rows={1}
@@ -172,16 +173,25 @@ function MessageBubble({ message }: { message: Message }) {
   const isMine = message.senderId === session?.account.id;
   return (
     <article className={`message is-${isMine ? 'mine' : 'theirs'}`}>
-      <div className="message__meta">
-        <span className="message__sender">
-          {isMine ? 'Anda' : (message.sender?.alias ?? 'Responder')}
+      {!isMine ? (
+        <span className="message__avatar" aria-hidden="true">
+          <UserRound size={15} />
         </span>
-        <time dateTime={message.createdAt}>{formatDateTime(message.createdAt)}</time>
-      </div>
-      {message.text ? <p className="message__text">{message.text}</p> : null}
-      {message.attachments?.length ? (
-        <MediaGallery attachments={message.attachments} label="Lampiran" />
       ) : null}
+      <div className="message__stack">
+        <div className="message__bubble">
+          <span className="care-sr-only">
+            {isMine ? 'Anda: ' : `${message.sender?.alias ?? 'Responder'}: `}
+          </span>
+          {message.text ? <p className="message__text">{message.text}</p> : null}
+          {message.attachments?.length ? (
+            <MediaGallery attachments={message.attachments} label="Lampiran" />
+          ) : null}
+          <time className="message__time" dateTime={message.createdAt}>
+            {formatNotificationTime(message.createdAt)}
+          </time>
+        </div>
+      </div>
     </article>
   );
 }

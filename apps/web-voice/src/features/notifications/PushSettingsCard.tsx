@@ -1,4 +1,4 @@
-import { Alert, Badge, SectionCard, SettingsGroup, Stack, Switch } from '@care/ui';
+import { Alert, Badge, DisclosureRow, SettingsGroup, Stack, Switch } from '@care/ui';
 import { BellRing, Smartphone } from 'lucide-react';
 import { formatDateTime } from '../../lib/formatters';
 import { useWebPush } from './use-web-push';
@@ -6,23 +6,25 @@ import { useWebPush } from './use-web-push';
 /**
  * Workforce Web Push opt-in/opt-out. The in-app Notification Center is always
  * authoritative; push is best-effort after an explicit user gesture. Every
- * degraded path is surfaced as guidance rather than a silent failure.
+ * degraded path is surfaced as guidance rather than a silent failure. The
+ * collapsed row matches the notification-center concept; the body stays open
+ * by default so states and the switch remain reachable without extra taps.
  */
 export function PushSettingsCard() {
   const web = useWebPush();
 
   return (
-    <SectionCard
-      title="Notifikasi push"
-      description="Pemberitahuan singkat saat Voice Anda atau yang Anda tangani diperbarui. Pusat notifikasi di dalam aplikasi tetap menjadi sumber utama."
+    <DisclosureRow
+      className="push-settings"
       icon={<BellRing size={16} />}
-      padding="md"
-      action={
+      title="Notifikasi push"
+      description="Pemberitahuan singkat saat Voice Anda diperbarui."
+      trailing={
         <Badge tone={web.enabled ? 'success' : 'neutral'} icon={<BellRing size={14} />}>
           {web.enabled ? 'Aktif' : 'Nonaktif'}
         </Badge>
       }
-      className="push-settings"
+      defaultOpen
     >
       {web.error ? (
         <Alert tone="danger" title="Pengaturan push gagal diperbarui">
@@ -89,6 +91,6 @@ export function PushSettingsCard() {
           Layar Utama”, lalu buka dari sana.
         </Alert>
       )}
-    </SectionCard>
+    </DisclosureRow>
   );
 }

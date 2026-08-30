@@ -96,7 +96,52 @@ export function formatRelative(value: string | Date | null | undefined): string 
   if (hours < 24) return `${hours} jam lalu`;
   const days = Math.round(hours / 24);
   if (days < 7) return `${days} hari lalu`;
+  const weeks = Math.round(days / 7);
+  if (weeks < 5) return `${weeks} minggu lalu`;
   return formatDate(date);
+}
+
+/** Clock in Jakarta notation (07.00) for a notification row. */
+function formatJakartaClock(date: Date): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: JAKARTA_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+/**
+ * Compact notification timestamp: today shows the clock, yesterday prefixes
+ * "Kemarin", everything older falls back to an absolute date + clock.
+ */
+export function formatNotificationTime(value: string | Date | null | undefined): string {
+  if (!value) return '—';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return '—';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: JAKARTA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const read = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: JAKARTA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  const day = `${read('year')}-${read('month')}-${read('day')}`;
+  const clock = formatJakartaClock(date);
+  if (day === today) return clock;
+  const yesterday = new Intl.DateTimeFormat('en-CA', {
+    timeZone: JAKARTA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() - 24 * 60 * 60_000));
+  if (day === yesterday) return `Kemarin, ${clock}`;
+  return `${dateFormatter.format(date)}, ${clock}`;
 }
 
 export function mediaUrl(id: string): string {

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { memberSession, mockWorkforceApi, unionSession } from './helpers/mock-api';
+import { baseVoiceItem, memberSession, mockWorkforceApi, unionSession } from './helpers/mock-api';
 
 const voice = {
   id: 'voice-1',
@@ -63,16 +63,64 @@ const managerDashboard = {
 test('workforce history visual at 360', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await mockWorkforceApi(page, { voice });
+  await mockWorkforceApi(page, {
+    voice,
+    voiceList: {
+      items: [
+        baseVoiceItem({
+          ...voice,
+          status: 'IN_VERIFICATION',
+          severity: 'HIGH',
+          updatedAt: '2026-08-03T10:00:00.000Z',
+        }),
+        baseVoiceItem({
+          id: 'voice-10',
+          displayId: 'CARE-202608-000010',
+          audience: 'REPORTER_SELF',
+          visibility: 'PRIVATE',
+          status: 'IN_VERIFICATION',
+          area: 'SUNTER_1',
+          title: 'Kebocoran pipa di area utility',
+          detail: 'Dedaunan mengendon di saluran.',
+          availableActions: [],
+          severity: 'HIGH',
+          updatedAt: '2026-07-31T10:00:00.000Z',
+        }),
+        baseVoiceItem({
+          id: 'voice-13',
+          displayId: 'CARE-202608-000013',
+          audience: 'REPORTER_SELF',
+          visibility: 'GENERAL',
+          status: 'CLOSED',
+          area: 'KARAWANG_2',
+          title: 'Ventilasi area gudang tidak optimal',
+          detail: 'Udara stagnan di area simpan.',
+          availableActions: [],
+          severity: 'MEDIUM',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        }),
+        baseVoiceItem({
+          id: 'voice-8',
+          displayId: 'CARE-202608-000008',
+          audience: 'REPORTER_SELF',
+          visibility: 'GENERAL',
+          status: 'CLOSED',
+          area: 'KARAWANG_3',
+          title: 'Penataan material di area kerja',
+          detail: 'Material menutupi jalur pejalan.',
+          availableActions: [],
+          severity: 'MEDIUM',
+          updatedAt: '2026-07-27T10:00:00.000Z',
+        }),
+      ],
+      nextCursor: null,
+    },
+  });
   // Pin the clock so relative "updated" timestamps are deterministic.
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/history');
   await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-history-360.png', {
-    animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
-  });
+  await expect(page).toHaveScreenshot('workforce-history-360.png', screenshotOptions);
 });
 
 test('workforce notifications visual at 360', async ({ page }) => {
@@ -153,11 +201,71 @@ test('workforce active conversation visual at 360', async ({ page }) => {
   await page.goto('/voices/voice-1');
   await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
   await page.locator('#voice-conversation').scrollIntoViewIfNeeded();
-  await expect(page).toHaveScreenshot('workforce-conversation-active-360.png', {
-    animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
+  await expect(page).toHaveScreenshot('workforce-conversation-active-360.png', screenshotOptions);
+});
+
+// Baselines for the redesigned Voice detail (screens 13–14): an active voice
+// framed from the top and a closed voice framed on the closure/rating card.
+
+test('workforce detail active visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    voice: {
+      ...voice,
+      status: 'IN_VERIFICATION',
+      conversationState: 'ACTIVE',
+      attachments: [
+        { id: 'att-1', mimeType: 'image/png' },
+        { id: 'att-2', mimeType: 'image/png' },
+      ],
+    },
   });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-1');
+  await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+  await expect(page).toHaveScreenshot('workforce-detail-active-360.png', screenshotOptions);
+});
+
+test('workforce detail closed rating visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    voice: {
+      ...voice,
+      status: 'CLOSED',
+      availableActions: ['RATE'],
+      attachments: [
+        { id: 'att-1', mimeType: 'image/png' },
+        { id: 'att-2', mimeType: 'image/png' },
+      ],
+      closureCycles: [
+        {
+          id: 'cycle-1',
+          cycleNumber: 1,
+          note: 'Pelindung kabel diganti dan area diamankan.',
+          closedAt: '2026-08-03T07:00:00.000Z',
+          reopenedAt: null,
+          evidence: [
+            { id: 'evd-1', mimeType: 'image/png', purpose: 'CLOSURE_EVIDENCE' },
+            { id: 'evd-2', mimeType: 'image/png', purpose: 'CLOSURE_EVIDENCE' },
+          ],
+          rating: null,
+        },
+      ],
+    },
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-1');
+  await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
+  await expect(page.getByText('Bagaimana hasil tindak lanjutnya?')).toBeVisible();
+  await page.locator('.closure-featured').evaluate((element) => {
+    element.scrollIntoView();
+  });
+  await page.waitForTimeout(100);
+  await expect(page).toHaveScreenshot('workforce-detail-closed-360.png', screenshotOptions);
 });
 
 test('workforce union private inbox visual at 1440', async ({ page }) => {
