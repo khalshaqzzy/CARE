@@ -23,7 +23,10 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
     timeout: 60_000,
   });
   await page.getByLabel('Username').fill(USERNAME);
-  await page.getByLabel('Password').fill(PASSWORD);
+  // Role + name — getByLabel('Password') would also match the PasswordInput
+  // visibility toggle ("Tampilkan password"), and the label text is
+  // "Password *" because of the required marker.
+  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Masuk' }).click();
 
   // First login is restricted and forces a password change.
