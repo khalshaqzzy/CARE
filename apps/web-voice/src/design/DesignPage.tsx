@@ -33,6 +33,7 @@ import {
   PageHeader,
   Pagination,
   Panel,
+  PasswordInput,
   PermissionState,
   Popover,
   Progress,
@@ -80,6 +81,7 @@ import {
 import {
   AlertTriangle,
   Bell,
+  Briefcase,
   CalendarDays,
   Check,
   ChevronRight,
@@ -370,6 +372,12 @@ export default function DesignPage() {
                   readOnly
                 />
                 <Input label="Search" leading={<Search size={17} />} value="Welding" readOnly />
+                <PasswordInput
+                  label="Password"
+                  helperText="6–128 karakter."
+                  autoComplete="new-password"
+                  defaultValue="rahasia-123"
+                />
                 <Textarea
                   label="Detail Voice"
                   helperText="Jelaskan kondisi dan dampaknya."
@@ -497,6 +505,26 @@ export default function DesignPage() {
                   { value: 'KARAWANG_1', label: 'Karawang 1', icon: <MapPin size={14} /> },
                   { value: 'KARAWANG_2', label: 'Karawang 2', icon: <MapPin size={14} /> },
                   { value: 'SUNTER_1', label: 'Sunter 1', icon: <MapPin size={14} /> },
+                ]}
+              />
+              <ChoiceCardGroup
+                label="Jalur Voice"
+                defaultValue="GENERAL"
+                indicator="radio"
+                appearance="brand"
+                options={[
+                  {
+                    value: 'GENERAL',
+                    label: 'General Voice',
+                    description: 'Ditangani PIC organisasi.',
+                    icon: <Briefcase size={16} />,
+                  },
+                  {
+                    value: 'PRIVATE',
+                    label: 'Private Voice',
+                    description: 'Ditangani secara aman oleh Union.',
+                    icon: <ShieldCheck size={16} />,
+                  },
                 ]}
               />
             </Specimen>

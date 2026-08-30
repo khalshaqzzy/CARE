@@ -197,11 +197,13 @@ export function useDraftWizard(draftId?: string) {
       const saved = await persist.mutateAsync({});
       if (!saved) return;
       setDraft(saved);
-      const [classificationResult] = await Promise.all([
+      const [classificationResult, reviewResult] = await Promise.all([
         classifyMutation.mutateAsync(saved.id),
         reviewLocationMutation.mutateAsync(saved.id),
       ]);
-      setLocationReview(reviewLocationMutation.data ?? null);
+      // Read the awaited result: the mutation object captured by this closure
+      // still holds its pre-flight state, so `.data` here would be stale.
+      setLocationReview(reviewResult);
       if (
         classificationResult &&
         'source' in classificationResult &&
@@ -294,6 +296,16 @@ export function useDraftWizard(draftId?: string) {
 
   const zoneLabel = form.area ? AREA_LABELS[form.area] : null;
 
+  // Live stage states for the processing surface: persist completes first,
+  // then classification and location review resolve together.
+  const stages = {
+    persisted: persist.isSuccess,
+    classifying: classifyMutation.isPending,
+    classified: classifyMutation.isSuccess,
+    reviewing: reviewLocationMutation.isPending,
+    reviewed: reviewLocationMutation.isSuccess,
+  };
+
   return {
     step,
     setStep,
@@ -309,6 +321,7 @@ export function useDraftWizard(draftId?: string) {
     dirty,
     loaded,
     zoneLabel,
+    stages,
     saveAndProcess,
     saveOnly,
     uploadFiles,

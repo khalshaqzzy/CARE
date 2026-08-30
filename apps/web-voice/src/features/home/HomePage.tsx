@@ -539,7 +539,9 @@ export function HomePage() {
               className="home-quick__tile"
               onClick={() => void navigate(action.to)}
             >
-              {action.icon}
+              <span className="home-quick__icon" aria-hidden="true">
+                {action.icon}
+              </span>
               <span>{action.label}</span>
             </button>
           ))}

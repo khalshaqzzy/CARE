@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { memberSession, mockWorkforceApi, unionSession } from './helpers/mock-api';
 
 const voice = {
@@ -209,4 +209,254 @@ test('workforce union private inbox visual at 1440', async ({ page }) => {
     // (FreeType); the same tolerance rationale as the other baselines.
     maxDiffPixelRatio: 0.06,
   });
+});
+
+// Baselines for the redesigned auth and Create Voice surfaces (ADR-0022).
+// They share the workforce conventions above: 360px viewport, reduced motion,
+// mocked contract, and the font-rasterization tolerance.
+
+const screenshotOptions = {
+  animations: 'disabled',
+  threshold: 0.25,
+  // Font rasterization differs between macOS (CoreText) and Linux CI
+  // (FreeType); the same tolerance rationale as the other baselines.
+  maxDiffPixelRatio: 0.06,
+} as const;
+
+const fallbackClassification = {
+  source: 'MANUAL_FALLBACK',
+  category: null,
+  severity: null,
+  confidence: 0.3,
+  rationaleCode: 'LOW_CONFIDENCE',
+  fallbackCode: 'BELOW_THRESHOLD',
+};
+
+/** Opens the wizard on the General detail step with the Ubah area sheet raised. */
+async function openGeneralAreaSheet(page: Page) {
+  await page.goto('/voices/new');
+  await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+  await page.getByRole('radio', { name: /General Voice/ }).click();
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await expect(page.getByRole('heading', { name: 'Detail Voice General' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.waitForTimeout(450);
+}
+
+async function fillVoiceDetails(
+  page: Page,
+  content: {
+    location: string;
+    title: string;
+    detail: string;
+  },
+) {
+  await page.getByRole('textbox', { name: /Detail Lokasi/ }).fill(content.location);
+  await page.getByRole('textbox', { name: /Judul Voice/ }).fill(content.title);
+  await page.getByRole('textbox', { name: /Detail Voice/ }).fill(content.detail);
+}
+
+/** Interactions auto-scroll the page; baselines frame each step from the top. */
+async function scrollToTop(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
+}
+
+test('workforce login visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, { unauthenticated: true });
+  await page.goto('/login');
+  await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible();
+  await expect(page).toHaveScreenshot('workforce-login-360.png', screenshotOptions);
+});
+
+test('workforce password change visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: { ...memberSession(), passwordChangeRequired: true },
+  });
+  await page.goto('/change-password');
+  await expect(page.getByRole('button', { name: 'Simpan password' })).toBeVisible();
+  await expect(page).toHaveScreenshot('workforce-password-change-360.png', screenshotOptions);
+});
+
+test('workforce create voice type visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await page.goto('/voices/new');
+  await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+  await expect(page).toHaveScreenshot('workforce-create-type-360.png', screenshotOptions);
+});
+
+test('workforce create area sheet visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await openGeneralAreaSheet(page);
+  await expect(page).toHaveScreenshot('workforce-create-area-sheet-360.png', screenshotOptions);
+});
+
+test('workforce create general form visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await openGeneralAreaSheet(page);
+  await page.getByRole('radio', { name: 'Karawang 1' }).click();
+  await page.waitForTimeout(450);
+  await fillVoiceDetails(page, {
+    location: 'Lantai 3, dekat mesin produksi',
+    title: 'Pencahayaan area produksi kurang',
+    detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi kerja.',
+  });
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-create-general-form-360.png', screenshotOptions);
+});
+
+test('workforce create processing visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await openGeneralAreaSheet(page);
+  await page.getByRole('radio', { name: 'Karawang 1' }).click();
+  await page.waitForTimeout(450);
+  await fillVoiceDetails(page, {
+    location: 'Lantai 3, dekat mesin produksi',
+    title: 'Pencahayaan area produksi kurang',
+    detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi kerja.',
+  });
+  // Hold classification and location review in flight so the staged
+  // processing card renders its mid-analysis state deterministically.
+  await page.route('**/api/v1/drafts/*/classify', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        source: 'AI',
+        category: 'SAFETY',
+        severity: 'HIGH',
+        confidence: 0.9,
+        rationaleCode: 'CLEAR_HAZARD',
+      }),
+    });
+  });
+  await page.route('**/api/v1/drafts/*/location-review', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'lr-1',
+        completeness: 'COMPLETE',
+        warning: null,
+        questions: [],
+        contentHash: 'c'.repeat(64),
+      }),
+    });
+  });
+  await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+  await expect(page.getByText('Menganalisis Voice Anda')).toBeVisible();
+  await page.waitForTimeout(300);
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-create-processing-360.png', screenshotOptions);
+});
+
+test('workforce create fallback visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, { classification: fallbackClassification });
+  await openGeneralAreaSheet(page);
+  await page.getByRole('radio', { name: 'Karawang 1' }).click();
+  await page.waitForTimeout(450);
+  await fillVoiceDetails(page, {
+    location: 'Lantai 3, dekat mesin produksi',
+    title: 'Pencahayaan area produksi kurang',
+    detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi kerja.',
+  });
+  await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+  await expect(page.getByRole('heading', { name: 'Klasifikasi manual' })).toBeVisible({
+    timeout: 15000,
+  });
+  await page.getByRole('radio', { name: /Keselamatan/ }).click();
+  await page.getByRole('radio', { name: /^High/ }).click();
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-create-fallback-360.png', screenshotOptions);
+});
+
+test('workforce create review general visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await openGeneralAreaSheet(page);
+  await page.getByRole('radio', { name: 'Karawang 1' }).click();
+  await page.waitForTimeout(450);
+  await fillVoiceDetails(page, {
+    location: 'Lantai 3, dekat mesin produksi',
+    title: 'Pencahayaan area produksi kurang',
+    detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi kerja.',
+  });
+  await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+  await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible({
+    timeout: 15000,
+  });
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-create-review-general-360.png', screenshotOptions);
+});
+
+test('workforce create private form visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await page.goto('/voices/new');
+  await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+  await page.getByRole('radio', { name: /Private Voice/ }).click();
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await expect(page.getByRole('heading', { name: 'Detail Voice Private' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('radio', { name: 'Karawang 2' }).click();
+  await page.waitForTimeout(450);
+  await fillVoiceDetails(page, {
+    location: 'Gedung A, ruang istirahat',
+    title: 'Kursi istirahat rusak',
+    detail: 'Sandaran kursi patah dan berisiko menyebabkan ketidaknyamanan.',
+  });
+  await page.getByRole('radio', { name: /Sembunyikan identitas/ }).click();
+  await expect(page).toHaveScreenshot('workforce-create-private-form-360.png', screenshotOptions);
+});
+
+test('workforce create review private visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, { classification: fallbackClassification });
+  await page.goto('/voices/new');
+  await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+  await page.getByRole('radio', { name: /Private Voice/ }).click();
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await expect(page.getByRole('heading', { name: 'Detail Voice Private' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('radio', { name: 'Karawang 2' }).click();
+  await page.waitForTimeout(450);
+  await fillVoiceDetails(page, {
+    location: 'Gedung A, ruang istirahat',
+    title: 'Kursi istirahat rusak',
+    detail: 'Sandaran kursi patah dan berisiko menyebabkan ketidaknyamanan.',
+  });
+  await page.getByRole('radio', { name: /Sembunyikan identitas/ }).click();
+  await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+  await expect(page.getByRole('heading', { name: 'Klasifikasi manual' })).toBeVisible({
+    timeout: 15000,
+  });
+  await page.getByRole('radio', { name: /^High/ }).click();
+  await page.getByRole('button', { name: 'Simpan & Tinjau' }).click();
+  await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible({
+    timeout: 15000,
+  });
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-create-review-private-360.png', screenshotOptions);
 });

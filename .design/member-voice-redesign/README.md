@@ -34,4 +34,3 @@ Lihat [manifest.md](./manifest.md) untuk mapping current-to-concept dan [prompts
 - Create Voice memakai timeline lima node yang tipis, selected route solid cobalt, cards lebih tinggi, dan composition yang minimalist/polished.
 - Private anonymous tidak pernah memuat nama, nomor registrasi, division, department, initials, portrait, atau identity hint.
 - Leadership dan Union General bersifat read-only tanpa lifecycle controls.
-

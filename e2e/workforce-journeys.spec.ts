@@ -45,7 +45,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
     await dock.getByRole('button', { name: 'Buat', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Pilih jenis Voice' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
   });
 
   test('desktop sidebar navigates to member history', async ({ page }) => {
@@ -61,13 +61,16 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {});
     await page.goto('/voices/new');
-    await expect(page.getByRole('heading', { name: 'Pilih jenis Voice' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
     await page.getByRole('radio', { name: /General Voice/ }).click();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
     await expect(page.getByRole('heading', { name: 'Detail Voice General' })).toBeVisible();
-    // The required detail fields are present; areas render as choice chips.
-    await expect(page.getByRole('radio', { name: 'Karawang 1' })).toBeVisible();
+    // The required detail fields are present; areas open from the Ubah sheet.
     await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toBeVisible();
+    await page.getByRole('button', { name: /area temuan/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await expect(page.getByText('Karawang 1')).toBeVisible();
   });
 
   test('history lists the member own voices', async ({ page }) => {

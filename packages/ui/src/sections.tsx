@@ -73,6 +73,8 @@ export function ChoiceCardGroup({
   options,
   columns = 1,
   variant = 'card',
+  indicator = 'check',
+  appearance = 'default',
   disabled,
   className,
 }: {
@@ -84,6 +86,10 @@ export function ChoiceCardGroup({
   columns?: 1 | 2;
   /** `chip` renders the compact tile grid used for areas and categories. */
   variant?: 'card' | 'chip';
+  /** `radio` renders a ring-and-dot marker instead of the default check. */
+  indicator?: 'check' | 'radio';
+  /** `brand` renders the checked card as a solid primary-action surface. */
+  appearance?: 'default' | 'brand';
   disabled?: boolean | undefined;
   className?: string | undefined;
 }) {
@@ -101,6 +107,7 @@ export function ChoiceCardGroup({
         'care-choice-card-group',
         columns === 2 && variant === 'card' && 'care-choice-card-group--2',
         variant === 'chip' && 'care-choice-card-group--chip',
+        appearance === 'brand' && 'care-choice-card-group--brand',
         className,
       )}
     >
@@ -120,8 +127,14 @@ export function ChoiceCardGroup({
             <strong>{option.label}</strong>
             {option.description ? <small>{option.description}</small> : null}
           </span>
-          <span className="care-choice-card__indicator" aria-hidden="true">
-            <Check size={13} strokeWidth={3.5} />
+          <span
+            className={cn(
+              'care-choice-card__indicator',
+              indicator === 'radio' && 'care-choice-card__indicator--radio',
+            )}
+            aria-hidden="true"
+          >
+            {indicator === 'radio' ? null : <Check size={13} strokeWidth={3.5} />}
           </span>
         </RadioGroupPrimitive.Item>
       ))}

@@ -2,7 +2,7 @@ import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
-import { Check, ChevronDown, Search, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, Eye, EyeOff, Search, Upload, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   forwardRef,
@@ -117,6 +117,80 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     </Field>
   );
 });
+
+export interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
+  label: string;
+  helperText?: string;
+  errorText?: string;
+  leading?: ReactNode;
+  counter?: string;
+}
+/**
+ * Password field with an accessible visibility toggle. The shared `Input`
+ * renders trailing content as an aria-hidden span, so the toggle needs its own
+ * real button to stay operable and labelled.
+ */
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
+  function PasswordInput(
+    {
+      id: suppliedId,
+      label,
+      helperText,
+      errorText,
+      leading,
+      counter,
+      className,
+      required,
+      ...props
+    },
+    ref,
+  ) {
+    const generated = useId();
+    const id = suppliedId ?? generated;
+    const [visible, setVisible] = useState(false);
+    return (
+      <Field
+        label={label}
+        helperText={helperText}
+        errorText={errorText}
+        required={required}
+        htmlFor={id}
+        counter={counter}
+      >
+        <div className="care-input-shell care-password-input">
+          {leading ? (
+            <span className="care-input-shell__icon" aria-hidden="true">
+              {leading}
+            </span>
+          ) : null}
+          <input
+            ref={ref}
+            id={id}
+            type={visible ? 'text' : 'password'}
+            className={cn('care-input', className)}
+            required={required}
+            aria-invalid={Boolean(errorText) || undefined}
+            aria-describedby={errorText ? `${id}-error` : helperText ? `${id}-helper` : undefined}
+            {...props}
+          />
+          <button
+            type="button"
+            className="care-password-input__toggle"
+            aria-label={visible ? 'Sembunyikan password' : 'Tampilkan password'}
+            aria-pressed={visible}
+            onClick={() => setVisible((current) => !current)}
+          >
+            {visible ? (
+              <EyeOff size={18} aria-hidden="true" />
+            ) : (
+              <Eye size={18} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      </Field>
+    );
+  },
+);
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;

@@ -4,7 +4,7 @@ import { axe } from 'jest-axe';
 import { useState } from 'react';
 import { vi } from 'vitest';
 import { Button } from '../primitives.js';
-import { Checkbox, Combobox, Input, SegmentedControl } from '../forms.js';
+import { Checkbox, Combobox, Input, PasswordInput, SegmentedControl } from '../forms.js';
 import { Dialog } from '../overlays.js';
 import {
   ChoiceCardGroup,
@@ -97,6 +97,26 @@ describe('interactive component contracts', () => {
     expect(await axe(container)).toHaveNoViolations();
     expect(screen.getByLabelText('Lokasi')).toHaveAccessibleDescription('Lokasi wajib diisi');
   });
+
+  it('toggles password visibility through a labelled pressed control', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <main>
+        <PasswordInput label="Password" autoComplete="current-password" />
+      </main>,
+    );
+    const field = screen.getByLabelText('Password');
+    expect(field).toHaveAttribute('type', 'password');
+    const toggle = screen.getByRole('button', { name: 'Tampilkan password' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    expect(field).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Sembunyikan password' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
 });
 
 describe('composed section contracts', () => {
@@ -141,6 +161,34 @@ describe('composed section contracts', () => {
     expect(screen.getByRole('radio', { name: /Private Voice/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: /General Voice/ })).not.toBeChecked();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('renders radio indicator and brand appearance hooks without changing the default DOM', () => {
+    const options = [
+      { value: 'GENERAL', label: 'General Voice' },
+      { value: 'PRIVATE', label: 'Private Voice' },
+    ];
+    const { container: defaultRender } = render(
+      <ChoiceCardGroup label="Jenis" options={options} />,
+    );
+    expect(defaultRender.querySelectorAll('.care-choice-card__indicator--radio')).toHaveLength(0);
+    expect(
+      defaultRender.querySelector('.care-choice-card__indicator')?.querySelector('svg'),
+    ).not.toBeNull();
+
+    const { container } = render(
+      <ChoiceCardGroup
+        label="Jenis"
+        defaultValue="GENERAL"
+        indicator="radio"
+        appearance="brand"
+        options={options}
+      />,
+    );
+    expect(container.querySelector('.care-choice-card-group--brand')).not.toBeNull();
+    const indicators = container.querySelectorAll('.care-choice-card__indicator--radio');
+    expect(indicators).toHaveLength(2);
+    expect(indicators[0]?.querySelector('svg')).toBeNull();
   });
 
   it('renders navigational and danger settings rows', async () => {

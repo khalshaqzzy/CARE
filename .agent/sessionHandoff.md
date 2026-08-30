@@ -1,16 +1,97 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                             |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 29 Agustus 2026                                                                                                                                                                                                   |
-| Current objective       | Workforce secondary-surface polish (Account, Create Voice, Notifications) via shared padded-surface/section components on `feat/polish-member-pages` (ADR-0020); Phase 13 remains open for hosted acceptance      |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                  |
-| Backend Complete Gate   | Passed (PRD v1.1); no API/schema/contract change in this session                                                                                                                                                  |
-| Implementation status   | Phase 0–12 done; ADR-0020 secondary-surface polish locally complete with full parity green; Phase 13 hosted evidence not yet claimed                                                                              |
-| Latest ADR              | ADR-0020 (Workforce secondary surface polish)                                                                                                                                                                     |
-| Recommended next action | Open PR for `feat/polish-member-pages`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
+| Atribut                 | Nilai                                                                                                                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 30 Agustus 2026                                                                                                                                                                                                           |
+| Current objective       | Workforce auth, Member Home, and Create Voice redesign implemented from `.design/member-voice-redesign/` screens 01–11 on `feat/member-page-redesign-imagen` (ADR-0022); Phase 13 remains open for hosted acceptance      |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                          |
+| Backend Complete Gate   | Passed (PRD v1.1); no API/schema/contract change in this session                                                                                                                                                          |
+| Implementation status   | Phase 0–12 done; ADR-0022 redesign slice locally complete with full mocked parity green; Phase 13 hosted evidence not yet claimed                                                                                         |
+| Latest ADR              | ADR-0022 (Workforce auth, Member Home, and Create Voice redesign)                                                                                                                                                         |
+| Recommended next action | Open PR for `feat/member-page-redesign-imagen`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
 
 ## Session Outcome
+
+### Workforce auth, Member Home, and Create Voice redesign — 30 Agustus 2026
+
+Branch `feat/member-page-redesign-imagen`. Implementasi slice pertama dari
+konsep `.design/member-voice-redesign/` (layar 01–11) tanpa perubahan API,
+schema, atau kontrak (ADR-0022):
+
+- **Shared UI (aditif; Admin byte-identical).** `PasswordInput` baru di
+  `packages/ui` (toggle visibilitas sebagai tombol berlabel `aria-pressed`;
+  `Input` lama tidak bisa menampung kontrol berlabel karena trailing
+  di-render `aria-hidden`). `ChoiceCardGroup` memperoleh prop opsional
+  `indicator: 'check' | 'radio'` (default `check`, DOM tak berubah) dan
+  `appearance: 'default' | 'brand'` (kartu terpilih solid cobalt, teks
+  inverse, ikon plate tinted). Keduanya terdaftar di coverage, di-specimen-kan
+  di `/design`, dan diuji unit (UI 14).
+- **Auth.** Login dan ganti password memakai layout hero cobalt + sheet putih
+  yang menumpuk (mobile) dan panel dua kolom (desktop): lockup + headline +
+  grid blueprint, badge shield + watermark untuk halaman keamanan, field
+  berlabel dengan ikon leading + toggle password, tombol utama berpanah.
+  Chip "Member Voice" pada hero dan tile ikon pada heading "Selamat datang
+  kembali" dihapus atas arahan product owner. Kontras diperbaiki ke putih
+  penuh di atas cobalt (92% putih = 4.31:1 di stop brand-600, di bawah AA).
+- **Member Home.** Komposisi inti dipertahankan; hero kini memakai token
+  `--gradient-brand-hero`, tile aksi cepat bericon-chip brand, baris sheet
+  Lainnya bericon-chip + chevron. Destinasi aksi cepat dan dock mobile tidak
+  diubah (keputusan product owner).
+- **Create Voice.** Stepper hairline lima node dengan counter `n/5`
+  (fallback = 3/5 sesuai konsep); kartu jalur ber-radio dan state terpilih
+  brand — atas arahan product owner kartu jenis Voice menyerap sisa tinggi
+  halaman hingga tepat di atas CTA (halaman langkah jenis memenuhi viewport
+  di bawah topbar dan di atas CTA terpin), dan CTA "Lanjutkan" dipin persis
+  di atas dock mobile (varian `pinned` pada actions bar, desktop tetap
+  floating card). Catatan operasional: regen baseline setelah rebuild wajib
+  memastikan tidak ada server `vite preview` basi yang masih hidup — server
+  lama menyajikan dist lama sehingga snapshot terkunci pada render tua. form terbagi kartu Lokasi temuan (baris ringkas "Karawang 1
+  - Ubah" membuka bottom-sheet picker — supersesi chip grid ADR-0020 khusus
+    form ini) dan kartu Voice composer (counter, divider dashed, dropzone +
+    catatan berdampingan, ribbon bookmark Private, notice AI General); consent
+    identitas Private menjadi seksi kartu brand tanpa default; processing
+    menjadi kartu cobalt dengan orbit spinner (reduced-motion-safe) dan ceklis
+    tiga tahap berbasis status mutasi nyata (`stages` diekspos `useDraftWizard`);
+    fallback memakai banner amber + kode fallback, grid kategori 2 kolom
+    (General), dan severity rail vertikal; review memakai kartu ringkasan cobalt
+    dengan Rute tujuan dari endpoint preview (`previewDraft`) — menutup gap PRD
+    §12.2 di wizard — kartu konten, strip meta klasifikasi/lokasi, konfirmasi
+    consent Private, dan gate acknowledgment INCOMPLETE yang tak berubah.
+    `DraftPreviewPage` memakai komponen review yang sama (`ReviewParts.tsx`).
+- **Defect laten diperbaiki.** `saveAndProcess` menimpa `locationReview`
+  dengan `.data` dari objek mutasi stale pasca-`Promise.all`, menghapus gate
+  acknowledgment INCOMPLETE pada jalur wizard; kini memakai hasil awaited.
+- **Test yang diperbarui.** Anchor journey/a11y "Pilih jenis Voice" → "Mulai
+  Voice baru"; pemilihan area kini melalui sheet Ubah; halo 44px
+  `.media-input__remove` dipertahankan. Baseline lama tidak berubah (satu pun
+  tidak diregenerasi — delta home berada di bawah jendela capture). Sepuluh
+  baseline 360px baru ditambahkan di `workforce.visual.spec.ts` untuk permukaan
+  yang dirancang ulang: login, ganti password, jenis Voice, area sheet, form
+  General, processing, fallback manual, review General, form Private, dan
+  review Private; tiap step diframe dari atas (scroll-to-top) karena
+  interaksi auto-scroll, processing ditangkap di tengah analisis dengan rute
+  classify/location-review yang sengaja ditahan, dan determinisme diverifikasi
+  dengan dua run visual berturut-turut.
+
+Validasi (semua hijau): lockfile tidak berubah; `pnpm format:check`; `pnpm
+lint`; `pnpm typecheck`; unit API 60, UI 14, frontend-core 14, workforce 33,
+Admin 2; `pnpm build` (precache 12); `pnpm openapi:check` tanpa drift;
+Playwright mocked chromium **106 passed**; visual **22 passed** (12 baseline
+lama tetap identik + 10 baseline baru); PWA 2 passed. Seluruh 12 state render
+(login, ganti password, home, sheet Lainnya, 5 langkah wizard, area sheet,
+preview General/Private) di-screenshot dan ditinjau terhadap mockup pada 360px
+melalui spec capture sementara yang telah dihapus. Tidak ada container/proses
+yang tersisa. Pre-commit sebelum push: scan direktori Gitleaks bersih, audit
+dependensi nol High/Critical, `git diff --check` bersih, dan `docker compose
+config --quiet`; suite berbasis database (integration/security/performance/
+fullstack) tidak dijalankan ulang karena change set murni frontend + e2e +
+dokumen tanpa sentuhan API, schema, atau migration. Commit dibuat pada branch
+`feat/member-page-redesign-imagen` untuk ditinjau via PR.
+
+Keputusan yang dikunci bersama product owner: (1) Area Temuan menjadi baris
+ringkas + sheet Ubah (supersesi keputusan chip grid ADR-0020 pada form ini);
+(2) tile aksi cepat dan dock mobile tidak berubah; (3) komponen baru masuk
+`packages/ui` + `/design` + unit test. Lihat ADR-0022.
 
 ### Workforce secondary-surface polish: Account, Create Voice, Notifications — 29 Agustus 2026
 

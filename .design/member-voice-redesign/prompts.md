@@ -33,4 +33,3 @@ Each final prompt is the global prompt below plus exactly one screen directive. 
 23. **Anonymous assignment** — Private detail for `Reporter Biru 47` with explicit `Identitas disembunyikan`; bottom sheet `Tugaskan Officer`, selected officer as solid-cobalt row, sticky `Tugaskan`; zero identity hints.
 24. **Identified Private detail** — explicit consent band `Identitas ditampilkan atas persetujuan pelapor`; only `Sari Wulandari`, registration `000129`, `Division A · Department A`; report, attachment, conversation; no additional PII or lifecycle sheet.
 25. **Union General read-only** — `General Voice · Union · Read-only`, aggregate KPIs, status/category/trend, attention rows, no reporter identity and no operational actions, Union `General` tab active.
-

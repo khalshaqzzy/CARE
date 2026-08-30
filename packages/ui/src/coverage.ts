@@ -15,6 +15,7 @@ export const publicComponentCoverage = {
   forms: [
     'Field',
     'Input',
+    'PasswordInput',
     'Textarea',
     'NativeSelect',
     'Select',

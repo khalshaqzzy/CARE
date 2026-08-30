@@ -1712,6 +1712,93 @@ select,
   width: 1rem;
   height: 1rem;
 }
+/* Ring-and-dot radio marker for choice cards. */
+.care-choice-card__indicator--radio {
+  border: 2px solid var(--border-strong);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.care-choice-card__indicator--radio::after {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-choice-card[data-state='checked'] .care-choice-card__indicator--radio {
+  border-color: var(--action-primary-bg);
+  background: var(--surface-raised);
+}
+.care-choice-card[data-state='checked'] .care-choice-card__indicator--radio::after {
+  background: var(--action-primary-bg);
+}
+/* Solid primary selected card — used by prominent single-choice moments. */
+.care-choice-card-group--brand .care-choice-card[data-state='checked'] {
+  border-color: var(--action-primary-bg);
+  color: var(--text-inverse);
+  background: var(--action-primary-bg);
+  box-shadow: var(--shadow-cta);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__text
+  strong {
+  color: var(--text-inverse);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__text
+  small {
+  /* Solid #0866ff needs full white for AA at 12px; 92% white measures 4.31:1. */
+  color: var(--text-inverse);
+}
+.care-choice-card-group--brand .care-choice-card[data-state='checked'] .care-choice-card__icon {
+  color: var(--text-inverse);
+  background: rgb(255 255 255 / 18%);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__indicator {
+  border-color: transparent;
+  color: var(--action-primary-bg);
+  background: var(--surface-raised);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__indicator--radio {
+  border-color: var(--text-inverse);
+  background: transparent;
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__indicator--radio::after {
+  background: var(--text-inverse);
+}
+
+/* ===== Password input with visibility toggle ===== */
+.care-password-input__toggle {
+  display: grid;
+  width: 2.75rem;
+  align-self: stretch;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+.care-password-input__toggle:hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+.care-password-input__toggle:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
 
 /* ===== Settings rows (icon + text + control, hairline-divided group) ===== */
 .care-settings-group {
