@@ -2954,6 +2954,9 @@
 }
 .inbox-list {
   display: grid;
+  /* minmax(0, 1fr): the implicit auto track would otherwise grow to the
+     widest card's min-content (wider Linux font metrics overflow phones). */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 
