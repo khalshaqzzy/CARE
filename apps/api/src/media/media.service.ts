@@ -11,6 +11,10 @@ import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
 
 const accepted = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const readableStates = new Set<AttachmentState>([
+  AttachmentState.READY,
+  AttachmentState.REFERENCED,
+]);
 const formatForMime: Record<string, string> = {
   'image/jpeg': 'jpeg',
   'image/png': 'png',
@@ -114,7 +118,7 @@ export class MediaService {
         closure: { include: { voice: true } },
       },
     });
-    if (!attachment || attachment.state !== AttachmentState.READY) throw forbiddenAsNotFound();
+    if (!attachment || !readableStates.has(attachment.state)) throw forbiddenAsNotFound();
     const voice =
       attachment.voice ?? attachment.message?.conversation.voice ?? attachment.closure?.voice;
     const draftAllowed = attachment.draft?.reporterId === actor.accountId;

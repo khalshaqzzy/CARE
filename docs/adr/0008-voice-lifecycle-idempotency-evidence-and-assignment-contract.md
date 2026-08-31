@@ -166,3 +166,14 @@ REFERENCED`) to satisfy the `Attachment_exactly_one_parent` constraint. The
   failed transaction, which matches prior behavior.
 - The Frontend Complete Gate remains blocked until Phase 8.5 and Phase 11 pass;
   Phase 8.5 stays `in_progress`.
+
+## Corrective Addendum — 31 Agustus 2026
+
+`REFERENCED` is the finalized, business-linked state created by Voice submit and
+closure linkage; it does not mean that the processed object is unreadable. The
+authorized media endpoint therefore admits both `READY` (processed and usable
+before final linkage) and `REFERENCED` (processed and linked to a Voice,
+Message, or ClosureCycle). `STAGED`, `PROCESSED`, and `ORPHANED` remain
+unreadable. Parent-object authorization, Private Admin auditing, and the
+privacy-preserving `NOT_FOUND` response remain mandatory for both readable
+states.

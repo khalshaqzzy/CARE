@@ -1,16 +1,45 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 31 Agustus 2026                                                                                                                                                                                      |
-| Current objective       | Create Voice processing card menampilkan orb matriks titik 9×9 yang merespons live tiga tahap analisis pada `feat/ai-orb` (ADR-0025); Phase 13 remains open for hosted acceptance                    |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                     |
-| Backend Complete Gate   | Passed (PRD v1.1); the orb session changes frontend presentation only (no API/schema/contract change)                                                                                                |
-| Implementation status   | Phase 0–12 done; ADR-0022/0023/0024/0025 frontend slices locally complete with full mocked parity green; Phase 13 hosted evidence not yet claimed                                                    |
-| Latest ADR              | ADR-0025 (Processing card dot-matrix orb)                                                                                                                                                            |
-| Recommended next action | Open PR for `feat/ai-orb`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
+| Atribut                 | Nilai                                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Date                    | 31 Agustus 2026                                                                                                                                                                      |
+| Current objective       | Restore authorized reads for finalized Voice and closure evidence media after attachment state transitions from `READY` to `REFERENCED`; Phase 13 remains open for hosted acceptance |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                     |
+| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                |
+| Implementation status   | Phase 0–12 done; finalized `REFERENCED` media is readable through the existing authorized endpoint; Phase 13 hosted evidence not yet claimed                                         |
+| Latest ADR              | ADR-0025 (Processing card dot-matrix orb)                                                                                                                                            |
+| Recommended next action | Continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                                                 |
 
 ## Session Outcome
+
+### Finalized media authorization correction — 31 Agustus 2026
+
+- Root cause: `MediaService.readAuthorized()` admitted only `READY`, while Voice
+  submit and Voice close intentionally finalize attachments as `REFERENCED`.
+  The parent relation and object remained valid, but the state guard returned
+  privacy-preserving `404 NOT_FOUND` before parent authorization was evaluated.
+- The readable state set now includes `READY` and `REFERENCED`. `STAGED`,
+  `PROCESSED`, `ORPHANED`, missing objects, and actors outside the parent Voice
+  scope remain denied. Private Admin media audit behavior is unchanged.
+- PostgreSQL regression coverage now closes a Voice, verifies evidence linkage
+  as `REFERENCED`, reads the stored object as both reporter and authorized
+  Manager, and confirms an unassigned Section Head receives `NOT_FOUND`.
+  Security coverage locks rejection of every non-readable processing state.
+- No frontend, endpoint, OpenAPI, Prisma schema, or migration change.
+- Validation: focused lifecycle regression **9 passed**; full PostgreSQL
+  integration **45 passed**; security **8 passed**; unit suites API **60**, UI
+  **18**, frontend-core **14**, workforce **48**, Admin **2**; `format:check`,
+  `lint`, `typecheck`, `openapi:check`, and `build` green. The OpenAPI output and
+  Prisma schema remained unchanged.
+- Pre-commit clean-worktree parity: frozen install/Prisma generation, dependency
+  audit (one documented Moderate; zero High/Critical), mock DeepSeek smoke,
+  destructive-migration and legacy-upgrade checks, performance seed/query,
+  maintenance dry-run, Playwright mocked **143** and full-stack **3**, Compose
+  validation, Linux deployment harness, Actionlint/ShellCheck/Hadolint, runtime
+  container routing/non-root/persistence, Gitleaks, and Trivy filesystem plus
+  five runtime images all passed. Live-provider failure injection in the
+  deployment harness correctly retained Manual Fallback and did not invoke the
+  external provider.
 
 ### Create Voice processing dot-matrix orb — 31 Agustus 2026
 
