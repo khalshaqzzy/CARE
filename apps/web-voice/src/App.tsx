@@ -35,6 +35,7 @@ import {
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { registerCareServiceWorker } from './register-sw.js';
+import { getBrowserCapabilities } from './lib/browser-capabilities';
 import { AccountPage } from './features/account/AccountPage';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
@@ -48,9 +49,20 @@ import { desktopQuery, useMediaQuery } from './lib/use-media-query';
 import { navigationForCapabilities } from './lib/navigation';
 
 export function App() {
-  useEffect(() => registerCareServiceWorker(), []);
+  const [onlineOnly] = useState(() => !getBrowserCapabilities().serviceWorkerSupported);
+  useEffect(() => {
+    void registerCareServiceWorker();
+  }, []);
   return (
     <>
+      {onlineOnly ? (
+        <div className="pwa-mode-notice">
+          <Alert tone="info" title="CARE berjalan dalam mode online">
+            Fitur utama tetap tersedia. Offline cache dan notifikasi push tidak didukung perangkat
+            ini; Pusat notifikasi di dalam CARE tetap dapat digunakan.
+          </Alert>
+        </div>
+      ) : null}
       <ServiceWorkerUpdatePrompt />
       <Routes>
         <Route path="/login" element={<LoginPage />} />

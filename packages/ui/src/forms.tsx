@@ -303,12 +303,45 @@ export function Select({
   hideLabel?: boolean;
 }) {
   const id = useId();
+  const enhanced =
+    typeof window !== 'undefined' && Boolean(window.PointerEvent && window.ResizeObserver);
   const rootProps = {
     ...(value === undefined ? {} : { value }),
     ...(defaultValue === undefined ? {} : { defaultValue }),
     ...(onValueChange === undefined ? {} : { onValueChange }),
     ...(disabled === undefined ? {} : { disabled }),
   };
+  if (!enhanced) {
+    return (
+      <Field
+        label={label}
+        helperText={helperText}
+        errorText={errorText}
+        htmlFor={id}
+        hideLabel={hideLabel}
+      >
+        <select
+          id={id}
+          className="care-native-select care-select-trigger"
+          value={value}
+          defaultValue={value === undefined ? (defaultValue ?? '') : undefined}
+          disabled={disabled}
+          aria-invalid={Boolean(errorText) || undefined}
+          aria-describedby={errorText ? `${id}-error` : helperText ? `${id}-helper` : undefined}
+          onChange={(event) => onValueChange?.(event.target.value)}
+        >
+          <option value="" disabled>
+            {placeholder}
+          </option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value} disabled={option.disabled}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+    );
+  }
   return (
     <Field
       label={label}

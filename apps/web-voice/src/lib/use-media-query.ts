@@ -12,8 +12,17 @@ export function createMediaQueryStore(query: string, scope?: Pick<Window, 'match
     null;
   return {
     subscribe(onStoreChange: () => void) {
-      mediaList?.addEventListener?.('change', onStoreChange);
-      return () => mediaList?.removeEventListener?.('change', onStoreChange);
+      if (!mediaList) return () => undefined;
+      if (typeof mediaList.addEventListener === 'function') {
+        mediaList.addEventListener('change', onStoreChange);
+        return () => mediaList.removeEventListener('change', onStoreChange);
+      }
+      const legacyList = mediaList as MediaQueryList & {
+        addListener?: (listener: () => void) => void;
+        removeListener?: (listener: () => void) => void;
+      };
+      legacyList.addListener?.(onStoreChange);
+      return () => legacyList.removeListener?.(onStoreChange);
     },
     getSnapshot() {
       return mediaList?.matches ?? false;

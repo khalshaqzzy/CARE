@@ -49,13 +49,32 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /(?:\.visual|pwa|fullstack)\.spec\.ts/,
+      testIgnore: /(?:\.visual|pwa|fullstack|workforce-legacy|workforce-push)\.spec\.ts/,
     },
-    { name: 'visual', use: { ...devices['Desktop Chrome'] }, testMatch: /\.visual\.spec\.ts/ },
+    {
+      name: 'visual',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /\.visual\.spec\.ts/,
+    },
     {
       name: 'pwa',
       use: { ...devices['Desktop Chrome'], serviceWorkers: 'allow' },
       testMatch: /pwa\.spec\.ts/,
+    },
+    {
+      name: 'push',
+      use: { ...devices['Desktop Chrome'], serviceWorkers: 'allow' },
+      testMatch: /workforce-push\.spec\.ts/,
+    },
+    {
+      name: 'legacy-ios',
+      use: {
+        ...devices['iPhone 8'],
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 11_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/11.0 Mobile/15E148 Safari/604.1',
+        serviceWorkers: 'block',
+      },
+      testMatch: /workforce-legacy\.spec\.ts/,
     },
     ...(isFullStack
       ? [

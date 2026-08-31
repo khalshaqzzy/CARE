@@ -58,7 +58,8 @@ jobs:
       - run: pnpm maintenance:reconcile
       - run: pnpm openapi:check
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm pwa:compat-check
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm test:frontend:e2e
       # Full-stack Playwright against the disposable PostgreSQL + running API on
       # :3000. The API webServer and the `fullstack` project are enabled by

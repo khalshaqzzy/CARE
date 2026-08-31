@@ -112,7 +112,8 @@ pnpm test:unit
 pnpm migrations:destructive-check
 pnpm openapi:check
 pnpm build
-pnpm exec playwright install --with-deps chromium
+pnpm pwa:compat-check
+pnpm exec playwright install --with-deps chromium webkit
 pnpm test:frontend:e2e
 docker compose config --quiet
 pnpm db:up

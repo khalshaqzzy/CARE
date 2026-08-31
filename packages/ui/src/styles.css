@@ -39,6 +39,7 @@
   --text-inverse: var(--raw-neutral-0);
   --text-link: var(--raw-brand-700);
   --text-danger: var(--raw-danger);
+  --border-subtle: rgba(232, 235, 239, 0.72);
   --border-subtle: color-mix(in srgb, var(--raw-neutral-200) 72%, transparent);
   --border-default: var(--raw-neutral-200);
   --border-strong: var(--raw-neutral-300);
@@ -188,6 +189,7 @@ select,
 }
 ::selection {
   color: var(--text-primary);
+  background: rgb(234 179 8 / 35%);
   background: color-mix(in srgb, var(--raw-accent-500) 35%, transparent);
 }
 
@@ -269,6 +271,7 @@ select,
   background: var(--state-danger);
 }
 .care-button--danger:hover {
+  background: #9f1239;
   background: color-mix(in srgb, var(--state-danger) 88%, black);
 }
 .care-button--sm {
@@ -317,6 +320,7 @@ select,
   box-shadow: var(--shadow-card);
 }
 .care-surface--selected {
+  border-color: var(--raw-brand-300);
   border-color: color-mix(in srgb, var(--raw-brand-600) 38%, var(--border-default));
   background: var(--surface-selected);
 }
@@ -422,6 +426,7 @@ select,
 }
 .care-input-shell:focus-within {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 var(--focus-width) rgb(37 99 235 / 18%);
   box-shadow: 0 0 0 var(--focus-width) color-mix(in srgb, var(--focus-color) 18%, transparent);
 }
 .care-field[data-invalid] .care-input-shell {
@@ -534,6 +539,10 @@ select,
 }
 .care-combobox__panel {
   position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  bottom: auto;
+  left: 0;
   inset: calc(100% + var(--space-2)) 0 auto;
 }
 .care-combobox__search {
@@ -662,6 +671,10 @@ select,
 }
 .care-segmented__indicator {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   border: 1px solid var(--border-default);
   border-radius: inherit;
@@ -769,6 +782,10 @@ select,
 .care-dialog__overlay {
   position: fixed;
   z-index: var(--layer-modal);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   background: rgb(23 26 31 / var(--opacity-scrim));
   animation: care-fade-in var(--duration-overlay) var(--ease-enter);
@@ -800,6 +817,7 @@ select,
   top: 0;
   bottom: 0;
   width: min(32rem, calc(100vw - var(--space-6)));
+  height: 100vh;
   height: 100dvh;
   max-height: none;
   border-radius: 0;
@@ -935,6 +953,7 @@ select,
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   border-top: 1px solid var(--border-default);
+  background: rgb(255 255 255 / 96%);
   background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
   padding: var(--space-2) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
   box-shadow: var(--shadow-sticky);
@@ -1062,16 +1081,22 @@ select,
 }
 .care-badge--success {
   color: var(--state-success);
+  border-color: #a7f3d0;
+  background: #ecfdf5;
   border-color: color-mix(in srgb, var(--state-success) 28%, transparent);
   background: color-mix(in srgb, var(--state-success) 9%, white);
 }
 .care-badge--warning {
   color: var(--state-warning);
+  border-color: #fed7aa;
+  background: #fff7ed;
   border-color: color-mix(in srgb, var(--state-warning) 28%, transparent);
   background: color-mix(in srgb, var(--state-warning) 9%, white);
 }
 .care-badge--danger {
   color: var(--state-danger);
+  border-color: #fecdd3;
+  background: #fff1f2;
   border-color: color-mix(in srgb, var(--state-danger) 28%, transparent);
   background: color-mix(in srgb, var(--state-danger) 8%, white);
 }
@@ -1100,14 +1125,17 @@ select,
 }
 .care-alert--success {
   color: var(--state-success);
+  background: #ecfdf5;
   background: color-mix(in srgb, var(--state-success) 8%, white);
 }
 .care-alert--warning {
   color: var(--state-warning);
+  background: #fff7ed;
   background: color-mix(in srgb, var(--state-warning) 8%, white);
 }
 .care-alert--danger {
   color: var(--state-danger);
+  background: #fff1f2;
   background: color-mix(in srgb, var(--state-danger) 7%, white);
 }
 .care-alert__actions {
@@ -1168,6 +1196,7 @@ select,
   height: 100%;
   min-height: inherit;
   content: '';
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 70%), transparent);
   background: linear-gradient(
     90deg,
     transparent,
@@ -1403,6 +1432,11 @@ select,
 .care-app-shell:has(> .care-sidebar) > .care-sidebar {
   grid-row: 1 / -1;
 }
+@supports not selector(:has(*)) {
+  .care-app-shell {
+    min-width: 0;
+  }
+}
 .care-app-shell__topbar {
   position: sticky;
   z-index: var(--layer-sticky);
@@ -1480,6 +1514,7 @@ select,
     top: 0;
     bottom: 0;
     width: calc(100vw - var(--space-6));
+    height: 100vh;
     height: 100dvh;
     max-height: none;
     border-radius: 0;
@@ -1817,6 +1852,7 @@ select,
 }
 .care-choice-card[data-state='checked'] .care-choice-card__icon {
   color: var(--raw-brand-700);
+  background: var(--raw-brand-100);
   background: color-mix(in srgb, var(--raw-brand-100) 72%, white);
 }
 .care-choice-card__text {
@@ -2006,6 +2042,7 @@ a.care-settings-row:hover {
 }
 .care-settings-row--danger .care-settings-row__icon {
   color: var(--state-danger);
+  background: #fff1f2;
   background: color-mix(in srgb, var(--state-danger) 9%, white);
 }
 .care-settings-row__icon {

@@ -7,9 +7,13 @@ const sourceDir = dirname(fileURLToPath(import.meta.url));
 describe('workforce foundation boundaries', () => {
   it('keeps /design lazy, public, mock-only, and outside auth bootstrap', () => {
     const main = readFileSync(join(sourceDir, 'main.tsx'), 'utf8');
+    const bootstrap = readFileSync(join(sourceDir, 'bootstrap-app.tsx'), 'utf8');
     const design = readFileSync(join(sourceDir, 'design/DesignPage.tsx'), 'utf8');
-    expect(main).toContain("lazy(() => import('./design/DesignPage.js'))");
-    expect(main.indexOf('isDesignRoute ?')).toBeLessThan(main.indexOf('<QueryClientProvider'));
+    expect(main).toContain("import('./bootstrap-app.js')");
+    expect(bootstrap).toContain("lazy(() => import('./design/DesignPage.js'))");
+    expect(bootstrap.indexOf('isDesignRoute ?')).toBeLessThan(
+      bootstrap.indexOf('<QueryClientProvider'),
+    );
     expect(design).toContain("meta.content = 'noindex, nofollow'");
     expect(design).not.toMatch(/fetch\s*\(|@care\/frontend-core|\/api\/v1/);
   });
@@ -18,6 +22,7 @@ describe('workforce foundation boundaries', () => {
     const serviceWorker = readFileSync(join(sourceDir, 'sw.ts'), 'utf8');
     const vite = readFileSync(join(sourceDir, '../vite.config.ts'), 'utf8');
     expect(vite).toContain("strategies: 'injectManifest'");
+    expect(vite).toContain("target: 'safari11.3'");
     expect(vite).toContain("'**/design-system-*.js'");
     expect(serviceWorker).toContain("url.pathname.startsWith('/api/')");
     expect(serviceWorker).toContain('new NetworkOnly()');

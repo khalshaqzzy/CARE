@@ -57,4 +57,25 @@ describe('createMediaQueryStore', () => {
     const unsubscribe = store.subscribe(vi.fn());
     unsubscribe();
   });
+
+  it('uses the legacy addListener contract when change events are unavailable', () => {
+    const listeners = new Set<() => void>();
+    const scope = {
+      matchMedia: () =>
+        ({
+          matches: false,
+          addListener: (listener: () => void) => listeners.add(listener),
+          removeListener: (listener: () => void) => listeners.delete(listener),
+        }) as unknown as MediaQueryList,
+    };
+    const onChange = vi.fn();
+    const unsubscribe = createMediaQueryStore('(display-mode: standalone)', scope).subscribe(
+      onChange,
+    );
+    expect(listeners.size).toBe(1);
+    listeners.forEach((listener) => listener());
+    expect(onChange).toHaveBeenCalledOnce();
+    unsubscribe();
+    expect(listeners.size).toBe(0);
+  });
 });

@@ -1,16 +1,59 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Date                    | 31 Agustus 2026                                                                                                                                                                      |
-| Current objective       | Restore authorized reads for finalized Voice and closure evidence media after attachment state transitions from `READY` to `REFERENCED`; Phase 13 remains open for hosted acceptance |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                     |
-| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                |
-| Implementation status   | Phase 0–12 done; finalized `REFERENCED` media is readable through the existing authorized endpoint; Phase 13 hosted evidence not yet claimed                                         |
-| Latest ADR              | ADR-0025 (Processing card dot-matrix orb)                                                                                                                                            |
-| Recommended next action | Continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest                                                 |
+| Atribut                 | Nilai                                                                                                                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 31 Agustus 2026                                                                                                                                                                                                                        |
+| Current objective       | Add iOS 11.3-safe workforce capability tiers without changing Admin/backend contracts; Phase 13 remains open for hosted acceptance                                                                                                     |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                                       |
+| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                                                  |
+| Implementation status   | Phase 0–12 done; iOS legacy compatibility is implemented through capability tiers and automated gates; Phase 13 hosted evidence not yet claimed                                                                                        |
+| Latest ADR              | ADR-0026 (iOS legacy PWA capability tiers)                                                                                                                                                                                             |
+| Recommended next action | Local capability-tier validation is complete and the change set is on a feature branch for review; continue Phase 13 hosted exact-SHA acceptance, provider smoke, rollback rehearsal, and authenticated current-Safari operator retest |
 
 ## Session Outcome
+
+### Workforce iOS legacy capability tiers — 31 Agustus 2026
+
+- Workforce now resolves `unsupported | core-online | pwa | push`. iOS 11.3 is
+  the minimum online tier; iOS Web Push requires 16.4+, Home Screen mode, and
+  runtime APIs. Android/non-iOS remains capability-driven and has no iOS
+  version or Home Screen restriction.
+- Vite lowers the app and custom worker to `safari11.3`. A same-origin ES5
+  bootstrap runs before the module entry, supplies the five required runtime
+  fallbacks, and converts the static loading shell into retry/compatibility
+  guidance when mounting fails, preventing an empty-root white screen.
+- Workbox is lazy-loaded only after the PWA probe passes. Registration/update
+  failure degrades to non-blocking Core Online; legacy mode performs one-time
+  best-effort cleanup of CARE/Workbox caches and `/sw.js`. Notification Center
+  remains authoritative when Web Push is unavailable.
+- Shared Select falls back to native `<select>` without PointerEvent or
+  ResizeObserver; media-query listeners and production CSS have legacy
+  fallbacks. `/design` is not loaded on legacy iOS.
+- Unit tests cover iOS/iPad version parsing, all capability transitions,
+  explicit Android support, bootstrap polyfills/failure shell, and existing
+  workforce behavior. Artifact inspection and current-WebKit iOS 11.3
+  capability emulation are included in CI. Real-device iOS 11.3 is explicitly
+  not acceptance evidence. No API, OpenAPI, schema, cookie, payload, or Admin
+  behavior changed. See ADR-0026.
+- Push opt-in e2e journeys now run with the production service worker active.
+  The `push` Playwright project pre-activates `/sw.js` from `/offline.html` so
+  the first-registration `controlling` reload cannot abort the opt-in gesture
+  mid-flight, and `mockWorkforceApi` routes on the browser context because
+  requests re-issued by the worker's NetworkOnly handler bypass page routes.
+  Page-level route overrides in other specs keep precedence (page routes are
+  consulted first), and SW-blocked projects are unaffected.
+- Final validation (all green): `pnpm format:check`; `pnpm lint`; `pnpm
+typecheck`; unit API 60, UI 19, frontend-core 14, workforce 67, Admin 2;
+  `pnpm build`; `pnpm pwa:compat-check` (main gzip 125500 bytes against the
+  143500-byte budget); Playwright mocked `test:frontend:e2e` **146 passed**
+  (chromium + visual + pwa + push + legacy-ios WebKit) verified on two
+  consecutive runs; `pnpm audit --audit-level high` (zero High/Critical; the
+  documented Moderate transitive remains); `pnpm openapi:check`;
+  `pnpm migrations:destructive-check`; `docker compose config --quiet`;
+  Gitleaks v8.24.3 directory scan clean; `git diff --check` clean.
+  Database-based suites (integration/security/performance/fullstack) were not
+  rerun because the change set contains no API, schema, or migration change.
+  OrbStack was started only for the Gitleaks scan and stopped afterward.
 
 ### Finalized media authorization correction — 31 Agustus 2026
 
