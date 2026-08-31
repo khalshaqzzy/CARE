@@ -26,6 +26,11 @@ export default tseslint.config(
   },
   { files: ['**/*.mjs'], extends: [tseslint.configs.disableTypeChecked] },
   {
+    files: ['apps/web-voice/public/compat-bootstrap.js'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ['**/*.test.ts', '**/*.spec.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',

@@ -94,7 +94,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
   });
 
-  test('notifications center lists items, unread count and an unconfigured push card', async ({
+  test('notifications center lists items and explains unavailable push in online mode', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 800 });
@@ -102,7 +102,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/notifications');
     await expect(page.getByRole('heading', { name: 'Pusat notifikasi' })).toBeVisible();
     await expect(page.getByText('Voice baru ditugaskan')).toBeVisible();
-    await expect(page.getByText('Notifikasi push belum dikonfigurasi')).toBeVisible();
+    await expect(page.getByText('Web Push tidak didukung di browser ini')).toBeVisible();
   });
 
   test('union general browse is read-only with a suppression surface', async ({ page }) => {

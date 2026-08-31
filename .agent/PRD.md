@@ -5,7 +5,7 @@
 | Status dokumen      | **Active product contract v1.1**                                                                                           |
 | Status implementasi | **Phase 0–12 complete; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
 | Versi dokumen       | 1.1                                                                                                                        |
-| Tanggal             | 28 Agustus 2026                                                                                                            |
+| Tanggal             | 31 Agustus 2026                                                                                                            |
 | Product owner       | TMMIN                                                                                                                      |
 | Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                  |
 | Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                 |
@@ -1099,9 +1099,22 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 
 ### 23.4 Browser Support
 
-- Current dan previous major Chrome/Edge desktop dan Android;
-- current Safari iOS/iPadOS;
-- Web Push iOS hanya dianggap supported pada Home Screen PWA sesuai browser/platform capability;
+Workforce memakai capability tiers berikut. Batas versi hanya mengatur minimum
+iOS dan pesan pengguna; aktivasi service worker dan Push API tetap berdasarkan
+probe capability runtime. Android tidak dikenai batas versi iOS dan tetap
+didukung sesuai capability browser-nya.
+
+| Tier        | Platform                                                                                             | Perilaku wajib                                                                                                                                                           |
+| ----------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unsupported | iOS/iPadOS <11.3 atau runtime core tidak memadai                                                     | Shell kompatibilitas statis dengan retry/guidance; root kosong atau white screen dilarang.                                                                               |
+| Core Online | iOS/iPadOS 11.3–16.3, atau browser lain yang lulus core probe tetapi tidak lulus PWA probe           | Login, read, create, upload, chat, dan lifecycle action berjalan online. Notification Center adalah fallback authoritative; offline cache dan Web Push tidak dijanjikan. |
+| PWA         | Browser yang lulus probe Service Worker, Cache Storage, Request/Response, dan runtime worker minimum | Core Online ditambah install/update, privacy-safe offline summary, offline fallback, dan cache cleanup.                                                                  |
+| PWA + Push  | iOS/iPadOS ≥16.4 dalam Home Screen mode dengan Push API, atau browser non-iOS yang lulus push probe  | Seluruh capability PWA ditambah Web Push opt-in; permission hanya diminta setelah gesture eksplisit.                                                                     |
+
+- Current dan previous major Chrome/Edge desktop dan Android tetap didukung;
+- `/design` adalah current-browser-only dan menampilkan guidance tanpa memuat design chunk pada legacy iOS;
+- kegagalan registration/update/cache menurunkan runtime ke Core Online dan tidak boleh menggagalkan render;
+- iOS/iPadOS 11.3 real-device tidak menjadi release acceptance requirement. Dukungan legacy ditegakkan melalui lowered production target, bootstrap/probe unit tests, artifact syntax inspection, dan current-WebKit capability emulation; keterbatasan ini wajib dicatat pada release evidence;
 - browser unsupported mendapat guidance, bukan silent malfunction.
 
 ---
@@ -1802,7 +1815,7 @@ V1 siap production bila:
 4. capability/scope/privacy/conditional-Private-identity negative tests lulus;
 5. PostgreSQL fresh dan previous-release upgrade lulus;
 6. performance baseline lulus;
-7. workforce real-device PWA/push/offline dan Admin responsive UAT lulus;
+7. workforce current real-device PWA/push/offline dan Admin responsive UAT lulus; iOS 11.3 legacy divalidasi melalui automatic compatibility gate, bukan real-device acceptance;
 8. kedua staging origin lulus host-isolation, auto-deploy, release identity, smoke, dan rollback rehearsal;
 9. production workforce/admin domains, VM, DNS, secrets, OpenAI config, dan VAPID tersedia;
 10. authoritative XLSX/CSV UAT, monthly diff, Union setup, dan route remediation lengkap;

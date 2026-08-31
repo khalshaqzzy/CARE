@@ -1,6 +1,7 @@
 import { Alert, Badge, DisclosureRow, SettingsGroup, Stack, Switch } from '@care/ui';
 import { BellRing, Smartphone } from 'lucide-react';
 import { formatDateTime } from '../../lib/formatters';
+import { resolvePushSettingsView } from './push-settings-state';
 import { useWebPush } from './use-web-push';
 
 /**
@@ -12,6 +13,7 @@ import { useWebPush } from './use-web-push';
  */
 export function PushSettingsCard() {
   const web = useWebPush();
+  const view = resolvePushSettingsView(web);
 
   return (
     <DisclosureRow
@@ -38,22 +40,32 @@ export function PushSettingsCard() {
         </Alert>
       ) : null}
 
-      {!web.supported ? (
+      {view === 'ios-upgrade' ? (
+        <Alert tone="info" title="Web Push memerlukan iOS 16.4 atau lebih baru">
+          Perangkat ini tetap dapat memakai seluruh fitur online dan Pusat notifikasi CARE. Perbarui
+          iOS untuk menerima notifikasi saat CARE sedang ditutup.
+        </Alert>
+      ) : view === 'ios-install' ? (
+        <Alert tone="info" title="Aktifkan dari layar beranda (iOS)">
+          Notifikasi push hanya berjalan saat CARE dipasang ke layar beranda. Pilih “Tambahkan ke
+          Layar Utama”, lalu buka CARE dari ikonnya.
+        </Alert>
+      ) : view === 'unsupported' ? (
         <Alert tone="info" title="Web Push tidak didukung di browser ini">
           Browser Anda tidak mendukung notifikasi push. Gunakan browser Chrome/Edge terbaru, atau
           aktifkan CARE dari layar beranda (iOS/iPadOS).
         </Alert>
-      ) : !web.configured ? (
+      ) : view === 'unconfigured' ? (
         <Alert tone="warning" title="Notifikasi push belum dikonfigurasi">
           Admin belum menyiapkan kunci push pada lingkungan ini. Pusat notifikasi di dalam aplikasi
           tetap tersedia.
         </Alert>
-      ) : web.permission === 'denied' ? (
+      ) : view === 'denied' ? (
         <Alert tone="warning" title="Izin notifikasi ditolak">
           Aktifkan izin notifikasi CARE melalui pengaturan browser, lalu kembali ke halaman ini
           untuk mengaktifkan push.
         </Alert>
-      ) : web.ios === false || web.standalone === true ? (
+      ) : view === 'toggle' ? (
         <Stack gap="md">
           <SettingsGroup className="push-settings__toggle">
             <Switch
@@ -85,12 +97,7 @@ export function PushSettingsCard() {
             </ul>
           ) : null}
         </Stack>
-      ) : (
-        <Alert tone="info" title="Aktifkan dari layar beranda (iOS)">
-          Notifikasi push hanya berjalan saat CARE dipasang ke layar beranda. Pilih “Tambahkan ke
-          Layar Utama”, lalu buka dari sana.
-        </Alert>
-      )}
+      ) : null}
     </DisclosureRow>
   );
 }

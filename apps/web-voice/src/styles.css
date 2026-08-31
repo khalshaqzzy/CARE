@@ -1,6 +1,56 @@
 @import 'tailwindcss';
 @import '@care/ui/styles.css';
 
+/* Static boot shell remains readable even when the application module cannot execute. */
+.care-boot {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #f3f5f7;
+  color: #182230;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  text-align: center;
+}
+.care-boot__mark {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1rem;
+  place-items: center;
+  border-radius: 1.25rem;
+  background: #0b63e5;
+  color: white;
+  font-size: 2rem;
+  font-weight: 800;
+}
+.care-boot h1,
+.care-boot p {
+  margin: 0 0 0.75rem;
+}
+.care-boot a {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  background: #0b63e5;
+  color: white;
+  font-weight: 700;
+  text-decoration: none;
+}
+.pwa-mode-notice {
+  position: relative;
+  z-index: 20;
+  padding: 0.5rem max(1rem, env(safe-area-inset-left));
+  background: #eef5ff;
+}
+
 .route-loader,
 .centered-page {
   display: grid;
@@ -23,12 +73,31 @@
 }
 .auth-layout {
   display: grid;
+  min-height: 100vh;
   min-height: 100dvh;
   grid-template-columns: minmax(0, 1.05fr) minmax(24rem, 0.95fr);
   align-items: center;
   gap: var(--space-16);
   padding: var(--space-16);
   background: var(--surface-canvas);
+}
+
+/* Safari 11.x has no flex-gap support. Keep primary production layouts operable. */
+@supports not (gap: 1rem) {
+  .care-stack > * + *,
+  .care-field > * + *,
+  .form-actions > * + *,
+  .action-panel > * + *,
+  .conversation > * + *,
+  .inbox-list > * + *,
+  .notifications-list > * + * {
+    margin-top: 1rem;
+  }
+  .care-bottom-nav > * + *,
+  .filter-pills__row > * + *,
+  .page-actions > * + * {
+    margin-left: 0.5rem;
+  }
 }
 .auth-brand {
   position: relative;
@@ -49,6 +118,10 @@
 .auth-brand::before {
   content: '';
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   background-image:
     linear-gradient(rgb(255 255 255 / 8%) 1px, transparent 1px),
@@ -347,6 +420,7 @@
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-control);
   color: var(--raw-brand-700);
+  background: var(--raw-brand-50);
   background: color-mix(in srgb, var(--raw-brand-50) 72%, white);
   font-size: var(--font-size-xs);
 }
@@ -916,6 +990,7 @@
   height: 1rem;
   border: 0;
   background: var(--action-primary-bg);
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 18%);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--raw-brand-600) 18%, transparent);
 }
 .wizard-steps__count {
@@ -1415,6 +1490,7 @@
   place-items: center;
   border-radius: var(--radius-pill);
   color: var(--state-success);
+  background: #ecfdf5;
   background: color-mix(in srgb, var(--state-success) 14%, transparent);
 }
 
@@ -1540,12 +1616,14 @@
   margin-top: 1px;
 }
 .location-hint.is-ok {
+  background: #ecfdf5;
   background: color-mix(in srgb, var(--success) 10%, transparent);
   color: var(--success);
 }
 .location-hint.is-warn {
   display: grid;
   gap: var(--space-2);
+  background: #fff7ed;
   background: color-mix(in srgb, var(--warning) 12%, transparent);
   color: var(--warning);
 }
@@ -1610,6 +1688,7 @@
 .media-input__remove {
   position: absolute;
   top: var(--space-1);
+  right: var(--space-1);
   inset-inline-end: var(--space-1);
   display: grid;
   width: 1.5rem;
@@ -1617,6 +1696,7 @@
   place-items: center;
   border: 0;
   border-radius: var(--radius-pill);
+  background: rgb(23 26 31 / 72%);
   background: color-mix(in srgb, var(--raw-neutral-900) 72%, transparent);
   color: var(--text-inverse);
   cursor: pointer;
@@ -1625,6 +1705,10 @@
 .media-input__remove::after {
   content: '';
   position: absolute;
+  top: -0.625rem;
+  right: -0.625rem;
+  bottom: -0.625rem;
+  left: -0.625rem;
   inset: -0.625rem;
 }
 .media-input__dropzone {
@@ -1770,6 +1854,7 @@
 .message.is-mine .message__bubble {
   border-radius: var(--radius-card);
   border-bottom-right-radius: var(--radius-sm);
+  background: var(--raw-brand-50);
   background: color-mix(in srgb, var(--action-primary-bg) 10%, white);
 }
 .message__text {
@@ -2704,6 +2789,10 @@
 }
 .donut__center {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   display: grid;
   place-content: center;
@@ -2991,6 +3080,7 @@
   background: var(--state-danger);
 }
 .inbox-card[data-severity='HIGH']::before {
+  background: var(--raw-warning);
   background: color-mix(in srgb, var(--raw-warning) 55%, var(--state-danger));
 }
 .inbox-card[data-severity='MEDIUM']::before {
@@ -3059,6 +3149,7 @@
   color: var(--state-danger);
 }
 .inbox-card[data-severity='HIGH'] .inbox-card__severity {
+  color: var(--raw-warning);
   color: color-mix(in srgb, var(--raw-warning) 55%, var(--state-danger));
 }
 .inbox-card[data-severity='MEDIUM'] .inbox-card__severity {
@@ -3076,12 +3167,15 @@
   font-weight: var(--weight-semibold);
 }
 .inbox-card__sevchip[data-severity='CRITICAL'] {
+  border-color: #fecdd3;
   border-color: color-mix(in srgb, var(--state-danger) 30%, transparent);
   color: var(--state-danger);
   background: #fff1f2;
 }
 .inbox-card__sevchip[data-severity='HIGH'],
 .inbox-card__sevchip[data-severity='MEDIUM'] {
+  border-color: #fed7aa;
+  color: #9a3412;
   border-color: color-mix(in srgb, var(--raw-warning) 32%, transparent);
   color: color-mix(in srgb, var(--raw-warning) 72%, black);
   background: #fff7ed;
@@ -3139,11 +3233,13 @@
   background: var(--raw-brand-50);
 }
 .inbox-card__status[data-status='IN_VERIFICATION'] {
+  color: #9a3412;
   color: color-mix(in srgb, var(--raw-warning) 78%, black);
   background: #fff7ed;
 }
 .inbox-card__status[data-status='IN_PROGRESS'] {
   color: var(--raw-brand-700);
+  background: var(--raw-brand-50);
   background: color-mix(in srgb, var(--raw-brand-50) 70%, white);
 }
 .inbox-card__status[data-status='CLOSED'] {
@@ -3175,6 +3271,7 @@
   white-space: nowrap;
 }
 .inbox-card__pic--open {
+  border: 1px solid var(--raw-brand-300);
   border: 1px solid color-mix(in srgb, var(--raw-brand-300) 80%, white);
   background: var(--surface-raised);
 }

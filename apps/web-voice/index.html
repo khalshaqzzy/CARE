@@ -5,11 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0b63e5" />
     <meta name="description" content="CARE Enterprise Member Voice" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CARE" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>CARE Member Voice</title>
+    <script src="/compat-bootstrap.js"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root" data-care-boot-state="loading">
+      <main class="care-boot" role="status" aria-live="polite">
+        <div class="care-boot__mark" aria-hidden="true">C</div>
+        <h1 data-care-boot-title>Memuat CARE</h1>
+        <p data-care-boot-message>Menyiapkan aplikasi Member Voice…</p>
+        <a data-care-boot-retry hidden href="/">Muat ulang CARE</a>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

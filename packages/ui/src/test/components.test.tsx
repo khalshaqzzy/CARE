@@ -10,6 +10,7 @@ import {
   Input,
   PasswordInput,
   RatingInput,
+  Select,
   SegmentedControl,
 } from '../forms.js';
 import { Dialog } from '../overlays.js';
@@ -78,6 +79,28 @@ describe('interactive component contracts', () => {
     await waitFor(() => {
       expect(search).not.toBeInTheDocument();
     });
+  });
+
+  it('uses an operable native select when enhanced positioning APIs are unavailable', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    Object.defineProperty(window, 'PointerEvent', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'ResizeObserver', { configurable: true, value: undefined });
+    render(
+      <Select
+        label="Status"
+        placeholder="Pilih status"
+        onValueChange={onChange}
+        options={[
+          { value: 'OPEN', label: 'Open' },
+          { value: 'CLOSED', label: 'Closed' },
+        ]}
+      />,
+    );
+    const select = screen.getByRole('combobox', { name: 'Status' });
+    expect(select.tagName).toBe('SELECT');
+    await user.selectOptions(select, 'CLOSED');
+    expect(onChange).toHaveBeenCalledWith('CLOSED');
   });
 
   it('traps dialog focus, closes with Escape, and returns focus', async () => {

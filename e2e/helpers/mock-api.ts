@@ -959,7 +959,10 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
   const session = opts.session ?? memberSession();
   const voice = opts.voice;
 
-  await page.route('**/api/v1/**', async (route) => {
+  // Context-level routing keeps the mocks working when the production service
+  // worker is active (push project): requests re-issued by the worker's
+  // NetworkOnly handler bypass page routes but still hit context routes.
+  await page.context().route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
     const method = route.request().method();
@@ -1223,9 +1226,11 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     return satisfy(404, errorBody('NOT_FOUND'));
   });
 
-  await page.route('**/api/v1/media/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1x1 }),
-  );
+  await page
+    .context()
+    .route('**/api/v1/media/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1x1 }),
+    );
 }
 
 /** Legacy thin wrapper used by earlier specs: a Member session + one voice. */

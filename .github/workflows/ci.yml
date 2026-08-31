@@ -57,8 +57,13 @@ jobs:
       - run: pnpm test:performance
       - run: pnpm maintenance:reconcile
       - run: pnpm openapi:check
-      - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
+      # The job-level NODE_ENV=test is required by the database suites above,
+      # but the shipped bundle must be built as production or Vite keeps the
+      # development React branches and the compatibility gate measures the
+      # wrong artifact.
+      - run: NODE_ENV=production pnpm build
+      - run: pnpm pwa:compat-check
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm test:frontend:e2e
       # Full-stack Playwright against the disposable PostgreSQL + running API on
       # :3000. The API webServer and the `fullstack` project are enabled by
@@ -189,7 +194,7 @@ jobs:
           curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-voice" and .releaseSha==$sha'
           curl -fsS -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-admin" and .releaseSha==$sha'
           curl -fsS -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/ready | jq -e --arg sha "$sha" '.status=="ready" and .releaseSha==$sha'
-          curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/a/deep/link | grep -F '<div id="root"></div>'
+          curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/a/deep/link | grep -F '<div id="root" data-care-boot-state="loading">'
           [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/api/v1/auth/session)" == 401 ]]
           [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/manifest.webmanifest)" == 404 ]]
           curl -fsSI -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/ | grep -Eiq '^content-security-policy:'

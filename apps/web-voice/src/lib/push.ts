@@ -10,6 +10,8 @@
  * Private Voice title, detail, or reporter identity.
  */
 
+import { getBrowserCapabilities } from './browser-capabilities.js';
+
 const INSTALLATION_KEY = 'care-push-installation';
 const MAX_INSTALLATION_ID_LENGTH = 100;
 
@@ -39,25 +41,17 @@ export function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 
 /** True when the browser can actually subscribe to Web Push. */
 export function isPushSupported(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window &&
-    Boolean(window.Notification)
-  );
+  return getBrowserCapabilities().pushSupported;
 }
 
 /** True when the PWA is running from the home screen (required for iOS push). */
 export function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(display-mode: standalone)').matches;
+  return getBrowserCapabilities().standalone;
 }
 
 /** True on iOS/iPadOS Safari (where Web Push requires install to the home screen). */
 export function isIos(): boolean {
-  if (typeof window === 'undefined') return false;
-  return /iPhone|iPad|iPod/i.test(window.navigator?.userAgent ?? '');
+  return getBrowserCapabilities().ios;
 }
 
 /**

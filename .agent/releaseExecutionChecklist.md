@@ -15,6 +15,10 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 ## CI Release Gate
 
 - [ ] Quality/contracts/build green.
+- [ ] Workforce app dan custom worker dibangun dengan target `safari11.3`; compatibility bootstrap external berada sebelum module entry dan tidak ada inline script CSP exception.
+- [ ] `pnpm pwa:compat-check` lulus: entry/worker bebas syntax yang tidak dapat diparse Safari 11.3 dan gzip bootstrap-app tidak melewati budget +15% tanpa ADR/review.
+- [ ] Chromium, PWA Chromium, current WebKit legacy-capability emulation, visual, dan full-stack browser projects yang relevan hijau.
+- [ ] Evidence menyatakan iOS 11.3 diuji melalui build/probe/artifact/current-WebKit emulation; real-device iOS 11.3 tidak diklaim sebagai acceptance evidence.
 - [ ] PostgreSQL integration, security, performance, and reconciliation green.
 - [ ] Fresh migration and previous-SHA-to-current migration/status green.
 - [ ] Mocked Playwright and serial full-stack Playwright green.

@@ -19,6 +19,7 @@
     "test:unit": "pnpm -r --if-present test:unit",
     "test:frontend:e2e": "playwright test",
     "test:frontend:visual": "playwright test --project=visual",
+    "pwa:compat-check": "node scripts/check-pwa-compatibility.mjs",
     "test:integration": "pnpm --filter @care/api test:integration",
     "test:security": "pnpm --filter @care/api test:security",
     "test:performance": "pnpm --filter @care/api test:performance",
