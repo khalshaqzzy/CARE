@@ -6,6 +6,7 @@ import {
   ChoiceCardGroup,
   Dialog,
   Input,
+  Lightbox,
   Stack,
   Textarea,
 } from '@care/ui';
@@ -33,7 +34,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DotMatrixOrb } from '../../components/DotMatrixOrb';
-import { AREA_LABELS } from '../../lib/formatters';
+import { AREA_LABELS, mediaUrl } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import type { Attachment } from '../../workforce-api';
 import {
@@ -486,6 +487,12 @@ function MediaInput({
   inputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const remaining = max - attachments.length;
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const images = attachments.map((attachment, index) => ({
+    src: mediaUrl(attachment.id),
+    alt: `Lampiran ${index + 1}`,
+  }));
+  const viewerOpen = viewerIndex !== null && viewerIndex < attachments.length;
   return (
     <section className="media-input" aria-label="Foto lampiran">
       <div className="media-input__head">
@@ -500,7 +507,14 @@ function MediaInput({
         <div className="media-input__list" role="group" aria-labelledby="media-input-label">
           {attachments.map((attachment, index) => (
             <div className="media-input__item" key={attachment.id}>
-              <img src={`/api/v1/media/${attachment.id}`} alt={`Lampiran ${index + 1}`} />
+              <button
+                type="button"
+                className="media-input__thumb"
+                aria-label={`Lihat gambar ${index + 1} dari ${attachments.length}`}
+                onClick={() => setViewerIndex(index)}
+              >
+                <img src={mediaUrl(attachment.id)} alt={`Lampiran ${index + 1}`} />
+              </button>
               <button
                 type="button"
                 className="media-input__remove"
@@ -544,6 +558,13 @@ function MediaInput({
           if (files.length) void onPick(files);
           event.currentTarget.value = '';
         }}
+      />
+      <Lightbox
+        open={viewerOpen}
+        onOpenChange={(open) => setViewerIndex(open ? viewerIndex : null)}
+        images={images}
+        index={viewerOpen ? viewerIndex : 0}
+        onIndexChange={setViewerIndex}
       />
     </section>
   );

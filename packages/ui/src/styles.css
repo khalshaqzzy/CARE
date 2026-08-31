@@ -871,6 +871,189 @@ select,
   background: var(--surface-inset);
 }
 
+/* ===== Lightbox (full-screen attachment viewer) =====
+   The content layer is opaque with a subtle top-lit gradient so text chrome
+   always sits on a deterministic dark surface (axe color-contrast composites
+   translucent scrims with the page behind, which is unpredictable); the
+   overlay stays a simple fade layer beneath it. */
+.care-lightbox__overlay {
+  position: fixed;
+  z-index: var(--layer-modal);
+  inset: 0;
+  background: rgb(6 9 14 / 88%);
+  animation: care-fade-in var(--duration-overlay) var(--ease-enter);
+}
+.care-lightbox {
+  position: fixed;
+  z-index: calc(var(--layer-modal) + 1);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: radial-gradient(120% 90% at 50% 0%, #131820 0%, #0a0d12 60%);
+  user-select: none;
+  animation: care-fade-in var(--duration-overlay) var(--ease-enter);
+}
+.care-lightbox__top {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+}
+.care-lightbox__glass {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-weight: var(--weight-semibold);
+  background: rgb(255 255 255 / 14%);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-lightbox__glass:hover {
+  background: rgb(255 255 255 / 24%);
+}
+.care-lightbox__counter {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  background: rgb(255 255 255 / 14%);
+}
+.care-lightbox__stage {
+  position: relative;
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  place-items: center;
+  padding: var(--space-6) var(--space-4);
+  touch-action: none;
+}
+.care-lightbox__frame {
+  display: grid;
+  max-width: 100%;
+  max-height: 100%;
+  place-items: center;
+}
+.care-lightbox__frame--snap {
+  transition: transform var(--duration-medium) var(--ease-standard);
+}
+.care-lightbox__img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-card);
+  object-fit: contain;
+  box-shadow: var(--shadow-modal);
+  opacity: 0;
+  transition: opacity var(--duration-medium) var(--ease-enter);
+}
+.care-lightbox__img[data-state='ready'] {
+  opacity: 1;
+}
+.care-lightbox__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgb(255 255 255 / 82%);
+}
+.care-lightbox__error {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border-radius: var(--radius-card);
+  color: #fff;
+  text-align: center;
+  background: rgb(255 255 255 / 10%);
+}
+.care-lightbox__error p {
+  margin: var(--space-0);
+  font-weight: var(--weight-semibold);
+}
+/* Dark glass so the chevrons stay readable over bright images and the dark
+   stage alike; the hairline border keeps the circle defined on both. */
+.care-lightbox__nav {
+  position: absolute;
+  top: 50%;
+  display: inline-grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: rgb(15 18 24 / 60%);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-lightbox__nav:hover:not(:disabled) {
+  background: rgb(15 18 24 / 78%);
+}
+.care-lightbox__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.care-lightbox__nav--prev {
+  left: var(--space-3);
+}
+.care-lightbox__nav--next {
+  right: var(--space-3);
+}
+.care-lightbox__thumbs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  overflow-x: auto;
+}
+/* Center the strip while it fits; the auto margins collapse when the strip
+   overflows so scrolling still reaches both ends. */
+.care-lightbox__thumb:first-child {
+  margin-left: auto;
+}
+.care-lightbox__thumb:last-child {
+  margin-right: auto;
+}
+.care-lightbox__thumb {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.care-lightbox__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.care-lightbox__thumb[aria-current='true'] {
+  border-color: #fff;
+  opacity: 1;
+}
+
 .care-tabs {
   display: grid;
   gap: var(--space-4);
