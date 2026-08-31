@@ -1,12 +1,17 @@
-import { Alert, Button, Card, Checkbox, SeverityBadge, Skeleton, Stack } from '@care/ui';
+import { Alert, Button, Checkbox, Skeleton, Stack } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Radio } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
-import { MediaGallery } from '../../components/MediaGallery';
-import { AREA_LABELS, CATEGORY_LABELS } from '../../lib/formatters';
+import { AREA_LABELS } from '../../lib/formatters';
 import { useMutationKey, useApi, useSessionId, voiceQuery } from '../../lib/query';
+import {
+  ReviewConsentConfirmation,
+  ReviewContent,
+  ReviewMetaBar,
+  ReviewSummary,
+} from './ReviewParts';
 
 export function DraftPreviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,12 +80,18 @@ export function DraftPreviewPage() {
   const source = classification && 'source' in classification ? classification.source : null;
   const severity = classification && 'severity' in classification ? classification.severity : null;
   const category = classification && 'category' in classification ? classification.category : null;
+  const fallbackCode =
+    classification && 'fallbackCode' in classification ? classification.fallbackCode : null;
+  const isIncomplete = data.locationReview?.completeness === 'INCOMPLETE';
+  const routeLabel = readiness.ready
+    ? (data.routeTarget ?? readiness.targetLabel ?? 'Akan ditentukan')
+    : 'Akan ditentukan';
 
   return (
     <Stack gap="lg">
       <header className="page-intro">
         <p className="care-eyebrow">Pratinjau Voice</p>
-        <h1>Sebelum dikirim</h1>
+        <h1>Tinjau sebelum kirim</h1>
         <p>Tinjau detail, klasifikasi, dan rute tujuan sebelum mengirim Voice.</p>
       </header>
 
@@ -90,90 +101,32 @@ export function DraftPreviewPage() {
         </Alert>
       ) : null}
 
-      <Card variant="raised" padding="lg" className="wizard-form">
-        <div className="review-rows">
-          <div className="review-row">
-            <span className="review-row__label">Jenis</span>
-            <span className="review-row__value">
-              {data.visibility === 'PRIVATE' ? 'Private' : 'General'}
-            </span>
-          </div>
-          <div className="review-row">
-            <span className="review-row__label">Area</span>
-            <span className="review-row__value">{AREA_LABELS[data.area] ?? data.area}</span>
-          </div>
-          {severity ? (
-            <div className="review-row">
-              <span className="review-row__label">Severity</span>
-              <span className="review-row__value">
-                <SeverityBadge severity={severity} />
-              </span>
-            </div>
-          ) : null}
-          {category ? (
-            <div className="review-row">
-              <span className="review-row__label">Kategori</span>
-              <span className="review-row__value">{CATEGORY_LABELS[category] ?? category}</span>
-            </div>
-          ) : null}
-          {data.showReporterIdentity !== null && data.visibility === 'PRIVATE' ? (
-            <div className="review-row">
-              <span className="review-row__label">Identitas</span>
-              <span className="review-row__value">
-                {data.showReporterIdentity ? 'Tampilkan nama' : 'Sembunyikan (anonim)'}
-              </span>
-            </div>
-          ) : null}
-          {source ? (
-            <div className="review-row">
-              <span className="review-row__label">Sumber klasifikasi</span>
-              <span className="review-row__value">
-                {source === 'AI' ? 'AI' : 'Manual Fallback'}
-              </span>
-            </div>
-          ) : null}
-          <div className="review-row">
-            <span className="review-row__label">Judul</span>
-            <span className="review-row__value">{data.title}</span>
-          </div>
-          <div className="review-row review-row--block">
-            <span className="review-row__label">Detail</span>
-            <p className="review-row__value review-row__text">{data.detail}</p>
-          </div>
-          <div className="review-row">
-            <span className="review-row__label">Lokasi</span>
-            <span className="review-row__value">{data.locationDetail}</span>
-          </div>
-          <div className="review-row">
-            <span className="review-row__label">Rute tujuan</span>
-            <span className="review-row__value">
-              {data.routeTarget ?? readiness.targetLabel ?? 'Akan ditentukan'}
-              {readiness.ready ? '' : ` · ${readiness.reason ?? 'belum siap'}`}
-            </span>
-          </div>
-        </div>
-      </Card>
+      <ReviewSummary
+        visibility={data.visibility}
+        severity={severity}
+        category={data.visibility === 'GENERAL' ? (category ?? null) : null}
+        routeLabel={data.visibility === 'PRIVATE' ? 'Union Head' : routeLabel}
+        showIdentity={data.showReporterIdentity ?? null}
+        fallbackCode={source === 'MANUAL_FALLBACK' ? fallbackCode : null}
+      />
 
-      {data.locationReview ? (
-        <Card padding="md">
-          <Stack gap="sm">
-            <p className="review-row__label">Verifikasi lokasi</p>
-            <p className={data.locationReview.completeness === 'INCOMPLETE' ? 'tag--warn' : ''}>
-              {data.locationReview.completeness === 'COMPLETE'
-                ? 'Lokasi dianggap lengkap.'
-                : data.locationReview.completeness === 'INCOMPLETE'
-                  ? (data.locationReview.warning ?? 'Detail lokasi belum lengkap.')
-                  : 'Verifikasi lokasi tidak tersedia.'}
-            </p>
-          </Stack>
-        </Card>
+      <ReviewContent
+        title={data.title}
+        areaLabel={AREA_LABELS[data.area] ?? data.area}
+        locationDetail={data.locationDetail}
+        detail={data.detail}
+        attachments={data.attachments ?? []}
+      />
+
+      <ReviewMetaBar source={source} completeness={data.locationReview?.completeness ?? null} />
+
+      {data.showReporterIdentity !== null &&
+      data.showReporterIdentity !== undefined &&
+      data.visibility === 'PRIVATE' ? (
+        <ReviewConsentConfirmation showIdentity={data.showReporterIdentity} />
       ) : null}
 
-      {data.attachments?.length ? (
-        <MediaGallery attachments={data.attachments} label="Lampiran foto" />
-      ) : null}
-
-      {data.locationReview?.completeness === 'INCOMPLETE' ? (
+      {isIncomplete ? (
         <Alert tone="warning" title="Detail lokasi belum lengkap">
           <Checkbox
             checked={ack}
@@ -191,7 +144,7 @@ export function DraftPreviewPage() {
           variant="primary"
           className="wizard-actionsbar__primary"
           loading={submit.isPending}
-          disabled={data.locationReview?.completeness === 'INCOMPLETE' && !ack}
+          disabled={isIncomplete && !ack}
           onClick={() => void submit.mutate()}
         >
           <Radio size={18} /> Kirim Voice

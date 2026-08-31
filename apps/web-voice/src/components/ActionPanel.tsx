@@ -1,6 +1,6 @@
-import { Alert, Button, Card, Checkbox, Dialog, Select, Stack, Textarea } from '@care/ui';
+import { Alert, Button, Card, ChoiceCardGroup, Dialog, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, Lock, UserRound } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { ACTION_LABELS, STATUS_LABELS } from '../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
@@ -21,7 +21,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const askKey = useMutationKey('ask');
   const proceedKey = useMutationKey('proceed');
   const closeKey = useMutationKey('close');
-  const rateKey = useMutationKey('rate');
   const assignKey = useMutationKey('assign');
 
   const invalidate = () => {
@@ -60,17 +59,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
     onSettled: closeKey.reset,
-  });
-  const rate = useMutation({
-    mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
-      api.rate(detail.id, body, rateKey.key()),
-    onSuccess: () => {
-      invalidate();
-      setNotice('Rating berhasil disimpan.');
-      setActive('none');
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: rateKey.reset,
   });
   const assign = useMutation({
     mutationFn: (body: { handlerAccountId: string; reason?: string }) =>
@@ -120,9 +108,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             {ACTION_LABELS.CLOSE}
           </Button>
         ) : null}
-        {actions.includes('RATE') ? (
-          <Button onClick={() => setActive('rate')}>{ACTION_LABELS.RATE}</Button>
-        ) : null}
       </div>
 
       <Dialog
@@ -141,15 +126,16 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       <Dialog
         open={active === 'assign' || active === 'reassign'}
         onOpenChange={(open) => setActive(open ? active : 'none')}
+        mobileSheet
         title={active === 'reassign' ? 'Alihkan Penanggung' : 'Tugaskan Penanggung'}
         description={
           detail.visibility === 'PRIVATE'
             ? active === 'reassign'
               ? 'Pilih Union Officer lain untuk melanjutkan penanganan Voice ini.'
-              : 'Pilih Union Officer yang akan menangani Voice ini.'
+              : 'Pilih satu petugas untuk menangani Voice ini.'
             : active === 'reassign'
               ? 'Pilih Section Head lain untuk melanjutkan penanganan Voice ini.'
-              : 'Pilih Section Head yang akan menangani Voice ini.'
+              : 'Pilih satu petugas untuk menangani Voice ini.'
         }
       >
         <AssignDialog
@@ -176,27 +162,15 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       <Dialog
         open={active === 'close'}
         onOpenChange={(open) => setActive(open ? 'close' : 'none')}
+        mobileSheet
         title="Tutup Voice"
-        description="Voice hanya dapat ditutup dari In Progress dengan catatan penutupan."
+        description="Voice akan ditutup dan status berubah menjadi Selesai."
       >
         <CloseDialog
           detail={detail}
           onCancel={() => setActive('none')}
           onConfirm={(body) => close.mutate(body)}
           loading={close.isPending}
-        />
-      </Dialog>
-
-      <Dialog
-        open={active === 'rate'}
-        onOpenChange={(open) => setActive(open ? 'rate' : 'none')}
-        title="Beri rating"
-        description="Rating 1–2 mewajibkan feedback dan dapat membuka kembali Voice."
-      >
-        <RateDialog
-          onCancel={() => setActive('none')}
-          onConfirm={(body) => rate.mutate(body)}
-          loading={rate.isPending}
         />
       </Dialog>
     </Card>
@@ -222,12 +196,6 @@ function AssignDialog({
   });
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
-  const options: { value: string; label: string }[] = (candidates.data ?? []).map((candidate) => ({
-    value: candidate.id,
-    label: candidate.slot
-      ? `${candidate.displayName} (${candidate.slot.replace('_', ' ')})`
-      : candidate.displayName,
-  }));
   const empty = (candidates.data ?? []).length === 0;
   return (
     <Stack gap="md">
@@ -238,16 +206,25 @@ function AssignDialog({
           Tidak ada kandidat eligible untuk Voice ini.
         </Alert>
       ) : (
-        <Select
+        <ChoiceCardGroup
           label="Penanggung"
           value={selected}
           onValueChange={setSelected}
-          options={options}
-          {...(detail.visibility === 'PRIVATE'
-            ? { helperText: 'Hanya Union Officer yang dapat ditugaskan.' }
-            : {})}
+          indicator="radio"
+          appearance="brand"
+          options={(candidates.data ?? []).map((candidate) => ({
+            value: candidate.id,
+            label: candidate.displayName,
+            ...(candidate.activeCount !== undefined
+              ? { description: `${candidate.activeCount} Voice aktif` }
+              : {}),
+            icon: <UserRound size={18} />,
+          }))}
         />
       )}
+      {detail.visibility === 'PRIVATE' ? (
+        <p className="dialog-copy">Hanya Union Officer yang dapat ditugaskan.</p>
+      ) : null}
       <Textarea
         label="Alasan (opsional)"
         value={reason}
@@ -378,24 +355,28 @@ function CloseDialog({
     <Stack gap="md">
       <div className="closure-evidence">
         <Textarea
-          label="Catatan penutupan"
+          label="Catatan penyelesaian"
           value={note}
           onChange={(event) => setNote(event.target.value)}
           rows={4}
           maxLength={4000}
           required
+          placeholder="Jelaskan tindakan yang telah dilakukan"
         />
-        <p className="dialog-copy">
-          Bukti penutupan (foto) diperlukan. Bukti dan catatan bersifat permanen setelah tersimpan.
-        </p>
-        <button
-          type="button"
-          className="closure-evidence__add"
-          onClick={() => fileInput.current?.click()}
-          disabled={uploading || evidence.length >= 5}
-        >
-          <ImagePlus size={16} /> Tambah foto bukti ({evidence.length}/5)
-        </button>
+        <p className="closure-evidence__label">Bukti penyelesaian</p>
+        <div className="closure-evidence__shelf">
+          {evidence.length ? (
+            <MediaGallery attachments={evidence} label="Bukti penyelesaian" />
+          ) : null}
+          <button
+            type="button"
+            className="closure-evidence__add"
+            onClick={() => fileInput.current?.click()}
+            disabled={uploading || evidence.length >= 5}
+          >
+            <ImagePlus size={16} /> Tambah foto
+          </button>
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -412,11 +393,12 @@ function CloseDialog({
             {uploadError}
           </Alert>
         ) : null}
-        {evidence.length ? (
-          <MediaGallery attachments={evidence} label="Bukti penutupan" />
-        ) : (
+        {evidence.length === 0 && !uploading ? (
           <p className="dialog-copy">Minimal satu foto bukti wajib dilampirkan.</p>
-        )}
+        ) : null}
+        <p className="closure-evidence__privacy">
+          <Lock size={14} aria-hidden="true" /> Catatan dan bukti akan terlihat oleh pelapor.
+        </p>
       </div>
       <div className="dialog-actions">
         <Button variant="ghost" onClick={onCancel}>
@@ -429,68 +411,6 @@ function CloseDialog({
           onClick={() => onConfirm({ note, version: detail.version })}
         >
           Tutup Voice
-        </Button>
-      </div>
-    </Stack>
-  );
-}
-
-function RateDialog({
-  onCancel,
-  onConfirm,
-  loading,
-}: {
-  onCancel: () => void;
-  onConfirm: (body: { score: number; feedback?: string; reopen: boolean }) => void;
-  loading: boolean;
-}) {
-  const [score, setScore] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('');
-  const [reopen, setReopen] = useState(false);
-  const needsFeedback = score !== null && score <= 2;
-  return (
-    <Stack gap="md">
-      <Select
-        label="Rating"
-        value={score ? String(score) : ''}
-        onValueChange={(value) => setScore(Number(value))}
-        options={[1, 2, 3, 4, 5].map((value) => ({ value: String(value), label: `${value}/5` }))}
-      />
-      <Textarea
-        label="Feedback"
-        value={feedback}
-        onChange={(event) => setFeedback(event.target.value)}
-        rows={3}
-        maxLength={2000}
-        helperText={needsFeedback ? 'Wajib untuk rating 1–2' : 'Opsional untuk rating 3–5'}
-        required={needsFeedback}
-      />
-      {needsFeedback ? (
-        <Checkbox
-          checked={reopen}
-          onCheckedChange={setReopen}
-          label="Buka kembali Voice ini"
-          description="Membuka kembali memulai siklus penutupan baru dengan PIC terakhir."
-        />
-      ) : null}
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onCancel}>
-          Batal
-        </Button>
-        <Button
-          variant="primary"
-          loading={loading}
-          disabled={score === null || (needsFeedback && !feedback.trim())}
-          onClick={() => {
-            const trimmed = feedback.trim();
-            onConfirm({
-              score: score!,
-              reopen,
-              ...(trimmed ? { feedback: trimmed } : {}),
-            });
-          }}
-        >
-          Kirim Rating
         </Button>
       </div>
     </Stack>

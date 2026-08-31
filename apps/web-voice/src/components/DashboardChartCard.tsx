@@ -13,12 +13,12 @@ const BUCKET_LABELS: Record<string, string> = {
 };
 
 function barColor(label: string): string {
-  if (label === 'CRITICAL') return 'var(--danger)';
-  if (label === 'HIGH') return 'var(--warning)';
-  if (label === 'IN_PROGRESS') return 'var(--action-accent-bg)';
-  if (label === 'CLOSED') return 'var(--success)';
+  if (label === 'CRITICAL') return 'var(--state-danger)';
+  if (label === 'HIGH') return 'var(--state-warning)';
+  if (label === 'IN_PROGRESS') return 'var(--raw-brand-400)';
+  if (label === 'CLOSED') return 'var(--state-success)';
   if (label === 'WORK_DIFFICULTY') return 'var(--action-accent-bg)';
-  if (label === 'ENVIRONMENT') return 'var(--success)';
+  if (label === 'ENVIRONMENT') return 'var(--state-success)';
   return 'var(--action-primary-bg)';
 }
 

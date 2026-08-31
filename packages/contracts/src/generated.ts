@@ -1136,6 +1136,7 @@ export interface components {
             /** @enum {string} */
             slot?: "OFFICER_1" | "OFFICER_2";
             structuralPosition?: string;
+            activeCount: number;
         }[];
         MonitoringOptions: {
             handlers: {
@@ -1661,6 +1662,9 @@ export interface components {
             trend: components["schemas"]["AggregateBuckets"];
             division: components["schemas"]["AggregateBuckets"];
             department: components["schemas"]["AggregateBuckets"];
+            area: components["schemas"]["AggregateBuckets"];
+            areaCritical: components["schemas"]["AggregateBuckets"];
+            previousTotal?: number;
             suppression: {
                 enabled: boolean;
                 threshold: number;
@@ -2107,6 +2111,8 @@ export interface components {
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
+            currentHandlerName?: string | null;
+            reporterAlias?: string | null;
             /** Format: date-time */
             updatedAt: string;
         };

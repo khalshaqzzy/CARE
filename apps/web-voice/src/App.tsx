@@ -10,20 +10,25 @@ import {
   EmptyState,
   Input,
   Loader,
+  PasswordInput,
   Sidebar,
   Stack,
 } from '@care/ui';
 import { useIsMutating } from '@tanstack/react-query';
 import {
+  ArrowRight,
   Bell,
   Bot,
+  ChevronRight,
   ClipboardList,
   Home,
   Inbox,
   Lock,
+  LockKeyhole,
   MoreHorizontal,
   Plus,
   ScrollText,
+  Shield,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
@@ -156,17 +161,20 @@ function LoginPage() {
   return (
     <main className="auth-layout">
       <section className="auth-brand">
-        <div className="brand-mark">C</div>
-        <p>CARE Enterprise Member Voice</p>
-        <h1>Sampaikan suara. Pantau tindak lanjutnya.</h1>
+        <div className="auth-brand__lockup">
+          <div className="brand-mark">C</div>
+          <strong>CARE</strong>
+        </div>
+        <h1>
+          <span>Sampaikan suara.</span> <span>Pantau tindak lanjutnya.</span>
+        </h1>
         <p>Kanal internal untuk laporan General dan Private yang aman serta dapat ditelusuri.</p>
       </section>
       <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
-            <p className="care-eyebrow">Masuk ke CARE</p>
             <h2>Selamat datang kembali</h2>
-            <p>Gunakan nomor registrasi atau username Union Anda.</p>
+            <p>Masuk untuk melanjutkan ke CARE Enterprise Member Voice.</p>
           </div>
           {error ? (
             <Alert tone="danger" title="Tidak dapat masuk">
@@ -177,20 +185,25 @@ function LoginPage() {
             <Input
               label="Username"
               autoComplete="username"
+              leading={<UserRound size={18} />}
+              placeholder="Username"
+              helperText="Gunakan nomor registrasi atau username Union Anda."
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
             />
-            <Input
+            <PasswordInput
               label="Password"
-              type="password"
               autoComplete="current-password"
+              leading={<Lock size={18} />}
+              placeholder="Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-            <Button type="submit" loading={pending}>
+            <Button type="submit" className="auth-submit" loading={pending}>
               Masuk
+              <ArrowRight size={18} aria-hidden="true" />
             </Button>
           </form>
         </Stack>
@@ -227,12 +240,19 @@ function ChangePasswordPage() {
     }
   }
   return (
-    <main className="centered-page">
-      <Card variant="raised" className="password-card">
+    <main className="auth-layout">
+      <section className="auth-brand auth-brand--security">
+        <span className="auth-brand__badge" aria-hidden="true">
+          <LockKeyhole size={22} />
+        </span>
+        <h1>Keamanan akun</h1>
+        <p>Ganti password sementara untuk menjaga keamanan akun Anda.</p>
+        <Shield className="auth-brand__watermark" aria-hidden="true" />
+      </section>
+      <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
-            <p className="care-eyebrow">Keamanan akun</p>
-            <h1>Ganti password sementara</h1>
+            <h2>Ganti password sementara</h2>
             <p>
               Gunakan 6–128 karakter dan jangan samakan dengan username atau password sebelumnya.
             </p>
@@ -243,31 +263,35 @@ function ChangePasswordPage() {
             </Alert>
           ) : null}
           <form onSubmit={submit} className="auth-form">
-            <Input
+            <PasswordInput
               label="Password saat ini"
-              type="password"
+              autoComplete="current-password"
+              leading={<Lock size={18} />}
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               required
             />
-            <Input
+            <PasswordInput
               label="Password baru"
-              type="password"
+              autoComplete="new-password"
+              leading={<Lock size={18} />}
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               minLength={6}
               maxLength={128}
               required
             />
-            <Input
+            <PasswordInput
               label="Konfirmasi password baru"
-              type="password"
+              autoComplete="new-password"
+              leading={<Lock size={18} />}
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
               required
             />
-            <Button type="submit" loading={pending}>
+            <Button type="submit" className="auth-submit" loading={pending}>
               Simpan password
+              <ArrowRight size={18} aria-hidden="true" />
             </Button>
           </form>
         </Stack>
@@ -472,6 +496,7 @@ function WorkforceShell() {
                 <strong>Notifikasi</strong>
                 <small>Lihat pembaruan Voice terbaru</small>
               </span>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -485,6 +510,7 @@ function WorkforceShell() {
                 <strong>Akun</strong>
                 <small>Profil, akses, dan keamanan</small>
               </span>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
         </Dialog>

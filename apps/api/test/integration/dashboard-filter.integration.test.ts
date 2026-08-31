@@ -27,6 +27,8 @@ async function seedVoice(overrides: {
   category?: string;
   status?: VoiceStatus;
   submittedAt?: Date;
+  currentHandlerId?: string | null;
+  handlerType?: HandlerType;
 }) {
   seq += 1;
   return prisma.voice.create({
@@ -42,7 +44,8 @@ async function seedVoice(overrides: {
       reporterDepartmentSnapshot: overrides.department,
       routeOwnerId: manager.accountId,
       status: overrides.status ?? VoiceStatus.OPEN,
-      handlerType: HandlerType.MANAGER,
+      handlerType: overrides.handlerType ?? HandlerType.MANAGER,
+      currentHandlerId: overrides.currentHandlerId ?? null,
       locationDetail: 'line',
       title: 'dashboard voice',
       detail: 'detail',
@@ -166,5 +169,82 @@ describe('Dashboard filters and suppression metadata', () => {
     expect(full.department).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ label: 'OTHER_SUPPRESSED' })]),
     );
+  });
+
+  it('returns area buckets with critical-per-area and the previous-period total', async () => {
+    // KARAWANG_2/SUNTER_2 and a March window keep this test isolated from the
+    // other seeds in this file (KARAWANG_1/SUNTER_1 around Jan/Jun/Aug).
+    // Current window: 3 KARAWANG_2 (2 critical) + 1 SUNTER_2; previous: 2 KARAWANG_2.
+    for (let index = 0; index < 2; index += 1)
+      await seedVoice({
+        department: 'AreaWin',
+        severity: Severity.CRITICAL,
+        area: 'KARAWANG_2',
+        submittedAt: new Date('2026-03-10'),
+      });
+    await seedVoice({
+      department: 'AreaWin',
+      severity: Severity.MEDIUM,
+      area: 'KARAWANG_2',
+      submittedAt: new Date('2026-03-11'),
+    });
+    await seedVoice({
+      department: 'AreaWin',
+      severity: Severity.LOW,
+      area: 'SUNTER_2',
+      submittedAt: new Date('2026-03-12'),
+    });
+    for (let index = 0; index < 2; index += 1)
+      await seedVoice({
+        department: 'AreaPrev',
+        severity: Severity.MEDIUM,
+        area: 'KARAWANG_2',
+        submittedAt: new Date('2026-02-10'),
+      });
+
+    const aggregate = await voices.dashboardGeneral(unionHead, {
+      from: '2026-03-01T00:00:00Z',
+      to: '2026-04-01T00:00:00Z',
+    });
+    expect(aggregate.area).toEqual(
+      expect.arrayContaining([
+        { label: 'KARAWANG_2', value: 3 },
+        { label: 'SUNTER_2', value: 1 },
+      ]),
+    );
+    expect(aggregate.areaCritical).toEqual([{ label: 'KARAWANG_2', value: 2 }]);
+    expect(aggregate.previousTotal).toBe(2);
+
+    const unwindowed = await voices.dashboardGeneral(unionHead, {});
+    expect(unwindowed.previousTotal).toBeUndefined();
+  });
+
+  it('reports pending assignment for a scoped manager and omits it for full actors', async () => {
+    await seedVoice({ department: 'PendingA', status: VoiceStatus.OPEN });
+    await seedVoice({
+      department: 'PendingA',
+      status: VoiceStatus.IN_VERIFICATION,
+      currentHandlerId: manager.accountId,
+      handlerType: HandlerType.MANAGER,
+    });
+    const expected = await prisma.voice.count({
+      where: {
+        visibility: VoiceVisibility.GENERAL,
+        reporterDirectorateSnapshot: 'Manufacturing',
+        reporterDivisionSnapshot: 'Division A',
+        status: VoiceStatus.OPEN,
+        currentHandlerId: null,
+      },
+    });
+    expect(expected).toBeGreaterThan(0);
+    const managerAggregate = (await voices.dashboardGeneral(manager, {})) as {
+      pendingAssignment?: number;
+    };
+    expect(managerAggregate.pendingAssignment).toBe(expected);
+
+    const fullAggregate = (await voices.dashboardGeneral(unionHead, {})) as {
+      pendingAssignment?: number;
+    };
+    expect(fullAggregate.pendingAssignment).toBeUndefined();
   });
 });

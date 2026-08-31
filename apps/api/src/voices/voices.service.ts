@@ -590,10 +590,14 @@ export class VoicesService {
       take: take + 1,
       ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
       orderBy,
-      select: this.listSelect(),
+      select: this.listSelect(true),
     });
     const hasNext = items.length > take;
-    const data = hasNext ? items.slice(0, take) : items;
+    const rows = hasNext ? items.slice(0, take) : items;
+    const data = rows.map((row) => {
+      const { currentHandler, ...rest } = row;
+      return { ...rest, currentHandlerName: currentHandler?.displayName ?? null };
+    });
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     // audit admin private list reads
     if (actor.capabilities.includes('CARE_ADMIN')) {
@@ -657,15 +661,30 @@ export class VoicesService {
       and.push({ submittedAt });
     }
     const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
+    // Alias chips for Union private inbox cards follow the same consent surface
+    // as the detail: the per-Voice alias is only meaningful for Union actors.
+    const includeAlias = actor.capabilities.some((capability) =>
+      ['UNION_HEAD', 'UNION_OFFICER'].includes(capability),
+    );
     const items = await this.prisma.voice.findMany({
       where: combinedWhere,
       take: take + 1,
       ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
       orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
-      select: this.listSelect(),
+      select: { ...this.listSelect(true), anonymousAlias: true },
     });
     const hasNext = items.length > take;
-    const data = hasNext ? items.slice(0, take) : items;
+    const rows = hasNext ? items.slice(0, take) : items;
+    const data = rows.map((row) => {
+      const { currentHandler, anonymousAlias, ...rest } = row;
+      return {
+        ...rest,
+        currentHandlerName: currentHandler?.displayName ?? null,
+        ...(includeAlias && row.visibility === VoiceVisibility.PRIVATE
+          ? { reporterAlias: anonymousAlias ?? null }
+          : {}),
+      };
+    });
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     return { items: data, nextCursor };
   }
@@ -856,6 +875,12 @@ export class VoicesService {
   }
   async assignmentCandidates(actor: AuthActor, id: string) {
     const voice = await this.actionVoice(actor, id);
+    let candidates: Array<{
+      id: string;
+      displayName: string;
+      slot?: UnionSlot;
+      structuralPosition?: string;
+    }>;
     if (voice.visibility === VoiceVisibility.PRIVATE) {
       const terms = await this.prisma.unionAccountTerm.findMany({
         where: {
@@ -865,48 +890,66 @@ export class VoicesService {
         },
         include: { account: { select: { id: true, displayName: true } } },
       });
-      return terms
+      candidates = terms
         .filter((term) => term.account.id !== voice.currentHandlerId)
         .map((term) => ({
           id: term.account.id,
           displayName: term.account.displayName,
           slot: term.slot,
         }));
+    } else {
+      const route = voice.routeMappingId
+        ? await this.prisma.routeMapping.findUnique({ where: { id: voice.routeMappingId } })
+        : null;
+      const owner = await this.currentMembershipForAccount(voice.routeOwnerId);
+      const assignmentUnitId =
+        route?.kind === RouteKind.GLOBAL_SPECIAL
+          ? owner?.organizationUnitId
+          : (route?.organizationUnitId ?? voice.reporterOrganizationUnitId);
+      if (!assignmentUnitId) return [];
+      const memberships = await this.prisma.organizationMembership.findMany({
+        where: {
+          snapshot: { status: 'ACTIVE' },
+          organizationUnitId: assignmentUnitId,
+          employee: { account: { status: AccountStatus.ACTIVE } },
+        },
+        include: {
+          employee: { include: { account: { select: { id: true, displayName: true } } } },
+        },
+      });
+      candidates = memberships
+        .filter(
+          (membership) =>
+            membership.structuralPosition?.trim().toLocaleLowerCase('en-US') === 'section head',
+        )
+        .filter(
+          (membership) =>
+            membership.employee.account !== null &&
+            membership.employee.account.id !== voice.currentHandlerId,
+        )
+        .map((membership) => ({
+          id: membership.employee.account!.id,
+          displayName: membership.employee.account!.displayName,
+          structuralPosition: membership.structuralPosition,
+        }));
     }
-    const route = voice.routeMappingId
-      ? await this.prisma.routeMapping.findUnique({ where: { id: voice.routeMappingId } })
-      : null;
-    const owner = await this.currentMembershipForAccount(voice.routeOwnerId);
-    const assignmentUnitId =
-      route?.kind === RouteKind.GLOBAL_SPECIAL
-        ? owner?.organizationUnitId
-        : (route?.organizationUnitId ?? voice.reporterOrganizationUnitId);
-    if (!assignmentUnitId) return [];
-    const memberships = await this.prisma.organizationMembership.findMany({
+    if (!candidates.length) return [];
+    // Workload subtitle for the assignment sheet: active voices per candidate.
+    const workloads = await this.prisma.voice.groupBy({
+      by: ['currentHandlerId'],
       where: {
-        snapshot: { status: 'ACTIVE' },
-        organizationUnitId: assignmentUnitId,
-        employee: { account: { status: AccountStatus.ACTIVE } },
+        currentHandlerId: { in: candidates.map((candidate) => candidate.id) },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION, VoiceStatus.IN_PROGRESS] },
       },
-      include: {
-        employee: { include: { account: { select: { id: true, displayName: true } } } },
-      },
+      _count: { _all: true },
     });
-    return memberships
-      .filter(
-        (membership) =>
-          membership.structuralPosition?.trim().toLocaleLowerCase('en-US') === 'section head',
-      )
-      .filter(
-        (membership) =>
-          membership.employee.account !== null &&
-          membership.employee.account.id !== voice.currentHandlerId,
-      )
-      .map((membership) => ({
-        id: membership.employee.account!.id,
-        displayName: membership.employee.account!.displayName,
-        structuralPosition: membership.structuralPosition,
-      }));
+    const activeByHandler = new Map(
+      workloads.map((row) => [row.currentHandlerId, row._count._all]),
+    );
+    return candidates.map((candidate) => ({
+      ...candidate,
+      activeCount: activeByHandler.get(candidate.id) ?? 0,
+    }));
   }
   async ask(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(textSchema, input);
@@ -1174,7 +1217,26 @@ export class VoicesService {
   }
 
   async dashboardGeneral(actor: AuthActor, filter: DashboardFilter = {}) {
-    return this.dashboard(actor, VoiceVisibility.GENERAL, filter);
+    const aggregate = await this.dashboard(actor, VoiceVisibility.GENERAL, filter);
+    // Operational inbox stat for a scoped Manager: General Voices on their route
+    // still awaiting a Section Head assignment. Mirrors the aggregate scope and
+    // ignores dashboard filters, matching the Union Head semantics.
+    const isScopedManager =
+      actor.capabilities.includes('MANAGER') &&
+      !actor.capabilities.some((capability) =>
+        ['CARE_ADMIN', 'DIRECTOR', 'DIVISION_LEADERSHIP'].includes(capability),
+      );
+    if (!isScopedManager) return aggregate;
+    const pendingAssignment = await this.prisma.voice.count({
+      where: {
+        visibility: VoiceVisibility.GENERAL,
+        reporterDirectorateSnapshot: actor.directorate ?? '__none__',
+        reporterDivisionSnapshot: actor.division ?? '__none__',
+        status: VoiceStatus.OPEN,
+        currentHandlerId: null,
+      },
+    });
+    return { ...aggregate, pendingAssignment };
   }
   async dashboardPrivate(actor: AuthActor, filter: DashboardFilter = {}) {
     let where: Prisma.VoiceWhereInput;
@@ -1297,38 +1359,71 @@ export class VoicesService {
     }
     const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
 
-    const [total, statuses, severities, categories, divisions, departments, trendRows] =
-      await Promise.all([
-        this.prisma.voice.count({ where: combinedWhere }),
-        this.prisma.voice.groupBy({ by: ['status'], where: combinedWhere, _count: { _all: true } }),
-        this.prisma.voice.groupBy({
-          by: ['severity'],
-          where: combinedWhere,
-          _count: { _all: true },
-        }),
-        this.prisma.voice.groupBy({
-          by: ['category'],
-          where: combinedWhere,
-          _count: { _all: true },
-        }),
-        this.prisma.voice.groupBy({
-          by: ['reporterDirectorateSnapshot', 'reporterDivisionSnapshot'],
-          where: combinedWhere,
-          _count: { _all: true },
-        }),
-        this.prisma.voice.groupBy({
-          by: [
-            'reporterDirectorateSnapshot',
-            'reporterDivisionSnapshot',
-            'reporterDepartmentSnapshot',
-          ],
-          where: combinedWhere,
-          _count: { _all: true },
-        }),
-        this.prisma.$queryRaw<Array<{ label: string; value: bigint }>>(
-          Prisma.sql`SELECT to_char(date_trunc('day', "submittedAt"), 'YYYY-MM-DD') AS label, count(*)::bigint AS value FROM "Voice" WHERE ${Prisma.join(conditions, ' AND ')} GROUP BY 1 ORDER BY 1`,
-        ),
-      ]);
+    const [
+      total,
+      statuses,
+      severities,
+      categories,
+      areas,
+      areaCriticals,
+      divisions,
+      departments,
+      trendRows,
+    ] = await Promise.all([
+      this.prisma.voice.count({ where: combinedWhere }),
+      this.prisma.voice.groupBy({ by: ['status'], where: combinedWhere, _count: { _all: true } }),
+      this.prisma.voice.groupBy({
+        by: ['severity'],
+        where: combinedWhere,
+        _count: { _all: true },
+      }),
+      this.prisma.voice.groupBy({
+        by: ['category'],
+        where: combinedWhere,
+        _count: { _all: true },
+      }),
+      this.prisma.voice.groupBy({ by: ['area'], where: combinedWhere, _count: { _all: true } }),
+      this.prisma.voice.groupBy({
+        by: ['area'],
+        where: { AND: [...and, { severity: Severity.CRITICAL }] },
+        _count: { _all: true },
+      }),
+      this.prisma.voice.groupBy({
+        by: ['reporterDirectorateSnapshot', 'reporterDivisionSnapshot'],
+        where: combinedWhere,
+        _count: { _all: true },
+      }),
+      this.prisma.voice.groupBy({
+        by: [
+          'reporterDirectorateSnapshot',
+          'reporterDivisionSnapshot',
+          'reporterDepartmentSnapshot',
+        ],
+        where: combinedWhere,
+        _count: { _all: true },
+      }),
+      this.prisma.$queryRaw<Array<{ label: string; value: bigint }>>(
+        Prisma.sql`SELECT to_char(date_trunc('day', "submittedAt"), 'YYYY-MM-DD') AS label, count(*)::bigint AS value FROM "Voice" WHERE ${Prisma.join(conditions, ' AND ')} GROUP BY 1 ORDER BY 1`,
+      ),
+    ]);
+    // Previous-period total for trend delta badges: the same filters with the
+    // from/to window shifted back by its own duration. Omitted without a window.
+    let previousTotal: number | undefined;
+    if (filter.from && filter.to) {
+      const fromMs = new Date(filter.from).getTime();
+      const durationMs = new Date(filter.to).getTime() - fromMs;
+      if (durationMs > 0) {
+        const previousAnd: Prisma.VoiceWhereInput[] = and.filter(
+          (clause) => !('submittedAt' in clause),
+        );
+        previousAnd.push({
+          submittedAt: { gte: new Date(fromMs - durationMs), lt: new Date(fromMs) },
+        });
+        previousTotal = await this.prisma.voice.count({
+          where: previousAnd.length === 1 ? previousAnd[0]! : { AND: previousAnd },
+        });
+      }
+    }
     const buckets = <T extends Record<string, unknown>>(items: T[], key: keyof T) =>
       items.map((item) => ({
         label: String(item[key] ?? 'NONE'),
@@ -1359,6 +1454,12 @@ export class VoicesService {
         value: item._count._all,
       })),
     );
+    const area = suppress(
+      areas.map((item) => ({ label: String(item.area), value: item._count._all })),
+    );
+    const areaCritical = suppress(
+      areaCriticals.map((item) => ({ label: String(item.area), value: item._count._all })),
+    );
     return {
       total,
       status: buckets(statuses, 'status'),
@@ -1367,6 +1468,9 @@ export class VoicesService {
       trend: trendRows.map((item) => ({ label: item.label, value: Number(item.value) })),
       division: division.buckets,
       department: department.buckets,
+      area: area.buckets,
+      areaCritical: areaCritical.buckets,
+      ...(previousTotal !== undefined ? { previousTotal } : {}),
       suppression: {
         enabled: !full,
         threshold: DASHBOARD_SUPPRESSION_THRESHOLD,
@@ -1711,7 +1815,7 @@ export class VoicesService {
     });
     return `CARE-${period}-${String(sequence.value).padStart(6, '0')}`;
   }
-  private listSelect(): Prisma.VoiceSelect {
+  private listSelect(includeHandler = false): Prisma.VoiceSelect {
     return {
       id: true,
       displayId: true,
@@ -1722,6 +1826,9 @@ export class VoicesService {
       severity: true,
       status: true,
       updatedAt: true,
+      // PIC display name for operational inbox cards; only joined for responder/
+      // leadership/union lists, never for reporter-facing payloads.
+      ...(includeHandler ? { currentHandler: { select: { displayName: true } } } : {}),
     };
   }
   private async authorizedVoice(actor: AuthActor, id: string) {

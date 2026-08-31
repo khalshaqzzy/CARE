@@ -1,10 +1,22 @@
-import { Alert, Button, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
+import { Alert, Card, EmptyState, Input, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, AlertTriangle, CheckCircle2, Inbox, Lock, Search } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Inbox,
+  Lock,
+  ScrollText,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
+import { FilterPillRow } from '../../components/FilterPills';
+import { HeroBand, HeroChip } from '../../components/HeroBand';
+import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { Pager } from '../../components/Pager';
-import { VoiceCard } from '../../components/VoiceCard';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
@@ -12,10 +24,10 @@ import {
   STATUS_LABELS,
   SEVERITY_LABELS,
 } from '../../lib/formatters';
+import { activeCount, bucketValue } from '../../lib/dashboard-math';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
 import { useOnlineStatus } from '../../lib/use-online-status';
-import type { DashboardAggregate } from '../../workforce-api';
 
 const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED']);
 
@@ -36,7 +48,8 @@ export function WorkItemsPage() {
     ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
   );
   const isDirector = caps.includes('DIRECTOR');
-  const isSectionHead = caps.includes('SECTION_HEAD') && !caps.includes('MANAGER');
+  const isManager = caps.includes('MANAGER');
+  const isSectionHead = caps.includes('SECTION_HEAD') && !isManager;
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
@@ -92,17 +105,20 @@ export function WorkItemsPage() {
     refetchInterval: 3000,
   });
 
+  // Header stats stay unfiltered: the strip describes the whole queue, not the
+  // active filter combination.
   const aggregate = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring', severity, area, category, from, to),
-    queryFn: () =>
-      api.dashboardGeneral({
-        ...(severity ? { severity: severity as never } : {}),
-        ...(area ? { area } : {}),
-        ...(category ? { category: category as never } : {}),
-        ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}),
-        ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
-      }),
+    queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring'),
+    queryFn: () => api.dashboardGeneral({}),
     enabled: !!session && !isUnion,
+    refetchInterval: 3000,
+  });
+
+  // Union hero stats come from the private dashboard (incl. pendingAssignment).
+  const privateDash = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'private'),
+    queryFn: () => api.dashboardPrivate(),
+    enabled: !!session && isUnion,
     refetchInterval: 3000,
   });
 
@@ -133,132 +149,228 @@ export function WorkItemsPage() {
     isSectionHead,
     unassignedOnly,
   });
-  const filterCount = [
-    search,
-    view !== (isUnion ? 'ALL' : 'ACTIVE') ? view : undefined,
-    severity,
-    area,
-    category,
-    handler,
-    from,
-    to,
-    unassignedOnly ? 'yes' : undefined,
-  ].filter(Boolean).length;
+  const severityOptions = [
+    { value: '', label: 'Semua' },
+    ...Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label })),
+  ];
+  const areaOptions = Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }));
+  const categoryOptions = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }));
 
   return (
     <Stack gap="lg" className="monitoring-page">
-      <header className="page-intro page-intro--monitoring">
-        <div>
-          <p className="care-eyebrow">{intro.eyebrow}</p>
-          <h1>{intro.title}</h1>
-          <p>{intro.description}</p>
-        </div>
-        {!isUnion && aggregate.data ? (
-          <span className="dashboard-updated">
-            Diperbarui {formatRelative(aggregate.data.generatedAt)}
-          </span>
-        ) : null}
-      </header>
+      <HeroBand
+        eyebrow={intro.eyebrow}
+        title={intro.title}
+        description={intro.description}
+        updated={
+          !isUnion && aggregate.data
+            ? `Diperbarui ${formatRelative(aggregate.data.generatedAt)}`
+            : undefined
+        }
+        stats={
+          isUnion
+            ? privateDash.data
+              ? [
+                  {
+                    key: 'aktif',
+                    icon: <Activity />,
+                    value: activeCount(privateDash.data.status),
+                    label: 'Aktif',
+                    tone: 'brand',
+                  },
+                  isUnionHead
+                    ? {
+                        key: 'pending',
+                        icon: <Clock3 />,
+                        value: privateDash.data.pendingAssignment ?? 0,
+                        label: 'Belum ditugaskan',
+                        tone: 'brand',
+                      }
+                    : {
+                        key: 'selesai',
+                        icon: <CheckCircle2 />,
+                        value: bucketValue(privateDash.data.status, 'CLOSED'),
+                        label: 'Selesai',
+                        tone: 'brand',
+                      },
+                  {
+                    key: 'kritis',
+                    icon: <AlertTriangle />,
+                    value: bucketValue(privateDash.data.severity, 'CRITICAL'),
+                    label: 'Kritis',
+                    tone: 'danger',
+                  },
+                ]
+              : []
+            : aggregate.data
+              ? [
+                  {
+                    key: 'aktif',
+                    icon: <Activity />,
+                    value: activeCount(aggregate.data.status),
+                    label: 'Aktif',
+                    tone: 'brand',
+                  },
+                  isManager
+                    ? {
+                        key: 'pending',
+                        icon: <Clock3 />,
+                        value: aggregate.data.pendingAssignment ?? 0,
+                        label: 'Menunggu penugasan',
+                        tone: 'brand',
+                      }
+                    : isSectionHead
+                      ? {
+                          key: 'verifikasi',
+                          icon: <ScrollText />,
+                          value: bucketValue(aggregate.data.status, 'IN_VERIFICATION'),
+                          label: 'Verifikasi',
+                          tone: 'brand',
+                        }
+                      : {
+                          key: 'selesai',
+                          icon: <CheckCircle2 />,
+                          value: bucketValue(aggregate.data.status, 'CLOSED'),
+                          label: 'Selesai',
+                          tone: 'brand',
+                        },
+                  {
+                    key: 'kritis',
+                    icon: <AlertTriangle />,
+                    value: bucketValue(aggregate.data.severity, 'CRITICAL'),
+                    label: 'Kritis',
+                    tone: 'danger',
+                  },
+                ]
+              : []
+        }
+        chip={
+          isUnion ? (
+            <HeroChip icon={<ShieldCheck size={12} aria-hidden="true" />} label="Union Private" />
+          ) : isLeadership ? (
+            <HeroChip icon={<Lock size={12} aria-hidden="true" />} label="Read-only" />
+          ) : undefined
+        }
+      />
       {offline ? (
         <Alert tone="warning" title="Anda sedang offline">
           Daftar terbaru, detail, dan seluruh tindakan memerlukan koneksi.
         </Alert>
       ) : null}
-      {!isUnion && aggregate.data ? <MonitoringKpis data={aggregate.data} /> : null}
 
-      <Card className="history-filters monitoring-filters">
-        <div className="history-filters__row">
-          <div className="history-filters__search">
-            <Input
-              label="Cari Voice"
-              value={search ?? ''}
-              onChange={(event) => setParam('search', event.target.value || undefined)}
-              leading={<Search size={16} />}
-              placeholder="ID atau judul"
-            />
-          </div>
-          <Select
-            label="Status"
-            value={view}
-            onValueChange={(value) => setParam('view', value)}
-            options={[
+      <div className="monitoring-search">
+        <Input
+          label="Cari Voice"
+          value={search ?? ''}
+          onChange={(event) => setParam('search', event.target.value || undefined)}
+          leading={<Search size={16} />}
+          placeholder="Cari judul atau ID"
+          hideLabel
+        />
+      </div>
+
+      <FilterPillRow
+        primary={[
+          {
+            id: 'severity',
+            label: 'Prioritas',
+            value: severity ?? '',
+            onValueChange: (value) => setParam('severity', value || undefined),
+            options: severityOptions,
+          },
+          {
+            id: 'view',
+            label: 'Status',
+            value: view,
+            alwaysNeutral: true,
+            onValueChange: (value) => setParam('view', value),
+            options: [
               { value: 'ACTIVE', label: 'Aktif' },
               ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
               { value: 'ALL', label: 'Semua status' },
-            ]}
-          />
-          <Select
-            label="Severity"
-            value={severity ?? ''}
-            onValueChange={(value) => setParam('severity', value || undefined)}
-            options={Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-          <Select
-            label="Kategori"
-            value={category ?? ''}
-            onValueChange={(value) => setParam('category', value || undefined)}
-            options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-          <Select
-            label="Area"
-            value={area ?? ''}
-            onValueChange={(value) => setParam('area', value || undefined)}
-            options={Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-          {!isUnion ? (
-            <Select
-              label="Penanggung jawab"
-              value={handler ?? ''}
-              onValueChange={(value) => setParam('handler', value || undefined)}
-              options={(options.data?.handlers ?? []).map((option) => ({
-                value: option.id,
-                label: option.displayName,
-              }))}
+            ],
+          },
+          ...(isUnion
+            ? isUnionHead
+              ? [
+                  {
+                    id: 'unassigned',
+                    label: 'Penugasan',
+                    value: unassignedOnly ? 'unassigned' : 'all',
+                    neutralValue: 'all',
+                    onValueChange: (value: string) =>
+                      setParam('unassigned', value === 'unassigned' ? 'true' : undefined),
+                    options: [
+                      { value: 'all', label: 'Semua' },
+                      { value: 'unassigned', label: 'Perlu ditugaskan' },
+                    ],
+                  },
+                ]
+              : []
+            : [
+                {
+                  id: 'area',
+                  label: 'Area',
+                  value: area ?? '',
+                  onValueChange: (value: string) => setParam('area', value || undefined),
+                  options: areaOptions,
+                },
+                {
+                  id: 'handler',
+                  label: 'PIC',
+                  value: handler ?? '',
+                  onValueChange: (value: string) => setParam('handler', value || undefined),
+                  options: [
+                    { value: '', label: 'Semua' },
+                    ...(options.data?.handlers ?? []).map((option) => ({
+                      value: option.id,
+                      label: option.displayName,
+                    })),
+                  ],
+                },
+              ]),
+        ]}
+        secondary={[
+          ...(isUnion
+            ? [
+                {
+                  id: 'area',
+                  label: 'Area',
+                  value: area ?? '',
+                  onValueChange: (value: string) => setParam('area', value || undefined),
+                  options: areaOptions,
+                },
+              ]
+            : []),
+          {
+            id: 'category',
+            label: 'Kategori',
+            value: category ?? '',
+            onValueChange: (value: string) => setParam('category', value || undefined),
+            options: categoryOptions,
+          },
+        ]}
+        onClear={clearFilters}
+        sheetContent={
+          <div className="filter-pills__dates">
+            <Input
+              label="Dari tanggal"
+              type="date"
+              value={from ?? ''}
+              onChange={(event) => setParam('from', event.target.value || undefined)}
             />
-          ) : null}
-          {isUnionHead ? (
-            <Select
-              label="Penugasan"
-              value={unassignedOnly ? 'unassigned' : 'all'}
-              onValueChange={(value) =>
-                setParam('unassigned', value === 'unassigned' ? 'true' : undefined)
-              }
-              options={[
-                { value: 'all', label: 'Semua' },
-                { value: 'unassigned', label: 'Perlu ditugaskan' },
-              ]}
+            <Input
+              label="Sampai tanggal"
+              type="date"
+              value={to ?? ''}
+              onChange={(event) => setParam('to', event.target.value || undefined)}
             />
-          ) : null}
-          {!isUnion ? (
-            <>
-              <Input
-                label="Dari tanggal"
-                type="date"
-                value={from ?? ''}
-                onChange={(event) => setParam('from', event.target.value || undefined)}
-              />
-              <Input
-                label="Sampai tanggal"
-                type="date"
-                value={to ?? ''}
-                onChange={(event) => setParam('to', event.target.value || undefined)}
-              />
-            </>
-          ) : null}
-        </div>
-        <div className="filter-summary">
-          <span>
-            {filterCount
-              ? `${filterCount} filter aktif`
-              : 'Menampilkan prioritas tertinggi lebih dulu'}
-          </span>
-          {filterCount ? (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Bersihkan filter
-            </Button>
-          ) : null}
-        </div>
-      </Card>
+          </div>
+        }
+      />
 
       {inbox.isLoading ? (
         <Skeleton label="Memuat daftar Voice" />
@@ -275,11 +387,12 @@ export function WorkItemsPage() {
         </Card>
       ) : (
         <Stack gap="md">
-          <div className="voice-grid">
+          <div className="inbox-list">
             {items.map((voice) => (
-              <VoiceCard
+              <InboxVoiceCard
                 key={voice.id}
                 voice={voice}
+                {...(isUnion ? { identity: { alias: voice.reporterAlias ?? null } } : {})}
                 onOpen={() => void navigate(`/voices/${voice.id}`)}
               />
             ))}
@@ -295,44 +408,6 @@ export function WorkItemsPage() {
         </Stack>
       )}
     </Stack>
-  );
-}
-
-function MonitoringKpis({ data }: { data: DashboardAggregate }) {
-  const count = (label: string) => data.status.find((bucket) => bucket.label === label)?.value ?? 0;
-  const critical = data.severity.find((bucket) => bucket.label === 'CRITICAL')?.value ?? 0;
-  const active = count('OPEN') + count('IN_VERIFICATION') + count('IN_PROGRESS');
-  return (
-    <div className="monitor-kpis" aria-label="Ringkasan Voice Member">
-      <Card padding="md">
-        <Activity />
-        <span>
-          <strong>{active}</strong>
-          <small>Aktif</small>
-        </span>
-      </Card>
-      <Card padding="md">
-        <Inbox />
-        <span>
-          <strong>{count('IN_VERIFICATION')}</strong>
-          <small>Verifikasi</small>
-        </span>
-      </Card>
-      <Card padding="md">
-        <AlertTriangle />
-        <span>
-          <strong>{critical}</strong>
-          <small>Critical</small>
-        </span>
-      </Card>
-      <Card padding="md">
-        <CheckCircle2 />
-        <span>
-          <strong>{count('CLOSED')}</strong>
-          <small>Selesai</small>
-        </span>
-      </Card>
-    </div>
   );
 }
 

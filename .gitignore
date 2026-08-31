@@ -19,3 +19,4 @@ local-data/
 .secret
 apps/api/prisma/dev.db
 packages/contracts/src/generated.ts.tmp
+.agent/design-images/

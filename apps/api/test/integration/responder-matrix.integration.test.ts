@@ -240,6 +240,19 @@ describe('Responder and leadership permission matrix', () => {
     ).rejects.toMatchObject({ code: 'STATUS_FILTER_CONFLICT' });
   });
 
+  it('exposes the PIC display name on work items and null while unassigned', async () => {
+    const assigned = await seedVoice({
+      status: VoiceStatus.IN_VERIFICATION,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    const unassigned = await seedVoice({ status: VoiceStatus.OPEN });
+    const items = await voices.workItems(manager, {});
+    const byId = new Map(items.items.map((item) => [item.id, item]));
+    expect(byId.get(assigned.id)).toMatchObject({ currentHandlerName: 'Section Head' });
+    expect(byId.get(unassigned.id)).toMatchObject({ currentHandlerName: null });
+  });
+
   it('isolates Union Officer access to assigned Private voices only', async () => {
     const privateVoice = await seedVoice({
       visibility: VoiceVisibility.PRIVATE,

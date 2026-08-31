@@ -156,6 +156,13 @@ export type MockVoice = {
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY' | null;
+  attachments?: { id: string; mimeType: string; purpose?: string }[];
+  closureCycles?: unknown[];
+  updatedAt?: string;
+  /** PIC display name on work-item/general list items. */
+  currentHandlerName?: string | null;
+  /** Per-Voice alias on Union private list items. */
+  reporterAlias?: string | null;
 };
 
 const voiceDetail = (voice: MockVoice): VoiceDetail => ({
@@ -213,7 +220,11 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
   category: voice.category ?? (voice.visibility === 'PRIVATE' ? null : 'SAFETY'),
   severity: voice.severity ?? 'HIGH',
   status: voice.status as VoiceListItem['status'],
-  updatedAt: '2026-08-03T00:00:00.000Z',
+  updatedAt: voice.updatedAt ?? '2026-08-03T00:00:00.000Z',
+  ...(voice.currentHandlerName !== undefined
+    ? { currentHandlerName: voice.currentHandlerName }
+    : {}),
+  ...(voice.reporterAlias !== undefined ? { reporterAlias: voice.reporterAlias } : {}),
 });
 
 /**
@@ -785,7 +796,7 @@ export type MockApiOptions = {
 };
 
 const PNG_1x1 = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4dusBAAUaApFBDgH7AAAAAElFTkSuQmCC',
   'base64',
 );
 
@@ -797,6 +808,8 @@ const defaultGENERAL_DASHBOARD = (): DashboardAggregate => ({
   trend: [],
   division: [],
   department: [],
+  area: [],
+  areaCritical: [],
   suppression: {
     enabled: false,
     threshold: 0,
@@ -860,7 +873,7 @@ function detail(voice: MockVoice) {
     classificationSource: 'AI',
     routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
     currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
-    attachments: [],
+    attachments: voice.attachments ?? [],
     locationReview: {
       id: 'lr-1',
       completeness: 'COMPLETE',
@@ -868,7 +881,7 @@ function detail(voice: MockVoice) {
       questions: [],
       contentHash: 'a'.repeat(64),
     },
-    closureCycles: [],
+    closureCycles: voice.closureCycles ?? [],
     availableActions: voice.availableActions,
     conversationState:
       voice.conversationState ??
@@ -889,6 +902,10 @@ function detail(voice: MockVoice) {
   };
 }
 
+/**
+ * A four-item notification page spanning today, yesterday, and older with
+ * mixed read states so grouping and unread affordances render (screen 15).
+ */
 const notificationPageFixture = (): unknown => ({
   items: [
     {
@@ -897,8 +914,35 @@ const notificationPageFixture = (): unknown => ({
       title: 'Voice baru ditugaskan',
       body: 'Sebuah Voice baru telah dirutekan kepada Anda.',
       deepLink: '/voices/voice-1',
-      createdAt: '2026-08-01T00:00:00.000Z',
+      createdAt: '2026-08-05T00:00:00.000Z',
       readAt: null,
+    },
+    {
+      id: 'note-2',
+      type: 'STATUS_CHANGED',
+      title: 'Ada pembaruan Private Voice',
+      body: 'Update pada sebuah Private Voice telah tersedia.',
+      deepLink: '/voices/voice-1',
+      createdAt: '2026-08-04T23:30:00.000Z',
+      readAt: null,
+    },
+    {
+      id: 'note-3',
+      type: 'MESSAGE',
+      title: 'Voice diperbarui',
+      body: 'Detail pada sebuah Voice telah diperbarui.',
+      deepLink: null,
+      createdAt: '2026-08-04T08:45:00.000Z',
+      readAt: '2026-08-04T09:00:00.000Z',
+    },
+    {
+      id: 'note-4',
+      type: 'CLOSED',
+      title: 'Verifikasi selesai',
+      body: 'Verifikasi pada sebuah Voice telah selesai.',
+      deepLink: null,
+      createdAt: '2026-08-03T02:10:00.000Z',
+      readAt: '2026-08-03T03:00:00.000Z',
     },
   ],
   nextCursor: null,
@@ -997,6 +1041,15 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
             sender: { kind: 'WORKFORCE' },
             attachments: [],
           },
+          {
+            id: 'msg-2',
+            text: 'Lantai 3, dekat mesin produksi.',
+            createdAt: '2026-08-02T01:05:00.000Z',
+            senderId: 'member-1',
+            senderAccountKind: 'WORKFORCE',
+            sender: { kind: 'WORKFORCE' },
+            attachments: [],
+          },
         ],
         nextCursor: 'msg-next',
       });
@@ -1028,11 +1081,13 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
                   id: 'union-officer-1',
                   displayName: 'Union Officer 1',
                   slot: 'OFFICER_1',
+                  activeCount: 3,
                 },
                 {
                   id: 'union-officer-2',
                   displayName: 'Union Officer 2',
                   slot: 'OFFICER_2',
+                  activeCount: 2,
                 },
               ]
             : []),
@@ -1137,7 +1192,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     if (method === 'GET' && path === '/api/v1/notifications')
       return satisfy(200, opts.notifications ?? notificationPageFixture());
     if (method === 'GET' && path === '/api/v1/notifications/unread-count')
-      return satisfy(200, { count: opts.unread ?? 1 });
+      return satisfy(200, { count: opts.unread ?? 2 });
     if (method === 'PATCH' && path === '/api/v1/notifications/read-all')
       return satisfy(200, { updated: 1 });
     const readMatch = path.match(/^\/api\/v1\/notifications\/([^/]+)\/read$/);

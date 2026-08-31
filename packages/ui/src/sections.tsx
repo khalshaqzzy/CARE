@@ -1,6 +1,6 @@
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
-import { Check, ChevronRight } from 'lucide-react';
-import type { HTMLAttributes, ReactNode } from 'react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { useId, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Surface, type SurfaceProps } from './primitives.js';
 import { cn } from './utils.js';
 
@@ -73,6 +73,8 @@ export function ChoiceCardGroup({
   options,
   columns = 1,
   variant = 'card',
+  indicator = 'check',
+  appearance = 'default',
   disabled,
   className,
 }: {
@@ -84,6 +86,10 @@ export function ChoiceCardGroup({
   columns?: 1 | 2;
   /** `chip` renders the compact tile grid used for areas and categories. */
   variant?: 'card' | 'chip';
+  /** `radio` renders a ring-and-dot marker instead of the default check. */
+  indicator?: 'check' | 'radio';
+  /** `brand` renders the checked card as a solid primary-action surface. */
+  appearance?: 'default' | 'brand';
   disabled?: boolean | undefined;
   className?: string | undefined;
 }) {
@@ -101,6 +107,7 @@ export function ChoiceCardGroup({
         'care-choice-card-group',
         columns === 2 && variant === 'card' && 'care-choice-card-group--2',
         variant === 'chip' && 'care-choice-card-group--chip',
+        appearance === 'brand' && 'care-choice-card-group--brand',
         className,
       )}
     >
@@ -120,8 +127,14 @@ export function ChoiceCardGroup({
             <strong>{option.label}</strong>
             {option.description ? <small>{option.description}</small> : null}
           </span>
-          <span className="care-choice-card__indicator" aria-hidden="true">
-            <Check size={13} strokeWidth={3.5} />
+          <span
+            className={cn(
+              'care-choice-card__indicator',
+              indicator === 'radio' && 'care-choice-card__indicator--radio',
+            )}
+            aria-hidden="true"
+          >
+            {indicator === 'radio' ? null : <Check size={13} strokeWidth={3.5} />}
           </span>
         </RadioGroupPrimitive.Item>
       ))}
@@ -200,6 +213,79 @@ export interface KeyValueItem {
   label: ReactNode;
   value: ReactNode;
   tone?: 'default' | 'info' | 'success' | 'warning' | 'danger';
+}
+
+/**
+ * A collapsible row card: icon tile + title/subtitle trigger with a rotating
+ * chevron, revealing its body on `aria-expanded`. Dependency-free disclosure
+ * with explicit button/region semantics.
+ */
+export function DisclosureRow({
+  icon,
+  title,
+  description,
+  trailing,
+  defaultOpen = false,
+  open,
+  onOpenChange,
+  children,
+  className,
+}: {
+  icon?: ReactNode | undefined;
+  title: ReactNode;
+  description?: ReactNode | undefined;
+  /** Static trailing content (badge, pill) rendered before the chevron. */
+  trailing?: ReactNode | undefined;
+  defaultOpen?: boolean | undefined;
+  open?: boolean | undefined;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+  children: ReactNode;
+  className?: string | undefined;
+}) {
+  const id = useId();
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = open !== undefined;
+  const expanded = isControlled ? open : internalOpen;
+  const setExpanded = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+  return (
+    <section className={cn('care-disclosure', className)}>
+      <h3 className="care-disclosure__heading">
+        <button
+          type="button"
+          className="care-disclosure__trigger"
+          aria-expanded={expanded}
+          aria-controls={`${id}-body`}
+          id={`${id}-trigger`}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {icon ? (
+            <span className="care-disclosure__icon" aria-hidden="true">
+              {icon}
+            </span>
+          ) : null}
+          <span className="care-disclosure__text">
+            <strong>{title}</strong>
+            {description ? <small>{description}</small> : null}
+          </span>
+          {trailing}
+          <ChevronDown size={18} className="care-disclosure__chevron" aria-hidden="true" />
+        </button>
+      </h3>
+      {expanded ? (
+        <div
+          className="care-disclosure__body"
+          id={`${id}-body`}
+          role="region"
+          aria-labelledby={`${id}-trigger`}
+        >
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 export function KeyValueGrid({

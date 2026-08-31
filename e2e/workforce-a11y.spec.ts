@@ -32,7 +32,7 @@ async function overflow(page: Page) {
 
 const memberRoutes: RouteCase[] = [
   { path: '/', heading: 'Budi Santoso', viewport: { width: 360, height: 800 } },
-  { path: '/voices/new', heading: 'Pilih jenis Voice', viewport: { width: 360, height: 800 } },
+  { path: '/voices/new', heading: 'Mulai Voice baru', viewport: { width: 360, height: 800 } },
   { path: '/history', heading: 'Voice milik Anda', viewport: { width: 360, height: 800 } },
   { path: '/notifications', heading: 'Pusat notifikasi', viewport: { width: 360, height: 800 } },
   { path: '/account', heading: 'Pengaturan akun', viewport: { width: 360, height: 800 } },
@@ -96,6 +96,46 @@ test.describe('workforce accessibility and responsive surface', () => {
           detail: 'Lampu di stasiun 3 redup.',
           availableActions: ['ASK', 'PROCEED'],
         },
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('manager home is axe clean at 360px', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Budi Santoso',
+      viewport: { width: 360, height: 800 },
+      opts: {
+        session: responder,
+        voice: {
+          id: 'voice-1',
+          displayId: 'CARE-202608-000001',
+          audience: 'GENERAL_RESPONDER',
+          visibility: 'GENERAL',
+          status: 'IN_VERIFICATION',
+          area: 'KARAWANG_1',
+          title: 'Pencahayaan area produksi kurang',
+          detail: 'Lampu di stasiun 3 redup.',
+          availableActions: ['ASK', 'PROCEED'],
+        },
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('leadership home is axe clean at 360px', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Budi Santoso',
+      viewport: { width: 360, height: 800 },
+      opts: {
+        session: memberSession({
+          capabilities: ['MEMBER', 'DIVISION_LEADERSHIP'],
+          structuralPosition: 'Division Head',
+        }),
       },
     });
     expect(await axe(page)).toEqual([]);
@@ -196,12 +236,11 @@ test.describe('workforce accessibility and responsive surface', () => {
   test('media attachment remove control keeps an expanded touch halo', async ({ page }) => {
     await open(page, {
       path: '/voices/new',
-      heading: 'Pilih jenis Voice',
+      heading: 'Mulai Voice baru',
       viewport: { width: 360, height: 800 },
     });
     await page.getByRole('radio', { name: /General Voice/ }).click();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
-    await expect(page.getByRole('radio', { name: 'Karawang 1' })).toBeVisible();
     // The remove control is 24px visually; its ::after halo must grow the hit
     // area to ≥44px (24px + 2 × 10px inset).
     const haloInset = await page.locator('.media-input').evaluate((media) => {

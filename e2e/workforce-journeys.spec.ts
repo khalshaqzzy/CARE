@@ -45,7 +45,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
     await dock.getByRole('button', { name: 'Buat', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Pilih jenis Voice' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
   });
 
   test('desktop sidebar navigates to member history', async ({ page }) => {
@@ -61,13 +61,16 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {});
     await page.goto('/voices/new');
-    await expect(page.getByRole('heading', { name: 'Pilih jenis Voice' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
     await page.getByRole('radio', { name: /General Voice/ }).click();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
     await expect(page.getByRole('heading', { name: 'Detail Voice General' })).toBeVisible();
-    // The required detail fields are present; areas render as choice chips.
-    await expect(page.getByRole('radio', { name: 'Karawang 1' })).toBeVisible();
+    // The required detail fields are present; areas open from the Ubah sheet.
     await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toBeVisible();
+    await page.getByRole('button', { name: /area temuan/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await expect(page.getByText('Karawang 1')).toBeVisible();
   });
 
   test('history lists the member own voices', async ({ page }) => {
@@ -126,7 +129,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     });
     await page.goto('/');
     await expect(page.getByText('Private Voice').first()).toBeVisible();
-    await expect(page.getByText('General (read-only)')).toBeVisible();
+    await expect(page.getByText('General Voice · Read-only')).toBeVisible();
     await expect(page.getByText('Gagal memuat ringkasan')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Buat Voice' })).toHaveCount(0);
     expect(memberDashboardRequests).toBe(0);
@@ -177,14 +180,48 @@ test.describe('workforce journeys (mocked contract)', () => {
         detail: 'Papan nama area shift 3 tergantung satu baut saja.',
         availableActions: [],
         category: null,
+        reporterAlias: 'Reporter Biru 47',
+      },
+      voiceList: {
+        items: [
+          {
+            id: 'voice-p1',
+            displayId: 'CARE-202608-000002',
+            visibility: 'PRIVATE',
+            area: 'KARAWANG_2',
+            title: 'Laporan papan nama rusak',
+            category: null,
+            severity: 'HIGH',
+            status: 'OPEN',
+            updatedAt: '2026-08-03T00:00:00.000Z',
+            currentHandlerName: null,
+            reporterAlias: 'Reporter Biru 47',
+          },
+          {
+            id: 'voice-p2',
+            displayId: 'CARE-202608-000003',
+            visibility: 'PRIVATE',
+            area: 'SUNTER_1',
+            title: 'Keluhan terkait kondisi kerja',
+            category: null,
+            severity: 'MEDIUM',
+            status: 'IN_PROGRESS',
+            updatedAt: '2026-08-03T00:00:00.000Z',
+            currentHandlerName: 'Union Officer 1',
+            reporterAlias: 'Reporter Biru 12',
+          },
+        ],
+        nextCursor: null,
       },
     });
     await page.goto('/');
     // Assignment summary card for the Union Head.
     await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
-    // Localized dashboard labels, never raw enums.
+    // Localized status labels on the private list chips, never raw enums.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
     await expect(page.getByText('Diproses').first()).toBeVisible();
+    // PIC label comes from the consent-safe handler display name.
+    await expect(page.getByText('PIC: Union Officer 1')).toBeVisible();
     // Private operational list with the shared voice card.
     await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
     // Union never sees reporter self surfaces.
@@ -278,12 +315,11 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(
-      page.getByText('Pilih Union Officer yang akan menangani Voice ini.'),
-    ).toBeVisible();
-    await dialog.getByRole('combobox', { name: 'Penanggung' }).click();
-    await expect(page.getByRole('option', { name: /Union Officer 1/ })).toBeVisible();
-    await page.getByRole('option', { name: /Union Officer 1/ }).click();
+    await expect(page.getByText('Pilih satu petugas untuk menangani Voice ini.')).toBeVisible();
+    // Candidate cards are a radio group with workload subtitles, not a select.
+    await dialog.getByRole('radio', { name: /Union Officer 1/ }).click();
+    await expect(dialog.getByRole('radio', { name: /Union Officer 1/ })).toBeChecked();
+    await expect(dialog.getByText('3 Voice aktif')).toBeVisible();
     await dialog.getByRole('button', { name: 'Tugaskan', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
@@ -308,7 +344,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/voices/voice-p2');
     await expect(page.getByText('Sari Wulandari')).toBeVisible();
     await expect(page.getByText('000129')).toBeVisible();
-    await expect(page.getByText('Identitas ditampilkan')).toBeVisible();
+    await expect(page.getByText('Identitas ditampilkan atas persetujuan pelapor')).toBeVisible();
     // Verifikasi status terlokalisasi.
     await expect(page.getByText('Verifikasi').first()).toBeVisible();
   });

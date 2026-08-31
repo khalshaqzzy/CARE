@@ -22,6 +22,27 @@ export function Badge({
     </span>
   );
 }
+/**
+ * A semantic-colored dot with a text label. The text — never the color — is
+ * the accessible value; the dot is decorative reinforcement.
+ */
+export function DotLabel({
+  tone = 'neutral',
+  children,
+  className,
+}: {
+  tone?: Tone | 'brand';
+  children: ReactNode;
+  className?: string | undefined;
+}) {
+  return (
+    <span className={cn('care-dot-label', className)} data-tone={tone}>
+      <i aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
 export function SeverityBadge({ severity }: { severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' }) {
   const map = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'danger' } as const;
   return (

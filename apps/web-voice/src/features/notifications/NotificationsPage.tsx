@@ -1,4 +1,4 @@
-import { Badge, Button, Card, EmptyState, Skeleton, Stack } from '@care/ui';
+import { Button, Card, EmptyState, Skeleton, Stack } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
@@ -7,29 +7,18 @@ import {
   ClipboardCheck,
   Inbox,
   MessageSquare,
+  RefreshCw,
   RotateCcw,
   ShieldAlert,
   Star,
-  RefreshCw,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { Pager } from '../../components/Pager';
-import { formatDateTime } from '../../lib/formatters';
+import { formatNotificationTime } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
 import { PushSettingsCard } from './PushSettingsCard';
-
-const TYPE_LABELS: Record<string, string> = {
-  VOICE_SUBMITTED: 'Voice baru',
-  ASSIGNED: 'Penugasan',
-  MESSAGE: 'Pesan',
-  STATUS_CHANGED: 'Status',
-  CLOSED: 'Penutupan',
-  RATED: 'Rating',
-  REOPENED: 'Dibuka kembali',
-  SECURITY: 'Keamanan',
-};
 
 /** Icon + tone per notification type; unknown types fall back to a neutral bell. */
 const TYPE_ICONS: Record<string, { icon: React.ReactNode; tone: string }> = {
@@ -42,6 +31,35 @@ const TYPE_ICONS: Record<string, { icon: React.ReactNode; tone: string }> = {
   REOPENED: { icon: <RotateCcw />, tone: 'warning' },
   SECURITY: { icon: <ShieldAlert />, tone: 'danger' },
 };
+
+const dayKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Jakarta',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const dayKey = (value: string) => dayKeyFormatter.format(new Date(value));
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  createdAt: string;
+  readAt: string | null;
+  deepLink?: string | null;
+};
+
+/** Groups the feed into "Hari ini" and everything earlier (screen 15). */
+function groupByDay(items: NotificationItem[]) {
+  const today = dayKey(new Date().toISOString());
+  const todayItems = items.filter((item) => dayKey(item.createdAt) === today);
+  const previousItems = items.filter((item) => dayKey(item.createdAt) !== today);
+  return [
+    { label: 'Hari ini', items: todayItems },
+    { label: 'Sebelumnya', items: previousItems },
+  ].filter((group) => group.items.length > 0);
+}
 
 export function NotificationsPage() {
   const api = useApi();
@@ -80,9 +98,10 @@ export function NotificationsPage() {
     },
   });
 
-  const items = list.data?.items ?? [];
+  const items = (list.data?.items ?? []) as NotificationItem[];
   const nextCursor = list.data?.nextCursor ?? null;
   const unreadCount = unread.data?.count ?? 0;
+  const groups = groupByDay(items);
 
   return (
     <Stack gap="lg">
@@ -94,8 +113,9 @@ export function NotificationsPage() {
         </div>
         {unreadCount ? (
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
+            className="notification-markall"
             onClick={() => markAll.mutate()}
             loading={markAll.isPending}
           >
@@ -118,51 +138,59 @@ export function NotificationsPage() {
         </Card>
       ) : (
         <Stack gap="md">
-          <div className="notification-list">
-            {items.map((notification) => {
-              const isRead = Boolean(notification.readAt);
-              const visual = TYPE_ICONS[notification.type] ?? { icon: <Bell />, tone: 'neutral' };
-              return (
-                <Card
-                  key={notification.id}
-                  padding="md"
-                  className={isRead ? 'notification is-read' : 'notification is-unread'}
-                  interactive
-                >
-                  <span className="notification__icon" data-tone={visual.tone} aria-hidden="true">
-                    {visual.icon}
-                  </span>
-                  <div className="notification__main">
-                    <div className="notification__head">
-                      <Badge tone={isRead ? 'neutral' : 'info'}>
-                        {TYPE_LABELS[notification.type] ?? notification.type}
-                      </Badge>
-                      <time dateTime={notification.createdAt}>
-                        {formatDateTime(notification.createdAt)}
-                      </time>
-                    </div>
-                    <h3 className="notification__title">
-                      {!isRead ? <span className="notification__dot" aria-hidden="true" /> : null}
-                      <span className="notification__title-text">{notification.title}</span>
-                    </h3>
-                    <p className="notification__body">{notification.body}</p>
-                  </div>
-                  {!isRead ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        markRead.mutate(notification.id);
-                        if (notification.deepLink) void navigate(notification.deepLink);
-                      }}
-                    >
-                      Buka
-                    </Button>
-                  ) : null}
-                </Card>
-              );
-            })}
-          </div>
+          {groups.map((group) => (
+            <section key={group.label} className="notification-group">
+              <h2 className="notification-group__title">{group.label}</h2>
+              <Card className="notification-group__card">
+                <ul className="notification-group__list" role="list">
+                  {group.items.map((notification) => {
+                    const isRead = Boolean(notification.readAt);
+                    const visual = TYPE_ICONS[notification.type] ?? {
+                      icon: <Bell />,
+                      tone: 'neutral',
+                    };
+                    return (
+                      <li
+                        key={notification.id}
+                        className={
+                          isRead ? 'notification-row is-read' : 'notification-row is-unread'
+                        }
+                      >
+                        <span className="notification-row__dot" aria-hidden="true" />
+                        <span
+                          className="notification-row__icon"
+                          data-tone={visual.tone}
+                          aria-hidden="true"
+                        >
+                          {visual.icon}
+                        </span>
+                        <div className="notification-row__main">
+                          <h3 className="notification-row__title">{notification.title}</h3>
+                          <p className="notification-row__body">{notification.body}</p>
+                          {!isRead ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="notification-row__open"
+                              onClick={() => {
+                                markRead.mutate(notification.id);
+                                if (notification.deepLink) void navigate(notification.deepLink);
+                              }}
+                            >
+                              Buka
+                            </Button>
+                          ) : null}
+                        </div>
+                        <time className="notification-row__time" dateTime={notification.createdAt}>
+                          {formatNotificationTime(notification.createdAt)}
+                        </time>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            </section>
+          ))}
           <Pager
             page={nav.page}
             hasPrevious={nav.canPrevious}

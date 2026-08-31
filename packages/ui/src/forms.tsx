@@ -2,7 +2,7 @@ import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
-import { Check, ChevronDown, Search, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, Eye, EyeOff, Search, Star, Upload, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   forwardRef,
@@ -25,6 +25,7 @@ export function Field({
   required,
   htmlFor,
   counter,
+  hideLabel = false,
   children,
 }: {
   label: string;
@@ -34,12 +35,14 @@ export function Field({
   htmlFor: string;
   /** Optional right-aligned counter (e.g. "12/150") rendered beside the label. */
   counter?: string | undefined;
+  /** Keeps the label for assistive technology while rendering it invisibly. */
+  hideLabel?: boolean | undefined;
   children: ReactNode;
 }) {
   return (
     <div className="care-field" data-invalid={Boolean(errorText) || undefined}>
       <div className="care-field__labelrow">
-        <label className="care-field__label" htmlFor={htmlFor}>
+        <label className={cn('care-field__label', hideLabel && 'care-sr-only')} htmlFor={htmlFor}>
           {label}
           {required ? <span aria-hidden="true"> *</span> : null}
         </label>
@@ -66,6 +69,8 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   leading?: ReactNode;
   trailing?: ReactNode;
   counter?: string;
+  /** Keeps the label for assistive technology while rendering it invisibly. */
+  hideLabel?: boolean;
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   {
@@ -76,6 +81,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     leading,
     trailing,
     counter,
+    hideLabel,
     className,
     required,
     ...props
@@ -92,6 +98,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       required={required}
       htmlFor={id}
       counter={counter}
+      hideLabel={hideLabel}
     >
       <div className="care-input-shell">
         {leading ? (
@@ -118,14 +125,100 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   );
 });
 
+export interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
+  label: string;
+  helperText?: string;
+  errorText?: string;
+  leading?: ReactNode;
+  counter?: string;
+}
+/**
+ * Password field with an accessible visibility toggle. The shared `Input`
+ * renders trailing content as an aria-hidden span, so the toggle needs its own
+ * real button to stay operable and labelled.
+ */
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
+  function PasswordInput(
+    {
+      id: suppliedId,
+      label,
+      helperText,
+      errorText,
+      leading,
+      counter,
+      className,
+      required,
+      ...props
+    },
+    ref,
+  ) {
+    const generated = useId();
+    const id = suppliedId ?? generated;
+    const [visible, setVisible] = useState(false);
+    return (
+      <Field
+        label={label}
+        helperText={helperText}
+        errorText={errorText}
+        required={required}
+        htmlFor={id}
+        counter={counter}
+      >
+        <div className="care-input-shell care-password-input">
+          {leading ? (
+            <span className="care-input-shell__icon" aria-hidden="true">
+              {leading}
+            </span>
+          ) : null}
+          <input
+            ref={ref}
+            id={id}
+            type={visible ? 'text' : 'password'}
+            className={cn('care-input', className)}
+            required={required}
+            aria-invalid={Boolean(errorText) || undefined}
+            aria-describedby={errorText ? `${id}-error` : helperText ? `${id}-helper` : undefined}
+            {...props}
+          />
+          <button
+            type="button"
+            className="care-password-input__toggle"
+            aria-label={visible ? 'Sembunyikan password' : 'Tampilkan password'}
+            aria-pressed={visible}
+            onClick={() => setVisible((current) => !current)}
+          >
+            {visible ? (
+              <EyeOff size={18} aria-hidden="true" />
+            ) : (
+              <Eye size={18} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      </Field>
+    );
+  },
+);
+
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;
   helperText?: string;
   errorText?: string;
   counter?: string;
+  /** Keeps the label for assistive technology while rendering it invisibly. */
+  hideLabel?: boolean;
 }
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { id: suppliedId, label, helperText, errorText, counter, className, required, ...props },
+  {
+    id: suppliedId,
+    label,
+    helperText,
+    errorText,
+    counter,
+    hideLabel,
+    className,
+    required,
+    ...props
+  },
   ref,
 ) {
   const generated = useId();
@@ -138,6 +231,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       required={required}
       htmlFor={id}
       counter={counter}
+      hideLabel={hideLabel}
     >
       <textarea
         ref={ref}
@@ -190,6 +284,9 @@ export function Select({
   disabled,
   helperText,
   errorText,
+  leading,
+  placeholder = 'Pilih opsi',
+  hideLabel = false,
 }: {
   label: string;
   value?: string;
@@ -199,6 +296,11 @@ export function Select({
   disabled?: boolean;
   helperText?: string;
   errorText?: string;
+  /** Optional icon rendered before the selected value inside the trigger. */
+  leading?: ReactNode;
+  placeholder?: string;
+  /** Hides the visible label for compact filter-pill layouts (still labeled). */
+  hideLabel?: boolean;
 }) {
   const id = useId();
   const rootProps = {
@@ -208,7 +310,13 @@ export function Select({
     ...(disabled === undefined ? {} : { disabled }),
   };
   return (
-    <Field label={label} helperText={helperText} errorText={errorText} htmlFor={id}>
+    <Field
+      label={label}
+      helperText={helperText}
+      errorText={errorText}
+      htmlFor={id}
+      hideLabel={hideLabel}
+    >
       <SelectPrimitive.Root {...rootProps}>
         <SelectPrimitive.Trigger
           id={id}
@@ -216,7 +324,12 @@ export function Select({
           aria-invalid={Boolean(errorText) || undefined}
           aria-describedby={errorText ? `${id}-error` : helperText ? `${id}-helper` : undefined}
         >
-          <SelectPrimitive.Value placeholder="Pilih opsi" />
+          {leading ? (
+            <span className="care-select-trigger__icon" aria-hidden="true">
+              {leading}
+            </span>
+          ) : null}
+          <SelectPrimitive.Value placeholder={placeholder} />
           <SelectPrimitive.Icon>
             <ChevronDown size={18} />
           </SelectPrimitive.Icon>
@@ -453,6 +566,72 @@ export function RadioGroup({
             {option.description ? <small>{option.description}</small> : null}
           </span>
         </label>
+      ))}
+    </RadioGroupPrimitive.Root>
+  );
+}
+
+/**
+ * Star rating on radio semantics (1–5). The accessible value is "n/5"; the
+ * stars are decorative. `readOnly` renders a non-interactive summary, e.g. a
+ * submitted closure-cycle rating.
+ */
+export function RatingInput({
+  label,
+  value,
+  defaultValue,
+  onValueChange,
+  disabled,
+  readOnly = false,
+  className,
+}: {
+  label: string;
+  value?: number;
+  defaultValue?: number;
+  onValueChange?: (value: number) => void;
+  disabled?: boolean;
+  readOnly?: boolean;
+  className?: string | undefined;
+}) {
+  const stars = [1, 2, 3, 4, 5];
+  if (readOnly) {
+    const score = value ?? 0;
+    return (
+      <span
+        className={cn('care-rating is-readonly', className)}
+        role="img"
+        aria-label={`${label}: ${score}/5`}
+      >
+        {stars.map((star) => (
+          <Star key={star} aria-hidden="true" data-filled={star <= score || undefined} />
+        ))}
+        <span className="care-rating__value">{score}/5</span>
+      </span>
+    );
+  }
+  const rootProps = {
+    ...(value === undefined ? {} : { value: String(value) }),
+    ...(defaultValue === undefined ? {} : { defaultValue: String(defaultValue) }),
+    ...(onValueChange === undefined
+      ? {}
+      : { onValueChange: (v: string) => onValueChange?.(Number(v)) }),
+    ...(disabled === undefined ? {} : { disabled }),
+  };
+  return (
+    <RadioGroupPrimitive.Root
+      {...rootProps}
+      aria-label={label}
+      className={cn('care-rating', className)}
+    >
+      {stars.map((score) => (
+        <RadioGroupPrimitive.Item
+          key={score}
+          value={String(score)}
+          aria-label={`${score}/5`}
+          className="care-rating__star"
+        >
+          <Star aria-hidden="true" />
+        </RadioGroupPrimitive.Item>
       ))}
     </RadioGroupPrimitive.Root>
   );
