@@ -780,6 +780,8 @@ export type MockApiOptions = {
   locationReview?: unknown;
   notifications?: unknown;
   unread?: number;
+  /** Replacement bytes for the media stub; defaults to a 1×1 transparent PNG. */
+  mediaBody?: Buffer;
   push?: {
     configured?: boolean;
     publicKey?: string | null;
@@ -797,6 +799,16 @@ export type MockApiOptions = {
 
 const PNG_1x1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4dusBAAUaApFBDgH7AAAAAElFTkSuQmCC',
+  'base64',
+);
+
+/**
+ * Deterministic 320×200 two-tone PNG used when a test needs the media stub to
+ * be visibly rendered (e.g. the lightbox visual baseline). The default stub
+ * stays PNG_1x1 so existing baselines remain byte-identical.
+ */
+export const PNG_MEDIA_SAMPLE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAUAAAADICAIAAAAWZq/8AAAB4ElEQVR42u3TMQ0AIRBEUfxefxLQchIQcWpItqDDAA3lwkuegpn88rUfSKqYAAQMCBgQMAgYEDAgYEDAIGBAwICAQcCAgAEBAwIGAQMCBgQMCBgEDAgYEDAIGBAwIGBAwCBgQMCAgAEBg4ABAQMCBgEDAgYEDAgYBAwIGEgdcI+xxVUgYBCwgEHAAgYBg4AFDAIWMAhYwCBgELCAQcACBgEDAgYBCxgELGAQMAgYEDAgYEDAIGBAwICAAQGDgAEBAwIGAQMCBgQMCBgEDAgYEDAI2AogYEDAgIBBwICAAQEDAgYBAwIGBAwCBgQMCBgQMAgYEDAgYEDAIGBAwICA4b6AewwgKQGDgAEBAwIGAQMCBgQMrAJ+3gokJWAQMCBgQMAgYEDAgIABAYOAAQEDAgYBAwIGBAwIGAQMCBgQMCBgEDAgYEDAIGBAwICAAQGDgAEBAwIGBAwCBgQMCBgEDAgYEDAgYBAwIGBAwCBgK4CAAQEDAgYBAwIGBAwIGAQMCBgQMAgYEDAgYEDAIGBAwICAAQGDgAEBAwIGAQMCBgQMCBgEDAgYEDAgYBAwIGBAwCBgQMCAgAEBg4ABAQMCBgEDAgYEDAgYBAwIGBAwIGAQMCBgQMAgYEDAgIABAcPRJpIQdtevCHTHAAAAAElFTkSuQmCC',
   'base64',
 );
 
@@ -1229,7 +1241,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
   await page
     .context()
     .route('**/api/v1/media/**', (route) =>
-      route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1x1 }),
+      route.fulfill({ status: 200, contentType: 'image/png', body: opts.mediaBody ?? PNG_1x1 }),
     );
 }
 

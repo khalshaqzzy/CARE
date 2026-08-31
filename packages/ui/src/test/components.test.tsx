@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ import {
   SegmentedControl,
 } from '../forms.js';
 import { Dialog } from '../overlays.js';
+import { Lightbox } from '../lightbox.js';
 import { DotLabel } from '../feedback.js';
 import {
   ChoiceCardGroup,
@@ -331,5 +332,93 @@ describe('composed section contracts', () => {
     expect(container.querySelector('.care-dot-label[data-tone="neutral"]')).toHaveTextContent(
       'Netral',
     );
+  });
+});
+
+describe('lightbox contracts', () => {
+  const images = [
+    { src: 'https://media.test/a.png', alt: 'Lampiran a' },
+    { src: 'https://media.test/b.png', alt: 'Lampiran b' },
+    { src: 'https://media.test/c.png', alt: 'Lampiran c' },
+  ];
+
+  function Viewer({ index, onIndexChange }: { index: number; onIndexChange: (i: number) => void }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <main>
+        <Button onClick={() => setOpen(true)}>Buka galeri</Button>
+        <Lightbox
+          open={open}
+          onOpenChange={setOpen}
+          images={images}
+          index={index}
+          onIndexChange={onIndexChange}
+        />
+      </main>
+    );
+  }
+
+  it('opens on the requested image, closes with Escape, and returns focus', async () => {
+    const user = userEvent.setup();
+    render(<Viewer index={1} onIndexChange={() => undefined} />);
+    await user.click(screen.getByRole('button', { name: 'Buka galeri' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    // First focusable control is the labelled back affordance.
+    expect(screen.getByRole('button', { name: 'Kembali' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Buka galeri' })).toHaveFocus();
+  });
+
+  it('navigates with arrow keys and disables navigation at the ends', async () => {
+    const user = userEvent.setup();
+    function Host() {
+      const [index, setIndex] = useState(0);
+      return <Lightbox open images={images} index={index} onIndexChange={setIndex} />;
+    }
+    render(<Host />);
+    const prev = screen.getByRole('button', { name: 'Gambar sebelumnya' });
+    const next = screen.getByRole('button', { name: 'Gambar berikutnya' });
+    expect(prev).toBeDisabled();
+    expect(next).toBeEnabled();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    expect(next).toBeDisabled();
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('jumps through thumbnails and marks the active one', async () => {
+    const user = userEvent.setup();
+    const onIndexChange = vi.fn();
+    render(<Lightbox open images={images} index={1} onIndexChange={onIndexChange} />);
+    const strip = screen.getByRole('group', { name: 'Pilih gambar' });
+    expect(within(strip).getByRole('button', { name: 'Gambar 2' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await user.click(within(strip).getByRole('button', { name: 'Gambar 3' }));
+    expect(onIndexChange).toHaveBeenLastCalledWith(2);
+  });
+
+  it('renders an accessible, axe-clean viewer', async () => {
+    render(<Lightbox open images={images} index={0} onIndexChange={() => undefined} />);
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Gambar 1 dari 3');
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it('renders nothing when closed or empty', () => {
+    const { container } = render(
+      <Lightbox open={false} images={images} index={0} onIndexChange={() => undefined} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+    const empty = render(<Lightbox open images={[]} index={0} onIndexChange={() => undefined} />);
+    expect(empty.container).toBeEmptyDOMElement();
   });
 });

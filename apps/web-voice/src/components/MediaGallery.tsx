@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Paperclip } from 'lucide-react';
+import { Lightbox } from '@care/ui';
 import { mediaUrl } from '../lib/formatters';
 import type { Attachment } from '../workforce-api';
 
 /**
  * Authorized image attachments. `grid` keeps the classic thumbnail wall used
  * by chat and closure evidence; `row` renders the compact count + strip card
- * used for Voice attachments.
+ * used for Voice attachments. Tapping a thumbnail opens the shared in-page
+ * viewer; media never navigates to the raw API URL.
  */
 export function MediaGallery({
   attachments,
@@ -21,7 +23,24 @@ export function MediaGallery({
     () => attachments.filter((a) => a.mimeType.startsWith('image/')),
     [attachments],
   );
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   if (!safe.length) return null;
+  const images = safe.map((attachment) => ({
+    src: mediaUrl(attachment.id),
+    alt: `Lampiran ${attachment.id.slice(0, 6)}`,
+  }));
+  const viewerOpen = viewerIndex !== null && viewerIndex < safe.length;
+  const activeIndex = viewerOpen ? viewerIndex : 0;
+  const viewer = (
+    <Lightbox
+      open={viewerOpen}
+      onOpenChange={(open) => setViewerIndex(open ? activeIndex : null)}
+      images={images}
+      index={activeIndex}
+      onIndexChange={setViewerIndex}
+    />
+  );
+
   if (variant === 'row') {
     return (
       <div className="media-row">
@@ -30,23 +49,19 @@ export function MediaGallery({
           {safe.length} lampiran
         </span>
         <div className="media-row__thumbs">
-          {safe.map((attachment) => (
-            <a
-              key={attachment.id}
+          {images.map((image, index) => (
+            <button
+              key={image.src}
+              type="button"
               className="media-row__thumb"
-              href={mediaUrl(attachment.id)}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Buka lampiran ${attachment.id.slice(0, 6)}`}
+              aria-label={`Lihat gambar ${index + 1} dari ${safe.length}`}
+              onClick={() => setViewerIndex(index)}
             >
-              <img
-                src={mediaUrl(attachment.id)}
-                alt={`Lampiran ${attachment.id.slice(0, 6)}`}
-                loading="lazy"
-              />
-            </a>
+              <img src={image.src} alt={image.alt} loading="lazy" />
+            </button>
           ))}
         </div>
+        {viewer}
       </div>
     );
   }
@@ -54,23 +69,19 @@ export function MediaGallery({
     <div className="media-gallery">
       <span className="media-gallery__label">{label}</span>
       <div className="media-gallery__grid">
-        {safe.map((attachment) => (
-          <a
-            key={attachment.id}
+        {images.map((image, index) => (
+          <button
+            key={image.src}
+            type="button"
             className="media-gallery__thumb"
-            href={mediaUrl(attachment.id)}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`Buka lampiran ${attachment.id.slice(0, 6)}`}
+            aria-label={`Lihat gambar ${index + 1} dari ${safe.length}`}
+            onClick={() => setViewerIndex(index)}
           >
-            <img
-              src={mediaUrl(attachment.id)}
-              alt={`Lampiran ${attachment.id.slice(0, 6)}`}
-              loading="lazy"
-            />
-          </a>
+            <img src={image.src} alt={image.alt} loading="lazy" />
+          </button>
         ))}
       </div>
+      {viewer}
     </div>
   );
 }

@@ -94,6 +94,51 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
   });
 
+  test('attachment images open in an in-page viewer with back and prev/next', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      voice: {
+        ...generalVoice,
+        attachments: [
+          { id: 'att-1', mimeType: 'image/png' },
+          { id: 'att-2', mimeType: 'image/png' },
+          { id: 'att-3', mimeType: 'image/png' },
+        ],
+      },
+    });
+    await page.goto('/voices/voice-1');
+    await expect(page.getByRole('heading', { name: generalVoice.title })).toBeVisible();
+    // The page never links the raw media API; viewing stays in-page.
+    await expect(page.locator('a[href*="/api/v1/media/"]')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Lihat gambar 2 dari 3' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe('/voices/voice-1');
+    await expect(dialog.getByText('2 / 3')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Gambar sebelumnya' })).toBeEnabled();
+
+    await dialog.getByRole('button', { name: 'Gambar berikutnya' }).click();
+    await expect(dialog.getByText('3 / 3')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Gambar berikutnya' })).toBeDisabled();
+
+    // Arrow keys navigate while focus sits on a stable control of the viewer.
+    await dialog.getByRole('button', { name: 'Kembali' }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(dialog.getByText('2 / 3')).toBeVisible();
+
+    // The back control closes the viewer and restores focus to the thumbnail.
+    await dialog.getByRole('button', { name: 'Kembali' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Lihat gambar 2 dari 3' })).toBeFocused();
+
+    // Escape closes a fresh open as well.
+    await page.getByRole('button', { name: 'Lihat gambar 1 dari 3' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
   test('notifications center lists items and explains unavailable push in online mode', async ({
     page,
   }) => {

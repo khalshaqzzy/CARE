@@ -1,16 +1,76 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 31 Agustus 2026                                                                                                                                                                                                                        |
-| Current objective       | Add iOS 11.3-safe workforce capability tiers without changing Admin/backend contracts; Phase 13 remains open for hosted acceptance                                                                                                     |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                                       |
-| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                                                  |
-| Implementation status   | Phase 0–12 done; iOS legacy compatibility is implemented through capability tiers and automated gates; Phase 13 hosted evidence not yet claimed                                                                                        |
-| Latest ADR              | ADR-0026 (iOS legacy PWA capability tiers)                                                                                                                                                                                             |
-| Recommended next action | Local capability-tier validation is complete and the change set is on a feature branch for review; continue Phase 13 hosted exact-SHA acceptance, provider smoke, rollback rehearsal, and authenticated current-Safari operator retest |
+| Atribut                 | Nilai                                                                                                                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 31 Agustus 2026                                                                                                                                                                                       |
+| Current objective       | Open attachment images in an in-page viewer on every workforce surface without changing Admin/backend contracts; Phase 13 remains open for hosted acceptance                                          |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                      |
+| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                 |
+| Implementation status   | Phase 0–12 done; iOS legacy compatibility is implemented through capability tiers and automated gates; Phase 13 hosted evidence not yet claimed                                                       |
+| Latest ADR              | ADR-0027 (in-page attachment viewer)                                                                                                                                                                  |
+| Recommended next action | In-page viewer change set is on `fix/image-view-load` for review; continue Phase 13 hosted exact-SHA acceptance, provider smoke, rollback rehearsal, and authenticated current-Safari operator retest |
 
 ## Session Outcome
+
+### Workforce in-page attachment viewer (lightbox) — 31 Agustus 2026
+
+Branch `fix/image-view-load`. Setiap thumbnail lampiran gambar pada aplikasi
+workforce sebelumnya berupa anchor `target="_blank"` menuju URL API mentah
+`/api/v1/media/{id}`: membuka gambar menavigasi tab baru tanpa konteks Voice,
+dan kegagalan otorisasi menampilkan envelope JSON mentah. Kini viewing tetap
+di halaman; endpoint media, authorization, OpenAPI, dan DTO tidak berubah —
+`<img>` tetap memuat bytes lewat session cookie same-origin yang sama
+(ADR-0027):
+
+- **Primitif `Lightbox` baru di `packages/ui`.** Dibangun di atas Radix
+  dialog primitives yang sama dengan `Dialog` (focus trap, Escape, scroll
+  lock, portal) dengan pola save/restore focus yang identik. API terkontrol
+  `{ open, onOpenChange, images, index, onIndexChange }` — host gallery
+  memiliki state, sehingga klik, keyboard (ArrowLeft/ArrowRight), swipe
+  horizontal (axis-lock 10 px, threshold 48 px, edge resistance), dan
+  lompatan thumbnail semua melalui satu callback. Chrome: pill "Kembali"
+  berlabel + counter `aria-live` ("2 / 3"), tombol prev/next 44 px yang
+  disabled di ujung, strip thumbnail (`aria-current`) untuk lebih dari satu
+  gambar, loading spinner, dan error state dengan "Coba lagi" (cache-bust
+  query). Title deskripsi sr-only "Gambar n dari total" membawa nama
+  aksesibel dialog. Terdaftar di coverage, di-specimen-kan di `/design`
+  (gambar SVG data-URI), dan diuji unit jsdom + axe (UI 24).
+- **Keputusan kontras yang dikunci.** Stage chrome sengaja opaque
+  (gradien radial gelap halus), bukan scrim translusen: axe `color-contrast`
+  mengomposit layer transparan dengan konten halaman di belakangnya sehingga
+  hasilnya tak terdeterminksi; opaque membuat kontras deterministik.
+  backdrop-filter dihapus dari chrome final sehingga tidak ada fitur visual
+  yang bergantung dukungan prefixed di legacy WebKit; swipe memakai touch
+  events dasar tanpa PointerEvent/ResizeObserver.
+- **`MediaGallery` (semua permukaan: lampiran Voice, bukti penutupan
+  featured + siklus lama, gambar chat, shelf bukti responder, preview
+  draft).** Anchor menjadi `<button>` (kelas CSS element-agnostic + reset
+  button + hover zoom halus), state viewer lokal per gallery, label thumb
+  "Lihat gambar n dari total". Thumb composer Create Voice (`MediaInput`)
+  ikut membuka viewer; tombol hapus (halo 44 px) tidak tersentuh.
+- **Test.** Kontrak in-page dikunci source-assertion di
+  `foundation.test.ts` (tanpa `target="_blank"`/anchor media).
+  `mockWorkforceApi` menerima opsi `mediaBody` (default tetap PNG_1x1)
+  dengan sampel PNG dua-tone deterministik `PNG_MEDIA_SAMPLE` untuk
+  baseline. Journey baru: buka dari thumb → counter → prev/next button +
+  arrow key → back menutup dengan focus restore → Escape; spec a11y baru:
+  axe bersih dengan viewer terbuka, tanpa overflow 360 px, kontrol ≥44 px.
+  Baseline baru `workforce-lightbox-360`; seluruh baseline lama
+  byte-identical (DOM/CSS box thumbnail tidak berubah).
+
+Validasi (semua hijau): `pnpm format:check`; `pnpm lint`; `pnpm typecheck`;
+unit API 60, UI 24, frontend-core 14, workforce 68, Admin 2; `pnpm build`
+(NODE_ENV=production); `pnpm pwa:compat-check` (main gzip 125650 bytes
+terhadap budget 143500); `pnpm openapi:check` tanpa drift;
+`migrations:destructive-check`; `docker compose config --quiet`;
+`pnpm audit --audit-level high` (nol High/Critical; Moderate transitive
+terdokumentasi); Playwright mocked `test:frontend:e2e` **149 passed**
+(chromium + visual + pwa + push + legacy-ios WebKit) dua run berturut-turut;
+Gitleaks v8.24.3 directory scan bersih; `git diff --check` bersih. Suite
+berbasis database tidak dijalankan ulang karena change set berisi frontend,
+e2e, dan dokumen tanpa sentuhan API, schema, atau kontrak. OrbStack
+dihidupkan hanya untuk scan Gitleaks lalu dihentikan; tidak ada
+container/proses yang tersisa.
 
 ### Workforce iOS legacy capability tiers — 31 Agustus 2026
 

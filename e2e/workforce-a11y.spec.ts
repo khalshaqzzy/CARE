@@ -253,4 +253,42 @@ test.describe('workforce accessibility and responsive surface', () => {
     });
     expect(haloInset).toBe('-10px');
   });
+
+  test('lightbox viewer is axe clean, contained, and meets touch targets', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      voice: {
+        id: 'voice-1',
+        displayId: 'CARE-202608-000001',
+        audience: 'REPORTER_SELF',
+        visibility: 'PRIVATE',
+        status: 'IN_PROGRESS',
+        area: 'KARAWANG_1',
+        title: 'Keluhan fasilitas toilet',
+        detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
+        availableActions: [],
+        attachments: [
+          { id: 'att-1', mimeType: 'image/png' },
+          { id: 'att-2', mimeType: 'image/png' },
+        ],
+      },
+    });
+    await page.goto('/voices/voice-1');
+    await expect(page.getByRole('heading', { name: 'Keluhan fasilitas toilet' })).toBeVisible();
+    await page.getByRole('button', { name: 'Lihat gambar 1 dari 2' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+    const targets = await dialog.locator('button').evaluateAll((els) =>
+      els.map((el) => {
+        const rect = el.getBoundingClientRect();
+        return { w: rect.width, h: rect.height };
+      }),
+    );
+    for (const target of targets) {
+      expect(target.h).toBeGreaterThanOrEqual(44);
+      expect(target.w).toBeGreaterThanOrEqual(44);
+    }
+  });
 });

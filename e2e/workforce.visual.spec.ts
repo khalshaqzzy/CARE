@@ -3,6 +3,7 @@ import {
   baseVoiceItem,
   memberSession,
   mockWorkforceApi,
+  PNG_MEDIA_SAMPLE,
   unionPrivateVoiceDetail,
   unionSession,
 } from './helpers/mock-api';
@@ -391,6 +392,34 @@ test('workforce detail closed rating visual at 360', async ({ page }) => {
   });
   await page.waitForTimeout(100);
   await expect(page).toHaveScreenshot('workforce-detail-closed-360.png', screenshotOptions);
+});
+
+// Baseline for the in-page attachment viewer (lightbox): opened from the
+// first thumbnail of the detail attachments strip. The media stub serves the
+// visible two-tone sample so the stage, chrome, and strip render deterministically.
+test('workforce lightbox visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    voice: {
+      ...voice,
+      status: 'IN_VERIFICATION',
+      conversationState: 'ACTIVE',
+      attachments: [
+        { id: 'att-1', mimeType: 'image/png' },
+        { id: 'att-2', mimeType: 'image/png' },
+        { id: 'att-3', mimeType: 'image/png' },
+      ],
+    },
+    mediaBody: PNG_MEDIA_SAMPLE,
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-1');
+  await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
+  await page.getByRole('button', { name: 'Lihat gambar 1 dari 3' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.waitForTimeout(450);
+  await expect(page).toHaveScreenshot('workforce-lightbox-360.png', screenshotOptions);
 });
 
 test('workforce union private inbox visual at 1440', async ({ page }) => {

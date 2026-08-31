@@ -26,6 +26,7 @@ import {
   Grid,
   IconButton,
   Input,
+  Lightbox,
   Link,
   Loader,
   Menu,
@@ -128,6 +129,17 @@ const employees = [
   { id: '000923', name: 'Dimas Saputra', unit: 'Plant Administration', status: 'LEGACY_HANDLER' },
 ];
 
+const specimenImage = (background: string, glyph: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><rect width="640" height="420" fill="${background}"/><circle cx="320" cy="210" r="118" fill="#ffffff" opacity="0.32"/><text x="320" y="228" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#ffffff" text-anchor="middle">${glyph}</text></svg>`,
+  )}`;
+
+const lightboxImages = [
+  { src: specimenImage('#0866ff', 'A'), alt: 'Contoh lampiran satu' },
+  { src: specimenImage('#0755d9', 'B'), alt: 'Contoh lampiran dua' },
+  { src: specimenImage('#0e7490', 'C'), alt: 'Contoh lampiran tiga' },
+];
+
 export default function DesignPage() {
   const [toastOpen, setToastOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -135,6 +147,8 @@ export default function DesignPage() {
     { id: '1', name: 'temuan-line-a.webp', status: 'success' },
   ]);
   const [motionKey, setMotionKey] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [activeSection, setActiveSection] = useState('overview');
   const columns = useMemo<Column<(typeof employees)[number]>[]>(
     () => [
@@ -817,6 +831,16 @@ export default function DesignPage() {
             >
               <MediaUpload label="Pilih foto" onFilesAdded={() => undefined} />
             </BottomSheet>
+            <Button variant="secondary" onClick={() => setLightboxOpen(true)}>
+              Buka lightbox
+            </Button>
+            <Lightbox
+              open={lightboxOpen}
+              onOpenChange={setLightboxOpen}
+              images={lightboxImages}
+              index={lightboxIndex}
+              onIndexChange={setLightboxIndex}
+            />
           </div>
         </DesignSection>
 

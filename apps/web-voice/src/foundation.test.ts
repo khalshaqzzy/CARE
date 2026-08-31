@@ -78,6 +78,14 @@ describe('workforce foundation boundaries', () => {
     expect(hook).toContain("'(min-width: 1280px)'");
   });
 
+  it('keeps attachment viewing in-page and never links the raw media URL', () => {
+    const gallery = readFileSync(join(sourceDir, 'components/MediaGallery.tsx'), 'utf8');
+    // Thumbnails open the shared Lightbox instead of navigating to /api/v1/media.
+    expect(gallery).toContain('Lightbox');
+    expect(gallery).not.toContain('target="_blank"');
+    expect(gallery).not.toContain('href=');
+  });
+
   it('keeps the push handler generic and free of Private identity fields', () => {
     const serviceWorker = readFileSync(join(sourceDir, 'sw.ts'), 'utf8');
     const pushHandler = serviceWorker.slice(

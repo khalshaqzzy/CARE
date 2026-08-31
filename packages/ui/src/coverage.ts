@@ -53,7 +53,16 @@ export const publicComponentCoverage = {
     'OfflineBanner',
     'ConflictState',
   ],
-  overlays: ['Tooltip', 'Popover', 'Menu', 'Dialog', 'ConfirmDialog', 'Drawer', 'BottomSheet'],
+  overlays: [
+    'Tooltip',
+    'Popover',
+    'Menu',
+    'Dialog',
+    'ConfirmDialog',
+    'Drawer',
+    'BottomSheet',
+    'Lightbox',
+  ],
   data: ['DataTable', 'StatCard', 'Timeline', 'Avatar', 'AnimatedNumber'],
   foundations: ['DesktopOnlyGate', 'OfflineFallback'],
 } as const;
