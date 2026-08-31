@@ -42,6 +42,19 @@
   requests re-issued by the worker's NetworkOnly handler bypass page routes.
   Page-level route overrides in other specs keep precedence (page routes are
   consulted first), and SW-blocked projects are unaffected.
+- PR #19 hosted CI initially failed two jobs; both root causes were fixed on
+  the same branch. `quality`: the job-level `NODE_ENV=test` (required by the
+  database suites) leaked into `pnpm build`, so Vite kept the development
+  React branches and the artifact gate measured a 184,625-byte chunk against
+  the 143,500-byte budget; the build step now runs `NODE_ENV=production pnpm
+build`, and both directions were reproduced locally (test build fails the
+  gate, production passes at 125,500 bytes). `Production containers and
+routing`: the deep-link shell assertion still grepped the bare
+  `<div id="root"></div>`; it now asserts the boot-state root in both ci.yml
+  and the blocking `deploy/scripts/smoke-check.sh`, which would otherwise
+  have failed the staging deploy smoke. Validation for the fix: actionlint,
+  ShellCheck, `bash -n`, `pnpm deployment:validate`, and `pnpm
+test:deployment` green.
 - Final validation (all green): `pnpm format:check`; `pnpm lint`; `pnpm
 typecheck`; unit API 60, UI 19, frontend-core 14, workforce 67, Admin 2;
   `pnpm build`; `pnpm pwa:compat-check` (main gzip 125500 bytes against the
