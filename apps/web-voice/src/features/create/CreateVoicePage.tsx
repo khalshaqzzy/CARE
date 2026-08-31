@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { DotMatrixOrb } from '../../components/DotMatrixOrb';
 import { AREA_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import type { Attachment } from '../../workforce-api';
@@ -550,14 +551,12 @@ function MediaInput({
 
 function ProcessingStep({ wizard }: { wizard: Wizard }) {
   const { stages } = wizard;
+  const done = (stages.persisted ? 1 : 0) + (stages.classified ? 1 : 0) + (stages.reviewed ? 1 : 0);
   return (
     <div className="wizard-page">
       <Stepper current={STEP_PROGRESS.processing} />
       <section className="processing-card" aria-live="polite" aria-label="Analisis AI berlangsung">
-        <div className="processing-card__orbit" aria-hidden="true">
-          <span className="processing-card__ring" />
-          <Sparkles size={22} />
-        </div>
+        <DotMatrixOrb progress={done / 3} animating={done < 3} />
         <h1>Menganalisis Voice Anda</h1>
         <p>CARE sedang memahami laporan dan memeriksa lokasi.</p>
         <ol className="processing-card__stages">
