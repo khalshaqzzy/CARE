@@ -1418,7 +1418,7 @@
   background: color-mix(in srgb, var(--state-success) 14%, transparent);
 }
 
-/* Processing — cobalt focus card with an orbit spinner and live stages */
+/* Processing — cobalt focus card with a dot-matrix orb and live stages */
 .processing-card {
   display: grid;
   justify-items: center;
@@ -1437,27 +1437,22 @@
   margin: 0;
   color: var(--text-inverse);
 }
-.processing-card__orbit {
-  position: relative;
+.processing-card__orb {
+  --orb-dot: 0.5625rem;
+  --orb-gap: 0.4375rem;
   display: grid;
-  width: 8.5rem;
-  height: 8.5rem;
-  place-items: center;
+  grid-template-columns: repeat(var(--orb-cols), var(--orb-dot));
+  gap: var(--orb-gap);
+  justify-content: center;
+  margin-block: var(--space-2);
 }
-.processing-card__ring {
-  position: absolute;
-  inset: 0;
-  border: 2px dashed rgb(255 255 255 / 75%);
+.processing-card__orb-dot {
+  width: var(--orb-dot);
+  height: var(--orb-dot);
   border-radius: var(--radius-pill);
-  animation: processing-orbit 14s linear infinite;
-}
-.processing-card__orbit > svg {
-  color: var(--text-inverse);
-}
-@keyframes processing-orbit {
-  to {
-    transform: rotate(360deg);
-  }
+  background: var(--text-inverse);
+  opacity: 0.16;
+  box-shadow: 0 0 6px rgb(255 255 255 / 25%);
 }
 .processing-card__stages {
   display: grid;

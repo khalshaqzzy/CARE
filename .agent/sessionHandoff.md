@@ -1,16 +1,67 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 31 Agustus 2026                                                                                                                                                                                                           |
-| Current objective       | Workforce manager, leadership, and union redesign implemented from `.design/member-voice-redesign/` screens 17–25 on `feat/member-page-redesign-imagen` (ADR-0024); Phase 13 remains open for hosted acceptance           |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                          |
-| Backend Complete Gate   | Passed (PRD v1.1); this session adds six additive optional response fields only (no schema/migration)                                                                                                                     |
-| Implementation status   | Phase 0–12 done; ADR-0022/0023/0024 redesign slices locally complete with full mocked parity green; Phase 13 hosted evidence not yet claimed                                                                              |
-| Latest ADR              | ADR-0024 (Workforce manager, leadership, and union redesign)                                                                                                                                                              |
-| Recommended next action | Open PR for `feat/member-page-redesign-imagen`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
+| Atribut                 | Nilai                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 31 Agustus 2026                                                                                                                                                                                      |
+| Current objective       | Create Voice processing card menampilkan orb matriks titik 9×9 yang merespons live tiga tahap analisis pada `feat/ai-orb` (ADR-0025); Phase 13 remains open for hosted acceptance                    |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                     |
+| Backend Complete Gate   | Passed (PRD v1.1); the orb session changes frontend presentation only (no API/schema/contract change)                                                                                                |
+| Implementation status   | Phase 0–12 done; ADR-0022/0023/0024/0025 frontend slices locally complete with full mocked parity green; Phase 13 hosted evidence not yet claimed                                                    |
+| Latest ADR              | ADR-0025 (Processing card dot-matrix orb)                                                                                                                                                            |
+| Recommended next action | Open PR for `feat/ai-orb`, merge after hosted CI is green, then continue Phase 13 hosted exact-SHA acceptance, provider smoke evidence, rollback rehearsal, and authenticated Safari operator retest |
 
 ## Session Outcome
+
+### Create Voice processing dot-matrix orb — 31 Agustus 2026
+
+Branch `feat/ai-orb`. Spinner cincin putus-putus pada kartu processing wizard
+Create Voice diganti orb matriks titik yang merespons live ketiga tahap
+analisis (Detail diterima, Kategori & severity, Verifikasi lokasi).
+Frontend-only; tanpa perubahan API, schema, atau kontrak (ADR-0025):
+
+- **`lib/orb-math.ts` (murni).** Mask lingkaran inscribed atas grid 9×9 (69
+  titik), matematika bloom Circle7 (petal lima kelopak `cos(5θ−1.7t)`, ring
+  `cos(3.3r−1.2t)`, chord `cos(1.6(x+y)+1.35t)`, petalGate^2.2, blend
+  0.68/0.22/0.10) plus settle lift center-out dari `progress`
+  (tahap selesai/3) menuju gate opacity. Konstanta terekspos (ukuran grid,
+  base/gate opacity, siklus 1600 ms, settle band 1.25) dan diuji unit
+  (5 test: jumlah mask, batas opacity, determinisme, monotonik per tahap,
+  center lebih cepat terang daripada rim).
+- **`components/DotMatrixOrb.tsx`.** Grid span titik + satu loop
+  requestAnimationFrame yang menulis `style.opacity` langsung via refs —
+  tanpa re-render React per frame; `progress` dibaca lewat ref agar flip
+  tahap tidak me-restart loop atau melompatkan fase; `useReducedMotion`
+  (motion/react) me-render satu frame statis deterministik (fase saat ini,
+  fase 0 saat never-animated) — penting karena `animations: 'disabled'`
+  Playwright tidak membekukan rAF; loop dibatalkan saat unmount (jalur
+  fallback/error).
+- **`ProcessingStep`.** `done/3` dihitung dari flag mutasi yang sama dengan
+  checklist (`stages` pada `useDraftWizard`): persist → `Detail diterima`,
+  classify dan location review berjalan paralel (`Promise.all`) dan masing-
+  masing menaikkan progres saat call-nya selesai. Checklist, `aria-live`,
+  heading, hint, dan Alert error tidak berubah; orb `aria-hidden`. Cincin
+  putus-putus, keyframes `processing-orbit`, dan ikon tengah dihapus; gaya
+  `.processing-card__orb` baru (titik putih 0.5625rem, gap 0.4375rem, glow
+  halus); spinner tahap (`processing-spin`) tetap.
+- **Test.** Baseline `workforce-create-processing-360.png` dihapus-dahulu-
+  lalu-regen; keadaan tertangkap tetap mid-analysis (progress 1/3, rute
+  classify/location-review ditahan 1500 ms, reduced motion); determinisme
+  diverifikasi dua run visual berturut-turut; tidak ada baseline lain yang
+  berubah. Keputusan desain terkunci bersama product owner: grid 9×9 dengan
+  mask inscribed 69 titik (lebih bulat daripada 49 titik radius ketat),
+  tanpa ikon tengah, tanpa backend baru — progres sudah live dari
+  penyelesaian tiap call, sehingga status endpoint polling tidak diperlukan.
+
+Validasi (semua hijau): lockfile tidak berubah; `pnpm format:check`; `pnpm
+lint`; `pnpm typecheck`; unit API 60, UI 18, frontend-core 14, workforce 48
+(43+5 orb), Admin 2; `pnpm build`; `pnpm openapi:check` tanpa drift;
+`migrations:destructive-check`; `pnpm security:audit` (nol High/Critical;
+Moderate transitive ExcelJS tetap terdokumentasi); `docker compose config
+--quiet`; Playwright mocked `test:frontend:e2e` **143 passed** (chromium +
+visual + pwa); Gitleaks v8.24.3 directory scan bersih; `git diff --check`
+bersih. Suite berbasis database tidak dijalankan ulang karena change set
+murni frontend + baseline e2e + dokumen. OrbStack dihidupkan hanya untuk
+scan Gitleaks lalu dihentikan; tidak ada container/proses yang tersisa.
 
 ### Workforce manager, leadership, and union redesign — 31 Agustus 2026
 
