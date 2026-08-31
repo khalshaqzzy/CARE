@@ -75,6 +75,23 @@ PointerEvent, ResizeObserver, or zoom APIs are used, the swipe path uses
 basic touch events, and backdrop-filter was removed from the final chrome so
 no visual feature depends on prefixed support.
 
+Revealing the stage image avoids three further real-device iOS Safari
+failure modes observed with full-screen viewers ("first loads, then shows a
+blank stage"): the image is never faded in through an `opacity` transition —
+transitioning a freshly decoded, potentially multi-megapixel photo inside the
+still-animating fixed overlay can leave the composited layer rasterized at
+the initial opacity, permanently blank until a forced repaint — so the reveal
+is simply the loader unmounting while the overlay's own fade covers the open
+transition. Readiness is gated on `img.decode()` (not the `load` event
+alone), because WebKit reports `load` before a large image has been decoded.
+And because WebKit can complete an image that is already in its memory cache
+without ever dispatching `load`/`error` when `src` is set before the element
+is inserted, a ref callback settles a synchronously complete image
+(`complete`/`naturalWidth`) without waiting for an event. The stage frame is
+absolutely positioned with definite insets so the image's `max-width`/
+`max-height` percentages always resolve against a definite box instead of an
+engine-dependent content-sized chain.
+
 ## Alternatives Considered
 
 - Reusing the existing `Dialog` component with a fullscreen size variant. Its
@@ -119,20 +136,23 @@ no visual feature depends on prefixed support.
 
 `@care/ui` unit tests cover open/close with focus return, arrow-key and
 thumbnail navigation with end-disabled states, the accessible name, an
-axe-clean render, and the empty/closed renders; web-voice unit suites pass
-including the new in-page contract. Playwright journeys cover the full
-interaction loop (open from a thumbnail, counter updates, prev/next buttons
-and arrow keys, back-button close with focus restore, Escape close, absence
-of raw media anchors); a dedicated accessibility spec asserts axe cleanliness
-with the viewer open, no document overflow at 360 px, and ≥44 px controls.
-The full mocked Playwright suite (chromium, visual, PWA, push, and
-legacy-ios WebKit projects — 149 tests) passed on two consecutive runs with
-only the new baseline added. Monorepo format, lint, typecheck, build,
-PWA artifact gate, OpenAPI drift check, destructive migration check,
-dependency audit (no High/Critical; the documented Moderate transitive
-remains), Compose config validation, Gitleaks directory scan, and whitespace
-check all pass. No database-backed suites were rerun because the change set
-contains no API, schema, contract, or migration change.
+axe-clean render, settling an image that completed without a `load` event
+(the WebKit memory-cache path), and the empty/closed renders; web-voice unit
+suites pass including the new in-page contract. Playwright journeys cover the
+full interaction loop (open from a thumbnail, counter updates, prev/next
+buttons and arrow keys, back-button close with focus restore, Escape close,
+absence of raw media anchors); a dedicated accessibility spec asserts axe
+cleanliness with the viewer open, no document overflow at 360 px, and ≥44 px
+controls. A legacy-ios (WebKit engine) spec asserts the stage settles to a
+revealed, opacity-1 image contained within the stage on a phone viewport.
+The full mocked Playwright suite (chromium, visual, PWA, push, and legacy-ios
+WebKit projects — 150 tests) passed with only the new baseline added.
+Monorepo format, lint, typecheck, build, PWA artifact gate, OpenAPI drift
+check, destructive migration check, dependency audit (no High/Critical; the
+documented Moderate transitive remains), Compose config validation, Gitleaks
+directory scan, and whitespace check all pass. No database-backed suites were
+rerun because the change set contains no API, schema, contract, or migration
+change.
 
 ## Follow-up Work
 

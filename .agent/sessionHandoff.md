@@ -1,14 +1,14 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                 |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 31 Agustus 2026                                                                                                                                                                                       |
-| Current objective       | Open attachment images in an in-page viewer on every workforce surface without changing Admin/backend contracts; Phase 13 remains open for hosted acceptance                                          |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                      |
-| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                 |
-| Implementation status   | Phase 0–12 done; iOS legacy compatibility is implemented through capability tiers and automated gates; Phase 13 hosted evidence not yet claimed                                                       |
-| Latest ADR              | ADR-0027 (in-page attachment viewer)                                                                                                                                                                  |
-| Recommended next action | In-page viewer change set is on `fix/image-view-load` for review; continue Phase 13 hosted exact-SHA acceptance, provider smoke, rollback rehearsal, and authenticated current-Safari operator retest |
+| Atribut                 | Nilai                                                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 31 Agustus 2026                                                                                                                                                                                                                                      |
+| Current objective       | Open attachment images in an in-page viewer on every workforce surface without changing Admin/backend contracts; Phase 13 remains open for hosted acceptance                                                                                         |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                                                     |
+| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                                                                |
+| Implementation status   | Phase 0–12 done; iOS legacy compatibility is implemented through capability tiers and automated gates; attachment viewing is in-page via the shared Lightbox (ADR-0027); Phase 13 hosted evidence not yet claimed                                    |
+| Latest ADR              | ADR-0027 (in-page attachment viewer)                                                                                                                                                                                                                 |
+| Recommended next action | Lightbox viewer and its iOS Safari reveal fix are on `staging`; retest attachment viewing on a real device, then continue Phase 13 hosted exact-SHA acceptance, provider smoke, rollback rehearsal, and authenticated current-Safari operator retest |
 
 ## Session Outcome
 
@@ -57,15 +57,31 @@ di halaman; endpoint media, authorization, OpenAPI, dan DTO tidak berubah —
   axe bersih dengan viewer terbuka, tanpa overflow 360 px, kontrol ≥44 px.
   Baseline baru `workforce-lightbox-360`; seluruh baseline lama
   byte-identical (DOM/CSS box thumbnail tidak berubah).
+- **Perbaikan reveal gambar di iOS Safari (perangkat nyata: "loading lalu
+  blank").** Laporan perangkat menunjukkan loader hilang (state `ready`) tetapi
+  stage kosong. Tiga pengerasan: (1) gambar tidak lagi di-reveal lewat
+  transisi `opacity` — mentransisi foto besar yang baru didekode di dalam
+  overlay fixed yang sedang beranimasi bisa meninggalkan layer terkomposit
+  pada opacity awal (blank permanen di iOS) — reveal kini cukup unmount
+  loader; (2) `load` tidak lagi satu-satunya sinyal: siap dibatalkan lewat
+  `img.decode()`, dan ref callback menyelesaikan gambar yang `complete`
+  sinkron tanpa event (WebKit bisa menyelesaikan memory-cache tanpa
+  dispatch `load`/`error` karena src dipasang sebelum elemen disisipkan);
+  (3) frame stage kini absolute dengan inset definitif sehingga persentase
+  `max-width`/`max-height` gambar selalu terukur terhadap kotak definitif.
+  Regresi dikunci: unit jsdom mensimulasikan cache-hit tanpa event, dan spec
+  legacy-ios (engine WebKit, viewport ponsel) memastikan gambar `ready`,
+  opacity 1, dan terkandung dalam stage. Baseline visual tetap
+  byte-identical.
 
 Validasi (semua hijau): `pnpm format:check`; `pnpm lint`; `pnpm typecheck`;
-unit API 60, UI 24, frontend-core 14, workforce 68, Admin 2; `pnpm build`
-(NODE_ENV=production); `pnpm pwa:compat-check` (main gzip 125650 bytes
+unit API 60, UI 25, frontend-core 14, workforce 68, Admin 2; `pnpm build`
+(NODE_ENV=production); `pnpm pwa:compat-check` (main gzip 125649 bytes
 terhadap budget 143500); `pnpm openapi:check` tanpa drift;
 `migrations:destructive-check`; `docker compose config --quiet`;
 `pnpm audit --audit-level high` (nol High/Critical; Moderate transitive
-terdokumentasi); Playwright mocked `test:frontend:e2e` **149 passed**
-(chromium + visual + pwa + push + legacy-ios WebKit) dua run berturut-turut;
+terdokumentasi); Playwright mocked `test:frontend:e2e` **150 passed**
+(chromium + visual + pwa + push + legacy-ios WebKit);
 Gitleaks v8.24.3 directory scan bersih; `git diff --check` bersih. Suite
 berbasis database tidak dijalankan ulang karena change set berisi frontend,
 e2e, dan dokumen tanpa sentuhan API, schema, atau kontrak. OrbStack

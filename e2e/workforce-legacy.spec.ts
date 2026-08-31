@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { memberSession, mockWorkforceApi } from './helpers/mock-api';
+import { memberSession, mockWorkforceApi, PNG_MEDIA_SAMPLE } from './helpers/mock-api';
 
 const voice = {
   id: 'voice-legacy',
@@ -109,6 +109,53 @@ test('iOS 11.3 keeps responder detail and online actions available', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Proses Voice' })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Proses' }).click();
   await expect.poll(() => mutations.some((path) => path.endsWith('/proceed'))).toBe(true);
+});
+
+test('lightbox reveals and contains the image on the WebKit engine', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    voice: {
+      ...voice,
+      id: 'voice-1',
+      attachments: [
+        { id: 'att-1', mimeType: 'image/png' },
+        { id: 'att-2', mimeType: 'image/png' },
+        { id: 'att-3', mimeType: 'image/png' },
+      ],
+    },
+    mediaBody: PNG_MEDIA_SAMPLE,
+  });
+
+  await page.goto('/voices/voice-1');
+  await page.getByRole('button', { name: 'Lihat gambar 1 dari 3' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+
+  // The viewer must settle to a revealed image (real iOS Safari can end on a
+  // blank stage when the reveal depends on load events or opacity transitions).
+  const img = dialog.locator('.care-lightbox__img');
+  await expect(img).toHaveAttribute('data-state', 'ready', { timeout: 10_000 });
+  const state = await img.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const stageRect = element.closest('.care-lightbox__stage')?.getBoundingClientRect();
+    return {
+      naturalWidth: element.naturalWidth,
+      width: rect.width,
+      height: rect.height,
+      opacity: getComputedStyle(element).opacity,
+      contained: stageRect
+        ? rect.left >= stageRect.left &&
+          rect.right <= stageRect.right &&
+          rect.top >= stageRect.top &&
+          rect.bottom <= stageRect.bottom
+        : false,
+    };
+  });
+  expect(state.naturalWidth).toBe(320);
+  expect(state.width).toBeGreaterThan(0);
+  expect(state.height).toBeGreaterThan(0);
+  expect(state.opacity).toBe('1');
+  expect(state.contained).toBe(true);
+  await expect(dialog.getByText('1 / 3')).toBeVisible();
 });
 
 test('iOS 11.3 renders the forced-password gate instead of a blank root', async ({ page }) => {

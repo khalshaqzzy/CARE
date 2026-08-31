@@ -934,33 +934,32 @@ select,
 }
 .care-lightbox__stage {
   position: relative;
-  display: grid;
   flex: 1 1 auto;
   min-height: 0;
-  place-items: center;
-  padding: var(--space-6) var(--space-4);
   touch-action: none;
 }
+/* Absolutely positioned with definite insets so the image's max-width/max-height
+   percentages resolve against a definite box in every engine (a frame sized by
+   its own content makes those percentages engine-dependent). */
 .care-lightbox__frame {
+  position: absolute;
+  inset: var(--space-6) var(--space-4);
   display: grid;
-  max-width: 100%;
-  max-height: 100%;
   place-items: center;
 }
 .care-lightbox__frame--snap {
   transition: transform var(--duration-medium) var(--ease-standard);
 }
+/* The image itself never animates: transitioning its opacity on a freshly
+   decoded (potentially very large) photo inside the animating fixed overlay
+   composites as a permanently blank stage on iOS Safari. Reveal happens by
+   unmounting the loader; the overlay's own fade covers the open transition. */
 .care-lightbox__img {
   max-width: 100%;
   max-height: 100%;
   border-radius: var(--radius-card);
   object-fit: contain;
   box-shadow: var(--shadow-modal);
-  opacity: 0;
-  transition: opacity var(--duration-medium) var(--ease-enter);
-}
-.care-lightbox__img[data-state='ready'] {
-  opacity: 1;
 }
 .care-lightbox__loading {
   position: absolute;

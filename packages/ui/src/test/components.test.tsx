@@ -413,6 +413,42 @@ describe('lightbox contracts', () => {
     expect(await axe(document.body)).toHaveNoViolations();
   });
 
+  it('settles an image that completed without a load event (WebKit memory-cache hit)', async () => {
+    // WebKit can finish an image that is already in its memory cache without
+    // dispatching load/error when src is set before insertion, so the reveal
+    // must also come from the inserted element being synchronously complete.
+    const complete = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'complete');
+    const naturalWidth = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      'naturalWidth',
+    );
+    Object.defineProperty(HTMLImageElement.prototype, 'complete', {
+      configurable: true,
+      get: () => true,
+    });
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', {
+      configurable: true,
+      get: () => 320,
+    });
+    try {
+      render(<Lightbox open images={images} index={0} onIndexChange={() => undefined} />);
+      await waitFor(() => {
+        expect(screen.getByRole('img', { name: 'Lampiran a' })).toHaveAttribute(
+          'data-state',
+          'ready',
+        );
+      });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    } finally {
+      if (complete) {
+        Object.defineProperty(HTMLImageElement.prototype, 'complete', complete);
+      }
+      if (naturalWidth) {
+        Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', naturalWidth);
+      }
+    }
+  });
+
   it('renders nothing when closed or empty', () => {
     const { container } = render(
       <Lightbox open={false} images={images} index={0} onIndexChange={() => undefined} />,

@@ -45,6 +45,26 @@ export function Lightbox({ open, onOpenChange, images, index, onIndexChange }: L
     setStatus('loading');
   }
 
+  // WebKit can complete an image that is already in its memory cache without
+  // ever dispatching load/error (React sets src before the element is
+  // inserted), which would leave the stage on "loading" forever. The ref runs
+  // right after insertion, so a synchronously complete image is settled here.
+  const settleIfComplete = (element: HTMLImageElement | null) => {
+    if (!element || !element.complete) return;
+    setStatus((state) =>
+      state === 'loading' ? (element.naturalWidth > 0 ? 'ready' : 'error') : state,
+    );
+  };
+
+  // Gate the reveal on decode(): WebKit fires load before a large photo has
+  // been decoded, and revealing the stage then can composite as blank on iOS.
+  const markReady = (element: HTMLImageElement) => {
+    void element
+      .decode()
+      .then(() => setStatus('ready'))
+      .catch(() => setStatus('ready'));
+  };
+
   if (!current) return null;
 
   const src = attempt > 0 ? `${current.src}?retry=${attempt}` : current.src;
@@ -147,13 +167,14 @@ export function Lightbox({ open, onOpenChange, images, index, onIndexChange }: L
             <div className="care-lightbox__frame" ref={frameRef}>
               <img
                 key={src}
+                ref={settleIfComplete}
                 src={src}
                 alt={current.alt}
                 className="care-lightbox__img"
                 data-state={status}
                 decoding="async"
                 draggable={false}
-                onLoad={() => setStatus('ready')}
+                onLoad={(event) => markReady(event.currentTarget)}
                 onError={() => setStatus('error')}
               />
             </div>
