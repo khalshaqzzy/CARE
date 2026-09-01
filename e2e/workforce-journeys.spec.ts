@@ -89,9 +89,29 @@ test.describe('workforce journeys (mocked contract)', () => {
       page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
     ).toBeVisible();
     await expect(page.getByText('Timeline')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Tindakan' })).toBeVisible();
+    // The conversation summary row links to the dedicated chat page.
+    await expect(page.getByRole('button', { name: /Percakapan/ })).toBeVisible();
+    await expect(page.getByText('Buka Chat')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
+  });
+
+  test('conversation opens as a dedicated chat page and sends a reply', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: responder, voice: generalVoice });
+    await page.goto('/voices/voice-1');
+    await page.getByRole('button', { name: /Percakapan/ }).click();
+    await expect(page).toHaveURL(/\/voices\/voice-1\/chat$/);
+    await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
+    await expect(page.getByText('Mohon konfirmasi lokasi kejadian.')).toBeVisible();
+    // The mock returns a nextCursor, so the "load older" affordance is shown.
+    await expect(page.getByText('Muat pesan sebelumnya')).toBeVisible();
+    // exact:true keeps the locator off the "Muat pesan sebelumnya" affordance.
+    await page
+      .getByLabel('Pesan', { exact: true })
+      .fill('Sudah kami cek, tim sedang menuju lokasi.');
+    await page.getByRole('button', { name: 'Kirim pesan' }).click();
+    await expect(page.getByText('Sudah kami cek, tim sedang menuju lokasi.')).toBeVisible();
   });
 
   test('attachment images open in an in-page viewer with back and prev/next', async ({ page }) => {
@@ -350,8 +370,9 @@ test.describe('workforce journeys (mocked contract)', () => {
     });
     await page.goto('/voices/voice-p1');
     await expect(page.getByRole('heading', { name: 'Laporan papan nama rusak' })).toBeVisible();
-    // Anonymous consent surface: alias only, never identity fields.
-    await expect(page.getByText('Reporter Biru 47')).toBeVisible();
+    // Anonymous consent surface: alias only, never identity fields. The alias
+    // renders in both the hero chip and the identity column.
+    await expect(page.getByText('Reporter Biru 47').first()).toBeVisible();
     await expect(page.getByText('Identitas disembunyikan')).toBeVisible();
     await expect(page.getByText('Sari Wulandari')).toHaveCount(0);
     // Localized status in the meta grid.
@@ -387,7 +408,8 @@ test.describe('workforce journeys (mocked contract)', () => {
       }),
     });
     await page.goto('/voices/voice-p2');
-    await expect(page.getByText('Sari Wulandari')).toBeVisible();
+    // The reporter name renders in the hero chip, identity column, and card.
+    await expect(page.getByText('Sari Wulandari').first()).toBeVisible();
     await expect(page.getByText('000129')).toBeVisible();
     await expect(page.getByText('Identitas ditampilkan atas persetujuan pelapor')).toBeVisible();
     // Verifikasi status terlokalisasi.

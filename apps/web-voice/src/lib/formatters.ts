@@ -146,6 +146,42 @@ export function formatNotificationTime(value: string | Date | null | undefined):
   return `${dateFormatter.format(date)}, ${clock}`;
 }
 
+/** Jakarta day key (YYYY-MM-DD) for grouping chat messages into day sections. */
+function jakartaDayKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: JAKARTA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+/**
+ * Chat day divider: "Hari ini" / "Kemarin" fall back to a short absolute
+ * date ("1 Sep 2026"). The key is the stable Jakarta day used for grouping.
+ */
+export function formatDayDivider(value: string | Date | null | undefined): {
+  key: string;
+  label: string;
+} {
+  if (!value) return { key: '', label: '—' };
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return { key: '', label: '—' };
+  const key = jakartaDayKey(date);
+  if (key === jakartaDayKey(new Date())) return { key, label: 'Hari ini' };
+  if (key === jakartaDayKey(new Date(Date.now() - 24 * 60 * 60_000)))
+    return { key, label: 'Kemarin' };
+  return {
+    key,
+    label: new Intl.DateTimeFormat('id-ID', {
+      timeZone: JAKARTA_TZ,
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date),
+  };
+}
+
 export function mediaUrl(id: string): string {
   return `/api/v1/media/${id}`;
 }

@@ -5,40 +5,25 @@ import {
   DotLabel,
   DisclosureRow,
   EmptyState,
-  IconButton,
   RatingInput,
   Skeleton,
   Stack,
   Textarea,
 } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  CalendarDays,
-  Check,
-  ChevronLeft,
-  ClipboardList,
-  Clock,
-  MapPin,
-  ShieldCheck,
-  UserRound,
-} from 'lucide-react';
+import { CalendarDays, Clock, Map, MessageCircle, Sparkles, UserRound } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { ActionPanel } from '../../components/ActionPanel';
-import { ConversationPanel } from '../../components/ConversationPanel';
+import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
-import {
-  AREA_LABELS,
-  CATEGORY_LABELS,
-  formatDate,
-  formatDateTime,
-  SEVERITY_LABELS,
-  STATUS_LABELS,
-  VISIBILITY_LABELS,
-  VOICE_ACTION_LABELS,
-} from '../../lib/formatters';
+import { VoiceHero } from '../../components/VoiceHero';
+import { CATEGORY_LABELS, formatDate, formatDateTime } from '../../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../../lib/query';
+import { useConversation } from '../../lib/useConversation';
+import { categoryIcon } from '../../lib/voice-visuals';
+import { VOICE_ACTION_LABELS } from '../../lib/formatters';
 import { useCursorFeed } from '../../lib/useCursorFeed';
 import type { Attachment, TimelineEvent, VoiceDetail } from '../../workforce-api';
 
@@ -52,21 +37,6 @@ type ClosureCycle = {
   rating: { score: number; feedback: string | null; reopen: boolean } | null;
 };
 
-/** Status flag colors inside the cobalt hero; labels stay full white for AA. */
-const HERO_FLAG_TONES: Record<string, string> = {
-  OPEN: 'open',
-  IN_VERIFICATION: 'verification',
-  IN_PROGRESS: 'progress',
-  CLOSED: 'closed',
-};
-
-const SEVERITY_FLAG_TONES: Record<string, string> = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  CRITICAL: 'critical',
-};
-
 export function VoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const api = useApi();
@@ -74,6 +44,11 @@ export function VoiceDetailPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const back = () => {
+    // Deep links have no in-app history to return to; land on the root instead.
+    if (window.history.length > 1 && location.key !== 'default') void navigate(-1);
+    else void navigate('/');
+  };
 
   const detail = useQuery({
     queryKey: voiceQuery(sessionId, 'voice', id),
@@ -81,16 +56,6 @@ export function VoiceDetailPage() {
     enabled: !!id && !!session,
     refetchInterval: 3000,
   });
-  const conversationState = detail.data?.conversationState;
-  const previousConversationState = useRef(conversationState);
-  useEffect(() => {
-    if (previousConversationState.current === 'UNAVAILABLE' && conversationState === 'ACTIVE') {
-      document
-        .getElementById('voice-conversation')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    previousConversationState.current = conversationState;
-  }, [conversationState]);
 
   if (detail.isLoading) {
     return (
@@ -109,224 +74,65 @@ export function VoiceDetailPage() {
   }
   const voice = detail.data;
   const cycles = (voice.closureCycles ?? []) as ClosureCycle[];
-  const latestCycle = cycles.length
-    ? cycles.reduce((latest, cycle) => (cycle.cycleNumber > latest.cycleNumber ? cycle : latest))
-    : null;
-  const closed = voice.status === 'CLOSED';
-  const pic = voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—';
-  // Union private audiences get the consent-first hero (screens 23/24): the
-  // three-column meta strip and the identity plate live inside the hero, and
-  // the identified reporter card overlaps its bottom edge.
-  const unionAudience =
-    voice.audience === 'UNION_ANONYMOUS' || voice.audience === 'UNION_IDENTIFIED';
-  const alias = voice.audience === 'UNION_ANONYMOUS' ? voice.anonymousReporter.alias : null;
-
-  const back = () => {
-    // Deep links have no in-app history to return to; land on the root instead.
-    if (window.history.length > 1 && location.key !== 'default') void navigate(-1);
-    else void navigate('/');
-  };
+  const CategoryIcon = categoryIcon(voice.category);
 
   return (
     <Stack gap="lg">
-      <div className="voice-backrow">
-        <IconButton aria-label="Kembali" variant="ghost" onClick={back}>
-          <ChevronLeft size={22} />
-        </IconButton>
-        <span className="voice-backrow__id">{voice.displayId}</span>
-      </div>
-
-      {closed ? (
-        <section className="voice-hero voice-hero--closed" aria-label={voice.displayId}>
-          <div className="voice-hero__closedhead">
-            <span className="voice-hero__check" aria-hidden="true">
-              <Check size={26} strokeWidth={3} />
-            </span>
-            <h1 className="voice-hero__title">{voice.title}</h1>
-          </div>
-          <div className="voice-hero__pills">
-            <span className="voice-hero__pill">
-              <i data-tone="closed" aria-hidden="true" />
-              {STATUS_LABELS[voice.status] ?? voice.status}
-            </span>
-            <span className="voice-hero__pill">
-              <i data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'} aria-hidden="true" />
-              {SEVERITY_LABELS[voice.severity] ?? voice.severity}
-            </span>
-            {latestCycle ? (
-              <span className="voice-hero__pill voice-hero__pill--plain">
-                <CalendarDays size={15} aria-hidden="true" />
-                Ditutup {formatDate(latestCycle.closedAt)}
-              </span>
-            ) : null}
-          </div>
-        </section>
-      ) : (
-        <section className="voice-hero" aria-label={voice.displayId}>
-          <h1 className="voice-hero__title">{voice.title}</h1>
-          {unionAudience ? (
-            <>
-              <p className="voice-hero__id">ID: {voice.displayId}</p>
-              <div className="voice-hero__columns">
-                {alias ? (
-                  <div className="voice-hero__column">
-                    <small>Alias</small>
-                    <span>
-                      <UserRound size={14} aria-hidden="true" />
-                      {alias}
-                    </span>
-                  </div>
-                ) : null}
-                <div className="voice-hero__column">
-                  <small>Status</small>
-                  <span>
-                    <i
-                      className="voice-hero__dot"
-                      data-tone={HERO_FLAG_TONES[voice.status] ?? 'verification'}
-                      aria-hidden="true"
-                    />
-                    {STATUS_LABELS[voice.status] ?? voice.status}
-                  </span>
-                </div>
-                <div className="voice-hero__column">
-                  <small>Severity</small>
-                  <span>
-                    <i
-                      className="voice-hero__dot"
-                      data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
-                      aria-hidden="true"
-                    />
-                    {SEVERITY_LABELS[voice.severity] ?? voice.severity}
-                  </span>
-                </div>
-                {!alias ? (
-                  <div className="voice-hero__column">
-                    <small>PIC</small>
-                    <span>
-                      <UserRound size={14} aria-hidden="true" />
-                      {pic}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-              {voice.audience === 'UNION_ANONYMOUS' ? (
-                <div className="voice-hero__plate">
-                  <ShieldCheck size={20} aria-hidden="true" />
-                  <div className="voice-hero__plate-body">
-                    <p className="voice-hero__plate-title">Identitas disembunyikan</p>
-                    <p className="voice-hero__plate-text">
-                      Informasi pelapor dirahasiakan sepenuhnya. Alias hanya berlaku untuk Voice
-                      ini.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="voice-hero__plate voice-hero__plate--identified">
-                  <ShieldCheck size={20} aria-hidden="true" />
-                  <div className="voice-hero__plate-body">
-                    <p className="voice-hero__plate-title">
-                      Identitas ditampilkan atas persetujuan pelapor
-                    </p>
-                    <p className="voice-hero__plate-text">
-                      Informasi identitas ditampilkan secara terbatas dan hanya dapat diakses oleh
-                      pihak berwenang yang ditugaskan.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="voice-hero__meta">
-                <span className="voice-hero__item">
-                  <ClipboardList size={16} aria-hidden="true" />
-                  {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility} Voice
-                </span>
-                <span className="voice-hero__sep" aria-hidden="true" />
-                <span className="voice-hero__item">
-                  <i
-                    className="voice-hero__dot"
-                    data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
-                    aria-hidden="true"
-                  />
-                  {SEVERITY_LABELS[voice.severity] ?? voice.severity}
-                </span>
-                <span className="voice-hero__sep" aria-hidden="true" />
-                <span className="voice-hero__item">
-                  <i
-                    className="voice-hero__dot"
-                    data-tone={HERO_FLAG_TONES[voice.status] ?? 'verification'}
-                    aria-hidden="true"
-                  />
-                  {STATUS_LABELS[voice.status] ?? voice.status}
-                </span>
-              </div>
-              <div className="voice-hero__meta voice-hero__meta--secondary">
-                <span className="voice-hero__item">
-                  <MapPin size={16} aria-hidden="true" />
-                  {AREA_LABELS[voice.area] ?? voice.area}
-                </span>
-                <span className="voice-hero__sep" aria-hidden="true" />
-                <span className="voice-hero__item">
-                  <UserRound size={16} aria-hidden="true" />
-                  PIC: {pic}
-                </span>
-              </div>
-            </>
-          )}
-        </section>
-      )}
+      <VoiceHero voice={voice} variant="full" onBack={back} />
 
       <ReporterCard voice={voice} />
 
       <ActionPanel detail={voice} />
 
-      <Card padding="md">
-        <Stack gap="md">
-          <h3 className="section-title">Detail</h3>
-          <p className="voice-detail__body">{voice.detail}</p>
-          <dl className="voice-meta">
-            <div>
-              <dt>Diajukan</dt>
-              <dd>{formatDateTime(voice.submittedAt)}</dd>
-            </div>
-            <div>
-              <dt>Diperbarui</dt>
-              <dd>{formatDateTime(voice.updatedAt)}</dd>
-            </div>
-            <div>
-              <dt>Sumber klasifikasi</dt>
-              <dd>
-                {voice.classificationSource === 'AI'
-                  ? 'AI'
-                  : voice.classificationSource
-                    ? 'Manual Fallback'
-                    : '—'}
-              </dd>
-            </div>
-            {voice.category ? (
-              <div>
-                <dt>Kategori</dt>
-                <dd>
-                  {voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category}
-                </dd>
-              </div>
-            ) : null}
-            {voice.locationReview ? (
-              <div>
-                <dt>Kelengkapan lokasi</dt>
-                <dd>
-                  {voice.locationReview.completeness === 'INCOMPLETE'
-                    ? 'Belum lengkap'
-                    : voice.locationReview.completeness === 'COMPLETE'
-                      ? 'Lengkap'
-                      : 'Tidak diketahui'}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-        </Stack>
-      </Card>
+      <section className="voice-detail" aria-label="Detail Voice">
+        <h2 className="voice-detail__heading">Detail Voice</h2>
+        <p className="voice-detail__body">{voice.detail}</p>
+        <ul className="voice-meta-list">
+          <li>
+            <CalendarDays size={17} aria-hidden="true" />
+            <span className="voice-meta-list__label">Diajukan</span>
+            <strong>{formatDateTime(voice.submittedAt)}</strong>
+          </li>
+          <li>
+            <Clock size={17} aria-hidden="true" />
+            <span className="voice-meta-list__label">Diperbarui</span>
+            <strong>{formatDateTime(voice.updatedAt)}</strong>
+          </li>
+          <li>
+            <Sparkles size={17} aria-hidden="true" />
+            <span className="voice-meta-list__label">Klasifikasi</span>
+            <strong>
+              {voice.classificationSource === 'AI'
+                ? 'AI'
+                : voice.classificationSource
+                  ? 'Manual Fallback'
+                  : '—'}
+            </strong>
+          </li>
+          {voice.category ? (
+            <li>
+              <CategoryIcon size={17} aria-hidden="true" />
+              <span className="voice-meta-list__label">Kategori</span>
+              <strong>
+                {voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category}
+              </strong>
+            </li>
+          ) : null}
+          {voice.locationReview ? (
+            <li>
+              <Map size={17} aria-hidden="true" />
+              <span className="voice-meta-list__label">Kelengkapan lokasi</span>
+              <strong>
+                {voice.locationReview.completeness === 'INCOMPLETE'
+                  ? 'Belum lengkap'
+                  : voice.locationReview.completeness === 'COMPLETE'
+                    ? 'Lengkap'
+                    : 'Tidak diketahui'}
+              </strong>
+            </li>
+          ) : null}
+        </ul>
+      </section>
 
       {voice.attachments?.length ? (
         <Card padding="md">
@@ -334,9 +140,7 @@ export function VoiceDetailPage() {
         </Card>
       ) : null}
 
-      {voice.conversationState !== 'UNAVAILABLE' ? (
-        <ConversationPanel voiceId={voice.id} state={voice.conversationState} />
-      ) : null}
+      {voice.conversationState !== 'UNAVAILABLE' ? <ConversationLink voice={voice} /> : null}
 
       <ClosureSection cycles={cycles} />
 
@@ -347,14 +151,30 @@ export function VoiceDetailPage() {
   );
 }
 
+/** Conversation summary row; the room itself lives on the dedicated chat page. */
+function ConversationLink({ voice }: { voice: VoiceDetail }) {
+  const navigate = useNavigate();
+  const { feed, items } = useConversation(voice.id);
+  const subtitle =
+    voice.conversationState === 'READ_ONLY' ? 'Hanya baca' : `${items.length} pesan · aktif`;
+  return (
+    <LinkCard
+      icon={<MessageCircle size={20} />}
+      title="Percakapan"
+      description={feed.isLoading ? 'Memuat…' : subtitle}
+      trailing={<span className="link-card__cta">Buka Chat</span>}
+      onClick={() => void navigate(`/voices/${voice.id}/chat`)}
+    />
+  );
+}
+
 function ReporterCard({ voice }: { voice: VoiceDetail }) {
   // The reporter block exists only where the contract grants it: the Union sees
-  // the immutable consent snapshot (SHOW) as a card overlapping the hero, or a
-  // per-Voice alias inside the hero plate (HIDE). Other audiences keep the
-  // existing surfaces unchanged.
+  // the immutable consent snapshot (SHOW) as a card, or a per-Voice alias
+  // inside the hero card (HIDE). Other audiences keep the surfaces unchanged.
   if (voice.audience === 'UNION_IDENTIFIED') {
     return (
-      <Card className="voice-reporter voice-reporter--overlap" padding="md">
+      <Card className="voice-reporter" padding="md">
         <div className="voice-reporter__identity">
           <span className="voice-reporter__avatar" aria-hidden="true">
             <UserRound size={24} />
@@ -375,10 +195,10 @@ function ReporterCard({ voice }: { voice: VoiceDetail }) {
 }
 
 /**
- * Reporter-facing closure rating (screen 14). Rating and the reopen decision
- * leave in one atomic mutation (PRD §17.3): the "Buka kembali" outline toggle
- * only appears for low scores and simply flips the `reopen` flag that
- * "Kirim penilaian" submits.
+ * Reporter-facing closure rating. Rating and the reopen decision leave in one
+ * atomic mutation (PRD §17.3): the "Buka kembali" outline toggle only appears
+ * for low scores and simply flips the `reopen` flag that "Kirim penilaian"
+ * submits. Stars fill cumulatively left to right in the brand blue.
  */
 function RatingCard({ voice }: { voice: VoiceDetail }) {
   const api = useApi();
@@ -468,7 +288,7 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
   );
 }
 
-/** Latest closure is featured; older cycles collapse behind a row (screen 14). */
+/** Latest closure is featured; older cycles collapse behind a row. */
 function ClosureSection({ cycles }: { cycles: ClosureCycle[] }) {
   if (!cycles.length) return null;
   const sorted = [...cycles].sort((a, b) => a.cycleNumber - b.cycleNumber);
@@ -552,7 +372,8 @@ function Timeline({ voiceId }: { voiceId: string }) {
 
   return (
     <DisclosureRow
-      icon={<Clock size={16} />}
+      className="link-disclosure"
+      icon={<Clock size={20} />}
       title="Timeline"
       description={subtitle}
       open={open}

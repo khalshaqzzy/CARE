@@ -1,8 +1,17 @@
-import { Alert, Button, Card, ChoiceCardGroup, Dialog, Stack, Textarea } from '@care/ui';
+import { Alert, Button, ChoiceCardGroup, Dialog, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus, Lock, UserRound } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Check,
+  ImagePlus,
+  Lock,
+  MessagesSquare,
+  Play,
+  UserRound,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
-import { ACTION_LABELS, STATUS_LABELS } from '../lib/formatters';
+import { useNavigate } from 'react-router-dom';
+import { ACTION_LABELS } from '../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
@@ -13,6 +22,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const api = useApi();
   const sessionId = useSessionId();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const actions = detail.availableActions ?? [];
   const [active, setActive] = useState<Action>('none');
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +41,10 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const ask = useMutation({
     mutationFn: async (text: string) =>
       api.ask(detail.id, { text, version: detail.version }, askKey.key()),
+    // PRD §16: asking opens and focuses the verification room.
     onSuccess: () => {
       invalidate();
-      setNotice('Percakapan verifikasi telah dibuka.');
-      setActive('none');
+      void navigate(`/voices/${detail.id}/chat`);
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
     onSettled: askKey.reset,
@@ -75,10 +85,38 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   if (!actions.length) return null;
 
   return (
-    <Card className="action-panel" padding="md">
-      <div className="action-panel__head">
-        <h3>Tindakan</h3>
-        <span className="action-panel__status">{STATUS_LABELS[detail.status]}</span>
+    <>
+      <div className="action-row" role="group" aria-label="Tindakan">
+        {actions.includes('ASSIGN') ? (
+          <Button variant="secondary" onClick={() => setActive('assign')}>
+            <UserRound size={18} aria-hidden="true" />
+            {ACTION_LABELS.ASSIGN}
+          </Button>
+        ) : null}
+        {actions.includes('REASSIGN') ? (
+          <Button variant="secondary" onClick={() => setActive('reassign')}>
+            <ArrowLeftRight size={18} aria-hidden="true" />
+            {ACTION_LABELS.REASSIGN}
+          </Button>
+        ) : null}
+        {actions.includes('ASK') ? (
+          <Button variant="secondary" onClick={() => setActive('ask')}>
+            <MessagesSquare size={18} aria-hidden="true" />
+            {ACTION_LABELS.ASK}
+          </Button>
+        ) : null}
+        {actions.includes('PROCEED') ? (
+          <Button variant="primary" onClick={() => setActive('proceed')}>
+            <Play size={18} aria-hidden="true" />
+            {ACTION_LABELS.PROCEED}
+          </Button>
+        ) : null}
+        {actions.includes('CLOSE') ? (
+          <Button variant="primary" onClick={() => setActive('close')}>
+            <Check size={18} aria-hidden="true" />
+            {ACTION_LABELS.CLOSE}
+          </Button>
+        ) : null}
       </div>
       {error ? (
         <Alert tone="danger" title="Periksa kembali">
@@ -90,25 +128,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           {notice}
         </Alert>
       ) : null}
-      <div className="action-panel__grid">
-        {actions.includes('ASK') ? (
-          <Button onClick={() => setActive('ask')}>{ACTION_LABELS.ASK}</Button>
-        ) : null}
-        {actions.includes('ASSIGN') ? (
-          <Button onClick={() => setActive('assign')}>{ACTION_LABELS.ASSIGN}</Button>
-        ) : null}
-        {actions.includes('REASSIGN') ? (
-          <Button onClick={() => setActive('reassign')}>{ACTION_LABELS.REASSIGN}</Button>
-        ) : null}
-        {actions.includes('PROCEED') ? (
-          <Button onClick={() => setActive('proceed')}>{ACTION_LABELS.PROCEED}</Button>
-        ) : null}
-        {actions.includes('CLOSE') ? (
-          <Button variant="primary" onClick={() => setActive('close')}>
-            {ACTION_LABELS.CLOSE}
-          </Button>
-        ) : null}
-      </div>
 
       <Dialog
         open={active === 'ask'}
@@ -173,7 +192,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           loading={close.isPending}
         />
       </Dialog>
-    </Card>
+    </>
   );
 }
 

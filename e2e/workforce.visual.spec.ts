@@ -324,9 +324,10 @@ test('workforce active conversation visual at 360', async ({ page }) => {
     },
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
-  await page.goto('/voices/voice-1');
+  await page.goto('/voices/voice-1/chat');
   await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
-  await page.locator('#voice-conversation').scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(100);
   await expect(page).toHaveScreenshot('workforce-conversation-active-360.png', screenshotOptions);
 });
 
@@ -607,7 +608,8 @@ test('workforce union identified detail visual at 360', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/voices/voice-p2');
-  await expect(page.getByText('Sari Wulandari')).toBeVisible();
+  // The name renders in both the hero chip and the reporter card.
+  await expect(page.getByText('Sari Wulandari').first()).toBeVisible();
   await scrollToTop(page);
   await expect(page).toHaveScreenshot('workforce-union-identified-360.png', screenshotOptions);
 });

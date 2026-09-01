@@ -1853,7 +1853,7 @@ select,
   color: var(--state-danger);
 }
 
-/* ===== Rating — star radios (1–5); readOnly renders a labeled summary ===== */
+/* ===== Rating — star radios (1–5); stars fill cumulatively left to right ===== */
 .care-rating {
   display: inline-flex;
   align-items: center;
@@ -1865,7 +1865,7 @@ select,
   height: 2.75rem;
   place-items: center;
   border-radius: var(--radius-control);
-  color: var(--action-primary-bg);
+  color: var(--text-tertiary);
   cursor: pointer;
 }
 .care-rating__star svg {
@@ -1874,8 +1874,10 @@ select,
   fill: transparent;
   transition: fill var(--duration-fast) var(--ease-standard);
 }
-.care-rating__star:hover svg,
-.care-rating__star[data-state='checked'] svg {
+.care-rating__star[data-filled='true'] {
+  color: var(--action-primary-bg);
+}
+.care-rating__star[data-filled='true'] svg {
   fill: currentcolor;
 }
 .care-rating__star:focus-visible {
@@ -1888,9 +1890,10 @@ select,
 .care-rating.is-readonly svg {
   width: 1.15rem;
   height: 1.15rem;
-  color: var(--raw-brand-500);
+  color: var(--text-tertiary);
 }
 .care-rating.is-readonly svg[data-filled='true'] {
+  color: var(--raw-brand-500);
   fill: currentcolor;
 }
 .care-rating__value {
