@@ -8,7 +8,7 @@
 | Backend Complete Gate   | Passed again for ADR-0029 after fresh/upgrade migration, integration, security, performance, reconciliation, and full-stack validation |
 | Implementation status   | Dynamic category implementation and local parity are complete; PR #22 carries the CI fixture and additive-migration correction         |
 | Latest ADR              | ADR-0030 (classification prompt v1.4 enrichment)                                                                                       |
-| Recommended next action | Review/merge the classification-prompt PR, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal                    |
+| Recommended next action | Review/merge the classification-prompt PR, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal                   |
 
 ## Session Outcome
 
