@@ -651,7 +651,7 @@ Implementation state 28 Agustus 2026:
   `inference.qd-tmmin.site`; CARE supports encrypted, hot-reloaded Admin AI
   configuration with environment fallback; and live Granite plus DeepSeek
   `none`/`high` classification/location scenarios passed. Context is 32,768
-  tokens and generated output is capped at 8,192. See ADR-0028. Hosted CARE
+  tokens and generated output is capped at 4,096. See ADR-0028. Hosted CARE
   exact-SHA acceptance and rollback evidence below remain outstanding;
 
 - route remediation follow-up is locally complete: affected departments are

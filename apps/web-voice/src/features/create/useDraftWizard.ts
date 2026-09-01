@@ -197,6 +197,8 @@ export function useDraftWizard(draftId?: string) {
       const saved = await persist.mutateAsync({});
       if (!saved) return;
       setDraft(saved);
+      // Keep these independent provider calls concurrent: routing depends on
+      // classification, while location completeness does not.
       const [classificationResult, reviewResult] = await Promise.all([
         classifyMutation.mutateAsync(saved.id),
         reviewLocationMutation.mutateAsync(saved.id),

@@ -7,6 +7,7 @@ import { sanitizedErrorDetail } from './error-detail';
 import {
   AiRuntimeConfigService,
   type EffectiveAiConfig,
+  GRANITE_MAX_NEW_TOKENS,
   environmentAiConfig,
   GRANITE_MODEL,
   type ReasoningEffort,
@@ -53,7 +54,7 @@ export function providerRequestConfig(model: string, effort: ReasoningEffort) {
     chat_template_kwargs: chatTemplate,
     temperature: 1,
     top_p: 0.95,
-    max_tokens: 8192,
+    max_tokens: GRANITE_MAX_NEW_TOKENS,
   };
 }
 

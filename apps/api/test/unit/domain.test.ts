@@ -69,7 +69,7 @@ describe('CARE domain contracts', () => {
       chat_template_kwargs: { enable_thinking: true, low_effort: false },
       temperature: 1,
       top_p: 0.95,
-      max_tokens: 8192,
+      max_tokens: 4096,
     });
   });
   it('keeps Granite sampling fields out of DeepSeek requests', () => {

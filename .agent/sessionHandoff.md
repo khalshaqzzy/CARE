@@ -53,7 +53,7 @@ Branch `feat/local-inference`. A standalone `/inference` Compose stack now
 serves `ibm-granite/granite-4.2-3b` through SGLang 0.5.18 on `dx-2`. The model
 uses BF16, TP=1, a 32,768-token context, 0.8 static memory fraction, automatic
 reasoning/tool parsers, default CUDA graphs/Radix cache, and no quantization.
-CARE Granite requests cap output at 8,192 new tokens and explicitly keep full
+CARE Granite requests cap output at 4,096 new tokens and explicitly keep full
 thinking enabled with `low_effort=false` when reasoning effort is blank.
 
 - SGLang has no published host port. A rootless, read-only Caddy gateway with

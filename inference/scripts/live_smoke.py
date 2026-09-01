@@ -72,7 +72,7 @@ def run_call(base_url, api_key, model, kind):
         "tool_choice": {"type": "function", "function": {"name": tool["name"]}},
         "temperature": 1.0,
         "top_p": 0.95,
-        "max_tokens": 8192,
+        "max_tokens": 4096,
         "chat_template_kwargs": {"enable_thinking": True, "low_effort": False},
     }
     started = time.monotonic()

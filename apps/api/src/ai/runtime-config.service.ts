@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma.service';
 
 export const AI_CONFIGURATION_ID = 'openai';
 export const GRANITE_MODEL = 'ibm-granite/granite-4.2-3b';
+export const GRANITE_MAX_NEW_TOKENS = 4096;
 
 export type ReasoningEffort = '' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type EffectiveAiConfig = {

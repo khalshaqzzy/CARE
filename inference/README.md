@@ -14,7 +14,7 @@ starts the already-installed stack automatically after a reboot.
 - There is no application rate limiter. Cloudflare's normal network protection
   remains outside this stack.
 - The model context window is 32,768 tokens and CARE caps generated output at
-  8,192 new tokens.
+  4,096 new tokens.
 - The NVIDIA/SGLang container runs as the image-defined root user because the
   CUDA development image and runtime write caches under `/root`; it has no host
   port or host filesystem access other than the dedicated Hugging Face cache.
