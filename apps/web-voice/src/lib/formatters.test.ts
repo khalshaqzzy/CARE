@@ -38,7 +38,9 @@ describe('workforce label maps', () => {
     expect(Object.keys(CATEGORY_LABELS).sort()).toEqual([
       'ENVIRONMENT',
       'FACILITY',
+      'FACILITY_REPAIR',
       'SAFETY',
+      'WELFARE',
       'WORK_DIFFICULTY',
     ]);
   });

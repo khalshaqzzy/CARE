@@ -50,6 +50,18 @@ enum VoiceVisibility {
   GENERAL
 }
 
+enum GeneralVoiceCategoryStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum GeneralVoiceCategoryRouteMode {
+  FIXED_DEPARTMENT
+  RELATED_REPORTER_DEPARTMENT
+}
+
+// Transitional storage vocabulary retained for rollback/read compatibility.
+// New application logic uses GeneralVoiceCategory.key.
 enum RoutingCategory {
   SAFETY
   ENVIRONMENT
@@ -114,6 +126,8 @@ enum ImportIssueType {
   UNION_HEAD_MISSING
   UNION_OFFICER_MISSING
   DEPARTMENT_14
+  CATEGORY_TARGET_UNAVAILABLE
+  CATEGORY_PIC_UNAVAILABLE
 }
 
 enum ImportIssueStatus {
@@ -170,38 +184,41 @@ model Employee {
 }
 
 model UserAccount {
-  id                      String                    @id @default(uuid()) @db.Uuid
-  employeeId              String?                   @unique @db.Uuid
-  username                String                    @unique @db.VarChar(64)
-  displayName             String                    @db.VarChar(200)
-  passwordHash            String
-  accountKind             AccountKind
-  status                  AccountStatus             @default(ACTIVE)
-  deactivatedAt           DateTime?
-  passwordChangeRequired  Boolean                   @default(true)
-  version                 Int                       @default(1)
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  employee                Employee?                 @relation(fields: [employeeId], references: [id])
-  unionTerms              UnionAccountTerm[]
-  routeMappings           RouteMapping[]            @relation("RouteOwner")
-  legacyVoiceAccess       LegacyVoiceAccess[]
-  sessions                Session[]
-  drafts                  VoiceDraft[]              @relation("DraftReporter")
-  reportedVoices          Voice[]                   @relation("VoiceReporter")
-  routedVoices            Voice[]                   @relation("VoiceRouteOwner")
-  handledVoices           Voice[]                   @relation("VoiceHandler")
-  messages                Message[]
-  notifications           Notification[]
-  pushSubscriptions       PushSubscription[]
-  auditEvents             AuditEvent[]
-  importBatches           ImportBatch[]
-  assignmentsMade         VoiceAssignment[]         @relation("AssignmentActor")
-  assignmentsReceived     VoiceAssignment[]         @relation("AssignmentHandler")
-  events                  VoiceEvent[]
-  closureCycles           ClosureCycle[]
-  ratings                 Rating[]
-  aiConfigurationsUpdated AiProviderConfiguration[]
+  id                       String                         @id @default(uuid()) @db.Uuid
+  employeeId               String?                        @unique @db.Uuid
+  username                 String                         @unique @db.VarChar(64)
+  displayName              String                         @db.VarChar(200)
+  passwordHash             String
+  accountKind              AccountKind
+  status                   AccountStatus                  @default(ACTIVE)
+  deactivatedAt            DateTime?
+  passwordChangeRequired   Boolean                        @default(true)
+  version                  Int                            @default(1)
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @updatedAt
+  employee                 Employee?                      @relation(fields: [employeeId], references: [id])
+  unionTerms               UnionAccountTerm[]
+  routeMappings            RouteMapping[]                 @relation("RouteOwner")
+  legacyVoiceAccess        LegacyVoiceAccess[]
+  sessions                 Session[]
+  drafts                   VoiceDraft[]                   @relation("DraftReporter")
+  reportedVoices           Voice[]                        @relation("VoiceReporter")
+  routedVoices             Voice[]                        @relation("VoiceRouteOwner")
+  handledVoices            Voice[]                        @relation("VoiceHandler")
+  messages                 Message[]
+  notifications            Notification[]
+  pushSubscriptions        PushSubscription[]
+  auditEvents              AuditEvent[]
+  importBatches            ImportBatch[]
+  assignmentsMade          VoiceAssignment[]              @relation("AssignmentActor")
+  assignmentsReceived      VoiceAssignment[]              @relation("AssignmentHandler")
+  events                   VoiceEvent[]
+  closureCycles            ClosureCycle[]
+  ratings                  Rating[]
+  aiConfigurationsUpdated  AiProviderConfiguration[]
+  categoryRevisionsCreated GeneralVoiceCategoryRevision[] @relation("CategoryRevisionCreator")
+  categoryRoutesCreated    GeneralVoiceCategoryRoute[]    @relation("CategoryRouteCreator")
+  categoriesCreated        GeneralVoiceCategory[]         @relation("CategoryCreator")
 
   @@index([accountKind, status])
   @@index([username, displayName])
@@ -262,20 +279,74 @@ model OrganizationSnapshot {
 }
 
 model OrganizationUnit {
-  id            String                   @id @default(uuid()) @db.Uuid
-  directorate   String                   @db.VarChar(200)
-  division      String                   @db.VarChar(200)
-  department    String                   @db.VarChar(200)
-  createdAt     DateTime                 @default(now())
-  memberships   OrganizationMembership[]
-  routeMappings RouteMapping[]
-  voices        Voice[]                  @relation("VoiceOrganizationUnit")
-  drafts        VoiceDraft[]             @relation("DraftOrganizationUnit")
-  importIssues  ImportIssue[]
+  id             String                      @id @default(uuid()) @db.Uuid
+  directorate    String                      @db.VarChar(200)
+  division       String                      @db.VarChar(200)
+  department     String                      @db.VarChar(200)
+  createdAt      DateTime                    @default(now())
+  memberships    OrganizationMembership[]
+  routeMappings  RouteMapping[]
+  voices         Voice[]                     @relation("VoiceOrganizationUnit")
+  drafts         VoiceDraft[]                @relation("DraftOrganizationUnit")
+  importIssues   ImportIssue[]
+  categoryRoutes GeneralVoiceCategoryRoute[]
 
   @@unique([directorate, division, department])
   @@index([division, department])
   @@index([createdAt, id])
+}
+
+model GeneralVoiceCategory {
+  id                String                         @id @default(uuid()) @db.Uuid
+  key               String                         @unique @db.VarChar(80)
+  status            GeneralVoiceCategoryStatus     @default(ACTIVE)
+  version           Int                            @default(1)
+  createdById       String?                        @db.Uuid
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  archivedAt        DateTime?
+  createdBy         UserAccount?                   @relation("CategoryCreator", fields: [createdById], references: [id])
+  revisions         GeneralVoiceCategoryRevision[]
+  routes            GeneralVoiceCategoryRoute[]
+  voices            Voice[]
+  classifications   AIClassification[]
+  remediationIssues ImportIssue[]
+
+  @@index([status, key])
+}
+
+model GeneralVoiceCategoryRevision {
+  id              String               @id @default(uuid()) @db.Uuid
+  categoryId      String               @db.Uuid
+  revision        Int
+  name            String               @db.VarChar(160)
+  definition      String               @db.VarChar(4000)
+  examples        Json
+  effectiveFrom   DateTime             @default(now())
+  effectiveTo     DateTime?
+  createdById     String?              @db.Uuid
+  category        GeneralVoiceCategory @relation(fields: [categoryId], references: [id])
+  createdBy       UserAccount?         @relation("CategoryRevisionCreator", fields: [createdById], references: [id])
+  classifications AIClassification[]
+
+  @@unique([categoryId, revision])
+  @@index([categoryId, effectiveTo])
+}
+
+model GeneralVoiceCategoryRoute {
+  id                 String                        @id @default(uuid()) @db.Uuid
+  categoryId         String                        @db.Uuid
+  mode               GeneralVoiceCategoryRouteMode
+  organizationUnitId String?                       @db.Uuid
+  effectiveFrom      DateTime                      @default(now())
+  effectiveTo        DateTime?
+  createdById        String?                       @db.Uuid
+  category           GeneralVoiceCategory          @relation(fields: [categoryId], references: [id])
+  organizationUnit   OrganizationUnit?             @relation(fields: [organizationUnitId], references: [id])
+  createdBy          UserAccount?                  @relation("CategoryRouteCreator", fields: [createdById], references: [id])
+
+  @@index([categoryId, effectiveTo])
+  @@index([organizationUnitId, effectiveTo])
 }
 
 model OrganizationMembership {
@@ -366,7 +437,8 @@ model ImportChange {
 
 model ImportIssue {
   id                 String                  @id @default(uuid()) @db.Uuid
-  batchId            String                  @db.Uuid
+  batchId            String?                 @db.Uuid
+  categoryId         String?                 @db.Uuid
   type               ImportIssueType
   status             ImportIssueStatus       @default(OPEN)
   organizationUnitId String?                 @db.Uuid
@@ -374,7 +446,8 @@ model ImportIssue {
   details            Json
   createdAt          DateTime                @default(now())
   resolvedAt         DateTime?
-  batch              ImportBatch             @relation(fields: [batchId], references: [id])
+  batch              ImportBatch?            @relation(fields: [batchId], references: [id])
+  category           GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
   organizationUnit   OrganizationUnit?       @relation(fields: [organizationUnitId], references: [id])
   resolutions        ImportIssueResolution[]
 
@@ -466,7 +539,10 @@ model Voice {
   locationDetail                 String                  @db.VarChar(200)
   title                          String                  @db.VarChar(150)
   detail                         String                  @db.VarChar(5000)
-  category                       RoutingCategory?
+  categoryLegacy                 RoutingCategory?        @map("category")
+  categoryKey                    String?                 @db.VarChar(80)
+  categoryId                     String?                 @db.Uuid
+  categoryNameSnapshot           String?                 @db.VarChar(160)
   severity                       Severity
   status                         VoiceStatus             @default(OPEN)
   routeOwnerId                   String                  @db.Uuid
@@ -484,6 +560,7 @@ model Voice {
   reporterOrganizationSnapshot   OrganizationSnapshot?   @relation("VoiceOrganizationSnapshot", fields: [reporterOrganizationSnapshotId], references: [id])
   reporterOrganizationUnit       OrganizationUnit?       @relation("VoiceOrganizationUnit", fields: [reporterOrganizationUnitId], references: [id])
   routeMapping                   RouteMapping?           @relation(fields: [routeMappingId], references: [id])
+  categoryRecord                 GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
   classification                 AIClassification?
   locationReview                 LocationReviewSnapshot?
   attachments                    Attachment[]
@@ -498,7 +575,7 @@ model Voice {
   @@index([routeOwnerId, status, severity, submittedAt])
   @@index([currentHandlerId, status, severity, submittedAt])
   @@index([visibility, status, severity, submittedAt])
-  @@index([area, category, status])
+  @@index([area, categoryKey, status], map: "Voice_area_categoryKey_status_idx")
   @@index([reporterOrganizationUnitId, visibility, status])
   @@index([severity, submittedAt])
   @@index([title, displayId])
@@ -510,26 +587,31 @@ model HumanVoiceSequence {
 }
 
 model AIClassification {
-  id                     String               @id @default(uuid()) @db.Uuid
-  draftId                String?              @unique @db.Uuid
-  voiceId                String?              @unique @db.Uuid
-  model                  String               @db.VarChar(100)
-  promptVersion          String               @db.VarChar(40)
+  id                     String                        @id @default(uuid()) @db.Uuid
+  draftId                String?                       @unique @db.Uuid
+  voiceId                String?                       @unique @db.Uuid
+  model                  String                        @db.VarChar(100)
+  promptVersion          String                        @db.VarChar(40)
   source                 ClassificationSource
-  category               RoutingCategory?
+  categoryLegacy         RoutingCategory?              @map("category")
+  categoryKey            String?                       @db.VarChar(80)
+  categoryId             String?                       @db.Uuid
+  categoryRevisionId     String?                       @db.Uuid
   severity               Severity
   confidence             Float
-  rationaleCode          String               @db.VarChar(80)
-  contentHash            String               @db.Char(64)
-  responseId             String?              @db.VarChar(200)
+  rationaleCode          String                        @db.VarChar(80)
+  contentHash            String                        @db.Char(64)
+  responseId             String?                       @db.VarChar(200)
   latencyMs              Int?
   inputTokens            Int?
   outputTokens           Int?
-  fallbackCode           String?              @db.VarChar(80)
+  fallbackCode           String?                       @db.VarChar(80)
   legacyProviderMetadata Json?
-  createdAt              DateTime             @default(now())
-  draft                  VoiceDraft?          @relation(fields: [draftId], references: [id])
-  voice                  Voice?               @relation(fields: [voiceId], references: [id])
+  createdAt              DateTime                      @default(now())
+  draft                  VoiceDraft?                   @relation(fields: [draftId], references: [id])
+  voice                  Voice?                        @relation(fields: [voiceId], references: [id])
+  categoryRecord         GeneralVoiceCategory?         @relation(fields: [categoryId], references: [id])
+  categoryRevision       GeneralVoiceCategoryRevision? @relation(fields: [categoryRevisionId], references: [id])
 }
 
 model LocationReviewSnapshot {

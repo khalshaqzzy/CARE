@@ -1,4 +1,4 @@
-import { AccountKind, PrismaClient, RoutingCategory, Severity } from '@prisma/client';
+import { AccountKind, PrismaClient, Severity } from '@prisma/client';
 import { hash } from 'argon2';
 import ExcelJS from 'exceljs';
 import { access } from 'node:fs/promises';
@@ -227,7 +227,7 @@ describe('Organization, remediation, and routing journey', () => {
       detail: 'Liquid waste is leaking near the process',
     });
     await voices.manualClassification(member, generalDraft.id, {
-      category: RoutingCategory.ENVIRONMENT,
+      category: 'ENVIRONMENT',
       severity: Severity.HIGH,
     });
     const locationReview = await prisma.locationReviewSnapshot.create({
@@ -267,7 +267,7 @@ describe('Organization, remediation, and routing journey', () => {
       where: { id: (general as { id: string }).id },
     });
     expect(generalVoice).toMatchObject({
-      category: RoutingCategory.ENVIRONMENT,
+      category: 'ENVIRONMENT',
       routeOwnerId: departmentHead.id,
     });
 
@@ -308,7 +308,7 @@ describe('Organization, remediation, and routing journey', () => {
       detail: 'This draft must remain after route rejection',
     });
     await voices.manualClassification(department14, blockedDraft.id, {
-      category: RoutingCategory.WORK_DIFFICULTY,
+      category: 'WORK_DIFFICULTY',
       severity: Severity.LOW,
     });
     await expect(

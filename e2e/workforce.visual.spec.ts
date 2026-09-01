@@ -833,7 +833,7 @@ test('workforce create fallback visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Klasifikasi manual' })).toBeVisible({
     timeout: 15000,
   });
-  await page.getByRole('radio', { name: /Keselamatan/ }).click();
+  await page.getByRole('radio', { name: /Safety/ }).click();
   await page.getByRole('radio', { name: /^High/ }).click();
   await scrollToTop(page);
   await expect(page).toHaveScreenshot('workforce-create-fallback-360.png', screenshotOptions);

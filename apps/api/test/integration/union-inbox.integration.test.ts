@@ -52,7 +52,7 @@ async function seedVoice(
       title: 'union inbox voice',
       detail: 'detail',
       severity: Severity.MEDIUM,
-      category: null,
+      categoryKey: null,
       anonymousAlias: `R-${seq}`,
       version: 1,
     },

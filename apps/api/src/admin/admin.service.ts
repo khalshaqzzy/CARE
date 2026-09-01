@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma.service';
 import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
 import { AiService } from '../ai/ai.service';
+import { CategoriesService } from '../categories/categories.service';
 import {
   AI_CONFIGURATION_ID,
   AiRuntimeConfigService,
@@ -82,6 +83,7 @@ export class AdminService {
     @Inject(AiRuntimeConfigService)
     private readonly aiRuntimeConfig?: AiRuntimeConfigService,
     @Optional() @Inject(AiService) private readonly ai?: AiService,
+    @Optional() @Inject(CategoriesService) private readonly categories?: CategoriesService,
   ) {}
 
   aiConfiguration() {
@@ -245,12 +247,16 @@ export class AdminService {
 
   async testAiConfiguration(actor: AuthActor) {
     const started = Date.now();
+    const categories = await (
+      this.categories ?? new CategoriesService(this.prisma)
+    ).activeCatalog();
     const [classification, location] = await Promise.all([
       this.requireAi().classify({
         visibility: 'GENERAL',
         area: 'KARAWANG_1',
         title: 'Pagar pengaman mesin longgar',
         detail: 'Pagar pengaman di sisi mesin perlu diperiksa dan dikencangkan.',
+        categories,
       }),
       this.requireAi().reviewLocation({ area: 'KARAWANG_1', locationDetail: 'Gedung A, line 2' }),
     ]);
@@ -715,7 +721,11 @@ export class AdminService {
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: take + 1,
       ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      include: { organizationUnit: true, resolutions: false },
+      include: {
+        organizationUnit: true,
+        category: { include: { revisions: { where: { effectiveTo: null }, take: 1 } } },
+        resolutions: false,
+      },
     });
     const hasNext = items.length > take;
     const data = hasNext ? items.slice(0, take) : items;

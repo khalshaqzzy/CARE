@@ -66,7 +66,7 @@ async function seedVoice(
       title: 'matrix voice',
       detail: 'detail',
       severity: Severity.MEDIUM,
-      category: null,
+      categoryKey: null,
       anonymousAlias: `R-${seq}`,
       version: 1,
     },

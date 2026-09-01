@@ -130,7 +130,7 @@ async function main() {
         locationDetail: 'Lantai 3, dekat mesin produksi',
         title: 'Pencahayaan area produksi kurang',
         detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi.',
-        category: 'SAFETY',
+        categoryKey: 'SAFETY',
         severity: Severity.HIGH,
         status: VoiceStatus.IN_PROGRESS,
         routeOwnerId: work.manager.id,

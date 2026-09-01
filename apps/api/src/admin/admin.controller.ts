@@ -131,16 +131,6 @@ export class AdminController {
     return this.service.setDefaultPic(actor, id, body, k);
   }
 
-  @Put('routes/global-special-pic') globalPic(
-    @Actor() actor: AuthActor,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key?: string,
-    @Headers('Idempotency-Key') keyAlt?: string,
-  ) {
-    const k = key ?? keyAlt;
-    return this.service.setGlobalPic(actor, body, k);
-  }
-
   @Get('organization-units/:id/section-head-candidates') sectionHeads(
     @Param('id', ParseUUIDPipe) id: string,
   ) {

@@ -24,6 +24,7 @@ type TimelinePage = components['schemas']['TimelinePage'];
 type MessagePage = components['schemas']['MessagePage'];
 type AdminOverview = components['schemas']['AdminOverview'];
 type AiConfiguration = components['schemas']['AiConfigurationResponse'];
+type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCategoryAdmin'];
 
 /** A safe, non-leaking error envelope for the mock. */
 export function errorBody(code: string, message = 'Not found in mock') {
@@ -156,7 +157,7 @@ export type MockVoice = {
   availableActions: string[];
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  category?: 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY' | null;
+  category?: string | null;
   attachments?: { id: string; mimeType: string; purpose?: string }[];
   closureCycles?: unknown[];
   updatedAt?: string;
@@ -450,6 +451,29 @@ const remediationHistoryFixture = (): RemediationResolutionList => ({
   nextCursor: null,
 });
 
+const categoryFixture = (): GeneralVoiceCategoryAdmin => ({
+  id: '10000000-0000-4000-8000-000000000001',
+  key: 'SAFETY',
+  status: 'ACTIVE',
+  version: 1,
+  name: 'Safety',
+  definition: 'Kondisi atau tindakan yang berkaitan dengan keselamatan kerja.',
+  examples: ['Jalur forklift dan pedestrian bercampur.'],
+  revision: 1,
+  route: {
+    mode: 'FIXED_DEPARTMENT',
+    organizationUnit: {
+      id: 'unit-1',
+      directorate: 'Manufacturing & PE Dir',
+      division: 'Plant Administration Div',
+      department: 'Plant GA & SHE Dept',
+    },
+    pic: { id: 'manager-1', name: 'Department Head', noReg: '000001' },
+    health: 'HEALTHY',
+  },
+  updatedAt: '2026-09-01T00:00:00.000Z',
+});
+
 const sectionHeadFixture = (): SectionHeadCandidateList => [
   {
     employeeName: 'Budi Santoso',
@@ -605,6 +629,7 @@ export async function mockAdminApi(
     ready?: Readiness;
     release?: Release;
     aiConfiguration?: AiConfiguration;
+    categories?: GeneralVoiceCategoryAdmin[];
   } = {},
 ) {
   const session = opts.session ?? adminSession();
@@ -635,6 +660,29 @@ export async function mockAdminApi(
     }
     if (method === 'GET' && path === '/api/v1/admin/overview')
       return fulfill(200, override('overview') ?? overviewFixture());
+    if (method === 'GET' && path === '/api/v1/admin/general-voice-categories')
+      return fulfill(200, override('categories') ?? [categoryFixture()]);
+    if (method === 'POST' && path === '/api/v1/admin/general-voice-categories') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      return fulfill(201, {
+        ...categoryFixture(),
+        id: '10000000-0000-4000-8000-000000000099',
+        key: 'CUSTOM_CATEGORY',
+        ...body,
+      });
+    }
+    if (
+      method === 'GET' &&
+      /\/api\/v1\/admin\/general-voice-categories\/[^/]+\/history$/.test(path)
+    )
+      return fulfill(200, [
+        {
+          id: 'revision-1',
+          revision: 1,
+          name: 'Safety',
+          effectiveFrom: '2026-09-01T00:00:00.000Z',
+        },
+      ]);
     if (method === 'GET' && path === '/api/v1/admin/ai-configuration')
       return fulfill(200, override('aiConfiguration') ?? aiConfigurationFixture());
     if (method === 'PUT' && path === '/api/v1/admin/ai-configuration') {
@@ -710,11 +758,7 @@ export async function mockAdminApi(
       return fulfill(200, override('remediation') ?? remediationFixture());
     if (method === 'GET' && path === '/api/v1/admin/remediation-issues/history')
       return fulfill(200, override('remediationHistory') ?? remediationHistoryFixture());
-    if (
-      method === 'PUT' &&
-      (/\/api\/v1\/admin\/organization-units\/[^/]+\/default-pic$/.test(path) ||
-        path === '/api/v1/admin/routes/global-special-pic')
-    )
+    if (method === 'PUT' && /\/api\/v1\/admin\/organization-units\/[^/]+\/default-pic$/.test(path))
       return fulfill(200, { id: 'route-1' });
     if (
       method === 'GET' &&
@@ -1027,6 +1071,20 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       return satisfy(200, { token: 'csrf-token' });
     if (opts.error)
       return satisfy(opts.error.status, errorBody(opts.error.code, 'Mocked state error'));
+
+    if (method === 'GET' && path === '/api/v1/general-voice-categories')
+      return satisfy(200, [
+        { id: 'category-safety', key: 'SAFETY', name: 'Safety' },
+        { id: 'category-environment', key: 'ENVIRONMENT', name: 'Environment' },
+        { id: 'category-facility', key: 'FACILITY', name: 'Fasilitas Umum' },
+        { id: 'category-repair', key: 'FACILITY_REPAIR', name: 'Facility Repair' },
+        {
+          id: 'category-work',
+          key: 'WORK_DIFFICULTY',
+          name: 'Fasilitas Kerja / Kesulitan Kerja',
+        },
+        { id: 'category-welfare', key: 'WELFARE', name: 'Kesejahteraan' },
+      ]);
 
     // Dashboards
     if (method === 'GET' && path === '/api/v1/dashboard/member') {

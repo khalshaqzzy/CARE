@@ -21,6 +21,12 @@ CARE adalah aplikasi pelaporan suara member (_member voice_) untuk lingkungan en
 
 CARE memakai workforce PWA dan aplikasi Admin React yang terpisah, tetapi keduanya menggunakan satu backend dan generated OpenAPI client yang sama. Backend menjadi satu-satunya akses ke PostgreSQL dan media. Seluruh perubahan lifecycle disimpan sebagai timeline append-only dengan actor dan timestamp. General Voice memakai deterministic server routing dari organization master. Private Voice selalu masuk kepada Union Head dan dapat didelegasikan kepada Union 1 atau Union 2; identitas reporter kepada Union mengikuti consent immutable pada Voice, sedangkan CARE Admin memiliki read-only access ke content dan identitas lengkap.
 
+### 1.1 Amandemen Kategori General Voice Dinamis — 1 September 2026
+
+Amandemen ini menggantikan seluruh referensi lama kepada empat enum kategori dan PIC global di dokumen ini. General Voice memakai katalog kategori database yang berversi, dapat dikelola Admin, dan memiliki stable key. Enam seed awal adalah `SAFETY`, `ENVIRONMENT`, `FACILITY` (nama **Fasilitas Umum**), `FACILITY_REPAIR`, `WORK_DIFFICULTY`, dan `WELFARE`. Admin dapat menambah kategori, mengubah nama/Definition/Examples dan route, serta archive/reactivate tanpa hard delete. Instruction, anti-prompt-injection, severity rubric, tool wrapper, dan output contract tetap immutable di kode; Definition dan Examples hanyalah structured context tambahan berbahasa Indonesia.
+
+Setiap kategori memilih `FIXED_DEPARTMENT` atau `RELATED_REPORTER_DEPARTMENT`. Fixed department menunjuk exact composite organization unit dan memakai route aktif Department Head/default PIC unit tersebut. Related department berarti organization unit reporter. PIC efektif selalu diturunkan dari route department saat submit; perubahan berikutnya tidak memindahkan Voice historis. `GLOBAL_SPECIAL` dan remediation PIC global dipertahankan hanya untuk membaca histori/rollback satu release dan tidak digunakan Voice baru.
+
 V1 memakai arsitektur monolitik single-VM per environment. Staging menyediakan workforce di `https://care.qd-tmmin.site` dan Admin di `https://admin-ped.qd-tmmin.site`; kedua production domain akan ditentukan kemudian. Keputusan v1 tidak menyediakan backup, point-in-time recovery, high availability, atau disaster recovery. Hal tersebut merupakan **Critical Accepted Risk**, bukan kemampuan yang boleh diklaim tersedia.
 
 ---
@@ -347,22 +353,19 @@ Aturan:
 
 ### 9.3 Route dan Account Remediation
 
-Preview wajib menampilkan create/update/deactivate/unchanged, perubahan posisi/unit, missing Department Head, invalid default/global PIC, `Department = 14`, dan status tiga akun Union. Confirm memakai checksum, expected version, idempotency key, dan satu transaction.
+Preview wajib menampilkan create/update/deactivate/unchanged, perubahan posisi/unit, missing Department Head, invalid default PIC atau category route, `Department = 14`, dan status tiga akun Union. Confirm memakai checksum, expected version, idempotency key, dan satu transaction.
 
 Setelah confirm, Admin remediation queue menyediakan minimum action berikut:
 
 - menunjuk karyawan aktif mana pun sebagai default PIC untuk organization unit bernama tanpa Department Head;
-- memilih tepat satu Department Head aktif sebagai PIC global Safety/Environment/Facility;
+- memperbaiki fixed category target atau default PIC department ketika category route tidak sehat;
+- mengelola katalog General Voice: nama, Definition, Examples terurut, route, status, dan revision history;
 - membuat/memperbaiki tepat satu Union Head dan dua Union Officer;
 - mengganti mapping yang invalid karena monthly snapshot dengan audit reason.
 
-Setiap issue route wajib menampilkan nama department yang terdampak; issue PIC global
-menampilkan scope seluruh department. Penyelesaian default PIC dan PIC global hanya
-meminta satu input **No. Reg**. Backend mencari account workforce aktif dari No. Reg,
-memvalidasi eligibility route, dan membuat audit reason sistem; Account ID, expected
-route ID, dan alasan bebas tidak ditampilkan atau diterima dari form remediation.
+Setiap issue route wajib menampilkan nama department atau kategori yang terdampak. Penyelesaian default PIC meminta satu input **No. Reg**. Konfigurasi kategori memilih organization unit melalui pencarian server-side dengan exact division filter. Backend memvalidasi organization unit dan PIC efektif; Account ID tidak dipilih secara khusus per kategori.
 
-Default PIC memperoleh Manager capability hanya pada unit target dan hanya dapat assign Section Head unit target. PIC global hanya dapat assign Section Head department asalnya. Mapping tidak memindahkan ownership Voice yang sudah disubmit.
+Default PIC memperoleh Manager capability hanya pada unit target dan hanya dapat assign Section Head unit target. Assignment kategori selalu memakai Section Head unit route yang benar-benar dipakai. Mapping tidak memindahkan ownership Voice yang sudah disubmit.
 
 ### 9.4 Import Audit dan Raw File
 
@@ -607,19 +610,22 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 - Union Head dapat assign/reassign Union 1 atau Union 2 sebelum `IN_PROGRESS`; Officer hanya memperoleh assigned scope.
 - Consent identity disnapshot saat submit dan menentukan Union DTO; Admin DTO selalu memuat profil reporter lengkap secara read-only.
 
-### 14.2 Safety, Environment, dan Facility
+### 14.2 Route Berbasis Kategori
 
-- Ketiga category route kepada satu PIC global yang sama untuk seluruh area.
-- PIC global wajib merupakan Department Head aktif yang dipilih Admin.
-- Area Temuan dan department reporter tidak memengaruhi owner, tetapi tetap disnapshot untuk context, filter, dan analytics.
-- PIC global hanya dapat assign Section Head pada department asal PIC global.
-
-### 14.3 Work Difficulty
-
-- Route kepada Department Head aktif pada organization unit komposit reporter.
-- Bila unit bernama tidak mempunyai Department Head, route memakai default PIC aktif yang dipilih Admin.
-- Default PIC dapat berasal dari department/division mana pun tetapi memperoleh scoped Manager capability hanya pada unit target dan assign kandidat Section Head unit target.
+- Safety, Environment, dan Fasilitas Umum seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Plant GA & SHE Dept`.
+- Facility Repair seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Smart Plant Facility Mfg Dept`.
+- Fasilitas Kerja / Kesulitan Kerja dan Kesejahteraan seed memakai `RELATED_REPORTER_DEPARTMENT`.
+- Fixed route memilih tepat satu Department Head/default PIC aktif pada organization unit target. Related route memilih route aktif organization unit reporter.
+- Bila exact seed unit belum tersedia, kategori tetap ada, route berstatus gap, dan remediation issue dibuka; sistem tidak menebak unit dari nama parsial.
 - Reporter dengan `Department = 14` tidak mempunyai General route; submission ditolak dan hanya Private yang dapat dibuat.
+
+### 14.3 Versioning dan Histori Kategori
+
+- Stable key immutable dan menjadi nilai filter/dashboard; nama dapat berubah melalui revision baru.
+- Voice menyimpan category ID/key/name snapshot, route mapping, serta route owner pada saat submit.
+- Klasifikasi menyimpan category revision yang dipakai; edit prompt tidak membatalkan klasifikasi lama selama kategori tetap aktif.
+- Archive menghapus kategori dari AI context dan fallback baru. Draft lama ditolak dengan `CATEGORY_CONFIGURATION_CHANGED` dan media/draft dipertahankan.
+- Minimal satu kategori aktif. Tidak ada hard delete terhadap kategori atau revision.
 
 ### 14.4 Route Invariant dan Effective History
 
@@ -868,7 +874,8 @@ tidak mempunyai Voice Saya.
 | UserAccount             | username, password hash, account kind, password-change/legacy state              |
 | AccountCapability       | derived/scoped Member, Manager, Section Head, leadership, atau legacy access     |
 | DepartmentRoute         | structural Department Head atau Admin default PIC mapping dan effective history  |
-| GlobalCategoryRoute     | satu active Department Head owner untuk Safety/Environment/Facility              |
+| GeneralVoiceCategory    | stable key, status, audit metadata, dan relasi revision/route                    |
+| CategoryRevision/Route  | nama/Definition/Examples dan mode/target dengan effective history                |
 | UnionProfile            | Union Head atau Union Officer slot dan active state                              |
 | ImportBatch/ImportIssue | checksum, authoritative diff, issue/remediation, actor, dan resolution audit     |
 | VoiceDraft              | reporter input, identity consent, version, location/classification state, expiry |
@@ -903,7 +910,9 @@ type StructuralCapability =
 type UnionLevel = 'HEAD' | 'OFFICER';
 type VoiceVisibility = 'PRIVATE' | 'GENERAL';
 type PrivateIdentityConsent = 'SHOW' | 'HIDE';
-type RoutingCategory = 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY';
+type GeneralVoiceCategoryStatus = 'ACTIVE' | 'ARCHIVED';
+type GeneralVoiceCategoryRouteMode = 'FIXED_DEPARTMENT' | 'RELATED_REPORTER_DEPARTMENT';
+type GeneralVoiceCategoryKey = string; // immutable, server-managed stable key
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 type VoiceStatus = 'OPEN' | 'IN_VERIFICATION' | 'IN_PROGRESS' | 'CLOSED';
 type HandlerType = 'MANAGER' | 'SECTION_HEAD' | 'UNION_HEAD' | 'UNION_OFFICER';
@@ -1649,7 +1658,7 @@ Minimum journeys:
 - [ ] Leading-zero no.reg dipertahankan dan monthly snapshot menonaktifkan account yang hilang serta mencabut session-nya.
 - [ ] Capability diturunkan dari posisi struktural dan route assignment tanpa menghilangkan capability Member.
 - [ ] Department Head aktif otomatis menjadi Manager; department tanpa Department Head dapat memperoleh default PIC yang ditunjuk Admin.
-- [ ] Tepat satu PIC global aktif melayani Safety, Environment, dan Facility untuk seluruh area.
+- [ ] Enam kategori default aktif, fixed target memakai exact composite unit, dan category route gap muncul sebagai remediation issue.
 - [ ] Tepat satu Union Head dan dua Union Officer dikelola Admin di luar workbook.
 - [ ] Username/password awal dan forced change bekerja untuk setiap account kind; Admin reset mencabut session.
 - [ ] Section Head candidates sepenuhnya read-only dan diturunkan dari snapshot organisasi aktif; tidak ada promote/transfer/remove manual.
@@ -1666,7 +1675,9 @@ Minimum journeys:
 - [ ] Location review otomatis menghasilkan `COMPLETE | INCOMPLETE | UNKNOWN`, warning, dan maksimal tiga pertanyaan saran tanpa memblokir form saat provider gagal.
 - [ ] Review `INCOMPLETE` memerlukan acknowledgment pada snapshot terbaru sebelum submit; perubahan lokasi membatalkan review/acknowledgment lama.
 - [ ] Private selalu menuju Union Head tanpa AI category routing.
-- [ ] Safety, Environment, dan Facility selalu menuju satu PIC global lintas area; Work Difficulty menuju Department Head/default PIC pada composite organization unit reporter.
+- [ ] Safety/Environment/Fasilitas Umum menuju Plant GA & SHE, Facility Repair menuju Smart Plant Facility Mfg, dan Work Difficulty/Kesejahteraan mengikuti department reporter melalui PIC aktif saat submit.
+- [ ] Admin dapat menambah, merevisi, archive/reactivate kategori; Definition/Examples terurut tidak dapat mengubah core prompt/tool wrapper; histori Voice mempertahankan nama dan PIC snapshot.
+- [ ] Department picker melakukan search/pagination dan exact division filter di server; tabel kategori menampilkan department, PIC/No. Reg, health, status, serta revision history.
 - [ ] `Department=14` atau route General yang tidak sah menolak submit tanpa menghilangkan draft dan memberi remediation yang jelas; Private tetap tersedia.
 
 ### 34.3 Privacy dan Authorization
@@ -1833,8 +1844,8 @@ V1 siap production bila:
 - First login/reset memakai username/no.reg sebagai temporary password dan wajib change.
 - Department Head dan Manager interchangeable; Department Head aktif otomatis menjadi Manager department-nya.
 - Department tanpa Department Head dapat memakai default PIC yang dipilih Admin dari karyawan aktif; kandidat assignment tetap Section Head pada department target.
-- Tepat satu PIC global dari Department Head aktif menangani Safety, Environment, dan Facility untuk seluruh area.
-- Work Difficulty route berdasarkan composite `Directorat + Division + Department`; `Department=14` tidak memiliki route General yang sah.
+- Katalog kategori General Voice bersifat database-driven, berversi, archive-only, dan dimulai dengan enam stable key yang ditetapkan pada §1.1.
+- Category route memilih fixed exact department atau related reporter department; PIC efektif berasal dari Department Head/default PIC aktif saat submit. `Department=14` tidak memiliki route General yang sah.
 - Private selalu menuju Union Head; Union Officer hanya menangani assignment-nya.
 - Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
 - General bukan public feed.

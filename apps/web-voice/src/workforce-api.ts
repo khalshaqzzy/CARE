@@ -30,6 +30,7 @@ export type NotificationItem = components['schemas']['NotificationPage']['items'
 export type NotificationPage = components['schemas']['NotificationPage'];
 export type AssignmentCandidate = components['schemas']['AssignmentCandidateList'][number];
 export type MonitoringOptions = components['schemas']['MonitoringOptions'];
+export type GeneralVoiceCategory = components['schemas']['GeneralVoiceCategoryPublic'];
 
 export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
@@ -69,6 +70,8 @@ type DraftPatch = Partial<components['schemas']['VoiceDraftRequest']> & {
 export function createWorkforceApi(transport: CareTransport) {
   const { client } = transport;
   return {
+    generalVoiceCategories: () =>
+      dataOrThrow<GeneralVoiceCategory[]>(client.GET('/api/v1/general-voice-categories')),
     dashboardMember: () => dataOrThrow<MemberDashboard>(client.GET('/api/v1/dashboard/member')),
     dashboardGeneral: (query: QueryInput<DashboardQuery> = {}) =>
       dataOrThrow<DashboardAggregate>(

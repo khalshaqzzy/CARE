@@ -50,7 +50,7 @@ async function seedVoice(overrides: {
       title: 'dashboard voice',
       detail: 'detail',
       severity: overrides.severity ?? Severity.MEDIUM,
-      category: (overrides.category ?? null) as never,
+      categoryKey: overrides.category ?? null,
       anonymousAlias: `R-${seq}`,
       version: 1,
       submittedAt: overrides.submittedAt ?? new Date(),
@@ -140,6 +140,12 @@ describe('Dashboard filters and suppression metadata', () => {
       to: '2026-02-01T00:00:00Z',
     });
     expect(filtered.total).toBe(1);
+    expect(filtered.category).toContainEqual({
+      key: 'SAFETY',
+      name: 'Safety',
+      label: 'Safety',
+      value: 1,
+    });
   });
 
   it('suppresses small department buckets for a scoped actor but not a full actor', async () => {

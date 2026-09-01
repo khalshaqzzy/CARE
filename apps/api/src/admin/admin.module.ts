@@ -3,9 +3,10 @@ import { PrismaService } from '../prisma.service';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AiModule } from '../ai/ai.module';
+import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
-  imports: [AiModule],
+  imports: [AiModule, CategoriesModule],
   controllers: [AdminController],
   providers: [PrismaService, AdminService],
 })

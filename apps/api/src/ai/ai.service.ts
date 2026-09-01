@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import { LocationCompleteness, RoutingCategory, Severity, VoiceVisibility } from '@prisma/client';
+import { LocationCompleteness, Severity, VoiceVisibility } from '@prisma/client';
 import OpenAI from 'openai';
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions';
 import { z } from 'zod';
@@ -14,7 +14,8 @@ import {
 } from './runtime-config.service';
 import {
   CLASSIFICATION_PROMPT_VERSION,
-  CLASSIFICATION_SCHEMA,
+  classificationSchema,
+  DEFAULT_CATEGORY_CONTEXT,
   CLASSIFICATION_SYSTEM_PROMPT,
   CLASSIFICATION_TOOL_DESCRIPTION,
   CLASSIFICATION_TOOL_NAME,
@@ -68,7 +69,7 @@ export function forcedToolChoiceConfig(model: string, effort: ReasoningEffort, t
 
 const classificationOutput = z
   .object({
-    category: z.nativeEnum(RoutingCategory).nullable(),
+    category: z.string().max(80).nullable(),
     severity: z.nativeEnum(Severity),
     confidence: z.number().min(0).max(1),
     rationaleCode: z.enum([
@@ -96,6 +97,13 @@ export type ClassificationInput = {
   area?: string;
   title: string;
   detail: string;
+  categories?: Array<{
+    key: string;
+    name: string;
+    definition: string;
+    examples: string[];
+    revisionId: string;
+  }>;
 };
 
 @Injectable()
@@ -109,13 +117,41 @@ export class AiService {
   ) {}
 
   async classify(input: ClassificationInput) {
+    const categories =
+      input.visibility === VoiceVisibility.GENERAL
+        ? (input.categories ?? [...DEFAULT_CATEGORY_CONTEXT])
+        : [];
+    if (input.visibility === VoiceVisibility.GENERAL && categories.length === 0)
+      return {
+        source: 'MANUAL_FALLBACK' as const,
+        fallbackCode: 'CATEGORY_CONFIGURATION_UNAVAILABLE',
+        latencyMs: 0,
+        errorDetail: null,
+      };
+    const providerInput = {
+      ...input,
+      categories: undefined,
+      ...(input.visibility === VoiceVisibility.GENERAL
+        ? {
+            categoryContext: categories.map((category) => ({
+              key: category.key,
+              name: category.name,
+              definition: category.definition,
+              examples: category.examples,
+            })),
+          }
+        : {}),
+    };
     const response = await this.request(
       'care_classification',
       CLASSIFICATION_TOOL_NAME,
       CLASSIFICATION_TOOL_DESCRIPTION,
-      CLASSIFICATION_SCHEMA,
+      classificationSchema(
+        categories.map((category) => category.key),
+        input.visibility === VoiceVisibility.PRIVATE,
+      ),
       CLASSIFICATION_SYSTEM_PROMPT,
-      input,
+      providerInput,
     );
     if (!response.ok)
       return {
@@ -129,7 +165,11 @@ export class AiService {
       input.visibility === 'PRIVATE'
         ? parsed.success && parsed.data.category !== null
         : parsed.success && parsed.data.category === null;
-    if (!parsed.success || categoryMismatch) {
+    const inactiveCategory =
+      parsed.success &&
+      parsed.data.category !== null &&
+      !categories.some((category) => category.key === parsed.data.category);
+    if (!parsed.success || categoryMismatch || inactiveCategory) {
       this.logger.warn(
         `care_ai_classify invalid_schema schemaFailed=${!parsed.success} categoryMismatch=${categoryMismatch || false} latencyMs=${response.latencyMs}`,
       );

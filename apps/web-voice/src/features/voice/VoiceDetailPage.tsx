@@ -307,7 +307,9 @@ export function VoiceDetailPage() {
             {voice.category ? (
               <div>
                 <dt>Kategori</dt>
-                <dd>{CATEGORY_LABELS[voice.category] ?? voice.category}</dd>
+                <dd>
+                  {voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category}
+                </dd>
               </div>
             ) : null}
             {voice.locationReview ? (

@@ -21,10 +21,12 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
-  SAFETY: 'Keselamatan',
-  ENVIRONMENT: 'Lingkungan',
-  FACILITY: 'Fasilitas',
-  WORK_DIFFICULTY: 'Kesulitan Kerja',
+  SAFETY: 'Safety',
+  ENVIRONMENT: 'Environment',
+  FACILITY: 'Fasilitas Umum',
+  FACILITY_REPAIR: 'Facility Repair',
+  WORK_DIFFICULTY: 'Fasilitas Kerja / Kesulitan Kerja',
+  WELFARE: 'Kesejahteraan',
 };
 
 export const VISIBILITY_LABELS: Record<string, string> = {
