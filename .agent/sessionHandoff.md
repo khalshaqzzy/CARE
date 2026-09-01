@@ -24,7 +24,7 @@ the pinned non-root distroless runtime. Trivy 0.70.0 reports zero High/Critical
 OS and Go-binary findings for both rebuilt images; no scanner exception was
 added. GitHub Advanced Security also identified the Admin API-key value flowing
 through an unkeyed SHA-256 idempotency fingerprint. That fingerprint now uses
-HMAC-SHA-256 keyed by the independent AI configuration encryption key, retaining
+scrypt with the independent AI configuration encryption key as its private salt, retaining
 same-request replay and different-key conflict semantics without persisting the
 credential.
 
