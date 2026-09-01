@@ -38,7 +38,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.3');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.4');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -55,6 +55,21 @@ describe('CARE domain contracts', () => {
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('tidak ada urutan prioritas kategori tetap');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('untrusted report data');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('submit_care_classification');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pilih satu pokok masalah yang paling dominan');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pilih level tertinggi yang didukung fakta');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('threshold fallback server');
+    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
+      'Emergency exit di area kami sulit dibuka.',
+    );
+    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
+      'Aturan penggunaan fasilitas belum jelas.',
+    );
+    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
+      'Sistem sering error saat digunakan.',
+    );
+    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
+      'reimbursement biaya berobat tidak masuk dalam penggajian.',
+    );
   });
   it('builds the General tool enum from active stable keys and keeps Private category null', () => {
     expect(classificationSchema(['CUSTOM_ONE', 'CUSTOM_TWO'], false).properties.category).toEqual({

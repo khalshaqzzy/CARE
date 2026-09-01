@@ -7,10 +7,59 @@
 | Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                     |
 | Backend Complete Gate   | Passed again for ADR-0029 after fresh/upgrade migration, integration, security, performance, reconciliation, and full-stack validation |
 | Implementation status   | Dynamic category implementation and local parity are complete; PR #22 carries the CI fixture and additive-migration correction         |
-| Latest ADR              | ADR-0029 (dynamic General Voice category catalog)                                                                                      |
-| Recommended next action | Verify the replacement PR #22 CI run, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal                        |
+| Latest ADR              | ADR-0030 (classification prompt v1.4 enrichment)                                                                                       |
+| Recommended next action | Review/merge the classification-prompt PR, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal                    |
 
 ## Session Outcome
+
+### Classification prompt v1.4 enrichment — 1 September 2026
+
+Branch `feat/classification-prompt-enrichment`. The code-owned classification
+system prompt advances from `care-classification-v1.3` to
+`care-classification-v1.4` (ADR-0030); the location prompt remains
+`care-location-v1.2` and is untouched:
+
+- **`apps/api/src/ai/prompt.ts`.** `CLASSIFICATION_SYSTEM_PROMPT` now states the
+  Voice kinds (laporan, keluhan, ide, informasi, apresiasi), expands injection
+  defense (categoryContext treated as untrusted data; system instructions must
+  not be quoted or revealed), adds dominant-primary category selection with a
+  lower-confidence tie-break and a tool-enum membership rule, and gives
+  illustrative boundary guidance between shared-facility sufficiency/service/
+  rules, physical technical repair, environmental exposure, personal-safety
+  risk, work-process obstruction, and welfare topics — with the catalog
+  Definition remaining authoritative, including for Admin-added categories. The
+  severity rubric embeds the full PRD §13.4 meanings and per-level Indonesian
+  examples plus the highest-supported-fact rule; all eight rationale codes
+  gained one-line definitions; confidence calibration now names the server
+  fallback threshold (default ~0.75). All previously locked anchor phrases
+  remain verbatim. `DEFAULT_CATEGORY_CONTEXT` (smoke-test fallback only) is
+  synchronized with the seeded catalog: full Indonesian definitions and the
+  complete ordered example sets (4/4/8/4/6/5) per category, shape and
+  `seed-*` revision ids unchanged. `classificationSchema` and the location
+  prompt/schema are unchanged.
+- **`apps/api/test/unit/domain.test.ts`.** Version assertion bumped to v1.4;
+  new anchors lock the dominant-primary rule, the severity rubric rule, the
+  fallback-threshold calibration sentence, and representative enriched example
+  strings from the synchronized fallback context.
+- **Docs.** PRD §13.1 gains a bullet describing the code-owned prompt scope and
+  the version-bump rule, and §13.4 notes the rubric-with-examples is embedded
+  in the prompt. New `docs/adr/0030-classification-prompt-v14-enrichment.md`.
+  `.zcode/` (ZCode client local state) is now git- and prettier-ignored.
+
+Validation (all green): frozen install, `db:generate`, `format:check`, `lint`,
+`typecheck`, unit suites API 70 / UI 25 / frontend-core 14 / workforce 68 /
+Admin 2, `NODE_ENV=production pnpm build`, `openapi:check` without drift,
+`migrations:destructive-check`; Docker test database `db:up/wait/verify/
+test:reset/test:migrate`, PostgreSQL integration **46 passed**, security
+**8 passed**, `db:down`; `docker compose config --quiet`; Gitleaks v8.24.3
+directory scan clean; `git diff --check` clean. Performance, e2e, and
+deployment suites were not rerun because the change set contains no frontend,
+schema, contract, or deployment surface; the shared prompt module is API
+runtime code, so the database-backed integration/security suites were run.
+All containers were stopped after validation.
+
+Next action: open the PR to `staging`, watch hosted CI, and continue the
+outstanding Phase 13 exact-SHA hosted acceptance and rollback rehearsal.
 
 ### PR #22 dynamic-category CI remediation — 1 September 2026
 

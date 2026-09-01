@@ -23,3 +23,6 @@ packages/contracts/src/generated.ts.tmp
 /inference/.env
 __pycache__/
 *.py[cod]
+
+# ZCode client local state
+.zcode/

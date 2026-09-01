@@ -516,6 +516,7 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 - Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Granite kosong memakai full thinking dengan `enable_thinking=true` dan `low_effort=false`.
 - Authentication menggunakan server-only API key. API key/ciphertext tidak boleh masuk repository, dokumentasi, log, response, audit, readiness, metric, OpenAPI example, atau client bundle.
 - Request memakai dua messages, tepat satu named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Named `tool_choice` dipaksa untuk Granite dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
+- Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.4`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, definisi rationaleCode, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Setiap perubahan konten prompt wajib menaikkan versi prompt.
 
 Structured response minimum:
 
@@ -571,7 +572,7 @@ AI tidak memilih user/PIC ID. Backend memetakan category kepada master data seca
 | High     | Dampak signifikan atau potensi risiko terhadap safety, quality, productivity, atau people | Ergonomi menyebabkan sakit, abnormalitas mesin, manpower shortage berulang, blocked walkway, konflik berulang                                                  |
 | Critical | Bahaya segera, serious people/compliance issue, atau potensi dampak bisnis besar          | Near miss berpotensi cedera berat, api/asap/listrik, unsafe machine, harassment/violence/discrimination, chemical spill, major line stop/customer quality risk |
 
-Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emergency response. UI Critical wajib menyarankan reporter menghubungi jalur darurat lokal bila terdapat bahaya langsung; CARE tetap menerima Voice jika reporter melanjutkan.
+Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emergency response. UI Critical wajib menyarankan reporter menghubungi jalur darurat lokal bila terdapat bahaya langsung; CARE tetap menerima Voice jika reporter melanjutkan. Rubrik ini, termasuk contoh per level, tertanam dalam classification system prompt yang code-owned; perubahan konten prompt wajib menaikkan versi prompt.
 
 ### 13.5 Confidence dan Fallback
 
