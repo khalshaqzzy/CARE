@@ -12,6 +12,19 @@
 
 ## Session Outcome
 
+### Hosted Granite provider diagnosis — 1 September 2026
+
+Authenticated workforce General Voice and Admin connection probes reproduced
+`PROVIDER_ERROR`/`MANUAL_FALLBACK` on release `5d742f3`. Tunnel counters showed
+the requests reaching the inference origin without tunnel errors, while SGLang
+received no corresponding Chat Completions request. The staging
+`OPENAI_API_KEY` was therefore resynchronized from the mode-`0600` inference
+environment without printing it. A direct public invocation through the exact
+CARE adapter and the host credential returned valid AI classification and
+location results. Provider latency varied beyond ten seconds, so the env-only
+`OPENAI_TIMEOUT_MS` default and all committed environment examples are now
+30,000 ms, matching the Granite validation contract.
+
 ### Caddy Critical vulnerability remediation — 1 September 2026
 
 PR #21 initially failed only its production-container Trivy gate: the custom

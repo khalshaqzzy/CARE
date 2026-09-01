@@ -55,7 +55,7 @@ async function main() {
     'OPENAI_BASE_URL=',
     'OPENAI_REASONING_EFFORT=',
     'OPENAI_CONFIDENCE_THRESHOLD=0.75',
-    'OPENAI_TIMEOUT_MS=10000',
+    'OPENAI_TIMEOUT_MS=30000',
     'VAPID_SUBJECT=mailto:care-local@example.invalid',
     `VAPID_PUBLIC_KEY=${vapid.publicKey}`,
     `VAPID_PRIVATE_KEY=${vapid.privateKey}`,
