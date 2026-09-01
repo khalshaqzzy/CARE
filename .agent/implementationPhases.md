@@ -685,6 +685,10 @@ Implementation state 28 Agustus 2026:
   classification/location validation and two-origin smoke. Web Push canary is implemented as a manually
   invoked operational profile and is deliberately outside automated tests,
   deployment smoke, and the automatic deploy gate;
+- the PR #21 Caddy container gate remediation upgrades the embedded Go crypto,
+  network, and text modules to their fixed compatible set and moves the local
+  inference gateway runtime to pinned distroless; local Trivy 0.70.0 reports
+  zero High/Critical findings without an exception;
 - hosted GitHub run, exact-SHA origin verification, acceptance-data journeys,
   overlapping-candidate evidence, and forced-failure rollback rehearsal remain
   required. Authenticated Safari operator retest also remains required because

@@ -133,6 +133,20 @@ describe('Admin safety invariants', () => {
     );
     expect(first).toMatchObject({ source: 'ADMIN_OVERRIDE', version: 1, apiKeyConfigured: true });
     expect(JSON.stringify(first)).not.toContain(apiKey);
+    await expect(
+      aiAdminService.updateAiConfiguration(
+        admin,
+        {
+          baseUrl: 'https://inference.example.test/v1',
+          model: 'ibm-granite/granite-4.2-3b',
+          apiKey: 'a-different-provider-secret-for-the-same-idempotency-key',
+          reasoningEffort: '',
+          confidenceThreshold: 0.7,
+          expectedVersion: null,
+        },
+        'admin-ai-create',
+      ),
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
     const stored = await prisma.aiProviderConfiguration.findUniqueOrThrow({
       where: { id: 'openai' },
     });

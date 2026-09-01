@@ -23,6 +23,7 @@ import {
   AiRuntimeConfigService,
   encryptAiSecret,
   environmentAiConfig,
+  fingerprintAiSecret,
 } from '../ai/runtime-config.service';
 
 const routePicBody = z
@@ -107,7 +108,7 @@ export class AdminService {
     const encrypted = encryptAiSecret(effectiveKey);
     const requestHash = canonicalHash({
       ...parsed.data,
-      apiKey: submittedKey ? canonicalHash(submittedKey) : null,
+      apiKey: submittedKey ? fingerprintAiSecret(submittedKey) : null,
     });
 
     return this.executeIdempotent({

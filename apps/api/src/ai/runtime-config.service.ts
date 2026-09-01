@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 
@@ -38,6 +38,10 @@ export function encryptAiSecret(value: string): EncryptedSecret {
     iv: iv.toString('base64url'),
     tag: cipher.getAuthTag().toString('base64url'),
   };
+}
+
+export function fingerprintAiSecret(value: string) {
+  return createHmac('sha256', encryptionKey()).update(value, 'utf8').digest('base64url');
 }
 
 export function decryptAiSecret(secret: EncryptedSecret) {

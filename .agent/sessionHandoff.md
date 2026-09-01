@@ -12,6 +12,28 @@
 
 ## Session Outcome
 
+### Caddy Critical vulnerability remediation — 1 September 2026
+
+PR #21 initially failed only its production-container Trivy gate: the custom
+Caddy binary embedded `golang.org/x/crypto v0.53.0`, which the refreshed Trivy
+database identifies as fixed-version `CVE-2026-56854` Critical. Both CARE Caddy
+and the standalone inference gateway now build Caddy 2.11.4 with
+`x/crypto v0.55.0`, its compatible `x/net v0.57.0` and `x/text v0.41.0`, and
+gRPC 1.82.1. The inference gateway also moved from the stale Alpine runtime to
+the pinned non-root distroless runtime. Trivy 0.70.0 reports zero High/Critical
+OS and Go-binary findings for both rebuilt images; no scanner exception was
+added. GitHub Advanced Security also identified the Admin API-key value flowing
+through an unkeyed SHA-256 idempotency fingerprint. That fingerprint now uses
+HMAC-SHA-256 keyed by the independent AI configuration encryption key, retaining
+same-request replay and different-key conflict semantics without persisting the
+credential.
+
+The patched gateway was rebuilt in place on `dx-2` without restarting the
+SGLang model. The resulting container runs as `65532:65532`, its authenticated
+binary healthcheck is healthy, the model container remains healthy, local and
+public authenticated model-list requests return `200`, and public
+unauthenticated access remains `401`.
+
 ### Local Granite inference and Admin AI configuration — 1 September 2026
 
 Branch `feat/local-inference`. A standalone `/inference` Compose stack now

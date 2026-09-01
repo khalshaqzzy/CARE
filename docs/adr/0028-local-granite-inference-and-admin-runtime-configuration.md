@@ -34,6 +34,7 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - Separating the GPU service prevents model builds, downloads, and tunnel availability from changing CARE release determinism.
 - A loopback-only authenticated gateway keeps SGLang off the host network while allowing the existing tunnel daemon to reach it.
 - AES-GCM provides confidentiality and tamper detection for a credential that must persist across restarts.
+- A keyed HMAC, rather than an unkeyed fast hash, fingerprints a submitted key only for idempotency comparison; ciphertext remains the sole persisted provider credential.
 - Per-invocation resolution avoids process restarts and makes the configured source explicit.
 - Preserving a blank reasoning value is necessary because Granite defaults to thinking while DeepSeek non-thinking requires an explicit disable signal.
 - Provider-specific request construction avoids undocumented sampling interactions on DeepSeek and follows its documented thinking/tool-call restriction without weakening local response validation.
@@ -54,6 +55,7 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - `dx-2` requires manual lifecycle management, GPU capacity monitoring, and tunnel route rollback independent of CARE deploy.
 - Full 32K context and 8K output increase worst-case latency and KV-cache pressure; the bounded CARE prompts normally remain much smaller.
 - The NVIDIA/SGLang image runs as its image-defined root user because CUDA tooling and the persisted Hugging Face cache use `/root`; host exposure remains limited to the dedicated cache and no SGLang port is published.
+- The gateway compiles Caddy with an explicitly patched Go dependency set and runs only that static binary in the pinned non-root distroless runtime; this avoids inheriting stale Alpine packages or an unpatched upstream Caddy binary.
 
 ## Validation
 
@@ -63,6 +65,7 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - Operator validation covers Compose/Caddy syntax, loopback-only publication, unauthorized 401, authenticated model listing, forced classification/location calls, parsed reasoning presence without content logging, latency, GPU memory, and public TLS.
 - Three clean environment scenarios cover Granite with blank effort, DeepSeek with `none`, and DeepSeek with `high`; the original local environment is restored after validation.
 - The staging GitHub environment uses the tunnel base URL, Granite model, matching write-only Bearer credential, blank provider-default reasoning, and an independent 32-byte Base64URL encryption key; secret values remain outside Git and workflow logs.
+- Trivy 0.70.0 image scans report zero High/Critical findings for the patched production Caddy and inference gateway binaries/runtimes, including remediation of `CVE-2026-56854` through `golang.org/x/crypto v0.55.0`; no ignore entry is used.
 
 ## Risks
 

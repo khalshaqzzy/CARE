@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { resetConfigForTests } from '../../src/config';
-import { decryptAiSecret, encryptAiSecret } from '../../src/ai/runtime-config.service';
+import {
+  decryptAiSecret,
+  encryptAiSecret,
+  fingerprintAiSecret,
+} from '../../src/ai/runtime-config.service';
 
 describe('AI runtime configuration encryption', () => {
   const original = process.env.OPENAI_CONFIG_ENCRYPTION_KEY;
@@ -30,5 +34,14 @@ describe('AI runtime configuration encryption', () => {
     expect(() => encryptAiSecret('provider-secret-that-is-long-enough')).toThrow(
       'encryption key is unavailable',
     );
+  });
+
+  it('creates stable keyed fingerprints without storing the API key', () => {
+    process.env.OPENAI_CONFIG_ENCRYPTION_KEY = 'k'.repeat(43);
+    resetConfigForTests();
+    const first = fingerprintAiSecret('provider-api-key-one');
+    expect(first).toBe(fingerprintAiSecret('provider-api-key-one'));
+    expect(first).not.toContain('provider-api-key-one');
+    expect(first).not.toBe(fingerprintAiSecret('provider-api-key-two'));
   });
 });

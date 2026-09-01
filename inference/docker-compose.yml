@@ -59,7 +59,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: gateway
-    image: care-inference/gateway:2.10.2-rootless
+    image: care-inference/gateway:2.11.4-rootless
     depends_on:
       inference:
         condition: service_healthy
@@ -70,9 +70,7 @@ services:
     ports:
       - 127.0.0.1:${GATEWAY_PORT:-30000}:30000
     healthcheck:
-      test:
-        - CMD-SHELL
-        - 'wget -q -O /dev/null --header="Authorization: Bearer $${INFERENCE_API_KEY}" http://127.0.0.1:30000/v1/models'
+      test: [CMD, /usr/bin/healthcheck]
       interval: 10s
       timeout: 5s
       retries: 12
