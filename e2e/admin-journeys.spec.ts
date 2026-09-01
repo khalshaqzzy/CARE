@@ -142,35 +142,33 @@ test.describe('Admin mocked-contract journeys', () => {
       await expect.poll(() => submittedBody).toEqual({ noReg: '000128' });
     });
 
-    test('resolves the global PIC using only No. Reg', async ({ page }) => {
-      await mockAdminApi(page, {
-        remediation: {
-          items: [
-            {
-              id: 'issue-global',
-              type: 'INVALID_GLOBAL_PIC',
-              status: 'OPEN',
-              organizationUnit: null,
-              details: {},
-              createdAt: '2026-08-01T00:00:00.000Z',
-            },
-          ],
-          nextCursor: null,
-        },
-      });
+    test('creates a related-department category with editable context', async ({ page }) => {
+      await mockAdminApi(page);
       await page.setViewportSize({ width: 1280, height: 900 });
       let submittedBody: unknown;
       page.on('request', (request) => {
-        if (request.url().endsWith('/api/v1/admin/routes/global-special-pic'))
+        if (
+          request.method() === 'POST' &&
+          request.url().endsWith('/api/v1/admin/general-voice-categories')
+        )
           submittedBody = request.postDataJSON();
       });
       await page.goto(`${ADMIN}/remediation`);
-      await expect(page.getByText('Seluruh department')).toBeVisible();
-      await page.getByRole('button', { name: 'Tangani' }).click();
-      await expect(page.getByRole('textbox', { name: 'Alasan' })).toHaveCount(0);
-      await page.getByRole('textbox', { name: 'No. Reg' }).fill('000001');
-      await page.getByRole('button', { name: 'Simpan global PIC' }).click();
-      await expect.poll(() => submittedBody).toEqual({ noReg: '000001' });
+      await page.getByRole('button', { name: 'Tambah kategori' }).click();
+      await page.getByLabel('Nama kategori').fill('Kualitas Produk');
+      await page.getByLabel('Definition').fill('Masalah kualitas produk atau proses inspeksi.');
+      await page
+        .getByRole('textbox', { name: 'Example 1', exact: true })
+        .fill('Hasil inspeksi tidak konsisten.');
+      await page.getByRole('button', { name: 'Simpan konfigurasi' }).click();
+      await expect
+        .poll(() => submittedBody)
+        .toEqual({
+          name: 'Kualitas Produk',
+          definition: 'Masalah kualitas produk atau proses inspeksi.',
+          examples: ['Hasil inspeksi tidak konsisten.'],
+          route: { mode: 'RELATED_REPORTER_DEPARTMENT' },
+        });
     });
 
     for (const terminal of ['FAILED', 'CONFIRMED'] as const) {

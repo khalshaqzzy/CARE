@@ -90,8 +90,13 @@ export class OrganizationUnitsController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('division') division?: string,
   ) {
-    return this.service.listOrganizationUnits({ cursor, limit, search });
+    return this.service.listOrganizationUnits({ cursor, limit, search, division });
+  }
+
+  @Get('filters/divisions') divisions(@Query('search') search?: string) {
+    return this.service.listOrganizationDivisions(search);
   }
 
   @Get(':id') detail(@Param('id', ParseUUIDPipe) id: string) {

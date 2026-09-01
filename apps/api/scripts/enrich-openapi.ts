@@ -134,7 +134,9 @@ const queryParameters: Record<string, string[]> = {
   ],
   ImportsController_list: ['cursor', 'limit', 'status'],
   ImportsController_changes: ['cursor', 'limit', 'filter'],
-  OrganizationUnitsController_list: ['cursor', 'limit', 'search'],
+  OrganizationUnitsController_list: ['cursor', 'limit', 'search', 'division'],
+  OrganizationUnitsController_divisions: ['search'],
+  AdminCategoriesController_list: ['status'],
   VoicesController_list: [
     'cursor',
     'limit',
@@ -176,10 +178,12 @@ const idempotentOperations = new Set([
   'AdminController_resetPassword',
   'AdminController_setStatus',
   'AdminController_defaultPic',
-  'AdminController_globalPic',
   'AdminController_unionAccount',
   'AdminController_updateAiConfiguration',
   'AdminController_resetAiConfiguration',
+  'AdminCategoriesController_create',
+  'AdminCategoriesController_update',
+  'AdminCategoriesController_status',
   'ImportsController_confirm',
 ]);
 
@@ -207,6 +211,11 @@ const noBodyOperations = new Set([
   'OrganizationSnapshotsController_current',
   'OrganizationUnitsController_list',
   'OrganizationUnitsController_detail',
+  'OrganizationUnitsController_divisions',
+  'CategoriesController_list',
+  'AdminCategoriesController_list',
+  'AdminCategoriesController_detail',
+  'AdminCategoriesController_history',
 ]);
 
 function addHeader(
@@ -282,7 +291,6 @@ function successSchema(operationId: string) {
     AdminController_auditEvents: 'AuditEventList',
     AdminController_auditDetail: 'AuditEvent',
     AdminController_defaultPic: 'RouteMappingResponse',
-    AdminController_globalPic: 'RouteMappingResponse',
     AdminController_issues: 'RemediationIssueList',
     AdminController_resolutions: 'RemediationResolutionList',
     AdminController_sectionHeads: 'SectionHeadCandidateList',
@@ -297,6 +305,14 @@ function successSchema(operationId: string) {
     OrganizationSnapshotsController_current: 'OrganizationSnapshot',
     OrganizationUnitsController_list: 'OrganizationUnitList',
     OrganizationUnitsController_detail: 'OrganizationUnit',
+    OrganizationUnitsController_divisions: 'StringList',
+    CategoriesController_list: 'GeneralVoiceCategoryPublicList',
+    AdminCategoriesController_list: 'GeneralVoiceCategoryAdminList',
+    AdminCategoriesController_detail: 'GeneralVoiceCategoryAdmin',
+    AdminCategoriesController_history: 'GeneralVoiceCategoryRevisionList',
+    AdminCategoriesController_create: 'GeneralVoiceCategoryAdmin',
+    AdminCategoriesController_update: 'GeneralVoiceCategoryAdmin',
+    AdminCategoriesController_status: 'GeneralVoiceCategoryAdmin',
     AuthController_changePassword: 'SuccessResponse',
     AuthController_logout: 'SuccessResponse',
     ImportsController_changes: 'OrganizationChangeList',
@@ -350,11 +366,13 @@ function requestSchema(operationId: string) {
     VoicesController_assign: 'AssignmentRequest',
     VoicesController_reassign: 'AssignmentRequest',
     AdminController_defaultPic: 'AccountSelectionRequest',
-    AdminController_globalPic: 'AccountSelectionRequest',
     AdminController_unionAccount: 'UnionAccountRequest',
     AdminController_setStatus: 'AccountStatusRequest',
     AdminController_updateAiConfiguration: 'AiConfigurationUpdateRequest',
     AdminController_resetAiConfiguration: 'AiConfigurationResetRequest',
+    AdminCategoriesController_create: 'GeneralVoiceCategoryCreateRequest',
+    AdminCategoriesController_update: 'GeneralVoiceCategoryUpdateRequest',
+    AdminCategoriesController_status: 'GeneralVoiceCategoryStatusRequest',
     ImportsController_confirm: 'ConfirmImportRequest',
     AuthController_login: 'LoginRequest',
     AuthController_changePassword: 'ChangePasswordRequest',
@@ -396,8 +414,8 @@ const baseVoiceProperties = {
   category: {
     type: 'string',
     nullable: true,
-    enum: ['SAFETY', 'ENVIRONMENT', 'FACILITY', 'WORK_DIFFICULTY'],
   },
+  categoryNameSnapshot: { type: 'string', nullable: true },
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
@@ -486,6 +504,96 @@ const sessionBaseSchema = {
 };
 
 const schemas: Record<string, any> = {
+  StringList: { type: 'array', items: { type: 'string' } },
+  GeneralVoiceCategoryPublic: {
+    type: 'object',
+    required: ['id', 'key', 'name'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      key: { type: 'string' },
+      name: { type: 'string' },
+    },
+  },
+  GeneralVoiceCategoryPublicList: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/GeneralVoiceCategoryPublic' },
+  },
+  GeneralVoiceCategoryRouteInput: {
+    type: 'object',
+    required: ['mode'],
+    additionalProperties: false,
+    properties: {
+      mode: { type: 'string', enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'] },
+      organizationUnitId: { type: 'string', format: 'uuid' },
+    },
+  },
+  GeneralVoiceCategoryCreateRequest: {
+    type: 'object',
+    required: ['name', 'definition', 'examples', 'route'],
+    additionalProperties: false,
+    properties: {
+      name: { type: 'string' },
+      definition: { type: 'string' },
+      examples: { type: 'array', items: { type: 'string' } },
+      route: { $ref: '#/components/schemas/GeneralVoiceCategoryRouteInput' },
+    },
+  },
+  GeneralVoiceCategoryUpdateRequest: {
+    allOf: [
+      { $ref: '#/components/schemas/GeneralVoiceCategoryCreateRequest' },
+      {
+        type: 'object',
+        required: ['expectedVersion'],
+        properties: { expectedVersion: { type: 'integer', minimum: 1 } },
+      },
+    ],
+  },
+  GeneralVoiceCategoryStatusRequest: {
+    type: 'object',
+    required: ['status', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  GeneralVoiceCategoryAdmin: {
+    type: 'object',
+    required: [
+      'id',
+      'key',
+      'status',
+      'version',
+      'name',
+      'definition',
+      'examples',
+      'revision',
+      'route',
+      'updatedAt',
+    ],
+    additionalProperties: true,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      key: { type: 'string' },
+      status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+      version: { type: 'integer' },
+      name: { type: 'string' },
+      definition: { type: 'string' },
+      examples: { type: 'array', items: { type: 'string' } },
+      revision: { type: 'integer' },
+      route: { type: 'object', additionalProperties: true },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  GeneralVoiceCategoryAdminList: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/GeneralVoiceCategoryAdmin' },
+  },
+  GeneralVoiceCategoryRevisionList: {
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+  },
   ErrorEnvelope: {
     type: 'object',
     required: ['code', 'message', 'errors', 'correlationId'],
@@ -529,7 +637,11 @@ const schemas: Record<string, any> = {
     type: 'object',
     required: ['severity'],
     additionalProperties: false,
-    properties: { category: baseVoiceProperties.category, severity: baseVoiceProperties.severity },
+    properties: {
+      category: baseVoiceProperties.category,
+      categoryKey: baseVoiceProperties.category,
+      severity: baseVoiceProperties.severity,
+    },
   },
   SubmitVoiceRequest: {
     type: 'object',
@@ -1019,7 +1131,7 @@ const schemas: Record<string, any> = {
       total: { type: 'integer' },
       status: { $ref: '#/components/schemas/AggregateBuckets' },
       severity: { $ref: '#/components/schemas/AggregateBuckets' },
-      category: { $ref: '#/components/schemas/AggregateBuckets' },
+      category: { $ref: '#/components/schemas/CategoryAggregateBuckets' },
       trend: { $ref: '#/components/schemas/AggregateBuckets' },
       division: { $ref: '#/components/schemas/AggregateBuckets' },
       department: { $ref: '#/components/schemas/AggregateBuckets' },
@@ -1074,6 +1186,20 @@ const schemas: Record<string, any> = {
       type: 'object',
       required: ['label', 'value'],
       properties: { label: { type: 'string' }, value: { type: 'integer' } },
+    },
+  },
+  CategoryAggregateBuckets: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['key', 'name', 'label', 'value'],
+      additionalProperties: false,
+      properties: {
+        key: { type: 'string' },
+        name: { type: 'string' },
+        label: { type: 'string' },
+        value: { type: 'integer', minimum: 0 },
+      },
     },
   },
   ClosureCycleResponse: {
@@ -1483,6 +1609,7 @@ const schemas: Record<string, any> = {
         allOf: [{ $ref: '#/components/schemas/RemediationOrganizationUnit' }],
         nullable: true,
       },
+      category: { type: 'object', nullable: true, additionalProperties: true },
       accountId: { type: 'string', format: 'uuid', nullable: true },
       details: { type: 'object', additionalProperties: true },
       createdAt: { type: 'string', format: 'date-time' },
@@ -1777,6 +1904,7 @@ const schemas: Record<string, any> = {
       area: baseVoiceProperties.area,
       title: { type: 'string' },
       category: baseVoiceProperties.category,
+      categoryNameSnapshot: baseVoiceProperties.categoryNameSnapshot,
       severity: baseVoiceProperties.severity,
       status: baseVoiceProperties.status,
       // PIC display name; only present on work-item/general lists for

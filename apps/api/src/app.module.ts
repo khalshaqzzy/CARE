@@ -11,9 +11,18 @@ import { VoicesModule } from './voices/voices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MetricsController } from './metrics.controller';
 import { AiModule } from './ai/ai.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
-  imports: [AuthModule, AiModule, AdminModule, ImportsModule, VoicesModule, NotificationsModule],
+  imports: [
+    AuthModule,
+    CategoriesModule,
+    AiModule,
+    AdminModule,
+    ImportsModule,
+    VoicesModule,
+    NotificationsModule,
+  ],
   controllers: [HealthController, MetricsController],
   providers: [PrismaService, { provide: APP_FILTER, useClass: HttpErrorFilter }],
   exports: [PrismaService],

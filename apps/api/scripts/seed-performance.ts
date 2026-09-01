@@ -123,7 +123,7 @@ async function main() {
             locationDetail: 'Synthetic station',
             title: `Synthetic Voice ${n}`,
             detail: 'Non-sensitive deterministic performance fixture',
-            category: 'WORK_DIFFICULTY' as const,
+            categoryKey: 'WORK_DIFFICULTY',
             severity: Object.values(Severity)[n % 4]!,
             status: Object.values(VoiceStatus)[n % 4]!,
             routeOwnerId: managerId,

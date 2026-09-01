@@ -1,16 +1,36 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                                   |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 1 September 2026                                                                                                                                                                                                        |
-| Current objective       | Operate local Granite inference through the existing Cloudflare tunnel and support encrypted, hot-reloaded AI provider configuration from Admin; Phase 13 remains open for hosted acceptance                            |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                        |
-| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                                   |
-| Implementation status   | Phase 0–12 done; standalone Granite/SGLang inference is live on `dx-2`, Cloudflare route is active, and encrypted Admin AI override is implemented; Phase 13 hosted CARE acceptance is still not claimed                |
-| Latest ADR              | ADR-0028 (local Granite inference and Admin runtime AI configuration)                                                                                                                                                   |
-| Recommended next action | Review and commit this candidate, then continue Phase 13 hosted exact-SHA CARE acceptance, rollback rehearsal, and authenticated current-Safari operator retest; do not fold `/inference` into the CARE release Compose |
+| Atribut                 | Nilai                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 1 September 2026                                                                                                                       |
+| Current objective       | Complete hosted CI and staging acceptance for the dynamic General Voice category release                                               |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                     |
+| Backend Complete Gate   | Passed again for ADR-0029 after fresh/upgrade migration, integration, security, performance, reconciliation, and full-stack validation |
+| Implementation status   | Dynamic category implementation and local parity are complete; PR #22 carries the CI fixture and additive-migration correction         |
+| Latest ADR              | ADR-0029 (dynamic General Voice category catalog)                                                                                      |
+| Recommended next action | Verify the replacement PR #22 CI run, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal                        |
 
 ## Session Outcome
+
+### PR #22 dynamic-category CI remediation — 1 September 2026
+
+The first PR #22 CI run failed for two implementation-specific reasons. The previous-SHA gate treated `ALTER COLUMN ... DROP NOT NULL` as a forbidden one-step migration, and integration fixtures still wrote the removed Prisma `category` property or expected the retired global-PIC workflow. The migration is now fully additive: `ImportIssue.batchId` remains required, and category reconciliation associates new category issues with the latest authoritative import batch. Voice lifecycle and performance fixtures write `categoryKey`; organization routing seeds explicit category configuration and validates related-department routing; dashboard fixtures seed the revision name used by `{key,name,label,value}` category buckets.
+
+OrbStack was started and the exact missing evidence was reproduced locally. Fresh migration applied all six migrations; the exact PR base SHA `69d5a36549d2c074b385a7d98377e18995512b1e` migrated through its five migrations and then current successfully, with `prisma migrate status` reporting up to date. Integration passed 46/46, security 8/8, the 50,000-Voice/10,000-account performance seed and test passed, full-stack Playwright passed 3/3, and maintenance reconciliation reported no storage inconsistency. Format, lint, typecheck, unit, destructive migration check against `staging`, and whitespace also passed.
+
+### Dynamic General Voice category catalog — 1 September 2026
+
+General Voice no longer depends on the four-value application enum for new writes. A revisioned database catalog now seeds Safety, Environment, Fasilitas Umum, Facility Repair, Fasilitas Kerja / Kesulitan Kerja, and Kesejahteraan with the approved Indonesian Definition and ordered Examples. Legacy `FACILITY` data is backfilled to the Fasilitas Umum stable key/name snapshot. Category content and routes have independent effective history; Voice and classification snapshot the category/revision used, while submission resolves the currently effective department route and PIC without moving older Voice.
+
+The three GA/SHE categories and Facility Repair use exact fixed composite organization targets; Work Difficulty and Welfare follow the reporter department. Missing exact targets or PICs create category remediation issues. Global-special mappings are ended for new Voice and old global-PIC issues are superseded, while legacy rows remain readable for rollback. Department 14 remains Private-only.
+
+The AI prompt is version 1.3. Core instructions, injection defense, severity rubric, function wrapper, and output contract remain code-owned. Active Definition/Examples are appended as structured category context and the tool enum is generated from active stable keys; Private always uses `category=null`. Workforce fallback, labels, filters, charts, cards, and detail consume dynamic keys/names. Admin Remediation & Route now includes category create/edit/archive/reactivate, ordered Examples, route mode, server-side organization search and exact division filtering, derived PIC/No. Reg and health, optimistic concurrency, idempotency, audit, and revision history.
+
+OpenAPI and generated contracts, integration fixtures, performance/Admin seeds, PRD, implementation phases, and ADR-0029 were updated. Local Docker-dependent validation could not start because the configured OrbStack Docker socket was unavailable; no container was started and there is nothing to clean up. Phase 13 is therefore reset to pending until migration, integration, security, performance, and full-stack parity is completed.
+
+Static/local evidence for this candidate: `pnpm db:generate`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (API 70, UI 25, frontend-core 14, Admin 2, workforce 68), `pnpm migrations:destructive-check`, deterministic OpenAPI regeneration checksums, `pnpm build`, `pnpm pwa:compat-check`, `pnpm test:frontend:e2e` (151 passed), `pnpm deployment:validate`, `pnpm test:deployment`, `pnpm security:exceptions:check`, `pnpm security:audit`, and `git diff --check` passed. `pnpm audit --audit-level high` reported one Moderate and no High/Critical failure. The deployment harness retained its expected macOS note that real `flock` contention remains a Linux gate and its advisory live-provider smoke used Manual Fallback.
+
+The earlier Docker blocker below is superseded by the PR #22 remediation evidence above; OrbStack became available and the database-dependent suites were completed.
 
 ### Hosted Granite provider diagnosis — 1 September 2026
 

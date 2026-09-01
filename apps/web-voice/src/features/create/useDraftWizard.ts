@@ -13,7 +13,7 @@ import { AREA_LABELS } from '../../lib/formatters';
 
 export type Visibility = 'GENERAL' | 'PRIVATE';
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type Category = 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY';
+export type Category = string;
 
 export type Step = 'visibility' | 'form' | 'processing' | 'fallback' | 'review' | 'submitting';
 
@@ -42,6 +42,11 @@ export function useDraftWizard(draftId?: string) {
   const navigate = useNavigate();
   const sessionId = useSessionId();
   const isEdit = Boolean(draftId);
+  const categoryCatalog = useQuery({
+    queryKey: voiceQuery(sessionId, 'general-voice-categories'),
+    queryFn: () => api.generalVoiceCategories(),
+    enabled: !!session,
+  });
 
   const [step, setStep] = useState<Step>(() => (draftId ? 'form' : 'visibility'));
   const [form, setForm] = useState<DraftForm>(EMPTY_FORM);
@@ -116,7 +121,7 @@ export function useDraftWizard(draftId?: string) {
     mutationFn: async (payload: { category?: Category | null; severity: Severity }) => {
       const id = draft!.id;
       const result = await api.manualClassification(id, {
-        category: payload.category ?? null,
+        categoryKey: payload.category ?? null,
         severity: payload.severity,
       });
       return result;
@@ -323,6 +328,8 @@ export function useDraftWizard(draftId?: string) {
     dirty,
     loaded,
     zoneLabel,
+    categories: categoryCatalog.data ?? [],
+    categoriesLoading: categoryCatalog.isLoading,
     stages,
     saveAndProcess,
     saveOnly,

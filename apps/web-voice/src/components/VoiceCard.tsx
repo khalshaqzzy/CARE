@@ -94,7 +94,7 @@ export function VoiceCard({
           <ValueRow
             icon={<Layers size={15} aria-hidden="true" />}
             label="Kategori:"
-            value={CATEGORY_LABELS[voice.category] ?? voice.category}
+            value={voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category}
             tone="info"
           />
         ) : null}

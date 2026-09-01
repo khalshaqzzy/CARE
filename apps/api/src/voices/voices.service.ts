@@ -9,12 +9,12 @@ import {
   NotificationType,
   Prisma,
   RouteKind,
-  RoutingCategory,
   Severity,
   UnionSlot,
   VoiceEventType,
   VoiceStatus,
   VoiceVisibility,
+  type AIClassification,
 } from '@prisma/client';
 import { z } from 'zod';
 import { AiService } from '../ai/ai.service';
@@ -33,6 +33,7 @@ import {
 } from '../common/errors';
 import { loadConfig } from '../config';
 import { MediaService } from '../media/media.service';
+import { CategoriesService } from '../categories/categories.service';
 import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
@@ -114,7 +115,8 @@ const draftPatchSchema = z
   });
 const manualSchema = z
   .object({
-    category: z.nativeEnum(RoutingCategory).nullable().optional(),
+    category: z.string().trim().max(80).nullable().optional(),
+    categoryKey: z.string().trim().max(80).nullable().optional(),
     severity: z.nativeEnum(Severity),
   })
   .strict();
@@ -163,7 +165,7 @@ const remediationCodes: Record<string, string> = {
 
 type DashboardFilter = {
   area?: string;
-  category?: RoutingCategory;
+  category?: string;
   severity?: Severity;
   status?: VoiceStatus;
   from?: string;
@@ -196,7 +198,14 @@ export class VoicesService {
     @Optional()
     @Inject(AiRuntimeConfigService)
     private readonly aiRuntimeConfig?: AiRuntimeConfigService,
+    @Optional()
+    @Inject(CategoriesService)
+    private readonly categories?: CategoriesService,
   ) {}
+
+  private get categoryCatalog() {
+    return this.categories ?? new CategoriesService(this.prisma);
+  }
 
   async createDraft(actor: AuthActor, input: unknown) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
@@ -215,7 +224,7 @@ export class VoicesService {
     });
   }
   async getDraft(actor: AuthActor, id: string) {
-    return this.ownedDraft(actor, id);
+    return this.publicDraft(await this.ownedDraft(actor, id));
   }
   async listDrafts(actor: AuthActor, query: { limit?: string; cursor?: string }) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
@@ -246,7 +255,7 @@ export class VoicesService {
       hashes.classificationContentHash !== draft.classificationContentHash;
     const locationChanged = hashes.locationContentHash !== draft.locationContentHash;
     const data = { ...patch, ...hashes };
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       if (classificationChanged) await tx.aIClassification.deleteMany({ where: { draftId: id } });
       if (locationChanged) await tx.locationReviewSnapshot.deleteMany({ where: { draftId: id } });
       return tx.voiceDraft.update({
@@ -255,6 +264,7 @@ export class VoicesService {
         include: { classification: true, locationReview: true },
       });
     });
+    return this.publicDraft(updated);
   }
   async deleteDraft(actor: AuthActor, id: string) {
     await this.ownedDraft(actor, id);
@@ -276,21 +286,34 @@ export class VoicesService {
 
   async classify(actor: AuthActor, id: string) {
     const draft = await this.refreshAiHashes(await this.ownedDraft(actor, id));
+    const categories =
+      draft.visibility === VoiceVisibility.GENERAL
+        ? await this.categoryCatalog.activeCatalog()
+        : [];
     const result = await this.ai.classify({
       visibility: draft.visibility,
       area: draft.visibility === VoiceVisibility.GENERAL ? draft.area : undefined,
       title: draft.title,
       detail: draft.detail,
+      categories,
     });
     if (result.source === 'AI') {
-      return this.prisma.aIClassification.upsert({
+      const selected = result.result.category
+        ? categories.find((category) => category.key === result.result.category)
+        : null;
+      const record = await this.prisma.aIClassification.upsert({
         where: { draftId: id },
         create: {
           draftId: id,
           model: result.model,
           promptVersion: result.promptVersion,
           source: ClassificationSource.AI,
-          ...result.result,
+          categoryKey: result.result.category,
+          severity: result.result.severity,
+          confidence: result.result.confidence,
+          rationaleCode: result.result.rationaleCode,
+          categoryId: selected?.id ?? null,
+          categoryRevisionId: selected?.revisionId ?? null,
           contentHash: draft.classificationContentHash,
           responseId: result.responseId,
           latencyMs: result.latencyMs,
@@ -299,13 +322,19 @@ export class VoicesService {
           model: result.model,
           promptVersion: result.promptVersion,
           source: ClassificationSource.AI,
-          ...result.result,
+          categoryKey: result.result.category,
+          severity: result.result.severity,
+          confidence: result.result.confidence,
+          rationaleCode: result.result.rationaleCode,
+          categoryId: selected?.id ?? null,
+          categoryRevisionId: selected?.revisionId ?? null,
           contentHash: draft.classificationContentHash,
           responseId: result.responseId,
           latencyMs: result.latencyMs,
           fallbackCode: null,
         },
       });
+      return this.publicClassification(record);
     }
     return {
       source: ClassificationSource.MANUAL_FALLBACK,
@@ -316,18 +345,22 @@ export class VoicesService {
   async manualClassification(actor: AuthActor, id: string, input: unknown) {
     const draft = await this.refreshAiHashes(await this.ownedDraft(actor, id));
     const data = parse(manualSchema, input);
-    if (draft.visibility === VoiceVisibility.GENERAL && !data.category)
+    const categoryKey = data.categoryKey ?? data.category ?? null;
+    if (draft.visibility === VoiceVisibility.GENERAL && !categoryKey)
       throw badRequest('CATEGORY_REQUIRED', 'General Voice manual fallback requires category');
-    if (draft.visibility === VoiceVisibility.PRIVATE && data.category != null)
+    if (draft.visibility === VoiceVisibility.PRIVATE && categoryKey != null)
       throw badRequest('PRIVATE_CATEGORY_FORBIDDEN', 'Private Voice does not use a category');
-    return this.prisma.aIClassification.upsert({
+    const selected = categoryKey ? await this.categoryCatalog.byKey(categoryKey) : null;
+    const record = await this.prisma.aIClassification.upsert({
       where: { draftId: id },
       create: {
         draftId: id,
         model: 'manual',
         promptVersion: CLASSIFICATION_PROMPT_VERSION,
         source: ClassificationSource.MANUAL_FALLBACK,
-        category: data.category ?? null,
+        categoryKey,
+        categoryId: selected?.id ?? null,
+        categoryRevisionId: selected?.revision.id ?? null,
         severity: data.severity,
         confidence: 1,
         rationaleCode: 'MANUAL',
@@ -337,7 +370,9 @@ export class VoicesService {
       update: {
         model: 'manual',
         source: ClassificationSource.MANUAL_FALLBACK,
-        category: data.category ?? null,
+        categoryKey,
+        categoryId: selected?.id ?? null,
+        categoryRevisionId: selected?.revision.id ?? null,
         severity: data.severity,
         confidence: 1,
         rationaleCode: 'MANUAL',
@@ -345,6 +380,7 @@ export class VoicesService {
         fallbackCode: 'MANUAL_SELECTED',
       },
     });
+    return this.publicClassification(record);
   }
   async reviewLocation(actor: AuthActor, id: string) {
     const draft = await this.refreshAiHashes(await this.ownedDraft(actor, id));
@@ -375,10 +411,21 @@ export class VoicesService {
   async previewDraft(actor: AuthActor, id: string) {
     const draft = await this.ownedDraft(actor, id);
     return {
-      ...draft,
+      ...this.publicDraft(draft),
       routeReadiness: await this.routeReadiness(draft),
       routeTarget: await this.routeTargetLabel(draft),
     };
+  }
+
+  private publicClassification(record: AIClassification | null | undefined) {
+    if (!record) return record;
+    const { categoryKey, categoryLegacy, ...rest } = record;
+    void categoryLegacy;
+    return { ...rest, category: categoryKey };
+  }
+
+  private publicDraft<T extends { classification?: AIClassification | null }>(draft: T) {
+    return { ...draft, classification: this.publicClassification(draft.classification) };
   }
 
   async submit(actor: AuthActor, id: string, input: unknown, key: string) {
@@ -445,7 +492,10 @@ export class VoicesService {
         },
       );
     const classification = draft.classification;
-    const route = await this.resolveRoute(draft, classification.category);
+    const route = await this.resolveRoute(draft, classification.categoryKey);
+    const categoryConfig = classification.categoryKey
+      ? await this.categoryCatalog.byKey(classification.categoryKey)
+      : null;
     const employee = await this.prisma.employee.findUniqueOrThrow({
       where: { id: actor.employeeId! },
     });
@@ -475,7 +525,11 @@ export class VoicesService {
           locationDetail: draft.locationDetail,
           title: draft.title,
           detail: draft.detail,
-          category: draft.visibility === VoiceVisibility.PRIVATE ? null : classification.category,
+          categoryKey:
+            draft.visibility === VoiceVisibility.PRIVATE ? null : classification.categoryKey,
+          categoryId: draft.visibility === VoiceVisibility.PRIVATE ? null : categoryConfig?.id,
+          categoryNameSnapshot:
+            draft.visibility === VoiceVisibility.PRIVATE ? null : categoryConfig?.revision.name,
           severity: classification.severity,
           routeOwnerId: route.ownerAccountId,
           routeMappingId: route.id,
@@ -507,7 +561,7 @@ export class VoicesService {
           actorId: actor.accountId,
           ...this.policy.actorSnapshot(actor),
           type: VoiceEventType.SUBMITTED,
-          payload: { visibility: voice.visibility, category: voice.category },
+          payload: { visibility: voice.visibility, category: voice.categoryKey },
         },
       });
       await tx.voiceDraft.update({ where: { id }, data: { submittedAt: now } });
@@ -546,7 +600,7 @@ export class VoicesService {
       search?: string;
       severity?: Severity;
       area?: string;
-      category?: RoutingCategory;
+      category?: string;
       handler?: string;
       from?: string;
       to?: string;
@@ -567,7 +621,7 @@ export class VoicesService {
     if (query.visibility) and.push({ visibility: query.visibility });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
-    if (query.category) and.push({ category: query.category as RoutingCategory });
+    if (query.category) and.push({ categoryKey: query.category });
     if (query.handler)
       and.push({ OR: [{ routeOwnerId: query.handler }, { currentHandlerId: query.handler }] });
     if (query.search) {
@@ -599,8 +653,12 @@ export class VoicesService {
     const hasNext = items.length > take;
     const rows = hasNext ? items.slice(0, take) : items;
     const data = rows.map((row) => {
-      const { currentHandler, ...rest } = row;
-      return { ...rest, currentHandlerName: currentHandler?.displayName ?? null };
+      const { currentHandler, categoryKey, ...rest } = row;
+      return {
+        ...rest,
+        category: categoryKey,
+        currentHandlerName: currentHandler?.displayName ?? null,
+      };
     });
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     // audit admin private list reads
@@ -622,7 +680,7 @@ export class VoicesService {
       search?: string;
       severity?: Severity;
       area?: string;
-      category?: RoutingCategory;
+      category?: string;
       from?: string;
       to?: string;
       unassigned?: string;
@@ -647,7 +705,7 @@ export class VoicesService {
     else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
-    if (query.category) and.push({ category: query.category as RoutingCategory });
+    if (query.category) and.push({ categoryKey: query.category });
     if (query.handler)
       and.push({ OR: [{ routeOwnerId: query.handler }, { currentHandlerId: query.handler }] });
     if (query.search) {
@@ -680,9 +738,10 @@ export class VoicesService {
     const hasNext = items.length > take;
     const rows = hasNext ? items.slice(0, take) : items;
     const data = rows.map((row) => {
-      const { currentHandler, anonymousAlias, ...rest } = row;
+      const { currentHandler, anonymousAlias, categoryKey, ...rest } = row;
       return {
         ...rest,
+        category: categoryKey,
         currentHandlerName: currentHandler?.displayName ?? null,
         ...(includeAlias && row.visibility === VoiceVisibility.PRIVATE
           ? { reporterAlias: anonymousAlias ?? null }
@@ -1343,8 +1402,7 @@ export class VoicesService {
     if (scope.currentHandlerId)
       conditions.push(Prisma.sql`"currentHandlerId" = ${scope.currentHandlerId}::uuid`);
     if (filter.area) conditions.push(Prisma.sql`"area" = ${filter.area}::"Area"`);
-    if (filter.category)
-      conditions.push(Prisma.sql`"category" = ${filter.category}::"RoutingCategory"`);
+    if (filter.category) conditions.push(Prisma.sql`"categoryKey" = ${filter.category}`);
     if (filter.severity) conditions.push(Prisma.sql`"severity" = ${filter.severity}::"Severity"`);
     if (filter.status) conditions.push(Prisma.sql`"status" = ${filter.status}::"VoiceStatus"`);
     if (filter.from) conditions.push(Prisma.sql`"submittedAt" >= ${new Date(filter.from)}`);
@@ -1352,7 +1410,7 @@ export class VoicesService {
 
     const and: Prisma.VoiceWhereInput[] = [where];
     if (filter.area) and.push({ area: filter.area as never });
-    if (filter.category) and.push({ category: filter.category });
+    if (filter.category) and.push({ categoryKey: filter.category });
     if (filter.severity) and.push({ severity: filter.severity as Severity });
     if (filter.status) and.push({ status: filter.status as VoiceStatus });
     if (filter.from || filter.to) {
@@ -1382,7 +1440,7 @@ export class VoicesService {
         _count: { _all: true },
       }),
       this.prisma.voice.groupBy({
-        by: ['category'],
+        by: ['categoryKey'],
         where: combinedWhere,
         _count: { _all: true },
       }),
@@ -1458,6 +1516,26 @@ export class VoicesService {
         value: item._count._all,
       })),
     );
+    const categoryNames = new Map(
+      (
+        await this.prisma.generalVoiceCategory.findMany({
+          where: {
+            key: {
+              in: categories.flatMap((item) => (item.categoryKey ? [item.categoryKey] : [])),
+            },
+          },
+          select: {
+            key: true,
+            revisions: { where: { effectiveTo: null }, take: 1, select: { name: true } },
+          },
+        })
+      ).map((category) => [category.key, category.revisions[0]?.name ?? category.key]),
+    );
+    const categoryBuckets = categories.map((item) => {
+      const key = item.categoryKey ?? 'NONE';
+      const name = categoryNames.get(key) ?? key;
+      return { key, name, label: name, value: item._count._all };
+    });
     const area = suppress(
       areas.map((item) => ({ label: String(item.area), value: item._count._all })),
     );
@@ -1468,7 +1546,7 @@ export class VoicesService {
       total,
       status: buckets(statuses, 'status'),
       severity: buckets(severities, 'severity'),
-      category: buckets(categories, 'category'),
+      category: categoryBuckets,
       trend: trendRows.map((item) => ({ label: item.label, value: Number(item.value) })),
       division: division.buckets,
       department: department.buckets,
@@ -1715,7 +1793,7 @@ export class VoicesService {
   private async routeReadiness(draft: {
     visibility: VoiceVisibility;
     organizationUnitId: string | null;
-    classification?: { category: RoutingCategory | null } | null;
+    classification?: { categoryKey: string | null } | null;
   }) {
     if (draft.visibility === VoiceVisibility.PRIVATE)
       return {
@@ -1736,7 +1814,7 @@ export class VoicesService {
         remediationCode: 'MANUAL_CLASSIFICATION_REQUIRED',
       };
     try {
-      const route = await this.resolveRoute(draft, draft.classification.category);
+      const route = await this.resolveRoute(draft, draft.classification.categoryKey);
       return { ready: true, targetLabel: routeTargetLabels[route.kind as RouteKind] };
     } catch (error) {
       const code = error instanceof AppError ? error.code : 'GENERAL_ROUTE_UNAVAILABLE';
@@ -1750,12 +1828,12 @@ export class VoicesService {
   private async routeTargetLabel(draft: {
     visibility: VoiceVisibility;
     organizationUnitId: string | null;
-    classification?: { category: RoutingCategory | null } | null;
+    classification?: { categoryKey: string | null } | null;
   }) {
     if (draft.visibility === VoiceVisibility.PRIVATE) return 'Union Head';
     if (!draft.organizationUnitId || !draft.classification) return null;
     try {
-      const route = await this.resolveRoute(draft, draft.classification.category);
+      const route = await this.resolveRoute(draft, draft.classification.categoryKey);
       return routeTargetLabels[route.kind as RouteKind];
     } catch {
       return null;
@@ -1763,7 +1841,7 @@ export class VoicesService {
   }
   private async resolveRoute(
     draft: { visibility: VoiceVisibility; organizationUnitId: string | null },
-    category: RoutingCategory | null,
+    category: string | null,
   ): Promise<{ id: string | null; ownerAccountId: string; kind?: RouteKind }> {
     if (draft.visibility === VoiceVisibility.PRIVATE) {
       const heads = await this.prisma.unionAccountTerm.findMany({
@@ -1787,23 +1865,24 @@ export class VoicesService {
     });
     if (unit.department.trim() === '14')
       throw conflict('GENERAL_ROUTE_FORBIDDEN', 'Department 14 cannot submit General Voice');
-    const special =
-      category === RoutingCategory.SAFETY ||
-      category === RoutingCategory.ENVIRONMENT ||
-      category === RoutingCategory.FACILITY;
+    if (!category)
+      throw conflict('GENERAL_ROUTE_UNAVAILABLE', 'General Voice category is required');
+    const categoryConfig = await this.categoryCatalog.byKey(category);
+    if (!categoryConfig.route)
+      throw conflict('GENERAL_ROUTE_UNAVAILABLE', 'Kategori belum memiliki konfigurasi route');
+    const targetUnitId =
+      categoryConfig.route.mode === 'FIXED_DEPARTMENT'
+        ? categoryConfig.route.organizationUnitId
+        : draft.organizationUnitId;
+    if (!targetUnitId)
+      throw conflict('GENERAL_ROUTE_UNAVAILABLE', 'Department tujuan kategori belum dikonfigurasi');
     const route = await this.prisma.routeMapping.findFirst({
-      where: special
-        ? {
-            kind: RouteKind.GLOBAL_SPECIAL,
-            effectiveTo: null,
-            owner: { status: AccountStatus.ACTIVE },
-          }
-        : {
-            organizationUnitId: draft.organizationUnitId,
-            kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
-            effectiveTo: null,
-            owner: { status: AccountStatus.ACTIVE },
-          },
+      where: {
+        organizationUnitId: targetUnitId,
+        kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
+        effectiveTo: null,
+        owner: { status: AccountStatus.ACTIVE },
+      },
       orderBy: { effectiveFrom: 'desc' },
     });
     if (!route)
@@ -1829,7 +1908,8 @@ export class VoicesService {
       visibility: true,
       area: true,
       title: true,
-      category: true,
+      categoryKey: true,
+      categoryNameSnapshot: true,
       severity: true,
       status: true,
       updatedAt: true,
@@ -1908,7 +1988,8 @@ export class VoicesService {
       locationDetail: voice.locationDetail,
       title: voice.title,
       detail: voice.detail,
-      category: voice.category,
+      category: voice.categoryKey,
+      categoryNameSnapshot: voice.categoryNameSnapshot,
       severity: voice.severity,
       status: voice.status,
       version: voice.version,

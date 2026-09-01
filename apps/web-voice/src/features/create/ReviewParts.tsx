@@ -20,7 +20,7 @@ import type { Attachment } from '../../workforce-api';
 
 type Visibility = 'GENERAL' | 'PRIVATE';
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-type Category = 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY';
+type Category = string;
 type Completeness = 'COMPLETE' | 'INCOMPLETE' | 'UNKNOWN';
 
 function SummaryRow({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {

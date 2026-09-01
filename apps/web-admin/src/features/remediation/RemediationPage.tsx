@@ -29,6 +29,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createAdminApi, type RemediationList } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+import { CategoryConfiguration } from './CategoryConfiguration';
 type Issue = RemediationList['items'][number];
 
 const ISSUE_META: Record<
@@ -69,6 +70,16 @@ const ISSUE_META: Record<
     label: 'Department 14 terdeteksi',
     description: 'Department 14 tidak memiliki General route; member tetap dapat membuat Private.',
     group: 'SOURCE',
+  },
+  CATEGORY_TARGET_UNAVAILABLE: {
+    label: 'Department kategori belum tersedia',
+    description: 'Pilih fixed department pada konfigurasi kategori General Voice.',
+    group: 'DEPARTMENT',
+  },
+  CATEGORY_PIC_UNAVAILABLE: {
+    label: 'PIC kategori belum tersedia',
+    description: 'Department kategori tidak memiliki Department Head atau default PIC aktif.',
+    group: 'DEPARTMENT',
   },
 };
 
@@ -173,20 +184,6 @@ export function RemediationPage() {
     },
   });
 
-  const assignGlobal = useMutation({
-    mutationFn: () => api.setGlobalPic({ noReg: noReg.trim() }, operationKey),
-    onSuccess: () => {
-      setDrawerOpen(false);
-      setNoReg('');
-      void qc.invalidateQueries({
-        queryKey: careQueryKey(session?.sessionId ?? 'anon', 'remediation'),
-      });
-      void qc.invalidateQueries({
-        queryKey: careQueryKey(session?.sessionId ?? 'anon', 'overview'),
-      });
-    },
-  });
-
   return (
     <Stack gap="lg">
       <PageHeader
@@ -202,6 +199,8 @@ export function RemediationPage() {
           </Button>
         }
       />
+
+      <CategoryConfiguration />
 
       <div className="care-grid remediation-stats">
         <StatCard
@@ -280,7 +279,8 @@ export function RemediationPage() {
                   { value: 'MISSING_DEPARTMENT_HEAD', label: 'Department Head belum ada' },
                   { value: 'INVALID_DEFAULT_PIC', label: 'Default PIC tidak valid' },
                   { value: 'ROUTE_UNAVAILABLE', label: 'Route tidak tersedia' },
-                  { value: 'INVALID_GLOBAL_PIC', label: 'PIC global tidak valid' },
+                  { value: 'CATEGORY_TARGET_UNAVAILABLE', label: 'Target kategori belum ada' },
+                  { value: 'CATEGORY_PIC_UNAVAILABLE', label: 'PIC kategori belum ada' },
                   { value: 'UNION_HEAD_MISSING', label: 'Union Head belum ada' },
                   { value: 'UNION_OFFICER_MISSING', label: 'Union Officer belum lengkap' },
                   { value: 'DEPARTMENT_14', label: 'Department 14' },
@@ -477,32 +477,6 @@ export function RemediationPage() {
               {assignDefault.error ? (
                 <Alert tone="danger" title="Gagal">
                   {String((assignDefault.error as Error).message)}
-                </Alert>
-              ) : null}
-            </>
-          ) : null}
-          {selected?.status === 'OPEN' && selected.type === 'INVALID_GLOBAL_PIC' ? (
-            <>
-              <div className="remediation-form-intro">
-                <strong>Tetapkan PIC global</strong>
-                <span>No. Reg harus milik Department Head aktif pada snapshot organisasi.</span>
-              </div>
-              <Input
-                label="No. Reg"
-                value={noReg}
-                onChange={(e) => setNoReg(e.target.value)}
-                placeholder="Contoh: 000128"
-              />
-              <Button
-                onClick={() => assignGlobal.mutate()}
-                loading={assignGlobal.isPending}
-                disabled={!noReg.trim()}
-              >
-                Simpan global PIC
-              </Button>
-              {assignGlobal.error ? (
-                <Alert tone="danger" title="Gagal">
-                  {String((assignGlobal.error as Error).message)}
                 </Alert>
               ) : null}
             </>

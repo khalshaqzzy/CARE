@@ -19,6 +19,7 @@ import {
   FileText,
   ImagePlus,
   Info,
+  HeartHandshake,
   Leaf,
   LoaderCircle,
   MapPin,
@@ -27,6 +28,7 @@ import {
   ShieldCheck,
   Sparkles,
   SquarePen,
+  Tags,
   UserRound,
   Warehouse,
   Wrench,
@@ -53,19 +55,14 @@ const AREA_OPTIONS = [
   { value: 'SUNTER_2', label: 'Sunter 2', icon: <Warehouse size={15} /> },
 ];
 
-const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   SAFETY: <Shield size={20} />,
   ENVIRONMENT: <Leaf size={20} />,
   FACILITY: <Wrench size={20} />,
+  FACILITY_REPAIR: <Wrench size={20} />,
   WORK_DIFFICULTY: <Briefcase size={20} />,
+  WELFARE: <HeartHandshake size={20} />,
 };
-
-const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
-  { value: 'SAFETY', label: 'Keselamatan' },
-  { value: 'ENVIRONMENT', label: 'Lingkungan' },
-  { value: 'FACILITY', label: 'Fasilitas' },
-  { value: 'WORK_DIFFICULTY', label: 'Kesulitan Kerja' },
-];
 
 const SEVERITY_OPTIONS: { value: Severity; label: string; description: string }[] = [
   {
@@ -685,10 +682,10 @@ function FallbackStep({ wizard }: { wizard: Wizard }) {
               className="category-choices"
               value={category ?? undefined}
               onValueChange={(value) => setCategory(value as Category)}
-              options={CATEGORY_OPTIONS.map((opt) => ({
-                value: opt.value,
-                label: opt.label,
-                icon: CATEGORY_ICONS[opt.value],
+              options={wizard.categories.map((opt) => ({
+                value: opt.key,
+                label: opt.name,
+                icon: CATEGORY_ICONS[opt.key] ?? <Tags size={20} />,
               }))}
             />
           </section>

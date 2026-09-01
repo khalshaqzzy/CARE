@@ -4,7 +4,6 @@ import type {
   Area,
   ClassificationSource,
   LocationCompleteness,
-  RoutingCategory,
   Severity,
   UnionSlot,
   VoiceStatus,
@@ -52,7 +51,7 @@ export type SessionResponse = {
 };
 export type ClassificationPreview = {
   source: ClassificationSource;
-  category: RoutingCategory | null;
+  category: string | null;
   severity: Severity;
   confidence: number;
   rationaleCode: string;
@@ -73,7 +72,7 @@ export type VoiceDetailBase = {
   locationDetail: string;
   title: string;
   detail: string;
-  category: RoutingCategory | null;
+  category: string | null;
   severity: Severity;
   status: VoiceStatus;
   version: number;
@@ -132,7 +131,7 @@ export type DashboardAggregate = {
   total: number;
   status: Array<{ label: string; value: number }>;
   severity: Array<{ label: string; value: number }>;
-  category: Array<{ label: string; value: number }>;
+  category: Array<{ key: string; name: string; label: string; value: number }>;
   trend: Array<{ label: string; value: number }>;
   division: Array<{ label: string; value: number }>;
   department: Array<{ label: string; value: number }>;
@@ -168,7 +167,7 @@ export type MemberDashboard = {
     visibility: VoiceVisibility;
     area: Area;
     title: string;
-    category: RoutingCategory | null;
+    category: string | null;
     severity: Severity;
     status: VoiceStatus;
     updatedAt: Date;

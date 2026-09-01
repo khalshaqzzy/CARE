@@ -56,7 +56,9 @@ export function InboxVoiceCard({
   const unassigned = voice.status === 'OPEN' && !handlerName;
   const pic = handlerName ? `PIC: ${handlerName}` : null;
   const area = AREA_LABELS[voice.area] ?? voice.area;
-  const category = voice.category ? (CATEGORY_LABELS[voice.category] ?? voice.category) : null;
+  const category = voice.category
+    ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
+    : null;
   return (
     <button
       type="button"
