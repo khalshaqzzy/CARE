@@ -80,7 +80,7 @@ async function main() {
       OPENAI_API_KEY: 'local-mock-credential-not-a-real-api-key',
       OPENAI_MODEL: 'deepseek-v4-flash',
       OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
-      OPENAI_REASONING_EFFORT: '',
+      OPENAI_REASONING_EFFORT: 'none',
     });
     resetConfigForTests();
     const service = new AiService();

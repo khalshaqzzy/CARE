@@ -1,16 +1,111 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                                                                                                |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 31 Agustus 2026                                                                                                                                                                                                                                      |
-| Current objective       | Open attachment images in an in-page viewer on every workforce surface without changing Admin/backend contracts; Phase 13 remains open for hosted acceptance                                                                                         |
-| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                                                     |
-| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                                                                |
-| Implementation status   | Phase 0–12 done; iOS legacy compatibility is implemented through capability tiers and automated gates; attachment viewing is in-page via the shared Lightbox (ADR-0027); Phase 13 hosted evidence not yet claimed                                    |
-| Latest ADR              | ADR-0027 (in-page attachment viewer)                                                                                                                                                                                                                 |
-| Recommended next action | Lightbox viewer and its iOS Safari reveal fix are on `staging`; retest attachment viewing on a real device, then continue Phase 13 hosted exact-SHA acceptance, provider smoke, rollback rehearsal, and authenticated current-Safari operator retest |
+| Atribut                 | Nilai                                                                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 1 September 2026                                                                                                                                                                                                        |
+| Current objective       | Operate local Granite inference through the existing Cloudflare tunnel and support encrypted, hot-reloaded AI provider configuration from Admin; Phase 13 remains open for hosted acceptance                            |
+| Current phase           | Phase 12 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                                                                        |
+| Backend Complete Gate   | Passed (PRD v1.1); finalized media read correction has no API/schema/migration change                                                                                                                                   |
+| Implementation status   | Phase 0–12 done; standalone Granite/SGLang inference is live on `dx-2`, Cloudflare route is active, and encrypted Admin AI override is implemented; Phase 13 hosted CARE acceptance is still not claimed                |
+| Latest ADR              | ADR-0028 (local Granite inference and Admin runtime AI configuration)                                                                                                                                                   |
+| Recommended next action | Review and commit this candidate, then continue Phase 13 hosted exact-SHA CARE acceptance, rollback rehearsal, and authenticated current-Safari operator retest; do not fold `/inference` into the CARE release Compose |
 
 ## Session Outcome
+
+### Caddy Critical vulnerability remediation — 1 September 2026
+
+PR #21 initially failed only its production-container Trivy gate: the custom
+Caddy binary embedded `golang.org/x/crypto v0.53.0`, which the refreshed Trivy
+database identifies as fixed-version `CVE-2026-56854` Critical. Both CARE Caddy
+and the standalone inference gateway now build Caddy 2.11.4 with
+`x/crypto v0.55.0`, its compatible `x/net v0.57.0` and `x/text v0.41.0`, and
+gRPC 1.82.1. The inference gateway also moved from the stale Alpine runtime to
+the pinned non-root distroless runtime. Trivy 0.70.0 reports zero High/Critical
+OS and Go-binary findings for both rebuilt images; no scanner exception was
+added. GitHub Advanced Security also identified the Admin API-key value flowing
+through an unkeyed SHA-256 idempotency fingerprint. That fingerprint now uses
+scrypt with the independent AI configuration encryption key as its private salt, retaining
+same-request replay and different-key conflict semantics without persisting the
+credential.
+
+The patched gateway was rebuilt in place on `dx-2` without restarting the
+SGLang model. The resulting container runs as `65532:65532`, its authenticated
+binary healthcheck is healthy, the model container remains healthy, local and
+public authenticated model-list requests return `200`, and public
+unauthenticated access remains `401`.
+
+### Local Granite inference and Admin AI configuration — 1 September 2026
+
+Branch `feat/local-inference`. A standalone `/inference` Compose stack now
+serves `ibm-granite/granite-4.2-3b` through SGLang 0.5.18 on `dx-2`. The model
+uses BF16, TP=1, a 32,768-token context, 0.8 static memory fraction, automatic
+reasoning/tool parsers, default CUDA graphs/Radix cache, and no quantization.
+CARE Granite requests cap output at 8,192 new tokens and explicitly keep full
+thinking enabled with `low_effort=false` when reasoning effort is blank.
+
+- SGLang has no published host port. A rootless, read-only Caddy gateway with
+  all capabilities dropped publishes only `127.0.0.1:30000`, validates one
+  Bearer key, and has no rate limiter or request/access logging. The NVIDIA
+  model image remains root as a documented CUDA/cache compatibility exception.
+- The old LFM2.5 experiment is backed up recoverably at
+  `/home/pcsistem/GitHub/CARE/backups/inference-20260901T012318Z`;
+  `care-llm-gate.service` is stopped/disabled, and the Hugging Face cache was
+  retained. The new stack is healthy; Compose updates remain manual, while
+  enabled `care-inference.service` runs `docker compose up -d` at every boot.
+- Docker and `cloudflared.service` are enabled at boot. Both inference
+  containers use `restart: unless-stopped`, and the installed cloudflared
+  systemd drop-in uses `Restart=always` with `RestartSec=5s` and no repeated-
+  failure start limit. This was verified without reboot: all three units were
+  enabled/active, both containers healthy,
+  local/public authenticated model checks returned `200`, and public
+  unauthenticated access returned `401`.
+- Existing Cloudflare tunnel `pad-local-inference-provider`
+  (`9c0cee75-da3c-44d6-ba10-d9d8f20331af`) now has exactly one published
+  application route, `inference.qd-tmmin.site` to
+  `http://localhost:30000`; Cloudflare created the proxied CNAME. Public TLS
+  and unauthenticated `401` are verified.
+- The GitHub `staging` environment now carries the matching Granite base URL,
+  model, and inference Bearer credential. Its provider-default reasoning
+  variable is intentionally absent, and a distinct 32-byte Base64URL
+  `OPENAI_CONFIG_ENCRYPTION_KEY` is provisioned. Secret values were piped
+  directly to GitHub CLI and were not printed or stored in tracked files.
+- First model initialization took 1,245.69 seconds including download and CUDA
+  graph preparation. Warm direct smoke returned one valid classification tool
+  call in 41,846 ms and location call in 20,751 ms with parsed reasoning
+  present but never printed; subsequent CARE-through-tunnel validation was
+  17,960 ms and 5,406 ms under the 30-second timeout. GPU usage was 14,628 MiB.
+- A singleton Admin override stores base URL, model, confidence, reasoning,
+  optimistic version, actor/time, and AES-256-GCM API-key ciphertext/IV/tag.
+  The key is write-only, blank updates preserve it, tampering/missing
+  encryption configuration fails closed, changes apply on the next request,
+  and DELETE restores environment fallback. GET/readiness/audit remain
+  redacted. System Status exposes typed test/save/reset flows with accessible
+  dialogs and conflict/error states.
+- The Chat Completions adapter resolves effective config per invocation.
+  DeepSeek `none` sends `thinking.disabled`; enabled levels map to low/high/max.
+  DeepSeek thinking supports tools but rejects named `tool_choice`, so CARE
+  omits that field only for enabled DeepSeek thinking while retaining one-tool
+  input and exact name/count/JSON/Zod fail-closed validation. Granite keeps
+  named forcing and Granite-only sampling/template fields.
+- Secure `.env.local` matrix passed and restored to DeepSeek `none`: Granite
+  blank/full-thinking classification+location; DeepSeek v4 Flash `none`; and
+  DeepSeek v4 Flash `high`. API keys and reasoning content were never emitted.
+
+Decision record: ADR-0028. Phase 13 remains `in_progress`; this work does not
+claim the outstanding hosted CARE exact-SHA, acceptance-data, or rollback
+evidence.
+
+Validation: frozen install/generate, format, ESLint, TypeScript, 176 recursive
+unit tests (API 67, UI 25, frontend-core 14, workforce 68, Admin 2), production
+build/PWA compatibility, deterministic OpenAPI regeneration, PostgreSQL
+integration 46, security 8, 50,000-Voice performance, reconciliation,
+migration upgrade, full-stack 3, mocked/accessibility/visual/browser 151,
+deployment harness/runtime validation, migration safety, Actionlint,
+ShellCheck, all Dockerfiles through Hadolint, Compose/Python syntax, Gitleaks,
+Trivy filesystem vulnerability/secret/misconfiguration scan, and
+`git diff --check` passed. `pnpm audit --audit-level high` passed with the one
+existing Moderate advisory. Linux-only real `flock` contention and runtime
+CARE image Trivy gates remain hosted CI evidence, not local macOS claims.
 
 ### Workforce in-page attachment viewer (lightbox) — 31 Agustus 2026
 

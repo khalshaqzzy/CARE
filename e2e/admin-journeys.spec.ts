@@ -77,6 +77,49 @@ test.describe('Admin mocked-contract journeys', () => {
       }
     });
 
+    test('saves, tests, and resets AI configuration without echoing the API key', async ({
+      page,
+    }) => {
+      await mockAdminApi(page);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      let submitted: Record<string, unknown> | undefined;
+      page.on('request', (request) => {
+        if (request.method() === 'PUT' && request.url().endsWith('/api/v1/admin/ai-configuration'))
+          submitted = request.postDataJSON() as Record<string, unknown>;
+      });
+      await page.goto(`${ADMIN}/system`);
+      const key = 'browser-only-provider-key-never-echoed';
+      await page.getByLabel('Base URL').fill('https://inference.qd-tmmin.site/v1');
+      await page.getByLabel('Model').fill('ibm-granite/granite-4.2-3b');
+      await page.getByLabel('API key').fill(key);
+      const save = page.getByRole('button', { name: 'Simpan' });
+      await save.click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Aktifkan' }).click();
+      await expect(page.getByText('Konfigurasi AI sudah aktif.')).toBeVisible();
+      await expect
+        .poll(() => submitted)
+        .toMatchObject({
+          baseUrl: 'https://inference.qd-tmmin.site/v1',
+          model: 'ibm-granite/granite-4.2-3b',
+          apiKey: key,
+          expectedVersion: null,
+        });
+      await expect(page.getByText(key)).toHaveCount(0);
+      await expect(page.getByLabel('API key')).toHaveValue('');
+
+      await page.getByRole('button', { name: 'Uji koneksi' }).click();
+      await expect(page.getByText('Uji koneksi berhasil')).toBeVisible();
+
+      const reset = page.getByRole('button', { name: 'Kembali ke environment' });
+      await reset.click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await page.getByRole('button', { name: 'Reset konfigurasi' }).click();
+      await expect(page.getByText('ENVIRONMENT', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Uji koneksi' })).toBeFocused();
+    });
+
     test('resolves a department route using only No. Reg', async ({ page }) => {
       await mockAdminApi(page, {});
       await page.setViewportSize({ width: 1280, height: 900 });

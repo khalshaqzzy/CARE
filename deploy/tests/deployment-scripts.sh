@@ -12,11 +12,11 @@ rendered="${TEST_ROOT}/runtime.env"
 CADDY_EMAIL=operator@care.test POSTGRES_USER=care POSTGRES_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa POSTGRES_DATABASE=care \
 SESSION_HASH_SECRET=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb SESSION_CSRF_SECRET=cccccccccccccccccccccccccccccccc AUTH_THROTTLE_SECRET=dddddddddddddddddddddddddddddddd \
 CURSOR_SIGNING_SECRET=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee METRICS_TOKEN=ffffffffffffffffffffffffffffffff CARE_ADMIN_USERNAME=care-admin CARE_ADMIN_PASSWORD=gggggggggggggggg \
-OPENAI_API_KEY=sk-live-000000000000000000000000 OPENAI_MODEL=care-model OPENAI_BASE_URL=https://api.vendor.test/v1 \
+OPENAI_API_KEY=sk-live-000000000000000000000000 OPENAI_CONFIG_ENCRYPTION_KEY=jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj OPENAI_MODEL=care-model OPENAI_BASE_URL=https://api.vendor.test/v1 \
 VAPID_SUBJECT=mailto:operator@care.test VAPID_PUBLIC_KEY=hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh VAPID_PRIVATE_KEY=iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii \
   "${SCRIPTS}/render-runtime-env.sh" staging aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 42 >"${rendered}"
 chmod 600 "${rendered}"; "${SCRIPTS}/validate-runtime-env.sh" "${rendered}" >/dev/null
-grep -qx 'OPENAI_REASONING_EFFORT=none' "${rendered}" || fail "Default DeepSeek reasoning effort was not rendered"
+grep -qx 'OPENAI_REASONING_EFFORT=' "${rendered}" || fail "Provider-default reasoning effort was not rendered"
 invalid="${TEST_ROOT}/invalid.env"; sed 's/SESSION_HASH_SECRET=.*/UNKNOWN_KEY=bad/' "${rendered}" >"${invalid}"
 if "${SCRIPTS}/validate-runtime-env.sh" "${invalid}" >/dev/null 2>&1; then fail "Unknown env key accepted"; fi
 invalid_effort="${TEST_ROOT}/invalid-effort.env"; sed 's/OPENAI_REASONING_EFFORT=.*/OPENAI_REASONING_EFFORT=extreme/' "${rendered}" >"${invalid_effort}"

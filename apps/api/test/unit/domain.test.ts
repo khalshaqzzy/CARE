@@ -5,7 +5,13 @@ import { CLASSIFICATION_PROMPT_VERSION, CLASSIFICATION_SYSTEM_PROMPT } from '../
 import { ratingError, transitionTarget } from '../../src/voices/policies';
 import { decodeCursor, encodeCursor } from '../../src/common/cursor';
 import { resetConfigForTests } from '../../src/config';
-import { AiService, deepSeekReasoningConfig } from '../../src/ai/ai.service';
+import {
+  AiService,
+  deepSeekReasoningConfig,
+  forcedToolChoiceConfig,
+  providerRequestConfig,
+} from '../../src/ai/ai.service';
+import { GRANITE_MODEL } from '../../src/ai/runtime-config.service';
 
 describe('CARE domain contracts', () => {
   it('uses deterministic canonical request hashes', () => {
@@ -44,6 +50,7 @@ describe('CARE domain contracts', () => {
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('submit_care_classification');
   });
   it.each([
+    ['', {}],
     ['none', { thinking: { type: 'disabled' } }],
     ['minimal', { thinking: { type: 'enabled' }, reasoning_effort: 'low' }],
     ['low', { thinking: { type: 'enabled' }, reasoning_effort: 'low' }],
@@ -57,6 +64,29 @@ describe('CARE domain contracts', () => {
       expect(deepSeekReasoningConfig(effort)).toEqual(expected);
     },
   );
+  it('enables full Granite thinking and provider-specific sampling by default', () => {
+    expect(providerRequestConfig(GRANITE_MODEL, '')).toEqual({
+      chat_template_kwargs: { enable_thinking: true, low_effort: false },
+      temperature: 1,
+      top_p: 0.95,
+      max_tokens: 8192,
+    });
+  });
+  it('keeps Granite sampling fields out of DeepSeek requests', () => {
+    expect(providerRequestConfig('deepseek-v4-flash', 'high')).toEqual({
+      thinking: { type: 'enabled' },
+      reasoning_effort: 'high',
+    });
+  });
+  it('omits named tool choice only for DeepSeek thinking mode', () => {
+    expect(forcedToolChoiceConfig('deepseek-v4-flash', 'high', 'classify')).toEqual({});
+    expect(forcedToolChoiceConfig('deepseek-v4-flash', 'none', 'classify')).toEqual({
+      tool_choice: { type: 'function', function: { name: 'classify' } },
+    });
+    expect(forcedToolChoiceConfig(GRANITE_MODEL, '', 'classify')).toEqual({
+      tool_choice: { type: 'function', function: { name: 'classify' } },
+    });
+  });
   it('requires manual fallback without exposing a missing provider secret', async () => {
     delete process.env.OPENAI_API_KEY;
     resetConfigForTests();

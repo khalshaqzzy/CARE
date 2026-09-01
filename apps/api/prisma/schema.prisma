@@ -49,39 +49,46 @@ enum VoiceVisibility {
   PRIVATE
   GENERAL
 }
+
 enum RoutingCategory {
   SAFETY
   ENVIRONMENT
   FACILITY
   WORK_DIFFICULTY
 }
+
 enum Severity {
   LOW
   MEDIUM
   HIGH
   CRITICAL
 }
+
 enum VoiceStatus {
   OPEN
   IN_VERIFICATION
   IN_PROGRESS
   CLOSED
 }
+
 enum HandlerType {
   MANAGER
   SECTION_HEAD
   UNION_HEAD
   UNION_OFFICER
 }
+
 enum ClassificationSource {
   AI
   MANUAL_FALLBACK
 }
+
 enum AttachmentPurpose {
   VOICE
   CHAT
   CLOSURE_EVIDENCE
 }
+
 enum AttachmentState {
   STAGED
   PROCESSED
@@ -89,6 +96,7 @@ enum AttachmentState {
   READY
   ORPHANED
 }
+
 enum ImportStatus {
   PREVIEWED
   QUEUED
@@ -97,6 +105,7 @@ enum ImportStatus {
   FAILED
   EXPIRED
 }
+
 enum ImportIssueType {
   MISSING_DEPARTMENT_HEAD
   ROUTE_UNAVAILABLE
@@ -106,16 +115,19 @@ enum ImportIssueType {
   UNION_OFFICER_MISSING
   DEPARTMENT_14
 }
+
 enum ImportIssueStatus {
   OPEN
   RESOLVED
   SUPERSEDED
 }
+
 enum LocationCompleteness {
   COMPLETE
   INCOMPLETE
   UNKNOWN
 }
+
 enum VoiceEventType {
   SUBMITTED
   ASKED_REPORTER
@@ -127,12 +139,14 @@ enum VoiceEventType {
   RATED
   REOPENED
 }
+
 enum OutboxStatus {
   PENDING
   PROCESSING
   DELIVERED
   DEAD_LETTER
 }
+
 enum NotificationType {
   VOICE_SUBMITTED
   ASSIGNED
@@ -145,100 +159,119 @@ enum NotificationType {
 }
 
 model Employee {
-  id          String   @id @default(uuid()) @db.Uuid
-  noReg       String   @unique @db.VarChar(64)
-  name        String   @db.VarChar(200)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String                   @id @default(uuid()) @db.Uuid
+  noReg       String                   @unique @db.VarChar(64)
+  name        String                   @db.VarChar(200)
+  active      Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
   account     UserAccount?
   memberships OrganizationMembership[]
 }
 
 model UserAccount {
-  id                     String   @id @default(uuid()) @db.Uuid
-  employeeId             String?  @unique @db.Uuid
-  username               String   @unique @db.VarChar(64)
-  displayName            String   @db.VarChar(200)
-  passwordHash           String
-  accountKind            AccountKind
-  status                 AccountStatus @default(ACTIVE)
-  deactivatedAt          DateTime?
-  passwordChangeRequired Boolean  @default(true)
-  version                Int      @default(1)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  employee               Employee? @relation(fields: [employeeId], references: [id])
-  unionTerms             UnionAccountTerm[]
-  routeMappings          RouteMapping[] @relation("RouteOwner")
-  legacyVoiceAccess      LegacyVoiceAccess[]
-  sessions               Session[]
-  drafts                 VoiceDraft[] @relation("DraftReporter")
-  reportedVoices         Voice[] @relation("VoiceReporter")
-  routedVoices           Voice[] @relation("VoiceRouteOwner")
-  handledVoices          Voice[] @relation("VoiceHandler")
-  messages               Message[]
-  notifications          Notification[]
-  pushSubscriptions      PushSubscription[]
-  auditEvents            AuditEvent[]
-  importBatches          ImportBatch[]
-  assignmentsMade        VoiceAssignment[] @relation("AssignmentActor")
-  assignmentsReceived    VoiceAssignment[] @relation("AssignmentHandler")
-  events                 VoiceEvent[]
-  closureCycles          ClosureCycle[]
-  ratings                Rating[]
+  id                      String                    @id @default(uuid()) @db.Uuid
+  employeeId              String?                   @unique @db.Uuid
+  username                String                    @unique @db.VarChar(64)
+  displayName             String                    @db.VarChar(200)
+  passwordHash            String
+  accountKind             AccountKind
+  status                  AccountStatus             @default(ACTIVE)
+  deactivatedAt           DateTime?
+  passwordChangeRequired  Boolean                   @default(true)
+  version                 Int                       @default(1)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  employee                Employee?                 @relation(fields: [employeeId], references: [id])
+  unionTerms              UnionAccountTerm[]
+  routeMappings           RouteMapping[]            @relation("RouteOwner")
+  legacyVoiceAccess       LegacyVoiceAccess[]
+  sessions                Session[]
+  drafts                  VoiceDraft[]              @relation("DraftReporter")
+  reportedVoices          Voice[]                   @relation("VoiceReporter")
+  routedVoices            Voice[]                   @relation("VoiceRouteOwner")
+  handledVoices           Voice[]                   @relation("VoiceHandler")
+  messages                Message[]
+  notifications           Notification[]
+  pushSubscriptions       PushSubscription[]
+  auditEvents             AuditEvent[]
+  importBatches           ImportBatch[]
+  assignmentsMade         VoiceAssignment[]         @relation("AssignmentActor")
+  assignmentsReceived     VoiceAssignment[]         @relation("AssignmentHandler")
+  events                  VoiceEvent[]
+  closureCycles           ClosureCycle[]
+  ratings                 Rating[]
+  aiConfigurationsUpdated AiProviderConfiguration[]
 
   @@index([accountKind, status])
   @@index([username, displayName])
   @@index([createdAt, id])
 }
 
+model AiProviderConfiguration {
+  id                  String      @id @db.VarChar(40)
+  baseUrl             String
+  model               String      @db.VarChar(200)
+  reasoningEffort     String      @db.VarChar(20)
+  confidenceThreshold Float
+  apiKeyCiphertext    String
+  apiKeyIv            String      @db.VarChar(32)
+  apiKeyTag           String      @db.VarChar(32)
+  version             Int         @default(1)
+  updatedById         String      @db.Uuid
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  updatedBy           UserAccount @relation(fields: [updatedById], references: [id])
+
+  @@index([updatedById])
+}
+
 model Session {
-  id                String   @id @default(uuid()) @db.Uuid
-  accountId         String   @db.Uuid
-  tokenHash         String   @unique @db.Char(64)
-  csrfSecret        String   @db.Char(64)
-  ipHash            String?  @db.Char(64)
-  userAgent         String?  @db.VarChar(300)
-  passwordRestricted Boolean @default(false)
-  lastSeenAt        DateTime @default(now())
-  expiresAt         DateTime
-  absoluteExpiresAt DateTime
-  revokedAt         DateTime?
-  createdAt         DateTime @default(now())
-  account           UserAccount @relation(fields: [accountId], references: [id])
+  id                 String      @id @default(uuid()) @db.Uuid
+  accountId          String      @db.Uuid
+  tokenHash          String      @unique @db.Char(64)
+  csrfSecret         String      @db.Char(64)
+  ipHash             String?     @db.Char(64)
+  userAgent          String?     @db.VarChar(300)
+  passwordRestricted Boolean     @default(false)
+  lastSeenAt         DateTime    @default(now())
+  expiresAt          DateTime
+  absoluteExpiresAt  DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime    @default(now())
+  account            UserAccount @relation(fields: [accountId], references: [id])
 
   @@index([accountId, revokedAt])
   @@index([expiresAt])
 }
 
 model OrganizationSnapshot {
-  id          String                     @id @default(uuid()) @db.Uuid
-  status      OrganizationSnapshotStatus
-  checksum    String                     @db.Char(64)
-  effectiveAt DateTime                   @default(now())
+  id           String                     @id @default(uuid()) @db.Uuid
+  status       OrganizationSnapshotStatus
+  checksum     String                     @db.Char(64)
+  effectiveAt  DateTime                   @default(now())
   supersededAt DateTime?
-  rowCount    Int
-  createdAt   DateTime                   @default(now())
-  memberships OrganizationMembership[]
-  importBatch ImportBatch?
-  voices      Voice[]                    @relation("VoiceOrganizationSnapshot")
-  drafts      VoiceDraft[]               @relation("DraftOrganizationSnapshot")
+  rowCount     Int
+  createdAt    DateTime                   @default(now())
+  memberships  OrganizationMembership[]
+  importBatch  ImportBatch?
+  voices       Voice[]                    @relation("VoiceOrganizationSnapshot")
+  drafts       VoiceDraft[]               @relation("DraftOrganizationSnapshot")
 
   @@index([status, effectiveAt])
 }
 
 model OrganizationUnit {
-  id          String   @id @default(uuid()) @db.Uuid
-  directorate String   @db.VarChar(200)
-  division    String   @db.VarChar(200)
-  department  String   @db.VarChar(200)
-  createdAt   DateTime @default(now())
-  memberships OrganizationMembership[]
+  id            String                   @id @default(uuid()) @db.Uuid
+  directorate   String                   @db.VarChar(200)
+  division      String                   @db.VarChar(200)
+  department    String                   @db.VarChar(200)
+  createdAt     DateTime                 @default(now())
+  memberships   OrganizationMembership[]
   routeMappings RouteMapping[]
-  voices      Voice[]      @relation("VoiceOrganizationUnit")
-  drafts      VoiceDraft[] @relation("DraftOrganizationUnit")
-  importIssues ImportIssue[]
+  voices        Voice[]                  @relation("VoiceOrganizationUnit")
+  drafts        VoiceDraft[]             @relation("DraftOrganizationUnit")
+  importIssues  ImportIssue[]
 
   @@unique([directorate, division, department])
   @@index([division, department])
@@ -246,17 +279,17 @@ model OrganizationUnit {
 }
 
 model OrganizationMembership {
-  id                 String   @id @default(uuid()) @db.Uuid
-  snapshotId         String   @db.Uuid
-  employeeId         String   @db.Uuid
-  organizationUnitId String   @db.Uuid
-  employeeName       String   @db.VarChar(200)
-  structuralPosition String   @db.VarChar(200)
-  section            String   @db.VarChar(200)
-  sourceRow           Int
-  snapshot            OrganizationSnapshot @relation(fields: [snapshotId], references: [id])
-  employee            Employee             @relation(fields: [employeeId], references: [id])
-  organizationUnit    OrganizationUnit     @relation(fields: [organizationUnitId], references: [id])
+  id                 String               @id @default(uuid()) @db.Uuid
+  snapshotId         String               @db.Uuid
+  employeeId         String               @db.Uuid
+  organizationUnitId String               @db.Uuid
+  employeeName       String               @db.VarChar(200)
+  structuralPosition String               @db.VarChar(200)
+  section            String               @db.VarChar(200)
+  sourceRow          Int
+  snapshot           OrganizationSnapshot @relation(fields: [snapshotId], references: [id])
+  employee           Employee             @relation(fields: [employeeId], references: [id])
+  organizationUnit   OrganizationUnit     @relation(fields: [organizationUnitId], references: [id])
 
   @@unique([snapshotId, employeeId])
   @@index([employeeId, snapshotId])
@@ -264,14 +297,14 @@ model OrganizationMembership {
 }
 
 model RouteMapping {
-  id                 String   @id @default(uuid()) @db.Uuid
+  id                 String            @id @default(uuid()) @db.Uuid
   kind               RouteKind
-  organizationUnitId String?  @db.Uuid
-  ownerAccountId     String   @db.Uuid
-  effectiveFrom      DateTime @default(now())
+  organizationUnitId String?           @db.Uuid
+  ownerAccountId     String            @db.Uuid
+  effectiveFrom      DateTime          @default(now())
   effectiveTo        DateTime?
-  createdById        String?  @db.Uuid
-  reason             String?  @db.VarChar(500)
+  createdById        String?           @db.Uuid
+  reason             String?           @db.VarChar(500)
   organizationUnit   OrganizationUnit? @relation(fields: [organizationUnitId], references: [id])
   owner              UserAccount       @relation("RouteOwner", fields: [ownerAccountId], references: [id])
   voices             Voice[]
@@ -282,10 +315,10 @@ model RouteMapping {
 }
 
 model UnionAccountTerm {
-  id            String    @id @default(uuid()) @db.Uuid
-  accountId     String    @db.Uuid
+  id            String      @id @default(uuid()) @db.Uuid
+  accountId     String      @db.Uuid
   slot          UnionSlot
-  effectiveFrom DateTime  @default(now())
+  effectiveFrom DateTime    @default(now())
   effectiveTo   DateTime?
   account       UserAccount @relation(fields: [accountId], references: [id])
 
@@ -294,24 +327,24 @@ model UnionAccountTerm {
 }
 
 model ImportBatch {
-  id          String       @id @default(uuid()) @db.Uuid
-  status      ImportStatus @default(PREVIEWED)
-  checksum    String       @db.Char(64)
-  storageKey  String
-  summary     Json
-  errors      Json
-  baseSnapshotId String?   @db.Uuid
-  snapshotId  String?      @unique @db.Uuid
-  failureCode String?      @db.VarChar(100)
-  version     Int          @default(1)
-  expiresAt   DateTime
-  confirmedAt DateTime?
-  actorId     String       @db.Uuid
-  createdAt   DateTime     @default(now())
-  actor       UserAccount  @relation(fields: [actorId], references: [id])
-  snapshot    OrganizationSnapshot? @relation(fields: [snapshotId], references: [id])
-  issues      ImportIssue[]
-  changes     ImportChange[]
+  id             String                @id @default(uuid()) @db.Uuid
+  status         ImportStatus          @default(PREVIEWED)
+  checksum       String                @db.Char(64)
+  storageKey     String
+  summary        Json
+  errors         Json
+  baseSnapshotId String?               @db.Uuid
+  snapshotId     String?               @unique @db.Uuid
+  failureCode    String?               @db.VarChar(100)
+  version        Int                   @default(1)
+  expiresAt      DateTime
+  confirmedAt    DateTime?
+  actorId        String                @db.Uuid
+  createdAt      DateTime              @default(now())
+  actor          UserAccount           @relation(fields: [actorId], references: [id])
+  snapshot       OrganizationSnapshot? @relation(fields: [snapshotId], references: [id])
+  issues         ImportIssue[]
+  changes        ImportChange[]
 
   @@index([status, expiresAt])
   @@index([createdAt, id])
@@ -332,17 +365,17 @@ model ImportChange {
 }
 
 model ImportIssue {
-  id                 String            @id @default(uuid()) @db.Uuid
-  batchId            String            @db.Uuid
+  id                 String                  @id @default(uuid()) @db.Uuid
+  batchId            String                  @db.Uuid
   type               ImportIssueType
-  status             ImportIssueStatus @default(OPEN)
-  organizationUnitId String?           @db.Uuid
-  accountId          String?           @db.Uuid
+  status             ImportIssueStatus       @default(OPEN)
+  organizationUnitId String?                 @db.Uuid
+  accountId          String?                 @db.Uuid
   details            Json
-  createdAt          DateTime          @default(now())
+  createdAt          DateTime                @default(now())
   resolvedAt         DateTime?
-  batch              ImportBatch       @relation(fields: [batchId], references: [id])
-  organizationUnit   OrganizationUnit? @relation(fields: [organizationUnitId], references: [id])
+  batch              ImportBatch             @relation(fields: [batchId], references: [id])
+  organizationUnit   OrganizationUnit?       @relation(fields: [organizationUnitId], references: [id])
   resolutions        ImportIssueResolution[]
 
   @@index([status, type, createdAt])
@@ -350,13 +383,13 @@ model ImportIssue {
 }
 
 model ImportIssueResolution {
-  id        String   @id @default(uuid()) @db.Uuid
-  issueId   String   @db.Uuid
-  actorId   String   @db.Uuid
-  action    String   @db.VarChar(100)
-  reason    String   @db.VarChar(500)
+  id        String      @id @default(uuid()) @db.Uuid
+  issueId   String      @db.Uuid
+  actorId   String      @db.Uuid
+  action    String      @db.VarChar(100)
+  reason    String      @db.VarChar(500)
   details   Json
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
   issue     ImportIssue @relation(fields: [issueId], references: [id])
 
   @@index([issueId, createdAt])
@@ -386,80 +419,80 @@ model IdempotencyRecord {
 }
 
 model VoiceDraft {
-  id                String          @id @default(uuid()) @db.Uuid
-  reporterId        String          @db.Uuid
-  area              Area
-  locationDetail    String          @db.VarChar(200)
-  title             String          @db.VarChar(150)
-  detail            String          @db.VarChar(5000)
-  visibility        VoiceVisibility
-  organizationSnapshotId String?    @db.Uuid
-  organizationUnitId String?        @db.Uuid
-  showReporterIdentity Boolean?
-  classificationContentHash String  @db.Char(64)
-  locationContentHash String        @db.Char(64)
-  version           Int             @default(1)
-  expiresAt         DateTime
-  submittedAt       DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  reporter          UserAccount     @relation("DraftReporter", fields: [reporterId], references: [id])
-  organizationSnapshot OrganizationSnapshot? @relation("DraftOrganizationSnapshot", fields: [organizationSnapshotId], references: [id])
-  organizationUnit OrganizationUnit? @relation("DraftOrganizationUnit", fields: [organizationUnitId], references: [id])
-  classification    AIClassification?
-  locationReview    LocationReviewSnapshot?
-  attachments       Attachment[]
+  id                        String                  @id @default(uuid()) @db.Uuid
+  reporterId                String                  @db.Uuid
+  area                      Area
+  locationDetail            String                  @db.VarChar(200)
+  title                     String                  @db.VarChar(150)
+  detail                    String                  @db.VarChar(5000)
+  visibility                VoiceVisibility
+  organizationSnapshotId    String?                 @db.Uuid
+  organizationUnitId        String?                 @db.Uuid
+  showReporterIdentity      Boolean?
+  classificationContentHash String                  @db.Char(64)
+  locationContentHash       String                  @db.Char(64)
+  version                   Int                     @default(1)
+  expiresAt                 DateTime
+  submittedAt               DateTime?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  reporter                  UserAccount             @relation("DraftReporter", fields: [reporterId], references: [id])
+  organizationSnapshot      OrganizationSnapshot?   @relation("DraftOrganizationSnapshot", fields: [organizationSnapshotId], references: [id])
+  organizationUnit          OrganizationUnit?       @relation("DraftOrganizationUnit", fields: [organizationUnitId], references: [id])
+  classification            AIClassification?
+  locationReview            LocationReviewSnapshot?
+  attachments               Attachment[]
 
   @@index([reporterId, updatedAt])
   @@index([expiresAt])
 }
 
 model Voice {
-  id                 String          @id @default(uuid()) @db.Uuid
-  displayId          String          @unique @db.VarChar(30)
-  reporterId         String          @db.Uuid
-  visibility         VoiceVisibility
-  area               Area
-  reporterOrganizationSnapshotId String? @db.Uuid
-  reporterOrganizationUnitId String? @db.Uuid
-  reporterNoRegSnapshot String       @db.VarChar(64)
-  reporterNameSnapshot String        @db.VarChar(200)
-  reporterDirectorateSnapshot String? @db.VarChar(200)
-  reporterDivisionSnapshot String    @db.VarChar(200)
-  reporterDepartmentSnapshot String  @db.VarChar(200)
-  reporterSectionSnapshot String?    @db.VarChar(200)
-  reporterPositionSnapshot String?   @db.VarChar(200)
-  showReporterIdentity Boolean?
-  locationDetail     String          @db.VarChar(200)
-  title              String          @db.VarChar(150)
-  detail             String          @db.VarChar(5000)
-  category           RoutingCategory?
-  severity           Severity
-  status             VoiceStatus     @default(OPEN)
-  routeOwnerId       String          @db.Uuid
-  routeMappingId     String?         @db.Uuid
-  currentHandlerId   String?         @db.Uuid
-  handlerType        HandlerType
-  anonymousAlias     String          @db.VarChar(80)
-  locationWarningAcknowledgedAt DateTime?
-  version            Int             @default(1)
-  submittedAt        DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  reporter           UserAccount     @relation("VoiceReporter", fields: [reporterId], references: [id])
-  routeOwner         UserAccount     @relation("VoiceRouteOwner", fields: [routeOwnerId], references: [id])
-  currentHandler     UserAccount?    @relation("VoiceHandler", fields: [currentHandlerId], references: [id])
-  reporterOrganizationSnapshot OrganizationSnapshot? @relation("VoiceOrganizationSnapshot", fields: [reporterOrganizationSnapshotId], references: [id])
-  reporterOrganizationUnit OrganizationUnit? @relation("VoiceOrganizationUnit", fields: [reporterOrganizationUnitId], references: [id])
-  routeMapping       RouteMapping?    @relation(fields: [routeMappingId], references: [id])
-  classification     AIClassification?
-  locationReview     LocationReviewSnapshot?
-  attachments        Attachment[]
-  assignments        VoiceAssignment[]
-  events             VoiceEvent[]
-  conversation       Conversation?
-  closureCycles      ClosureCycle[]
-  notifications      Notification[]
-  legacyAccess       LegacyVoiceAccess[]
+  id                             String                  @id @default(uuid()) @db.Uuid
+  displayId                      String                  @unique @db.VarChar(30)
+  reporterId                     String                  @db.Uuid
+  visibility                     VoiceVisibility
+  area                           Area
+  reporterOrganizationSnapshotId String?                 @db.Uuid
+  reporterOrganizationUnitId     String?                 @db.Uuid
+  reporterNoRegSnapshot          String                  @db.VarChar(64)
+  reporterNameSnapshot           String                  @db.VarChar(200)
+  reporterDirectorateSnapshot    String?                 @db.VarChar(200)
+  reporterDivisionSnapshot       String                  @db.VarChar(200)
+  reporterDepartmentSnapshot     String                  @db.VarChar(200)
+  reporterSectionSnapshot        String?                 @db.VarChar(200)
+  reporterPositionSnapshot       String?                 @db.VarChar(200)
+  showReporterIdentity           Boolean?
+  locationDetail                 String                  @db.VarChar(200)
+  title                          String                  @db.VarChar(150)
+  detail                         String                  @db.VarChar(5000)
+  category                       RoutingCategory?
+  severity                       Severity
+  status                         VoiceStatus             @default(OPEN)
+  routeOwnerId                   String                  @db.Uuid
+  routeMappingId                 String?                 @db.Uuid
+  currentHandlerId               String?                 @db.Uuid
+  handlerType                    HandlerType
+  anonymousAlias                 String                  @db.VarChar(80)
+  locationWarningAcknowledgedAt  DateTime?
+  version                        Int                     @default(1)
+  submittedAt                    DateTime                @default(now())
+  updatedAt                      DateTime                @updatedAt
+  reporter                       UserAccount             @relation("VoiceReporter", fields: [reporterId], references: [id])
+  routeOwner                     UserAccount             @relation("VoiceRouteOwner", fields: [routeOwnerId], references: [id])
+  currentHandler                 UserAccount?            @relation("VoiceHandler", fields: [currentHandlerId], references: [id])
+  reporterOrganizationSnapshot   OrganizationSnapshot?   @relation("VoiceOrganizationSnapshot", fields: [reporterOrganizationSnapshotId], references: [id])
+  reporterOrganizationUnit       OrganizationUnit?       @relation("VoiceOrganizationUnit", fields: [reporterOrganizationUnitId], references: [id])
+  routeMapping                   RouteMapping?           @relation(fields: [routeMappingId], references: [id])
+  classification                 AIClassification?
+  locationReview                 LocationReviewSnapshot?
+  attachments                    Attachment[]
+  assignments                    VoiceAssignment[]
+  events                         VoiceEvent[]
+  conversation                   Conversation?
+  closureCycles                  ClosureCycle[]
+  notifications                  Notification[]
+  legacyAccess                   LegacyVoiceAccess[]
 
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
@@ -477,26 +510,26 @@ model HumanVoiceSequence {
 }
 
 model AIClassification {
-  id            String               @id @default(uuid()) @db.Uuid
-  draftId       String?              @unique @db.Uuid
-  voiceId       String?              @unique @db.Uuid
-  model         String               @db.VarChar(100)
-  promptVersion String               @db.VarChar(40)
-  source        ClassificationSource
-  category      RoutingCategory?
-  severity      Severity
-  confidence    Float
-  rationaleCode String               @db.VarChar(80)
-  contentHash   String               @db.Char(64)
-  responseId    String?              @db.VarChar(200)
-  latencyMs     Int?
-  inputTokens   Int?
-  outputTokens  Int?
-  fallbackCode  String?              @db.VarChar(80)
+  id                     String               @id @default(uuid()) @db.Uuid
+  draftId                String?              @unique @db.Uuid
+  voiceId                String?              @unique @db.Uuid
+  model                  String               @db.VarChar(100)
+  promptVersion          String               @db.VarChar(40)
+  source                 ClassificationSource
+  category               RoutingCategory?
+  severity               Severity
+  confidence             Float
+  rationaleCode          String               @db.VarChar(80)
+  contentHash            String               @db.Char(64)
+  responseId             String?              @db.VarChar(200)
+  latencyMs              Int?
+  inputTokens            Int?
+  outputTokens           Int?
+  fallbackCode           String?              @db.VarChar(80)
   legacyProviderMetadata Json?
-  createdAt     DateTime             @default(now())
-  draft         VoiceDraft?          @relation(fields: [draftId], references: [id])
-  voice         Voice?               @relation(fields: [voiceId], references: [id])
+  createdAt              DateTime             @default(now())
+  draft                  VoiceDraft?          @relation(fields: [draftId], references: [id])
+  voice                  Voice?               @relation(fields: [voiceId], references: [id])
 }
 
 model LocationReviewSnapshot {
@@ -518,26 +551,26 @@ model LocationReviewSnapshot {
 }
 
 model Attachment {
-  id          String            @id @default(uuid()) @db.Uuid
-  draftId     String?           @db.Uuid
-  voiceId     String?           @db.Uuid
-  messageId   String?           @db.Uuid
-  closureId   String?           @db.Uuid
-  uploaderId  String            @db.Uuid
-  purpose     AttachmentPurpose
-  state       AttachmentState   @default(STAGED)
-  storageKey  String            @unique
-  mimeType    String            @db.VarChar(40)
-  size        Int
-  width       Int?
-  height      Int?
-  checksum    String            @db.Char(64)
-  createdAt   DateTime          @default(now())
-  readyAt     DateTime?
-  draft       VoiceDraft?       @relation(fields: [draftId], references: [id])
-  voice       Voice?            @relation(fields: [voiceId], references: [id])
-  message     Message?          @relation(fields: [messageId], references: [id])
-  closure     ClosureCycle?     @relation(fields: [closureId], references: [id])
+  id         String            @id @default(uuid()) @db.Uuid
+  draftId    String?           @db.Uuid
+  voiceId    String?           @db.Uuid
+  messageId  String?           @db.Uuid
+  closureId  String?           @db.Uuid
+  uploaderId String            @db.Uuid
+  purpose    AttachmentPurpose
+  state      AttachmentState   @default(STAGED)
+  storageKey String            @unique
+  mimeType   String            @db.VarChar(40)
+  size       Int
+  width      Int?
+  height     Int?
+  checksum   String            @db.Char(64)
+  createdAt  DateTime          @default(now())
+  readyAt    DateTime?
+  draft      VoiceDraft?       @relation(fields: [draftId], references: [id])
+  voice      Voice?            @relation(fields: [voiceId], references: [id])
+  message    Message?          @relation(fields: [messageId], references: [id])
+  closure    ClosureCycle?     @relation(fields: [closureId], references: [id])
 
   @@index([draftId, state])
   @@index([voiceId, purpose])
@@ -545,71 +578,71 @@ model Attachment {
 }
 
 model VoiceAssignment {
-  id            String      @id @default(uuid()) @db.Uuid
-  voiceId       String      @db.Uuid
-  handlerId     String      @db.Uuid
-  handlerType   HandlerType
-  actorId       String      @db.Uuid
-  assignedAt    DateTime    @default(now())
-  endedAt       DateTime?
-  voice         Voice       @relation(fields: [voiceId], references: [id])
-  handler       UserAccount @relation("AssignmentHandler", fields: [handlerId], references: [id])
-  actor         UserAccount @relation("AssignmentActor", fields: [actorId], references: [id])
+  id          String      @id @default(uuid()) @db.Uuid
+  voiceId     String      @db.Uuid
+  handlerId   String      @db.Uuid
+  handlerType HandlerType
+  actorId     String      @db.Uuid
+  assignedAt  DateTime    @default(now())
+  endedAt     DateTime?
+  voice       Voice       @relation(fields: [voiceId], references: [id])
+  handler     UserAccount @relation("AssignmentHandler", fields: [handlerId], references: [id])
+  actor       UserAccount @relation("AssignmentActor", fields: [actorId], references: [id])
 
   @@index([voiceId, endedAt])
   @@index([handlerId, endedAt])
 }
 
 model VoiceEvent {
-  id           String         @id @default(uuid()) @db.Uuid
-  voiceId      String         @db.Uuid
-  type         VoiceEventType
-  actorId      String         @db.Uuid
-  actorAccountKind AccountKind
-  actorStructuralPosition String? @db.VarChar(200)
-  actorCapabilities Json
-  payload      Json
-  occurredAt   DateTime       @default(now())
-  voice        Voice          @relation(fields: [voiceId], references: [id])
-  actor        UserAccount    @relation(fields: [actorId], references: [id])
+  id                      String         @id @default(uuid()) @db.Uuid
+  voiceId                 String         @db.Uuid
+  type                    VoiceEventType
+  actorId                 String         @db.Uuid
+  actorAccountKind        AccountKind
+  actorStructuralPosition String?        @db.VarChar(200)
+  actorCapabilities       Json
+  payload                 Json
+  occurredAt              DateTime       @default(now())
+  voice                   Voice          @relation(fields: [voiceId], references: [id])
+  actor                   UserAccount    @relation(fields: [actorId], references: [id])
 
   @@index([voiceId, occurredAt, id])
 }
 
 model Conversation {
-  id        String   @id @default(uuid()) @db.Uuid
-  voiceId   String   @unique @db.Uuid
-  createdAt DateTime @default(now())
-  voice     Voice    @relation(fields: [voiceId], references: [id])
+  id        String    @id @default(uuid()) @db.Uuid
+  voiceId   String    @unique @db.Uuid
+  createdAt DateTime  @default(now())
+  voice     Voice     @relation(fields: [voiceId], references: [id])
   messages  Message[]
 }
 
 model Message {
-  id             String       @id @default(uuid()) @db.Uuid
-  conversationId String       @db.Uuid
-  senderId       String       @db.Uuid
-  senderAccountKind AccountKind
-  senderStructuralPosition String? @db.VarChar(200)
-  senderCapabilities Json
-  text           String?      @db.VarChar(4000)
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  sender         UserAccount  @relation(fields: [senderId], references: [id])
-  attachments    Attachment[]
+  id                       String       @id @default(uuid()) @db.Uuid
+  conversationId           String       @db.Uuid
+  senderId                 String       @db.Uuid
+  senderAccountKind        AccountKind
+  senderStructuralPosition String?      @db.VarChar(200)
+  senderCapabilities       Json
+  text                     String?      @db.VarChar(4000)
+  createdAt                DateTime     @default(now())
+  conversation             Conversation @relation(fields: [conversationId], references: [id])
+  sender                   UserAccount  @relation(fields: [senderId], references: [id])
+  attachments              Attachment[]
 
   @@index([conversationId, createdAt, id])
 }
 
 model ClosureCycle {
-  id          String      @id @default(uuid()) @db.Uuid
-  voiceId     String      @db.Uuid
+  id          String       @id @default(uuid()) @db.Uuid
+  voiceId     String       @db.Uuid
   cycleNumber Int
-  actorId     String      @db.Uuid
-  note        String      @db.VarChar(4000)
-  closedAt    DateTime    @default(now())
+  actorId     String       @db.Uuid
+  note        String       @db.VarChar(4000)
+  closedAt    DateTime     @default(now())
   reopenedAt  DateTime?
-  voice       Voice       @relation(fields: [voiceId], references: [id])
-  actor       UserAccount @relation(fields: [actorId], references: [id])
+  voice       Voice        @relation(fields: [voiceId], references: [id])
+  actor       UserAccount  @relation(fields: [actorId], references: [id])
   evidence    Attachment[]
   rating      Rating?
 
@@ -630,37 +663,37 @@ model Rating {
 }
 
 model Notification {
-  id         String           @id @default(uuid()) @db.Uuid
-  recipientId String          @db.Uuid
-  voiceId    String?          @db.Uuid
-  type       NotificationType
-  title      String           @db.VarChar(200)
-  body       String           @db.VarChar(500)
-  deepLink   String?          @db.VarChar(300)
-  readAt     DateTime?
-  createdAt  DateTime         @default(now())
-  recipient  UserAccount      @relation(fields: [recipientId], references: [id])
-  voice      Voice?           @relation(fields: [voiceId], references: [id])
+  id          String           @id @default(uuid()) @db.Uuid
+  recipientId String           @db.Uuid
+  voiceId     String?          @db.Uuid
+  type        NotificationType
+  title       String           @db.VarChar(200)
+  body        String           @db.VarChar(500)
+  deepLink    String?          @db.VarChar(300)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  recipient   UserAccount      @relation(fields: [recipientId], references: [id])
+  voice       Voice?           @relation(fields: [voiceId], references: [id])
 
   @@index([recipientId, readAt, createdAt])
 }
 
 model PushSubscription {
-  id           String      @id @default(uuid()) @db.Uuid
-  accountId    String      @db.Uuid
-  sessionId    String      @db.Uuid
-  installationId String    @db.VarChar(100)
-  endpoint     String
-  endpointHash String      @db.Char(64)
-  p256dh       String
-  auth         String
-  environment  String      @db.VarChar(30)
-  active       Boolean     @default(true)
-  failureCount Int         @default(0)
-  lastSuccessAt DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  account      UserAccount @relation(fields: [accountId], references: [id])
+  id             String      @id @default(uuid()) @db.Uuid
+  accountId      String      @db.Uuid
+  sessionId      String      @db.Uuid
+  installationId String      @db.VarChar(100)
+  endpoint       String
+  endpointHash   String      @db.Char(64)
+  p256dh         String
+  auth           String
+  environment    String      @db.VarChar(30)
+  active         Boolean     @default(true)
+  failureCount   Int         @default(0)
+  lastSuccessAt  DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  account        UserAccount @relation(fields: [accountId], references: [id])
 
   @@unique([accountId, installationId, environment])
   @@unique([endpointHash, environment])
@@ -684,24 +717,24 @@ model OutboxEvent {
 }
 
 model AuditEvent {
-  id            String      @id @default(uuid()) @db.Uuid
-  actorId       String?     @db.Uuid
-  actorAccountKind AccountKind?
-  actorStructuralPosition String? @db.VarChar(200)
-  actorCapabilities Json?
-  action        String      @db.VarChar(100)
-  result        String      @db.VarChar(40)
-  resourceType  String      @db.VarChar(80)
-  resourceId    String?     @db.VarChar(100)
-  summary       Json
-  reason        String?     @db.VarChar(500)
-  correlationId String      @db.VarChar(100)
-  ipHash        String?     @db.Char(64)
-  userAgent     String?     @db.VarChar(300)
-  sessionRef    String?     @db.Char(64)
-  releaseSha    String      @db.VarChar(80)
-  occurredAt    DateTime    @default(now())
-  actor         UserAccount? @relation(fields: [actorId], references: [id])
+  id                      String       @id @default(uuid()) @db.Uuid
+  actorId                 String?      @db.Uuid
+  actorAccountKind        AccountKind?
+  actorStructuralPosition String?      @db.VarChar(200)
+  actorCapabilities       Json?
+  action                  String       @db.VarChar(100)
+  result                  String       @db.VarChar(40)
+  resourceType            String       @db.VarChar(80)
+  resourceId              String?      @db.VarChar(100)
+  summary                 Json
+  reason                  String?      @db.VarChar(500)
+  correlationId           String       @db.VarChar(100)
+  ipHash                  String?      @db.Char(64)
+  userAgent               String?      @db.VarChar(300)
+  sessionRef              String?      @db.Char(64)
+  releaseSha              String       @db.VarChar(80)
+  occurredAt              DateTime     @default(now())
+  actor                   UserAccount? @relation(fields: [actorId], references: [id])
 
   @@index([occurredAt, id])
   @@index([resourceType, resourceId, occurredAt])
@@ -710,14 +743,14 @@ model AuditEvent {
 }
 
 model LegacyVoiceAccess {
-  id          String    @id @default(uuid()) @db.Uuid
-  voiceId     String    @db.Uuid
-  accountId   String    @db.Uuid
-  reason      String    @db.VarChar(100)
-  effectiveFrom DateTime @default(now())
-  effectiveTo DateTime?
-  voice       Voice     @relation(fields: [voiceId], references: [id])
-  account     UserAccount @relation(fields: [accountId], references: [id])
+  id            String      @id @default(uuid()) @db.Uuid
+  voiceId       String      @db.Uuid
+  accountId     String      @db.Uuid
+  reason        String      @db.VarChar(100)
+  effectiveFrom DateTime    @default(now())
+  effectiveTo   DateTime?
+  voice         Voice       @relation(fields: [voiceId], references: [id])
+  account       UserAccount @relation(fields: [accountId], references: [id])
 
   @@unique([voiceId, accountId])
   @@index([accountId, effectiveTo])

@@ -19,40 +19,41 @@ Stop the database with `pnpm db:down`. Tests use the disposable `care_test` data
 
 ## Security configuration
 
-Run `pnpm setup:local` once to create an ignored root `.env` with generated secrets and environment-specific VAPID keys. DeepSeek base URL, model, and API key remain represented by the existing `OPENAI_*` names and are intentionally empty. The command refuses to overwrite existing setup files. It also creates an ignored synthetic `organization.xlsx`, Admin remediation data, and a mode-0600 `LOCAL_CREDENTIALS.txt`. Never commit API keys, VAPID private keys, session secrets, bootstrap passwords, or actual workforce imports.
+Run `pnpm setup:local` once to create an ignored root `.env` with generated secrets, an AES-256-GCM AI configuration key, and environment-specific VAPID keys. Provider base URL, model, and API key remain represented by the existing `OPENAI_*` names and are intentionally empty. The command refuses to overwrite existing setup files. It also creates an ignored synthetic `organization.xlsx`, Admin remediation data, and a mode-0600 `LOCAL_CREDENTIALS.txt`. Never commit API keys, encryption keys, VAPID private keys, session secrets, bootstrap passwords, or actual workforce imports.
 
-| Variable                      | Purpose                                                    | Secret |
-| ----------------------------- | ---------------------------------------------------------- | ------ |
-| `NODE_ENV`                    | Runtime policy: development, test, staging, or production. | No     |
-| `PORT`                        | Host API listen port.                                      | No     |
-| `DATABASE_URL`                | Connection to Docker PostgreSQL for local/test runtime.    | Yes    |
-| `MEDIA_ROOT`                  | Private media/import storage root.                         | No     |
-| `RELEASE_SHA`                 | Immutable release identity.                                | No     |
-| `SESSION_COOKIE_NAME`         | Opaque session cookie name.                                | No     |
-| `SESSION_HASH_SECRET`         | HMAC key for opaque session tokens.                        | Yes    |
-| `SESSION_CSRF_SECRET`         | HMAC key for session-bound CSRF tokens.                    | Yes    |
-| `AUTH_THROTTLE_SECRET`        | HMAC key for account/IP throttle identifiers.              | Yes    |
-| `CURSOR_SIGNING_SECRET`       | HMAC key for opaque pagination cursors.                    | Yes    |
-| `SESSION_IDLE_HOURS`          | Sliding idle expiry.                                       | No     |
-| `SESSION_ABSOLUTE_DAYS`       | Absolute session expiry.                                   | No     |
-| `OPENAI_API_KEY`              | Server-only DeepSeek API key.                              | Yes    |
-| `OPENAI_MODEL`                | DeepSeek model; target is `deepseek-v4-flash`.             | No     |
-| `OPENAI_BASE_URL`             | DeepSeek API root; target is `https://api.deepseek.com`.   | No     |
-| `OPENAI_REASONING_EFFORT`     | CARE reasoning setting; blank defaults to `none`.          | No     |
-| `OPENAI_CONFIDENCE_THRESHOLD` | AI-to-manual-fallback boundary.                            | No     |
-| `OPENAI_TIMEOUT_MS`           | Timeout for each provider attempt.                         | No     |
-| `VAPID_SUBJECT`               | Web Push operator contact subject.                         | No     |
-| `VAPID_PUBLIC_KEY`            | Environment-specific public Web Push key.                  | No     |
-| `VAPID_PRIVATE_KEY`           | Environment-specific private Web Push key.                 | Yes    |
-| `PUSH_ENDPOINT_HOSTS`         | Exact allowlist of accepted push service hosts.            | No     |
-| `METRICS_TOKEN`               | Bearer secret protecting `/metrics`.                       | Yes    |
-| `OUTBOX_ENABLED`              | Enables in-process outbox delivery.                        | No     |
-| `CARE_ADMIN_USERNAME`         | Bootstrap CLI Admin username.                              | Yes    |
-| `CARE_ADMIN_PASSWORD`         | Bootstrap CLI initial password.                            | Yes    |
+| Variable                       | Purpose                                                         | Secret |
+| ------------------------------ | --------------------------------------------------------------- | ------ |
+| `NODE_ENV`                     | Runtime policy: development, test, staging, or production.      | No     |
+| `PORT`                         | Host API listen port.                                           | No     |
+| `DATABASE_URL`                 | Connection to Docker PostgreSQL for local/test runtime.         | Yes    |
+| `MEDIA_ROOT`                   | Private media/import storage root.                              | No     |
+| `RELEASE_SHA`                  | Immutable release identity.                                     | No     |
+| `SESSION_COOKIE_NAME`          | Opaque session cookie name.                                     | No     |
+| `SESSION_HASH_SECRET`          | HMAC key for opaque session tokens.                             | Yes    |
+| `SESSION_CSRF_SECRET`          | HMAC key for session-bound CSRF tokens.                         | Yes    |
+| `AUTH_THROTTLE_SECRET`         | HMAC key for account/IP throttle identifiers.                   | Yes    |
+| `CURSOR_SIGNING_SECRET`        | HMAC key for opaque pagination cursors.                         | Yes    |
+| `SESSION_IDLE_HOURS`           | Sliding idle expiry.                                            | No     |
+| `SESSION_ABSOLUTE_DAYS`        | Absolute session expiry.                                        | No     |
+| `OPENAI_API_KEY`               | Server-only DeepSeek API key.                                   | Yes    |
+| `OPENAI_CONFIG_ENCRYPTION_KEY` | 32-byte base64url key for Admin AI override encryption.         | Yes    |
+| `OPENAI_MODEL`                 | DeepSeek model; target is `deepseek-v4-flash`.                  | No     |
+| `OPENAI_BASE_URL`              | DeepSeek API root; target is `https://api.deepseek.com`.        | No     |
+| `OPENAI_REASONING_EFFORT`      | Blank = provider default; use `none` for DeepSeek non-thinking. | No     |
+| `OPENAI_CONFIDENCE_THRESHOLD`  | AI-to-manual-fallback boundary.                                 | No     |
+| `OPENAI_TIMEOUT_MS`            | Timeout for each provider attempt.                              | No     |
+| `VAPID_SUBJECT`                | Web Push operator contact subject.                              | No     |
+| `VAPID_PUBLIC_KEY`             | Environment-specific public Web Push key.                       | No     |
+| `VAPID_PRIVATE_KEY`            | Environment-specific private Web Push key.                      | Yes    |
+| `PUSH_ENDPOINT_HOSTS`          | Exact allowlist of accepted push service hosts.                 | No     |
+| `METRICS_TOKEN`                | Bearer secret protecting `/metrics`.                            | Yes    |
+| `OUTBOX_ENABLED`               | Enables in-process outbox delivery.                             | No     |
+| `CARE_ADMIN_USERNAME`          | Bootstrap CLI Admin username.                                   | Yes    |
+| `CARE_ADMIN_PASSWORD`          | Bootstrap CLI initial password.                                 | Yes    |
 
 The initial Admin is created idempotently with `CARE_ADMIN_USERNAME`, `CARE_ADMIN_PASSWORD`, and `pnpm bootstrap:admin`. Generate each environment's Web Push credentials with either `pnpm vapid:generate -- --stdout` for a controlled operator terminal or `pnpm vapid:generate -- --output /secure/operator/path`; the CLI refuses to overwrite a file. Place the values directly in the environment secret store.
 
-AI tests never require a real API key. `pnpm test:openai:smoke` is retained for compatibility and starts a local mock `/chat/completions` server. It validates DeepSeek non-thinking mode, forced named function calls, local schema validation, and the minimized request envelope. Real provider credentials are used only for an explicitly configured staging/production runtime validation.
+AI tests never require a real API key. `pnpm test:openai:smoke` starts a local mock `/chat/completions` server. Runtime values come from a single encrypted Admin override when present, otherwise environment; timeout remains env-only. Blank reasoning sends no DeepSeek thinking fields and enables full Granite thinking. `none` sends DeepSeek `thinking.disabled`, while `high` sends `thinking.enabled` plus high effort. DeepSeek thinking rejects named `tool_choice`, so CARE omits that field only in enabled DeepSeek thinking mode while retaining the single-tool request and exact name/count/schema fail-closed validation. The independent Granite operator stack is documented in `inference/README.md` and is not part of CARE deployment Compose.
 
 ## API behavior
 

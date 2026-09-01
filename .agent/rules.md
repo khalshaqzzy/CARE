@@ -156,7 +156,9 @@ pnpm security:exceptions:check
 pnpm security:audit
 docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
 docker run --rm -v "$PWD:/repo" -w /repo koalaman/shellcheck-alpine:v0.11.0@sha256:9955be09ea7f0dbf7ae942ac1f2094355bb30d96fffba0ec09f5432207544002 shellcheck deploy/scripts/*.sh deploy/tests/*.sh
-for file in apps/api/Dockerfile apps/web-voice/Dockerfile apps/web-admin/Dockerfile deploy/postgres/Dockerfile deploy/caddy/Dockerfile; do docker run --rm -i hadolint/hadolint:v2.14.0-alpine@sha256:7aba693c1442eb31c0b015c129697cb3b6cb7da589d85c7562f9deb435a6657c < "$file"; done
+for file in apps/api/Dockerfile apps/web-voice/Dockerfile apps/web-admin/Dockerfile deploy/postgres/Dockerfile deploy/caddy/Dockerfile inference/Dockerfile; do docker run --rm -i hadolint/hadolint:v2.14.0-alpine@sha256:7aba693c1442eb31c0b015c129697cb3b6cb7da589d85c7562f9deb435a6657c < "$file"; done
+INFERENCE_API_KEY=ci-validation-key-not-a-secret docker compose -f inference/docker-compose.yml config --quiet
+python3 -m py_compile inference/scripts/live_smoke.py
 find deploy -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 docker run --rm -v "$PWD:/repo:ro" ubuntu:22.04@sha256:0e0a0fc6d18feda9db1590da249ac93e8d5abfea8f4c3c0c849ce512b5ef8982 bash /repo/deploy/scripts/bootstrap-vm.sh --check staging care-deploy "<valid-test-public-key>" 22
 fresh and previous-SHA-to-current `prisma migrate deploy` plus `prisma migrate status`

@@ -506,13 +506,13 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 
 ### 13.1 Model Contract
 
-- Protocol: DeepSeek OpenAI-compatible Chat Completions API, endpoint `/chat/completions`.
+- Protocol: OpenAI-compatible Chat Completions API, endpoint `/chat/completions`, untuk DeepSeek maupun local Granite.
 - SDK: official `openai` JavaScript/TypeScript package dengan `chat.completions.create`.
-- Base URL, model, dan API key tidak memiliki non-test production default dan akan diberikan melalui runtime environment.
-- Runtime config: `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, dan `OPENAI_CONFIDENCE_THRESHOLD`.
-- Prompt version, reasoning effort, timeout, dan confidence threshold berasal dari runtime/config; reasoning effort kosong memakai default `none`, default threshold tetap `0.75`, dan timeout maksimum per attempt tetap 10 detik sampai product config menggantinya.
-- Authentication menggunakan server-only API key dari runtime environment. API key tidak boleh masuk repository, dokumentasi, log, response, metric, atau client bundle.
-- Request memakai dua messages, satu forced named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
+- Base URL, model, API key, reasoning effort, dan confidence threshold memakai singleton Admin override bila tersedia dan environment sebagai bootstrap/fallback. Perubahan Admin aktif untuk request berikutnya tanpa restart; timeout tetap env-only.
+- Admin override menyimpan API key dengan AES-256-GCM menggunakan `OPENAI_CONFIG_ENCRYPTION_KEY`, optimistic version, actor, dan waktu update. Kegagalan dekripsi fail-closed dan tidak boleh fallback diam-diam ke key environment.
+- Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Granite kosong memakai full thinking dengan `enable_thinking=true` dan `low_effort=false`.
+- Authentication menggunakan server-only API key. API key/ciphertext tidak boleh masuk repository, dokumentasi, log, response, audit, readiness, metric, OpenAPI example, atau client bundle.
+- Request memakai dua messages, tepat satu named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Named `tool_choice` dipaksa untuk Granite dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
 
 Structured response minimum:
 
@@ -1660,7 +1660,7 @@ Minimum journeys:
 - [ ] Form dimulai dengan pilihan Private Voice atau General Voice dan photo limits tervalidasi frontend/backend.
 - [ ] Private mewajibkan pilihan `Tampilkan nama = Ya/Tidak`; snapshot consent dan profil yang boleh ditampilkan immutable setelah submit.
 - [ ] Preview menampilkan seluruh field, severity, category bila General, visibility, source classification, dan warning lokasi terbaru.
-- [ ] Official OpenAI JavaScript SDK memakai `chat.completions.create`, `/chat/completions`, DeepSeek `thinking.disabled` untuk effort `none`, forced named functions, payload tereduksi, dan function arguments tervalidasi lokal.
+- [ ] Official OpenAI JavaScript SDK memakai `chat.completions.create`, `/chat/completions`, DeepSeek `thinking.disabled` untuk effort `none`, named tool choice ketika didukung provider, exact-one-tool fail-closed validation, payload tereduksi, dan function arguments tervalidasi lokal.
 - [ ] General menghasilkan category termasuk `ENVIRONMENT` dan severity; Private menghasilkan severity dengan category `null`.
 - [ ] Tidak ada category priority tetap; low confidence, ambiguity, refusal, incomplete response, timeout, atau invalid schema masuk Manual Fallback yang sesuai jenis Voice.
 - [ ] Location review otomatis menghasilkan `COMPLETE | INCOMPLETE | UNKNOWN`, warning, dan maksimal tiga pertanyaan saran tanpa memblokir form saat provider gagal.
@@ -1839,7 +1839,7 @@ V1 siap production bila:
 - Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
 - General bukan public feed.
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
-- AI memakai official OpenAI JavaScript SDK untuk DeepSeek Chat Completions melalui configurable `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, dan `OPENAI_REASONING_EFFORT`; target model/base URL adalah `deepseek-v4-flash`/`https://api.deepseek.com`, base URL/model/key tidak memiliki production default, dan reasoning effort kosong default ke `none`.
+- AI memakai official OpenAI JavaScript SDK untuk OpenAI-compatible Chat Completions. DeepSeek `deepseek-v4-flash` dan local `ibm-granite/granite-4.2-3b` didukung; reasoning kosong adalah provider default, sedangkan DeepSeek non-thinking memakai `none` eksplisit. Admin dapat mengaktifkan encrypted runtime override tanpa restart, dengan environment sebagai fallback.
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.

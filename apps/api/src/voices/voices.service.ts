@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 import {
   AccountStatus,
   AttachmentPurpose,
@@ -18,6 +18,7 @@ import {
 } from '@prisma/client';
 import { z } from 'zod';
 import { AiService } from '../ai/ai.service';
+import { AiRuntimeConfigService, environmentAiConfig } from '../ai/runtime-config.service';
 import { CLASSIFICATION_PROMPT_VERSION, LOCATION_PROMPT_VERSION } from '../ai/prompt';
 import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
@@ -192,13 +193,16 @@ export class VoicesService {
     @Inject(AiService) private readonly ai: AiService,
     @Inject(MediaService) private readonly media: MediaService,
     @Inject(PolicyService) private readonly policy: PolicyService,
+    @Optional()
+    @Inject(AiRuntimeConfigService)
+    private readonly aiRuntimeConfig?: AiRuntimeConfigService,
   ) {}
 
   async createDraft(actor: AuthActor, input: unknown) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
     const data = parse(draftSchema, input);
     const organization = await this.currentOrganization(actor);
-    const hashes = this.hashes(data);
+    const hashes = await this.hashes(data);
     return this.prisma.voiceDraft.create({
       data: {
         reporterId: actor.accountId,
@@ -237,7 +241,7 @@ export class VoicesService {
       throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
     const { visibility, area, locationDetail, title, detail } = { ...draft, ...patch };
     const merged = { visibility, area, locationDetail, title, detail };
-    const hashes = this.hashes(merged);
+    const hashes = await this.hashes(merged);
     const classificationChanged =
       hashes.classificationContentHash !== draft.classificationContentHash;
     const locationChanged = hashes.locationContentHash !== draft.locationContentHash;
@@ -396,7 +400,7 @@ export class VoicesService {
     const draft = await this.ownedDraft(actor, id);
     if (draft.version !== body.version)
       throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
-    const currentHashes = this.hashes(draft);
+    const currentHashes = await this.hashes(draft);
     if (
       currentHashes.classificationContentHash !== draft.classificationContentHash ||
       currentHashes.locationContentHash !== draft.locationContentHash
@@ -1643,14 +1647,17 @@ export class VoicesService {
     if (!draft) throw forbiddenAsNotFound();
     return draft;
   }
-  private hashes(data: {
+  private async hashes(data: {
     visibility: VoiceVisibility;
     area: string;
     locationDetail: string;
     title: string;
     detail: string;
   }) {
-    const model = loadConfig().OPENAI_MODEL || 'manual-fallback';
+    const effective = this.aiRuntimeConfig
+      ? await this.aiRuntimeConfig.effective()
+      : environmentAiConfig();
+    const model = effective.model || 'manual-fallback';
     return {
       classificationContentHash: canonicalHash({
         visibility: data.visibility,
@@ -1671,7 +1678,7 @@ export class VoicesService {
   private async refreshAiHashes<T extends Awaited<ReturnType<VoicesService['ownedDraft']>>>(
     draft: T,
   ): Promise<T> {
-    const hashes = this.hashes(draft);
+    const hashes = await this.hashes(draft);
     const classificationChanged =
       hashes.classificationContentHash !== draft.classificationContentHash;
     const locationChanged = hashes.locationContentHash !== draft.locationContentHash;

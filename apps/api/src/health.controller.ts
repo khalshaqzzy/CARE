@@ -4,11 +4,15 @@ import { access, constants, mkdir } from 'node:fs/promises';
 import { loadConfig, redactedConfig } from './config';
 import { PrismaService } from './prisma.service';
 import { Public } from './auth/auth.decorators';
+import { AiRuntimeConfigService } from './ai/runtime-config.service';
 
 @ApiTags('operability')
 @Controller()
 export class HealthController {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AiRuntimeConfigService) private readonly aiRuntimeConfig: AiRuntimeConfigService,
+  ) {}
 
   @Public()
   @Get('health')
@@ -59,19 +63,27 @@ export class HealthController {
     } catch {
       checks.storage = 'failed';
     }
+    let openai = { configured: false, model: null as string | null, reasoningEffort: '' };
+    try {
+      const effective = await this.aiRuntimeConfig.safeEffective();
+      openai = {
+        configured: effective.apiKeyConfigured && Boolean(effective.model && effective.baseUrl),
+        model: effective.model || null,
+        reasoningEffort: effective.reasoningEffort,
+      };
+    } catch {
+      // An unreadable Admin secret must remain degraded; never silently fall back to env.
+    }
     const degraded = [checks.database, checks.migrations, checks.storage].includes('failed');
     return {
       status: degraded ? 'not_ready' : 'ready',
       releaseSha: config.RELEASE_SHA,
       checks,
       dependencies: {
-        openai:
-          config.OPENAI_API_KEY && config.OPENAI_MODEL && config.OPENAI_BASE_URL
-            ? 'configured'
-            : 'degraded',
+        openai: openai.configured ? 'configured' : 'degraded',
         push: config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY ? 'configured' : 'degraded',
       },
-      config: redactedConfig(config),
+      config: { ...redactedConfig(config), openai },
     };
   }
 }

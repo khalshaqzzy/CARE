@@ -1,10 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { LocationCompleteness, RoutingCategory, Severity, VoiceVisibility } from '@prisma/client';
 import OpenAI from 'openai';
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions';
 import { z } from 'zod';
-import { loadConfig } from '../config';
 import { sanitizedErrorDetail } from './error-detail';
+import {
+  AiRuntimeConfigService,
+  type EffectiveAiConfig,
+  environmentAiConfig,
+  GRANITE_MODEL,
+  type ReasoningEffort,
+} from './runtime-config.service';
 import {
   CLASSIFICATION_PROMPT_VERSION,
   CLASSIFICATION_SCHEMA,
@@ -18,20 +24,45 @@ import {
   LOCATION_TOOL_NAME,
 } from './prompt';
 
-type ConfiguredReasoningEffort = ReturnType<typeof loadConfig>['OPENAI_REASONING_EFFORT'];
-type DeepSeekChatCompletionParams = ChatCompletionCreateParamsNonStreaming & {
-  thinking: { type: 'enabled' | 'disabled' };
+type ProviderChatCompletionParams = ChatCompletionCreateParamsNonStreaming & {
+  thinking?: { type: 'enabled' | 'disabled' };
+  chat_template_kwargs?: { enable_thinking: boolean; low_effort: boolean };
 };
 
-export function deepSeekReasoningConfig(effort: ConfiguredReasoningEffort): {
-  thinking: { type: 'enabled' | 'disabled' };
+export function deepSeekReasoningConfig(effort: ReasoningEffort): {
+  thinking?: { type: 'enabled' | 'disabled' };
   reasoning_effort?: 'low' | 'high' | 'max';
 } {
+  if (effort === '') return {};
   if (effort === 'none') return { thinking: { type: 'disabled' } };
   if (effort === 'minimal' || effort === 'low')
     return { thinking: { type: 'enabled' }, reasoning_effort: 'low' };
   if (effort === 'max') return { thinking: { type: 'enabled' }, reasoning_effort: 'max' };
   return { thinking: { type: 'enabled' }, reasoning_effort: 'high' };
+}
+
+export function providerRequestConfig(model: string, effort: ReasoningEffort) {
+  if (model !== GRANITE_MODEL) return deepSeekReasoningConfig(effort);
+  const chatTemplate =
+    effort === 'none'
+      ? { enable_thinking: false, low_effort: false }
+      : effort === 'minimal' || effort === 'low'
+        ? { enable_thinking: true, low_effort: true }
+        : { enable_thinking: true, low_effort: false };
+  return {
+    chat_template_kwargs: chatTemplate,
+    temperature: 1,
+    top_p: 0.95,
+    max_tokens: 8192,
+  };
+}
+
+export function forcedToolChoiceConfig(model: string, effort: ReasoningEffort, toolName: string) {
+  // DeepSeek thinking mode supports tools but currently rejects a named
+  // tool_choice. We still expose exactly one function and fail closed unless
+  // the response contains exactly that one validated call.
+  if (model.startsWith('deepseek-') && effort !== '' && effort !== 'none') return {};
+  return { tool_choice: { type: 'function' as const, function: { name: toolName } } };
 }
 
 const classificationOutput = z
@@ -70,6 +101,12 @@ export type ClassificationInput = {
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
+  constructor(
+    @Optional()
+    @Inject(AiRuntimeConfigService)
+    private readonly runtimeConfig?: AiRuntimeConfigService,
+  ) {}
+
   async classify(input: ClassificationInput) {
     const response = await this.request(
       'care_classification',
@@ -102,7 +139,7 @@ export class AiService {
         errorDetail: null,
       };
     }
-    if (parsed.data.confidence < loadConfig().OPENAI_CONFIDENCE_THRESHOLD)
+    if (parsed.data.confidence < response.confidenceThreshold)
       return {
         source: 'MANUAL_FALLBACK' as const,
         fallbackCode: 'LOW_CONFIDENCE',
@@ -172,11 +209,24 @@ export class AiService {
     instructions: string,
     input: unknown,
   ) {
-    const config = loadConfig();
     const started = Date.now();
-    if (!config.OPENAI_API_KEY || !config.OPENAI_MODEL || !config.OPENAI_BASE_URL) {
+    let config: EffectiveAiConfig;
+    try {
+      config = this.runtimeConfig ? await this.runtimeConfig.effective() : environmentAiConfig();
+    } catch (error) {
+      this.logger.error(
+        `care_ai_request configuration_unavailable name=${name} detail=${sanitizedErrorDetail(error) ?? 'none'}`,
+      );
+      return {
+        ok: false as const,
+        fallbackCode: 'PROVIDER_NOT_CONFIGURED',
+        errorDetail: null,
+        latencyMs: Date.now() - started,
+      };
+    }
+    if (!config.apiKey || !config.model || !config.baseUrl) {
       this.logger.warn(
-        `care_ai_request provider_not_configured name=${name} latencyMs=0 keySet=${Boolean(config.OPENAI_API_KEY)} modelSet=${Boolean(config.OPENAI_MODEL)} baseUrlSet=${Boolean(config.OPENAI_BASE_URL)}`,
+        `care_ai_request provider_not_configured name=${name} latencyMs=0 keySet=${Boolean(config.apiKey)} modelSet=${Boolean(config.model)} baseUrlSet=${Boolean(config.baseUrl)}`,
       );
       return {
         ok: false as const,
@@ -186,18 +236,18 @@ export class AiService {
       };
     }
     const client = new OpenAI({
-      apiKey: config.OPENAI_API_KEY,
-      baseURL: config.OPENAI_BASE_URL,
-      timeout: config.OPENAI_TIMEOUT_MS,
+      apiKey: config.apiKey,
+      baseURL: config.baseUrl,
+      timeout: config.timeoutMs,
       maxRetries: 0,
     });
     let fallbackCode = 'PROVIDER_ERROR';
     let errorDetail: string | null = null;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        const reasoning = deepSeekReasoningConfig(config.OPENAI_REASONING_EFFORT);
+        const reasoning = providerRequestConfig(config.model, config.reasoningEffort);
         const request = {
-          model: config.OPENAI_MODEL,
+          model: config.model,
           messages: [
             { role: 'system' as const, content: instructions },
             {
@@ -215,9 +265,9 @@ export class AiService {
               },
             },
           ],
-          tool_choice: { type: 'function' as const, function: { name: toolName } },
+          ...forcedToolChoiceConfig(config.model, config.reasoningEffort, toolName),
           ...reasoning,
-        } satisfies DeepSeekChatCompletionParams;
+        } satisfies ProviderChatCompletionParams;
         const result = await client.chat.completions.create(request);
         const choice = result.choices[0];
         const finishReason = String(choice?.finish_reason ?? 'missing');
@@ -265,7 +315,8 @@ export class AiService {
           ok: true as const,
           value: JSON.parse(toolCall.function.arguments) as unknown,
           responseId: result.id,
-          model: result.model || config.OPENAI_MODEL,
+          model: result.model || config.model,
+          confidenceThreshold: config.confidenceThreshold,
           latencyMs: Date.now() - started,
         };
       } catch (error) {

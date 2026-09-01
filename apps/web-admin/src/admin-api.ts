@@ -26,6 +26,9 @@ export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
 export type VoiceTimeline = components['schemas']['TimelinePage'];
 export type VoiceMessages = components['schemas']['MessagePage'];
+export type AiConfiguration = components['schemas']['AiConfigurationResponse'];
+export type AiConfigurationUpdate = components['schemas']['AiConfigurationUpdateRequest'];
+export type AiConfigurationTest = components['schemas']['AiConfigurationTestResponse'];
 type AccountsQuery = NonNullable<operations['AdminController_accounts']['parameters']['query']>;
 type RemediationQuery = NonNullable<operations['AdminController_issues']['parameters']['query']>;
 type RemediationHistoryQuery = NonNullable<
@@ -142,6 +145,31 @@ export function createAdminApi(transport: CareTransport) {
     auditEvent: (id: string) =>
       dataOrThrow<AuditEvent>(
         client.GET('/api/v1/admin/audit-events/{id}', { params: { path: { id } } }),
+      ),
+    aiConfiguration: () =>
+      dataOrThrow<AiConfiguration>(client.GET('/api/v1/admin/ai-configuration')),
+    updateAiConfiguration: (body: AiConfigurationUpdate, idempotencyKey: string) =>
+      dataOrThrow<AiConfiguration>(
+        client.PUT('/api/v1/admin/ai-configuration', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey } },
+          body,
+        }),
+      ),
+    resetAiConfiguration: (
+      body: components['schemas']['AiConfigurationResetRequest'],
+      idempotencyKey: string,
+    ) =>
+      dataOrThrow<AiConfiguration>(
+        client.DELETE('/api/v1/admin/ai-configuration', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey } },
+          body,
+        }),
+      ),
+    testAiConfiguration: () =>
+      dataOrThrow<AiConfigurationTest>(
+        client.POST('/api/v1/admin/ai-configuration/test', {
+          params: { header: { 'X-CSRF-Token': '' } },
+        }),
       ),
     imports: (query: QueryInput<ImportsQuery>) =>
       dataOrThrow<ImportList>(
