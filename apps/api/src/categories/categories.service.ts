@@ -364,15 +364,22 @@ export class CategoriesService {
       !(await this.prisma.importIssue.count({
         where: { categoryId, type: issueType, status: ImportIssueStatus.OPEN },
       }))
-    )
-      await this.prisma.importIssue.create({
-        data: {
-          categoryId,
-          type: issueType,
-          organizationUnitId: route?.organizationUnitId ?? null,
-          details: { categoryKey: category.key },
-        },
+    ) {
+      const batch = await this.prisma.importBatch.findFirst({
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true },
       });
+      if (batch)
+        await this.prisma.importIssue.create({
+          data: {
+            batchId: batch.id,
+            categoryId,
+            type: issueType,
+            organizationUnitId: route?.organizationUnitId ?? null,
+            details: { categoryKey: category.key },
+          },
+        });
+    }
   }
   private requireCategory(id: string) {
     return this.prisma.generalVoiceCategory.findUnique({ where: { id } }).then((row) => {

@@ -112,6 +112,20 @@ describe('Dashboard filters and suppression metadata', () => {
       policy.resolvePrincipal(account, { id: crypto.randomUUID(), passwordRestricted: false });
     manager = await resolve(await workforce('000001', 'Manager', 'Department Head'));
     unionHead = await resolve(await union(UnionSlot.HEAD));
+    await prisma.generalVoiceCategory.create({
+      data: {
+        key: 'SAFETY',
+        revisions: {
+          create: {
+            revision: 1,
+            name: 'Safety',
+            definition: 'Keselamatan kerja.',
+            examples: ['Jalur kerja tidak aman.'],
+          },
+        },
+        routes: { create: { mode: 'RELATED_REPORTER_DEPARTMENT' } },
+      },
+    });
   });
   afterAll(async () => prisma.$disconnect());
 

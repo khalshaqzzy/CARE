@@ -53,7 +53,7 @@ function voiceSeed(overrides: VoiceOverride = {}): Prisma.VoiceUncheckedCreateIn
     title: 'test voice',
     detail: 'detail',
     severity: Severity.MEDIUM,
-    category: null,
+    categoryKey: null,
     anonymousAlias: `R-${seq}`,
     version: 1,
     ...overrides,

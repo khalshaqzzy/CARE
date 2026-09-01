@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 0–12 done; Phase 12.5 dynamic General Voice categories in progress pending database/full-stack parity; Phase 13 and 14 pending                                                                                                                                                                                                                                    |
-| Last updated           | 1 September 2026 (dynamic, revisioned General Voice category catalog implemented; Docker-dependent parity outstanding)                                                                                                                                                                                                                                                  |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                                                                                    |
-| Current implementation | Six default and future custom General Voice categories are database-driven, revisioned, archive-only, dynamically injected into AI context, and routed to fixed or reporter departments. Admin and workforce surfaces consume the catalog API. Static checks are being re-frozen; database/full-stack parity is pending because the local Docker daemon is unavailable. |
-| Current phase          | Phase 12.5 `in_progress`; Phase 13 reset to `pending` until category migration, integration, full-stack, and hosted exact-SHA parity complete                                                                                                                                                                                                                           |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                                                                                           |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12.5 done; Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                                         |
+| Last updated           | 1 September 2026 (dynamic category fresh/upgrade migration, integration, security, performance, reconciliation, and full-stack parity passed)                                                                                                                                                            |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                     |
+| Current implementation | Six default and future custom General Voice categories are database-driven, revisioned, archive-only, dynamically injected into AI context, and routed to fixed or reporter departments. Admin/workforce surfaces and all local parity gates are complete; PR #22 awaits hosted replacement CI evidence. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                                                         |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                            |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -626,7 +626,7 @@ Evidence 28 Agustus 2026:
 
 ## Phase 12.5 — Dynamic General Voice Category Catalog
 
-Status: `in_progress` — implementation complete; static parity being re-frozen, Docker-dependent migration/integration/full-stack acceptance pending.
+Status: `done` — implementation and local static/database/full-stack parity complete; hosted delivery continues in Phase 13.
 
 Dependencies: Phase 12 baseline and ADR-0029.
 
@@ -651,7 +651,7 @@ Acceptance:
 
 ## Phase 13 — Staging Deployment and Rehearsal
 
-Status: `pending` — reset by ADR-0029 until Phase 12.5 parity is complete.
+Status: `in_progress` — resumed after Phase 12.5 local parity completed.
 
 Dependencies: Phase 12.
 
@@ -748,23 +748,21 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Phase 12.5 adalah satu-satunya phase `in_progress`. Langkah berikutnya:
+Phase 13 adalah satu-satunya phase `in_progress`. Langkah berikutnya:
 
-1. start Docker/OrbStack dan jalankan fresh/upgrade migration, database integration,
-   security, performance, reconciliation, dan full-stack Playwright untuk ADR-0029;
-2. setelah Phase 12.5 hijau, push candidate ke `staging`, pantau seluruh required
-   GitHub job dan reusable deploy, lalu cocokkan `/ready` dan kedua `/release.json`
-   dengan exact branch HEAD;
-3. jalankan hosted acceptance-data journeys dan staging rehearsal guarded setelah
+1. pantau seluruh required GitHub job dan reusable deploy untuk candidate di
+   `staging`, lalu cocokkan `/ready` dan kedua `/release.json` dengan exact branch
+   HEAD;
+2. jalankan hosted acceptance-data journeys dan staging rehearsal guarded setelah
    dua release tersedia; rekam bukti pada `.agent/releaseExecutionChecklist.md`;
-4. enroll dan jalankan Web Push canary secara manual bila operator membutuhkan
+3. enroll dan jalankan Web Push canary secara manual bila operator membutuhkan
    bukti provider delivery. Canary bukan automated test atau deployment gate;
-5. hanya setelah seluruh hosted evidence hijau, ubah Phase 13 menjadi `done`.
+4. hanya setelah seluruh hosted evidence hijau, ubah Phase 13 menjadi `done`.
    Phase 14 dan seluruh production activation tetap `pending`.
 
 ## Visual Exploration Track — Mobile Member Voice (done, 30 Agustus 2026)
 
-Status: `done` (non-code design artifact; tidak mengubah current Phase 12.5 status).
+Status: `done` (non-code design artifact; tidak mengubah current Phase 13 status).
 
 - 25 current mobile states captured untuk Member, Manager/Section Head, Leadership, Union Head, dan Union Officer;
 - 25 standalone selected concepts tersusun per page/flow di `.design/member-voice-redesign/`;

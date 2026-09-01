@@ -437,7 +437,7 @@ model ImportChange {
 
 model ImportIssue {
   id                 String                  @id @default(uuid()) @db.Uuid
-  batchId            String?                 @db.Uuid
+  batchId            String                  @db.Uuid
   categoryId         String?                 @db.Uuid
   type               ImportIssueType
   status             ImportIssueStatus       @default(OPEN)
@@ -446,7 +446,7 @@ model ImportIssue {
   details            Json
   createdAt          DateTime                @default(now())
   resolvedAt         DateTime?
-  batch              ImportBatch?            @relation(fields: [batchId], references: [id])
+  batch              ImportBatch             @relation(fields: [batchId], references: [id])
   category           GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
   organizationUnit   OrganizationUnit?       @relation(fields: [organizationUnitId], references: [id])
   resolutions        ImportIssueResolution[]

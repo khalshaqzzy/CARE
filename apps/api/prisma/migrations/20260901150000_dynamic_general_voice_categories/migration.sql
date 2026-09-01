@@ -57,7 +57,6 @@ ALTER TABLE "GeneralVoiceCategoryRoute" ADD CONSTRAINT "GeneralVoiceCategoryRout
 
 ALTER TABLE "Voice" ADD COLUMN "categoryKey" VARCHAR(80), ADD COLUMN "categoryId" UUID, ADD COLUMN "categoryNameSnapshot" VARCHAR(160);
 ALTER TABLE "AIClassification" ADD COLUMN "categoryKey" VARCHAR(80), ADD COLUMN "categoryId" UUID, ADD COLUMN "categoryRevisionId" UUID;
-ALTER TABLE "ImportIssue" ALTER COLUMN "batchId" DROP NOT NULL;
 ALTER TABLE "ImportIssue" ADD COLUMN "categoryId" UUID;
 
 INSERT INTO "GeneralVoiceCategory" ("id", "key") VALUES

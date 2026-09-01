@@ -77,6 +77,32 @@ describe('Organization, remediation, and routing journey', () => {
       id: crypto.randomUUID(),
       passwordRestricted: false,
     });
+    for (const category of [
+      {
+        key: 'ENVIRONMENT',
+        name: 'Environment',
+        mode: 'FIXED_DEPARTMENT' as const,
+      },
+      {
+        key: 'WORK_DIFFICULTY',
+        name: 'Fasilitas Kerja / Kesulitan Kerja',
+        mode: 'RELATED_REPORTER_DEPARTMENT' as const,
+      },
+    ])
+      await prisma.generalVoiceCategory.create({
+        data: {
+          key: category.key,
+          revisions: {
+            create: {
+              revision: 1,
+              name: category.name,
+              definition: `Definition ${category.name}`,
+              examples: [`Example ${category.name}`],
+            },
+          },
+          routes: { create: { mode: category.mode } },
+        },
+      });
   });
   afterAll(async () => prisma.$disconnect());
 
@@ -136,7 +162,9 @@ describe('Organization, remediation, and routing journey', () => {
       await prisma.importIssue.count({ where: { type: 'DEPARTMENT_14', status: 'OPEN' } }),
     ).toBe(1);
     expect(
-      await prisma.importIssue.count({ where: { type: 'INVALID_GLOBAL_PIC', status: 'OPEN' } }),
+      await prisma.importIssue.count({
+        where: { type: 'CATEGORY_TARGET_UNAVAILABLE', status: 'OPEN' },
+      }),
     ).toBe(1);
   });
 
@@ -196,8 +224,7 @@ describe('Organization, remediation, and routing journey', () => {
     ).toBe(4);
   });
 
-  it('provisions one global PIC and three Union slots, then routes General and Private correctly', async () => {
-    await adminService.setGlobalPic(admin, { noReg: '000001' }, 'organization-routing-global-pic');
+  it('provisions three Union slots, then routes related General and Private correctly', async () => {
     const departmentHead = await prisma.userAccount.findUniqueOrThrow({
       where: { username: '000001' },
     });
@@ -223,11 +250,11 @@ describe('Organization, remediation, and routing journey', () => {
       visibility: 'GENERAL',
       area: 'KARAWANG_1',
       locationDetail: 'Line A station 4',
-      title: 'Environmental leak',
-      detail: 'Liquid waste is leaking near the process',
+      title: 'Equipment breakdown',
+      detail: 'The equipment repeatedly stops and blocks production work',
     });
     await voices.manualClassification(member, generalDraft.id, {
-      category: 'ENVIRONMENT',
+      category: 'WORK_DIFFICULTY',
       severity: Severity.HIGH,
     });
     const locationReview = await prisma.locationReviewSnapshot.create({
@@ -267,7 +294,7 @@ describe('Organization, remediation, and routing journey', () => {
       where: { id: (general as { id: string }).id },
     });
     expect(generalVoice).toMatchObject({
-      category: 'ENVIRONMENT',
+      categoryKey: 'WORK_DIFFICULTY',
       routeOwnerId: departmentHead.id,
     });
 
@@ -294,7 +321,7 @@ describe('Organization, remediation, and routing journey', () => {
     });
     const head = await prisma.userAccount.findUniqueOrThrow({ where: { username: 'union-head' } });
     expect(privateVoice).toMatchObject({
-      category: null,
+      categoryKey: null,
       showReporterIdentity: false,
       routeOwnerId: head.id,
     });
