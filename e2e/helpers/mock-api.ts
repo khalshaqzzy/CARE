@@ -958,6 +958,7 @@ function detail(voice: MockVoice) {
     title: voice.title,
     detail: voice.detail,
     category: 'SAFETY',
+    categoryNameSnapshot: 'Safety',
     severity: 'HIGH',
     status: voice.status,
     version: 3,
@@ -1051,6 +1052,9 @@ const notificationPageFixture = (): unknown => ({
 export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
   const session = opts.session ?? memberSession();
   const voice = opts.voice;
+  // Messages the mocked composer sends; the GET echo merges them so the log
+  // keeps showing a sent reply after the post-send refetch.
+  const sentThreadMessages: Record<string, unknown[]> = {};
 
   // Context-level routing keeps the mocks working when the production service
   // worker is active (push project): requests re-issued by the worker's
@@ -1160,9 +1164,29 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
             sender: { kind: 'WORKFORCE' },
             attachments: [],
           },
+          ...(sentThreadMessages[messagesMatch[1] ?? ''] ?? []),
         ],
         nextCursor: 'msg-next',
       });
+    }
+    if (method === 'POST' && messagesMatch) {
+      // The composer posts multipart form data; echo the text field back as a
+      // message authored by the mocked session, then remember it so the next
+      // GET keeps the reply in the log.
+      const raw = route.request().postData() ?? '';
+      const text = /name="text"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(raw)?.[1] ?? '';
+      const message = {
+        id: `msg-sent-${Object.keys(sentThreadMessages).length + 1}`,
+        ...(text ? { text } : {}),
+        createdAt: new Date().toISOString(),
+        senderId: session.account.id,
+        senderAccountKind: session.account.accountKind,
+        sender: { kind: session.account.accountKind },
+        attachments: [],
+      };
+      const threadId = messagesMatch[1] ?? '';
+      sentThreadMessages[threadId] = [...(sentThreadMessages[threadId] ?? []), message];
+      return satisfy(200, message);
     }
     const timelineMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/timeline$/);
     if (method === 'GET' && timelineMatch) {

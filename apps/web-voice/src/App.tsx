@@ -43,6 +43,7 @@ import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { ConversationPage } from './features/voice/ConversationPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
 import { desktopQuery, useMediaQuery } from './lib/use-media-query';
@@ -89,6 +90,7 @@ export function App() {
           <Route path="work-items" element={<WorkItemsPage />} />
           <Route path="general" element={<GeneralRoute />} />
           <Route path="voices/:id" element={<VoiceDetailPage />} />
+          <Route path="voices/:id/chat" element={<ConversationPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -410,8 +412,11 @@ function WorkforceShell() {
   const desktopNav = withIcons(true);
   const bottomNav = withIcons(false);
 
-  // The reference home leads with the hero identity, so the chrome topbar yields on mobile.
-  const showTopbar = !(!isDesktop && current === 'home');
+  // The reference home leads with the hero identity, so the chrome topbar
+  // yields on mobile; the voice detail and conversation surfaces carry their
+  // own cobalt hero header (back control + CARE lockup + status) on every
+  // breakpoint, so the shared topbar yields there entirely.
+  const showTopbar = !(!isDesktop && current === 'home') && current !== 'voices';
 
   return (
     <AppShell

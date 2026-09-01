@@ -93,11 +93,15 @@ test('iOS 11.3 keeps responder detail and online actions available', async ({ pa
   await expect(
     page.getByRole('heading', { name: 'Legacy Safari tetap dapat bekerja' }),
   ).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Proses' })).toBeVisible();
+  // The conversation room lives on the dedicated chat page.
+  await page.getByRole('button', { name: /Percakapan/ }).click();
+  await expect(page).toHaveURL(/\/voices\/voice-legacy\/chat$/);
+  await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
   await page.getByPlaceholder('Tulis pesan…').fill('Pesan dari Safari lama');
-  await page.locator('.conversation input[type="file"]').setInputFiles({
+  await page.locator('.chat-composer input[type="file"]').setInputFiles({
     name: 'legacy.png',
     mimeType: 'image/png',
     buffer: Buffer.from('legacy-image'),
@@ -105,6 +109,7 @@ test('iOS 11.3 keeps responder detail and online actions available', async ({ pa
   await page.getByRole('button', { name: 'Kirim pesan' }).click();
   await expect.poll(() => mutations.some((path) => path.endsWith('/messages'))).toBe(true);
 
+  await page.goto('/voices/voice-legacy');
   await page.getByRole('button', { name: 'Proses' }).first().click();
   await expect(page.getByRole('dialog', { name: 'Proses Voice' })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Proses' }).click();

@@ -18,7 +18,7 @@ const generalVoice = {
 const anonDetail = {
   id: 'voice-2',
   displayId: 'CARE-202608-000002',
-  audience: 'PRIVATE_UNION_ANONYMOUS',
+  audience: 'UNION_ANONYMOUS',
   visibility: 'PRIVATE',
   area: 'KARAWANG_1',
   locationDetail: 'Lantai 3, dekat mesin produksi',
@@ -26,18 +26,20 @@ const anonDetail = {
   detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
   category: null,
   severity: 'MEDIUM',
-  status: 'OPEN',
+  status: 'IN_VERIFICATION',
   version: 1,
   submittedAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-01T00:00:00.000Z',
   classificationSource: 'AI',
   routeOwner: { id: 'union-head-1', displayName: 'Union Head' },
-  currentHandler: null,
+  currentHandler: { id: 'union-head-1', displayName: 'Union Head' },
   attachments: [],
   locationReview: null,
   closureCycles: [],
-  availableActions: ['ASK'],
+  availableActions: ['ASK', 'MESSAGE'],
+  conversationState: 'ACTIVE',
   // Anonymous contract must carry NO reporter identity fields.
+  anonymousReporter: { alias: 'Reporter Biru 47' },
 };
 
 const attachmentDetail = {
@@ -68,6 +70,19 @@ test.describe('workforce UI security probes', () => {
     expect(body).not.toContain('Budi Santoso');
     expect(body).not.toContain('000128');
     expect(body).not.toContain('Manufacturing');
+  });
+
+  test('anonymous reporter chat never leaks identity to Union', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: union, voiceDetail: anonDetail });
+    await page.goto('/voices/voice-2/chat');
+    await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
+    const body = await page.locator('body').innerText();
+    expect(body).not.toContain('Budi Santoso');
+    expect(body).not.toContain('000128');
+    expect(body).not.toContain('Manufacturing');
+    // The per-Voice alias is the only permitted reporter label.
+    expect(body).toContain('Reporter Biru 47');
   });
 
   test('aggregate read never exposes a Voice id/title beyond the list scope', async ({ page }) => {
@@ -124,7 +139,7 @@ test.describe('workforce UI security probes', () => {
     await expect(
       page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
     ).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Tindakan' })).toHaveCount(0);
+    await expect(page.getByRole('group', { name: 'Tindakan' })).toHaveCount(0);
   });
 
   test('attachments are served only through the authorized media endpoint', async ({ page }) => {

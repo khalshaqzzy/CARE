@@ -32,6 +32,9 @@ test('renders a paginated voice detail with timeline and conversation', async ({
   await page.getByRole('button', { name: /Timeline/ }).click();
   await expect(page.getByRole('listitem').first()).toBeVisible();
   await expect(page.getByText('Percakapan')).toBeVisible();
+  // The room itself lives on the dedicated chat page.
+  await page.getByRole('button', { name: /Percakapan/ }).click();
+  await expect(page).toHaveURL(/\/voices\/voice-1\/chat$/);
   // The mock returns a nextCursor, so the "load older" affordance is shown.
   await expect(page.getByText('Muat pesan sebelumnya')).toBeVisible();
   await expect(page.getByText('Mohon konfirmasi lokasi kejadian.')).toBeVisible();
@@ -41,7 +44,7 @@ test('surfaces responder actions for an IN_PROGRESS voice', async ({ page }) => 
   await mockApi(page, voice);
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto(`/voices/${voice.id}`);
-  // availableActions includes CLOSE, so the Tindakan panel shows it.
-  await expect(page.getByRole('heading', { name: 'Tindakan' })).toBeVisible();
+  // availableActions includes CLOSE, so the Tindakan action row shows it.
+  await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tutup', exact: true })).toBeVisible();
 });

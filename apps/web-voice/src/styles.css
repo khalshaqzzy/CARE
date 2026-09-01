@@ -87,8 +87,8 @@
   .care-stack > * + *,
   .care-field > * + *,
   .form-actions > * + *,
-  .action-panel > * + *,
-  .conversation > * + *,
+  .action-row > * + *,
+  .chat-page > * + *,
   .inbox-list > * + *,
   .notifications-list > * + * {
     margin-top: 1rem;
@@ -1805,222 +1805,489 @@
   transform: scale(1.05);
 }
 
-/* Conversation & messages */
-.conversation {
+/* Dedicated chat page (screen 20): compact hero, day-grouped log, pinned composer */
+.chat-page {
   display: grid;
-  gap: var(--space-4);
-  padding: var(--space-5);
+  gap: var(--space-5);
 }
-.conversation__head {
+.chat-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
 }
-.conversation__head h3 {
+.chat-head h2 {
   margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
 }
-.conversation__count {
+.chat-head__count {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
+  background: var(--surface-inset);
   font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
 }
-.conversation__list {
+.chat-log {
   display: grid;
   gap: var(--space-3);
-  max-height: 24rem;
-  overflow-y: auto;
-  padding-block-start: var(--space-2);
+  /* Breathing room between the newest message and the pinned composer. */
+  padding-bottom: var(--space-6);
 }
-.conversation__empty {
-  margin: 0;
+.chat-empty {
+  margin: var(--space-4) 0;
   color: var(--text-secondary);
   text-align: center;
 }
-.message {
+.chat-history {
+  justify-self: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+.chat-history:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+.chat-history:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+/* Day divider: hairlines flanking the Jakarta day label. */
+.chat-day {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+}
+.chat-day::before,
+.chat-day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.chat-msg {
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
 }
-.message.is-mine {
+.chat-msg.is-mine {
   justify-content: flex-end;
 }
-.message__avatar {
+.chat-msg__avatar {
   display: grid;
-  width: 2rem;
-  height: 2rem;
+  align-self: center;
+  width: 2.5rem;
+  height: 2.5rem;
   flex: 0 0 auto;
   place-items: center;
   border-radius: var(--radius-pill);
-  color: var(--text-secondary);
+  color: var(--action-primary-bg);
   background: var(--surface-inset);
+  background: rgb(8 102 255 / 12%);
 }
-.message__stack {
+.chat-msg__stack {
   display: grid;
   min-width: 0;
-  max-width: min(100%, 85%);
-  gap: 2px;
+  max-width: min(100%, 84%);
+  gap: 3px;
 }
-.message.is-mine .message__stack {
+.chat-msg.is-mine .chat-msg__stack {
   justify-items: end;
 }
-.message__bubble {
+.chat-msg__sender {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  padding-inline: var(--space-1);
+}
+.chat-msg__bubble {
   display: grid;
   gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-card);
   border-bottom-left-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
   background: var(--surface-inset);
+  background: #f1f4f8;
 }
-.message.is-mine .message__bubble {
+.chat-msg.is-mine .chat-msg__bubble {
   border-radius: var(--radius-card);
   border-bottom-right-radius: var(--radius-sm);
-  background: var(--raw-brand-50);
-  background: color-mix(in srgb, var(--action-primary-bg) 10%, white);
+  color: var(--text-inverse);
+  background: var(--action-primary-bg);
+  box-shadow: 0 8px 18px rgb(8 102 255 / 22%);
 }
-.message__text {
+.chat-msg__text {
   margin: 0;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-.message__time {
+.chat-msg__time {
   color: var(--text-tertiary);
   font-size: var(--font-size-xs);
+  padding-inline: var(--space-1);
 }
-.message__bubble .media-gallery {
+.chat-msg__bubble .media-gallery {
   gap: var(--space-1);
 }
-.message__bubble .media-gallery__label {
+.chat-msg__bubble .media-gallery__label {
   display: none;
 }
-.message__bubble .media-gallery__thumb {
+.chat-msg__bubble .media-gallery__thumb {
   width: 4.5rem;
   height: 4.5rem;
   border-radius: var(--radius-control);
 }
-.conversation__composer {
+/* Composer pinned above the floating dock; desktop has no dock. */
+.chat-composer {
+  position: sticky;
+  bottom: calc(6.75rem + env(safe-area-inset-bottom));
+  z-index: 10;
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  padding-top: var(--space-2);
 }
-.conversation__input {
+.chat-composer__row {
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
 }
-.conversation__input .care-field {
+.chat-composer__row .care-field {
   flex: 1;
+  min-width: 0;
 }
-.conversation__attach,
-.conversation__send {
+/* Doubled scope beats the late tinted-field layer for equal specificity. */
+.care-app-shell .chat-composer__row .care-textarea {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--border-subtle),
+    var(--shadow-card);
+  padding-block: 0.65rem;
+  resize: none;
+}
+/* Focus keeps a visible cue but stays a hairline ring, not the wide halo. */
+.care-app-shell .chat-composer__row .care-textarea:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px rgb(8 102 255 / 45%),
+    var(--shadow-card);
+}
+.chat-composer__attach.care-button {
   width: 2.875rem;
   height: 2.875rem;
   flex: 0 0 auto;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-card);
 }
-.conversation__picked {
+.chat-composer__send.care-button {
+  width: 2.875rem;
+  height: 2.875rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-cta);
+}
+.chat-composer__picked {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-.conversation__picked-item {
+.chat-composer__picked-item {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--surface-subtle);
+  background: var(--surface-inset);
   font-size: var(--font-size-xs);
 }
-.conversation__picked-item button {
+.chat-composer__picked-item button {
   border: 0;
   background: transparent;
   cursor: pointer;
 }
 
-/* Voice detail — back row, cobalt hero, meta strip, rating, closure */
-.voice-backrow {
+/* Link card — icon-plate row card for conversation/timeline entries */
+.link-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+  text-align: start;
+  cursor: pointer;
+}
+.link-card:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+.link-card__plate {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--action-primary-bg);
+  background: var(--surface-selected);
+}
+.link-card__text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+.link-card__text strong {
+  font-size: var(--font-size-md);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+}
+.link-card__text small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-card__trailing {
+  flex: 0 0 auto;
+  color: var(--action-primary-bg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+.link-card__chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+/* Timeline keeps disclosure semantics but reads as a link card. */
+.link-disclosure {
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+.link-disclosure .care-disclosure__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-pill);
+  color: var(--action-primary-bg);
+}
+.link-disclosure .care-disclosure__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.link-disclosure .care-disclosure__text strong {
+  font-size: var(--font-size-md);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Voice detail & conversation hero (screens 13/20): full-bleed cobalt band
+   with back control + CARE lockup + status pill, and an inset white card
+   carrying title, context chips, area/PIC split, and location detail. */
+.voice-hero__band {
+  display: grid;
+  gap: var(--space-5);
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  border-radius: 0 0 2rem 2rem;
+  color: var(--text-inverse);
+  background: var(--gradient-brand-hero);
+  box-shadow: 0 18px 38px rgb(0 41 123 / 16%);
+}
+.voice-hero__top {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.voice-backrow .care-button {
-  margin-inline-start: calc(-1 * var(--space-2));
+.voice-hero__back.care-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  color: var(--text-inverse);
+  background: rgb(255 255 255 / 16%);
 }
-.voice-backrow__id {
-  overflow: hidden;
-  font-size: var(--font-size-md);
-  font-weight: var(--weight-semibold);
+.voice-hero__back.care-button:hover {
+  background: rgb(255 255 255 / 26%);
+}
+.voice-hero__brand {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  line-height: var(--line-tight);
+}
+.voice-hero__brand strong {
+  font-size: var(--font-size-xl);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-tight);
+}
+.voice-hero__brand span {
+  overflow: hidden;
+  color: var(--on-brand-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.voice-hero {
-  display: grid;
-  gap: var(--space-3);
-  border-radius: var(--radius-panel);
-  padding: var(--space-6);
+.voice-hero__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
   color: var(--text-inverse);
-  background: var(--gradient-brand-hero);
-  box-shadow: 0 18px 38px rgb(0 41 123 / 16%);
-  overflow: hidden;
+  background: rgb(255 255 255 / 20%);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+.voice-hero__status svg {
+  flex: 0 0 auto;
+}
+.voice-hero__card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
 }
 .voice-hero__title {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: clamp(1.35rem, 5vw, 1.75rem);
+  font-size: clamp(1.3rem, 5vw, 1.65rem);
   font-weight: var(--weight-bold);
   line-height: var(--line-tight);
   letter-spacing: var(--tracking-tight);
 }
-/* Hero text stays pure white (AA on both gradient stops); only the
-   decorative status dots carry tone. */
-.voice-hero__meta {
+/* Chip strip: visibility / severity / status / category with hairline
+   separators; tone dots stay colored on the light card. */
+.voice-hero__chips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  color: var(--text-inverse);
+  row-gap: var(--space-2);
+  color: var(--text-secondary);
   font-size: var(--font-size-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
-.voice-hero__item {
+.voice-hero__chip {
   display: inline-flex;
   min-width: 0;
   align-items: center;
   gap: var(--space-2);
+  padding-inline: var(--space-3);
 }
-.voice-hero__item svg {
+.voice-hero__chip:first-child {
+  padding-inline-start: 0;
+}
+.voice-hero__chip:last-child {
+  padding-inline-end: 0;
+}
+.voice-hero__chip svg {
   flex: 0 0 auto;
+  color: var(--text-secondary);
 }
-.voice-hero__sep {
-  width: 1px;
-  height: 1rem;
-  flex: 0 0 auto;
-  background: rgb(255 255 255 / 34%);
-}
+.voice-hero__chip i,
+.voice-hero__pill i,
 .voice-hero__dot {
   width: 8px;
   height: 8px;
   flex: 0 0 auto;
   border-radius: var(--radius-pill);
 }
-.voice-hero__dot[data-tone='low'],
-.voice-hero__dot[data-tone='open'] {
-  background: rgb(255 255 255 / 72%);
+.voice-hero__chip i[data-tone='low'],
+.voice-hero__pill i[data-tone='low'],
+.voice-hero__dot[data-tone='low'] {
+  background: var(--text-tertiary);
 }
+.voice-hero__chip i[data-tone='medium'],
+.voice-hero__pill i[data-tone='medium'],
 .voice-hero__dot[data-tone='medium'] {
-  background: var(--raw-warning);
+  background: #e78a00;
 }
+.voice-hero__chip i[data-tone='high'],
+.voice-hero__chip i[data-tone='critical'],
+.voice-hero__pill i[data-tone='high'],
+.voice-hero__pill i[data-tone='critical'],
 .voice-hero__dot[data-tone='high'],
 .voice-hero__dot[data-tone='critical'] {
-  background: #ff8298;
+  background: var(--raw-danger);
 }
+.voice-hero__chip i[data-tone='open'],
+.voice-hero__chip i[data-tone='verification'],
+.voice-hero__dot[data-tone='open'],
 .voice-hero__dot[data-tone='verification'] {
-  background: var(--raw-brand-200);
+  background: var(--raw-brand-500);
 }
+.voice-hero__chip i[data-tone='progress'],
 .voice-hero__dot[data-tone='progress'] {
-  background: #ffffff;
+  background: #e78a00;
 }
-.voice-hero--closed {
-  gap: var(--space-4);
+.voice-hero__chip i[data-tone='closed'],
+.voice-hero__pill i[data-tone='closed'],
+.voice-hero__dot[data-tone='closed'] {
+  background: var(--raw-success);
 }
+/* Area | PIC split with hairlines above, between, and below. */
+.voice-hero__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-block: 1px solid var(--border-subtle);
+}
+.voice-hero__grid > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-medium);
+}
+.voice-hero__grid > span + span {
+  border-left: 1px solid var(--border-subtle);
+}
+.voice-hero__grid svg {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+.voice-hero__location {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-base, 1.5);
+}
+.voice-hero__location svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--text-secondary);
+}
+/* Closed variant: check plate + tinted pills inside the white card. */
 .voice-hero__closedhead {
   display: flex;
   align-items: center;
@@ -2028,14 +2295,13 @@
 }
 .voice-hero__check {
   display: grid;
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 3rem;
+  height: 3rem;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 30%);
   border-radius: var(--radius-pill);
-  color: var(--text-inverse);
-  background: rgb(255 255 255 / 16%);
+  color: var(--raw-success);
+  background: rgb(19 115 51 / 12%);
 }
 .voice-hero__pills {
   display: flex;
@@ -2046,54 +2312,60 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  border: 1px solid rgb(255 255 255 / 36%);
   border-radius: var(--radius-pill);
-  color: var(--text-inverse);
+  color: var(--text-secondary);
+  background: var(--surface-inset);
   padding: 4px var(--space-3);
   font-size: var(--font-size-xs);
   font-weight: var(--weight-semibold);
 }
-.voice-hero__pill i {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: currentcolor;
-}
-.voice-hero__pill i[data-tone='closed'] {
-  background: var(--raw-success);
-}
-.voice-hero__pill i[data-tone='medium'] {
-  background: var(--raw-warning);
-}
-.voice-hero__pill i[data-tone='high'],
-.voice-hero__pill i[data-tone='critical'] {
-  background: #ff8298;
-}
-.voice-hero__pill i[data-tone='low'] {
-  background: rgb(255 255 255 / 72%);
-}
-.voice-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3) var(--space-4);
-  margin: 0;
-  padding-top: var(--space-3);
-  border-top: 1px dashed var(--border-default);
-}
-.voice-meta dt {
+.voice-hero__pill--plain {
   color: var(--text-tertiary);
-  font-size: var(--font-size-xs);
 }
-.voice-meta dd {
-  margin: 2px 0 0;
-  font-size: var(--font-size-sm);
-  font-weight: var(--weight-medium);
-  overflow-wrap: anywhere;
+
+/* Detail Voice section: plain heading + body + icon meta rows (screen 13). */
+.voice-detail {
+  display: grid;
+  gap: var(--space-4);
+}
+.voice-detail__heading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
 }
 .voice-detail__body {
   margin: 0;
   white-space: pre-wrap;
   color: var(--text-primary);
+  line-height: var(--line-base, 1.6);
+}
+.voice-meta-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border-subtle);
+  list-style: none;
+}
+.voice-meta-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.9rem;
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-size-sm);
+}
+.voice-meta-list li svg {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+.voice-meta-list__label {
+  color: var(--text-secondary);
+}
+.voice-meta-list strong {
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
 }
 
 /* Attachment row card (Voice attachments) */
@@ -2240,27 +2512,30 @@
   font-size: var(--font-size-xs);
 }
 
-/* Action panel */
-.action-panel {
-  display: grid;
-  gap: var(--space-4);
-}
-.action-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.action-panel__head h3 {
-  margin: 0;
-}
-.action-panel__status {
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-}
-.action-panel__grid {
+/* Action row — quick actions directly under the hero card (screen 13) */
+.action-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+.action-row .care-button {
+  flex: 1 1 9rem;
+  justify-content: center;
+}
+/* Reference accent: the outline action reads in brand blue, not ink. */
+.action-row .care-button--secondary {
+  color: var(--action-primary-bg);
+  border-color: rgb(8 102 255 / 28%);
+  background: rgb(8 102 255 / 4%);
+}
+.action-row .care-button--secondary:hover {
+  border-color: rgb(8 102 255 / 45%);
+  background: rgb(8 102 255 / 8%);
+}
+.action-row .care-button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .dialog-actions {
   display: flex;
@@ -3493,23 +3768,26 @@
   color: var(--text-tertiary);
 }
 
-/* Union identity presentation inside the private detail hero (23/24). */
+/* Union identity presentation inside the private detail hero card (23/24):
+   consent plate and meta columns now live on the white card surface. */
 .voice-hero__plate {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid rgb(255 255 255 / 16%);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-  background: rgb(0 32 96 / 26%);
+  background: var(--surface-inset);
+  color: var(--text-primary);
 }
 .voice-hero__plate--identified {
-  border-color: rgb(255 255 255 / 22%);
-  background: rgb(255 255 255 / 12%);
+  border-color: rgb(8 102 255 / 22%);
+  background: var(--surface-selected);
 }
 .voice-hero__plate > svg {
   flex: 0 0 auto;
   margin-top: 2px;
+  color: var(--raw-brand-600);
 }
 .voice-hero__plate-body {
   display: grid;
@@ -3523,12 +3801,8 @@
 }
 .voice-hero__plate-text {
   margin: 0;
-  color: var(--on-brand-muted);
+  color: var(--text-secondary);
   font-size: var(--font-size-xs);
-}
-/* Consented reporter card overlapping the hero bottom edge (24). */
-.voice-reporter--overlap {
-  margin-top: calc(-2.25rem - var(--space-2));
 }
 
 /* Account */
@@ -3890,17 +4164,14 @@
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
-/* Union hero extras: ID line, three-column meta strip, identity plates. */
-.voice-hero__id {
-  margin: 0;
-  color: var(--on-brand-muted);
-  font-size: var(--font-size-sm);
-  font-variant-numeric: tabular-nums;
-}
+/* Union hero extras inside the white card: three-column meta strip with
+   muted caps labels and tabular values. */
 .voice-hero__columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 .voice-hero__column {
   display: grid;
@@ -3909,7 +4180,7 @@
 }
 .voice-hero__column small {
   overflow: hidden;
-  color: var(--on-brand-muted);
+  color: var(--text-tertiary);
   font-size: var(--font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3963,6 +4234,8 @@
   /* Let the rows attribute drive the height; the shared 7.5rem floor turned
      two-row textareas into large empty boxes. */
   min-height: 0;
+  /* Mobile composition surface: no desktop resize grip. */
+  resize: none;
 }
 .care-app-shell .care-select-content {
   /* The dropdown panel itself stays white for contrast against the canvas. */
@@ -4089,22 +4362,6 @@
 .more-menu > button small {
   color: var(--text-secondary);
 }
-.conversation {
-  gap: var(--space-4);
-  scroll-margin-top: var(--space-6);
-}
-.conversation:focus-visible {
-  outline: var(--focus-width) solid var(--focus-color);
-  outline-offset: var(--focus-offset);
-}
-.conversation__head > div {
-  display: grid;
-  gap: 0;
-}
-.conversation__head .care-eyebrow {
-  margin: 0;
-  color: var(--raw-brand-700);
-}
 
 /* ===== Desktop (≥1280px): the workforce app stays mobile-first; the desktop
    layer adds a centered reading container, an aligned topbar, and an
@@ -4131,11 +4388,17 @@
     max-width: 56rem;
     padding: var(--space-8);
   }
-  .home-quick__grid {
-    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  /* The voice hero band bleeds to the desktop content padding (2rem). */
+  .voice-hero__band {
+    margin: calc(-1 * var(--space-8)) calc(-1 * var(--space-8)) 0;
+    padding: var(--space-6) var(--space-8) var(--space-8);
   }
-  .conversation__list {
-    max-height: 28rem;
+  .chat-page {
+    max-width: 56rem;
+  }
+  /* No dock at the desktop gate; the composer rests on the viewport edge. */
+  .chat-composer {
+    bottom: 0;
   }
   /* The hero band relaxes into a rounded card inside the desktop container. */
   .hero-band {

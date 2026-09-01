@@ -78,6 +78,32 @@ test.describe('workforce accessibility and responsive surface', () => {
     });
   }
 
+  for (const width of [360, 768, 1440]) {
+    test(`chat page is axe clean with no overflow at ${width}px`, async ({ page }) => {
+      await open(page, {
+        path: '/voices/voice-1/chat',
+        heading: 'Percakapan',
+        viewport: { width, height: 900 },
+        opts: {
+          voice: {
+            id: 'voice-1',
+            displayId: 'CARE-202608-000001',
+            audience: 'REPORTER_SELF',
+            visibility: 'PRIVATE',
+            status: 'IN_VERIFICATION',
+            area: 'KARAWANG_1',
+            title: 'Keluhan fasilitas toilet',
+            detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
+            availableActions: ['MESSAGE'],
+            conversationState: 'ACTIVE',
+          },
+        },
+      });
+      expect(await axe(page)).toEqual([]);
+      expect(await overflow(page)).toBeLessThanOrEqual(1);
+    });
+  }
+
   test('responder work-items is axe clean at 360px', async ({ page }) => {
     await open(page, {
       path: '/work-items',
