@@ -20,3 +20,6 @@ local-data/
 apps/api/prisma/dev.db
 packages/contracts/src/generated.ts.tmp
 .agent/design-images/
+/inference/.env
+__pycache__/
+*.py[cod]

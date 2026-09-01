@@ -7,10 +7,14 @@ import { AdminService } from '../../src/admin/admin.service';
 import type { AuthActor } from '../../src/auth/auth.types';
 import { PolicyService } from '../../src/auth/policy.service';
 import { ImportsService } from '../../src/imports/imports.service';
+import { AiRuntimeConfigService } from '../../src/ai/runtime-config.service';
+import { AiService } from '../../src/ai/ai.service';
 
 const prisma = new PrismaClient();
 const policy = new PolicyService(prisma as never);
 const adminService = new AdminService(prisma as never, policy);
+const aiRuntime = new AiRuntimeConfigService(prisma as never);
+const aiAdminService = new AdminService(prisma as never, policy, aiRuntime, {} as AiService);
 const imports = new ImportsService(prisma as never);
 let admin: AuthActor;
 let workforceId: string;
@@ -111,6 +115,74 @@ describe('Admin safety invariants', () => {
         'admin-safety-status-stale',
       ),
     ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+  });
+
+  it('persists encrypted AI overrides, preserves the key, and resets to env', async () => {
+    const apiKey = 'admin-ai-provider-secret-that-is-never-returned';
+    const first = await aiAdminService.updateAiConfiguration(
+      admin,
+      {
+        baseUrl: 'https://inference.example.test/v1',
+        model: 'ibm-granite/granite-4.2-3b',
+        apiKey,
+        reasoningEffort: '',
+        confidenceThreshold: 0.7,
+        expectedVersion: null,
+      },
+      'admin-ai-create',
+    );
+    expect(first).toMatchObject({ source: 'ADMIN_OVERRIDE', version: 1, apiKeyConfigured: true });
+    expect(JSON.stringify(first)).not.toContain(apiKey);
+    const stored = await prisma.aiProviderConfiguration.findUniqueOrThrow({
+      where: { id: 'openai' },
+    });
+    expect(stored.apiKeyCiphertext).not.toContain(apiKey);
+
+    const updated = await aiAdminService.updateAiConfiguration(
+      admin,
+      {
+        baseUrl: 'https://api.deepseek.com',
+        model: 'deepseek-v4-flash',
+        reasoningEffort: 'high',
+        confidenceThreshold: 0.8,
+        expectedVersion: 1,
+      },
+      'admin-ai-update',
+    );
+    expect(updated).toMatchObject({ version: 2, reasoningEffort: 'high' });
+    const preserved = await prisma.aiProviderConfiguration.findUniqueOrThrow({
+      where: { id: 'openai' },
+    });
+    expect(preserved.apiKeyCiphertext).toBe(stored.apiKeyCiphertext);
+    expect(preserved.apiKeyIv).toBe(stored.apiKeyIv);
+    expect(preserved.apiKeyTag).toBe(stored.apiKeyTag);
+
+    await expect(
+      aiAdminService.updateAiConfiguration(
+        admin,
+        {
+          baseUrl: 'https://api.deepseek.com',
+          model: 'deepseek-v4-flash',
+          reasoningEffort: 'none',
+          confidenceThreshold: 0.8,
+          expectedVersion: 1,
+        },
+        'admin-ai-stale',
+      ),
+    ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+
+    const reset = await aiAdminService.resetAiConfiguration(
+      admin,
+      { expectedVersion: 2 },
+      'admin-ai-reset',
+    );
+    expect(reset).toMatchObject({ source: 'ENVIRONMENT', version: null });
+    expect(await prisma.aiProviderConfiguration.count()).toBe(0);
+    const auditText = JSON.stringify(
+      await prisma.auditEvent.findMany({ where: { resourceId: 'openai' } }),
+    );
+    expect(auditText).not.toContain(apiKey);
+    expect(auditText).not.toContain(stored.apiKeyCiphertext);
   });
 
   it('stores and cursor-paginates import changes outside the bounded summary', async () => {

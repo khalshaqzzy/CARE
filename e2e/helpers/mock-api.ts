@@ -23,6 +23,7 @@ type VoiceDetail = components['schemas']['AdminPrivateVoiceDetail'];
 type TimelinePage = components['schemas']['TimelinePage'];
 type MessagePage = components['schemas']['MessagePage'];
 type AdminOverview = components['schemas']['AdminOverview'];
+type AiConfiguration = components['schemas']['AiConfigurationResponse'];
 
 /** A safe, non-leaking error envelope for the mock. */
 export function errorBody(code: string, message = 'Not found in mock') {
@@ -293,7 +294,7 @@ const readyFixture = (): Readiness => ({
     environment: 'test',
     releaseSha: 'ci',
     mediaRoot: './.tmp',
-    openai: { configured: false, model: null },
+    openai: { configured: false, model: null, reasoningEffort: '' },
     push: { configured: false },
   },
 });
@@ -310,6 +311,17 @@ const overviewFixture = (): AdminOverview => ({
     action: 'set_default_pic',
     createdAt: '2026-08-01T00:00:00.000Z',
   },
+});
+
+const aiConfigurationFixture = (): AiConfiguration => ({
+  source: 'ENVIRONMENT',
+  baseUrl: 'https://api.deepseek.com',
+  model: 'deepseek-v4-flash',
+  reasoningEffort: 'none',
+  confidenceThreshold: 0.75,
+  apiKeyConfigured: true,
+  version: null,
+  updatedAt: null,
 });
 
 const accountFixtures = (): AccountSummary[] => [
@@ -592,6 +604,7 @@ export async function mockAdminApi(
     health?: Health;
     ready?: Readiness;
     release?: Release;
+    aiConfiguration?: AiConfiguration;
   } = {},
 ) {
   const session = opts.session ?? adminSession();
@@ -622,6 +635,30 @@ export async function mockAdminApi(
     }
     if (method === 'GET' && path === '/api/v1/admin/overview')
       return fulfill(200, override('overview') ?? overviewFixture());
+    if (method === 'GET' && path === '/api/v1/admin/ai-configuration')
+      return fulfill(200, override('aiConfiguration') ?? aiConfigurationFixture());
+    if (method === 'PUT' && path === '/api/v1/admin/ai-configuration') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      return fulfill(200, {
+        source: 'ADMIN_OVERRIDE',
+        baseUrl: body.baseUrl,
+        model: body.model,
+        reasoningEffort: body.reasoningEffort,
+        confidenceThreshold: body.confidenceThreshold,
+        apiKeyConfigured: true,
+        version: 1,
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      });
+    }
+    if (method === 'DELETE' && path === '/api/v1/admin/ai-configuration')
+      return fulfill(200, aiConfigurationFixture());
+    if (method === 'POST' && path === '/api/v1/admin/ai-configuration/test')
+      return fulfill(200, {
+        ok: true,
+        classification: { source: 'AI' },
+        location: { completeness: 'COMPLETE', valid: true },
+        latencyMs: 42,
+      });
     if (method === 'GET' && path === '/api/v1/admin/accounts')
       return fulfill(200, override('accounts') ?? { items: accountFixtures(), nextCursor: null });
     if (method === 'GET' && path.startsWith('/api/v1/admin/accounts/')) {

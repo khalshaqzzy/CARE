@@ -4,6 +4,11 @@ import { loadConfig, redactedConfig, resetConfigForTests } from '../../src/confi
 describe('runtime configuration', () => {
   afterEach(() => {
     delete process.env.OPENAI_REASONING_EFFORT;
+    process.env.SESSION_HASH_SECRET = 'test-session-hash-secret-000000000000';
+    process.env.SESSION_CSRF_SECRET = 'test-session-csrf-secret-000000000000';
+    process.env.AUTH_THROTTLE_SECRET = 'test-auth-throttle-secret-00000000000';
+    process.env.CURSOR_SIGNING_SECRET = 'test-cursor-signing-secret-0000000000';
+    process.env.OPENAI_CONFIG_ENCRYPTION_KEY = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
     resetConfigForTests();
   });
   it('parses an exact trusted proxy hop count', () => {
@@ -34,7 +39,7 @@ describe('runtime configuration', () => {
     expect(value).not.toContain('secret-api-key');
     expect(value).toContain('"configured":true');
   });
-  it('defaults an empty OpenAI reasoning effort to none and preserves a supported override', () => {
+  it('preserves provider-default empty reasoning effort and a supported override', () => {
     Object.assign(process.env, {
       NODE_ENV: 'test',
       DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
@@ -44,7 +49,7 @@ describe('runtime configuration', () => {
       CURSOR_SIGNING_SECRET: 'd'.repeat(32),
       OPENAI_REASONING_EFFORT: '',
     });
-    expect(loadConfig().OPENAI_REASONING_EFFORT).toBe('none');
+    expect(loadConfig().OPENAI_REASONING_EFFORT).toBe('');
 
     resetConfigForTests();
     process.env.OPENAI_REASONING_EFFORT = 'high';
@@ -53,5 +58,18 @@ describe('runtime configuration', () => {
     resetConfigForTests();
     process.env.OPENAI_REASONING_EFFORT = 'extreme';
     expect(() => loadConfig()).toThrow('OPENAI_REASONING_EFFORT');
+  });
+  it('rejects reuse of a session secret for AI configuration encryption', () => {
+    Object.assign(process.env, {
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
+      SESSION_HASH_SECRET: 'e'.repeat(43),
+      SESSION_CSRF_SECRET: 'b'.repeat(32),
+      AUTH_THROTTLE_SECRET: 'c'.repeat(32),
+      CURSOR_SIGNING_SECRET: 'd'.repeat(32),
+      OPENAI_CONFIG_ENCRYPTION_KEY: 'e'.repeat(43),
+    });
+    resetConfigForTests();
+    expect(() => loadConfig()).toThrow('must be distinct');
   });
 });

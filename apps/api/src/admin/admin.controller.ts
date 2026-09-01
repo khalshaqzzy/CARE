@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Inject,
@@ -23,6 +24,32 @@ export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
   @Get('overview') overview() {
     return this.service.overview();
+  }
+
+  @Get('ai-configuration') aiConfiguration() {
+    return this.service.aiConfiguration();
+  }
+
+  @Put('ai-configuration') updateAiConfiguration(
+    @Actor() actor: AuthActor,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+    @Headers('Idempotency-Key') keyAlt?: string,
+  ) {
+    return this.service.updateAiConfiguration(actor, body, key ?? keyAlt);
+  }
+
+  @Delete('ai-configuration') resetAiConfiguration(
+    @Actor() actor: AuthActor,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+    @Headers('Idempotency-Key') keyAlt?: string,
+  ) {
+    return this.service.resetAiConfiguration(actor, body, key ?? keyAlt);
+  }
+
+  @Post('ai-configuration/test') testAiConfiguration(@Actor() actor: AuthActor) {
+    return this.service.testAiConfiguration(actor);
   }
 
   @Get('accounts') accounts(

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   AccountKind,
   AccountStatus,
@@ -17,6 +17,13 @@ import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
+import { AiService } from '../ai/ai.service';
+import {
+  AI_CONFIGURATION_ID,
+  AiRuntimeConfigService,
+  encryptAiSecret,
+  environmentAiConfig,
+} from '../ai/runtime-config.service';
 
 const routePicBody = z
   .object({
@@ -46,13 +53,221 @@ const accountResponseSelect = Prisma.validator<Prisma.UserAccountSelect>()({
   createdAt: true,
   updatedAt: true,
 });
+const reasoningEfforts = ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+const aiConfigurationBody = z
+  .object({
+    baseUrl: z
+      .string()
+      .trim()
+      .url()
+      .refine((value) => new URL(value).protocol === 'https:', 'Base URL must use HTTPS'),
+    model: z.string().trim().min(1).max(200),
+    apiKey: z.string().max(512).optional(),
+    reasoningEffort: z.enum(reasoningEfforts),
+    confidenceThreshold: z.number().min(0).max(1),
+    expectedVersion: z.number().int().positive().nullable(),
+  })
+  .strict();
+const aiConfigurationResetBody = z
+  .object({ expectedVersion: z.number().int().positive() })
+  .strict();
 
 @Injectable()
 export class AdminService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PolicyService) private readonly policy: PolicyService,
+    @Optional()
+    @Inject(AiRuntimeConfigService)
+    private readonly aiRuntimeConfig?: AiRuntimeConfigService,
+    @Optional() @Inject(AiService) private readonly ai?: AiService,
   ) {}
+
+  aiConfiguration() {
+    return this.requireAiRuntimeConfig().safeEffective();
+  }
+
+  async updateAiConfiguration(actor: AuthActor, body: unknown, key?: string) {
+    this.requireIdempotencyKey(key);
+    const parsed = aiConfigurationBody.safeParse(body);
+    if (!parsed.success)
+      throw badRequest('VALIDATION_ERROR', 'Invalid AI configuration', [
+        ...parsed.error.issues.map((issue) => ({
+          field: issue.path.join('.') || 'body',
+          code: issue.code,
+          message: issue.message,
+        })),
+      ]);
+
+    const currentEffective = await this.requireAiRuntimeConfig().effective();
+    const submittedKey = parsed.data.apiKey?.trim();
+    const effectiveKey = submittedKey || currentEffective.apiKey;
+    if (!effectiveKey)
+      throw badRequest('OPENAI_API_KEY_REQUIRED', 'API key is required for the first override');
+    const encrypted = encryptAiSecret(effectiveKey);
+    const requestHash = canonicalHash({
+      ...parsed.data,
+      apiKey: submittedKey ? canonicalHash(submittedKey) : null,
+    });
+
+    return this.executeIdempotent({
+      actor,
+      scope: 'admin:ai-configuration:update',
+      key,
+      requestHash,
+      resourceLock: 'admin:ai-configuration',
+      work: async (tx) => {
+        const current = await tx.aiProviderConfiguration.findUnique({
+          where: { id: AI_CONFIGURATION_ID },
+        });
+        if ((current?.version ?? null) !== parsed.data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'AI configuration has changed', {
+            currentVersion: current?.version ?? null,
+          });
+        const changedFields = [
+          ...(!current || current.baseUrl !== parsed.data.baseUrl ? ['baseUrl'] : []),
+          ...(!current || current.model !== parsed.data.model ? ['model'] : []),
+          ...(!current || current.reasoningEffort !== parsed.data.reasoningEffort
+            ? ['reasoningEffort']
+            : []),
+          ...(!current || current.confidenceThreshold !== parsed.data.confidenceThreshold
+            ? ['confidenceThreshold']
+            : []),
+          ...(submittedKey ? ['apiKey'] : []),
+        ];
+        const secret =
+          submittedKey || !current
+            ? encrypted
+            : {
+                ciphertext: current.apiKeyCiphertext,
+                iv: current.apiKeyIv,
+                tag: current.apiKeyTag,
+              };
+        const saved = current
+          ? await tx.aiProviderConfiguration.update({
+              where: { id: AI_CONFIGURATION_ID },
+              data: {
+                baseUrl: parsed.data.baseUrl,
+                model: parsed.data.model,
+                reasoningEffort: parsed.data.reasoningEffort,
+                confidenceThreshold: parsed.data.confidenceThreshold,
+                apiKeyCiphertext: secret.ciphertext,
+                apiKeyIv: secret.iv,
+                apiKeyTag: secret.tag,
+                updatedById: actor.accountId,
+                version: { increment: 1 },
+              },
+            })
+          : await tx.aiProviderConfiguration.create({
+              data: {
+                id: AI_CONFIGURATION_ID,
+                baseUrl: parsed.data.baseUrl,
+                model: parsed.data.model,
+                reasoningEffort: parsed.data.reasoningEffort,
+                confidenceThreshold: parsed.data.confidenceThreshold,
+                apiKeyCiphertext: secret.ciphertext,
+                apiKeyIv: secret.iv,
+                apiKeyTag: secret.tag,
+                updatedById: actor.accountId,
+              },
+            });
+        await this.audit(tx, actor, 'AI_CONFIGURATION_UPDATED', AI_CONFIGURATION_ID, {
+          changedFields,
+          previousSource: current ? 'ADMIN_OVERRIDE' : 'ENVIRONMENT',
+          source: 'ADMIN_OVERRIDE',
+        });
+        return {
+          source: 'ADMIN_OVERRIDE' as const,
+          baseUrl: saved.baseUrl,
+          model: saved.model,
+          reasoningEffort: saved.reasoningEffort,
+          confidenceThreshold: saved.confidenceThreshold,
+          apiKeyConfigured: true,
+          version: saved.version,
+          updatedAt: saved.updatedAt,
+        };
+      },
+      serialize: (result) => ({ ...result, updatedAt: result.updatedAt.toISOString() }),
+      replay: (_tx, response) => ({
+        source: 'ADMIN_OVERRIDE' as const,
+        baseUrl: String(response.baseUrl),
+        model: String(response.model),
+        reasoningEffort: String(response.reasoningEffort),
+        confidenceThreshold: Number(response.confidenceThreshold),
+        apiKeyConfigured: true,
+        version: Number(response.version),
+        updatedAt: new Date(String(response.updatedAt)),
+      }),
+    });
+  }
+
+  async resetAiConfiguration(actor: AuthActor, body: unknown, key?: string) {
+    this.requireIdempotencyKey(key);
+    const parsed = aiConfigurationResetBody.safeParse(body);
+    if (!parsed.success) throw badRequest('VALIDATION_ERROR', 'Invalid AI configuration reset');
+    const fallback = environmentAiConfig();
+    const response = await this.executeIdempotent({
+      actor,
+      scope: 'admin:ai-configuration:reset',
+      key,
+      requestHash: canonicalHash(parsed.data),
+      resourceLock: 'admin:ai-configuration',
+      work: async (tx) => {
+        const current = await tx.aiProviderConfiguration.findUnique({
+          where: { id: AI_CONFIGURATION_ID },
+        });
+        if (!current || current.version !== parsed.data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'AI configuration has changed', {
+            currentVersion: current?.version ?? null,
+          });
+        await tx.aiProviderConfiguration.delete({ where: { id: AI_CONFIGURATION_ID } });
+        await this.audit(tx, actor, 'AI_CONFIGURATION_RESET', AI_CONFIGURATION_ID, {
+          changedFields: ['baseUrl', 'model', 'reasoningEffort', 'confidenceThreshold', 'apiKey'],
+          previousSource: 'ADMIN_OVERRIDE',
+          source: 'ENVIRONMENT',
+        });
+        return {
+          source: 'ENVIRONMENT' as const,
+          baseUrl: fallback.baseUrl,
+          model: fallback.model,
+          reasoningEffort: fallback.reasoningEffort,
+          confidenceThreshold: fallback.confidenceThreshold,
+          apiKeyConfigured: Boolean(fallback.apiKey),
+          version: null,
+          updatedAt: null,
+        };
+      },
+      serialize: (result) => result,
+    });
+    return response;
+  }
+
+  async testAiConfiguration(actor: AuthActor) {
+    const started = Date.now();
+    const [classification, location] = await Promise.all([
+      this.requireAi().classify({
+        visibility: 'GENERAL',
+        area: 'KARAWANG_1',
+        title: 'Pagar pengaman mesin longgar',
+        detail: 'Pagar pengaman di sisi mesin perlu diperiksa dan dikencangkan.',
+      }),
+      this.requireAi().reviewLocation({ area: 'KARAWANG_1', locationDetail: 'Gedung A, line 2' }),
+    ]);
+    const result = {
+      ok: classification.source === 'AI' && location.fallbackCode === null,
+      classification: { source: classification.source },
+      location: { completeness: location.completeness, valid: location.fallbackCode === null },
+      latencyMs: Date.now() - started,
+    };
+    await this.prisma.$transaction((tx) =>
+      this.audit(tx, actor, 'AI_CONFIGURATION_TESTED', AI_CONFIGURATION_ID, {
+        ok: result.ok,
+        classificationSource: result.classification.source,
+        locationValid: result.location.valid,
+      }),
+    );
+    return result;
+  }
 
   async overview() {
     const [accountGroups, openRemediation, latestImport, unionSlots, recentResolution] =
@@ -983,6 +1198,16 @@ export class AdminService {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(summary)) if (!forbidden.has(k)) out[k] = v;
     return out;
+  }
+
+  private requireAiRuntimeConfig() {
+    if (!this.aiRuntimeConfig) throw new Error('AI runtime configuration service unavailable');
+    return this.aiRuntimeConfig;
+  }
+
+  private requireAi() {
+    if (!this.ai) throw new Error('AI service unavailable');
+    return this.ai;
   }
 
   private async executeIdempotent<T>(options: {

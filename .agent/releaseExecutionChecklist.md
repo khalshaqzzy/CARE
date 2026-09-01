@@ -35,6 +35,7 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 - [ ] PostgreSQL healthy; forward-only migration completed; Admin bootstrap completed without credential output.
 - [ ] API exact-SHA readiness passed.
 - [ ] Live DeepSeek Chat Completions classification and location function schemas passed.
+- [x] 1 September 2026: independent `dx-2` Granite stack, `inference.qd-tmmin.site` tunnel route, unauthenticated 401, authenticated model list, and exact-one classification/location calls passed; this stack was not built by CARE deploy. Granite retains named forcing; DeepSeek thinking uses its documented tool mode without named `tool_choice` and remains fail-closed.
 - [ ] Workforce, Admin, and Caddy became healthy in order.
 - [ ] Internal and external two-origin smoke passed.
 - [ ] `current` and `current_release` changed only after smoke success.

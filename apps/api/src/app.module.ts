@@ -10,9 +10,10 @@ import { ImportsModule } from './imports/imports.module';
 import { VoicesModule } from './voices/voices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MetricsController } from './metrics.controller';
+import { AiModule } from './ai/ai.module';
 
 @Module({
-  imports: [AuthModule, AdminModule, ImportsModule, VoicesModule, NotificationsModule],
+  imports: [AuthModule, AiModule, AdminModule, ImportsModule, VoicesModule, NotificationsModule],
   controllers: [HealthController, MetricsController],
   providers: [PrismaService, { provide: APP_FILTER, useClass: HttpErrorFilter }],
   exports: [PrismaService],

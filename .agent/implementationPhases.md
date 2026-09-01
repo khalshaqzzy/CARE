@@ -645,6 +645,15 @@ Acceptance:
 
 Implementation state 28 Agustus 2026:
 
+- 1 September 2026 local-provider extension is complete without changing this
+  phase status: independent `/inference` Compose runs Granite 4.2 3B through
+  SGLang on `dx-2`; the existing Cloudflare tunnel publishes
+  `inference.qd-tmmin.site`; CARE supports encrypted, hot-reloaded Admin AI
+  configuration with environment fallback; and live Granite plus DeepSeek
+  `none`/`high` classification/location scenarios passed. Context is 32,768
+  tokens and generated output is capped at 8,192. See ADR-0028. Hosted CARE
+  exact-SHA acceptance and rollback evidence below remain outstanding;
+
 - route remediation follow-up is locally complete: affected departments are
   visible in a comprehensive KPI/filter/impact/hierarchy/timestamp workspace and
   its scope-aware drawer; default/global PIC resolution accepts only No. Reg,
@@ -672,8 +681,8 @@ Implementation state 28 Agustus 2026:
   fresh and previous-SHA migrations, mocked/serial full-stack browser journeys,
   workflow/shell/container acceptance, Gitleaks, dependency audit/review,
   CodeQL, and Trivy before calling the reusable deployment workflow;
-- automatic staging deploy includes live DeepSeek Chat Completions classification/location
-  validation and two-origin smoke. Web Push canary is implemented as a manually
+- automatic staging deploy includes live configured-provider Chat Completions
+  classification/location validation and two-origin smoke. Web Push canary is implemented as a manually
   invoked operational profile and is deliberately outside automated tests,
   deployment smoke, and the automatic deploy gate;
 - hosted GitHub run, exact-SHA origin verification, acceptance-data journeys,

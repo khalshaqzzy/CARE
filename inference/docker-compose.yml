@@ -1,0 +1,87 @@
+name: care-inference
+
+# This stack is deliberately separate from CARE deployment Compose. Operate it
+# manually on dx-2 with `docker compose up -d --build`.
+services:
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: inference
+    image: care-inference/sglang:0.5.18-granite42
+    gpus: all
+    ipc: host
+    shm_size: 32g
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      # Regular HTTPS downloads resume reliably on the long-lived host cache.
+      HF_HUB_DISABLE_XET: '1'
+    volumes:
+      - ${HF_CACHE:-/home/pcsistem/.cache/huggingface}:/root/.cache/huggingface
+    expose:
+      - '30000'
+    command:
+      - python3
+      - -m
+      - sglang.launch_server
+      - --model-path
+      - ${MODEL_ID:-ibm-granite/granite-4.2-3b}
+      - --served-model-name
+      - ${SERVED_MODEL_NAME:-ibm-granite/granite-4.2-3b}
+      - --dtype
+      - bfloat16
+      - --tp
+      - '1'
+      - --reasoning-parser
+      - auto
+      - --tool-call-parser
+      - auto
+      - --host
+      - 0.0.0.0
+      - --port
+      - '30000'
+      - --context-length
+      - ${CONTEXT_LENGTH:-32768}
+      - --mem-fraction-static
+      - ${MEM_FRACTION_STATIC:-0.8}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:30000/health',timeout=5)"
+      interval: 10s
+      timeout: 6s
+      retries: 180
+      start_period: 120s
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gateway
+    image: care-inference/gateway:2.10.2-rootless
+    depends_on:
+      inference:
+        condition: service_healthy
+    environment:
+      INFERENCE_API_KEY: ${INFERENCE_API_KEY:?INFERENCE_API_KEY is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - 127.0.0.1:${GATEWAY_PORT:-30000}:30000
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'wget -q -O /dev/null --header="Authorization: Bearer $${INFERENCE_API_KEY}" http://127.0.0.1:30000/v1/models'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    read_only: true
+    tmpfs:
+      - /config
+      - /data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped

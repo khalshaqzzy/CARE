@@ -1,6 +1,6 @@
+import { loadConfig } from '../config';
 import { VoiceVisibility } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
-import { loadConfig } from '../config';
 
 function say(message: string) {
   process.stdout.write(`[live-provider-smoke] ${message}\n`);
@@ -61,7 +61,7 @@ async function main() {
     throw new Error(
       `Live location contract validation failed (fallbackCode=${location.fallbackCode})`,
     );
-  say('Live DeepSeek Chat Completions classification and location contracts passed');
+  say('Live OpenAI-compatible Chat Completions classification and location contracts passed');
 }
 
 void main();

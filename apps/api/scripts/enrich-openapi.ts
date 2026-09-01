@@ -60,6 +60,11 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
           content: { 'multipart/form-data': { schema: multipartSchema } },
         };
       const hasMultipart = operation.requestBody?.content?.['multipart/form-data'];
+      if (operation.operationId === 'AdminController_resetAiConfiguration')
+        operation.requestBody = {
+          required: true,
+          content: { 'application/json': { schema: requestSchema(operation.operationId) } },
+        };
       if (
         method !== 'get' &&
         method !== 'delete' &&
@@ -173,6 +178,8 @@ const idempotentOperations = new Set([
   'AdminController_defaultPic',
   'AdminController_globalPic',
   'AdminController_unionAccount',
+  'AdminController_updateAiConfiguration',
+  'AdminController_resetAiConfiguration',
   'ImportsController_confirm',
 ]);
 
@@ -192,6 +199,8 @@ const noBodyOperations = new Set([
   'AdminController_unionAccounts',
   'AdminController_auditEvents',
   'AdminController_auditDetail',
+  'AdminController_aiConfiguration',
+  'AdminController_testAiConfiguration',
   'ImportsController_list',
   'ImportsController_detail',
   'ImportsController_changes',
@@ -279,6 +288,10 @@ function successSchema(operationId: string) {
     AdminController_sectionHeads: 'SectionHeadCandidateList',
     AdminController_unionAccount: 'UnionProvisionResponse',
     AdminController_unionAccounts: 'UnionAccountList',
+    AdminController_aiConfiguration: 'AiConfigurationResponse',
+    AdminController_updateAiConfiguration: 'AiConfigurationResponse',
+    AdminController_resetAiConfiguration: 'AiConfigurationResponse',
+    AdminController_testAiConfiguration: 'AiConfigurationTestResponse',
     ImportsController_detail: 'OrganizationImportPreview',
     ImportsController_preview: 'OrganizationImportPreview',
     OrganizationSnapshotsController_current: 'OrganizationSnapshot',
@@ -340,6 +353,8 @@ function requestSchema(operationId: string) {
     AdminController_globalPic: 'AccountSelectionRequest',
     AdminController_unionAccount: 'UnionAccountRequest',
     AdminController_setStatus: 'AccountStatusRequest',
+    AdminController_updateAiConfiguration: 'AiConfigurationUpdateRequest',
+    AdminController_resetAiConfiguration: 'AiConfigurationResetRequest',
     ImportsController_confirm: 'ConfirmImportRequest',
     AuthController_login: 'LoginRequest',
     AuthController_changePassword: 'ChangePasswordRequest',
@@ -723,11 +738,15 @@ const schemas: Record<string, any> = {
           mediaRoot: { type: 'string' },
           openai: {
             type: 'object',
-            required: ['configured', 'model'],
+            required: ['configured', 'model', 'reasoningEffort'],
             additionalProperties: false,
             properties: {
               configured: { type: 'boolean' },
               model: { type: 'string', nullable: true },
+              reasoningEffort: {
+                type: 'string',
+                enum: ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+              },
             },
           },
           push: {
@@ -1231,6 +1250,85 @@ const schemas: Record<string, any> = {
     properties: {
       items: { type: 'array', items: { $ref: '#/components/schemas/AccountSummary' } },
       nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
+    },
+  },
+  AiConfigurationResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'source',
+      'baseUrl',
+      'model',
+      'reasoningEffort',
+      'confidenceThreshold',
+      'apiKeyConfigured',
+      'version',
+      'updatedAt',
+    ],
+    properties: {
+      source: { type: 'string', enum: ['ENVIRONMENT', 'ADMIN_OVERRIDE'] },
+      baseUrl: { type: 'string', description: 'Effective HTTPS base URL, or empty when unset.' },
+      model: { type: 'string' },
+      reasoningEffort: {
+        type: 'string',
+        enum: ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      confidenceThreshold: { type: 'number', minimum: 0, maximum: 1 },
+      apiKeyConfigured: { type: 'boolean' },
+      version: { type: 'integer', nullable: true },
+      updatedAt: { type: 'string', format: 'date-time', nullable: true },
+    },
+  },
+  AiConfigurationUpdateRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['baseUrl', 'model', 'reasoningEffort', 'confidenceThreshold', 'expectedVersion'],
+    properties: {
+      baseUrl: { type: 'string', format: 'uri', pattern: '^https://' },
+      model: { type: 'string', minLength: 1, maxLength: 200 },
+      apiKey: {
+        type: 'string',
+        format: 'password',
+        maxLength: 512,
+        writeOnly: true,
+        description: 'Omit or leave empty to preserve the effective API key.',
+      },
+      reasoningEffort: {
+        type: 'string',
+        enum: ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      confidenceThreshold: { type: 'number', minimum: 0, maximum: 1 },
+      expectedVersion: { type: 'integer', minimum: 1, nullable: true },
+    },
+  },
+  AiConfigurationResetRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['expectedVersion'],
+    properties: { expectedVersion: { type: 'integer', minimum: 1 } },
+  },
+  AiConfigurationTestResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['ok', 'classification', 'location', 'latencyMs'],
+    properties: {
+      ok: { type: 'boolean' },
+      classification: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['source'],
+        properties: { source: { type: 'string', enum: ['AI', 'MANUAL_FALLBACK'] } },
+      },
+      location: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['completeness', 'valid'],
+        properties: {
+          completeness: { type: 'string', enum: ['COMPLETE', 'INCOMPLETE', 'UNKNOWN'] },
+          valid: { type: 'boolean' },
+        },
+      },
+      latencyMs: { type: 'integer', minimum: 0 },
     },
   },
   AdminOverview: {
