@@ -310,12 +310,31 @@ describe('composed section contracts', () => {
       );
     }
     const { container } = render(<Controlled />);
-    expect(screen.getByRole('radiogroup', { name: 'Beri rating' })).toBeInTheDocument();
+    const group = screen.getByRole('radiogroup', { name: 'Beri rating' });
+    expect(group).toBeInTheDocument();
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(0);
     await user.click(screen.getByRole('radio', { name: '4/5' }));
     expect(screen.getByRole('radio', { name: '4/5' })).toBeChecked();
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(4);
     const summary = screen.getByRole('img', { name: 'Rating terkirim: 4/5' });
     expect(summary).toBeInTheDocument();
     expect(summary.querySelectorAll('svg[data-filled="true"]')).toHaveLength(4);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('fills stars cumulatively through hover and keyboard focus previews', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<RatingInput label="Beri rating" />);
+    const group = screen.getByRole('radiogroup', { name: 'Beri rating' });
+    const third = screen.getByRole('radio', { name: '3/5' });
+    await user.hover(third);
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(3);
+    await user.unhover(third);
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(0);
+    await user.tab();
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(1);
+    await user.click(screen.getByRole('radio', { name: '2/5' }));
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(2);
     expect(await axe(container)).toHaveNoViolations();
   });
 

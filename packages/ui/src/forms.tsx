@@ -606,8 +606,9 @@ export function RadioGroup({
 
 /**
  * Star rating on radio semantics (1–5). The accessible value is "n/5"; the
- * stars are decorative. `readOnly` renders a non-interactive summary, e.g. a
- * submitted closure-cycle rating.
+ * stars are decorative. Stars fill cumulatively from the left up to the
+ * selected (or hovered) value. `readOnly` renders a non-interactive summary,
+ * e.g. a submitted closure-cycle rating.
  */
 export function RatingInput({
   label,
@@ -642,17 +643,19 @@ export function RatingInput({
       </span>
     );
   }
-  const rootProps = {
-    ...(value === undefined ? {} : { value: String(value) }),
-    ...(defaultValue === undefined ? {} : { defaultValue: String(defaultValue) }),
-    ...(onValueChange === undefined
-      ? {}
-      : { onValueChange: (v: string) => onValueChange?.(Number(v)) }),
-    ...(disabled === undefined ? {} : { disabled }),
-  };
+  const [current, setCurrent] = useControllableState<number>({
+    value,
+    defaultValue: defaultValue ?? 0,
+    onChange: onValueChange,
+  });
+  const [hovered, setHovered] = useState(0);
+  const shown = hovered || current;
   return (
     <RadioGroupPrimitive.Root
-      {...rootProps}
+      value={String(current)}
+      onValueChange={(v) => setCurrent(Number(v))}
+      disabled={disabled || undefined}
+      onMouseLeave={() => setHovered(0)}
       aria-label={label}
       className={cn('care-rating', className)}
     >
@@ -662,6 +665,10 @@ export function RatingInput({
           value={String(score)}
           aria-label={`${score}/5`}
           className="care-rating__star"
+          onMouseEnter={() => setHovered(score)}
+          onFocus={() => setHovered(score)}
+          onBlur={() => setHovered(0)}
+          data-filled={score <= shown || undefined}
         >
           <Star aria-hidden="true" />
         </RadioGroupPrimitive.Item>
