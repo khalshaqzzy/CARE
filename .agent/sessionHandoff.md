@@ -7,10 +7,66 @@
 | Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                     |
 | Backend Complete Gate   | Passed again for ADR-0029 after fresh/upgrade migration, integration, security, performance, reconciliation, and full-stack validation |
 | Implementation status   | Dynamic category implementation and local parity are complete; PR #22 carries the CI fixture and additive-migration correction         |
-| Latest ADR              | ADR-0030 (classification prompt v1.4 enrichment)                                                                                       |
-| Recommended next action | Review/merge the classification-prompt PR, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal                   |
+| Latest ADR              | ADR-0031 (voice detail + dedicated chat page redesign)                                                                                 |
+| Recommended next action | Merge the voice-detail/chat redesign PR after hosted CI, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal     |
 
 ## Session Outcome
+
+### Voice detail + dedicated chat page redesign — 1 September 2026
+
+Branch `feat/voice-detail-chat-redesign` (from `staging`). Frontend-only change
+set implementing ADR-0031 with the product owner's locked decisions: the
+chatroom is a dedicated page at `/voices/:id/chat`; the shared topbar is
+suppressed only on the detail and chat routes (scoped supersession of ADR-0023);
+all audiences are restyled while the Union consent plates and their anchor
+phrases stay verbatim; the bottom dock is untouched.
+
+- **`packages/ui`.** `RatingInput` fills stars cumulatively left→right in the
+  brand blue for the selected count with hover/keyboard preview (`data-filled`
+  attributes; no `:has()`); radio semantics and the accessible label are
+  unchanged. The read-only variant follows the same cumulative tone. Component
+  unit test asserts the cumulative fill count and the preview behavior.
+- **`apps/web-voice`.** New `VoiceHero` (full/compact/union/closed variants —
+  band with circular back control, CARE + display id lockup, waveform status
+  pill, overlapping white card with chips, Area/PIC split, location row, union
+  consent plates, closed check plate), `LinkCard`, and the shared
+  `useConversation` hook (one query key for the detail summary card and the
+  page). `ConversationPanel` is deleted; `ConversationPage` renders the compact
+  hero, day-grouped log with Jakarta day dividers, privacy-first sender labels
+  (`sender.alias` first), solid-blue outgoing / neutral incoming bubbles with
+  avatar and timestamps, a composer pinned above the dock (attach, pill input,
+  circular send, autofocus per PRD §16), and a READ_ONLY notice. UNAVAILABLE
+  redirects to the detail page. `VoiceDetailPage` is restructured: action row
+  under the hero card (outline actions in the brand-blue accent, ASK success
+  navigates to the chat page), "Detail Voice" body with icon meta rows, link
+  cards for Percakapan/Timeline, attachments, rating/closure/union cards
+  restyled with all anchors intact.
+- **CSS.** Hero band full-bleed via the existing content padding tiers, legacy
+  iOS 11.3-safe (no `:has()`; fallback declarations), composer offset matches
+  the dock clearance plus safe area, doubled-scope selector beats the late
+  tinted-field layer, workforce-only `resize: none` for textareas.
+- **e2e.** Mock API gains a stateful `POST /voices/{id}/messages` handler and
+  `categoryNameSnapshot` on the detail fixture. Journeys gain a dedicated chat
+  journey; member-voice, legacy (iOS 11.3), a11y (chat page axe + overflow at
+  360/768/1440), and security (anonymous chat never leaks identity; alias
+  required in body) specs updated. Seven visual baselines regenerated
+  delete-first and verified in two consecutive deterministic runs.
+
+Validation (all green): frozen install, `format:check`, `lint`, `typecheck`,
+unit suites UI 26 / workforce 68 / Admin 2 / frontend-core 14 / API 70,
+`NODE_ENV=production pnpm build`, `pwa:compat-check`, `openapi:check` without
+drift, `migrations:destructive-check`, `docker compose config --quiet`,
+`pnpm audit --audit-level high` (one Moderate, below threshold), the full
+default Playwright suite (chromium + visual + pwa + push + legacy-ios,
+156 passed), Gitleaks v8.24.3 directory scan clean, `git diff --check` clean.
+Database-backed suites were skipped per the documented frontend-only precedent
+(no API/schema/contract surface touched). A two-round judge review against the
+two reference mockups (360px renders, including an interaction capture of the
+cumulative star fill) passed after fixing hero id truncation, composer
+clearance, the incoming avatar plate, the composer focus ring, chip separators,
+and the outline-action accent; the round-2 verdict was pass on all four pages.
+
+Next action: open the PR to `staging`, watch hosted CI, then continue Phase 13.
 
 ### Classification prompt v1.4 enrichment — 1 September 2026
 

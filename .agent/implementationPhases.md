@@ -779,3 +779,36 @@ Status: `done` (non-code design artifact; tidak mengubah current Phase 13 status
 - implementation aplikasi sengaja deferred sampai ada approval terpisah atas visual direction.
 
 Acceptance evidence: `.design/member-voice-redesign/manifest.md` dan ADR-0021.
+
+## Voice Detail & Dedicated Chat Page Redesign (done, 1 September 2026)
+
+Status: `done` pada branch `feat/voice-detail-chat-redesign` (implementasi UI
+scoped; tidak mengubah API, schema, kontrak, atau Phase 13 status). Mengikuti
+ADR-0031 dan keputusan product owner: chatroom jadi halaman terpisah, hero biru
+menggantikan topbar hanya pada dua halaman ini, bintang rating biru kumulatif
+kiri→kanan, seluruh audiens distyle dengan elemen consent Union dipertahankan
+verbatim, dan bottom dock tidak diubah.
+
+- `packages/ui`: `RatingInput` mengisi bintang kumulatif (brand blue) untuk nilai
+  terpilih plus preview hover/keyboard; radio semantics dan label aksesibel
+  tetap; Admin tetap byte-identical.
+- `apps/web-voice`: komponen baru `VoiceHero` (varian full/compact/union/closed),
+  `LinkCard`, hook bersama `useConversation`; `ConversationPage` pada route baru
+  `/voices/:id/chat` menggantikan `ConversationPanel` inline (UNAVAILABLE →
+  redirect ke detail, READ_ONLY → log tanpa composer); `VoiceDetailPage`
+  direstrukturisasi (action row, seksi "Detail Voice" dengan meta rows berikon,
+  link cards Percakapan/Timeline, rating/closure/union cards restyle);
+  `WorkforceShell` menyembunyikan topbar hanya untuk dua route ini.
+- e2e: mock API mendapat `POST /voices/{id}/messages` stateful +
+  `categoryNameSnapshot`; specs journeys/member/legacy/a11y/security/visual
+  diperbarui; baseline visual detail/chat/lightbox/close-sheet/assign-sheet/
+  union-identified diregenerasi delete-first dan diverifikasi dua run
+  berturut-turut; axe/no-overflow chat page pada 360/768/1440.
+- Validasi lokal hijau: format, lint, typecheck, unit (UI 26, workforce 68,
+  Admin 2, frontend-core 14, API 70), build production, pwa compat, openapi
+  tanpa drift, destructive-migration check, compose config, audit (1 moderate,
+  di bawah ambang high), seluruh proyek Playwright non-fullstack 156 passed,
+  Gitleaks, `git diff --check`. Suite berbasis database dilewati sesuai
+  preseden change set frontend-only. Review visual: dua putaran judge terhadap
+  kedua mockup referensi (truncation ID hero, clearance composer, avatar plate,
+  focus ring, chip separators diperbaiki; putaran kedua pass semua).
