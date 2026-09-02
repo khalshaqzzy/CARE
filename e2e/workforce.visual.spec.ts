@@ -962,3 +962,76 @@ test('workforce create review private visual at 360', async ({ page }) => {
   await scrollToTop(page);
   await expect(page).toHaveScreenshot('workforce-create-review-private-360.png', screenshotOptions);
 });
+
+for (const viewport of [
+  { width: 360, height: 800 },
+  { width: 768, height: 900 },
+  { width: 1440, height: 1000 },
+]) {
+  test(`workforce handover selection visual at ${viewport.width}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockWorkforceApi(page, {
+      session: managerSession,
+      voice: {
+        ...voice,
+        displayId: 'CARE-202609-000007',
+        status: 'OPEN',
+        title: 'Bahaya kebakaran',
+        availableActions: ['ASK', 'ASSIGN', 'HANDOVER', 'PROCEED'],
+      },
+      handoverOptions: {
+        current: {
+          category: { id: 'category-current', key: 'SAFETY', name: 'Safety' },
+          department: {
+            id: 'department-current',
+            directorate: 'Manufacturing',
+            division: 'Plant',
+            department: 'Plant GA & SHE',
+          },
+          pic: {
+            id: 'manager-current',
+            displayName: 'Dedi Slamet Riyadi',
+            type: 'DEPARTMENT_HEAD',
+          },
+        },
+        options: [
+          {
+            category: { id: 'category-target', key: 'WORK_DIFFICULTY', name: 'Kesulitan Kerja' },
+            routeMode: 'RELATED_REPORTER_DEPARTMENT',
+            department: {
+              id: 'department-target',
+              directorate: 'Manufacturing',
+              division: 'Production',
+              department: 'Production Engineering',
+            },
+            pic: { id: 'manager-target', displayName: 'Yudo Ardiyanto', type: 'DEPARTMENT_HEAD' },
+            isReporterDepartment: true,
+            available: true,
+            disabledReason: null,
+          },
+          {
+            category: { id: 'category-gap', key: 'FACILITY', name: 'Fasilitas Umum' },
+            routeMode: 'FIXED_DEPARTMENT',
+            department: null,
+            pic: null,
+            isReporterDepartment: false,
+            available: false,
+            disabledReason: 'PIC department tujuan belum tersedia.',
+          },
+        ],
+      },
+    });
+    await page.goto('/voices/voice-1/handover');
+    await page.getByRole('radio', { name: /Kesulitan Kerja/ }).click();
+    await page
+      .getByRole('textbox', { name: /Detail handover/ })
+      .fill('Mohon lanjutkan verifikasi kondisi pada department reporter.');
+    await expect(page).toHaveScreenshot(`workforce-handover-${viewport.width}.png`, {
+      fullPage: true,
+      animations: 'disabled',
+      threshold: 0.25,
+      maxDiffPixelRatio: 0.06,
+    });
+  });
+}

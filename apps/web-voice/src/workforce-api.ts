@@ -31,6 +31,11 @@ export type NotificationPage = components['schemas']['NotificationPage'];
 export type AssignmentCandidate = components['schemas']['AssignmentCandidateList'][number];
 export type MonitoringOptions = components['schemas']['MonitoringOptions'];
 export type GeneralVoiceCategory = components['schemas']['GeneralVoiceCategoryPublic'];
+export type HandoverOption = components['schemas']['HandoverOption'];
+export type HandoverOptions = components['schemas']['HandoverOptionsResponse'];
+export type HandoverHistory = components['schemas']['HandoverHistoryResponse'];
+export type HandoverHistoryItem = components['schemas']['HandoverHistoryItem'];
+export type MyHandoverPage = components['schemas']['MyHandoverPage'];
 
 export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
@@ -48,6 +53,9 @@ type DashboardQuery = NonNullable<
 >;
 type NotificationsQuery = NonNullable<
   operations['NotificationsController_list']['parameters']['query']
+>;
+type MyHandoversQuery = NonNullable<
+  operations['VoicesController_myHandovers']['parameters']['query']
 >;
 type QueryInput<T> = { [K in keyof T]?: T[K] | undefined };
 
@@ -169,6 +177,27 @@ export function createWorkforceApi(transport: CareTransport) {
     assignmentCandidates: (id: string) =>
       dataOrThrow<AssignmentCandidate[]>(
         client.GET('/api/v1/voices/{id}/assignment-candidates', { params: { path: { id } } }),
+      ),
+    handoverOptions: (id: string) =>
+      dataOrThrow<HandoverOptions>(
+        client.GET('/api/v1/voices/{id}/handover-options', { params: { path: { id } } }),
+      ),
+    handover: (id: string, body: components['schemas']['HandoverRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/handovers', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    handovers: (id: string) =>
+      dataOrThrow<HandoverHistory>(
+        client.GET('/api/v1/voices/{id}/handovers', { params: { path: { id } } }),
+      ),
+    myHandovers: (query: QueryInput<MyHandoversQuery> = {}) =>
+      dataOrThrow<MyHandoverPage>(
+        client.GET('/api/v1/handovers/mine', {
+          params: { query: compactQuery(query) },
+        }),
       ),
     assign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(

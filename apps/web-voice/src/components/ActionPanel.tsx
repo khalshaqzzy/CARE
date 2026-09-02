@@ -7,6 +7,7 @@ import {
   Lock,
   MessagesSquare,
   Play,
+  Send,
   UserRound,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -86,36 +87,57 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
 
   return (
     <>
-      <div className="action-row" role="group" aria-label="Tindakan">
-        {actions.includes('ASSIGN') ? (
-          <Button variant="secondary" onClick={() => setActive('assign')}>
-            <UserRound size={18} aria-hidden="true" />
-            {ACTION_LABELS.ASSIGN}
-          </Button>
+      <div className="action-panel" role="group" aria-label="Tindakan">
+        {actions.some((action) => ['ASSIGN', 'REASSIGN', 'ASK'].includes(action)) ? (
+          <div
+            className="action-row action-row--secondary"
+            role="group"
+            aria-label="Aksi pendukung"
+          >
+            {actions.includes('ASSIGN') ? (
+              <Button variant="secondary" onClick={() => setActive('assign')}>
+                <UserRound size={18} aria-hidden="true" />
+                {ACTION_LABELS.ASSIGN}
+              </Button>
+            ) : null}
+            {actions.includes('REASSIGN') ? (
+              <Button variant="secondary" onClick={() => setActive('reassign')}>
+                <ArrowLeftRight size={18} aria-hidden="true" />
+                {ACTION_LABELS.REASSIGN}
+              </Button>
+            ) : null}
+            {actions.includes('ASK') ? (
+              <Button variant="secondary" onClick={() => setActive('ask')}>
+                <MessagesSquare size={18} aria-hidden="true" />
+                {ACTION_LABELS.ASK}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
-        {actions.includes('REASSIGN') ? (
-          <Button variant="secondary" onClick={() => setActive('reassign')}>
-            <ArrowLeftRight size={18} aria-hidden="true" />
-            {ACTION_LABELS.REASSIGN}
-          </Button>
-        ) : null}
-        {actions.includes('ASK') ? (
-          <Button variant="secondary" onClick={() => setActive('ask')}>
-            <MessagesSquare size={18} aria-hidden="true" />
-            {ACTION_LABELS.ASK}
-          </Button>
-        ) : null}
-        {actions.includes('PROCEED') ? (
-          <Button variant="primary" onClick={() => setActive('proceed')}>
-            <Play size={18} aria-hidden="true" />
-            {ACTION_LABELS.PROCEED}
-          </Button>
-        ) : null}
-        {actions.includes('CLOSE') ? (
-          <Button variant="primary" onClick={() => setActive('close')}>
-            <Check size={18} aria-hidden="true" />
-            {ACTION_LABELS.CLOSE}
-          </Button>
+        {actions.some((action) => ['HANDOVER', 'PROCEED', 'CLOSE'].includes(action)) ? (
+          <div className="action-row action-row--primary" role="group" aria-label="Keputusan Voice">
+            {actions.includes('HANDOVER') ? (
+              <Button
+                variant="secondary"
+                onClick={() => void navigate(`/voices/${detail.id}/handover`)}
+              >
+                <Send size={18} aria-hidden="true" />
+                {ACTION_LABELS.HANDOVER}
+              </Button>
+            ) : null}
+            {actions.includes('PROCEED') ? (
+              <Button variant="primary" onClick={() => setActive('proceed')}>
+                <Play size={18} aria-hidden="true" />
+                {ACTION_LABELS.PROCEED}
+              </Button>
+            ) : null}
+            {actions.includes('CLOSE') ? (
+              <Button variant="primary" onClick={() => setActive('close')}>
+                <Check size={18} aria-hidden="true" />
+                {ACTION_LABELS.CLOSE}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {error ? (

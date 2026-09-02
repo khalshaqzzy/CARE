@@ -1,16 +1,76 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 2 September 2026                                                                                                            |
-| Current objective       | Raise the CARE inference provider timeout to 60 seconds per attempt and preserve contract/deployment consistency            |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                          |
-| Backend Complete Gate   | Passed again for ADR-0032 after integration, security, migration, and contract validation (closure review window feature)   |
-| Implementation status   | Inference timeout default/ceiling aligned to 60 seconds in API, deployment defaults, examples, tests, PRD, and ADR-0028     |
-| Latest ADR              | ADR-0032 (closure review window and auto-acceptance)                                                                        |
-| Recommended next action | Open/merge the closure-review PR after hosted CI, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal |
+| Atribut                 | Nilai                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 2 September 2026                                                                                                     |
+| Current objective       | Deliver audited Manager-to-Manager handover for unassigned `OPEN` General Voice, including pairwise-private notes    |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                   |
+| Backend Complete Gate   | Manager handover schema/API/privacy/concurrency implementation and local parity gates complete                       |
+| Implementation status   | Handover backend, generated contract, workforce UX, restricted history, tests, and documentation implemented locally |
+| Latest ADR              | ADR-0033 (Manager-to-Manager General Voice handover)                                                                 |
+| Recommended next action | Review/commit the branch and run hosted CI; Phase 13 staging deployment remains intentionally `in_progress`          |
 
 ## Session Outcome
+
+### Manager-to-Manager General Voice handover — 2 September 2026
+
+Branch `feat/manager-handoff`. Implemented ADR-0033/PRD §41 end to end while
+leaving Phase 13 `in_progress`: current route-owning Managers can transfer an
+unassigned General Voice only while `OPEN`; status remains `OPEN`; repeat
+A→B→C transfers update operational category/route owner while immutable
+submission classification remains traceable.
+
+- **Persistence/API.** Additive `currentCategory*` Voice fields with migration
+  backfill; append-only `VoiceHandover` sequence ledger with category,
+  organization, route, PIC, route-mode, actor, reporter-route flag, timestamp,
+  and required private detail snapshots. Added `HANDOVER_COMPLETED`,
+  `HANDOVER_RECEIVED`, server-computed `HANDOVER`, options/create/history/mine
+  endpoints, generated OpenAPI/contracts, workforce wrapper/cache keys, and
+  stable recovery errors. Options omit self-PIC categories, omit archives, and
+  keep active route gaps visible disabled.
+- **Authorization/privacy.** Every note is redacted independently unless the
+  caller is that transfer's source/destination PIC. Former PICs without Voice
+  access receive only their transfer rows plus minimal Voice identifier;
+  CARE Admin and normal readers receive sanitized metadata. Notes are absent
+  from timeline payloads, audit summaries (redaction marker only),
+  notifications/outbox, work-item/detail DTOs, and logs. Only the new PIC is
+  notified.
+- **Correctness.** Handover locks and rechecks the Voice, lifecycle, owner,
+  assignment, expected version, current category configuration, organization
+  route, singular active PIC, archive state, and self-destination in one
+  transaction. Ask/Proceed/Assign now share row-lock/version revalidation, and
+  Assign uses the established idempotency record mechanism, preventing paired
+  lifecycle mutations from both succeeding.
+- **Workforce UX.** Parent action layout now has stable secondary and decision
+  rows with outline Handover next to filled Proses. The dedicated handover page
+  reuses exact `VoiceHero`, shows current route, searchable semantic-radio
+  category cards, explicit Department Reporter badge, disabled route gaps,
+  selected/focus states, required 4,000-character note with privacy lock,
+  sticky safe-area actions, confirmation dialog, and stale recovery that
+  preserves the note. `Handover Saya` defaults off, does not alter workload
+  counts, and opens a restricted history surface. Normal current PIC detail
+  shows only transfer records involving that PIC. Design showcase includes
+  default/hover/focus/selected/disabled/loading/empty/error specimens.
+- **Responsive/accessibility.** 360px full-width single column, 768px bounded
+  reading column, desktop two-column options/note layout, keyboard-native radio
+  selection, focus restoration, text+icon status communication, reduced-motion
+  fallback, safe-area clearance, and no nested main landmark.
+- **Validation.** Frozen install, Prisma generation, fresh migration and both
+  previous-schema upgrade paths, migration safety, deterministic OpenAPI and
+  generated contracts, Prettier, ESLint, TypeScript, production build, and PWA
+  compatibility passed. Unit suites passed: API 79, UI 26, frontend-core 14,
+  Admin 2, workforce 81. PostgreSQL integration passed 56/56 and security
+  passed 14/14. The 10,000-account/50,000-Voice performance profile and storage
+  reconciliation passed. The complete mocked/a11y/visual/PWA/push/legacy
+  Playwright suite passed 168/168, including handover baselines at 360/768/1440.
+  Deployment/runtime validation, deployment harness, security-exception audit,
+  dependency audit (zero High/Critical; one Moderate), Gitleaks, Trivy
+  filesystem plus five runtime-image scans, Actionlint, ShellCheck, Hadolint,
+  inference Compose/Python, Bash syntax, and
+  `git diff --check` passed. After explicit approval to stop the unrelated
+  OrbStack container that owned CARE's fixed port, the fresh-database
+  DB-backed Playwright suite also passed 3/3 (Workforce, Admin, and API
+  readiness/proxy). Phase 13 hosted staging status remains unchanged.
 
 ### Inference provider timeout increased to 60 seconds — 2 September 2026
 

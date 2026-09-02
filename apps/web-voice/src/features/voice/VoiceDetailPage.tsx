@@ -19,6 +19,7 @@ import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
 import { VoiceHero } from '../../components/VoiceHero';
+import { HandoverHistoryList } from '../../components/HandoverHistoryList';
 import {
   CATEGORY_LABELS,
   CLOSURE_REVIEW_LABELS,
@@ -93,6 +94,10 @@ export function VoiceDetailPage() {
 
       <ActionPanel detail={voice} />
 
+      {voice.visibility === 'GENERAL' && voice.audience === 'GENERAL_RESPONDER' ? (
+        <ParticipantHandovers voiceId={voice.id} />
+      ) : null}
+
       <section className="voice-detail" aria-label="Detail Voice">
         <h2 className="voice-detail__heading">Detail Voice</h2>
         <p className="voice-detail__body">{voice.detail}</p>
@@ -127,6 +132,18 @@ export function VoiceDetailPage() {
               </strong>
             </li>
           ) : null}
+          {voice.classificationCategory?.key &&
+          voice.classificationCategory.key !== voice.category ? (
+            <li>
+              <Info size={17} aria-hidden="true" />
+              <span className="voice-meta-list__label">Klasifikasi awal</span>
+              <strong>
+                {voice.classificationCategory.name ??
+                  CATEGORY_LABELS[voice.classificationCategory.key] ??
+                  voice.classificationCategory.key}
+              </strong>
+            </li>
+          ) : null}
           {voice.locationReview ? (
             <li>
               <Map size={17} aria-hidden="true" />
@@ -157,6 +174,26 @@ export function VoiceDetailPage() {
 
       <Timeline voiceId={voice.id} />
     </Stack>
+  );
+}
+
+function ParticipantHandovers({ voiceId }: { voiceId: string }) {
+  const api = useApi();
+  const sessionId = useSessionId();
+  const history = useQuery({
+    queryKey: voiceQuery(sessionId, 'handovers', voiceId),
+    queryFn: () => api.handovers(voiceId),
+  });
+  const visible = (history.data?.items ?? []).filter((item) => item.detail !== undefined);
+  if (!visible.length) return null;
+  return (
+    <section className="voice-handovers" aria-labelledby="voice-handovers-title">
+      <div>
+        <h2 id="voice-handovers-title">Handover terkait Anda</h2>
+        <p>Detail privat hanya tampil pada transfer yang melibatkan Anda.</p>
+      </div>
+      <HandoverHistoryList items={visible} />
+    </section>
   );
 }
 

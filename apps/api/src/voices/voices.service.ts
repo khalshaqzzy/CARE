@@ -5,6 +5,7 @@ import {
   AttachmentState,
   ClassificationSource,
   ClosureReviewState,
+  GeneralVoiceCategoryRouteMode,
   HandlerType,
   LocationCompleteness,
   NotificationType,
@@ -134,6 +135,13 @@ const assignmentSchema = z
     handlerAccountId: z.string().uuid(),
     reason: z.string().trim().max(500).optional(),
     expectedVersion: z.number().int().positive().optional(),
+  })
+  .strict();
+const handoverSchema = z
+  .object({
+    targetCategoryId: z.string().uuid(),
+    detail: z.string().trim().min(1).max(4000),
+    expectedVersion: z.number().int().positive(),
   })
   .strict();
 const textSchema = z
@@ -531,6 +539,12 @@ export class VoicesService {
           categoryId: draft.visibility === VoiceVisibility.PRIVATE ? null : categoryConfig?.id,
           categoryNameSnapshot:
             draft.visibility === VoiceVisibility.PRIVATE ? null : categoryConfig?.revision.name,
+          currentCategoryKey:
+            draft.visibility === VoiceVisibility.PRIVATE ? null : classification.categoryKey,
+          currentCategoryId:
+            draft.visibility === VoiceVisibility.PRIVATE ? null : categoryConfig?.id,
+          currentCategoryNameSnapshot:
+            draft.visibility === VoiceVisibility.PRIVATE ? null : categoryConfig?.revision.name,
           severity: classification.severity,
           routeOwnerId: route.ownerAccountId,
           routeMappingId: route.id,
@@ -622,7 +636,13 @@ export class VoicesService {
     if (query.visibility) and.push({ visibility: query.visibility });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
-    if (query.category) and.push({ categoryKey: query.category });
+    if (query.category)
+      and.push({
+        OR: [
+          { currentCategoryKey: query.category },
+          { currentCategoryKey: null, categoryKey: query.category },
+        ],
+      });
     if (query.handler)
       and.push({ OR: [{ routeOwnerId: query.handler }, { currentHandlerId: query.handler }] });
     if (query.search) {
@@ -699,7 +719,13 @@ export class VoicesService {
     else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.severity) and.push({ severity: query.severity as Severity });
     if (query.area) and.push({ area: query.area as never });
-    if (query.category) and.push({ categoryKey: query.category });
+    if (query.category)
+      and.push({
+        OR: [
+          { currentCategoryKey: query.category },
+          { currentCategoryKey: null, categoryKey: query.category },
+        ],
+      });
     if (query.handler)
       and.push({ OR: [{ routeOwnerId: query.handler }, { currentHandlerId: query.handler }] });
     if (query.search) {
@@ -880,50 +906,67 @@ export class VoicesService {
         throw forbiddenAsNotFound();
       handlerType = HandlerType.SECTION_HEAD;
     }
-    return this.prisma.$transaction(async (tx) => {
-      await tx.voiceAssignment.updateMany({
-        where: { voiceId: id, endedAt: null },
-        data: { endedAt: new Date() },
-      });
-      const assignment = await tx.voiceAssignment.create({
-        data: { voiceId: id, handlerId: candidate.id, handlerType, actorId: actor.accountId },
-      });
-      const updated = await tx.voice.update({
-        where: { id },
-        data: {
-          currentHandlerId: candidate.id,
-          handlerType,
-          status: VoiceStatus.IN_VERIFICATION,
-          version: { increment: 1 },
-        },
-      });
-      await tx.voiceEvent.create({
-        data: {
-          voiceId: id,
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          type: reassign ? VoiceEventType.REASSIGNED : VoiceEventType.ASSIGNED,
-          payload: { assignmentId: assignment.id, handlerType, reason: data.reason ?? null },
-        },
-      });
-      await this.notify(
-        tx,
-        candidate.id,
-        id,
-        NotificationType.ASSIGNED,
-        voice.visibility === VoiceVisibility.PRIVATE
-          ? 'Private Voice ditugaskan'
-          : 'Voice ditugaskan',
-      );
-      return {
-        id: updated.id,
-        displayId: updated.displayId,
-        status: updated.status,
-        version: updated.version,
-        currentHandlerId: updated.currentHandlerId,
-        handlerType: updated.handlerType,
-      };
-    });
+    return this.idempotentMutation(
+      actor,
+      `${reassign ? 'reassign' : 'assign'}:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const current = await this.lockedActionVoice(
+          tx,
+          actor,
+          id,
+          data.expectedVersion ?? voice.version,
+        );
+        if (current.status === VoiceStatus.IN_PROGRESS || current.status === VoiceStatus.CLOSED)
+          throw invalidTransition('Assignment is only allowed before IN_PROGRESS');
+        if (reassign && !current.currentHandlerId)
+          throw invalidTransition('Voice has no active assignment');
+        await tx.voiceAssignment.updateMany({
+          where: { voiceId: id, endedAt: null },
+          data: { endedAt: new Date() },
+        });
+        const assignment = await tx.voiceAssignment.create({
+          data: { voiceId: id, handlerId: candidate.id, handlerType, actorId: actor.accountId },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: {
+            currentHandlerId: candidate.id,
+            handlerType,
+            status: VoiceStatus.IN_VERIFICATION,
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: reassign ? VoiceEventType.REASSIGNED : VoiceEventType.ASSIGNED,
+            payload: { assignmentId: assignment.id, handlerType, reason: data.reason ?? null },
+          },
+        });
+        await this.notify(
+          tx,
+          candidate.id,
+          id,
+          NotificationType.ASSIGNED,
+          voice.visibility === VoiceVisibility.PRIVATE
+            ? 'Private Voice ditugaskan'
+            : 'Voice ditugaskan',
+        );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+        };
+      },
+    );
   }
   reassign(actor: AuthActor, id: string, input: unknown, key: string) {
     return this.assign(actor, id, input, key, true);
@@ -1006,9 +1049,250 @@ export class VoicesService {
       activeCount: activeByHandler.get(candidate.id) ?? 0,
     }));
   }
+
+  async handoverOptions(actor: AuthActor, id: string) {
+    const voice = await this.handoverSource(actor, id);
+    const options = await this.buildHandoverOptions(this.prisma, voice);
+    return {
+      current: {
+        category: {
+          id: voice.currentCategoryId ?? voice.categoryId,
+          key: voice.currentCategoryKey ?? voice.categoryKey,
+          name: voice.currentCategoryNameSnapshot ?? voice.categoryNameSnapshot,
+        },
+        department: voice.routeMapping?.organizationUnit ?? null,
+        pic: voice.routeOwner,
+      },
+      options,
+    };
+  }
+
+  async handover(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(handoverSchema, input);
+    if (!actor.capabilities.includes('MANAGER')) throw forbiddenAsNotFound();
+    return this.idempotentMutation(
+      actor,
+      `handover:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const voice = await tx.voice.findUnique({
+          where: { id },
+          include: {
+            routeOwner: { select: { id: true, displayName: true } },
+            routeMapping: { include: { organizationUnit: true } },
+          },
+        });
+        if (!voice || voice.routeOwnerId !== actor.accountId) throw forbiddenAsNotFound();
+        if (
+          voice.visibility !== VoiceVisibility.GENERAL ||
+          voice.status !== VoiceStatus.OPEN ||
+          voice.currentHandlerId !== null
+        )
+          throw conflict(
+            'HANDOVER_INVALID_STATE',
+            'Handover hanya tersedia untuk General Voice berstatus Open yang belum ditugaskan',
+          );
+        if (voice.version !== data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'Voice version changed');
+
+        const destination = await this.resolveHandoverDestination(
+          tx,
+          voice.reporterOrganizationUnitId,
+          data.targetCategoryId,
+        );
+        if (destination.pic.id === actor.accountId)
+          throw conflict(
+            'HANDOVER_DESTINATION_SELF',
+            'Kategori tujuan masih ditangani oleh PIC saat ini',
+          );
+
+        const sequence =
+          ((
+            await tx.voiceHandover.aggregate({
+              where: { voiceId: id },
+              _max: { sequence: true },
+            })
+          )._max.sequence ?? 0) + 1;
+        const sourceUnit = voice.routeMapping?.organizationUnit ?? null;
+        const record = await tx.voiceHandover.create({
+          data: {
+            voiceId: id,
+            sequence,
+            fromCategoryId: voice.currentCategoryId ?? voice.categoryId,
+            fromCategoryKey: voice.currentCategoryKey ?? voice.categoryKey,
+            fromCategoryNameSnapshot:
+              voice.currentCategoryNameSnapshot ?? voice.categoryNameSnapshot,
+            toCategoryId: destination.category.id,
+            toCategoryKey: destination.category.key,
+            toCategoryNameSnapshot: destination.category.name,
+            fromOrganizationUnitId: sourceUnit?.id ?? null,
+            fromDirectorateSnapshot: sourceUnit?.directorate ?? null,
+            fromDivisionSnapshot: sourceUnit?.division ?? null,
+            fromDepartmentSnapshot: sourceUnit?.department ?? null,
+            toOrganizationUnitId: destination.department.id,
+            toDirectorateSnapshot: destination.department.directorate,
+            toDivisionSnapshot: destination.department.division,
+            toDepartmentSnapshot: destination.department.department,
+            fromRouteMappingId: voice.routeMappingId,
+            toRouteMappingId: destination.routeMappingId,
+            fromPicId: actor.accountId,
+            toPicId: destination.pic.id,
+            actorId: actor.accountId,
+            routeMode: destination.routeMode,
+            isReporterDepartment: destination.isReporterDepartment,
+            detail: data.detail,
+          },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: {
+            currentCategoryId: destination.category.id,
+            currentCategoryKey: destination.category.key,
+            currentCategoryNameSnapshot: destination.category.name,
+            routeOwnerId: destination.pic.id,
+            routeMappingId: destination.routeMappingId,
+            currentHandlerId: null,
+            handlerType: HandlerType.MANAGER,
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.HANDOVER_COMPLETED,
+            payload: {
+              handoverId: record.id,
+              sequence,
+              fromCategory: record.fromCategoryNameSnapshot,
+              toCategory: record.toCategoryNameSnapshot,
+              fromDepartment: record.fromDepartmentSnapshot,
+              toDepartment: record.toDepartmentSnapshot,
+              fromPic: voice.routeOwner.displayName,
+              toPic: destination.pic.displayName,
+            },
+          },
+        });
+        await tx.auditEvent.create({
+          data: {
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            action: 'VOICE_HANDOVER_COMPLETED',
+            result: 'SUCCESS',
+            resourceType: 'VOICE',
+            resourceId: id,
+            summary: {
+              handoverId: record.id,
+              sequence,
+              fromCategoryKey: record.fromCategoryKey,
+              toCategoryKey: record.toCategoryKey,
+              fromPicId: record.fromPicId,
+              toPicId: record.toPicId,
+              detail: 'redacted',
+            },
+            correlationId: `handover:${record.id}`,
+            releaseSha: loadConfig().RELEASE_SHA,
+          },
+        });
+        await this.notify(
+          tx,
+          destination.pic.id,
+          id,
+          NotificationType.HANDOVER_RECEIVED,
+          'Voice diteruskan kepada Anda',
+          'Buka CARE untuk melihat detail handover.',
+        );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+          handoverId: record.id,
+        };
+      },
+    );
+  }
+
+  async handovers(actor: AuthActor, id: string) {
+    const fullScope = await this.policy.detailScope(actor);
+    const voice = await this.prisma.voice.findFirst({
+      where: { id, AND: [fullScope] },
+      select: { id: true, displayId: true },
+    });
+    const participant = await this.prisma.voiceHandover.count({
+      where: { voiceId: id, OR: [{ fromPicId: actor.accountId }, { toPicId: actor.accountId }] },
+    });
+    if (!voice && !participant) throw forbiddenAsNotFound();
+    const minimalVoice =
+      voice ??
+      (await this.prisma.voice.findUniqueOrThrow({
+        where: { id },
+        select: { id: true, displayId: true },
+      }));
+    const participantOnly = !voice;
+    const records = await this.prisma.voiceHandover.findMany({
+      where: {
+        voiceId: id,
+        ...(participantOnly
+          ? { OR: [{ fromPicId: actor.accountId }, { toPicId: actor.accountId }] }
+          : {}),
+      },
+      orderBy: [{ sequence: 'asc' }, { id: 'asc' }],
+      include: {
+        fromPic: { select: { id: true, displayName: true } },
+        toPic: { select: { id: true, displayName: true } },
+      },
+    });
+    return {
+      voice: minimalVoice,
+      accessMode: participantOnly ? 'PARTICIPANT_ONLY' : 'VOICE_READER',
+      items: records.map((record) => this.handoverShape(actor, record)),
+    };
+  }
+
+  async myHandovers(
+    actor: AuthActor,
+    query: { cursor?: string; limit?: string; search?: string } = {},
+  ) {
+    if (!actor.capabilities.includes('MANAGER')) throw forbiddenAsNotFound();
+    const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const records = await this.prisma.voiceHandover.findMany({
+      where: {
+        OR: [{ fromPicId: actor.accountId }, { toPicId: actor.accountId }],
+        ...(query.search
+          ? { voice: { displayId: { contains: query.search, mode: 'insensitive' } } }
+          : {}),
+      },
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        voice: { select: { id: true, displayId: true } },
+        fromPic: { select: { id: true, displayName: true } },
+        toPic: { select: { id: true, displayName: true } },
+      },
+    });
+    const hasNext = records.length > take;
+    const rows = hasNext ? records.slice(0, take) : records;
+    return {
+      items: rows.map((record) => ({
+        ...this.handoverShape(actor, record),
+        voice: record.voice,
+        direction: record.fromPicId === actor.accountId ? 'SENT' : 'RECEIVED',
+      })),
+      nextCursor: hasNext && rows.length ? encodeCursor(rows[rows.length - 1]!.id) : null,
+    };
+  }
   async ask(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(textSchema, input);
-    const voice = await this.actionVoice(actor, id);
+    await this.actionVoice(actor, id);
     return this.idempotentMutation(
       actor,
       `ask:${id}`,
@@ -1016,9 +1300,9 @@ export class VoicesService {
       canonicalHash(data),
       200,
       async (tx) => {
-        const target = transitionTarget(voice.status, 'ASK');
-        if (!target || voice.version !== data.version)
-          throw invalidTransition('Voice cannot transition from its current state');
+        const current = await this.lockedActionVoice(tx, actor, id, data.version);
+        const target = transitionTarget(current.status, 'ASK');
+        if (!target) throw invalidTransition('Voice cannot transition from its current state');
         await this.createMessageWithin(tx, actor, id, data.text, []);
         return this.transitionStatus(tx, actor, id, target, VoiceEventType.ASKED_REPORTER, {});
       },
@@ -1026,13 +1310,20 @@ export class VoicesService {
   }
   async proceed(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(z.object({ version: z.number().int().positive() }).strict(), input);
-    const voice = await this.actionVoice(actor, id);
-    return this.idempotentMutation(actor, `proceed:${id}`, key, canonicalHash(data), 200, (tx) => {
-      const target = transitionTarget(voice.status, 'PROCEED');
-      if (!target || voice.version !== data.version)
-        throw invalidTransition('Voice cannot proceed from its current state');
-      return this.transitionStatus(tx, actor, id, target, VoiceEventType.PROCEEDED, {});
-    });
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `proceed:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const current = await this.lockedActionVoice(tx, actor, id, data.version);
+        const target = transitionTarget(current.status, 'PROCEED');
+        if (!target) throw invalidTransition('Voice cannot proceed from its current state');
+        return this.transitionStatus(tx, actor, id, target, VoiceEventType.PROCEEDED, {});
+      },
+    );
   }
 
   async messages(
@@ -1446,7 +1737,10 @@ export class VoicesService {
     if (scope.currentHandlerId)
       conditions.push(Prisma.sql`"currentHandlerId" = ${scope.currentHandlerId}::uuid`);
     if (filter.area) conditions.push(Prisma.sql`"area" = ${filter.area}::"Area"`);
-    if (filter.category) conditions.push(Prisma.sql`"categoryKey" = ${filter.category}`);
+    if (filter.category)
+      conditions.push(
+        Prisma.sql`COALESCE("currentCategoryKey", "categoryKey") = ${filter.category}`,
+      );
     if (filter.severity) conditions.push(Prisma.sql`"severity" = ${filter.severity}::"Severity"`);
     if (filter.status) conditions.push(Prisma.sql`"status" = ${filter.status}::"VoiceStatus"`);
     if (filter.from) conditions.push(Prisma.sql`"submittedAt" >= ${new Date(filter.from)}`);
@@ -1454,7 +1748,13 @@ export class VoicesService {
 
     const and: Prisma.VoiceWhereInput[] = [where];
     if (filter.area) and.push({ area: filter.area as never });
-    if (filter.category) and.push({ categoryKey: filter.category });
+    if (filter.category)
+      and.push({
+        OR: [
+          { currentCategoryKey: filter.category },
+          { currentCategoryKey: null, categoryKey: filter.category },
+        ],
+      });
     if (filter.severity) and.push({ severity: filter.severity as Severity });
     if (filter.status) and.push({ status: filter.status as VoiceStatus });
     if (filter.from || filter.to) {
@@ -1483,11 +1783,9 @@ export class VoicesService {
         where: combinedWhere,
         _count: { _all: true },
       }),
-      this.prisma.voice.groupBy({
-        by: ['categoryKey'],
-        where: combinedWhere,
-        _count: { _all: true },
-      }),
+      this.prisma.$queryRaw<Array<{ categoryKey: string | null; value: bigint }>>(
+        Prisma.sql`SELECT COALESCE("currentCategoryKey", "categoryKey") AS "categoryKey", count(*)::bigint AS value FROM "Voice" WHERE ${Prisma.join(conditions, ' AND ')} GROUP BY 1`,
+      ),
       this.prisma.voice.groupBy({ by: ['area'], where: combinedWhere, _count: { _all: true } }),
       this.prisma.voice.groupBy({
         by: ['area'],
@@ -1578,7 +1876,7 @@ export class VoicesService {
     const categoryBuckets = categories.map((item) => {
       const key = item.categoryKey ?? 'NONE';
       const name = categoryNames.get(key) ?? key;
-      return { key, name, label: name, value: item._count._all };
+      return { key, name, label: name, value: Number(item.value) };
     });
     const area = suppress(
       areas.map((item) => ({ label: String(item.area), value: item._count._all })),
@@ -1954,6 +2252,8 @@ export class VoicesService {
       title: true,
       categoryKey: true,
       categoryNameSnapshot: true,
+      currentCategoryKey: true,
+      currentCategoryNameSnapshot: true,
       severity: true,
       status: true,
       updatedAt: true,
@@ -1972,6 +2272,9 @@ export class VoicesService {
   private toListItem<
     T extends {
       categoryKey: string | null;
+      currentCategoryKey: string | null;
+      categoryNameSnapshot?: string | null;
+      currentCategoryNameSnapshot?: string | null;
       currentHandler?: { displayName: string } | null;
       closureCycles?: Array<{
         reviewState: ClosureReviewState;
@@ -1979,10 +2282,19 @@ export class VoicesService {
       }> | null;
     },
   >(row: T) {
-    const { currentHandler, categoryKey, closureCycles, ...rest } = row;
+    const {
+      currentHandler,
+      categoryKey,
+      currentCategoryKey,
+      categoryNameSnapshot,
+      currentCategoryNameSnapshot,
+      closureCycles,
+      ...rest
+    } = row;
     return {
       ...rest,
-      category: categoryKey,
+      category: currentCategoryKey ?? categoryKey,
+      categoryNameSnapshot: currentCategoryNameSnapshot ?? categoryNameSnapshot ?? null,
       currentHandlerName: currentHandler?.displayName ?? null,
       closureReviewState: closureCycles?.[0]?.reviewState ?? null,
       closureReviewDeadline: closureCycles?.[0]?.reviewDeadline ?? null,
@@ -1997,8 +2309,240 @@ export class VoicesService {
     if (!voice) throw forbiddenAsNotFound();
     return voice;
   }
+  private async handoverSource(actor: AuthActor, id: string) {
+    if (!actor.capabilities.includes('MANAGER')) throw forbiddenAsNotFound();
+    const voice = await this.prisma.voice.findFirst({
+      where: { id, routeOwnerId: actor.accountId, visibility: VoiceVisibility.GENERAL },
+      include: {
+        routeOwner: { select: { id: true, displayName: true } },
+        routeMapping: { include: { organizationUnit: true } },
+      },
+    });
+    if (!voice) throw forbiddenAsNotFound();
+    if (voice.status !== VoiceStatus.OPEN || voice.currentHandlerId !== null)
+      throw conflict(
+        'HANDOVER_INVALID_STATE',
+        'Handover hanya tersedia untuk General Voice berstatus Open yang belum ditugaskan',
+      );
+    return voice;
+  }
+
+  private async buildHandoverOptions(db: PrismaService | Prisma.TransactionClient, voice: any) {
+    const categories = await db.generalVoiceCategory.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { key: 'asc' },
+      include: {
+        revisions: { where: { effectiveTo: null }, take: 1 },
+        routes: { where: { effectiveTo: null }, take: 2 },
+      },
+    });
+    const options = await Promise.all(
+      categories.map(async (category) => {
+        const revision = category.revisions[0];
+        const categoryRoute = category.routes[0];
+        const reporterRoute =
+          categoryRoute?.mode === GeneralVoiceCategoryRouteMode.RELATED_REPORTER_DEPARTMENT;
+        const targetUnitId = reporterRoute
+          ? voice.reporterOrganizationUnitId
+          : categoryRoute?.organizationUnitId;
+        const department = targetUnitId
+          ? await db.organizationUnit.findUnique({ where: { id: targetUnitId } })
+          : null;
+        const mappings = targetUnitId
+          ? await db.routeMapping.findMany({
+              where: {
+                organizationUnitId: targetUnitId,
+                kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
+                effectiveTo: null,
+                owner: { status: AccountStatus.ACTIVE },
+              },
+              orderBy: [{ effectiveFrom: 'desc' }, { id: 'desc' }],
+              take: 2,
+              include: { owner: { select: { id: true, displayName: true } } },
+            })
+          : [];
+        if (mappings.length === 1 && mappings[0]!.ownerAccountId === voice.routeOwnerId)
+          return null;
+        const reason =
+          category.routes.length > 1
+            ? 'Kategori memiliki lebih dari satu konfigurasi route aktif.'
+            : !categoryRoute
+              ? 'Kategori belum memiliki konfigurasi route.'
+              : !targetUnitId || !department
+                ? 'Department tujuan belum tersedia.'
+                : mappings.length === 0
+                  ? 'PIC department tujuan belum tersedia.'
+                  : mappings.length > 1
+                    ? 'Terdapat lebih dari satu PIC aktif pada department tujuan.'
+                    : !revision
+                      ? 'Nama kategori belum tersedia.'
+                      : null;
+        const mapping = mappings.length === 1 ? mappings[0]! : null;
+        return {
+          category: {
+            id: category.id,
+            key: category.key,
+            name: revision?.name ?? category.key,
+          },
+          routeMode: categoryRoute?.mode ?? null,
+          department,
+          pic: mapping
+            ? {
+                id: mapping.owner.id,
+                displayName: mapping.owner.displayName,
+                type:
+                  mapping.kind === RouteKind.DEPARTMENT_HEAD ? 'DEPARTMENT_HEAD' : 'DEFAULT_PIC',
+              }
+            : null,
+          isReporterDepartment: reporterRoute,
+          available: reason === null,
+          disabledReason: reason,
+        };
+      }),
+    );
+    return options.filter((option): option is NonNullable<typeof option> => option !== null);
+  }
+
+  private async resolveHandoverDestination(
+    db: Prisma.TransactionClient,
+    reporterOrganizationUnitId: string | null,
+    categoryId: string,
+  ) {
+    const category = await db.generalVoiceCategory.findUnique({
+      where: { id: categoryId },
+      include: {
+        revisions: { where: { effectiveTo: null }, take: 1 },
+        routes: { where: { effectiveTo: null }, take: 2 },
+      },
+    });
+    if (!category || category.status !== 'ACTIVE' || !category.revisions[0])
+      throw conflict(
+        'HANDOVER_CATEGORY_CONFIGURATION_CHANGED',
+        'Kategori tujuan berubah atau tidak lagi aktif; muat ulang pilihan handover',
+      );
+    if (category.routes.length !== 1)
+      throw conflict(
+        'HANDOVER_CATEGORY_CONFIGURATION_CHANGED',
+        'Konfigurasi route kategori berubah; muat ulang pilihan handover',
+      );
+    const categoryRoute = category.routes[0];
+    if (!categoryRoute)
+      throw conflict('HANDOVER_DESTINATION_UNAVAILABLE', 'Kategori tujuan belum memiliki route');
+    const isReporterDepartment =
+      categoryRoute.mode === GeneralVoiceCategoryRouteMode.RELATED_REPORTER_DEPARTMENT;
+    const targetUnitId = isReporterDepartment
+      ? reporterOrganizationUnitId
+      : categoryRoute.organizationUnitId;
+    if (!targetUnitId)
+      throw conflict(
+        'HANDOVER_DESTINATION_UNAVAILABLE',
+        'Department tujuan handover belum tersedia',
+      );
+    const department = await db.organizationUnit.findUnique({ where: { id: targetUnitId } });
+    if (!department)
+      throw conflict(
+        'HANDOVER_DESTINATION_UNAVAILABLE',
+        'Department tujuan handover tidak ditemukan',
+      );
+    const mappings = await db.routeMapping.findMany({
+      where: {
+        organizationUnitId: targetUnitId,
+        kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
+        effectiveTo: null,
+        owner: { status: AccountStatus.ACTIVE },
+      },
+      orderBy: [{ effectiveFrom: 'desc' }, { id: 'desc' }],
+      take: 2,
+      include: { owner: { select: { id: true, displayName: true } } },
+    });
+    if (mappings.length !== 1)
+      throw conflict(
+        'HANDOVER_DESTINATION_UNAVAILABLE',
+        mappings.length
+          ? 'Department tujuan memiliki lebih dari satu PIC aktif'
+          : 'PIC department tujuan belum tersedia',
+      );
+    const mapping = mappings[0]!;
+    return {
+      category: {
+        id: category.id,
+        key: category.key,
+        name: category.revisions[0]!.name,
+      },
+      department,
+      pic: mapping.owner,
+      picType: mapping.kind === RouteKind.DEPARTMENT_HEAD ? 'DEPARTMENT_HEAD' : 'DEFAULT_PIC',
+      routeMappingId: mapping.id,
+      routeMode: categoryRoute.mode,
+      isReporterDepartment,
+    };
+  }
+
+  private handoverShape(actor: AuthActor, record: any) {
+    const participant = record.fromPicId === actor.accountId || record.toPicId === actor.accountId;
+    return {
+      id: record.id,
+      sequence: record.sequence,
+      from: {
+        category: {
+          id: record.fromCategoryId,
+          key: record.fromCategoryKey,
+          name: record.fromCategoryNameSnapshot,
+        },
+        department: {
+          id: record.fromOrganizationUnitId,
+          directorate: record.fromDirectorateSnapshot,
+          division: record.fromDivisionSnapshot,
+          department: record.fromDepartmentSnapshot,
+        },
+        pic: record.fromPic,
+      },
+      to: {
+        category: {
+          id: record.toCategoryId,
+          key: record.toCategoryKey,
+          name: record.toCategoryNameSnapshot,
+        },
+        department: {
+          id: record.toOrganizationUnitId,
+          directorate: record.toDirectorateSnapshot,
+          division: record.toDivisionSnapshot,
+          department: record.toDepartmentSnapshot,
+        },
+        pic: record.toPic,
+      },
+      routeMode: record.routeMode,
+      isReporterDepartment: record.isReporterDepartment,
+      createdAt: record.createdAt,
+      ...(participant ? { detail: record.detail } : {}),
+    };
+  }
   private async actionVoice(actor: AuthActor, id: string) {
     const voice = await this.authorizedVoice(actor, id);
+    const allowed =
+      (voice.visibility === VoiceVisibility.GENERAL &&
+        (voice.routeOwnerId === actor.accountId || voice.currentHandlerId === actor.accountId)) ||
+      (voice.visibility === VoiceVisibility.PRIVATE &&
+        (actor.capabilities.includes('UNION_HEAD') ||
+          voice.currentHandlerId === actor.accountId)) ||
+      actor.accountStatus === AccountStatus.LEGACY_HANDLER;
+    if (!allowed) throw forbiddenAsNotFound();
+    return voice;
+  }
+  private async lockedActionVoice(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    id: string,
+    expectedVersion: number,
+  ) {
+    await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+    const voice = await tx.voice.findUnique({
+      where: { id },
+      include: { conversation: { select: { id: true } } },
+    });
+    if (!voice) throw forbiddenAsNotFound();
+    if (voice.version !== expectedVersion)
+      throw conflict('VERSION_CONFLICT', 'Voice version changed');
     const allowed =
       (voice.visibility === VoiceVisibility.GENERAL &&
         (voice.routeOwnerId === actor.accountId || voice.currentHandlerId === actor.accountId)) ||
@@ -2058,8 +2602,11 @@ export class VoicesService {
       locationDetail: voice.locationDetail,
       title: voice.title,
       detail: voice.detail,
-      category: voice.categoryKey,
-      categoryNameSnapshot: voice.categoryNameSnapshot,
+      category: voice.currentCategoryKey ?? voice.categoryKey,
+      categoryNameSnapshot: voice.currentCategoryNameSnapshot ?? voice.categoryNameSnapshot,
+      classificationCategory: voice.categoryKey
+        ? { key: voice.categoryKey, name: voice.categoryNameSnapshot }
+        : null,
       severity: voice.severity,
       status: voice.status,
       version: voice.version,

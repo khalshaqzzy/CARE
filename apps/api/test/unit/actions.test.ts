@@ -30,6 +30,7 @@ describe('computeAvailableActions', () => {
     expect(result).toContain('PROCEED');
     expect(result).not.toContain('MESSAGE');
     expect(result).toContain('ASSIGN');
+    expect(result).toContain('HANDOVER');
   });
 
   it('offers reassign only in IN_VERIFICATION for a managing route owner', () => {
@@ -40,6 +41,7 @@ describe('computeAvailableActions', () => {
     expect(result).toContain('REASSIGN');
     expect(result).toContain('PROCEED');
     expect(result).not.toContain('ASSIGN');
+    expect(result).not.toContain('HANDOVER');
   });
 
   it('offers close and message from IN_PROGRESS only when a conversation exists', () => {
@@ -55,6 +57,34 @@ describe('computeAvailableActions', () => {
   it('denies action to a manager who is not route owner or handler', () => {
     const result = computeAvailableActions(actor(['MANAGER'], 'stranger'), voice());
     expect(result).toEqual([]);
+  });
+
+  it.each([
+    ['Section Head', actor(['SECTION_HEAD'], 'owner'), voice()],
+    [
+      'Union Head',
+      actor(['UNION_HEAD'], 'owner'),
+      voice({ visibility: 'PRIVATE' as VoiceVisibility }),
+    ],
+    ['reporter', actor(['MEMBER'], 'reporter'), voice()],
+    ['unrelated Manager', actor(['MANAGER'], 'other'), voice()],
+    [
+      'Manager after verification',
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'IN_VERIFICATION' as VoiceStatus }),
+    ],
+    [
+      'Manager while in progress',
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'IN_PROGRESS' as VoiceStatus }),
+    ],
+    [
+      'Manager after closure',
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'CLOSED' as VoiceStatus }),
+    ],
+  ])('does not expose handover to %s', (_label, testActor, testVoice) => {
+    expect(computeAvailableActions(testActor, testVoice)).not.toContain('HANDOVER');
   });
 
   it('gives the reporter message only after verification begins, and rate on an unrated closure', () => {

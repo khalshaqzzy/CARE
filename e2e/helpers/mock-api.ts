@@ -183,6 +183,7 @@ const voiceDetail = (voice: MockVoice): VoiceDetail => ({
   submittedAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-03T00:00:00.000Z',
   classificationSource: 'AI',
+  classificationCategory: { key: 'SAFETY', name: 'Safety' },
   availableActions: voice.availableActions,
   conversationState:
     voice.conversationState ??
@@ -866,6 +867,11 @@ export type MockApiOptions = {
   unassignedVoiceList?: unknown;
   /** Override for `GET /voices/{id}/assignment-candidates`. */
   assignmentCandidates?: unknown;
+  /** Override for the Manager handover selection and restricted history surfaces. */
+  handoverOptions?: unknown;
+  handoverHistory?: unknown;
+  myHandovers?: unknown;
+  handoverError?: { status: number; code: string; message?: string };
   memberDashboard?: unknown;
   generalDashboard?: unknown;
   privateDashboard?: unknown;
@@ -979,6 +985,7 @@ function detail(voice: MockVoice) {
     submittedAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-03T00:00:00.000Z',
     classificationSource: 'AI',
+    classificationCategory: { key: 'SAFETY', name: 'Safety' },
     routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
     currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
     attachments: voice.attachments ?? [],
@@ -1161,6 +1168,61 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         handlers: [{ id: 'handler-1', displayName: 'Manager PIC' }],
         generatedAt: new Date().toISOString(),
       });
+    }
+    if (method === 'GET' && path === '/api/v1/handovers/mine') {
+      return satisfy(200, opts.myHandovers ?? { items: [], nextCursor: null });
+    }
+
+    const handoverMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/handovers$/);
+    if (method === 'GET' && handoverMatch) {
+      return satisfy(
+        200,
+        opts.handoverHistory ?? {
+          voice: { id: handoverMatch[1], displayId: voice?.displayId ?? 'CARE-202608-000001' },
+          accessMode: 'VOICE_READER',
+          items: [],
+        },
+      );
+    }
+    if (method === 'POST' && handoverMatch) {
+      if (opts.handoverError)
+        return satisfy(
+          opts.handoverError.status,
+          JSON.parse(
+            errorBody(
+              opts.handoverError.code,
+              opts.handoverError.message ?? 'Mocked handover error',
+            ),
+          ),
+        );
+      return satisfy(200, {
+        id: handoverMatch[1],
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: 'OPEN',
+        version: 4,
+        currentHandlerId: null,
+        handlerType: 'MANAGER',
+        handoverId: 'handover-1',
+      });
+    }
+    const handoverOptionsMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/handover-options$/);
+    if (method === 'GET' && handoverOptionsMatch) {
+      return satisfy(
+        200,
+        opts.handoverOptions ?? {
+          current: {
+            category: { id: 'category-safety', key: 'SAFETY', name: 'Safety' },
+            department: {
+              id: 'department-current',
+              directorate: 'Manufacturing',
+              division: 'Plant',
+              department: 'Plant GA & SHE',
+            },
+            pic: { id: 'handler-1', displayName: 'Manager PIC', type: 'DEPARTMENT_HEAD' },
+          },
+          options: [],
+        },
+      );
     }
 
     const messagesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/messages$/);

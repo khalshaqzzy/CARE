@@ -150,6 +150,7 @@ enum LocationCompleteness {
 
 enum VoiceEventType {
   SUBMITTED
+  HANDOVER_COMPLETED
   ASKED_REPORTER
   MESSAGE_SENT
   ASSIGNED
@@ -170,6 +171,7 @@ enum OutboxStatus {
 
 enum NotificationType {
   VOICE_SUBMITTED
+  HANDOVER_RECEIVED
   ASSIGNED
   MESSAGE
   STATUS_CHANGED
@@ -227,6 +229,9 @@ model UserAccount {
   categoryRevisionsCreated GeneralVoiceCategoryRevision[] @relation("CategoryRevisionCreator")
   categoryRoutesCreated    GeneralVoiceCategoryRoute[]    @relation("CategoryRouteCreator")
   categoriesCreated        GeneralVoiceCategory[]         @relation("CategoryCreator")
+  handoversSent            VoiceHandover[]                @relation("HandoverFromPic")
+  handoversReceived        VoiceHandover[]                @relation("HandoverToPic")
+  handoversInitiated       VoiceHandover[]                @relation("HandoverActor")
 
   @@index([accountKind, status])
   @@index([username, displayName])
@@ -317,6 +322,7 @@ model GeneralVoiceCategory {
   revisions         GeneralVoiceCategoryRevision[]
   routes            GeneralVoiceCategoryRoute[]
   voices            Voice[]
+  currentVoices     Voice[]                        @relation("VoiceCurrentCategory")
   classifications   AIClassification[]
   remediationIssues ImportIssue[]
 
@@ -551,6 +557,9 @@ model Voice {
   categoryKey                    String?                 @db.VarChar(80)
   categoryId                     String?                 @db.Uuid
   categoryNameSnapshot           String?                 @db.VarChar(160)
+  currentCategoryKey             String?                 @db.VarChar(80)
+  currentCategoryId              String?                 @db.Uuid
+  currentCategoryNameSnapshot    String?                 @db.VarChar(160)
   severity                       Severity
   status                         VoiceStatus             @default(OPEN)
   routeOwnerId                   String                  @db.Uuid
@@ -569,6 +578,7 @@ model Voice {
   reporterOrganizationUnit       OrganizationUnit?       @relation("VoiceOrganizationUnit", fields: [reporterOrganizationUnitId], references: [id])
   routeMapping                   RouteMapping?           @relation(fields: [routeMappingId], references: [id])
   categoryRecord                 GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
+  currentCategoryRecord          GeneralVoiceCategory?   @relation("VoiceCurrentCategory", fields: [currentCategoryId], references: [id])
   classification                 AIClassification?
   locationReview                 LocationReviewSnapshot?
   attachments                    Attachment[]
@@ -578,12 +588,14 @@ model Voice {
   closureCycles                  ClosureCycle[]
   notifications                  Notification[]
   legacyAccess                   LegacyVoiceAccess[]
+  handovers                      VoiceHandover[]
 
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
   @@index([currentHandlerId, status, severity, submittedAt])
   @@index([visibility, status, severity, submittedAt])
   @@index([area, categoryKey, status], map: "Voice_area_categoryKey_status_idx")
+  @@index([area, currentCategoryKey, status], map: "Voice_area_currentCategoryKey_status_idx")
   @@index([reporterOrganizationUnitId, visibility, status])
   @@index([severity, submittedAt])
   @@index([title, displayId])
@@ -681,6 +693,44 @@ model VoiceAssignment {
 
   @@index([voiceId, endedAt])
   @@index([handlerId, endedAt])
+}
+
+model VoiceHandover {
+  id                       String                        @id @default(uuid()) @db.Uuid
+  voiceId                  String                        @db.Uuid
+  sequence                 Int
+  fromCategoryId           String?                       @db.Uuid
+  fromCategoryKey          String?                       @db.VarChar(80)
+  fromCategoryNameSnapshot String?                       @db.VarChar(160)
+  toCategoryId             String                        @db.Uuid
+  toCategoryKey            String                        @db.VarChar(80)
+  toCategoryNameSnapshot   String                        @db.VarChar(160)
+  fromOrganizationUnitId   String?                       @db.Uuid
+  fromDirectorateSnapshot  String?                       @db.VarChar(200)
+  fromDivisionSnapshot     String?                       @db.VarChar(200)
+  fromDepartmentSnapshot   String?                       @db.VarChar(200)
+  toOrganizationUnitId     String                        @db.Uuid
+  toDirectorateSnapshot    String                        @db.VarChar(200)
+  toDivisionSnapshot       String                        @db.VarChar(200)
+  toDepartmentSnapshot     String                        @db.VarChar(200)
+  fromRouteMappingId       String?                       @db.Uuid
+  toRouteMappingId         String                        @db.Uuid
+  fromPicId                String                        @db.Uuid
+  toPicId                  String                        @db.Uuid
+  actorId                  String                        @db.Uuid
+  routeMode                GeneralVoiceCategoryRouteMode
+  isReporterDepartment     Boolean                       @default(false)
+  detail                   String                        @db.VarChar(4000)
+  createdAt                DateTime                      @default(now())
+  voice                    Voice                         @relation(fields: [voiceId], references: [id])
+  fromPic                  UserAccount                   @relation("HandoverFromPic", fields: [fromPicId], references: [id])
+  toPic                    UserAccount                   @relation("HandoverToPic", fields: [toPicId], references: [id])
+  actor                    UserAccount                   @relation("HandoverActor", fields: [actorId], references: [id])
+
+  @@unique([voiceId, sequence])
+  @@index([fromPicId, createdAt, id])
+  @@index([toPicId, createdAt, id])
+  @@index([voiceId, createdAt, id])
 }
 
 model VoiceEvent {

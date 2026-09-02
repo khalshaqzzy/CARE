@@ -1,15 +1,15 @@
 # Product Requirements Document (PRD): CARE Enterprise Member Voice
 
-| Atribut             | Nilai                                                                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Status dokumen      | **Active product contract v1.1**                                                                                           |
-| Status implementasi | **Phase 0–12 complete; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
-| Versi dokumen       | 1.1                                                                                                                        |
-| Tanggal             | 31 Agustus 2026                                                                                                            |
-| Product owner       | TMMIN                                                                                                                      |
-| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                  |
-| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                 |
-| Source of truth     | Dokumen ini                                                                                                                |
+| Atribut             | Nilai                                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status dokumen      | **Active product contract v1.1**                                                                                                                                       |
+| Status implementasi | **Phase 0–12 complete; Manager Voice handover implemented locally; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
+| Versi dokumen       | 1.1                                                                                                                                                                    |
+| Tanggal             | 31 Agustus 2026                                                                                                                                                        |
+| Product owner       | TMMIN                                                                                                                                                                  |
+| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                                                              |
+| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                                                             |
+| Source of truth     | Dokumen ini                                                                                                                                                            |
 
 Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**, **MUST NOT/dilarang**, **SHOULD/sebaiknya**, dan **MAY/dapat** bersifat normatif. Bila source code, prototype, fixture, atau asumsi implementasi berbeda dengan dokumen ini, perbedaan wajib diekskalasi dan source of truth terkait wajib diperbarui; implementer tidak boleh memilih perilaku secara diam-diam.
 
@@ -1903,6 +1903,8 @@ V1 siap production bila:
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
 - Empat status saja; reopen adalah event menuju In Verification dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
+- Handover hanya untuk current route-owning Manager pada General Voice `OPEN` yang belum ditugaskan; dapat berulang, tidak mengubah status, dan memindahkan operational category + route owner tanpa mengubah immutable submission classification.
+- Detail tiap handover hanya dapat dibaca PIC sumber dan PIC tujuan transfer tersebut; CARE Admin, reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
 - Manager atau current handler dapat close dari In Progress; closure note dan foto wajib.
 - Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
@@ -1915,3 +1917,122 @@ V1 siap production bila:
 - Push `staging` menjadi trigger deployment staging setelah seluruh checks hijau dan candidate masih menjadi branch HEAD.
 - Push/PR `main` hanya menjalankan CI pada scope saat ini; production deployment caller belum tersedia.
 - Web Push canary adalah operasi staging manual, bukan automated test, deployment smoke, atau auto-deploy gate.
+
+---
+
+## 41. Manager-to-Manager General Voice Handover
+
+Bagian ini adalah kontrak normatif fitur handover dan melengkapi persona,
+permission matrix, routing, lifecycle, API, privacy, audit, UX, serta acceptance
+criteria pada bagian sebelumnya. Bila istilah kategori pada daftar/dashboard
+tidak dibedakan, istilah tersebut berarti **current operational category**.
+
+### 41.1 Persona, Permission, dan Lifecycle
+
+- Hanya akun aktif dengan capability `MANAGER` yang sekaligus merupakan
+  `routeOwnerId` terkini dapat memulai handover.
+- Voice wajib `GENERAL`, `OPEN`, dan `currentHandlerId=null`. Handover tidak
+  tersedia untuk reporter, Section Head, Union Head/Officer, leadership,
+  CARE Admin, previous PIC, Private Voice, atau status `IN_VERIFICATION`,
+  `IN_PROGRESS`, dan `CLOSED`.
+- Transfer mempertahankan `status=OPEN`, `handlerType=MANAGER`, dan
+  `currentHandlerId=null`; Voice version bertambah satu. Voice dapat berpindah
+  A→B→C tanpa batas khusus selain lifecycle dan konfigurasi aktif.
+- Ask, Proceed, Assign, dan Handover berkompetisi pada transaction-level row
+  lock dan expected version yang sama; tepat satu aksi paralel boleh berhasil.
+
+### 41.2 Kategori dan Routing
+
+- `Voice.categoryId/categoryKey/categoryNameSnapshot` adalah klasifikasi saat
+  submit dan immutable. `currentCategoryId/currentCategoryKey/
+currentCategoryNameSnapshot` adalah kategori operasional, diinisialisasi
+  dari klasifikasi submit dan berubah pada handover.
+- Hero/detail terkini, work item/list, filter, dan dashboard aggregation memakai
+  kategori operasional dengan fallback untuk row legacy. Detail menyebut
+  klasifikasi awal ketika berbeda; timeline/ledger mempertahankan sejarah.
+- Opsi berisi setiap kategori aktif, satu card per kategori walau department
+  sama. Kategori archived tidak muncul. Kategori yang menghasilkan current PIC
+  tidak muncul. Active route gap/route ambigu tetap muncul disabled dengan
+  alasan aman dan actionable.
+- Fixed route memakai exact configured organization unit.
+  `RELATED_REPORTER_DEPARTMENT` selalu memakai immutable
+  `reporterOrganizationUnitId` Voice dan wajib diberi badge ikon+teks
+  “Department Reporter”. Destination harus memiliki tepat satu active
+  Department Head/default PIC dan tidak boleh current PIC.
+
+### 41.3 Persistence, Privacy, Audit, dan Notification
+
+- `VoiceHandover` append-only menyimpan Voice + sequence, snapshot kategori,
+  snapshot komposit directorate/division/department, organization unit, route
+  mapping, from/to PIC, actor, route mode, reporter-department flag, required
+  trimmed detail 1–4.000 karakter, dan timestamp.
+- Otorisasi note dievaluasi per record: A melihat A→B; B melihat A→B dan B→C;
+  C melihat B→C. CARE Admin tidak diberi akses aplikasi ke note.
+- Current Voice reader dapat mengambil metadata transfer sanitasi. Former PIC
+  tanpa akses Voice hanya menerima transfer yang melibatkan dirinya serta
+  minimal `{id, displayId}`; title, reporter, description, attachment, chat,
+  dan transfer lain tidak boleh muncul.
+- `HANDOVER_COMPLETED` ditulis ke timeline tanpa note. Audit summary menyimpan
+  marker redaksi, bukan note. Log, work-item DTO, unrestricted detail DTO,
+  notification, dan outbox dilarang memuat note.
+- Hanya destination PIC menerima `HANDOVER_RECEIVED`. Tidak ada conversation,
+  assignment, reporter notification, atau status-change notification.
+
+### 41.4 API Contract dan Stable Errors
+
+- `availableActions` menambahkan `HANDOVER` hanya pada kondisi §41.1.
+- `GET /api/v1/voices/:id/handover-options` mengembalikan current route summary
+  dan option category/route mode/composite department/PIC type/
+  `isReporterDepartment`/availability/disabled reason.
+- `POST /api/v1/voices/:id/handovers` menerima `targetCategoryId`, required
+  `detail`, `expectedVersion`, dan required `Idempotency-Key`; submit selalu
+  re-resolve konfigurasi aktif dalam transaksi.
+- `GET /api/v1/voices/:id/handovers` menerapkan redaksi per record dan mode
+  `VOICE_READER`/`PARTICIPANT_ONLY`.
+- `GET /api/v1/handovers/mine` cursor-paginated, Manager-only, dan mengembalikan
+  satu card per transfer dengan direction, minimal Voice ID, route/PIC summary,
+  timestamp, dan note yang memang authorized.
+- Error stabil mencakup `VERSION_CONFLICT`, `HANDOVER_INVALID_STATE`,
+  `HANDOVER_DESTINATION_SELF`, `HANDOVER_DESTINATION_UNAVAILABLE`, dan
+  `HANDOVER_CATEGORY_CONFIGURATION_CHANGED`.
+
+### 41.5 Workforce UX dan Visual Contract
+
+- Manager action page mempertahankan shared cobalt/white `VoiceHero`.
+  Secondary row memuat Tugaskan/Tanya Reporter; decision row menempatkan outline
+  Handover tepat di samping primary Proses.
+- `/voices/:id/handover` menyembunyikan global topbar melalui aturan shell route
+  detail, menggunakan exact shared `VoiceHero`, current-route card, guidance,
+  search kategori/department/directorate/division/PIC, semantic radio cards,
+  route-gap state, dan selected check state.
+- Required `Detail handover` memiliki counter, validation, serta lock message
+  “Hanya dapat dilihat oleh PIC lama dan PIC baru.” Footer sticky menghormati
+  safe area/bottom navigation; confirmation dialog merangkum kategori,
+  department, PIC baru, dan privacy sebelum mutation.
+- Success kembali ke `/work-items` default active queue dengan notice. Pada
+  stale version/status/route, note dipertahankan, opsi dimuat ulang, dan pilihan
+  hanya dibersihkan bila tidak lagi valid.
+- `Handover Saya` adalah filter eksplisit yang default-nya off dan tidak
+  memengaruhi active workload counts. Card membuka restricted history surface,
+  bukan Voice detail.
+- 360px menggunakan single column/full-width card; 768px memakai reading width
+  terbatas; ≥1280/1440px memakai layout dua kolom options+sticky note. Semua
+  state memakai token CARE, visible focus, ≥44px target, reduced-motion
+  fallback, dan tanpa horizontal overflow.
+
+### 41.6 Test dan Acceptance
+
+- Unit mengunci action matrix, option projection/exclusion, reporter badge,
+  route gaps, search, dan redaksi note.
+- PostgreSQL integration mengunci fixed/related route, A→B→C, operational vs
+  immutable category, pairwise note access, former/current PIC access,
+  notification recipient, rejection matrix, idempotent replay, configuration
+  revalidation, dan concurrent lifecycle winner.
+- Migration gate wajib membuktikan fresh install serta previous-schema upgrade
+  dengan backfill tanpa mengubah ID/status/owner/event/classification lama.
+- Playwright mencakup journey penuh, required note, confirmation, search,
+  disabled/empty/error/stale states, keyboard/focus return, restricted history,
+  axe/reduced motion/legacy PWA/no overflow, dan responsive 360/768/1440.
+- Security assertion memastikan note tidak pernah hadir pada timeline,
+  notification/outbox, unauthorized response, atau DOM pembaca yang tidak
+  berhak. Seluruh parity gate `.agent/rules.md` tetap wajib sebelum delivery.

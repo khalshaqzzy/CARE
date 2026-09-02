@@ -171,6 +171,7 @@ const queryParameters: Record<string, string[]> = {
   VoicesController_dashboardPrivate: ['area', 'category', 'severity', 'status', 'from', 'to'],
   VoicesController_timeline: ['cursor', 'limit', 'order'],
   VoicesController_messages: ['cursor', 'limit', 'order'],
+  VoicesController_myHandovers: ['cursor', 'limit', 'search'],
   NotificationsController_list: ['cursor', 'limit'],
 };
 
@@ -338,10 +339,14 @@ function successSchema(operationId: string) {
     VoicesController_deleteDraft: 'SuccessResponse',
     VoicesController_evidence: 'AttachmentResponse',
     VoicesController_getDraft: 'VoiceDraftResponse',
+    VoicesController_handover: 'VoiceMutationResponse',
+    VoicesController_handoverOptions: 'HandoverOptionsResponse',
+    VoicesController_handovers: 'HandoverHistoryResponse',
     VoicesController_list: 'VoiceListResponse',
     VoicesController_mediaFile: 'MediaBinary',
     VoicesController_message: 'MessageResponse',
     VoicesController_messages: 'MessagePage',
+    VoicesController_myHandovers: 'MyHandoverPage',
     VoicesController_previewDraft: 'VoiceDraftPreview',
     VoicesController_proceed: 'VoiceMutationResponse',
     VoicesController_rate: 'RatingResponse',
@@ -365,6 +370,7 @@ function requestSchema(operationId: string) {
     VoicesController_submit: 'SubmitVoiceRequest',
     VoicesController_assign: 'AssignmentRequest',
     VoicesController_reassign: 'AssignmentRequest',
+    VoicesController_handover: 'HandoverRequest',
     AdminController_defaultPic: 'AccountSelectionRequest',
     AdminController_unionAccount: 'UnionAccountRequest',
     AdminController_setStatus: 'AccountStatusRequest',
@@ -416,6 +422,15 @@ const baseVoiceProperties = {
     nullable: true,
   },
   categoryNameSnapshot: { type: 'string', nullable: true },
+  classificationCategory: {
+    type: 'object',
+    nullable: true,
+    required: ['key', 'name'],
+    properties: {
+      key: { type: 'string' },
+      name: { type: 'string', nullable: true },
+    },
+  },
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
@@ -679,6 +694,168 @@ const schemas: Record<string, any> = {
         // workload subtitle).
         activeCount: { type: 'integer', minimum: 0 },
       },
+    },
+  },
+  HandoverRequest: {
+    type: 'object',
+    required: ['targetCategoryId', 'detail', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      targetCategoryId: { type: 'string', format: 'uuid' },
+      detail: { type: 'string', minLength: 1, maxLength: 4000 },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  HandoverCategory: {
+    type: 'object',
+    required: ['id', 'key', 'name'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid', nullable: true },
+      key: { type: 'string', nullable: true },
+      name: { type: 'string', nullable: true },
+    },
+  },
+  HandoverDepartment: {
+    type: 'object',
+    required: ['id', 'directorate', 'division', 'department'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid', nullable: true },
+      directorate: { type: 'string', nullable: true },
+      division: { type: 'string', nullable: true },
+      department: { type: 'string', nullable: true },
+    },
+  },
+  HandoverPic: {
+    type: 'object',
+    required: ['id', 'displayName'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string' },
+      type: { type: 'string', enum: ['DEPARTMENT_HEAD', 'DEFAULT_PIC'] },
+    },
+  },
+  HandoverOption: {
+    type: 'object',
+    required: [
+      'category',
+      'routeMode',
+      'department',
+      'pic',
+      'isReporterDepartment',
+      'available',
+      'disabledReason',
+    ],
+    additionalProperties: false,
+    properties: {
+      category: { $ref: '#/components/schemas/HandoverCategory' },
+      routeMode: {
+        type: 'string',
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'],
+        nullable: true,
+      },
+      department: {
+        allOf: [{ $ref: '#/components/schemas/HandoverDepartment' }],
+        nullable: true,
+      },
+      pic: { allOf: [{ $ref: '#/components/schemas/HandoverPic' }], nullable: true },
+      isReporterDepartment: { type: 'boolean' },
+      available: { type: 'boolean' },
+      disabledReason: { type: 'string', nullable: true },
+    },
+  },
+  HandoverOptionsResponse: {
+    type: 'object',
+    required: ['current', 'options'],
+    additionalProperties: false,
+    properties: {
+      current: {
+        type: 'object',
+        required: ['category', 'department', 'pic'],
+        properties: {
+          category: { $ref: '#/components/schemas/HandoverCategory' },
+          department: {
+            allOf: [{ $ref: '#/components/schemas/HandoverDepartment' }],
+            nullable: true,
+          },
+          pic: { $ref: '#/components/schemas/HandoverPic' },
+        },
+      },
+      options: { type: 'array', items: { $ref: '#/components/schemas/HandoverOption' } },
+    },
+  },
+  HandoverHistoryItem: {
+    type: 'object',
+    required: ['id', 'sequence', 'from', 'to', 'routeMode', 'isReporterDepartment', 'createdAt'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      sequence: { type: 'integer', minimum: 1 },
+      from: {
+        type: 'object',
+        required: ['category', 'department', 'pic'],
+        properties: {
+          category: { $ref: '#/components/schemas/HandoverCategory' },
+          department: { $ref: '#/components/schemas/HandoverDepartment' },
+          pic: { $ref: '#/components/schemas/HandoverPic' },
+        },
+      },
+      to: {
+        type: 'object',
+        required: ['category', 'department', 'pic'],
+        properties: {
+          category: { $ref: '#/components/schemas/HandoverCategory' },
+          department: { $ref: '#/components/schemas/HandoverDepartment' },
+          pic: { $ref: '#/components/schemas/HandoverPic' },
+        },
+      },
+      routeMode: {
+        type: 'string',
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'],
+      },
+      isReporterDepartment: { type: 'boolean' },
+      createdAt: { type: 'string', format: 'date-time' },
+      detail: {
+        type: 'string',
+        description: 'Present only when the caller is the source or destination PIC.',
+      },
+      direction: { type: 'string', enum: ['SENT', 'RECEIVED'] },
+      voice: {
+        type: 'object',
+        required: ['id', 'displayId'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          displayId: { type: 'string' },
+        },
+      },
+    },
+  },
+  HandoverHistoryResponse: {
+    type: 'object',
+    required: ['voice', 'accessMode', 'items'],
+    additionalProperties: false,
+    properties: {
+      voice: {
+        type: 'object',
+        required: ['id', 'displayId'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          displayId: { type: 'string' },
+        },
+      },
+      accessMode: { type: 'string', enum: ['PARTICIPANT_ONLY', 'VOICE_READER'] },
+      items: { type: 'array', items: { $ref: '#/components/schemas/HandoverHistoryItem' } },
+    },
+  },
+  MyHandoverPage: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/HandoverHistoryItem' } },
+      nextCursor: { type: 'string', nullable: true },
     },
   },
   MonitoringOptions: {
@@ -2013,6 +2190,7 @@ const schemas: Record<string, any> = {
       version: { type: 'integer', minimum: 1 },
       currentHandlerId: { type: 'string', format: 'uuid', nullable: true },
       handlerType: { type: 'string' },
+      handoverId: { type: 'string', format: 'uuid' },
     },
   },
   TimelineEvent: {

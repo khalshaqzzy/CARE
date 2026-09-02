@@ -44,6 +44,8 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     if (voice.status === 'OPEN') {
       actions.push('ASK', 'PROCEED');
       if (canAssign) actions.push('ASSIGN');
+      if (!isPrivate && actor.capabilities.includes('MANAGER') && isRouteOwner)
+        actions.push('HANDOVER');
     } else if (voice.status === 'IN_VERIFICATION') {
       actions.push('ASK', 'MESSAGE', 'PROCEED');
       if (canAssign) actions.push('REASSIGN');
