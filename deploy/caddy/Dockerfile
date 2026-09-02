@@ -16,7 +16,7 @@ RUN --mount=type=cache,id=care-caddy-go-mod,target=/go/pkg/mod \
     'func main() { caddycmd.Main() }' > main.go \
   && go mod init care/caddy \
   && go get github.com/caddyserver/caddy/v2@v2.11.4 \
-  && go get golang.org/x/crypto@v0.55.0 golang.org/x/net@v0.57.0 golang.org/x/text@v0.41.0 google.golang.org/grpc@v1.82.1 \
+  && go get golang.org/x/crypto@v0.55.0 golang.org/x/net@v0.57.0 golang.org/x/text@v0.41.0 google.golang.org/grpc@v1.83.1 \
   && go mod tidy \
   && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/caddy .
 
