@@ -155,6 +155,32 @@ export class VoicesController {
   ) {
     return this.voices.assignmentCandidates(a, id);
   }
+  @Get('voices/:id/handover-options') handoverOptions(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.handoverOptions(a, id);
+  }
+  @Post('voices/:id/handovers') handover(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.handover(a, id, b, key);
+  }
+  @Get('voices/:id/handovers') handovers(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.handovers(a, id);
+  }
+  @Get('handovers/mine') myHandovers(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['myHandovers']>[1],
+  ) {
+    return this.voices.myHandovers(a, q ?? {});
+  }
   @Post('voices/:id/ask') ask(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

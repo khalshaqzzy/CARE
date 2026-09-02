@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                                                    |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 0–12.5 done; Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                                         |
-| Last updated           | 1 September 2026 (classification prompt enriched to v1.4 with boundary/rubric/confidence guidance and master-table category context; ADR-0030)                                                                                                                                                           |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                     |
-| Current implementation | Six default and future custom General Voice categories are database-driven, revisioned, archive-only, dynamically injected into AI context, and routed to fixed or reporter departments. Admin/workforce surfaces and all local parity gates are complete; PR #22 awaits hosted replacement CI evidence. |
-| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                                                         |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                            |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12.5 done; Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                              |
+| Last updated           | 1 September 2026 (classification prompt enriched to v1.4 with boundary/rubric/confidence guidance and master-table category context; ADR-0030)                                                                                                                                                |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                          |
+| Current implementation | Dynamic General categories plus audited Manager-to-Manager `OPEN` Voice handover are implemented locally; original classification remains immutable, operational category/owner can move repeatedly, and notes are pairwise-private. Existing Phase 13 hosted acceptance status is unchanged. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                                              |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                 |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -863,3 +863,32 @@ dengan rating dalam jendela.
   suite baru `closure-review.integration.test.ts` (6 kasus: window, accept,
   reject+reopen, window-closed, worker auto-accept + idempoten + rating
   terlambat, re-close cycle baru) dan seluruh suite lain tetap hijau.
+
+## Manager-to-Manager Voice Handover (implementation complete, 2 September 2026)
+
+Status: `done` untuk implementation scope lokal pada branch
+`feat/manager-handoff`; **Phase 13 tetap `in_progress`** dan existing staging
+status tidak berubah. Mengikuti ADR-0033 dan PRD §41.
+
+- Additive operational-category fields dan append-only `VoiceHandover` ledger;
+  immutable submission classification dipertahankan. Migration backfill
+  menginisialisasi operational category tanpa mengubah owner/status/event/ID.
+- Manager current route owner dapat handover hanya pada unassigned General
+  Voice `OPEN`; status tetap `OPEN`, destination category/route/PIC di-resolve
+  ulang, version naik, event/audit sanitasi dibuat, dan hanya PIC baru menerima
+  notification. Row lock + version recheck juga diterapkan pada Ask/Proceed/
+  Assign untuk one-winner concurrency.
+- Note 1–4.000 karakter diotorisasi per transfer pair. Former PIC mendapat
+  restricted history dan `Handover Saya` tanpa Voice content; CARE Admin,
+  reporter, leadership, timeline, notification/outbox, dan work-item DTO tidak
+  menerima note.
+- Workforce menambah decision-row Handover, route `/voices/:id/handover` dengan
+  exact shared `VoiceHero`, current route, searchable category cards,
+  Department Reporter badge, disabled route gaps, required private note,
+  confirmation, sticky responsive footer, stale recovery, dan restricted
+  history. Design showcase mengunci seluruh component state.
+- Acceptance lokal mencakup generated schema/OpenAPI, action/search unit tests,
+  PostgreSQL A→B→C/idempotency/privacy tests, serta Playwright journey,
+  conflict retention, keyboard selection, axe, dan restricted history.
+  Final parity results dicatat di `sessionHandoff.md`; hosted deployment tetap
+  pekerjaan Phase 13 terpisah.

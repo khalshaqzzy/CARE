@@ -82,6 +82,8 @@ import {
   type Column,
   type UploadItem,
 } from '@care/ui';
+import { HandoverDestinationCard } from '../components/HandoverDestinationCard';
+import type { HandoverOption } from '../workforce-api';
 import {
   AlertTriangle,
   Bell,
@@ -959,6 +961,66 @@ export default function DesignPage() {
         </DesignSection>
 
         <DesignSection
+          id="handover-routing"
+          eyebrow="Composed pattern · Handover"
+          title="Destination cards expose route health"
+          description="Kategori tetap menjadi unit pilihan; department reporter, PIC, selected state, dan route gap selalu terbaca tanpa bergantung pada warna."
+        >
+          <Grid min="19rem">
+            <Specimen title="Default">
+              <HandoverDestinationCard
+                option={handoverSpecimen}
+                selected={false}
+                onSelect={() => undefined}
+              />
+            </Specimen>
+            <Specimen title="Hover">
+              <div className="handover-specimen--hover">
+                <HandoverDestinationCard
+                  option={handoverSpecimen}
+                  selected={false}
+                  onSelect={() => undefined}
+                />
+              </div>
+            </Specimen>
+            <Specimen title="Focus">
+              <div className="handover-specimen--focus">
+                <HandoverDestinationCard
+                  option={handoverSpecimen}
+                  selected={false}
+                  onSelect={() => undefined}
+                />
+              </div>
+            </Specimen>
+            <Specimen title="Selected">
+              <HandoverDestinationCard
+                option={handoverSpecimen}
+                selected
+                onSelect={() => undefined}
+              />
+            </Specimen>
+            <Specimen title="Disabled · route gap">
+              <HandoverDestinationCard
+                option={handoverGapSpecimen}
+                selected={false}
+                onSelect={() => undefined}
+              />
+            </Specimen>
+            <Specimen title="Loading">
+              <Skeleton label="Memuat tujuan handover" />
+            </Specimen>
+            <Specimen title="Empty">
+              <EmptyState title="Tujuan tidak ditemukan" description="Coba kata kunci lain." />
+            </Specimen>
+            <Specimen title="Error">
+              <Alert tone="danger" title="Opsi gagal dimuat">
+                Periksa koneksi lalu coba kembali.
+              </Alert>
+            </Specimen>
+          </Grid>
+        </DesignSection>
+
+        <DesignSection
           id="patterns"
           eyebrow="Composed patterns"
           title="CARE in context"
@@ -1035,6 +1097,36 @@ export default function DesignPage() {
     </div>
   );
 }
+
+const handoverSpecimen: HandoverOption = {
+  category: { id: '11111111-1111-4111-8111-111111111111', key: 'SAFETY', name: 'Safety' },
+  routeMode: 'RELATED_REPORTER_DEPARTMENT',
+  department: {
+    id: '22222222-2222-4222-8222-222222222222',
+    directorate: 'Manufacturing',
+    division: 'Production',
+    department: 'Production Control',
+  },
+  pic: {
+    id: '33333333-3333-4333-8333-333333333333',
+    displayName: 'Dedi Slamet Riyadi',
+    type: 'DEPARTMENT_HEAD',
+  },
+  isReporterDepartment: true,
+  available: true,
+  disabledReason: null,
+};
+
+const handoverGapSpecimen: HandoverOption = {
+  ...handoverSpecimen,
+  category: { id: '44444444-4444-4444-8444-444444444444', key: 'FACILITY', name: 'Fasilitas Umum' },
+  routeMode: 'FIXED_DEPARTMENT',
+  department: null,
+  pic: null,
+  isReporterDepartment: false,
+  available: false,
+  disabledReason: 'PIC department tujuan belum tersedia. Hubungi CARE Admin.',
+};
 
 function DesignSection({
   id,

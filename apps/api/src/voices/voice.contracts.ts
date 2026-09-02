@@ -52,6 +52,8 @@ export type SessionResponse = {
 export type ClassificationPreview = {
   source: ClassificationSource;
   category: string | null;
+  categoryNameSnapshot?: string | null;
+  classificationCategory: { key: string; name: string | null } | null;
   severity: Severity;
   confidence: number;
   rationaleCode: string;

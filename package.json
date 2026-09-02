@@ -32,7 +32,7 @@
     "db:down": "docker compose down",
     "db:test:reset": "docker compose exec -T postgres psql -U care -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS care_test WITH (FORCE);' -c 'CREATE DATABASE care_test;'",
     "db:test:migrate": "DATABASE_URL=postgresql://care:care_local@localhost:54329/care_test pnpm --filter @care/api prisma:migrate:deploy",
-    "test:migration:upgrade": "node scripts/test-migration-upgrade.mjs",
+    "test:migration:upgrade": "node scripts/test-migration-upgrade.mjs && node scripts/test-handover-migration-upgrade.mjs",
     "db:migrate": "pnpm --filter @care/api prisma:migrate:deploy",
     "db:generate": "pnpm --filter @care/api prisma:generate",
     "migrations:destructive-check": "node scripts/check-migrations.mjs",

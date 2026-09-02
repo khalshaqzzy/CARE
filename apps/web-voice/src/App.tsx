@@ -44,6 +44,8 @@ import { HistoryPage } from './features/history/HistoryPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { ConversationPage } from './features/voice/ConversationPage';
+import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
+import { HandoverPage } from './features/voice/HandoverPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
 import { desktopQuery, useMediaQuery } from './lib/use-media-query';
@@ -91,6 +93,8 @@ export function App() {
           <Route path="general" element={<GeneralRoute />} />
           <Route path="voices/:id" element={<VoiceDetailPage />} />
           <Route path="voices/:id/chat" element={<ConversationPage />} />
+          <Route path="voices/:id/handover" element={<HandoverPage />} />
+          <Route path="voices/:id/handover-history" element={<HandoverHistoryPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
