@@ -577,7 +577,7 @@ Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emerg
 ### 13.5 Confidence dan Fallback
 
 - Default confidence threshold adalah `0.75` dan configurable per environment.
-- Satu retry diperbolehkan untuk transient error dengan timeout maksimum 10 detik per attempt.
+- Satu retry diperbolehkan untuk transient error dengan timeout default dan maksimum 60 detik per attempt.
 - Timeout, exhausted retry, refusal/incomplete response, invalid JSON/schema, empty response, atau confidence di bawah threshold mengaktifkan Manual Fallback.
 - Manual Fallback General mewajibkan reporter memilih category dan severity; Private hanya memilih severity.
 - Location review failure menghasilkan `UNKNOWN`/degraded state dan tidak memblokir form atau submit.

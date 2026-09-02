@@ -17,6 +17,7 @@ VAPID_SUBJECT=mailto:operator@care.test VAPID_PUBLIC_KEY=hhhhhhhhhhhhhhhhhhhhhhh
   "${SCRIPTS}/render-runtime-env.sh" staging aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 42 >"${rendered}"
 chmod 600 "${rendered}"; "${SCRIPTS}/validate-runtime-env.sh" "${rendered}" >/dev/null
 grep -qx 'OPENAI_REASONING_EFFORT=' "${rendered}" || fail "Provider-default reasoning effort was not rendered"
+grep -qx 'OPENAI_TIMEOUT_MS=60000' "${rendered}" || fail "60-second provider timeout was not rendered"
 invalid="${TEST_ROOT}/invalid.env"; sed 's/SESSION_HASH_SECRET=.*/UNKNOWN_KEY=bad/' "${rendered}" >"${invalid}"
 if "${SCRIPTS}/validate-runtime-env.sh" "${invalid}" >/dev/null 2>&1; then fail "Unknown env key accepted"; fi
 invalid_effort="${TEST_ROOT}/invalid-effort.env"; sed 's/OPENAI_REASONING_EFFORT=.*/OPENAI_REASONING_EFFORT=extreme/' "${rendered}" >"${invalid_effort}"

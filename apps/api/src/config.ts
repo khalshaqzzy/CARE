@@ -32,7 +32,7 @@ const schema = z.object({
   OPENAI_BASE_URL: z.string().url().optional().or(z.literal('')),
   OPENAI_REASONING_EFFORT: openAiReasoningEffort,
   OPENAI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.75),
-  OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(30000),
+  OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(60000),
   VAPID_SUBJECT: z.string().optional().or(z.literal('')),
   VAPID_PUBLIC_KEY: optionalSecret,
   VAPID_PRIVATE_KEY: optionalSecret,

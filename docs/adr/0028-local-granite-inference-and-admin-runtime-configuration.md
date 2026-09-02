@@ -16,7 +16,7 @@ An independent `inference/` Docker Compose stack serves `ibm-granite/granite-4.2
 
 Granite runs BF16, tensor parallelism one, static memory fraction 0.8, a 32,768-token context window, automatic reasoning/tool parsers, default CUDA graph and Radix cache behavior, and no quantization. CARE requests cap generation at 4,096 new tokens and use `temperature=1.0` with `top_p=0.95`. Provider-default Granite requests explicitly apply `enable_thinking=true` and `low_effort=false` as defense in depth. Classification/routing and location review are independent provider calls and run concurrently in the member flow and live-provider smoke.
 
-A singleton `AiProviderConfiguration` record stores Admin overrides for base URL, model, reasoning effort, confidence threshold, optimistic version, actor, timestamp, and AES-256-GCM API-key ciphertext/IV/tag. The encryption key is supplied only through `OPENAI_CONFIG_ENCRYPTION_KEY`, is distinct from other runtime secrets, and is never stored in the database. Environment `OPENAI_*` values remain bootstrap/fallback only when no override exists. `OPENAI_TIMEOUT_MS` remains environment-only. The effective record is loaded for every provider invocation, so changes apply without restart.
+A singleton `AiProviderConfiguration` record stores Admin overrides for base URL, model, reasoning effort, confidence threshold, optimistic version, actor, timestamp, and AES-256-GCM API-key ciphertext/IV/tag. The encryption key is supplied only through `OPENAI_CONFIG_ENCRYPTION_KEY`, is distinct from other runtime secrets, and is never stored in the database. Environment `OPENAI_*` values remain bootstrap/fallback only when no override exists. `OPENAI_TIMEOUT_MS` remains environment-only, with a 60,000 ms default and ceiling per provider attempt. The effective record is loaded for every provider invocation, so changes apply without restart.
 
 The Admin API exposes GET, PUT, DELETE, and a live test under `/api/v1/admin/ai-configuration`. Mutations require CARE Admin authorization, session CSRF, idempotency, and optimistic concurrency. Audit events record only changed field names and source transitions. API keys, ciphertext, IV, tags, reasoning content, and provider response bodies are excluded from responses, audit summaries, readiness, metrics, OpenAPI examples, and browser bundles. An omitted or empty key preserves the current effective key; the first override requires one. Decryption or authentication-tag failure is fail-closed and never falls back silently to another credential.
 
@@ -54,6 +54,7 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - Database migrations add one singleton configuration table and a relation to the updating Admin account.
 - `dx-2` requires manual lifecycle management, GPU capacity monitoring, and tunnel route rollback independent of CARE deploy.
 - Full 32K context and 8K output increase worst-case latency and KV-cache pressure; the bounded CARE prompts normally remain much smaller.
+- A transient failure can consume two 60-second attempt budgets because the existing single retry is retained; request latency and fallback rates must therefore remain observable.
 - The NVIDIA/SGLang image runs as its image-defined root user because CUDA tooling and the persisted Hugging Face cache use `/root`; host exposure remains limited to the dedicated cache and no SGLang port is published.
 - The gateway compiles Caddy with an explicitly patched Go dependency set and runs only that static binary in the pinned non-root distroless runtime; this avoids inheriting stale Alpine packages or an unpatched upstream Caddy binary.
 
@@ -64,6 +65,7 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - OpenAPI generation proves the API key is write-only and absent from response schemas.
 - Operator validation covers Compose/Caddy syntax, loopback-only publication, unauthorized 401, authenticated model listing, forced classification/location calls, parsed reasoning presence without content logging, latency, GPU memory, and public TLS.
 - Three clean environment scenarios cover Granite with blank effort, DeepSeek with `none`, and DeepSeek with `high`; the original local environment is restored after validation.
+- Runtime configuration unit coverage locks the 60,000 ms default and rejects values above the ceiling; deployment and local environment templates use the same default.
 - The staging GitHub environment uses the tunnel base URL, Granite model, matching write-only Bearer credential, blank provider-default reasoning, and an independent 32-byte Base64URL encryption key; secret values remain outside Git and workflow logs.
 - Trivy 0.70.0 image scans report zero High/Critical findings for the patched production Caddy and inference gateway binaries/runtimes, including remediation of `CVE-2026-56854` through `golang.org/x/crypto v0.55.0`; no ignore entry is used.
 

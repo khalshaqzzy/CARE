@@ -4,6 +4,7 @@ import { loadConfig, redactedConfig, resetConfigForTests } from '../../src/confi
 describe('runtime configuration', () => {
   afterEach(() => {
     delete process.env.OPENAI_REASONING_EFFORT;
+    delete process.env.OPENAI_TIMEOUT_MS;
     delete process.env.CLOSURE_REVIEW_DAYS;
     process.env.SESSION_HASH_SECRET = 'test-session-hash-secret-000000000000';
     process.env.SESSION_CSRF_SECRET = 'test-session-csrf-secret-000000000000';
@@ -77,6 +78,21 @@ describe('runtime configuration', () => {
     resetConfigForTests();
     process.env.OPENAI_REASONING_EFFORT = 'extreme';
     expect(() => loadConfig()).toThrow('OPENAI_REASONING_EFFORT');
+  });
+  it('defaults the provider attempt timeout to 60 seconds and enforces its ceiling', () => {
+    Object.assign(process.env, {
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
+      SESSION_HASH_SECRET: 'a'.repeat(32),
+      SESSION_CSRF_SECRET: 'b'.repeat(32),
+      AUTH_THROTTLE_SECRET: 'c'.repeat(32),
+      CURSOR_SIGNING_SECRET: 'd'.repeat(32),
+    });
+    expect(loadConfig().OPENAI_TIMEOUT_MS).toBe(60_000);
+
+    resetConfigForTests();
+    process.env.OPENAI_TIMEOUT_MS = '60001';
+    expect(() => loadConfig()).toThrow('OPENAI_TIMEOUT_MS');
   });
   it('rejects reuse of a session secret for AI configuration encryption', () => {
     Object.assign(process.env, {

@@ -1,16 +1,42 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 2 September 2026                                                                                                              |
-| Current objective       | Complete hosted CI and staging acceptance for the dynamic General Voice category release                                      |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                            |
-| Backend Complete Gate   | Passed again for ADR-0032 after integration, security, migration, and contract validation (closure review window feature)     |
-| Implementation status   | Closure review window & auto-acceptance implemented with full local parity on `feat/close-voice-2-days`; PR to `staging` next |
-| Latest ADR              | ADR-0032 (closure review window and auto-acceptance)                                                                          |
-| Recommended next action | Open/merge the closure-review PR after hosted CI, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal   |
+| Atribut                 | Nilai                                                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 2 September 2026                                                                                                            |
+| Current objective       | Raise the CARE inference provider timeout to 60 seconds per attempt and preserve contract/deployment consistency            |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                          |
+| Backend Complete Gate   | Passed again for ADR-0032 after integration, security, migration, and contract validation (closure review window feature)   |
+| Implementation status   | Inference timeout default/ceiling aligned to 60 seconds in API, deployment defaults, examples, tests, PRD, and ADR-0028     |
+| Latest ADR              | ADR-0032 (closure review window and auto-acceptance)                                                                        |
+| Recommended next action | Open/merge the closure-review PR after hosted CI, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal |
 
 ## Session Outcome
+
+### Inference provider timeout increased to 60 seconds — 2 September 2026
+
+The env-only `OPENAI_TIMEOUT_MS` contract now defaults to and is capped at
+60,000 ms per provider attempt. API runtime validation, generated local setup,
+deployment environment rendering, remote Compose fallback, and all committed
+environment examples use the same value. The existing single retry remains
+limited to transient failures, so two exhausted attempts can take approximately
+120 seconds before Manual Fallback; this tradeoff is explicit in PRD §13.5 and
+ADR-0028. A config unit test locks the new default and rejects values above the
+ceiling. Phase 13 remains `in_progress`; a future hosted deployment is required
+before the running staging release inherits the new default. Validation passed:
+frozen install, Prisma generation, dependency audit (one existing Moderate;
+zero High/Critical), format, ESLint, TypeScript, all 188 unit tests, deterministic
+mock Chat Completions classification/location smoke, OpenAPI drift, production
+build/PWA compatibility, migration safety and previous-to-current upgrade, 52
+PostgreSQL integration tests, 8 security tests, the 10,000-account/50,000-Voice
+performance profile, reconciliation, 162 mocked/accessibility/visual/PWA/push/
+legacy browser tests, and 3 full-stack tests. Runtime/Compose validation,
+deployment harness (including an explicit rendered-timeout assertion),
+Actionlint, ShellCheck, all Dockerfiles through Hadolint, inference/Python/Bash/
+bootstrap validation, production-stack routing/non-root/persistence checks,
+Gitleaks, Trivy filesystem plus all five runtime images, and `git diff --check`
+also passed. The deployment harness retained its expected macOS note that real
+`flock` contention remains a Linux gate. The ignored local `.env.local` timeout
+was updated from 10,000 to 60,000 ms without reading or changing its secrets.
 
 ### Closure review window & auto-acceptance — 2 September 2026
 

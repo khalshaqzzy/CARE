@@ -41,7 +41,7 @@ Run `pnpm setup:local` once to create an ignored root `.env` with generated secr
 | `OPENAI_BASE_URL`              | DeepSeek API root; target is `https://api.deepseek.com`.        | No     |
 | `OPENAI_REASONING_EFFORT`      | Blank = provider default; use `none` for DeepSeek non-thinking. | No     |
 | `OPENAI_CONFIDENCE_THRESHOLD`  | AI-to-manual-fallback boundary.                                 | No     |
-| `OPENAI_TIMEOUT_MS`            | Timeout for each provider attempt.                              | No     |
+| `OPENAI_TIMEOUT_MS`            | Per-attempt provider timeout, default/max 60,000 ms.            | No     |
 | `VAPID_SUBJECT`                | Web Push operator contact subject.                              | No     |
 | `VAPID_PUBLIC_KEY`             | Environment-specific public Web Push key.                       | No     |
 | `VAPID_PRIVATE_KEY`            | Environment-specific private Web Push key.                      | Yes    |

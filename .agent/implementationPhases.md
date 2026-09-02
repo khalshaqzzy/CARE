@@ -670,6 +670,12 @@ Acceptance:
 
 Implementation state 28 Agustus 2026:
 
+- 2 September 2026 inference timeout alignment raises the env-only
+  `OPENAI_TIMEOUT_MS` default and ceiling from 30,000 to 60,000 ms per provider
+  attempt across API validation, local setup, deployment rendering, Compose,
+  and committed environment examples. The existing single transient retry is
+  retained, so two failed attempts can consume approximately 120 seconds. PRD
+  §13.5 and ADR-0028 now record the same boundary; Phase 13 status is unchanged;
 - 1 September 2026 classification prompt enrichment is locally complete: the
   code-owned classification system prompt advances to `care-classification-v1.4`
   with expanded injection defense, dominant-primary category selection with
