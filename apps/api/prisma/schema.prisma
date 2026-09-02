@@ -83,6 +83,12 @@ enum VoiceStatus {
   CLOSED
 }
 
+enum ClosureReviewState {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 enum HandlerType {
   MANAGER
   SECTION_HEAD
@@ -152,6 +158,7 @@ enum VoiceEventType {
   CLOSED
   RATED
   REOPENED
+  AUTO_ACCEPTED
 }
 
 enum OutboxStatus {
@@ -169,6 +176,7 @@ enum NotificationType {
   CLOSED
   RATED
   REOPENED
+  CLOSURE_AUTO_ACCEPTED
   SECURITY
 }
 
@@ -716,20 +724,24 @@ model Message {
 }
 
 model ClosureCycle {
-  id          String       @id @default(uuid()) @db.Uuid
-  voiceId     String       @db.Uuid
-  cycleNumber Int
-  actorId     String       @db.Uuid
-  note        String       @db.VarChar(4000)
-  closedAt    DateTime     @default(now())
-  reopenedAt  DateTime?
-  voice       Voice        @relation(fields: [voiceId], references: [id])
-  actor       UserAccount  @relation(fields: [actorId], references: [id])
-  evidence    Attachment[]
-  rating      Rating?
+  id               String             @id @default(uuid()) @db.Uuid
+  voiceId          String             @db.Uuid
+  cycleNumber      Int
+  actorId          String             @db.Uuid
+  note             String             @db.VarChar(4000)
+  closedAt         DateTime           @default(now())
+  reopenedAt       DateTime?
+  reviewState      ClosureReviewState @default(PENDING)
+  reviewDeadline   DateTime?
+  reviewResolvedAt DateTime?
+  voice            Voice              @relation(fields: [voiceId], references: [id])
+  actor            UserAccount        @relation(fields: [actorId], references: [id])
+  evidence         Attachment[]
+  rating           Rating?
 
   @@unique([voiceId, cycleNumber])
   @@index([voiceId, closedAt])
+  @@index([reviewState, reviewDeadline])
 }
 
 model Rating {

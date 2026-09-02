@@ -2252,6 +2252,16 @@
 .voice-hero__dot[data-tone='closed'] {
   background: var(--raw-success);
 }
+.voice-hero__chip i[data-tone='review-pending'],
+.voice-hero__pill i[data-tone='review-pending'],
+.voice-hero__dot[data-tone='review-pending'] {
+  background: #e78a00;
+}
+.voice-hero__chip i[data-tone='reopened'],
+.voice-hero__pill i[data-tone='reopened'],
+.voice-hero__dot[data-tone='reopened'] {
+  background: var(--raw-danger);
+}
 /* Area | PIC split with hairlines above, between, and below. */
 .voice-hero__grid {
   display: grid;
@@ -2421,6 +2431,23 @@
   font-size: var(--font-size-md);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-tight);
+}
+.rating-card__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  background: var(--surface-inset);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+.rating-card__notice svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--raw-brand-700);
 }
 .rating-card__error {
   margin: 0;
@@ -3546,6 +3573,15 @@
 .inbox-card__status[data-status='CLOSED'] {
   color: var(--state-success);
   background: #ecfdf3;
+}
+.inbox-card__status[data-status='REVIEW_PENDING'] {
+  color: #9a3412;
+  color: color-mix(in srgb, var(--raw-warning) 78%, black);
+  background: #fff7ed;
+}
+.inbox-card__status[data-status='REOPENED'] {
+  color: var(--raw-danger);
+  background: #fef2f2;
 }
 .inbox-card__time {
   display: inline-flex;

@@ -4,17 +4,28 @@ import type { VoiceListItem } from '../workforce-api';
 import {
   formatRelative,
   SEVERITY_LABELS,
-  STATUS_LABELS,
   VISIBILITY_LABELS,
+  voiceStatusDisplay,
 } from '../lib/formatters';
 
 /** Compact status-first list card for Voice Saya (history) — screen 12. */
-const STATUS_TONES: Record<string, 'info' | 'brand' | 'success' | 'warning'> = {
-  OPEN: 'warning',
-  IN_VERIFICATION: 'info',
-  IN_PROGRESS: 'brand',
-  CLOSED: 'success',
-};
+function statusTone(
+  status: string,
+  reviewState?: string | null,
+): 'info' | 'brand' | 'success' | 'warning' | 'neutral' {
+  if (status === 'CLOSED' && reviewState === 'PENDING') return 'warning';
+  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'warning';
+  if (status === 'CLOSED') return 'success';
+  return (
+    (
+      {
+        OPEN: 'warning',
+        IN_VERIFICATION: 'info',
+        IN_PROGRESS: 'brand',
+      } as const
+    )[status] ?? 'neutral'
+  );
+}
 
 const SEVERITY_TONES: Record<string, 'neutral' | 'warning' | 'danger'> = {
   LOW: 'neutral',
@@ -45,8 +56,8 @@ export function HistoryVoiceCard({ voice, onOpen }: { voice: VoiceListItem; onOp
             {SEVERITY_LABELS[voice.severity] ?? voice.severity}
           </DotLabel>
           <span className="history-card__divider" aria-hidden="true" />
-          <DotLabel tone={STATUS_TONES[voice.status] ?? 'neutral'}>
-            {STATUS_LABELS[voice.status] ?? voice.status}
+          <DotLabel tone={statusTone(voice.status, voice.closureReviewState)}>
+            {voiceStatusDisplay(voice.status, voice.closureReviewState)}
           </DotLabel>
         </span>
         <span className="history-card__time">Diperbarui {formatRelative(voice.updatedAt)}</span>

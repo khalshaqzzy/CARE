@@ -13,6 +13,7 @@ import {
   Plus,
   ScrollText,
   ShieldCheck,
+  Star,
   UserRound,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -33,6 +34,7 @@ import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatDate,
+  formatRemaining,
   formatRelative,
   SEVERITY_LABELS,
   STATUS_LABELS,
@@ -616,6 +618,25 @@ export function HomePage() {
                 Lanjutkan
               </Button>
             </Card>
+          ) : null}
+          {!offline && (member.data?.closedPendingReview ?? 0) > 0 && member.data ? (
+            <AttentionCard
+              title="Menunggu penilaian Anda"
+              ariaLabel="Voice yang menunggu penilaian Anda"
+              rows={member.data.recent
+                .filter((voice) => voice.closureReviewState === 'PENDING')
+                .map((voice) => ({
+                  key: voice.id,
+                  icon: <Star size={18} />,
+                  label: voice.title,
+                  description: `${voice.displayId} · otomatis diterima ${formatRemaining(
+                    voice.closureReviewDeadline,
+                  )}`,
+                  tone: 'danger' as const,
+                  onClick: () => void navigate(`/voices/${voice.id}`),
+                }))}
+              caption="Voice yang tidak dinilai dalam 2 hari diterima otomatis."
+            />
           ) : null}
           {offline ? null : member.isLoading ? (
             <Skeleton label="Memuat Voice terbaru" />

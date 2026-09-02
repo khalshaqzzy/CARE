@@ -1204,13 +1204,30 @@ const schemas: Record<string, any> = {
   },
   ClosureCycleResponse: {
     type: 'object',
-    required: ['id', 'cycleNumber', 'note', 'closedAt', 'actor', 'evidence', 'rating'],
+    required: [
+      'id',
+      'cycleNumber',
+      'note',
+      'closedAt',
+      'reviewState',
+      'actor',
+      'evidence',
+      'rating',
+    ],
     properties: {
       id: { type: 'string', format: 'uuid' },
       cycleNumber: { type: 'integer' },
       note: { type: 'string' },
       closedAt: { type: 'string', format: 'date-time' },
       reopenedAt: { type: 'string', format: 'date-time', nullable: true },
+      reviewState: {
+        type: 'string',
+        enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+        description:
+          'Reporter review state of this closure cycle: pending within the review window, accepted by rating or auto-acceptance, rejected by a reopen.',
+      },
+      reviewDeadline: { type: 'string', format: 'date-time', nullable: true },
+      reviewResolvedAt: { type: 'string', format: 'date-time', nullable: true },
       actor: {
         type: 'object',
         required: ['id', 'displayName'],
@@ -1232,7 +1249,7 @@ const schemas: Record<string, any> = {
   },
   MemberDashboard: {
     type: 'object',
-    required: ['total', 'counts', 'recent', 'draft', 'generatedAt'],
+    required: ['total', 'counts', 'closedPendingReview', 'recent', 'draft', 'generatedAt'],
     additionalProperties: false,
     properties: {
       total: { type: 'integer' },
@@ -1246,6 +1263,11 @@ const schemas: Record<string, any> = {
           IN_PROGRESS: { type: 'integer' },
           CLOSED: { type: 'integer' },
         },
+      },
+      closedPendingReview: {
+        type: 'integer',
+        minimum: 0,
+        description: 'Closed voices whose latest closure cycle still awaits the reporter rating.',
       },
       recent: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
       draft: {
@@ -1912,6 +1934,13 @@ const schemas: Record<string, any> = {
       currentHandlerName: { type: 'string', nullable: true },
       // Per-Voice reporter alias; only present on Union private inbox lists.
       reporterAlias: { type: 'string', nullable: true },
+      // Review state of the latest closure cycle; null for voices without one.
+      closureReviewState: {
+        type: 'string',
+        enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+        nullable: true,
+      },
+      closureReviewDeadline: { type: 'string', format: 'date-time', nullable: true },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },

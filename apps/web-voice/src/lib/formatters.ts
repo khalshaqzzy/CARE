@@ -60,7 +60,45 @@ export const VOICE_ACTION_LABELS: Record<string, string> = {
   CLOSED: 'Ditutup',
   RATED: 'Dinilai',
   REOPENED: 'Dibuka Kembali',
+  AUTO_ACCEPTED: 'Diterima otomatis',
 };
+
+export type ClosureReviewState = 'PENDING' | 'ACCEPTED' | 'REJECTED';
+
+export const CLOSURE_REVIEW_LABELS: Record<ClosureReviewState, string> = {
+  PENDING: 'Menunggu Penilaian',
+  ACCEPTED: 'Diterima',
+  REJECTED: 'Ditolak',
+};
+
+/**
+ * Status label that folds the closure review state into the four voice
+ * statuses: a closed voice shows its review outcome, and a reopened voice
+ * (latest cycle rejected) shows "Dibuka Kembali" instead of "Verifikasi".
+ */
+export function voiceStatusDisplay(status: string, closureReviewState?: string | null): string {
+  if (status === 'CLOSED') {
+    if (closureReviewState === 'PENDING' || closureReviewState === 'ACCEPTED')
+      return CLOSURE_REVIEW_LABELS[closureReviewState];
+    return STATUS_LABELS.CLOSED ?? 'Selesai';
+  }
+  if (status === 'IN_VERIFICATION' && closureReviewState === 'REJECTED') return 'Dibuka Kembali';
+  return STATUS_LABELS[status] ?? status;
+}
+
+/** Future-facing countdown for the closure review window ("2 hari lagi"). */
+export function formatRemaining(deadline: string | Date | null | undefined): string {
+  if (!deadline) return '—';
+  const date = typeof deadline === 'string' ? new Date(deadline) : deadline;
+  if (Number.isNaN(date.getTime())) return '—';
+  const diff = date.getTime() - Date.now();
+  if (diff <= 0) return 'terlewati';
+  const minutes = Math.ceil(diff / 60_000);
+  if (minutes < 60) return `${minutes} menit lagi`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) return `${hours} jam lagi`;
+  return `${Math.round(hours / 24)} hari lagi`;
+}
 
 const JAKARTA_TZ = 'Asia/Jakarta';
 const dateTimeFormatter = new Intl.DateTimeFormat('id-ID', {

@@ -48,3 +48,124 @@ test('surfaces responder actions for an IN_PROGRESS voice', async ({ page }) => 
   await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tutup', exact: true })).toBeVisible();
 });
+
+// Closure review window (PRD §17.5): a closed voice sits PENDING for two days
+// while the reporter rates it; a low rating with reopen rejects the closure,
+// a high rating accepts it, and an expired window auto-accepts while still
+// allowing a late feedback-only rating. The clock is pinned so the countdown
+// and auto-accept notices are deterministic.
+
+const closedVoice = {
+  ...voice,
+  status: 'CLOSED',
+  availableActions: ['RATE'],
+  closureCycles: [
+    {
+      id: 'cycle-1',
+      cycleNumber: 1,
+      note: 'Pelindung kabel diganti dan area diamankan.',
+      closedAt: '2026-08-04T07:00:00.000Z',
+      reopenedAt: null,
+      reviewState: 'PENDING',
+      reviewDeadline: '2026-08-06T07:00:00.000Z',
+      reviewResolvedAt: null,
+      evidence: [],
+      rating: null,
+    },
+  ],
+};
+
+test('shows the review window, then a low rating with reopen reopens the voice', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await mockApi(page, closedVoice);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto(`/voices/${voice.id}`);
+
+  await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
+  // The pending review surfaces as a countdown notice and a derived status.
+  await expect(page.getByText(/Beri penilaian dalam 21 jam lagi/)).toBeVisible();
+  await expect(page.getByText('Menunggu Penilaian').first()).toBeVisible();
+  await expect(page.getByText(/Otomatis diterima .* tanpa penilaian/)).toBeVisible();
+
+  await page.getByRole('radio', { name: '2/5' }).click();
+  await expect(page.getByText('Feedback wajib untuk rating 1–2.')).toBeVisible();
+  // The reopen toggle rides atomically on the low rating (PRD §17.3).
+  const reopenToggle = page.getByRole('button', { name: 'Buka kembali' });
+  await expect(reopenToggle).toBeVisible();
+  await expect(page.getByText('Masalah belum sepenuhnya selesai')).toBeVisible();
+  await reopenToggle.click();
+  await expect(reopenToggle).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByLabel('Tulis umpan balik').fill('Masalahnya masih berulang.');
+  await page.getByRole('button', { name: 'Kirim penilaian' }).click();
+  // The detail refetches: the cycle is rejected and the voice reopens into
+  // verification, displayed as "Dibuka Kembali" rather than "Verifikasi".
+  await expect(page.getByText('Dibuka Kembali').first()).toBeVisible();
+  await expect(page.getByText('Ditolak · dibuka kembali')).toBeVisible();
+});
+
+test('a high rating accepts the closure and hides the reopen toggle', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await mockApi(page, closedVoice);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto(`/voices/${voice.id}`);
+
+  await expect(page.getByText(/Beri penilaian dalam 21 jam lagi/)).toBeVisible();
+  await page.getByRole('radio', { name: '4/5' }).click();
+  // No feedback gate and no reopen affordance for an accepting rating.
+  await expect(page.getByText('Feedback wajib untuk rating 1–2.')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Buka kembali' })).toBeHidden();
+
+  await page.getByRole('button', { name: 'Kirim penilaian' }).click();
+  await expect(page.getByText('Diterima', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Ditolak · dibuka kembali')).toBeHidden();
+});
+
+test('an auto-accepted voice offers a late feedback-only rating', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await mockApi(page, {
+    ...closedVoice,
+    closureCycles: [
+      {
+        ...closedVoice.closureCycles[0]!,
+        reviewState: 'ACCEPTED',
+        reviewResolvedAt: '2026-08-06T07:00:00.000Z',
+      },
+    ],
+  });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto(`/voices/${voice.id}`);
+
+  // The auto-accept notice replaces the countdown; the voice reads "Diterima".
+  await expect(
+    page.getByText(/Voice diterima otomatis .* karena tidak ada penilaian/),
+  ).toBeVisible();
+  await expect(page.getByText('Diterima', { exact: true }).first()).toBeVisible();
+
+  await page.getByRole('radio', { name: '2/5' }).click();
+  // Feedback is still mandatory, but reopen is gone even on a low score.
+  await expect(page.getByText('Feedback wajib untuk rating 1–2.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Buka kembali' })).toBeHidden();
+
+  await page.getByLabel('Tulis umpan balik').fill('Sebenarnya sudah beres.');
+  await page.getByRole('button', { name: 'Kirim penilaian' }).click();
+  await expect(page.getByText('Diterima', { exact: true }).first()).toBeVisible();
+});
+
+test('prompts the reporter from home when a closure awaits rating', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await mockApi(page, closedVoice);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/');
+
+  const card = page.getByRole('heading', { name: 'Menunggu penilaian Anda' });
+  await expect(card).toBeVisible();
+  await expect(page.getByText(/otomatis diterima 21 jam lagi/)).toBeVisible();
+  await page
+    .getByRole('button', { name: new RegExp(voice.title) })
+    .first()
+    .click();
+  await expect(page).toHaveURL(`/voices/${voice.id}`);
+});

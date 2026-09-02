@@ -8,7 +8,11 @@ export type ActionableVoice = {
   status: VoiceStatus;
   handlerType: HandlerType;
   hasConversation?: boolean;
-  closureCycles?: Array<{ reopenedAt: Date | null; rating?: { score: number } | null }>;
+  closureCycles?: Array<{
+    reopenedAt: Date | null;
+    reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    rating?: { score: number } | null;
+  }>;
 };
 
 export type ActionActor = {
@@ -52,10 +56,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     else if (voice.status === 'IN_PROGRESS' && voice.hasConversation) actions.push('MESSAGE');
     else if (voice.status === 'CLOSED') {
       const latest = voice.closureCycles?.at(-1);
-      if (latest && !latest.reopenedAt) {
-        actions.push('RATE');
-        if (latest.rating?.score && latest.rating.score <= 2) actions.push('REOPEN');
-      }
+      if (latest && !latest.reopenedAt && !latest.rating) actions.push('RATE');
     }
   }
   return actions;

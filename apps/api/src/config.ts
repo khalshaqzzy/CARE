@@ -21,6 +21,7 @@ const schema = z.object({
   CURSOR_SIGNING_SECRET: z.string().min(32),
   SESSION_IDLE_HOURS: z.coerce.number().positive().default(8),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().positive().default(7),
+  CLOSURE_REVIEW_DAYS: z.coerce.number().int().min(1).max(30).default(2),
   OPENAI_API_KEY: optionalSecret,
   OPENAI_CONFIG_ENCRYPTION_KEY: z
     .string()

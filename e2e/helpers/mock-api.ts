@@ -223,6 +223,20 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
   severity: voice.severity ?? 'HIGH',
   status: voice.status as VoiceListItem['status'],
   updatedAt: voice.updatedAt ?? '2026-08-03T00:00:00.000Z',
+  // Review state of the latest closure cycle for status chips and the home
+  // "Menunggu penilaian" card; absent while the voice has no closure yet.
+  ...(() => {
+    const latest = (
+      voice.closureCycles as
+        Array<{ reviewState?: string; reviewDeadline?: string | null }> | undefined
+    )?.at(-1);
+    return latest
+      ? {
+          closureReviewState: latest.reviewState ?? null,
+          closureReviewDeadline: latest.reviewDeadline ?? null,
+        }
+      : {};
+  })(),
   ...(voice.currentHandlerName !== undefined
     ? { currentHandlerName: voice.currentHandlerName }
     : {}),
@@ -1092,6 +1106,12 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
 
     // Dashboards
     if (method === 'GET' && path === '/api/v1/dashboard/member') {
+      const latestCycle = (
+        voice?.closureCycles as
+          Array<{ reviewState?: string; reopenedAt?: string | null }> | undefined
+      )?.at(-1);
+      const closedPendingReview =
+        voice?.status === 'CLOSED' && latestCycle?.reviewState === 'PENDING' ? 1 : 0;
       return satisfy(
         200,
         opts.memberDashboard ?? {
@@ -1100,8 +1120,9 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
             OPEN: 0,
             IN_VERIFICATION: 0,
             IN_PROGRESS: voice?.status === 'IN_PROGRESS' ? 1 : 0,
-            CLOSED: 0,
+            CLOSED: voice?.status === 'CLOSED' ? 1 : 0,
           },
+          closedPendingReview,
           recent: voice ? [baseVoiceItem(voice)] : [],
           draft: null,
           generatedAt: new Date().toISOString(),
@@ -1232,9 +1253,42 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       return satisfy(200, opts.voiceDetail ?? (voice ? detail(voice) : {}));
     }
     // Lifecycle mutations
+    // The rate endpoint is stateful: it records the rating on the latest
+    // closure cycle, resolves the review state, and on reopen flips the voice
+    // back into verification so the journey asserts post-mutation UI.
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/rate$/.test(path)) {
+      const body = (await route.request().postDataJSON()) as {
+        score: number;
+        feedback?: string;
+        reopen?: boolean;
+      };
+      const cycle = (voice?.closureCycles as Array<Record<string, unknown>> | undefined)?.at(-1);
+      if (voice && cycle) {
+        cycle.rating = {
+          score: body.score,
+          feedback: body.feedback ?? null,
+          reopen: Boolean(body.reopen),
+        };
+        cycle.reviewState = body.reopen ? 'REJECTED' : 'ACCEPTED';
+        cycle.reviewResolvedAt = new Date().toISOString();
+        if (body.reopen) {
+          cycle.reopenedAt = new Date().toISOString();
+          voice.status = 'IN_VERIFICATION';
+          voice.availableActions = ['MESSAGE'];
+        } else {
+          voice.availableActions = [];
+        }
+      }
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'CLOSED',
+        version: 4,
+      });
+    }
     if (
       method === 'POST' &&
-      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|ask|proceed|close|rate)$/.test(
+      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|ask|proceed|close)$/.test(
         path,
       )
     ) {

@@ -151,9 +151,10 @@ describe('CARE domain contracts', () => {
     expect(transitionTarget(status, action)).toBe(target);
   });
   it('enforces rating feedback and reopen rules', () => {
-    expect(ratingError(1, undefined, false)).toBe('FEEDBACK_REQUIRED');
-    expect(ratingError(2, 'belum selesai', true)).toBeNull();
-    expect(ratingError(4, undefined, true)).toBe('REOPEN_NOT_ALLOWED');
-    expect(ratingError(5, undefined, false)).toBeNull();
+    expect(ratingError(1, undefined, false, true)).toBe('FEEDBACK_REQUIRED');
+    expect(ratingError(2, 'belum selesai', true, true)).toBeNull();
+    expect(ratingError(4, undefined, true, true)).toBe('REOPEN_NOT_ALLOWED');
+    expect(ratingError(5, undefined, false, true)).toBeNull();
+    expect(ratingError(2, 'belum selesai', true, false)).toBe('REOPEN_NOT_ALLOWED');
   });
 });
