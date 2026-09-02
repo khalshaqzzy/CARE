@@ -29,7 +29,9 @@ LABEL org.opencontainers.image.title="care-web-voice" \
   org.opencontainers.image.revision="${RELEASE_SHA}" \
   org.opencontainers.image.source="https://github.com/khalshaqzzy/CARE"
 USER 0
-RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0
+# Pinned alpine packages: force patched versions past the frozen base image
+# so the Trivy gate stays green between base-image digest bumps.
+RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.4-r0
 COPY deploy/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /workspace/apps/web-voice/dist/ /usr/share/nginx/html/
 USER 101

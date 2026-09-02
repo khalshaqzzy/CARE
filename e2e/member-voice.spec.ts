@@ -53,33 +53,38 @@ test('surfaces responder actions for an IN_PROGRESS voice', async ({ page }) => 
 // while the reporter rates it; a low rating with reopen rejects the closure,
 // a high rating accepts it, and an expired window auto-accepts while still
 // allowing a late feedback-only rating. The clock is pinned so the countdown
-// and auto-accept notices are deterministic.
+// and auto-accept notices are deterministic. The fixture is a factory because
+// the mock's rate handler mutates the voice it serves: with fully-parallel
+// workers sharing one module instance, a shared object would leak one test's
+// rating/reopen into the next test's fixtures.
 
-const closedVoice = {
-  ...voice,
-  status: 'CLOSED',
-  availableActions: ['RATE'],
-  closureCycles: [
-    {
-      id: 'cycle-1',
-      cycleNumber: 1,
-      note: 'Pelindung kabel diganti dan area diamankan.',
-      closedAt: '2026-08-04T07:00:00.000Z',
-      reopenedAt: null,
-      reviewState: 'PENDING',
-      reviewDeadline: '2026-08-06T07:00:00.000Z',
-      reviewResolvedAt: null,
-      evidence: [],
-      rating: null,
-    },
-  ],
-};
+function closedVoiceFixture() {
+  return {
+    ...voice,
+    status: 'CLOSED',
+    availableActions: ['RATE'],
+    closureCycles: [
+      {
+        id: 'cycle-1',
+        cycleNumber: 1,
+        note: 'Pelindung kabel diganti dan area diamankan.',
+        closedAt: '2026-08-04T07:00:00.000Z',
+        reopenedAt: null,
+        reviewState: 'PENDING',
+        reviewDeadline: '2026-08-06T07:00:00.000Z',
+        reviewResolvedAt: null,
+        evidence: [],
+        rating: null,
+      },
+    ],
+  };
+}
 
 test('shows the review window, then a low rating with reopen reopens the voice', async ({
   page,
 }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
-  await mockApi(page, closedVoice);
+  await mockApi(page, closedVoiceFixture());
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto(`/voices/${voice.id}`);
 
@@ -108,7 +113,7 @@ test('shows the review window, then a low rating with reopen reopens the voice',
 
 test('a high rating accepts the closure and hides the reopen toggle', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
-  await mockApi(page, closedVoice);
+  await mockApi(page, closedVoiceFixture());
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto(`/voices/${voice.id}`);
 
@@ -125,13 +130,16 @@ test('a high rating accepts the closure and hides the reopen toggle', async ({ p
 
 test('an auto-accepted voice offers a late feedback-only rating', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  const fixture = closedVoiceFixture();
   await mockApi(page, {
-    ...closedVoice,
+    ...fixture,
     closureCycles: [
       {
-        ...closedVoice.closureCycles[0]!,
+        ...fixture.closureCycles[0]!,
         reviewState: 'ACCEPTED',
         reviewResolvedAt: '2026-08-06T07:00:00.000Z',
+        reopenedAt: null,
+        rating: null,
       },
     ],
   });
@@ -156,7 +164,7 @@ test('an auto-accepted voice offers a late feedback-only rating', async ({ page 
 
 test('prompts the reporter from home when a closure awaits rating', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
-  await mockApi(page, closedVoice);
+  await mockApi(page, closedVoiceFixture());
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/');
 
