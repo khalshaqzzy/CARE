@@ -4,6 +4,7 @@ import { loadConfig, redactedConfig, resetConfigForTests } from '../../src/confi
 describe('runtime configuration', () => {
   afterEach(() => {
     delete process.env.OPENAI_REASONING_EFFORT;
+    delete process.env.CLOSURE_REVIEW_DAYS;
     process.env.SESSION_HASH_SECRET = 'test-session-hash-secret-000000000000';
     process.env.SESSION_CSRF_SECRET = 'test-session-csrf-secret-000000000000';
     process.env.AUTH_THROTTLE_SECRET = 'test-auth-throttle-secret-00000000000';
@@ -22,6 +23,24 @@ describe('runtime configuration', () => {
       TRUST_PROXY_HOPS: '1',
     });
     expect(loadConfig().TRUST_PROXY_HOPS).toBe(1);
+  });
+  it('defaults the closure review window to two days and bounds it', () => {
+    const base = {
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
+      SESSION_HASH_SECRET: 'a'.repeat(32),
+      SESSION_CSRF_SECRET: 'b'.repeat(32),
+      AUTH_THROTTLE_SECRET: 'c'.repeat(32),
+      CURSOR_SIGNING_SECRET: 'd'.repeat(32),
+    };
+    Object.assign(process.env, base);
+    expect(loadConfig().CLOSURE_REVIEW_DAYS).toBe(2);
+    resetConfigForTests();
+    Object.assign(process.env, base, { CLOSURE_REVIEW_DAYS: '7' });
+    expect(loadConfig().CLOSURE_REVIEW_DAYS).toBe(7);
+    resetConfigForTests();
+    Object.assign(process.env, base, { CLOSURE_REVIEW_DAYS: '0' });
+    expect(() => loadConfig()).toThrow();
   });
   it('never exposes runtime secrets', () => {
     Object.assign(process.env, {

@@ -8,16 +8,18 @@ import {
   formatRelative,
   severityRank,
   SEVERITY_LABELS,
-  STATUS_LABELS,
   VISIBILITY_LABELS,
+  voiceStatusDisplay,
 } from '../lib/formatters';
 
-const STATUS_TONES: Record<string, string> = {
-  OPEN: 'info',
-  IN_VERIFICATION: 'warning',
-  IN_PROGRESS: 'brand',
-  CLOSED: 'success',
-};
+function statusTone(status: string, reviewState?: string | null): string {
+  if (status === 'CLOSED' && reviewState === 'PENDING') return 'warning';
+  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'warning';
+  return (
+    { OPEN: 'info', IN_VERIFICATION: 'warning', IN_PROGRESS: 'brand', CLOSED: 'success' }[status] ??
+    'neutral'
+  );
+}
 
 const SEVERITY_TONES: Record<string, string> = {
   LOW: 'neutral',
@@ -75,8 +77,8 @@ export function VoiceCard({
         <ValueRow
           icon={<Activity size={15} aria-hidden="true" />}
           label="Status:"
-          value={STATUS_LABELS[voice.status] ?? voice.status}
-          tone={STATUS_TONES[voice.status] ?? 'neutral'}
+          value={voiceStatusDisplay(voice.status, voice.closureReviewState)}
+          tone={statusTone(voice.status, voice.closureReviewState)}
         />
         <ValueRow
           icon={<Flag size={15} aria-hidden="true" />}

@@ -6,11 +6,13 @@ import {
   formatDateTime,
   formatNotificationTime,
   formatRelative,
+  formatRemaining,
   mediaUrl,
   SEVERITY_LABELS,
   severityRank,
   STATUS_LABELS,
   VISIBILITY_LABELS,
+  voiceStatusDisplay,
 } from './formatters';
 
 describe('workforce label maps', () => {
@@ -111,5 +113,50 @@ describe('timestamp formatting uses Asia/Jakarta', () => {
 describe('media urls', () => {
   it('builds an authorized media URL', () => {
     expect(mediaUrl('abc-123')).toBe('/api/v1/media/abc-123');
+  });
+});
+
+describe('closure review status display', () => {
+  it('folds a pending or accepted review into the closed label', () => {
+    expect(voiceStatusDisplay('CLOSED', 'PENDING')).toBe('Menunggu Penilaian');
+    expect(voiceStatusDisplay('CLOSED', 'ACCEPTED')).toBe('Diterima');
+    expect(voiceStatusDisplay('CLOSED', null)).toBe('Selesai');
+  });
+
+  it('shows a rejected cycle as reopened during re-verification', () => {
+    expect(voiceStatusDisplay('IN_VERIFICATION', 'REJECTED')).toBe('Dibuka Kembali');
+    // A rejected review only colors the re-verification phase, never a plain
+    // verification or the accepted closure.
+    expect(voiceStatusDisplay('IN_VERIFICATION', null)).toBe('Verifikasi');
+    expect(voiceStatusDisplay('IN_PROGRESS', 'REJECTED')).toBe('Diproses');
+  });
+
+  it('leaves non-closure statuses untouched', () => {
+    expect(voiceStatusDisplay('OPEN')).toBe('Terbuka');
+    expect(voiceStatusDisplay('IN_PROGRESS', 'PENDING')).toBe('Diproses');
+  });
+});
+
+describe('closure review countdown', () => {
+  it('returns em-dash without a deadline', () => {
+    expect(formatRemaining(null)).toBe('—');
+    expect(formatRemaining(undefined)).toBe('—');
+    expect(formatRemaining('not-a-date')).toBe('—');
+  });
+
+  it('marks a passed deadline as elapsed', () => {
+    expect(formatRemaining(new Date(Date.now() - 60_000))).toBe('terlewati');
+  });
+
+  it('buckets the remaining window into minutes, hours, and days', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-05T03:00:00Z'));
+    try {
+      expect(formatRemaining(new Date('2026-08-05T03:30:00Z'))).toBe('30 menit lagi');
+      expect(formatRemaining(new Date('2026-08-05T08:00:00Z'))).toBe('5 jam lagi');
+      expect(formatRemaining(new Date('2026-08-07T03:00:00Z'))).toBe('2 hari lagi');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

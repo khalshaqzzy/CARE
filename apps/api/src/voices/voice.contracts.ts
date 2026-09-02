@@ -89,6 +89,9 @@ export type VoiceDetailBase = {
     note: string;
     closedAt: Date;
     reopenedAt: Date | null;
+    reviewState: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    reviewDeadline: Date | null;
+    reviewResolvedAt: Date | null;
     actor: { id: string; displayName: string };
     evidence: unknown[];
     rating: { score: number; feedback: string | null; reopen: boolean; createdAt: Date } | null;
@@ -161,6 +164,7 @@ export type DraftListResponse = {
 export type MemberDashboard = {
   total: number;
   counts: Record<VoiceStatus, number>;
+  closedPendingReview: number;
   recent: Array<{
     id: string;
     displayId: string;
@@ -170,6 +174,8 @@ export type MemberDashboard = {
     category: string | null;
     severity: Severity;
     status: VoiceStatus;
+    closureReviewState: 'PENDING' | 'ACCEPTED' | 'REJECTED' | null;
+    closureReviewDeadline: Date | null;
     updatedAt: Date;
   }>;
   draft: DraftListItem | null;

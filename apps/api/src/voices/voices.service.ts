@@ -4,6 +4,7 @@ import {
   AttachmentPurpose,
   AttachmentState,
   ClassificationSource,
+  ClosureReviewState,
   HandlerType,
   LocationCompleteness,
   NotificationType,
@@ -652,14 +653,7 @@ export class VoicesService {
     });
     const hasNext = items.length > take;
     const rows = hasNext ? items.slice(0, take) : items;
-    const data = rows.map((row) => {
-      const { currentHandler, categoryKey, ...rest } = row;
-      return {
-        ...rest,
-        category: categoryKey,
-        currentHandlerName: currentHandler?.displayName ?? null,
-      };
-    });
+    const data = rows.map((row) => this.toListItem(row));
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     // audit admin private list reads
     if (actor.capabilities.includes('CARE_ADMIN')) {
@@ -738,11 +732,9 @@ export class VoicesService {
     const hasNext = items.length > take;
     const rows = hasNext ? items.slice(0, take) : items;
     const data = rows.map((row) => {
-      const { currentHandler, anonymousAlias, categoryKey, ...rest } = row;
+      const { anonymousAlias, ...item } = row;
       return {
-        ...rest,
-        category: categoryKey,
-        currentHandlerName: currentHandler?.displayName ?? null,
+        ...this.toListItem(item),
         ...(includeAlias && row.visibility === VoiceVisibility.PRIVATE
           ? { reporterAlias: anonymousAlias ?? null }
           : {}),
@@ -1168,8 +1160,19 @@ export class VoicesService {
         if (staged.length > 5)
           throw badRequest('EVIDENCE_LIMIT', 'At most 5 closure evidence files are allowed');
         const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
+        const closedAt = new Date();
         const closure = await tx.closureCycle.create({
-          data: { voiceId: id, cycleNumber: cycles + 1, actorId: actor.accountId, note: data.note },
+          data: {
+            voiceId: id,
+            cycleNumber: cycles + 1,
+            actorId: actor.accountId,
+            note: data.note,
+            closedAt,
+            reviewState: ClosureReviewState.PENDING,
+            reviewDeadline: new Date(
+              closedAt.getTime() + loadConfig().CLOSURE_REVIEW_DAYS * 86_400_000,
+            ),
+          },
         });
         if (staged.length)
           await tx.attachment.updateMany({
@@ -1190,14 +1193,24 @@ export class VoicesService {
           },
         });
         await this.cleanupLegacy(tx, id);
-        await this.notify(tx, voice.reporterId, id, NotificationType.CLOSED, 'Voice ditutup');
+        await this.notify(
+          tx,
+          voice.reporterId,
+          id,
+          NotificationType.CLOSED,
+          'Voice ditutup',
+          'Voice telah ditutup. Beri penilaian dalam 2 hari; tanpa penilaian, penyelesaian diterima otomatis.',
+        );
         return closure;
       },
     );
   }
   async rate(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(ratingSchema, input);
-    const error = ratingError(data.score, data.feedback, data.reopen);
+    // Reopen eligibility also depends on the review window resolved inside the
+    // transaction below; this pass still rejects structurally invalid ratings
+    // and reopen attempts on high scores.
+    const error = ratingError(data.score, data.feedback, data.reopen, true);
     if (error) throw badRequest(error, 'Rating is invalid');
     return this.idempotentMutation(
       actor,
@@ -1213,13 +1226,22 @@ export class VoicesService {
               where: { reopenedAt: null },
               orderBy: { cycleNumber: 'desc' },
               take: 1,
+              include: { rating: true },
             },
           },
         });
-        if (!voice?.closureCycles[0]) throw forbiddenAsNotFound();
+        const cycle = voice?.closureCycles[0];
+        if (!voice || !cycle) throw forbiddenAsNotFound();
+        if (cycle.rating) throw invalidTransition('Closure cycle already has a rating');
+        // A late rating after auto-acceptance is still recorded as feedback, but
+        // it can no longer reopen the voice once the review window has closed.
+        const reopenAllowed =
+          cycle.reviewDeadline !== null && cycle.reviewDeadline.getTime() >= Date.now();
+        if (data.reopen && !reopenAllowed)
+          throw badRequest('REOPEN_NOT_ALLOWED', 'The closure review window has closed');
         const rating = await tx.rating.create({
           data: {
-            closureCycleId: voice.closureCycles[0]!.id,
+            closureCycleId: cycle.id,
             reporterId: actor.accountId,
             ...data,
           },
@@ -1245,8 +1267,12 @@ export class VoicesService {
           }
           recipientId = handlerId;
           await tx.closureCycle.update({
-            where: { id: voice.closureCycles[0]!.id },
-            data: { reopenedAt: new Date() },
+            where: { id: cycle.id },
+            data: {
+              reopenedAt: new Date(),
+              reviewState: ClosureReviewState.REJECTED,
+              reviewResolvedAt: new Date(),
+            },
           });
           await tx.voice.update({
             where: { id },
@@ -1256,6 +1282,13 @@ export class VoicesService {
               currentHandlerId: handlerId,
               handlerType,
             },
+          });
+        } else if (cycle.reviewState === ClosureReviewState.PENDING) {
+          // A late rating on an already auto-accepted cycle leaves the resolved
+          // review untouched; only a pending cycle resolves here.
+          await tx.closureCycle.update({
+            where: { id: cycle.id },
+            data: { reviewState: ClosureReviewState.ACCEPTED, reviewResolvedAt: new Date() },
           });
         }
         await tx.voiceEvent.create({
@@ -1325,7 +1358,7 @@ export class VoicesService {
   async dashboardMember(actor: AuthActor) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
     const where: Prisma.VoiceWhereInput = { reporterId: actor.accountId };
-    const [total, grouped, recent, draft] = await Promise.all([
+    const [total, grouped, recent, draft, closedPendingReview] = await Promise.all([
       this.prisma.voice.count({ where }),
       this.prisma.voice.groupBy({ by: ['status'], where, _count: { _all: true } }),
       this.prisma.voice.findMany({
@@ -1339,6 +1372,16 @@ export class VoicesService {
         orderBy: { updatedAt: 'desc' },
         select: draftListItemSelect,
       }),
+      // Exactly one pending review cycle can exist per voice (a newer cycle
+      // always supersedes the previous one), so this count is the reporter's
+      // "awaiting my rating" total.
+      this.prisma.closureCycle.count({
+        where: {
+          reviewState: ClosureReviewState.PENDING,
+          reopenedAt: null,
+          voice: { reporterId: actor.accountId, status: VoiceStatus.CLOSED },
+        },
+      }),
     ]);
     const counts: Record<VoiceStatus, number> = {
       OPEN: 0,
@@ -1350,7 +1393,8 @@ export class VoicesService {
     return {
       total,
       counts,
-      recent,
+      closedPendingReview,
+      recent: recent.map((row) => this.toListItem(row)),
       draft,
       generatedAt: new Date().toISOString(),
     };
@@ -1913,9 +1957,35 @@ export class VoicesService {
       severity: true,
       status: true,
       updatedAt: true,
+      // Review state of the latest closure cycle for status chips; at most one
+      // cycle can be pending per voice, so the newest row is enough.
+      closureCycles: {
+        orderBy: { cycleNumber: 'desc' },
+        take: 1,
+        select: { reviewState: true, reviewDeadline: true },
+      },
       // PIC display name for operational inbox cards; only joined for responder/
       // leadership/union lists, never for reporter-facing payloads.
       ...(includeHandler ? { currentHandler: { select: { displayName: true } } } : {}),
+    };
+  }
+  private toListItem<
+    T extends {
+      categoryKey: string | null;
+      currentHandler?: { displayName: string } | null;
+      closureCycles?: Array<{
+        reviewState: ClosureReviewState;
+        reviewDeadline: Date | null;
+      }> | null;
+    },
+  >(row: T) {
+    const { currentHandler, categoryKey, closureCycles, ...rest } = row;
+    return {
+      ...rest,
+      category: categoryKey,
+      currentHandlerName: currentHandler?.displayName ?? null,
+      closureReviewState: closureCycles?.[0]?.reviewState ?? null,
+      closureReviewDeadline: closureCycles?.[0]?.reviewDeadline ?? null,
     };
   }
   private async authorizedVoice(actor: AuthActor, id: string) {
@@ -2006,6 +2076,9 @@ export class VoicesService {
         note: cycle.note,
         closedAt: cycle.closedAt,
         reopenedAt: cycle.reopenedAt,
+        reviewState: cycle.reviewState,
+        reviewDeadline: cycle.reviewDeadline,
+        reviewResolvedAt: cycle.reviewResolvedAt,
         actor: cycle.actor,
         evidence: cycle.evidence,
         rating: cycle.rating
@@ -2100,6 +2173,7 @@ export class VoicesService {
     voiceId: string,
     type: NotificationType,
     title: string,
+    body = 'Ada pembaruan Voice di CARE',
   ) {
     const notification = await tx.notification.create({
       data: {
@@ -2107,7 +2181,7 @@ export class VoicesService {
         voiceId,
         type,
         title,
-        body: 'Ada pembaruan Voice di CARE',
+        body,
         deepLink: `/voices/${voiceId}`,
       },
     });

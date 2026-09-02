@@ -662,8 +662,12 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 | In Verification | Ask/continue chat | Route owner/current handler            | In Verification | Status tetap; message/event ditambah           |
 | In Verification | Proceed           | Route owner/current handler            | In Progress     | Handler dikonfirmasi                           |
 | In Verification | Reassign          | Manager atau Union Head                | In Verification | Scoped handler diganti                         |
-| In Progress     | Close             | Route owner/current handler            | Closed          | Closure cycle selesai                          |
+| In Progress     | Close             | Route owner/current handler            | Closed          | Closure cycle selesai; review window dibuka    |
 | Closed          | Rate 1–2 + Reopen | Reporter                               | In Verification | PIC terakhir dipertahankan; cycle baru dimulai |
+
+Status Voice tetap empat nilai; hasil review penutupan (`PENDING`/`ACCEPTED`/`REJECTED`)
+adalah state pada `ClosureCycle` yang ditampilkan sebagai label turunan, bukan status
+kelima (§17.4).
 
 ### 15.3 Transition Rules
 
@@ -751,6 +755,40 @@ Closure yang sudah tersimpan tidak dapat diedit. Kesalahan diperbaiki melalui re
 - Jika PIC terakhir telah inactive, reopen ditolak dengan remediation Admin sampai ownership diperbaiki; record Closed/rating tetap aman.
 - Reopen menambahkan event `REOPENED`, menyertakan feedback sebagai alasan, dan memulai Closure Cycle berikutnya.
 - Reopen dapat berulang tanpa limit numerik; seluruh cycle tetap immutable.
+
+### 17.4 Closure Review Window dan Auto-Acceptance
+
+Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
+(enum `ClosureReviewState`) beserta `reviewDeadline` dan `reviewResolvedAt`:
+
+- Close membuka **jendela review 2 hari** (`CLOSURE_REVIEW_DAYS`, default 2):
+  `reviewDeadline = closedAt + 2 hari`, cycle dimulai pada `PENDING`. Notifikasi
+  closure kepada reporter menyebutkan jendela penilaian ini.
+- **Rating 3–5** (feedback opsional) menyelesaikan cycle menjadi `ACCEPTED`
+  secara final; opsi reopen tidak pernah ditawarkan.
+- **Rating 1–2** wajib feedback; reopen bersifat atomik dengan rating (§17.3):
+  - Reopen ditolak (`REJECTED`, `reopenedAt` terisi, Voice kembali In
+    Verification, cycle baru dimulai pada close berikutnya) — hanya jika
+    `now <= reviewDeadline`.
+  - Tanpa reopen, cycle menjadi `ACCEPTED` secara final; reopen belakangan
+    tidak mungkin (reopen tidak pernah ditawarkan sebagai action terpisah).
+- **Lewat 2 hari tanpa rating** → background worker (interval ±30 detik,
+  state-guarded dan idempoten) menandai cycle `ACCEPTED` dengan
+  `reviewResolvedAt = reviewDeadline`, menambahkan event `AUTO_ACCEPTED`
+  (system-generated, di-atribusikan ke snapshot PIC penutup dengan
+  `payload.system: true` sehingga UI menampilkannya tanpa nama actor), dan
+  menotifikasi reporter maupun PIC penutup (`CLOSURE_AUTO_ACCEPTED`).
+- **Rating terlambat setelah auto-accept tetap bisa** (sekali, karena satu
+  rating per cycle): direkam sebagai masukan, Voice tetap `ACCEPTED`,
+  `reviewResolvedAt` tidak berubah, dan reopen selalu ditolak
+  (`REOPEN_NOT_ALLOWED`) setelah jendela tutup.
+- Eligibilitas reopen dievaluasi dari `reviewDeadline` pada saat rating (kebal
+  lag worker), bukan dari review state tersimpan.
+- Status Voice yang tampil adalah label turunan: Closed+PENDING →
+  "Menunggu Penilaian", Closed+ACCEPTED → "Diterima",
+  In Verification dengan cycle terakhir REJECTED → "Dibuka Kembali".
+- Member Home menampilkan card perhatian "Menunggu penilaian Anda" dengan
+  jumlah Voice milik reporter yang cycle-nya masih `PENDING`.
 
 ---
 
@@ -846,6 +884,7 @@ tidak mempunyai Voice Saya.
 - status menjadi In Verification/In Progress;
 - closure kepada reporter;
 - rating/reopen kepada PIC;
+- auto-accept closure kepada reporter dan PIC penutup (`CLOSURE_AUTO_ACCEPTED`);
 - reset/deactivation/security event yang relevan.
 
 ### 19.3 Privacy Payload
@@ -888,7 +927,7 @@ tidak mempunyai Voice Saya.
 | Attachment              | storage key, purpose, MIME, size, checksum, processed state                      |
 | Conversation            | satu room per Voice                                                              |
 | Message                 | immutable text/sender/capability/timestamp                                       |
-| ClosureCycle            | close/reopen sequence, actor, note, evidence, timestamps                         |
+| ClosureCycle            | close/reopen sequence, actor, note, evidence, review state/deadline, timestamps  |
 | Rating                  | score/comment/feedback per Closure Cycle                                         |
 | Notification            | persistent recipient/event/read state                                            |
 | PushSubscription        | user/device endpoint dan delivery lifecycle                                      |
@@ -920,9 +959,10 @@ type HandlerType = 'MANAGER' | 'SECTION_HEAD' | 'UNION_HEAD' | 'UNION_OFFICER';
 type ClassificationSource = 'AI' | 'MANUAL_FALLBACK';
 type LocationCompleteness = 'COMPLETE' | 'INCOMPLETE' | 'UNKNOWN';
 type AttachmentPurpose = 'VOICE' | 'CHAT' | 'CLOSURE_EVIDENCE';
+type ClosureReviewState = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 ```
 
-`VoiceEventType` minimum: `SUBMITTED`, `ASKED_REPORTER`, `MESSAGE_SENT`, `ASSIGNED`, `REASSIGNED`, `PROCEEDED`, `CLOSED`, `RATED`, dan `REOPENED`.
+`VoiceEventType` minimum: `SUBMITTED`, `ASKED_REPORTER`, `MESSAGE_SENT`, `ASSIGNED`, `REASSIGNED`, `PROCEEDED`, `CLOSED`, `RATED`, `REOPENED`, dan `AUTO_ACCEPTED`.
 
 ### 20.3 Common Fields dan Invariants
 
@@ -1712,6 +1752,12 @@ Minimum journeys:
 - [ ] Rating 3–5 comment opsional dan tidak menawarkan reopen.
 - [ ] Reopen kembali In Verification pada PIC terakhir dan membuat cycle baru.
 - [ ] Multiple cycle tidak menimpa closure/rating sebelumnya.
+- [x] Close membuka jendela review 2 hari: cycle `PENDING` dengan `reviewDeadline` dan label "Menunggu Penilaian" beserta countdown pada detail reporter.
+- [x] Rating ≥3, rating ≤2 tanpa reopen, atau lewatnya jendela tanpa rating menyelesaikan cycle `ACCEPTED`; rating pada cycle yang sudah ber-rating ditolak (tanpa double-rate).
+- [x] Rating ≤2 + reopen dalam jendela menandai cycle `REJECTED`, mengembalikan Voice ke In Verification ("Dibuka Kembali"), dan close berikutnya memulai cycle `PENDING` baru.
+- [x] Worker auto-accept mengubah cycle expired menjadi `ACCEPTED`, menambah event `AUTO_ACCEPTED` system-generated, dan menotifikasi reporter serta PIC penutup; tick idempoten.
+- [x] Setelah auto-accept, rating terlambat masih dapat dikirim sebagai masukan tanpa opsi reopen dan tanpa mengubah `reviewResolvedAt`; reopen ditolak dengan `REOPEN_NOT_ALLOWED`.
+- [x] Member Home menampilkan card "Menunggu penilaian Anda" dengan jumlah dan akses langsung ke Voice yang menunggu rating.
 
 ### 34.6 Dashboard, Frontend, PWA, dan Notification
 
@@ -1855,10 +1901,10 @@ V1 siap production bila:
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
-- Empat status saja; reopen adalah event menuju In Verification dengan PIC terakhir.
+- Empat status saja; reopen adalah event menuju In Verification dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
 - Manager atau current handler dapat close dari In Progress; closure note dan foto wajib.
-- Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen.
+- Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
 - Gambar saja; media authorized dan sanitized.
 - Offline mutation tidak didukung.

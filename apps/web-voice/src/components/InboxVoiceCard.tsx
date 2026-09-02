@@ -16,7 +16,7 @@ import {
   CATEGORY_LABELS,
   formatRelative,
   SEVERITY_LABELS,
-  STATUS_LABELS,
+  voiceStatusDisplay,
 } from '../lib/formatters';
 
 const SEVERITY_ICONS: Record<string, React.ReactNode> = {
@@ -30,6 +30,13 @@ function statusIcon(status: string): React.ReactNode {
   if (status === 'CLOSED') return <CheckCircle2 size={13} aria-hidden="true" />;
   if (status === 'IN_PROGRESS') return <LoaderCircle size={13} aria-hidden="true" />;
   return null;
+}
+
+/** Chip key that folds the review state in so CSS can tint it distinctly. */
+function statusChipKey(status: string, reviewState?: string | null): string {
+  if (status === 'CLOSED' && reviewState === 'PENDING') return 'REVIEW_PENDING';
+  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'REOPENED';
+  return status;
 }
 
 /**
@@ -103,9 +110,12 @@ export function InboxVoiceCard({
             ) : null}
           </span>
           <span className="inbox-card__foot">
-            <span className="inbox-card__status" data-status={voice.status}>
+            <span
+              className="inbox-card__status"
+              data-status={statusChipKey(voice.status, voice.closureReviewState)}
+            >
               {statusIcon(voice.status)}
-              {STATUS_LABELS[voice.status] ?? voice.status}
+              {voiceStatusDisplay(voice.status, voice.closureReviewState)}
             </span>
             <span className="inbox-card__time">
               <Clock3 size={12} aria-hidden="true" />

@@ -373,8 +373,11 @@ test('workforce detail closed rating visual at 360', async ({ page }) => {
           id: 'cycle-1',
           cycleNumber: 1,
           note: 'Pelindung kabel diganti dan area diamankan.',
-          closedAt: '2026-08-03T07:00:00.000Z',
+          closedAt: '2026-08-04T07:00:00.000Z',
           reopenedAt: null,
+          reviewState: 'PENDING',
+          reviewDeadline: '2026-08-06T07:00:00.000Z',
+          reviewResolvedAt: null,
           evidence: [
             { id: 'evd-1', mimeType: 'image/png', purpose: 'CLOSURE_EVIDENCE' },
             { id: 'evd-2', mimeType: 'image/png', purpose: 'CLOSURE_EVIDENCE' },
@@ -393,6 +396,51 @@ test('workforce detail closed rating visual at 360', async ({ page }) => {
   });
   await page.waitForTimeout(100);
   await expect(page).toHaveScreenshot('workforce-detail-closed-360.png', screenshotOptions);
+});
+
+// The auto-accepted variant: the review window expired unrated, so the rating
+// card switches to the late-feedback notice with no countdown.
+test('workforce detail closed auto-accepted visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    voice: {
+      ...voice,
+      status: 'CLOSED',
+      availableActions: ['RATE'],
+      attachments: [
+        { id: 'att-1', mimeType: 'image/png' },
+        { id: 'att-2', mimeType: 'image/png' },
+      ],
+      closureCycles: [
+        {
+          id: 'cycle-1',
+          cycleNumber: 1,
+          note: 'Pelindung kabel diganti dan area diamankan.',
+          closedAt: '2026-08-01T07:00:00.000Z',
+          reopenedAt: null,
+          reviewState: 'ACCEPTED',
+          reviewDeadline: '2026-08-03T07:00:00.000Z',
+          reviewResolvedAt: '2026-08-03T07:00:00.000Z',
+          evidence: [{ id: 'evd-1', mimeType: 'image/png', purpose: 'CLOSURE_EVIDENCE' }],
+          rating: null,
+        },
+      ],
+    },
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-1');
+  await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
+  await expect(page.getByText(/Voice diterima otomatis/)).toBeVisible();
+  await page.locator('.closure-featured').evaluate((element) => {
+    element.scrollIntoView();
+  });
+  await page.waitForTimeout(100);
+  await expect(page).toHaveScreenshot('workforce-detail-closed-auto-accepted-360.png', {
+    animations: 'disabled',
+    threshold: 0.25,
+    maxDiffPixelRatio: 0.06,
+  });
 });
 
 // Baseline for the in-page attachment viewer (lightbox): opened from the

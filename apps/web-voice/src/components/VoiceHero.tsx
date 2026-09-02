@@ -4,6 +4,7 @@ import {
   Building2,
   Check,
   ChevronLeft,
+  Clock,
   FileText,
   MapPin,
   ShieldCheck,
@@ -14,10 +15,10 @@ import {
   CATEGORY_LABELS,
   formatDate,
   SEVERITY_LABELS,
-  STATUS_LABELS,
   VISIBILITY_LABELS,
+  voiceStatusDisplay,
 } from '../lib/formatters';
-import { categoryIcon, SEVERITY_FLAG_TONES, STATUS_FLAG_TONES } from '../lib/voice-visuals';
+import { categoryIcon, SEVERITY_FLAG_TONES, statusFlagTone } from '../lib/voice-visuals';
 import type { VoiceDetail } from '../workforce-api';
 
 /**
@@ -48,11 +49,18 @@ export function VoiceHero({
     ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
     : null;
   const CategoryIcon = categoryIcon(voice.category);
-  const cycles = (voice.closureCycles ?? []) as { cycleNumber: number; closedAt: string }[];
-  const lastClosedAt = cycles.length
+  const cycles = (voice.closureCycles ?? []) as {
+    cycleNumber: number;
+    closedAt: string;
+    reviewState?: string | null;
+    reviewDeadline?: string | null;
+  }[];
+  const latestCycle = cycles.length
     ? cycles.reduce((latest, cycle) => (cycle.cycleNumber > latest.cycleNumber ? cycle : latest))
-        .closedAt
     : null;
+  const lastClosedAt = latestCycle?.closedAt ?? null;
+  const reviewState = latestCycle?.reviewState ?? null;
+  const statusLabel = voiceStatusDisplay(voice.status, reviewState);
 
   return (
     <section className="voice-hero" aria-label={voice.displayId}>
@@ -72,10 +80,10 @@ export function VoiceHero({
           </div>
           <span
             className="voice-hero__status"
-            data-tone={STATUS_FLAG_TONES[voice.status] ?? 'verification'}
+            data-tone={statusFlagTone(voice.status, reviewState)}
           >
             <AudioWaveform size={15} aria-hidden="true" />
-            {STATUS_LABELS[voice.status] ?? voice.status}
+            {statusLabel}
           </span>
         </div>
 
@@ -90,8 +98,8 @@ export function VoiceHero({
               </div>
               <div className="voice-hero__pills">
                 <span className="voice-hero__pill">
-                  <i data-tone="closed" aria-hidden="true" />
-                  {STATUS_LABELS[voice.status] ?? voice.status}
+                  <i data-tone={statusFlagTone(voice.status, reviewState)} aria-hidden="true" />
+                  {statusLabel}
                 </span>
                 <span className="voice-hero__pill">
                   <i
@@ -104,6 +112,12 @@ export function VoiceHero({
                   <span className="voice-hero__pill voice-hero__pill--plain">
                     <Check size={13} aria-hidden="true" />
                     Ditutup {formatDate(lastClosedAt)}
+                  </span>
+                ) : null}
+                {voice.status === 'CLOSED' && reviewState === 'PENDING' && latestCycle ? (
+                  <span className="voice-hero__pill voice-hero__pill--plain">
+                    <Clock size={13} aria-hidden="true" />
+                    Otomatis diterima {formatDate(latestCycle.reviewDeadline)}
                   </span>
                 ) : null}
               </div>
@@ -145,10 +159,10 @@ export function VoiceHero({
                       <span>
                         <i
                           className="voice-hero__dot"
-                          data-tone={STATUS_FLAG_TONES[voice.status] ?? 'verification'}
+                          data-tone={statusFlagTone(voice.status, reviewState)}
                           aria-hidden="true"
                         />
-                        {STATUS_LABELS[voice.status] ?? voice.status}
+                        {statusLabel}
                       </span>
                     </div>
                     <div className="voice-hero__column">
@@ -219,11 +233,8 @@ export function VoiceHero({
                 </span>
                 {variant === 'full' ? (
                   <span className="voice-hero__chip">
-                    <i
-                      data-tone={STATUS_FLAG_TONES[voice.status] ?? 'verification'}
-                      aria-hidden="true"
-                    />
-                    {STATUS_LABELS[voice.status] ?? voice.status}
+                    <i data-tone={statusFlagTone(voice.status, reviewState)} aria-hidden="true" />
+                    {statusLabel}
                   </span>
                 ) : null}
                 {variant === 'full' && categoryName ? (

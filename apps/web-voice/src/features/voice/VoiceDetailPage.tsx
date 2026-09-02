@@ -11,7 +11,7 @@ import {
   Textarea,
 } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Clock, Map, MessageCircle, Sparkles, UserRound } from 'lucide-react';
+import { CalendarDays, Clock, Info, Map, MessageCircle, Sparkles, UserRound } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '@care/frontend-core';
@@ -19,7 +19,13 @@ import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
 import { VoiceHero } from '../../components/VoiceHero';
-import { CATEGORY_LABELS, formatDate, formatDateTime } from '../../lib/formatters';
+import {
+  CATEGORY_LABELS,
+  CLOSURE_REVIEW_LABELS,
+  formatDate,
+  formatDateTime,
+  formatRemaining,
+} from '../../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../../lib/query';
 import { useConversation } from '../../lib/useConversation';
 import { categoryIcon } from '../../lib/voice-visuals';
@@ -33,6 +39,9 @@ type ClosureCycle = {
   note: string;
   closedAt: string;
   reopenedAt: string | null;
+  reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED' | null;
+  reviewDeadline?: string | null;
+  reviewResolvedAt?: string | null;
   evidence: { id: string; purpose: string }[];
   rating: { score: number; feedback: string | null; reopen: boolean } | null;
 };
@@ -197,8 +206,9 @@ function ReporterCard({ voice }: { voice: VoiceDetail }) {
 /**
  * Reporter-facing closure rating. Rating and the reopen decision leave in one
  * atomic mutation (PRD §17.3): the "Buka kembali" outline toggle only appears
- * for low scores and simply flips the `reopen` flag that "Kirim penilaian"
- * submits. Stars fill cumulatively left to right in the brand blue.
+ * for low scores within the review window and simply flips the `reopen` flag
+ * that "Kirim penilaian" submits. After auto-acceptance the card switches to
+ * the late-rating variant: feedback only, never reopen.
  */
 function RatingCard({ voice }: { voice: VoiceDetail }) {
   const api = useApi();
@@ -209,6 +219,11 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
   const [feedback, setFeedback] = useState('');
   const [reopen, setReopen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const cycles = (voice.closureCycles ?? []) as ClosureCycle[];
+  const latest = [...cycles].sort((a, b) => a.cycleNumber - b.cycleNumber).at(-1);
+  const autoAccepted = latest?.reviewState === 'ACCEPTED' && !latest.rating;
+  const deadline = autoAccepted ? null : (latest?.reviewDeadline ?? null);
 
   const rate = useMutation({
     mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
@@ -228,6 +243,23 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
     <Card padding="md" className="rating-card">
       <Stack gap="md">
         <h3 className="rating-card__question">Bagaimana hasil tindak lanjutnya?</h3>
+        {autoAccepted && latest ? (
+          <p className="rating-card__notice" role="note">
+            <Info size={16} aria-hidden="true" />
+            <span>
+              Voice diterima otomatis {formatDateTime(latest.reviewResolvedAt)} karena tidak ada
+              penilaian dalam 2 hari. Anda masih dapat memberikan penilaian sebagai masukan.
+            </span>
+          </p>
+        ) : deadline ? (
+          <p className="rating-card__notice" role="note">
+            <Clock size={16} aria-hidden="true" />
+            <span>
+              Beri penilaian dalam {formatRemaining(deadline)} — setelah itu Voice diterima
+              otomatis.
+            </span>
+          </p>
+        ) : null}
         {error ? (
           <p className="rating-card__error" role="alert">
             {error}
@@ -254,7 +286,7 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
           counter={`${feedback.length}/2000`}
           {...(needsFeedback ? { helperText: 'Feedback wajib untuk rating 1–2.' } : {})}
         />
-        {needsFeedback ? (
+        {needsFeedback && !autoAccepted ? (
           <div className="rating-card__reopen">
             <button
               type="button"
@@ -274,7 +306,7 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
             const trimmed = feedback.trim();
             rate.mutate({
               score,
-              reopen,
+              reopen: autoAccepted ? false : reopen,
               ...(trimmed ? { feedback: trimmed } : {}),
             });
           }}
@@ -310,9 +342,29 @@ function ClosureSection({ cycles }: { cycles: ClosureCycle[] }) {
               {latest.rating.feedback ? (
                 <p className="closure-featured__feedback">“{latest.rating.feedback}”</p>
               ) : null}
-              {latest.rating.reopen ? <Badge tone="warning">Dibuka kembali</Badge> : null}
+              {latest.rating.reopen ? (
+                <Badge tone="warning">Ditolak · dibuka kembali</Badge>
+              ) : (
+                <Badge tone="success">Diterima</Badge>
+              )}
             </div>
-          ) : null}
+          ) : latest.reviewState === 'ACCEPTED' ? (
+            <div className="closure-featured__rating">
+              <Badge tone="success">Diterima otomatis</Badge>
+              <p className="closure-featured__feedback">
+                Tidak ada penilaian dalam 2 hari; penyelesaian diterima otomatis.
+              </p>
+            </div>
+          ) : (
+            <div className="closure-featured__rating">
+              <Badge tone="warning">{CLOSURE_REVIEW_LABELS.PENDING}</Badge>
+              {latest.reviewDeadline ? (
+                <p className="closure-featured__feedback">
+                  Otomatis diterima {formatDateTime(latest.reviewDeadline)} tanpa penilaian.
+                </p>
+              ) : null}
+            </div>
+          )}
           <p className="closure-featured__meta">
             Ditutup {formatDateTime(latest.closedAt)}
             {latest.reopenedAt ? ` · dibuka kembali ${formatDateTime(latest.reopenedAt)}` : ''}
@@ -329,7 +381,7 @@ function ClosureSection({ cycles }: { cycles: ClosureCycle[] }) {
             <p className="closure-featured__note">{cycle.note}</p>
             {cycle.rating ? (
               <DotLabel tone={cycle.rating.reopen ? 'warning' : 'neutral'}>
-                Rating {cycle.rating.score}/5{cycle.rating.reopen ? ' · reopen' : ''}
+                Rating {cycle.rating.score}/5{cycle.rating.reopen ? ' · Ditolak' : ''}
               </DotLabel>
             ) : null}
             {cycle.evidence?.length ? (

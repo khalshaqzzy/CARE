@@ -1,16 +1,68 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 1 September 2026                                                                                                                       |
-| Current objective       | Complete hosted CI and staging acceptance for the dynamic General Voice category release                                               |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                     |
-| Backend Complete Gate   | Passed again for ADR-0029 after fresh/upgrade migration, integration, security, performance, reconciliation, and full-stack validation |
-| Implementation status   | Dynamic category implementation and local parity are complete; PR #22 carries the CI fixture and additive-migration correction         |
-| Latest ADR              | ADR-0031 (voice detail + dedicated chat page redesign)                                                                                 |
-| Recommended next action | Merge the voice-detail/chat redesign PR after hosted CI, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal     |
+| Atribut                 | Nilai                                                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 2 September 2026                                                                                                              |
+| Current objective       | Complete hosted CI and staging acceptance for the dynamic General Voice category release                                      |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                            |
+| Backend Complete Gate   | Passed again for ADR-0032 after integration, security, migration, and contract validation (closure review window feature)     |
+| Implementation status   | Closure review window & auto-acceptance implemented with full local parity on `feat/close-voice-2-days`; PR to `staging` next |
+| Latest ADR              | ADR-0032 (closure review window and auto-acceptance)                                                                          |
+| Recommended next action | Open/merge the closure-review PR after hosted CI, then continue Phase 13 exact-SHA hosted acceptance and rollback rehearsal   |
 
 ## Session Outcome
+
+### Closure review window & auto-acceptance — 2 September 2026
+
+Branch `feat/close-voice-2-days` (from `staging`). Full-stack change set
+implementing ADR-0032 with the product owner's locked decisions: the four
+`VoiceStatus` values stay; the review outcome lives as
+`ClosureReviewState` (PENDING/ACCEPTED/REJECTED) on `ClosureCycle` and is
+displayed as a derived label ("Menunggu Penilaian" / "Diterima" / "Dibuka
+Kembali"); a 2-day window (`CLOSURE_REVIEW_DAYS`, default 2) opens on close;
+expiry auto-accepts via a state-guarded, idempotent worker that notifies the
+reporter and the closing PIC; a late rating after auto-acceptance stays
+possible once, feedback-only, without reopen; a low rating without reopen is
+final; reopen rides atomically on a rating inside the window only.
+
+- **`apps/api`.** Additive migration (backfill deterministic: REJECTED for
+  reopened cycles, ACCEPTED for rated/expired ones, deadline = closedAt + 2
+  days); `close()` stamps the window and mentions it in the closure
+  notification; `rate()` enforces one-rating-per-cycle (kills the legacy
+  double-rate affordance), evaluates reopen eligibility from the deadline at
+  rating time (worker-lag-proof), records late ratings without touching
+  `reviewResolvedAt`, and rejects late reopen with `REOPEN_NOT_ALLOWED`;
+  `ClosureReviewService` (30s interval, `OUTBOX_ENABLED` gate) flips expired
+  pending cycles, appends the system `AUTO_ACCEPTED` event (attributed to the
+  closing PIC's snapshot with `payload.system: true`; UI shows no actor), and
+  sends both notifications through the transactional outbox; serializers
+  expose cycle review fields, list items gain `closureReviewState`/`Deadline`,
+  and `MemberDashboard` gains `closedPendingReview`; OpenAPI + generated
+  client regenerated drift-free.
+- **`apps/web-voice`.** Review-aware status labels/dots across hero and cards
+  (`voiceStatusDisplay`, `statusFlagTone`), `formatRemaining` countdown,
+  two-variant rating card (deadline notice vs auto-accept notice; reopen
+  toggle hidden on the auto-accepted variant and never rendered as a
+  standalone action), closure-section review badges, and the Member Home
+  "Menunggu penilaian Anda" attention card from `closedPendingReview`.
+- **Tests.** API unit (actions/domain/config), web unit (formatters), and a
+  new 6-case PostgreSQL integration suite (`closure-review.integration.test.ts`)
+  cover the window, accept, reject+reopen, window-closed reopen refusal,
+  worker auto-accept (idempotent, event + 2 notifications), late rating, and
+  the fresh cycle after re-close. e2e: stateful rate mock + four new member
+  journeys + closed-detail axe/no-overflow; visual baselines
+  `workforce-detail-closed-360.png` (regenerated delete-first) and
+  `workforce-detail-closed-auto-accepted-360.png` (new) verified in two
+  consecutive deterministic runs and passed the visual judge.
+
+Validation (all green): frozen install, `format:check`, `lint`, `typecheck`,
+unit suites UI 26 / workforce 74 / Admin 2 / frontend-core 14 / API 71,
+integration 52, `openapi:check` (drift-free), `migrations:destructive-check`,
+full default Playwright suite (162 passed) plus visual project (35 passed),
+and `git diff --check`.
+
+Next action: open the PR to `staging`, watch hosted CI, then continue
+Phase 13.
 
 ### Voice detail + dedicated chat page redesign — 1 September 2026
 

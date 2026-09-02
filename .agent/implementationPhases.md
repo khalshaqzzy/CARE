@@ -812,3 +812,48 @@ verbatim, dan bottom dock tidak diubah.
   preseden change set frontend-only. Review visual: dua putaran judge terhadap
   kedua mockup referensi (truncation ID hero, clearance composer, avatar plate,
   focus ring, chip separators diperbaiki; putaran kedua pass semua).
+
+## Closure Review Window & Auto-Acceptance (done, 2 September 2026)
+
+Status: `done` pada branch `feat/close-voice-2-days` (skema + API + kontrak +
+workforce UI; Phase 13 staging acceptance tidak berubah). Mengikuti ADR-0032
+dan keputusan product owner terkunci: empat status Voice tetap; hasil review
+penutupan adalah state `ClosureReviewState` (PENDING/ACCEPTED/REJECTED) pada
+`ClosureCycle`; lewat 2 hari tanpa rating → auto-accept oleh worker dengan
+notifikasi reporter + PIC penutup; rating terlambat setelah auto-accept masih
+bisa (sekali, tanpa reopen); rating ≤2 tanpa reopen final; reopen hanya atomik
+dengan rating dalam jendela.
+
+- `apps/api`: enum `ClosureReviewState`, `VoiceEventType.AUTO_ACCEPTED`,
+  `NotificationType.CLOSURE_AUTO_ACCEPTED`; `ClosureCycle` +
+  `reviewState/reviewDeadline/reviewResolvedAt` + index; migrasi aditif dengan
+  backfill deterministik (REJECTED untuk cycle reopen, ACCEPTED untuk cycle
+  ber-rating/expired, sisanya PENDING); env `CLOSURE_REVIEW_DAYS` (default 2);
+  `close()` membuka jendela + body notifikasi menyebut jendela 2 hari;
+  `rate()` menegakkan satu-rating-per-cycle, eligibilitas reopen dari deadline
+  (kebal lag worker), rating terlambat tanpa mengubah `reviewResolvedAt`;
+  worker `ClosureReviewService` (interval 30 detik, `OUTBOX_ENABLED`, state-
+  guarded & idempoten) flip expired → ACCEPTED + event `AUTO_ACCEPTED`
+  system-generated (actor snapshot PIC penutup, `payload.system: true`) + 2
+  notifikasi via outbox; serializer cycle/list/dashboard
+  (`closedPendingReview`); OpenAPI + generated client diregenerasi.
+- `apps/web-voice`: `voiceStatusDisplay` + `formatRemaining` +
+  `statusFlagTone` review-aware; hero pill/dot, VoiceCard/HistoryVoiceCard/
+  InboxVoiceCard memakai label turunan ("Menunggu Penilaian"/"Diterima"/
+  "Dibuka Kembali"); RatingCard dua varian (notice countdown untuk PENDING,
+  notice auto-accept untuk ACCEPTED tanpa rating; toggle reopen hilang pada
+  varian auto-accepted); ClosureSection badge review; HomePage attention card
+  "Menunggu penilaian Anda" dari `closedPendingReview`.
+- e2e: mock API stateful `POST /voices/{id}/rate` (menulis rating + review
+  state + flip status pada reopen) dan dashboard `closedPendingReview`; empat
+  journey baru (reopen, accept, auto-accept + rating terlambat, attention
+  card home); axe/no-overflow detail closed 360px; baseline
+  `workforce-detail-closed-360.png` diregenerasi delete-first + baseline baru
+  `workforce-detail-closed-auto-accepted-360.png`, dua run berturut-turut
+  hijau, judge visual pass.
+- Unit: `actions.test.ts` (RATE hanya cycle tanpa rating, REOPEN tak pernah
+  standalone), `domain.test.ts` (ratingError reopenAllowed), `config.test.ts`
+  (env baru), `formatters.test.ts` (label turunan + countdown). Integration:
+  suite baru `closure-review.integration.test.ts` (6 kasus: window, accept,
+  reject+reopen, window-closed, worker auto-accept + idempoten + rating
+  terlambat, re-close cycle baru) dan seluruh suite lain tetap hijau.

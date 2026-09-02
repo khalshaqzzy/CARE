@@ -14726,6 +14726,7 @@
           "cycleNumber",
           "note",
           "closedAt",
+          "reviewState",
           "actor",
           "evidence",
           "rating"
@@ -14746,6 +14747,25 @@
             "format": "date-time"
           },
           "reopenedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REJECTED"
+            ],
+            "description": "Reporter review state of this closure cycle: pending within the review window, accepted by rating or auto-acceptance, rejected by a reopen."
+          },
+          "reviewDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "reviewResolvedAt": {
             "type": "string",
             "format": "date-time",
             "nullable": true
@@ -14807,6 +14827,7 @@
         "required": [
           "total",
           "counts",
+          "closedPendingReview",
           "recent",
           "draft",
           "generatedAt"
@@ -14839,6 +14860,11 @@
                 "type": "integer"
               }
             }
+          },
+          "closedPendingReview": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Closed voices whose latest closure cycle still awaits the reporter rating."
           },
           "recent": {
             "type": "array",
@@ -16423,6 +16449,20 @@
           },
           "reporterAlias": {
             "type": "string",
+            "nullable": true
+          },
+          "closureReviewState": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REJECTED"
+            ],
+            "nullable": true
+          },
+          "closureReviewDeadline": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           },
           "updatedAt": {

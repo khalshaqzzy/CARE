@@ -16,13 +16,19 @@ export function transitionTarget(status: VoiceStatus, action: VoiceAction): Voic
   return null;
 }
 
+/**
+ * Rating policy for a closure cycle. `reopenAllowed` is false once the review
+ * window has passed: a late rating is still recorded, but it can no longer
+ * reopen the voice.
+ */
 export function ratingError(
   score: number,
   feedback: string | undefined,
   reopen: boolean,
+  reopenAllowed: boolean,
 ): string | null {
   if (score < 1 || score > 5 || !Number.isInteger(score)) return 'RATING_INVALID';
   if (score <= 2 && !feedback?.trim()) return 'FEEDBACK_REQUIRED';
-  if (score >= 3 && reopen) return 'REOPEN_NOT_ALLOWED';
+  if (reopen && (score >= 3 || !reopenAllowed)) return 'REOPEN_NOT_ALLOWED';
   return null;
 }

@@ -1874,6 +1874,15 @@ export interface components {
             closedAt: string;
             /** Format: date-time */
             reopenedAt?: string | null;
+            /**
+             * @description Reporter review state of this closure cycle: pending within the review window, accepted by rating or auto-acceptance, rejected by a reopen.
+             * @enum {string}
+             */
+            reviewState: "PENDING" | "ACCEPTED" | "REJECTED";
+            /** Format: date-time */
+            reviewDeadline?: string | null;
+            /** Format: date-time */
+            reviewResolvedAt?: string | null;
             actor: {
                 /** Format: uuid */
                 id: string;
@@ -1896,6 +1905,8 @@ export interface components {
                 IN_PROGRESS: number;
                 CLOSED: number;
             };
+            /** @description Closed voices whose latest closure cycle still awaits the reporter rating. */
+            closedPendingReview: number;
             recent: components["schemas"]["VoiceListItem"][];
             draft: components["schemas"]["DraftListItem"] | null;
             /** Format: date-time */
@@ -2329,6 +2340,10 @@ export interface components {
             status: "OPEN" | "IN_VERIFICATION" | "IN_PROGRESS" | "CLOSED";
             currentHandlerName?: string | null;
             reporterAlias?: string | null;
+            /** @enum {string|null} */
+            closureReviewState?: "PENDING" | "ACCEPTED" | "REJECTED" | null;
+            /** Format: date-time */
+            closureReviewDeadline?: string | null;
             /** Format: date-time */
             updatedAt: string;
         };

@@ -8,6 +8,17 @@ export const STATUS_FLAG_TONES: Record<string, string> = {
   CLOSED: 'closed',
 };
 
+/**
+ * Status dot tone that folds the closure review state in: a pending review is
+ * amber, an accepted closure keeps the closed green, and a reopened voice
+ * (rejected cycle) turns danger red.
+ */
+export function statusFlagTone(status: string, reviewState?: string | null): string {
+  if (status === 'CLOSED') return reviewState === 'PENDING' ? 'review-pending' : 'closed';
+  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'reopened';
+  return STATUS_FLAG_TONES[status] ?? 'verification';
+}
+
 /** Severity flag tones used by dots on light surfaces. */
 export const SEVERITY_FLAG_TONES: Record<string, string> = {
   LOW: 'low',
