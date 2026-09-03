@@ -320,13 +320,20 @@ const releaseFixture = (): Release => ({ releaseSha: 'ci', version: '1.0.0', ser
 const overviewFixture = (): AdminOverview => ({
   accounts: { active: 3, legacy: 1, inactive: 2 },
   openRemediation: 2,
-  latestImport: { id: 'batch-1', status: 'CONFIRMED', createdAt: '2026-08-01T00:00:00.000Z' },
+  latestImport: {
+    id: 'batch-1',
+    status: 'CONFIRMED',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    summary: { rowCount: 6, create: 3, update: 1, deactivate: 2 },
+  },
   unionSlots: 3,
   recentResolution: {
     id: 'res-1',
     action: 'set_default_pic',
     createdAt: '2026-08-01T00:00:00.000Z',
   },
+  voices: { open: 2, inVerification: 1, inProgress: 1, closed: 5, critical: 1 },
+  failedAudits: 0,
 });
 
 const aiConfigurationFixture = (): AiConfiguration => ({

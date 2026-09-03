@@ -1,16 +1,97 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 2 September 2026                                                                                                     |
-| Current objective       | Deliver audited Manager-to-Manager handover for unassigned `OPEN` General Voice, including pairwise-private notes    |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                   |
-| Backend Complete Gate   | Manager handover schema/API/privacy/concurrency implementation and local parity gates complete                       |
-| Implementation status   | Handover backend, generated contract, workforce UX, restricted history, tests, and documentation implemented locally |
-| Latest ADR              | ADR-0033 (Manager-to-Manager General Voice handover)                                                                 |
-| Recommended next action | Review/commit the branch and run hosted CI; Phase 13 staging deployment remains intentionally `in_progress`          |
+| Atribut                 | Nilai                                                                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 3 September 2026                                                                                                                                                     |
+| Current objective       | Polish admin-web to a premium, sleek finish (frontend-only) incl. zero table bleed, judged PASS                                                                      |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                   |
+| Backend Complete Gate   | Unchanged (ADR-0034 additive overview extension stands; this pass adds no API/contract change)                                                                       |
+| Implementation status   | Admin premium polish implemented locally on `feat/admin-web-polish`: tokens/components/CSS + per-page polish, 9 baselines regen, judge PASS, full local parity green |
+| Latest ADR              | ADR-0035 (Admin web premium polish)                                                                                                                                  |
+| Recommended next action | Review/commit the branch and run hosted CI; Phase 13 staging deployment remains intentionally `in_progress`                                                          |
 
 ## Session Outcome
+
+### Admin web premium polish — 3 September 2026
+
+Branch `feat/admin-web-polish`. Implemented ADR-0035 while leaving Phase 13
+`in_progress`: frontend-only polish over the ADR-0034 redesign, judged PASS
+after one FAIL→fix iteration. CARE domain, wire enums, Bahasa Indonesia,
+PRD §11.5 IA, and all contracts preserved; `packages/ui` untouched.
+
+- **Tokens/components/CSS (`apps/web-admin/src/styles.css`, +~450 lines).**
+  `admin-*` tokens (ink/line/canvas/brand/ring, elev-1/2/3), global
+  focus-visible ring, thin scrollbars, card hierarchy (hero/subtle/lift),
+  tabular numerals, skeleton shimmer + illustrated empty, gradient sidebar
+  pill + topbar live-dot/CA plate, sticky thead, blurred sticky action bar,
+  count pill, feed/timeline, dialog scoping, split-panel login, compact
+  filter variant, stacked remediation split, reduced-motion fallbacks. New
+  local `AdminSkeleton` + `AdminEmpty` primitives.
+- **Table-bleed elimination.** Grid-blowout guard, reduced table minimums
+  (34rem cards / 30rem half-width + wrapping headers + compact density),
+  explicit inner scroll containers, stretched-badge fix, remediation queue
+  full-width stacked, `overflow-x: clip` safety net. No page h-scroll at
+  1280/1440; all tables fit fully (verified on fresh 1440px captures).
+- **Per-page.** Hero/lift/subtle assignment, skeleton/empty coverage,
+  status pills, audit truncation tooltips, union connectors, archive Dialog
+  replacing `window.confirm`, muted sidebar footer, 26px page titles.
+- **Judge.** Round 1 FAIL (15 items incl. table bleed) → fixed; Round 2
+  PASS with 4 applied nits; 4 declined as contract-mandated (no fabricated
+  metadata/operational checks, responsive filter wrap kept, fold crop is
+  normal page scroll).
+- **Validation.** typecheck, ESLint zero-warning, Prettier, production
+  build, Admin unit 2/2, `pnpm test:frontend:e2e` 177/177 (incl. 9/9 visual
+  baselines over two deterministic runs, WCAG 2.1 AA + no-overflow
+  1280/1440). Not rerun (frontend-only, no API/schema/contract touch):
+  integration/security/performance/fullstack/deployment gates — covered by
+  the ADR-0034 baseline on the parent branch. No containers started.
+- **Docs.** New `docs/adr/0035-admin-web-premium-polish.md`; PRD unchanged.
+
+Next action: review/commit the branch and run hosted CI; Phase 13 staging
+deployment remains intentionally `in_progress`.
+
+### Admin web premium redesign — 3 September 2026
+
+Branch `feat/admin-web-redesign`. Implemented ADR-0034 while leaving Phase 13
+`in_progress`: all nine Admin pages plus every sub-surface now follow the
+premium language of the seven design targets (layout and style only; CARE
+domain, wire enums, Bahasa Indonesia, and PRD §11.5 IA preserved).
+
+- **Frontend (`apps/web-admin`).** New shared components (`AdminPageHeader`,
+  `AdminKpi`, `AdminFilterBar`, `AdminStepper`, `AdminSegmentBar`) and a
+  premium `admin-*` CSS system (sidebar/topbar/canvas, cards, KPI strips,
+  filter bars, tables, pills, stepper, priority rows, route nodes, union
+  tree); `packages/ui` untouched so the workforce app is byte-identical.
+  Overview (KPI strip + health + data-derived priorities + import table +
+  route nodes), Import (stepper + dropzone/summary + tabbed preview +
+  sticky footer + history + snapshot), Remediation (route-mode card + 2×2
+  stats + category table/drawer + queue + No-Reg drawer), Union (tree +
+  replace dialog), Accounts (filter bar + table + drawer + reset/status
+  dialogs), Voice Explorer (8-filter bar + table + read-only drawer),
+  Audit (filter card + CSV + table + drawer), System/Account/auth polish.
+- **Backend (additive, no migration).** `GET /api/v1/admin/overview` gains
+  `voices` counts, `latestImport.summary`, and `failedAudits`; OpenAPI and
+  `@care/contracts` regenerated deterministically (verified byte-identical
+  across two runs).
+- **Tests.** Mock overview fixture extended; `design.visual.spec.ts` shell
+  anchor updated; full-stack spec updated for renamed affordances
+  (`Preview`→`Validasi data`, Action select URL filter, union substring
+  titles). New `admin-pages.visual.spec.ts` with nine 1440px per-page
+  baselines (delete-first regen, two consecutive deterministic runs).
+- **Validation.** Frozen install, Prisma generate, audit (3 Moderate, zero
+  High/Critical), format, lint, typecheck, unit (API 79, UI 26,
+  frontend-core 14, Admin 2, workforce 81), `openapi:check` drift-free,
+  `migrations:destructive-check`, production build, PWA compat, integration
+  56/56, security 14/14, 50k/10k performance + reconciliation, mocked e2e
+  177/177, visual project 47/47 over two runs, a11y 21/21 at 1280/1440,
+  fullstack 3/3, deployment validation + harness, security-exceptions audit,
+  Gitleaks clean, `git diff --check` clean. Docker stack stopped after
+  validation (`db:down`).
+- **Docs.** New `docs/adr/0034-admin-web-premium-redesign.md`; PRD unchanged
+  (no product-scope change).
+
+Next action: review/commit the branch and run hosted CI; Phase 13 staging
+deployment remains intentionally `in_progress`.
 
 ### Manager-to-Manager General Voice handover — 2 September 2026
 

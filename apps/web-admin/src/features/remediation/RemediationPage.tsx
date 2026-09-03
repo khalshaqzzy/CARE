@@ -4,29 +4,20 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
   DataTable,
   Drawer,
   Input,
-  Loader,
-  PageHeader,
+  Pagination,
   Select,
   Stack,
-  Pagination,
-  StatCard,
 } from '@care/ui';
-import {
-  AlertTriangle,
-  Building2,
-  CheckCircle2,
-  Clock3,
-  Globe2,
-  RefreshCw,
-  Route as RouteIcon,
-  ShieldCheck,
-} from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Clock3, Info, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AdminEmpty } from '../../components/AdminEmpty';
+import { AdminKpi } from '../../components/AdminKpi';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type RemediationList } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 import { CategoryConfiguration } from './CategoryConfiguration';
@@ -47,8 +38,8 @@ const ISSUE_META: Record<
     group: 'DEPARTMENT',
   },
   ROUTE_UNAVAILABLE: {
-    label: 'Route department tidak tersedia',
-    description: 'Department tidak memiliki route owner aktif untuk menerima General Voice.',
+    label: 'Route gap',
+    description: 'Departemen belum terpetakan di route.',
     group: 'DEPARTMENT',
   },
   INVALID_GLOBAL_PIC: {
@@ -62,8 +53,8 @@ const ISSUE_META: Record<
     group: 'UNION',
   },
   UNION_OFFICER_MISSING: {
-    label: 'Union Officer belum lengkap',
-    description: 'Lengkapi fixed slot Union 1 dan Union 2 pada konfigurasi Union.',
+    label: 'Isu dependency union',
+    description: 'PIC union belum divalidasi.',
     group: 'UNION',
   },
   DEPARTMENT_14: {
@@ -72,19 +63,16 @@ const ISSUE_META: Record<
     group: 'SOURCE',
   },
   CATEGORY_TARGET_UNAVAILABLE: {
-    label: 'Department kategori belum tersedia',
-    description: 'Pilih fixed department pada konfigurasi kategori General Voice.',
+    label: 'Konfigurasi perlu validasi',
+    description: 'Perubahan kategori belum divalidasi.',
     group: 'DEPARTMENT',
   },
   CATEGORY_PIC_UNAVAILABLE: {
-    label: 'PIC kategori belum tersedia',
-    description: 'Department kategori tidak memiliki Department Head atau default PIC aktif.',
+    label: 'Data master tidak sinkron',
+    description: 'Perbedaan data kategori dengan master.',
     group: 'DEPARTMENT',
   },
 };
-
-const statusTone = (value: string) =>
-  value === 'RESOLVED' ? 'success' : value === 'SUPERSEDED' ? 'neutral' : 'warning';
 
 function issueMeta(issue: Issue) {
   return (
@@ -96,10 +84,18 @@ function issueMeta(issue: Issue) {
   );
 }
 
-function affectedScope(issue: Issue) {
-  if (issue.type === 'INVALID_GLOBAL_PIC') return 'Seluruh department';
-  if (issue.type.startsWith('UNION_')) return 'Konfigurasi Union';
-  return issue.organizationUnit?.department ?? 'Organization master';
+function issueCategoryName(issue: Issue): string {
+  const category = issue.category as { name?: string; key?: string } | null;
+  return category?.name ?? category?.key ?? '—';
+}
+
+function issueDepartment(issue: Issue): string {
+  if (issue.organizationUnit?.department) {
+    const unit = issue.organizationUnit;
+    return `${unit.directorate} / ${unit.division} / ${unit.department}`;
+  }
+  if (issueMeta(issue).group === 'UNION') return 'QA Dept';
+  return '—';
 }
 
 function formatDetectedAt(value: string) {
@@ -148,6 +144,11 @@ export function RemediationPage() {
       api.remediation({ limit: 20, status, type: type || undefined, cursor: pagination.cursor }),
     enabled: !!session,
   });
+  const categories = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'general-voice-categories-admin'),
+    queryFn: () => api.generalVoiceCategories('ALL'),
+    enabled: !!session,
+  });
   const overview = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'overview'),
     queryFn: api.overview,
@@ -156,16 +157,17 @@ export function RemediationPage() {
   });
 
   const rows = issues.data?.items ?? [];
-  const openOnPage = rows.filter((issue) => issue.status === 'OPEN').length;
-  const affectedDepartments = new Set(
-    rows.flatMap((issue) =>
-      issue.organizationUnit?.department ? [issue.organizationUnit.department] : [],
-    ),
-  ).size;
-  const routeIssues = rows.filter((issue) =>
-    ['DEPARTMENT', 'GLOBAL'].includes(issueMeta(issue).group),
-  ).length;
-  const unionIssues = rows.filter((issue) => issueMeta(issue).group === 'UNION').length;
+  const openTotal =
+    overview.data?.openRemediation ?? rows.filter((i) => i.status === 'OPEN').length;
+  const categoryList = categories.data ?? [];
+  const routeGaps = categoryList.filter((c) => {
+    const route = c.route as { health?: string } | undefined;
+    return route?.health !== 'HEALTHY';
+  }).length;
+  const compliance =
+    categoryList.length > 0
+      ? Math.round(((categoryList.length - routeGaps) / categoryList.length) * 100)
+      : 100;
 
   const assignDefault = useMutation({
     mutationFn: async () => {
@@ -184,230 +186,275 @@ export function RemediationPage() {
     },
   });
 
+  const lastUpdated = Math.max(issues.dataUpdatedAt, categories.dataUpdatedAt);
+
   return (
     <Stack gap="lg">
-      <PageHeader
-        eyebrow="Organization routing"
+      <AdminPageHeader
+        eyebrow="Organization Routing"
         title="Remediation & Route"
-        description="Pantau route gap, lihat department yang terdampak, dan pulihkan PIC berdasarkan No. Reg."
+        description="Pantau route gap, pengiriman remediation, dan pastikan PIC setiap kategori."
         actions={
           <Button
             variant="secondary"
-            onClick={() => void Promise.all([issues.refetch(), overview.refetch()])}
+            size="sm"
+            onClick={() =>
+              void Promise.all([issues.refetch(), categories.refetch(), overview.refetch()])
+            }
           >
-            <RefreshCw size={16} /> Segarkan
+            Segarkan
           </Button>
         }
       />
 
-      <CategoryConfiguration />
-
-      <div className="care-grid remediation-stats">
-        <StatCard
-          label="Isu terbuka"
-          value={String(overview.data?.openRemediation ?? openOnPage)}
-          description="Memerlukan tindakan Admin"
-          icon={<AlertTriangle size={18} />}
-          tone={(overview.data?.openRemediation ?? openOnPage) > 0 ? 'warning' : 'success'}
-        />
-        <StatCard
-          label="Department terdampak"
-          value={String(affectedDepartments)}
-          description="Pada halaman aktif"
-          icon={<Building2 size={18} />}
-          tone={affectedDepartments ? 'brand' : 'default'}
-        />
-        <StatCard
-          label="Route issue"
-          value={String(routeIssues)}
-          description="Department dan PIC global"
-          icon={<RouteIcon size={18} />}
-        />
-        <StatCard
-          label="Dependency Union"
-          value={String(unionIssues)}
-          description="Fixed slot Head dan Officer"
-          icon={<ShieldCheck size={18} />}
-        />
+      <div
+        className="care-grid"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))', gap: '1rem' }}
+      >
+        <section className="admin-card admin-card--hero" aria-label="Mode route">
+          <dl className="admin-dl">
+            <div>
+              <dt>Route mode</dt>
+              <dd style={{ color: 'var(--raw-brand-700)' }}>Operational</dd>
+            </div>
+            <div>
+              <dt>PIC Global</dt>
+              <dd>Fixed User Head</dd>
+            </div>
+            <div>
+              <dt>Terakhir diperbarui</dt>
+              <dd style={{ color: 'var(--raw-brand-700)' }}>
+                {lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : '—'}
+              </dd>
+            </div>
+          </dl>
+        </section>
+        <section className="admin-card admin-card--subtle" aria-label="Statistik route">
+          <div
+            className="admin-kpi-strip admin-kpi-strip--2col"
+            style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', rowGap: '1rem' }}
+          >
+            <AdminKpi
+              icon={<Building2 size={18} />}
+              iconTone="brand"
+              value={categoryList.length}
+              label="Kategori dikonfigurasi"
+              sub="Total kategori"
+            />
+            <AdminKpi
+              icon={<TriangleAlert size={18} />}
+              iconTone="danger"
+              value={routeGaps}
+              valueTone={routeGaps > 0 ? 'danger' : undefined}
+              label="Route gap"
+              sub="Perlu PIC"
+            />
+            <AdminKpi
+              icon={<AlertTriangle size={18} />}
+              iconTone="warning"
+              value={openTotal}
+              valueTone={openTotal > 0 ? 'warning' : undefined}
+              label="Isu terbuka"
+              sub="Perlu remediation"
+            />
+            <AdminKpi
+              icon={<CheckCircle2 size={18} />}
+              iconTone="success"
+              value={routeGaps === 0 ? 'Sehat' : 'Perlu tindakan'}
+              valueTone={routeGaps === 0 ? 'success' : 'warning'}
+              label="Status route"
+              sub={`${compliance}% compliance`}
+            />
+          </div>
+        </section>
       </div>
 
-      {(overview.data?.openRemediation ?? 0) > 0 ? (
-        <Alert tone="warning" title="Route gap dapat memblokir submission baru">
-          Selesaikan issue department dan PIC global lebih dahulu. Voice historis dan assignment
-          yang sudah ada tidak berubah.
-        </Alert>
-      ) : null}
+      <div className="care-grid admin-stack-split" style={{ gap: '1rem' }}>
+        <div>
+          <CategoryConfiguration />
+        </div>
 
-      <Card className="remediation-workspace">
-        <Stack gap="sm">
-          <div className="remediation-workspace__head">
-            <div>
-              <span className="remediation-workspace__icon" aria-hidden="true">
-                <RouteIcon size={18} />
-              </span>
+        <section className="admin-table-card admin-card--lift" aria-label="Antrian remediation">
+          <div style={{ padding: '1rem 1.25rem 0' }}>
+            <div className="admin-section__head">
               <div>
-                <h2>Antrian remediation</h2>
-                <p>{rows.length} issue pada halaman ini · maksimal 20 issue per halaman</p>
+                <h2 className="admin-card__title" style={{ margin: 0 }}>
+                  Antrian remediation
+                </h2>
+                <p className="admin-card__subtitle" style={{ margin: 0 }}>
+                  Tangani rute terbuka dan pastikan penyelesaian sebelum submission.
+                </p>
               </div>
             </div>
-            <Badge tone={statusTone(status)}>{status}</Badge>
-          </div>
-          <div className="admin-toolbar remediation-filters">
-            <div className="remediation-filters__copy">
-              <strong>Filter issue</strong>
-              <span>Fokuskan antrian berdasarkan status dan dependency.</span>
+            <div
+              className="admin-filterbar admin-filterbar--compact"
+              style={{ boxShadow: 'none', marginTop: '0.75rem' }}
+            >
+              <div
+                className="admin-filterbar__controls"
+                style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
+              >
+                <Select
+                  label="Status"
+                  value={status}
+                  onValueChange={(v) => setSearchParams({ status: v, ...(type ? { type } : {}) })}
+                  options={[
+                    { value: 'OPEN', label: 'Terbuka' },
+                    { value: 'RESOLVED', label: 'Selesai' },
+                    { value: 'SUPERSEDED', label: 'Digantikan' },
+                  ]}
+                />
+                <Select
+                  label="Tipe isu"
+                  value={type || 'ALL'}
+                  onValueChange={(v) =>
+                    setSearchParams({ status, ...(v !== 'ALL' ? { type: v } : {}) })
+                  }
+                  options={[
+                    { value: 'ALL', label: 'Semua tipe' },
+                    { value: 'MISSING_DEPARTMENT_HEAD', label: 'Department Head belum ada' },
+                    { value: 'INVALID_DEFAULT_PIC', label: 'Default PIC tidak valid' },
+                    { value: 'ROUTE_UNAVAILABLE', label: 'Route tidak tersedia' },
+                    { value: 'CATEGORY_TARGET_UNAVAILABLE', label: 'Target kategori belum ada' },
+                    { value: 'CATEGORY_PIC_UNAVAILABLE', label: 'PIC kategori belum ada' },
+                    { value: 'UNION_HEAD_MISSING', label: 'Union Head belum ada' },
+                    { value: 'UNION_OFFICER_MISSING', label: 'Union Officer belum lengkap' },
+                    { value: 'DEPARTMENT_14', label: 'Department 14' },
+                  ]}
+                />
+              </div>
             </div>
-            <div className="remediation-filters__controls">
-              <Select
-                label="Status"
-                value={status}
-                onValueChange={(v) => setSearchParams({ status: v, ...(type ? { type } : {}) })}
-                options={[
-                  { value: 'OPEN', label: 'Terbuka' },
-                  { value: 'RESOLVED', label: 'Selesai' },
-                  { value: 'SUPERSEDED', label: 'Digantikan' },
-                ]}
-              />
-              <Select
-                label="Tipe issue"
-                value={type || 'ALL'}
-                onValueChange={(v) =>
-                  setSearchParams({ status, ...(v !== 'ALL' ? { type: v } : {}) })
-                }
-                options={[
-                  { value: 'ALL', label: 'Semua tipe' },
-                  { value: 'MISSING_DEPARTMENT_HEAD', label: 'Department Head belum ada' },
-                  { value: 'INVALID_DEFAULT_PIC', label: 'Default PIC tidak valid' },
-                  { value: 'ROUTE_UNAVAILABLE', label: 'Route tidak tersedia' },
-                  { value: 'CATEGORY_TARGET_UNAVAILABLE', label: 'Target kategori belum ada' },
-                  { value: 'CATEGORY_PIC_UNAVAILABLE', label: 'PIC kategori belum ada' },
-                  { value: 'UNION_HEAD_MISSING', label: 'Union Head belum ada' },
-                  { value: 'UNION_OFFICER_MISSING', label: 'Union Officer belum lengkap' },
-                  { value: 'DEPARTMENT_14', label: 'Department 14' },
-                ]}
-              />
-              {type || status !== 'OPEN' ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSearchParams({ status: 'OPEN' })}
-                >
-                  Reset filter
-                </Button>
-              ) : null}
-            </div>
+            {openTotal > 0 ? (
+              <Alert tone="danger" title="Submission diblokir">
+                Selesaikan semua rute terbuka yang memerlukan tindakan sebelum submission baru.
+              </Alert>
+            ) : null}
           </div>
           {issues.isLoading ? (
-            <Loader label="Memuat remediation" />
+            <div style={{ padding: '1.25rem' }}>
+              <AdminSkeleton lines={4} label="Memuat remediation" />
+            </div>
           ) : issues.error ? (
-            <Alert tone="danger" title="Gagal">
-              {String((issues.error as Error).message)}
-            </Alert>
+            <div style={{ padding: '1.25rem' }}>
+              <Alert tone="danger" title="Gagal">
+                {String((issues.error as Error).message)}
+              </Alert>
+            </div>
           ) : (
-            <DataTable
-              caption="Daftar remediation route dan department terdampak"
-              columns={[
-                {
-                  key: 'type',
-                  header: 'Issue',
-                  width: '31%',
-                  cell: (r: Issue) => {
-                    const meta = issueMeta(r);
-                    return (
-                      <div className="remediation-issue">
-                        <span className="remediation-issue__mark" data-group={meta.group}>
-                          {meta.group === 'GLOBAL' ? (
-                            <Globe2 size={17} />
-                          ) : meta.group === 'UNION' ? (
-                            <ShieldCheck size={17} />
-                          ) : (
-                            <Building2 size={17} />
-                          )}
-                        </span>
-                        <div>
+            <>
+              <DataTable
+                caption="Daftar remediation route dan department terdampak"
+                columns={[
+                  {
+                    key: 'issue',
+                    header: 'Isu',
+                    cell: (r: Issue) => {
+                      const meta = issueMeta(r);
+                      return (
+                        <span className="admin-rowbody">
                           <strong>{meta.label}</strong>
                           <span>{meta.description}</span>
-                        </div>
-                      </div>
-                    );
+                        </span>
+                      );
+                    },
                   },
-                },
-                {
-                  key: 'unit',
-                  header: 'Department terdampak',
-                  width: '27%',
-                  cell: (r: Issue) => (
-                    <div className="remediation-scope">
-                      <strong>{affectedScope(r)}</strong>
-                      {r.organizationUnit ? (
-                        <span>
-                          {r.organizationUnit.directorate} · {r.organizationUnit.division}
-                        </span>
-                      ) : (
-                        <span>
-                          {issueMeta(r).group === 'GLOBAL'
-                            ? 'Semua area'
-                            : 'Non-workforce configuration'}
-                        </span>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  key: 'status',
-                  header: 'Status',
-                  cell: (r: Issue) => (
-                    <div className="remediation-status">
-                      <Badge tone={statusTone(r.status)}>{r.status}</Badge>
-                      <span>
-                        <Clock3 size={13} /> {formatDetectedAt(r.createdAt)}
+                  {
+                    key: 'category',
+                    header: 'Kategori',
+                    cell: (r: Issue) => issueCategoryName(r),
+                  },
+                  {
+                    key: 'department',
+                    header: 'Departemen terdampak',
+                    cell: (r: Issue) => (
+                      <span className="admin-rowbody">
+                        <strong>{r.organizationUnit?.department ?? '—'}</strong>
+                        {r.organizationUnit ? (
+                          <span>
+                            {r.organizationUnit.directorate} · {r.organizationUnit.division}
+                          </span>
+                        ) : (
+                          <span>Non-workforce configuration</span>
+                        )}
                       </span>
-                    </div>
-                  ),
-                },
-                {
-                  key: 'action',
-                  header: 'Aksi',
-                  cell: (r: Issue) => (
-                    <Button
-                      size="sm"
-                      variant={r.status === 'OPEN' ? 'primary' : 'secondary'}
-                      onClick={() => {
-                        setSelected(r);
-                        setNoReg('');
-                        setOperationKey(crypto.randomUUID());
-                        setDrawerOpen(true);
-                      }}
-                    >
-                      {r.status === 'OPEN' ? 'Tangani issue' : 'Lihat detail'}
-                    </Button>
-                  ),
-                },
-              ]}
-              rows={(issues.data?.items ?? []) as never}
-              rowKey={(r: Issue) => r.id}
-              empty={
-                <div className="remediation-empty">
-                  <CheckCircle2 size={22} />
-                  <strong>Tidak ada isu</strong>
-                  <span>Tidak ada remediation yang cocok dengan filter saat ini.</span>
-                </div>
-              }
-            />
+                    ),
+                  },
+                  {
+                    key: 'status',
+                    header: 'Status',
+                    cell: (r: Issue) => (
+                      <span
+                        className="admin-pill"
+                        data-tone={r.status === 'RESOLVED' ? 'success' : 'warning'}
+                      >
+                        {r.status}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'pic',
+                    header: 'PIC',
+                    cell: () => '–',
+                  },
+                  {
+                    key: 'updated',
+                    header: 'Terakhir diperbarui',
+                    cell: (r: Issue) => (
+                      <span className="admin-nums" style={{ whiteSpace: 'nowrap' }}>
+                        <Clock3 size={12} aria-hidden="true" /> {formatDetectedAt(r.createdAt)}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'action',
+                    header: 'Aksi',
+                    cell: (r: Issue) => (
+                      <Button
+                        size="sm"
+                        variant={r.status === 'OPEN' ? 'primary' : 'secondary'}
+                        onClick={() => {
+                          setSelected(r);
+                          setNoReg('');
+                          setOperationKey(crypto.randomUUID());
+                          setDrawerOpen(true);
+                        }}
+                      >
+                        {r.status === 'OPEN' ? 'Tangani issue' : 'Lihat detail'}
+                      </Button>
+                    ),
+                  },
+                ]}
+                rows={rows as never}
+                rowKey={(r: Issue) => r.id}
+                empty={
+                  <AdminEmpty
+                    title="Tidak ada isu"
+                    description="Tidak ada remediation yang cocok dengan filter saat ini."
+                    icon={<CheckCircle2 size={20} aria-hidden="true" />}
+                  />
+                }
+              />
+              <div className="admin-table-foot">
+                <span>
+                  Menampilkan 1–{rows.length} dari{' '}
+                  {rows.length + (issues.data?.nextCursor ? '+' : '')}
+                </span>
+                <Pagination
+                  page={pagination.page}
+                  pageCount={pagination.page + (issues.data?.nextCursor ? 1 : 0)}
+                  onPageChange={(page) =>
+                    page < pagination.page
+                      ? pagination.previous()
+                      : issues.data?.nextCursor
+                        ? pagination.next(issues.data.nextCursor)
+                        : undefined
+                  }
+                />
+              </div>
+            </>
           )}
-          <Pagination
-            page={pagination.page}
-            pageCount={pagination.page + (issues.data?.nextCursor ? 1 : 0)}
-            onPageChange={(page) =>
-              page < pagination.page
-                ? pagination.previous()
-                : issues.data?.nextCursor
-                  ? pagination.next(issues.data.nextCursor)
-                  : undefined
-            }
-          />
-        </Stack>
-      </Card>
+        </section>
+      </div>
 
       <Drawer
         open={drawerOpen}
@@ -422,22 +469,16 @@ export function RemediationPage() {
           {selected ? (
             <div className="remediation-drawer-scope">
               <span className="remediation-drawer-scope__icon" aria-hidden="true">
-                {issueMeta(selected).group === 'GLOBAL' ? (
-                  <Globe2 size={20} />
-                ) : (
-                  <Building2 size={20} />
-                )}
+                <Building2 size={20} />
               </span>
               <div>
                 <span>Scope terdampak</span>
-                <strong>{affectedScope(selected)}</strong>
-                {selected.organizationUnit ? (
-                  <small>
-                    {selected.organizationUnit.directorate} → {selected.organizationUnit.division}
-                  </small>
-                ) : null}
+                <strong>{issueDepartment(selected)}</strong>
+                <small>Kategori: {issueCategoryName(selected)}</small>
               </div>
-              <Badge tone={statusTone(selected.status)}>{selected.status}</Badge>
+              <Badge tone={selected.status === 'RESOLVED' ? 'success' : 'warning'}>
+                {selected.status}
+              </Badge>
             </div>
           ) : null}
           {selected ? (
@@ -504,6 +545,10 @@ export function RemediationPage() {
             </Alert>
           ) : null}
           {!selected ? <p>Pilih isu untuk menangani.</p> : null}
+          <p className="admin-meta--xs">
+            <Info size={12} aria-hidden="true" /> Department Head belum tersedia — General Voice
+            belum dapat dirutekan sampai default PIC ditetapkan.
+          </p>
         </Stack>
       </Drawer>
     </Stack>

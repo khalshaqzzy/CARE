@@ -18,9 +18,11 @@ import {
   Building2,
   CircleGauge,
   FileSearch,
+  LogOut,
   Route as RouteIcon,
   Settings,
   ShieldCheck,
+  UserRound,
   UsersRound,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -107,21 +109,34 @@ function LoginPage() {
   }
   return (
     <main className="admin-auth">
-      <section>
+      <section className="admin-auth__panel">
         <div className="admin-auth__brandrow">
           <span className="admin-auth__mark" aria-hidden="true">
             <Building2 size={20} />
           </span>
-          <div className="admin-brand">
+          <div className="admin-brand" style={{ color: '#fff' }}>
             CARE <span>Admin</span>
           </div>
         </div>
-        <p className="care-eyebrow">Operasional dan governance</p>
+        <p className="care-eyebrow" style={{ color: '#7dd3fc' }}>
+          Operasional dan governance
+        </p>
         <h1>Kelola fondasi CARE dari satu workspace.</h1>
         <p>
           Import organisasi, remediation, akun, route, audit, dan status sistem menggunakan akses
           Admin yang terisolasi.
         </p>
+        <ul className="admin-auth__ticks">
+          <li>
+            <ShieldCheck size={16} aria-hidden="true" /> Akses Admin terisolasi & diaudit
+          </li>
+          <li>
+            <RouteIcon size={16} aria-hidden="true" /> Routing deterministik per organisasi
+          </li>
+          <li>
+            <Activity size={16} aria-hidden="true" /> Kesehatan sistem & jejak audit live
+          </li>
+        </ul>
       </section>
       <Card variant="raised" className="admin-auth-card">
         <Stack gap="lg">
@@ -350,15 +365,20 @@ function AdminShell() {
           }
           footer={
             <Stack gap="sm">
-              <Button variant="ghost" size="sm" onClick={() => void navigate('/account')}>
-                Akun Saya
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-current={current === 'account' ? 'page' : undefined}
+                onClick={() => void navigate('/account')}
+              >
+                <UserRound size={16} /> Akun Saya
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => void logout().then(() => navigate('/login'))}
               >
-                Keluar
+                <LogOut size={16} /> Keluar
               </Button>
             </Stack>
           }
@@ -368,10 +388,14 @@ function AdminShell() {
         <div className="admin-topbar">
           <div className="admin-topbar__context">
             <strong>Operational workspace</strong>
-            <Badge tone="success">Session active</Badge>
+            <span className="admin-topbar__divider" aria-hidden="true" />
+            <Badge tone="success">
+              <span className="admin-live-dot" aria-hidden="true" />
+              Session active
+            </Badge>
           </div>
           <div className="admin-topbar__user">
-            <span>{session.account.displayName}</span>
+            <span className="admin-nums">{session.account.displayName}</span>
             <Avatar name={session.account.displayName} size="sm" />
           </div>
         </div>

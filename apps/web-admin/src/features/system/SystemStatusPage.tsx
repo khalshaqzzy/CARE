@@ -1,22 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  Input,
-  Loader,
-  PageHeader,
-  PasswordInput,
-  Select,
-  Stack,
-} from '@care/ui';
+import { Alert, Badge, Button, Dialog, Input, PasswordInput, Select, Stack } from '@care/ui';
 import { BrainCircuit, Database, HardDrive, Rocket, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createAdminApi } from '../../admin-api';
 import type { AiConfiguration } from '../../admin-api';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 
 function statusTone(value: string | undefined): 'success' | 'warning' {
   return value === 'ok' || value === 'ready' ? 'success' : 'warning';
@@ -152,45 +142,37 @@ export function SystemStatusPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader
+      <AdminPageHeader
         eyebrow="Operability"
         title="System Status"
         description="Kesehatan API, database, storage, release, dan konfigurasi AI runtime."
-        actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              void health.refetch();
-              void ready.refetch();
-              void release.refetch();
-              void aiConfiguration.refetch();
-            }}
-          >
-            Muat ulang
-          </Button>
-        }
+        updatedLabel={lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : undefined}
+        onRefresh={() => {
+          void health.refetch();
+          void ready.refetch();
+          void release.refetch();
+          void aiConfiguration.refetch();
+        }}
+        refreshing={health.isFetching || ready.isFetching}
       />
-      <p className="admin-meta">
-        Terakhir diperbarui:{' '}
-        {lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : 'belum tersedia'}
-      </p>
       {!session ? (
         <Alert tone="warning" title="Tidak ada sesi">
           Masuk sebagai Admin untuk melihat status.
         </Alert>
       ) : null}
       <div className="care-grid admin-system-grid">
-        <Card>
+        <section className="admin-card admin-card--lift" aria-label="Status health">
           <Stack gap="sm">
             <div className="admin-section__head">
-              <strong>/health</strong>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                /health
+              </h2>
               {health.data ? (
                 <Badge tone={statusTone(health.data.status)}>{health.data.status}</Badge>
               ) : null}
             </div>
             {health.isLoading ? (
-              <Loader label="Memuat health" />
+              <AdminSkeleton lines={3} label="Memuat health" />
             ) : health.error ? (
               <Alert tone="danger" title="Gagal">
                 {String((health.error as Error).message)}
@@ -206,17 +188,19 @@ export function SystemStatusPage() {
               </div>
             )}
           </Stack>
-        </Card>
-        <Card>
+        </section>
+        <section className="admin-card admin-card--lift" aria-label="Status readiness">
           <Stack gap="sm">
             <div className="admin-section__head">
-              <strong>/ready</strong>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                /ready
+              </h2>
               {ready.data ? (
                 <Badge tone={statusTone(ready.data.status)}>{ready.data.status}</Badge>
               ) : null}
             </div>
             {ready.isLoading ? (
-              <Loader label="Memuat ready" />
+              <AdminSkeleton lines={3} label="Memuat ready" />
             ) : ready.error ? (
               <Alert tone="danger" title="Gagal">
                 {String((ready.error as Error).message)}
@@ -246,14 +230,16 @@ export function SystemStatusPage() {
               </div>
             )}
           </Stack>
-        </Card>
-        <Card>
+        </section>
+        <section className="admin-card admin-card--lift" aria-label="Release identity">
           <Stack gap="sm">
             <div className="admin-section__head">
-              <strong>/release.json</strong>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                /release.json
+              </h2>
             </div>
             {release.isLoading ? (
-              <Loader label="Memuat release" />
+              <AdminSkeleton lines={2} label="Memuat release" />
             ) : release.error ? (
               <Alert tone="danger" title="Gagal">
                 {String((release.error as Error).message)}
@@ -264,21 +250,23 @@ export function SystemStatusPage() {
                   <span className="admin-kv__label">
                     <Rocket size={14} aria-hidden="true" /> Release SHA
                   </span>
-                  <span className="admin-kv__value">{release.data?.releaseSha ?? '-'}</span>
+                  <span className="admin-kv__value admin-id admin-nums">
+                    {release.data?.releaseSha ?? '-'}
+                  </span>
                 </div>
               </div>
             )}
           </Stack>
-        </Card>
+        </section>
       </div>
 
-      <Card>
+      <section className="admin-card admin-card--hero" aria-label="Konfigurasi AI">
         <Stack gap="md">
           <div className="admin-section__head">
             <div>
-              <strong className="admin-icon-title">
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
                 <BrainCircuit size={18} aria-hidden="true" /> Konfigurasi AI
-              </strong>
+              </h2>
               <p className="admin-meta--xs">Aktif untuk request berikutnya tanpa restart.</p>
             </div>
             <Badge tone={aiConfiguration.data?.source === 'ADMIN_OVERRIDE' ? 'success' : 'neutral'}>
@@ -286,7 +274,7 @@ export function SystemStatusPage() {
             </Badge>
           </div>
           {aiConfiguration.isLoading ? (
-            <Loader label="Memuat konfigurasi AI" />
+            <AdminSkeleton lines={4} label="Memuat konfigurasi AI" />
           ) : aiConfiguration.error ? (
             <Alert tone="danger" title="Konfigurasi AI tidak tersedia">
               {String((aiConfiguration.error as Error).message)}
@@ -400,7 +388,7 @@ export function SystemStatusPage() {
             </>
           )}
         </Stack>
-      </Card>
+      </section>
       <Alert tone="info" title="Polling 30 detik">
         Polling health hanya berjalan saat tab terlihat; API key tidak pernah dikembalikan ke
         browser.

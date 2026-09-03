@@ -1,21 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  DataTable,
-  Drawer,
-  Input,
-  Loader,
-  Select,
-  Stack,
-  Textarea,
-} from '@care/ui';
-import { Archive, ArrowDown, ArrowUp, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Alert, Button, DataTable, Dialog, Drawer, Input, Select, Stack, Textarea } from '@care/ui';
+import { Archive, ArrowDown, ArrowUp, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { createAdminApi, type GeneralVoiceCategoryAdmin } from '../../admin-api';
+import { AdminEmpty } from '../../components/AdminEmpty';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 
 type RouteView = {
   mode?: string;
@@ -61,6 +51,7 @@ export function CategoryConfiguration() {
   });
   const [selected, setSelected] = useState<GeneralVoiceCategoryAdmin | null>(null);
   const [open, setOpen] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState<GeneralVoiceCategoryAdmin | null>(null);
   const [form, setForm] = useState<Form>(emptyForm);
   const [search, setSearch] = useState('');
   const [division, setDivision] = useState('');
@@ -117,13 +108,6 @@ export function CategoryConfiguration() {
   });
   const setStatus = useMutation({
     mutationFn: (category: GeneralVoiceCategoryAdmin) => {
-      if (
-        category.status === 'ACTIVE' &&
-        !window.confirm(
-          `${category.name} akan disembunyikan dari klasifikasi dan fallback baru. Voice historis tidak berubah. Lanjutkan?`,
-        )
-      )
-        return Promise.resolve(null);
       return api.setGeneralVoiceCategoryStatus(
         category.id,
         {
@@ -133,7 +117,10 @@ export function CategoryConfiguration() {
         crypto.randomUUID(),
       );
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      setPendingCategory(null);
+      void qc.invalidateQueries({ queryKey });
+    },
   });
 
   const begin = (category?: GeneralVoiceCategoryAdmin) => {
@@ -167,106 +154,126 @@ export function CategoryConfiguration() {
 
   return (
     <>
-      <Card>
-        <Stack gap="md">
-          <div className="remediation-workspace__head">
+      <section className="admin-table-card admin-card--lift" aria-label="Konfigurasi kategori">
+        <div style={{ padding: '1rem 1.25rem 0' }}>
+          <div className="admin-section__head">
             <div>
-              <div>
-                <h2>Konfigurasi Kategori General Voice</h2>
-                <p>Atur prompt context, department in charge, dan PIC efektif.</p>
-              </div>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                Konfigurasi kategori
+              </h2>
+              <p className="admin-card__subtitle" style={{ margin: 0 }}>
+                Kelola kategori route, PIC, dan status.
+              </p>
             </div>
-            <Button onClick={() => begin()}>
-              <Plus size={16} /> Tambah kategori
-            </Button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button size="sm" onClick={() => begin()}>
+                <Plus size={14} /> Tambah kategori
+              </Button>
+            </div>
           </div>
-          {categories.isLoading ? (
-            <Loader label="Memuat kategori" />
-          ) : categories.error ? (
+        </div>
+        {categories.isLoading ? (
+          <div style={{ padding: '1.25rem' }}>
+            <AdminSkeleton lines={4} label="Memuat kategori" />
+          </div>
+        ) : categories.error ? (
+          <div style={{ padding: '1.25rem' }}>
             <Alert tone="danger" title="Kategori gagal dimuat">
               {String((categories.error as Error).message)}
             </Alert>
-          ) : (
-            <DataTable
-              caption="Konfigurasi kategori General Voice"
-              columns={[
-                {
-                  key: 'name',
-                  header: 'Kategori',
-                  cell: (row: GeneralVoiceCategoryAdmin) => (
-                    <div>
-                      <strong>{row.name}</strong>
-                      <br />
-                      <small>
-                        {row.key} · revisi {row.revision}
-                      </small>
-                      <br />
-                      <small>{new Date(row.updatedAt).toLocaleString('id-ID')}</small>
-                    </div>
-                  ),
+          </div>
+        ) : (
+          <DataTable
+            caption="Konfigurasi kategori General Voice"
+            columns={[
+              {
+                key: 'name',
+                header: 'Kategori',
+                cell: (row: GeneralVoiceCategoryAdmin) => (
+                  <span className="admin-rowbody">
+                    <strong>{row.name}</strong>
+                    <span className="admin-nums">
+                      {row.key} • rev. {row.revision}
+                    </span>
+                    <span className="admin-nums">
+                      {new Date(row.updatedAt).toLocaleString('id-ID')}
+                    </span>
+                  </span>
+                ),
+              },
+              {
+                key: 'department',
+                header: 'Departemen',
+                cell: (row: GeneralVoiceCategoryAdmin) => {
+                  const route = row.route as RouteView;
+                  return route.mode === 'RELATED_REPORTER_DEPARTMENT'
+                    ? 'Related Dept (department reporter)'
+                    : route.organizationUnit
+                      ? `${route.organizationUnit.directorate} / ${route.organizationUnit.division} / ${route.organizationUnit.department}`
+                      : 'Belum dikonfigurasi';
                 },
-                {
-                  key: 'department',
-                  header: 'Department',
-                  cell: (row: GeneralVoiceCategoryAdmin) => {
-                    const route = row.route as RouteView;
-                    return route.mode === 'RELATED_REPORTER_DEPARTMENT'
-                      ? 'Related Dept (department reporter)'
-                      : route.organizationUnit
-                        ? `${route.organizationUnit.directorate} / ${route.organizationUnit.division} / ${route.organizationUnit.department}`
-                        : 'Belum dikonfigurasi';
-                  },
+              },
+              {
+                key: 'pic',
+                header: 'PIC',
+                cell: (row: GeneralVoiceCategoryAdmin) => {
+                  const route = row.route as RouteView;
+                  return route.mode === 'RELATED_REPORTER_DEPARTMENT'
+                    ? 'Mengikuti PIC department reporter'
+                    : route.pic
+                      ? `${route.pic.name}${route.pic.noReg ? ` (${route.pic.noReg})` : ''}`
+                      : 'Belum tersedia';
                 },
-                {
-                  key: 'pic',
-                  header: 'PIC',
-                  cell: (row: GeneralVoiceCategoryAdmin) => {
-                    const route = row.route as RouteView;
-                    return route.mode === 'RELATED_REPORTER_DEPARTMENT'
-                      ? 'Mengikuti PIC department reporter'
-                      : route.pic
-                        ? `${route.pic.name}${route.pic.noReg ? ` (${route.pic.noReg})` : ''}`
-                        : 'Belum tersedia';
-                  },
-                },
-                {
-                  key: 'status',
-                  header: 'Status',
-                  cell: (row: GeneralVoiceCategoryAdmin) => (
-                    <Stack gap="xs">
-                      <Badge tone={row.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                        {row.status}
-                      </Badge>
-                      <Badge
-                        tone={(row.route as RouteView).health === 'HEALTHY' ? 'success' : 'warning'}
-                      >
-                        {(row.route as RouteView).health ?? 'GAP'}
-                      </Badge>
-                    </Stack>
-                  ),
-                },
-                {
-                  key: 'action',
-                  header: 'Aksi',
-                  cell: (row: GeneralVoiceCategoryAdmin) => (
-                    <div>
-                      <Button size="sm" variant="secondary" onClick={() => begin(row)}>
-                        Ubah
-                      </Button>{' '}
-                      <Button size="sm" variant="ghost" onClick={() => setStatus.mutate(row)}>
-                        {row.status === 'ACTIVE' ? <Archive size={14} /> : <RotateCcw size={14} />}{' '}
-                        {row.status === 'ACTIVE' ? 'Arsipkan' : 'Aktifkan'}
-                      </Button>
-                    </div>
-                  ),
-                },
-              ]}
-              rows={categories.data ?? []}
-              rowKey={(row: GeneralVoiceCategoryAdmin) => row.id}
-            />
-          )}
-        </Stack>
-      </Card>
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                cell: (row: GeneralVoiceCategoryAdmin) => (
+                  <span className="admin-rowbody">
+                    <span
+                      className="admin-pill"
+                      data-tone={row.status === 'ACTIVE' ? 'success' : 'neutral'}
+                    >
+                      {row.status}
+                    </span>
+                    <small>{(row.route as RouteView).health ?? 'GAP'}</small>
+                  </span>
+                ),
+              },
+              {
+                key: 'action',
+                header: 'Aksi',
+                cell: (row: GeneralVoiceCategoryAdmin) => (
+                  <div style={{ display: 'grid', gap: '0.25rem', justifyItems: 'start' }}>
+                    <Button size="sm" variant="ghost" onClick={() => begin(row)}>
+                      <Pencil size={13} /> Ubah
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (row.status === 'ACTIVE') setPendingCategory(row);
+                        else setStatus.mutate(row);
+                      }}
+                    >
+                      {row.status === 'ACTIVE' ? <Archive size={13} /> : <RotateCcw size={13} />}{' '}
+                      {row.status === 'ACTIVE' ? 'Arsipkan' : 'Aktifkan'}
+                    </Button>
+                  </div>
+                ),
+              },
+            ]}
+            rows={categories.data ?? []}
+            rowKey={(row: GeneralVoiceCategoryAdmin) => row.id}
+            empty={
+              <AdminEmpty
+                title="Tidak ada kategori"
+                description="Belum ada kategori yang dikonfigurasi."
+              />
+            }
+          />
+        )}
+      </section>
       <Drawer
         open={open}
         onOpenChange={setOpen}
@@ -381,7 +388,9 @@ export function CategoryConfiguration() {
                 }}
               />
               {units.isLoading ? (
-                <Loader label="Mencari department" />
+                <div style={{ padding: '1.25rem' }}>
+                  <AdminSkeleton lines={3} label="Mencari department" />
+                </div>
               ) : (
                 <Stack gap="xs">
                   {units.data?.items.map((unit) => (
@@ -403,10 +412,15 @@ export function CategoryConfiguration() {
                         })
                       }
                     >
-                      {unit.compositeKey}
+                      <span className="admin-nums">{unit.compositeKey}</span>
                     </Button>
                   ))}
-                  {!units.data?.items.length ? <p>Department tidak ditemukan.</p> : null}
+                  {!units.data?.items.length ? (
+                    <AdminEmpty
+                      title="Tidak ada department"
+                      description="Department tidak ditemukan."
+                    />
+                  ) : null}
                   <div>
                     <Button
                       variant="ghost"
@@ -470,17 +484,28 @@ export function CategoryConfiguration() {
             <div>
               <strong>Riwayat revisi</strong>
               {history.isLoading ? (
-                <Loader label="Memuat riwayat revisi" />
+                <div style={{ padding: '1.25rem' }}>
+                  <AdminSkeleton lines={3} label="Memuat riwayat revisi" />
+                </div>
               ) : history.error ? (
                 <Alert tone="danger" title="Riwayat gagal dimuat">
                   {String((history.error as Error).message)}
                 </Alert>
+              ) : !(history.data ?? []).length ? (
+                <AdminEmpty
+                  title="Belum ada revisi"
+                  description="Riwayat revisi kategori ini masih kosong."
+                />
               ) : (
-                <ul>
+                <ul className="admin-feed">
                   {(history.data ?? []).map((revision) => (
                     <li key={String(revision.id)}>
-                      Revisi {String(revision.revision)} · {String(revision.name)} ·{' '}
-                      {new Date(String(revision.effectiveFrom)).toLocaleString('id-ID')}
+                      <p>
+                        Revisi {String(revision.revision)} · {String(revision.name)}
+                      </p>
+                      <code className="admin-nums">
+                        {new Date(String(revision.effectiveFrom)).toLocaleString('id-ID')}
+                      </code>
                     </li>
                   ))}
                 </ul>
@@ -501,6 +526,34 @@ export function CategoryConfiguration() {
           </Button>
         </Stack>
       </Drawer>
+      <Dialog
+        open={pendingCategory !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingCategory(null);
+        }}
+        title="Arsipkan kategori?"
+        description={`${pendingCategory?.name ?? 'Kategori ini'} akan disembunyikan dari klasifikasi dan fallback baru. Voice historis tidak berubah.`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPendingCategory(null)}>
+              Batal
+            </Button>
+            <Button
+              variant="danger"
+              loading={setStatus.isPending}
+              onClick={() => pendingCategory && setStatus.mutate(pendingCategory)}
+            >
+              Ya arsipkan
+            </Button>
+          </>
+        }
+      >
+        {setStatus.error ? (
+          <Alert tone="danger" title="Gagal">
+            {String((setStatus.error as Error).message)}
+          </Alert>
+        ) : null}
+      </Dialog>
     </>
   );
 }
