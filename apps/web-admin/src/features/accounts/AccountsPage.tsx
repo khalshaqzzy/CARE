@@ -5,22 +5,34 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
   DataTable,
   Dialog,
   Drawer,
   Input,
   Loader,
-  PageHeader,
   Pagination,
   Select,
   Stack,
   Textarea,
 } from '@care/ui';
+import { CheckCircle2, ChevronRight, CircleAlert, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AdminFilterBar } from '../../components/AdminFilterBar';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { createAdminApi, type Account } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+
+function orgContext(account: Account): string {
+  const membership = account.employee?.memberships?.[0];
+  if (!membership) return '—';
+  const unit = membership.organizationUnit;
+  return `${unit.division} — ${unit.department}`;
+}
+
+function kindTone(kind: string): 'info' | 'neutral' {
+  return kind === 'CARE_ADMIN' ? 'info' : 'neutral';
+}
 
 export function AccountsPage() {
   const { session, transport } = useAuth();
@@ -102,38 +114,42 @@ export function AccountsPage() {
     },
   });
 
+  const updateParam = (name: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('cursor');
+    params.delete('cursorHistory');
+    if (value) params.set(name, value);
+    else params.delete(name);
+    setSearchParams(params);
+  };
+  const filtersActive = Boolean(search || kind || status);
+
   return (
     <Stack gap="lg">
-      <PageHeader
+      <AdminPageHeader
         eyebrow="Akun"
         title="Accounts"
-        description="Kelola workforce dan Union. CARE Admin hanya read-only di sini."
+        description="Kelola workflow dan Union. CARE Admin hanya read-only di sini."
+        badge={
+          <span className="admin-pill" data-tone="neutral">
+            <Lock size={12} aria-hidden="true" /> Hanya baca
+          </span>
+        }
       />
-      <Card>
-        <Stack gap="sm">
-          <div className="admin-toolbar">
+
+      <AdminFilterBar
+        controls={
+          <>
             <Input
-              label="Search"
+              label="Cari akun"
               value={search}
-              onChange={(e) =>
-                setSearchParams({
-                  ...(e.target.value ? { search: e.target.value } : {}),
-                  ...(kind ? { kind } : {}),
-                  ...(status ? { status } : {}),
-                })
-              }
+              onChange={(e) => updateParam('search', e.target.value)}
               placeholder="Username / nama / noReg"
             />
             <Select
-              label="Kind"
+              label="Jenis akun"
               value={kind || 'ALL'}
-              onValueChange={(v) =>
-                setSearchParams({
-                  ...(search ? { search } : {}),
-                  ...(v !== 'ALL' ? { kind: v } : {}),
-                  ...(status ? { status } : {}),
-                })
-              }
+              onValueChange={(v) => updateParam('kind', v === 'ALL' ? '' : v)}
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'WORKFORCE', label: 'Workforce' },
@@ -144,92 +160,116 @@ export function AccountsPage() {
             <Select
               label="Status"
               value={status || 'ALL'}
-              onValueChange={(v) =>
-                setSearchParams({
-                  ...(search ? { search } : {}),
-                  ...(kind ? { kind } : {}),
-                  ...(v !== 'ALL' ? { status: v } : {}),
-                })
-              }
+              onValueChange={(v) => updateParam('status', v === 'ALL' ? '' : v)}
               options={[
                 { value: 'ALL', label: 'Semua' },
-                { value: 'ACTIVE', label: 'ACTIVE' },
-                { value: 'LEGACY_HANDLER', label: 'LEGACY' },
-                { value: 'INACTIVE', label: 'INACTIVE' },
+                { value: 'ACTIVE', label: 'Aktif' },
+                { value: 'LEGACY_HANDLER', label: 'Legacy' },
+                { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
             />
+          </>
+        }
+        {...(q.data
+          ? {
+              resultCount: `Menampilkan 1–${q.data.items.length} dari ${q.data.items.length}${q.data.nextCursor ? '+' : ''} akun`,
+            }
+          : {})}
+        {...(filtersActive ? { onReset: () => setSearchParams({}) } : {})}
+      />
+
+      {q.isLoading ? (
+        <Loader label="Memuat akun" />
+      ) : q.error ? (
+        <Alert tone="danger" title="Gagal">
+          {String((q.error as Error).message)}
+        </Alert>
+      ) : (
+        <section className="admin-table-card" aria-label="Daftar akun">
+          <DataTable
+            caption="Daftar akun workforce dan Union"
+            columns={[
+              {
+                key: 'username',
+                header: 'Username / Nama',
+                cell: (r: Account) => <span className="admin-id">{r.username}</span>,
+              },
+              { key: 'displayName', header: 'Nama', cell: (r: Account) => r.displayName },
+              {
+                key: 'kind',
+                header: 'Jenis akun',
+                cell: (r: Account) => <Badge tone={kindTone(r.accountKind)}>{r.accountKind}</Badge>,
+              },
+              {
+                key: 'org',
+                header: 'Konteks organisasi',
+                cell: (r: Account) => orgContext(r),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                cell: (r: Account) => (
+                  <span
+                    className="admin-pill"
+                    data-tone={r.status === 'ACTIVE' ? 'success' : 'warning'}
+                  >
+                    {r.status === 'ACTIVE' ? (
+                      <CheckCircle2 size={12} aria-hidden="true" />
+                    ) : (
+                      <CircleAlert size={12} aria-hidden="true" />
+                    )}{' '}
+                    {r.status === 'ACTIVE'
+                      ? 'AKTIF'
+                      : r.status === 'INACTIVE'
+                        ? 'NONAKTIF'
+                        : r.status}
+                  </span>
+                ),
+              },
+              {
+                key: 'route',
+                header: 'Dependensi rute',
+                cell: (r: Account) => (
+                  <span className="admin-meta--xs">
+                    {r.employee?.memberships?.[0]?.structuralPosition ?? '—'}
+                  </span>
+                ),
+              },
+              {
+                key: 'action',
+                header: '',
+                cell: (r: Account) => (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Detail ${r.username}`}
+                    onClick={() => {
+                      setSelectedId(r.id);
+                      setDrawerOpen(true);
+                    }}
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                ),
+              },
+            ]}
+            rows={(q.data?.items ?? []) as never}
+            rowKey={(r: Account) => r.id}
+            empty={<span>Tidak ada akun</span>}
+          />
+          <div className="admin-table-foot">
+            <span>{q.data?.nextCursor ? 'Ada halaman berikutnya' : 'Akhir daftar'}</span>
+            <Pagination
+              page={pagination.page}
+              pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
+              onPageChange={(page) => {
+                if (page < pagination.page) pagination.previous();
+                else if (q.data?.nextCursor) pagination.next(q.data.nextCursor);
+              }}
+            />
           </div>
-          {q.isLoading ? (
-            <Loader label="Memuat akun" />
-          ) : q.error ? (
-            <Alert tone="danger" title="Gagal">
-              {String((q.error as Error).message)}
-            </Alert>
-          ) : (
-            <>
-              <DataTable
-                columns={[
-                  { key: 'username', header: 'Username', cell: (r: Account) => r.username },
-                  { key: 'displayName', header: 'Nama', cell: (r: Account) => r.displayName },
-                  {
-                    key: 'kind',
-                    header: 'Kind',
-                    cell: (r: Account) => (
-                      <Badge tone={r.accountKind === 'CARE_ADMIN' ? 'info' : 'neutral'}>
-                        {r.accountKind}
-                      </Badge>
-                    ),
-                  },
-                  {
-                    key: 'status',
-                    header: 'Status',
-                    cell: (r: Account) => (
-                      <Badge
-                        tone={
-                          r.status === 'ACTIVE'
-                            ? 'success'
-                            : r.status === 'LEGACY_HANDLER'
-                              ? 'warning'
-                              : 'danger'
-                        }
-                      >
-                        {r.status}
-                      </Badge>
-                    ),
-                  },
-                  {
-                    key: 'action',
-                    header: 'Aksi',
-                    cell: (r: Account) => (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setSelectedId(r.id);
-                          setDrawerOpen(true);
-                        }}
-                      >
-                        Detail
-                      </Button>
-                    ),
-                  },
-                ]}
-                rows={(q.data?.items ?? []) as never}
-                rowKey={(r: Account) => r.id}
-                empty={<span>Tidak ada akun</span>}
-              />
-              <Pagination
-                page={pagination.page}
-                pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
-                onPageChange={(page) => {
-                  if (page < pagination.page) pagination.previous();
-                  else if (q.data?.nextCursor) pagination.next(q.data.nextCursor);
-                }}
-              />
-            </>
-          )}
-        </Stack>
-      </Card>
+        </section>
+      )}
 
       <Drawer
         open={drawerOpen}
@@ -312,7 +352,9 @@ export function AccountsPage() {
               </Stack>
             ) : null}
           </Stack>
-        ) : null}
+        ) : (
+          <Loader label="Memuat detail akun" />
+        )}
       </Drawer>
 
       <Dialog

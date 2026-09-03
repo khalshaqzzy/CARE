@@ -18,9 +18,11 @@ import {
   Building2,
   CircleGauge,
   FileSearch,
+  LogOut,
   Route as RouteIcon,
   Settings,
   ShieldCheck,
+  UserRound,
   UsersRound,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -351,14 +353,14 @@ function AdminShell() {
           footer={
             <Stack gap="sm">
               <Button variant="ghost" size="sm" onClick={() => void navigate('/account')}>
-                Akun Saya
+                <UserRound size={16} /> Akun Saya
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => void logout().then(() => navigate('/login'))}
               >
-                Keluar
+                <LogOut size={16} /> Keluar
               </Button>
             </Stack>
           }

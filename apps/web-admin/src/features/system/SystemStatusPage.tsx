@@ -4,11 +4,9 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
   Dialog,
   Input,
   Loader,
-  PageHeader,
   PasswordInput,
   Select,
   Stack,
@@ -17,6 +15,7 @@ import { BrainCircuit, Database, HardDrive, Rocket, ShieldCheck } from 'lucide-r
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createAdminApi } from '../../admin-api';
 import type { AiConfiguration } from '../../admin-api';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 
 function statusTone(value: string | undefined): 'success' | 'warning' {
   return value === 'ok' || value === 'ready' ? 'success' : 'warning';
@@ -152,39 +151,31 @@ export function SystemStatusPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader
+      <AdminPageHeader
         eyebrow="Operability"
         title="System Status"
         description="Kesehatan API, database, storage, release, dan konfigurasi AI runtime."
-        actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              void health.refetch();
-              void ready.refetch();
-              void release.refetch();
-              void aiConfiguration.refetch();
-            }}
-          >
-            Muat ulang
-          </Button>
-        }
+        updatedLabel={lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : undefined}
+        onRefresh={() => {
+          void health.refetch();
+          void ready.refetch();
+          void release.refetch();
+          void aiConfiguration.refetch();
+        }}
+        refreshing={health.isFetching || ready.isFetching}
       />
-      <p className="admin-meta">
-        Terakhir diperbarui:{' '}
-        {lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : 'belum tersedia'}
-      </p>
       {!session ? (
         <Alert tone="warning" title="Tidak ada sesi">
           Masuk sebagai Admin untuk melihat status.
         </Alert>
       ) : null}
       <div className="care-grid admin-system-grid">
-        <Card>
+        <section className="admin-card" aria-label="Status health">
           <Stack gap="sm">
             <div className="admin-section__head">
-              <strong>/health</strong>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                /health
+              </h2>
               {health.data ? (
                 <Badge tone={statusTone(health.data.status)}>{health.data.status}</Badge>
               ) : null}
@@ -206,11 +197,13 @@ export function SystemStatusPage() {
               </div>
             )}
           </Stack>
-        </Card>
-        <Card>
+        </section>
+        <section className="admin-card" aria-label="Status readiness">
           <Stack gap="sm">
             <div className="admin-section__head">
-              <strong>/ready</strong>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                /ready
+              </h2>
               {ready.data ? (
                 <Badge tone={statusTone(ready.data.status)}>{ready.data.status}</Badge>
               ) : null}
@@ -246,11 +239,13 @@ export function SystemStatusPage() {
               </div>
             )}
           </Stack>
-        </Card>
-        <Card>
+        </section>
+        <section className="admin-card" aria-label="Release identity">
           <Stack gap="sm">
             <div className="admin-section__head">
-              <strong>/release.json</strong>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                /release.json
+              </h2>
             </div>
             {release.isLoading ? (
               <Loader label="Memuat release" />
@@ -269,16 +264,16 @@ export function SystemStatusPage() {
               </div>
             )}
           </Stack>
-        </Card>
+        </section>
       </div>
 
-      <Card>
+      <section className="admin-card" aria-label="Konfigurasi AI">
         <Stack gap="md">
           <div className="admin-section__head">
             <div>
-              <strong className="admin-icon-title">
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
                 <BrainCircuit size={18} aria-hidden="true" /> Konfigurasi AI
-              </strong>
+              </h2>
               <p className="admin-meta--xs">Aktif untuk request berikutnya tanpa restart.</p>
             </div>
             <Badge tone={aiConfiguration.data?.source === 'ADMIN_OVERRIDE' ? 'success' : 'neutral'}>
@@ -400,7 +395,7 @@ export function SystemStatusPage() {
             </>
           )}
         </Stack>
-      </Card>
+      </section>
       <Alert tone="info" title="Polling 30 detik">
         Polling health hanya berjalan saat tab terlihat; API key tidak pernah dikembalikan ke
         browser.

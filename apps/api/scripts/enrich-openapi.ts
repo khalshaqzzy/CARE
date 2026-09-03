@@ -1658,7 +1658,15 @@ const schemas: Record<string, any> = {
   },
   AdminOverview: {
     type: 'object',
-    required: ['accounts', 'openRemediation', 'latestImport', 'unionSlots', 'recentResolution'],
+    required: [
+      'accounts',
+      'openRemediation',
+      'latestImport',
+      'unionSlots',
+      'recentResolution',
+      'voices',
+      'failedAudits',
+    ],
     additionalProperties: false,
     properties: {
       accounts: {
@@ -1681,6 +1689,17 @@ const schemas: Record<string, any> = {
           id: { type: 'string', format: 'uuid' },
           status: { type: 'string' },
           createdAt: { type: 'string', format: 'date-time' },
+          summary: {
+            type: 'object',
+            nullable: true,
+            additionalProperties: false,
+            properties: {
+              rowCount: { type: 'integer' },
+              create: { type: 'integer' },
+              update: { type: 'integer' },
+              deactivate: { type: 'integer' },
+            },
+          },
         },
       },
       unionSlots: { type: 'integer' },
@@ -1695,6 +1714,19 @@ const schemas: Record<string, any> = {
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
+      voices: {
+        type: 'object',
+        required: ['open', 'inVerification', 'inProgress', 'closed', 'critical'],
+        additionalProperties: false,
+        properties: {
+          open: { type: 'integer' },
+          inVerification: { type: 'integer' },
+          inProgress: { type: 'integer' },
+          closed: { type: 'integer' },
+          critical: { type: 'integer' },
+        },
+      },
+      failedAudits: { type: 'integer' },
     },
   },
   AccountSummary: {

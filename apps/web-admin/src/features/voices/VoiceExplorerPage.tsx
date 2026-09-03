@@ -2,22 +2,30 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
 import {
   Alert,
-  Badge,
   Button,
-  Card,
   DataTable,
   Drawer,
   Input,
   Loader,
-  PageHeader,
+  Pagination,
   Select,
   Stack,
-  Pagination,
 } from '@care/ui';
+import { Funnel, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AdminFilterBar } from '../../components/AdminFilterBar';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { createAdminApi, type VoiceItem } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+
+function severityTone(severity: string): 'danger' | 'warning' | 'success' {
+  return severity === 'CRITICAL' || severity === 'HIGH'
+    ? 'danger'
+    : severity === 'MEDIUM'
+      ? 'warning'
+      : 'success';
+}
 
 export function VoiceExplorerPage() {
   const { session, transport } = useAuth();
@@ -53,7 +61,7 @@ export function VoiceExplorerPage() {
     ),
     queryFn: () =>
       api.voices({
-        limit: 20,
+        limit: 10,
         search: search || undefined,
         status: status || undefined,
         visibility: visibility || undefined,
@@ -122,26 +130,49 @@ export function VoiceExplorerPage() {
     else params.delete(name);
     setSearchParams(params);
   };
+  const activeFilters = [
+    search,
+    status,
+    visibility,
+    severity,
+    area,
+    category,
+    handler,
+    dateFrom || dateTo,
+  ].filter(Boolean).length;
+  const dateLabel =
+    dateFrom || dateTo
+      ? `${dateFrom ? new Date(dateFrom).toLocaleDateString('id-ID') : '…'} - ${dateTo ? new Date(dateTo).toLocaleDateString('id-ID') : '…'}`
+      : '';
 
   return (
     <Stack gap="lg">
-      <PageHeader
-        eyebrow="Explorer"
+      <AdminPageHeader
+        eyebrow="Voice Explorer"
         title="Voice Explorer"
-        description="Read-only untuk seluruh General dan Private. Akses Private diaudit."
+        description="Jelajahi seluruh rekaman Voice dari General dan Private. Akses Private diaudit dan setiap akses tercatat."
+        badge={
+          <span
+            className="admin-meta--xs"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+          >
+            Read-only • Akses Private diaudit <Lock size={12} aria-hidden="true" />
+          </span>
+        }
       />
       <Alert tone="warning" title="Akses Private diaudit">
         Setiap akses detail Private dicatat sebagai audit event teredaksi. Mutasi Voice oleh Admin
         ditolak.
       </Alert>
-      <Card>
-        <Stack gap="sm">
-          <div className="admin-toolbar">
+
+      <AdminFilterBar
+        controls={
+          <>
             <Input
-              label="Search ID/Judul"
+              label="Cari ID atau judul"
               value={search}
               onChange={(e) => updateFilter('search', e.target.value)}
-              placeholder="CARE-2026 atau judul"
+              placeholder="Cari ID atau judul"
             />
             <Select
               label="Status"
@@ -194,111 +225,165 @@ export function VoiceExplorerPage() {
               onValueChange={(v) => updateFilter('category', v === 'ALL' ? '' : v)}
               options={[
                 { value: 'ALL', label: 'Semua' },
-                ...['SAFETY', 'ENVIRONMENT', 'FACILITY', 'WORK_DIFFICULTY'].map((value) => ({
+                ...[
+                  'SAFETY',
+                  'ENVIRONMENT',
+                  'FACILITY',
+                  'FACILITY_REPAIR',
+                  'WORK_DIFFICULTY',
+                  'WELFARE',
+                ].map((value) => ({
                   value,
                   label: value,
                 })),
               ]}
             />
             <Input
-              label="Handler ID"
+              label="Handler"
               value={handler}
               onChange={(e) => updateFilter('handler', e.target.value)}
+              placeholder="Semua"
             />
             <Input
-              label="Dari"
+              label="Rentang tanggal"
               type="date"
               value={dateFrom}
-              onChange={(e) => updateFilter('dateFrom', e.target.value)}
+              onChange={(e) => {
+                updateFilter('dateFrom', e.target.value);
+                if (e.target.value && !dateTo) updateFilter('dateTo', e.target.value);
+              }}
             />
-            <Input
-              label="Sampai"
-              type="date"
-              value={dateTo}
-              onChange={(e) => updateFilter('dateTo', e.target.value)}
+          </>
+        }
+        {...(q.data
+          ? {
+              resultCount: `${(q.data.items.length + (q.data.nextCursor ? 1 : 0)).toLocaleString('id-ID')} hasil ditemukan`,
+            }
+          : {})}
+        {...(activeFilters > 0
+          ? {
+              activeFilterPill: (
+                <span className="admin-active-pill">
+                  <Funnel size={12} aria-hidden="true" /> {activeFilters} filter aktif
+                  {dateLabel ? ` · ${dateLabel}` : ''}
+                </span>
+              ),
+            }
+          : {})}
+        {...(activeFilters > 0 ? { onReset: () => setSearchParams({}) } : {})}
+      />
+
+      {q.isLoading ? (
+        <Loader label="Memuat voices" />
+      ) : q.error ? (
+        <Alert tone="danger" title="Gagal">
+          {String((q.error as Error).message)}
+        </Alert>
+      ) : (
+        <section className="admin-table-card" aria-label="Hasil Voice">
+          <DataTable
+            caption="Hasil penjelajahan Voice"
+            columns={[
+              {
+                key: 'displayId',
+                header: 'ID',
+                cell: (r: VoiceItem) => <span className="admin-id">{r.displayId}</span>,
+              },
+              {
+                key: 'title',
+                header: 'Judul',
+                cell: (r: VoiceItem) => <span className="admin-clamp-2">{r.title}</span>,
+              },
+              {
+                key: 'visibility',
+                header: 'Visibility',
+                cell: (r: VoiceItem) => (
+                  <span
+                    className="admin-pill"
+                    data-tone={r.visibility === 'PRIVATE' ? 'warning' : 'info'}
+                  >
+                    {r.visibility}
+                  </span>
+                ),
+              },
+              {
+                key: 'severity',
+                header: 'Severity',
+                cell: (r: VoiceItem) =>
+                  r.severity ? (
+                    <span className="admin-pill" data-tone={severityTone(r.severity)}>
+                      {r.severity}
+                    </span>
+                  ) : (
+                    '–'
+                  ),
+              },
+              { key: 'status', header: 'Status', cell: (r: VoiceItem) => r.status },
+              {
+                key: 'handler',
+                header: 'Handler',
+                cell: (r: VoiceItem) => r.currentHandlerName ?? '–',
+              },
+              {
+                key: 'updatedAt',
+                header: 'Terakhir diperbarui',
+                cell: (r: VoiceItem) =>
+                  r.updatedAt ? (
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      {new Date(r.updatedAt).toLocaleString('id-ID', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  ) : (
+                    '–'
+                  ),
+              },
+              {
+                key: 'action',
+                header: '',
+                cell: (r: VoiceItem) => (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSelected(r);
+                      setOpen(true);
+                    }}
+                  >
+                    Detail
+                  </Button>
+                ),
+              },
+            ]}
+            rows={(q.data?.items ?? []) as never}
+            rowKey={(r: VoiceItem) => r.id}
+            empty={<span>Tidak ada Voice</span>}
+          />
+          <div className="admin-table-foot">
+            <Pagination
+              page={pagination.page}
+              pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
+              onPageChange={(page) =>
+                page < pagination.page
+                  ? pagination.previous()
+                  : q.data?.nextCursor
+                    ? pagination.next(q.data.nextCursor)
+                    : undefined
+              }
+            />
+            <Select
+              label="Baris per halaman"
+              value="10"
+              onValueChange={() => undefined}
+              options={[{ value: '10', label: '10 / halaman' }]}
             />
           </div>
-          {q.isLoading ? (
-            <Loader label="Memuat voices" />
-          ) : q.error ? (
-            <Alert tone="danger" title="Gagal">
-              {String((q.error as Error).message)}
-            </Alert>
-          ) : (
-            <>
-              <DataTable
-                columns={[
-                  { key: 'displayId', header: 'ID', cell: (r: VoiceItem) => r.displayId },
-                  {
-                    key: 'title',
-                    header: 'Judul',
-                    cell: (r: VoiceItem) => <span className="admin-clamp-2">{r.title}</span>,
-                  },
-                  {
-                    key: 'visibility',
-                    header: 'Vis',
-                    cell: (r: VoiceItem) => (
-                      <Badge tone={r.visibility === 'PRIVATE' ? 'warning' : 'info'}>
-                        {r.visibility}
-                      </Badge>
-                    ),
-                  },
-                  {
-                    key: 'severity',
-                    header: 'Severity',
-                    cell: (r: VoiceItem) => (
-                      <Badge
-                        tone={
-                          r.severity === 'CRITICAL'
-                            ? 'danger'
-                            : r.severity === 'HIGH'
-                              ? 'danger'
-                              : r.severity === 'MEDIUM'
-                                ? 'warning'
-                                : 'success'
-                        }
-                      >
-                        {r.severity}
-                      </Badge>
-                    ),
-                  },
-                  { key: 'status', header: 'Status', cell: (r: VoiceItem) => r.status },
-                  {
-                    key: 'action',
-                    header: '',
-                    cell: (r: VoiceItem) => (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelected(r);
-                          setOpen(true);
-                        }}
-                      >
-                        Detail
-                      </Button>
-                    ),
-                  },
-                ]}
-                rows={(q.data?.items ?? []) as never}
-                rowKey={(r: VoiceItem) => r.id}
-                empty={<span>Tidak ada Voice</span>}
-              />
-              <Pagination
-                page={pagination.page}
-                pageCount={pagination.page + (q.data?.nextCursor ? 1 : 0)}
-                onPageChange={(page) =>
-                  page < pagination.page
-                    ? pagination.previous()
-                    : q.data?.nextCursor
-                      ? pagination.next(q.data.nextCursor)
-                      : undefined
-                }
-              />
-            </>
-          )}
-        </Stack>
-      </Card>
+        </section>
+      )}
 
       <Drawer
         open={open}
@@ -342,7 +427,7 @@ export function VoiceExplorerPage() {
                 </div>
               ) : null}
             </dl>
-            <Card>
+            <div className="admin-card">
               <Stack gap="xs">
                 <strong>Lampiran Voice</strong>
                 {detail.data.attachments.length ? (
@@ -370,8 +455,8 @@ export function VoiceExplorerPage() {
                   <span>Tidak ada lampiran.</span>
                 )}
               </Stack>
-            </Card>
-            <Card>
+            </div>
+            <div className="admin-card">
               <Stack gap="xs">
                 <strong>Timeline</strong>
                 {timeline.isLoading ? (
@@ -406,8 +491,8 @@ export function VoiceExplorerPage() {
                   <span>Belum ada event.</span>
                 )}
               </Stack>
-            </Card>
-            <Card>
+            </div>
+            <div className="admin-card">
               <Stack gap="xs">
                 <strong>Percakapan</strong>
                 {messages.isLoading ? (
@@ -455,7 +540,7 @@ export function VoiceExplorerPage() {
                   <span>Belum ada pesan.</span>
                 )}
               </Stack>
-            </Card>
+            </div>
             <p className="admin-meta--xs">
               Reporter untuk Private menampilkan identitas lengkap immutable (noReg, nama,
               directorate, division, department, section, posisi). Tidak ada kontrol aksi.

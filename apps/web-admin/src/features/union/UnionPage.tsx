@@ -1,21 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  Input,
-  Loader,
-  PageHeader,
-  Stack,
-  Textarea,
-} from '@care/ui';
+import { Alert, Badge, Button, Dialog, Input, Loader, Stack, Textarea } from '@care/ui';
+import { EllipsisVertical, Info, ShieldCheck, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { createAdminApi, type UnionAccountList } from '../../admin-api';
 
 type UnionTerm = UnionAccountList[number];
+
+const SLOT_META: Record<UnionTerm['slot'], { title: string; impact: string; index?: string }> = {
+  HEAD: { title: 'Head (Akun Utama)', impact: 'Akses semua Union akan berubah' },
+  OFFICER_1: { title: 'Union 1', impact: 'Akses slot ini akan berubah', index: '1' },
+  OFFICER_2: { title: 'Union 2', impact: 'Akses slot ini akan berubah', index: '2' },
+};
 
 export function UnionPage() {
   const { session, transport } = useAuth();
@@ -51,13 +48,34 @@ export function UnionPage() {
   });
 
   const bySlot = (s: UnionTerm['slot']) => q.data?.find((t) => t.slot === s);
+  const filled = (['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).filter((s) => bySlot(s)).length;
+
+  const begin = (s: UnionTerm['slot']) => {
+    const term = bySlot(s);
+    setSlot(s);
+    setUsername(term?.account.username ?? '');
+    setDisplayName(term?.account.displayName ?? '');
+    setReason('');
+    setOperationKey(crypto.randomUUID());
+    setOpen(true);
+  };
 
   return (
     <Stack gap="lg">
-      <PageHeader
+      <AdminPageHeader
         eyebrow="Union"
         title="Union Accounts"
-        description="Tiga slot tetap: Head, Union 1, Union 2."
+        description="Kelola akun Head dan slot Union. Penggantian akun akan memengaruhi akses sistem."
+        badge={
+          <span className="admin-card" style={{ padding: '0.5rem 0.75rem' }}>
+            <span
+              className="admin-meta--xs"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <TrendingUp size={14} aria-hidden="true" /> Workload (Future API) — Tidak tersedia
+            </span>
+          </span>
+        }
       />
       {q.isLoading ? (
         <Loader label="Memuat union" />
@@ -66,77 +84,86 @@ export function UnionPage() {
           {String((q.error as Error).message)}
         </Alert>
       ) : (
-        <div
-          className="care-grid"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(18rem, 1fr))', gap: '1rem' }}
-        >
+        <div className="admin-tree" role="list" aria-label="Slot Union">
           {(['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).map((s) => {
             const term = bySlot(s);
+            const meta = SLOT_META[s];
+            const label = s === 'HEAD' ? 'Union Head' : s === 'OFFICER_1' ? 'Union 1' : 'Union 2';
             return (
-              <Card key={s}>
-                <Stack gap="sm">
-                  <div className="admin-section__head">
-                    <strong>
-                      {s === 'HEAD' ? 'Union Head' : s === 'OFFICER_1' ? 'Union 1' : 'Union 2'}
-                    </strong>
-                    {term ? (
-                      <Badge tone="success">Terisi</Badge>
-                    ) : (
-                      <Badge tone="warning">Kosong</Badge>
-                    )}
+              <div className="admin-treenode" role="listitem" key={s}>
+                <div className="admin-treenode__head">
+                  <span className="admin-kpi__icon" data-tone="brand" aria-hidden="true">
+                    {meta.index ? <strong>{meta.index}</strong> : <ShieldCheck size={18} />}
+                  </span>
+                  <h2 className="admin-treenode__title">
+                    {meta.title}{' '}
+                    <span className="admin-pill" data-tone={term ? 'success' : 'warning'}>
+                      {term ? 'Slot aktif' : 'Belum ada akun'}
+                    </span>
+                  </h2>
+                  <span className="admin-treenode__actions">
+                    <Button size="sm" onClick={() => begin(s)}>
+                      {term ? 'Ganti akun' : 'Buat akun'}
+                    </Button>
+                    {s !== 'HEAD' ? (
+                      <Button size="sm" variant="ghost" aria-label={`Opsi ${label}`}>
+                        <EllipsisVertical size={16} />
+                      </Button>
+                    ) : null}
+                  </span>
+                </div>
+                <div className="admin-treenode__meta">
+                  <div>
+                    <span>Username</span>
+                    <strong>{term?.account.username ?? '—'}</strong>
                   </div>
-                  {term ? (
-                    <div className="admin-kv">
-                      <div className="admin-kv__row">
-                        <span className="admin-kv__label">Akun</span>
-                        <span className="admin-kv__value">
-                          {term.account.displayName} ({term.account.username})
-                        </span>
-                      </div>
-                      <div className="admin-kv__row">
-                        <span className="admin-kv__label">Status</span>
-                        <span
-                          className="admin-kv__value"
-                          data-tone={term.account.status === 'ACTIVE' ? 'success' : 'warning'}
-                        >
+                  <div>
+                    <span>Effective state</span>
+                    <strong>
+                      {term ? (
+                        <>
+                          <span aria-hidden="true">● </span>
                           {term.account.status}
-                        </span>
-                      </div>
-                      <div className="admin-kv__row">
-                        <span className="admin-kv__label">ID</span>
-                        <span className="admin-kv__value">{term.account.id.slice(0, 8)}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="admin-meta">Belum ada akun untuk slot ini.</p>
-                  )}
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSlot(s);
-                      setUsername(term?.account.username ?? '');
-                      setDisplayName(term?.account.displayName ?? '');
-                      setReason('');
-                      setOperationKey(crypto.randomUUID());
-                      setOpen(true);
-                    }}
-                  >
-                    {term ? 'Ganti' : 'Buat'} akun
-                  </Button>
-                  <p className="admin-meta--xs">
-                    Penggantian mempertahankan legacy access pada Voice aktif dan mencabut sesi
-                    lama. Password sementara = username, wajib ganti.
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Dampak penggantian</span>
+                    <strong>{meta.impact}</strong>
+                  </div>
+                </div>
+                {term ? (
+                  <p className="admin-meta--xs" style={{ marginTop: '0.5rem' }}>
+                    {term.account.displayName} • ID {term.account.id.slice(0, 8)} • efektif sejak{' '}
+                    {term.effectiveFrom
+                      ? new Date(term.effectiveFrom).toLocaleString('id-ID')
+                      : '—'}
                   </p>
-                </Stack>
-              </Card>
+                ) : (
+                  <p className="admin-meta--xs" style={{ marginTop: '0.5rem' }}>
+                    Belum ada akun untuk slot ini. {filled}/3 slot terisi.
+                  </p>
+                )}
+              </div>
             );
           })}
+          <p className="admin-note">
+            <Info size={14} aria-hidden="true" />
+            <span>
+              Penggantian akun tidak dapat dibatalkan. Pastikan kredensial baru memiliki hak akses
+              yang sesuai. Akun lama menjadi LEGACY_HANDLER bila masih memiliki Voice aktif; sesi
+              lama dicabut dan password sementara = username (wajib ganti).
+            </span>
+          </p>
         </div>
       )}
       <Dialog
         open={open}
         onOpenChange={setOpen}
-        title={`Atur ${slot}`}
+        title={`Atur ${slot === 'HEAD' ? 'Union Head' : slot === 'OFFICER_1' ? 'Union 1' : 'Union 2'}`}
         description="Username unik, displayName, dan akan mewajibkan ganti password."
         footer={
           <>
@@ -154,18 +181,29 @@ export function UnionPage() {
         }
       >
         <Stack gap="md">
+          {bySlot(slot) ? (
+            <p className="admin-meta--xs">
+              Term saat ini: <Badge tone="success">Terisi</Badge> {bySlot(slot)?.account.username} •
+              ganti mengharapkan term {bySlot(slot)?.id.slice(0, 8)} (optimistic).
+            </p>
+          ) : null}
           <Input
             label="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="union-head"
           />
-          <Textarea label="Alasan" value={reason} onChange={(e) => setReason(e.target.value)} />
           <Input
             label="Display name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Union Head"
+          />
+          <Textarea
+            label="Alasan"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Alasan penggantian akun"
           />
           {mutate.error ? (
             <Alert tone="danger" title="Gagal">

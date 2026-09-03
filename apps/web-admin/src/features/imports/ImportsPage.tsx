@@ -4,20 +4,52 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
   DataTable,
+  Dialog,
   FileUpload,
   Loader,
-  PageHeader,
-  Stack,
   Pagination,
-  Dialog,
+  Stack,
   Tabs,
 } from '@care/ui';
+import {
+  CheckCircle2,
+  CircleAlert,
+  CloudUpload,
+  Download,
+  FileSpreadsheet,
+  Info,
+  TriangleAlert,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminStepper } from '../../components/AdminStepper';
 import { createAdminApi, type ImportPreview } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+
+const STEPS = [
+  { title: 'Upload', hint: 'Unggah file .xlsx/.csv' },
+  { title: 'Validasi', hint: 'Periksa data' },
+  { title: 'Preview', hint: 'Preview perubahan' },
+  { title: 'Konfirmasi', hint: 'Konfirmasi impor' },
+];
+
+type ChangeRow = {
+  noReg: string;
+  type: string;
+  positionChanged?: boolean;
+  organizationChanged?: boolean;
+  nameChanged?: boolean;
+};
+
+function changeDetail(row: ChangeRow) {
+  const parts: string[] = [];
+  if (row.positionChanged) parts.push('posisi');
+  if (row.organizationChanged) parts.push('organisasi');
+  if (row.nameChanged) parts.push('nama');
+  return parts.length ? parts.join(' • ') : '—';
+}
 
 export function ImportsPage() {
   const { session, transport } = useAuth();
@@ -143,15 +175,69 @@ export function ImportsPage() {
     },
   });
 
+  const data = detail.data;
+  const step = !data ? 0 : data.errors?.length ? 1 : data.status === 'PREVIEWED' ? 2 : 3;
+  const changeItems = (changes.data?.items ?? []) as ChangeRow[];
+  const counts = {
+    create: data?.summary.create ?? 0,
+    update: data?.summary.update ?? 0,
+    deactivate: data?.summary.deactivate ?? 0,
+    unchanged: Math.max(
+      0,
+      (data?.summary.rowCount ?? 0) -
+        (data?.summary.create ?? 0) -
+        (data?.summary.update ?? 0) -
+        (data?.summary.deactivate ?? 0),
+    ),
+  };
+
+  const downloadSummary = () => {
+    const lines = [
+      'noReg,tipe,detail',
+      ...changeItems.map((row) => `${row.noReg},${row.type},"${changeDetail(row)}"`),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `ringkasan-impor-${data?.id.slice(0, 8) ?? 'batch'}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Stack gap="lg">
-      <PageHeader
+      <AdminPageHeader
         eyebrow="Master Data"
         title="Import & Master Data"
-        description="Unggah file .xlsx atau .csv authoritative 10 MB, preview, dan konfirmasi."
+        description="Unggah, validasi, pratinjau perubahan, dan konfirmasi impor data master."
+        updatedLabel={
+          snapshot.data?.effectiveAt
+            ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
+            : undefined
+        }
+        onRefresh={() => {
+          void list.refetch();
+          void snapshot.refetch();
+          if (previewId) void detail.refetch();
+        }}
+        refreshing={list.isFetching || detail.isFetching}
       />
-      <Card>
-        <Stack gap="md">
+
+      <AdminStepper steps={STEPS} step={step} />
+
+      <div
+        className="care-grid"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(24rem, 1fr))', gap: '1rem' }}
+      >
+        <section className="admin-card" aria-label="Upload file">
+          <h2 className="admin-card__title">
+            <CloudUpload size={18} aria-hidden="true" /> Upload CSV
+          </h2>
+          <p className="admin-card__subtitle">
+            Unggah file .xlsx (sheet “MFG + QD”) atau .csv UTF-8, maksimal 10 MB. Header wajib:
+            Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section.
+          </p>
           <FileUpload
             label="Unggah file organisasi"
             accept=".xlsx,.csv"
@@ -159,287 +245,377 @@ export function ImportsPage() {
             onFilesAdded={(files) => setFile(files[0] ?? null)}
           />
           {file ? (
-            <p className="admin-meta">
-              Terpilih: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+            <p className="admin-meta" style={{ marginTop: '0.5rem' }}>
+              <FileSpreadsheet size={14} aria-hidden="true" /> Terpilih: {file.name} (
+              {(file.size / 1024).toFixed(1)} KB){' '}
+              <Button variant="ghost" size="sm" onClick={() => setFile(null)}>
+                Ganti file
+              </Button>
             </p>
           ) : null}
-          <Button
-            onClick={() => file && previewMutation.mutate(file)}
-            loading={previewMutation.isPending}
-            disabled={!file}
-          >
-            Preview
-          </Button>
           {previewMutation.error ? (
             <Alert tone="danger" title="Gagal preview">
               {String((previewMutation.error as Error).message)}
             </Alert>
           ) : null}
-        </Stack>
-      </Card>
+        </section>
 
-      {detail.data ? (
-        <Card>
-          <Stack gap="md">
-            <div className="admin-card__head">
+        <section className="admin-card" aria-label="Ringkasan batch">
+          <div className="admin-section__head">
+            <h2 className="admin-card__title" style={{ margin: 0 }}>
+              Ringkasan batch
+            </h2>
+            {data ? (
               <Badge
                 tone={
-                  detail.data.status === 'CONFIRMED'
+                  data.status === 'CONFIRMED'
                     ? 'success'
-                    : detail.data.status === 'FAILED'
+                    : data.status === 'FAILED'
                       ? 'danger'
                       : 'info'
                 }
               >
-                {detail.data.status}
+                {data.status === 'PREVIEWED' ? 'SIAP DIVALIDASI' : data.status}
               </Badge>
-              <span className="admin-meta">
-                Checksum {detail.data.checksum.slice(0, 12)} • v{detail.data.version} • exp{' '}
-                {new Date(detail.data.expiresAt).toLocaleString('id-ID')}
+            ) : (
+              <span className="admin-pill" data-tone="neutral">
+                Belum ada batch
               </span>
-            </div>
-            <div className="admin-mini-stats">
-              <div className="admin-mini-stat">
-                <strong>{detail.data.summary.rowCount}</strong>
-                <span>Rows</span>
-              </div>
-              <div className="admin-mini-stat">
-                <strong>{detail.data.summary.create}</strong>
-                <span>Create</span>
-              </div>
-              <div className="admin-mini-stat">
-                <strong>{detail.data.summary.update}</strong>
-                <span>Update</span>
-              </div>
-              <div className="admin-mini-stat">
-                <strong>{detail.data.summary.deactivate}</strong>
-                <span>Deactivate</span>
-              </div>
-              <div className="admin-mini-stat">
-                <strong>{detail.data.summary.department14Rows}</strong>
-                <span>Dept 14</span>
-              </div>
-            </div>
-            {detail.data.errors?.length ? (
-              <Alert
-                tone={
-                  detail.data.errors.some((e) => e.code === 'DUPLICATE_DEPARTMENT_HEAD')
-                    ? 'danger'
-                    : 'warning'
-                }
-                title="Blocking validation"
-              >
-                {detail.data.errors
-                  .map((e) => `${String(e.code)}: ${String(e.message ?? '')}`)
-                  .join(' • ')}
-              </Alert>
-            ) : null}
-            {detail.data.status === 'PREVIEWED' ? (
-              <Button
-                onClick={() => {
-                  setConfirmKey(crypto.randomUUID());
-                  setConfirmOpen(true);
-                }}
-                variant="primary"
-                disabled={Boolean(detail.data.errors?.length)}
-              >
-                Konfirmasi import
-              </Button>
-            ) : null}
-            {detail.data.status === 'QUEUED' || detail.data.status === 'PROCESSING' ? (
-              <Loader label="Memproses import" />
-            ) : null}
-            {detail.data.status === 'CONFIRMED' ? (
-              <Alert tone="success" title="Berhasil">
-                Import telah dikonfirmasi.
-              </Alert>
-            ) : null}
-            {detail.data.status === 'FAILED' ? (
-              <Alert tone="danger" title="Gagal">
-                Import gagal diproses.
-              </Alert>
-            ) : null}
-          </Stack>
-        </Card>
+            )}
+          </div>
+          {data ? (
+            <Stack gap="sm">
+              <dl className="admin-dl">
+                <div>
+                  <dt>Nama batch</dt>
+                  <dd className="admin-id">{data.id.slice(0, 8)}</dd>
+                </div>
+                <div>
+                  <dt>Diupload pada</dt>
+                  <dd>{new Date(data.createdAt).toLocaleString('id-ID')}</dd>
+                </div>
+                <div>
+                  <dt>Total baris</dt>
+                  <dd>{data.summary.rowCount.toLocaleString('id-ID')}</dd>
+                </div>
+                <div>
+                  <dt>Checksum</dt>
+                  <dd className="admin-id">{data.checksum.slice(0, 12)}…</dd>
+                </div>
+              </dl>
+              <ul className="admin-rows">
+                <li>
+                  <span className="admin-rowmark" data-tone="success">
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                  </span>
+                  <span className="admin-rowbody">
+                    <strong>Akan dibuat</strong>
+                  </span>
+                  <span className="admin-rowside">
+                    <strong>{counts.create.toLocaleString('id-ID')}</strong>
+                  </span>
+                </li>
+                <li>
+                  <span className="admin-rowmark" data-tone="warning">
+                    <TriangleAlert size={16} aria-hidden="true" />
+                  </span>
+                  <span className="admin-rowbody">
+                    <strong>Akan diperbarui</strong>
+                  </span>
+                  <span className="admin-rowside">
+                    <strong>{counts.update.toLocaleString('id-ID')}</strong>
+                  </span>
+                </li>
+                <li>
+                  <span className="admin-rowmark" data-tone="danger">
+                    <CircleAlert size={16} aria-hidden="true" />
+                  </span>
+                  <span className="admin-rowbody">
+                    <strong>Akan dinonaktifkan</strong>
+                  </span>
+                  <span className="admin-rowside">
+                    <strong>{counts.deactivate.toLocaleString('id-ID')}</strong>
+                  </span>
+                </li>
+                <li>
+                  <span className="admin-rowmark" data-tone="info">
+                    <Info size={16} aria-hidden="true" />
+                  </span>
+                  <span className="admin-rowbody">
+                    <strong>Tidak ada perubahan</strong>
+                  </span>
+                  <span className="admin-rowside">
+                    <strong>{counts.unchanged.toLocaleString('id-ID')}</strong>
+                  </span>
+                </li>
+              </ul>
+              <p className="admin-note">
+                <Info size={14} aria-hidden="true" />
+                <span>
+                  Snapshot aktif saat ini diambil{' '}
+                  {snapshot.data?.effectiveAt
+                    ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
+                    : '—'}
+                  . Konfirmasi menonaktifkan akun yang hilang dari snapshot baru.
+                </span>
+              </p>
+            </Stack>
+          ) : (
+            <p className="admin-meta">
+              Pilih file lalu tekan “Validasi data” untuk membuat pratinjau batch.
+            </p>
+          )}
+        </section>
+      </div>
+
+      {data?.errors?.length ? (
+        <Alert
+          tone={
+            data.errors.some((e) => e.code === 'DUPLICATE_DEPARTMENT_HEAD') ? 'danger' : 'warning'
+          }
+          title="Blocking validation"
+        >
+          {data.errors.map((e) => `${String(e.code)}: ${String(e.message ?? '')}`).join(' • ')}
+        </Alert>
       ) : null}
 
-      {changes.data ? (
-        <Card>
-          <Stack gap="sm">
-            <strong>Perubahan ({changes.data.total})</strong>
+      {data ? (
+        <section className="admin-table-card" aria-label="Ringkasan perubahan">
+          <div className="admin-section__head" style={{ padding: '1rem 1.25rem 0' }}>
+            <div>
+              <h2 className="admin-card__title" style={{ margin: 0 }}>
+                Ringkasan perubahan (pratinjau)
+              </h2>
+              <p className="admin-card__subtitle" style={{ margin: 0 }}>
+                Menampilkan hingga 20 baris pertama dari setiap kategori perubahan.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={downloadSummary}
+              disabled={!changeItems.length}
+            >
+              <Download size={14} /> Unduh ringkasan
+            </Button>
+          </div>
+          <div style={{ padding: '0 1.25rem' }}>
             <Tabs
               label="Filter perubahan"
               defaultValue={changeFilter || 'ALL'}
-              items={['ALL', 'CREATE', 'UPDATE', 'UNCHANGED', 'DEACTIVATE'].map((value) => ({
-                value,
-                label: value,
-                content: null,
-              }))}
+              items={[
+                { value: 'ALL', label: 'Semua', content: null },
+                { value: 'CREATE', label: `Akan dibuat (${counts.create})`, content: null },
+                { value: 'UPDATE', label: `Akan diperbarui (${counts.update})`, content: null },
+                {
+                  value: 'DEACTIVATE',
+                  label: `Akan dinonaktifkan (${counts.deactivate})`,
+                  content: null,
+                },
+              ]}
               onValueChange={(value) => {
                 setChangeFilter(value === 'ALL' ? '' : value);
                 setChangeCursor(undefined);
                 setChangeHistory([]);
               }}
             />
-            <DataTable
-              columns={[
-                { key: 'noReg', header: 'NoReg', cell: (r: { noReg: string }) => r.noReg },
-                {
-                  key: 'type',
-                  header: 'Tipe',
-                  cell: (r: { type: string }) => (
-                    <Badge
-                      tone={
-                        r.type === 'CREATE'
-                          ? 'success'
-                          : r.type === 'DEACTIVATE'
-                            ? 'danger'
-                            : 'info'
-                      }
-                    >
-                      {r.type}
-                    </Badge>
-                  ),
-                },
-              ]}
-              rows={changes.data.items as never}
-              rowKey={(r: { noReg: string; type: string }) => `${r.noReg}-${r.type}`}
-              empty={<span>Tidak ada perubahan</span>}
-            />
-            <Pagination
-              page={changeHistory.length + 1}
-              pageCount={changeHistory.length + 1 + (changes.data.nextCursor ? 1 : 0)}
-              onPageChange={(page) => {
-                if (page < changeHistory.length + 1) {
-                  const previous = changeHistory.at(-1) || undefined;
-                  setChangeHistory((items) => items.slice(0, -1));
-                  setChangeCursor(previous);
-                } else if (changes.data.nextCursor) {
-                  setChangeHistory((items) => [...items, changeCursor ?? '']);
-                  setChangeCursor(changes.data.nextCursor);
-                }
-              }}
-            />
-          </Stack>
-        </Card>
+          </div>
+          {changes.isLoading ? (
+            <div style={{ padding: '1.25rem' }}>
+              <Loader label="Memuat perubahan" />
+            </div>
+          ) : (
+            <>
+              <DataTable
+                caption="Pratinjau perubahan impor"
+                columns={[
+                  {
+                    key: 'noReg',
+                    header: 'No. Reg',
+                    cell: (r: ChangeRow) => <span className="admin-id">{r.noReg}</span>,
+                  },
+                  {
+                    key: 'type',
+                    header: 'Kategori',
+                    cell: (r: ChangeRow) => (
+                      <Badge
+                        tone={
+                          r.type === 'CREATE'
+                            ? 'success'
+                            : r.type === 'DEACTIVATE'
+                              ? 'danger'
+                              : 'warning'
+                        }
+                      >
+                        {r.type}
+                      </Badge>
+                    ),
+                  },
+                  { key: 'detail', header: 'Perubahan', cell: (r: ChangeRow) => changeDetail(r) },
+                ]}
+                rows={changeItems as never}
+                rowKey={(r: ChangeRow) => `${r.noReg}-${r.type}`}
+                empty={<span>Tidak ada perubahan</span>}
+              />
+              <div className="admin-table-foot">
+                <span>
+                  Total {changes.data?.total ?? 0} perubahan
+                  {changeFilter ? ` · filter ${changeFilter}` : ''}
+                </span>
+                <Pagination
+                  page={changeHistory.length + 1}
+                  pageCount={changeHistory.length + 1 + (changes.data?.nextCursor ? 1 : 0)}
+                  onPageChange={(page) => {
+                    if (page < changeHistory.length + 1) {
+                      const previous = changeHistory.at(-1) || undefined;
+                      setChangeHistory((items) => items.slice(0, -1));
+                      setChangeCursor(previous);
+                    } else if (changes.data?.nextCursor) {
+                      setChangeHistory((items) => [...items, changeCursor ?? '']);
+                      setChangeCursor(changes.data.nextCursor);
+                    }
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </section>
       ) : null}
 
-      <Tabs
-        label="Import tabs"
-        defaultValue="history"
-        items={[
-          {
-            value: 'history',
-            label: 'History',
-            content: (
-              <Stack gap="sm">
-                {list.isLoading ? (
-                  <Loader label="Memuat history" />
-                ) : list.error ? (
-                  <Alert tone="danger" title="Gagal">
-                    {String((list.error as Error).message)}
-                  </Alert>
-                ) : (
-                  <>
-                    <DataTable
-                      columns={[
-                        { key: 'id', header: 'ID', cell: (r: ImportPreview) => r.id.slice(0, 8) },
-                        {
-                          key: 'status',
-                          header: 'Status',
-                          cell: (r: ImportPreview) => (
-                            <Stack gap="xs">
-                              <Badge
-                                tone={
-                                  r.status === 'CONFIRMED'
-                                    ? 'success'
-                                    : r.status === 'FAILED'
-                                      ? 'danger'
-                                      : 'info'
-                                }
-                              >
-                                {r.status}
-                              </Badge>
-                              {(r as ImportPreview & { failureCode?: string | null })
-                                .failureCode ? (
-                                <small>
-                                  {
-                                    (r as ImportPreview & { failureCode?: string | null })
-                                      .failureCode
-                                  }
-                                </small>
-                              ) : null}
-                            </Stack>
-                          ),
-                        },
-                        {
-                          key: 'rowCount',
-                          header: 'Rows',
-                          cell: (r: ImportPreview) =>
-                            String((r.summary as { rowCount: number }).rowCount),
-                        },
-                        {
-                          key: 'createdAt',
-                          header: 'Dibuat',
-                          cell: (r: ImportPreview) => new Date(r.createdAt).toLocaleString('id-ID'),
-                        },
-                      ]}
-                      rows={(list.data?.items ?? []) as never}
-                      rowKey={(r: ImportPreview) => r.id}
-                      empty={<span>Belum ada import</span>}
-                    />
-                    <Pagination
-                      page={pagination.page}
-                      pageCount={pagination.page + (list.data?.nextCursor ? 1 : 0)}
-                      onPageChange={(page) =>
-                        page < pagination.page
-                          ? pagination.previous()
-                          : list.data?.nextCursor
-                            ? pagination.next(list.data.nextCursor)
-                            : undefined
-                      }
-                    />
-                  </>
-                )}
-              </Stack>
-            ),
-          },
-          {
-            value: 'snapshot',
-            label: 'Snapshot aktif',
-            content: snapshot.isLoading ? (
-              <Loader label="Memuat snapshot" />
-            ) : (
-              <dl className="admin-dl">
-                <div>
-                  <dt>Snapshot ID</dt>
-                  <dd>{snapshot.data?.id ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{snapshot.data?.status ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt>Unit</dt>
-                  <dd>{snapshot.data?.unitCount ?? 0}</dd>
-                </div>
-                <div>
-                  <dt>Member</dt>
-                  <dd>{snapshot.data?.memberCount ?? 0}</dd>
-                </div>
-                <div>
-                  <dt>Efektif</dt>
-                  <dd>
-                    {snapshot.data?.effectiveAt
-                      ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
-                      : '-'}
-                  </dd>
-                </div>
-              </dl>
-            ),
-          },
-        ]}
-      />
+      <div
+        className="admin-card"
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '0.75rem',
+          position: 'sticky',
+          bottom: '1rem',
+        }}
+      >
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setFile(null);
+            const params = new URLSearchParams(searchParams);
+            params.delete('previewId');
+            setSearchParams(params);
+          }}
+        >
+          Batal
+        </Button>
+        {!data ? (
+          <Button
+            onClick={() => file && previewMutation.mutate(file)}
+            loading={previewMutation.isPending}
+            disabled={!file}
+          >
+            Validasi data →
+          </Button>
+        ) : data.status === 'PREVIEWED' ? (
+          <Button
+            onClick={() => {
+              setConfirmKey(crypto.randomUUID());
+              setConfirmOpen(true);
+            }}
+            disabled={Boolean(data.errors?.length)}
+          >
+            Konfirmasi import
+          </Button>
+        ) : data.status === 'QUEUED' || data.status === 'PROCESSING' ? (
+          <Loader label="Memproses import" />
+        ) : data.status === 'CONFIRMED' ? (
+          <Alert tone="success" title="Berhasil">
+            Import telah dikonfirmasi.
+          </Alert>
+        ) : (
+          <Alert tone="danger" title="Gagal">
+            Import gagal diproses.
+          </Alert>
+        )}
+      </div>
+
+      <section className="admin-table-card" aria-label="Riwayat impor">
+        <div className="admin-section__head" style={{ padding: '1rem 1.25rem 0' }}>
+          <h2 className="admin-card__title" style={{ margin: 0 }}>
+            Riwayat impor
+          </h2>
+        </div>
+        {list.isLoading ? (
+          <div style={{ padding: '1.25rem' }}>
+            <Loader label="Memuat history" />
+          </div>
+        ) : list.error ? (
+          <div style={{ padding: '1.25rem' }}>
+            <Alert tone="danger" title="Gagal">
+              {String((list.error as Error).message)}
+            </Alert>
+          </div>
+        ) : (
+          <>
+            <DataTable
+              caption="Riwayat batch impor"
+              columns={[
+                {
+                  key: 'id',
+                  header: 'Batch',
+                  cell: (r: ImportPreview) => <span className="admin-id">{r.id.slice(0, 8)}</span>,
+                },
+                {
+                  key: 'status',
+                  header: 'Status',
+                  cell: (r: ImportPreview) => (
+                    <span style={{ display: 'grid', gap: '0.25rem' }}>
+                      <Badge
+                        tone={
+                          r.status === 'CONFIRMED'
+                            ? 'success'
+                            : r.status === 'FAILED'
+                              ? 'danger'
+                              : 'info'
+                        }
+                      >
+                        {r.status}
+                      </Badge>
+                      {(r as ImportPreview & { failureCode?: string | null }).failureCode ? (
+                        <small>
+                          {(r as ImportPreview & { failureCode?: string | null }).failureCode}
+                        </small>
+                      ) : null}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'rowCount',
+                  header: 'Baris',
+                  cell: (r: ImportPreview) => String((r.summary as { rowCount: number }).rowCount),
+                },
+                {
+                  key: 'createdAt',
+                  header: 'Dibuat',
+                  cell: (r: ImportPreview) => new Date(r.createdAt).toLocaleString('id-ID'),
+                },
+              ]}
+              rows={(list.data?.items ?? []) as never}
+              rowKey={(r: ImportPreview) => r.id}
+              empty={<span>Belum ada import</span>}
+            />
+            <div className="admin-table-foot">
+              <span>Snapshot aktif: {snapshot.data?.id?.slice(0, 8) ?? '—'}</span>
+              <Pagination
+                page={pagination.page}
+                pageCount={pagination.page + (list.data?.nextCursor ? 1 : 0)}
+                onPageChange={(page) =>
+                  page < pagination.page
+                    ? pagination.previous()
+                    : list.data?.nextCursor
+                      ? pagination.next(list.data.nextCursor)
+                      : undefined
+                }
+              />
+            </div>
+          </>
+        )}
+      </section>
 
       <Dialog
         open={confirmOpen}
@@ -455,7 +631,7 @@ export function ImportsPage() {
               onClick={() => confirmMutation.mutate()}
               loading={confirmMutation.isPending}
               variant="primary"
-              disabled={Boolean(detail.data?.errors?.length) || !confirmKey}
+              disabled={Boolean(data?.errors?.length) || !confirmKey}
             >
               Ya, konfirmasi
             </Button>
@@ -463,8 +639,8 @@ export function ImportsPage() {
         }
       >
         <Alert tone="warning" title="Perhatikan deactivation">
-          {detail.data
-            ? `${detail.data.summary.deactivate} akun akan dinonaktifkan. Pastikan sudah benar.`
+          {data
+            ? `${data.summary.deactivate} akun akan dinonaktifkan. Pastikan sudah benar.`
             : 'Pastikan file sudah benar.'}
         </Alert>
         {confirmMutation.error ? (

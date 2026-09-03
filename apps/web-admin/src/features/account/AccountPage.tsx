@@ -1,6 +1,7 @@
 import { useAuth } from '@care/frontend-core';
-import { Alert, Avatar, Button, Card, Input, PageHeader, Stack } from '@care/ui';
+import { Alert, Avatar, Button, Input, Stack } from '@care/ui';
 import { useState, type FormEvent } from 'react';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 
 export function AccountPage() {
   const { session, transport, refresh, logout } = useAuth();
@@ -35,12 +36,12 @@ export function AccountPage() {
   }
   return (
     <Stack gap="lg">
-      <PageHeader
+      <AdminPageHeader
         eyebrow="Akun"
         title="Akun Saya"
         description="Kelola akun CARE Admin tunggal yang dikelola CLI."
       />
-      <Card>
+      <section className="admin-card" aria-label="Profil Admin">
         <Stack gap="sm">
           <div className="admin-identity">
             <Avatar name={session.account.displayName || session.account.username} size="lg" />
@@ -73,10 +74,10 @@ export function AccountPage() {
             via UI untuk Admin.
           </Alert>
         </Stack>
-      </Card>
-      <Card>
+      </section>
+      <section className="admin-card" aria-label="Ganti password">
         <Stack gap="md">
-          <h3>Ganti password saya</h3>
+          <h3 style={{ margin: 0 }}>Ganti password saya</h3>
           {error ? (
             <Alert tone="danger" title="Gagal">
               {error}
@@ -118,7 +119,7 @@ export function AccountPage() {
             Keluar
           </Button>
         </Stack>
-      </Card>
+      </section>
     </Stack>
   );
 }

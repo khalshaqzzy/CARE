@@ -277,25 +277,40 @@ export class AdminService {
   }
 
   async overview() {
-    const [accountGroups, openRemediation, latestImport, unionSlots, recentResolution] =
-      await Promise.all([
-        this.prisma.userAccount.groupBy({ by: ['status'], _count: { _all: true } }),
-        this.prisma.importIssue.count({ where: { status: ImportIssueStatus.OPEN } }),
-        this.prisma.importBatch.findFirst({
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          select: { id: true, status: true, createdAt: true },
-        }),
-        this.prisma.unionAccountTerm.count({
-          where: { effectiveTo: null, account: { status: AccountStatus.ACTIVE } },
-        }),
-        this.prisma.importIssueResolution.findFirst({
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          select: { id: true, action: true, createdAt: true },
-        }),
-      ]);
+    const [
+      accountGroups,
+      openRemediation,
+      latestImport,
+      unionSlots,
+      recentResolution,
+      voiceGroups,
+      criticalVoices,
+      failedAudits,
+    ] = await Promise.all([
+      this.prisma.userAccount.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.importIssue.count({ where: { status: ImportIssueStatus.OPEN } }),
+      this.prisma.importBatch.findFirst({
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, status: true, createdAt: true, summary: true },
+      }),
+      this.prisma.unionAccountTerm.count({
+        where: { effectiveTo: null, account: { status: AccountStatus.ACTIVE } },
+      }),
+      this.prisma.importIssueResolution.findFirst({
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, action: true, createdAt: true },
+      }),
+      this.prisma.voice.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.voice.count({ where: { severity: 'CRITICAL', status: { not: 'CLOSED' } } }),
+      this.prisma.auditEvent.count({ where: { result: 'FAILED' } }),
+    ]);
     const accountCounts = Object.fromEntries(
       accountGroups.map((group) => [group.status, group._count._all]),
     );
+    const voiceCounts = Object.fromEntries(
+      voiceGroups.map((group) => [group.status, group._count._all]),
+    );
+    const summary = (latestImport?.summary ?? {}) as Record<string, unknown>;
     return {
       accounts: {
         active: accountCounts.ACTIVE ?? 0,
@@ -303,9 +318,29 @@ export class AdminService {
         inactive: accountCounts.INACTIVE ?? 0,
       },
       openRemediation,
-      latestImport,
+      latestImport: latestImport
+        ? {
+            id: latestImport.id,
+            status: latestImport.status,
+            createdAt: latestImport.createdAt,
+            summary: {
+              rowCount: Number(summary.rowCount ?? 0),
+              create: Number(summary.create ?? 0),
+              update: Number(summary.update ?? 0),
+              deactivate: Number(summary.deactivate ?? 0),
+            },
+          }
+        : null,
       unionSlots,
       recentResolution,
+      voices: {
+        open: voiceCounts.OPEN ?? 0,
+        inVerification: voiceCounts.IN_VERIFICATION ?? 0,
+        inProgress: voiceCounts.IN_PROGRESS ?? 0,
+        closed: voiceCounts.CLOSED ?? 0,
+        critical: criticalVoices,
+      },
+      failedAudits,
     };
   }
 

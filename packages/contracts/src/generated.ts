@@ -2203,6 +2203,12 @@ export interface components {
                 status: string;
                 /** Format: date-time */
                 createdAt: string;
+                summary?: {
+                    rowCount?: number;
+                    create?: number;
+                    update?: number;
+                    deactivate?: number;
+                } | null;
             } | null;
             unionSlots: number;
             recentResolution: {
@@ -2212,6 +2218,14 @@ export interface components {
                 /** Format: date-time */
                 createdAt: string;
             } | null;
+            voices: {
+                open: number;
+                inVerification: number;
+                inProgress: number;
+                closed: number;
+                critical: number;
+            };
+            failedAudits: number;
         };
         AccountSummary: {
             /** Format: uuid */
