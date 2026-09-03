@@ -183,6 +183,43 @@
   height: 15rem;
   color: rgb(255 255 255 / 14%);
 }
+/* Login-only hero variant: welcome headline plus the member-voice artwork,
+   whose edges land on the blue panel edges on every breakpoint. */
+.auth-brand--media {
+  grid-template-columns: minmax(0, 1fr);
+  padding-bottom: 0;
+}
+.auth-brand--media h1 {
+  max-width: none;
+  /* Tighten the lockup-to-headline gap beyond the hero grid gap. */
+  margin-top: calc(-1 * var(--space-3));
+  font-size: clamp(2.1rem, 3.2vw, 2.6rem);
+  line-height: 1.08;
+}
+.auth-brand__title-accent {
+  color: rgb(168 212 244);
+}
+.auth-brand__title-accent::after {
+  content: '';
+  display: block;
+  width: 2.75rem;
+  height: 0.28rem;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: rgb(76 183 232);
+}
+.auth-brand__asset {
+  display: block;
+  width: auto;
+  max-width: none;
+  justify-self: stretch;
+  /* Cancel the hero grid gap and pull the artwork up ~15% of its own height
+     (2:3 aspect, so ~11.5% of the track width) to tuck its transparent top
+     into the headline block. Negative inline margins land the artwork edges
+     on the panel edges; stretch plus auto width extends the content box by
+     the same amount. */
+  margin: calc(-1 * var(--space-5) - 11.5%) calc(-1 * var(--space-10)) 0;
+}
 .auth-card {
   position: relative;
   width: min(100%, 30rem);
@@ -274,6 +311,17 @@
   }
   .auth-brand h1 {
     font-size: 2.1rem;
+  }
+  /* Same single-class specificity as the .auth-brand shorthand above but
+     declared later, so the artwork keeps the hero's bottom edge. */
+  .auth-brand--media {
+    padding-bottom: 0;
+  }
+  .auth-brand--media h1 {
+    font-size: 2.15rem;
+  }
+  .auth-brand__asset {
+    margin-inline: calc(-1 * var(--space-6));
   }
   /* Give long member names room next to the hero orbs. */
   .member-hero__identity {
