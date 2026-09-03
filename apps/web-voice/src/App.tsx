@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import authHeroAsset from './assets/auth-hero-asset.png';
 import { registerCareServiceWorker } from './register-sw.js';
 import { getBrowserCapabilities } from './lib/browser-capabilities';
 import { AccountPage } from './features/account/AccountPage';
@@ -178,21 +179,21 @@ function LoginPage() {
   }
   return (
     <main className="auth-layout">
-      <section className="auth-brand">
+      <section className="auth-brand auth-brand--media">
         <div className="auth-brand__lockup">
           <div className="brand-mark">C</div>
           <strong>CARE</strong>
         </div>
         <h1>
-          <span>Sampaikan suara.</span> <span>Pantau tindak lanjutnya.</span>
+          <span>Selamat datang</span> <span className="auth-brand__title-accent">di CARE.</span>
         </h1>
-        <p>Kanal internal untuk laporan General dan Private yang aman serta dapat ditelusuri.</p>
+        <img alt="" className="auth-brand__asset" height={768} src={authHeroAsset} width={1152} />
       </section>
       <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
             <h2>Selamat datang kembali</h2>
-            <p>Masuk untuk melanjutkan ke CARE Enterprise Member Voice.</p>
+            <p>Login untuk melanjutkan ke CARE</p>
           </div>
           {error ? (
             <Alert tone="danger" title="Tidak dapat masuk">
@@ -204,8 +205,8 @@ function LoginPage() {
               label="Username"
               autoComplete="username"
               leading={<UserRound size={18} />}
-              placeholder="Username"
-              helperText="Gunakan nomor registrasi atau username Union Anda."
+              placeholder="Contoh: 00111111"
+              helperText="Gunakan 8 digit NoReg Anda."
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required

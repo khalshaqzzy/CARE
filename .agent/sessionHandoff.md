@@ -1,16 +1,61 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 3 September 2026                                                                                                                                                     |
-| Current objective       | Polish admin-web to a premium, sleek finish (frontend-only) incl. zero table bleed, judged PASS                                                                      |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                   |
-| Backend Complete Gate   | Unchanged (ADR-0034 additive overview extension stands; this pass adds no API/contract change)                                                                       |
-| Implementation status   | Admin premium polish implemented locally on `feat/admin-web-polish`: tokens/components/CSS + per-page polish, 9 baselines regen, judge PASS, full local parity green |
-| Latest ADR              | ADR-0035 (Admin web premium polish)                                                                                                                                  |
-| Recommended next action | Review/commit the branch and run hosted CI; Phase 13 staging deployment remains intentionally `in_progress`                                                          |
+| Atribut                 | Nilai                                                                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 3 September 2026                                                                                                                                                  |
+| Current objective       | Workforce login hero artwork + copy refresh (frontend-only) on `feat/auth-submit-page-polish`                                                                     |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                |
+| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                                                                            |
+| Implementation status   | Login hero artwork + copy refresh implemented locally on `feat/auth-submit-page-polish`; login baseline regen; full mocked e2e 177/177 green                      |
+| Latest ADR              | ADR-0036 (workforce login hero artwork and copy refresh)                                                                                                          |
+| Recommended next action | Review/commit the branch and run hosted CI; animated password placeholder intentionally deferred; Phase 13 staging deployment remains intentionally `in_progress` |
 
 ## Session Outcome
+
+### Workforce login hero artwork and copy refresh — 3 September 2026
+
+Branch `feat/auth-submit-page-polish` (from latest `main`). Frontend-only
+change implementing ADR-0036 while leaving Phase 13 `in_progress`: the login
+hero becomes a media variant with the supplied member-voice artwork
+(full-bleed, edges on the blue background's edges, wave forming the hero
+bottom edge) and the approved copy refresh. `packages/ui` untouched;
+ChangePasswordPage hero byte-identical; no API/schema/contract change.
+
+- **Hero.** New `auth-brand--media` modifier (login only): lockup, headline
+  "Selamat datang di CARE." (accent line + rounded underline, no "Halo!" per
+  product-owner update), artwork `src/assets/auth-hero-asset.png` (1152×768
+  899 KB PNG; source alpha verified genuinely transparent before use;
+  resampled from 1536×1024; Vite-fingerprinted import, decorative `alt=""`,
+  width/height set). Full bleed via `justify-self: stretch` + `width: auto` +
+  `max-width: none` + negative inline margins (percentage width calc proved
+  unreliable in the grid track). Artwork sits flush under the headline
+  (grid gap cancelled, ~15% overlap via `-11.5%` top margin); lockup gap
+  tightened. The wave is the hero's bottom edge (mobile `padding-bottom: 0`
+  re-declared after the equal-specificity mobile shorthand — a single-class
+  modifier is (0,1,0); cascade lesson recorded in ADR-0036 and a CSS
+  comment).
+- **Copy.** Subtitle "Login untuk melanjutkan ke CARE"; username placeholder
+  "Contoh: 00111111"; helper "Gunakan 8 digit NoReg Anda."; password
+  placeholder stays "Password".
+- **Deferred.** Animated drifting password placeholder ("Password awal adalah
+  NoReg Anda.") intentionally deferred per product owner mid-implementation;
+  overlay/keyframes/measurement helper removed before final validation.
+  Recorded in ADR-0036 follow-up work.
+- **Validation.** format:check, lint (zero warnings), typecheck, unit suites
+  (API 79, UI 26, frontend-core 14, Admin 2, workforce 81), production
+  build, PWA artifact gate (main gzip 131,673 B vs 143,500 B budget), full
+  mocked `test:frontend:e2e` **177/177** (chromium + visual + pwa + push +
+  legacy-ios WebKit); login visual baseline `workforce-login-360.png`
+  regenerated delete-first and verified across two consecutive deterministic
+  runs (other 46 baselines byte-stable); Gitleaks v8.24.3 directory scan
+  clean; `git diff --check` clean. Database-backed suites not rerun
+  (frontend-only change set; documented precedent). Temporary verification
+  spec removed before commit; no containers started beyond the Gitleaks
+  scan image.
+
+Next action: review/commit the branch and run hosted CI; animated password
+placeholder and possible shared auth-layout extraction are follow-ups;
+Phase 13 staging deployment remains intentionally `in_progress`.
 
 ### Admin web premium polish — 3 September 2026
 

@@ -892,3 +892,25 @@ status tidak berubah. Mengikuti ADR-0033 dan PRD §41.
   conflict retention, keyboard selection, axe, dan restricted history.
   Final parity results dicatat di `sessionHandoff.md`; hosted deployment tetap
   pekerjaan Phase 13 terpisah.
+
+## Workforce login hero artwork and copy refresh (implementation complete, 3 September 2026)
+
+Status: `done` untuk implementation scope lokal pada branch
+`feat/auth-submit-page-polish`; **Phase 13 tetap `in_progress`** dan staging
+status tidak berubah. Mengikuti ADR-0036.
+
+- Login page (hanya login; ChangePasswordPage tidak berubah) memakai hero
+  varian media: lockup, headline "Selamat datang di CARE." dengan aksen,
+  dan artwork member-voice full-bleed (`src/assets/auth-hero-asset.png`,
+  1152×768 PNG dengan alpha terverifikasi) yang tepinya menyentuh tepi
+  background biru dan wave-nya menjadi tepi bawah hero.
+- Copy login diperbarui: subtitle "Login untuk melanjutkan ke CARE",
+  placeholder username "Contoh: 00111111", helper "Gunakan 8 digit NoReg
+  Anda.". Password placeholder tetap "Password".
+- Animated drifting password placeholder ditunda secara eksplisit
+  (follow-up ADR-0036); tidak ada kode overlay/animasi yang di-commit.
+- Acceptance lokal: format/lint/typecheck/unit (API 79, UI 26,
+  frontend-core 14, Admin 2, workforce 81), production build, PWA budget,
+  mocked e2e 177/177 termasuk baseline login 360 regen delete-first dua
+  run deterministik, Gitleaks, dan `git diff --check`. Suite berbasis
+  database tidak dijalankan ulang (change set frontend-only).
