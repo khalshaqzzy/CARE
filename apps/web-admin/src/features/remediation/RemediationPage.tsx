@@ -7,7 +7,6 @@ import {
   DataTable,
   Drawer,
   Input,
-  Loader,
   Pagination,
   Select,
   Stack,
@@ -15,8 +14,10 @@ import {
 import { AlertTriangle, Building2, CheckCircle2, Clock3, Info, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AdminEmpty } from '../../components/AdminEmpty';
 import { AdminKpi } from '../../components/AdminKpi';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type RemediationList } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 import { CategoryConfiguration } from './CategoryConfiguration';
@@ -210,7 +211,7 @@ export function RemediationPage() {
         className="care-grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))', gap: '1rem' }}
       >
-        <section className="admin-card" aria-label="Mode route">
+        <section className="admin-card admin-card--hero" aria-label="Mode route">
           <dl className="admin-dl">
             <div>
               <dt>Route mode</dt>
@@ -228,7 +229,7 @@ export function RemediationPage() {
             </div>
           </dl>
         </section>
-        <section className="admin-card" aria-label="Statistik route">
+        <section className="admin-card admin-card--subtle" aria-label="Statistik route">
           <div
             className="admin-kpi-strip admin-kpi-strip--2col"
             style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', rowGap: '1rem' }}
@@ -268,15 +269,12 @@ export function RemediationPage() {
         </section>
       </div>
 
-      <div
-        className="care-grid"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(26rem, 1fr))', gap: '1rem' }}
-      >
+      <div className="care-grid admin-stack-split" style={{ gap: '1rem' }}>
         <div>
           <CategoryConfiguration />
         </div>
 
-        <section className="admin-table-card" aria-label="Antrian remediation">
+        <section className="admin-table-card admin-card--lift" aria-label="Antrian remediation">
           <div style={{ padding: '1rem 1.25rem 0' }}>
             <div className="admin-section__head">
               <div>
@@ -288,7 +286,10 @@ export function RemediationPage() {
                 </p>
               </div>
             </div>
-            <div className="admin-filterbar" style={{ boxShadow: 'none', marginTop: '0.75rem' }}>
+            <div
+              className="admin-filterbar admin-filterbar--compact"
+              style={{ boxShadow: 'none', marginTop: '0.75rem' }}
+            >
               <div
                 className="admin-filterbar__controls"
                 style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
@@ -331,7 +332,7 @@ export function RemediationPage() {
           </div>
           {issues.isLoading ? (
             <div style={{ padding: '1.25rem' }}>
-              <Loader label="Memuat remediation" />
+              <AdminSkeleton lines={4} label="Memuat remediation" />
             </div>
           ) : issues.error ? (
             <div style={{ padding: '1.25rem' }}>
@@ -399,7 +400,7 @@ export function RemediationPage() {
                     key: 'updated',
                     header: 'Terakhir diperbarui',
                     cell: (r: Issue) => (
-                      <span style={{ whiteSpace: 'nowrap' }}>
+                      <span className="admin-nums" style={{ whiteSpace: 'nowrap' }}>
                         <Clock3 size={12} aria-hidden="true" /> {formatDetectedAt(r.createdAt)}
                       </span>
                     ),
@@ -426,10 +427,11 @@ export function RemediationPage() {
                 rows={rows as never}
                 rowKey={(r: Issue) => r.id}
                 empty={
-                  <span>
-                    <CheckCircle2 size={18} aria-hidden="true" /> Tidak ada isu — tidak ada
-                    remediation yang cocok dengan filter saat ini.
-                  </span>
+                  <AdminEmpty
+                    title="Tidak ada isu"
+                    description="Tidak ada remediation yang cocok dengan filter saat ini."
+                    icon={<CheckCircle2 size={20} aria-hidden="true" />}
+                  />
                 }
               />
               <div className="admin-table-foot">

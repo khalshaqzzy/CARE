@@ -24,6 +24,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminEmpty } from '../../components/AdminEmpty';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { AdminStepper } from '../../components/AdminStepper';
 import { createAdminApi, type ImportPreview } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
@@ -230,7 +232,7 @@ export function ImportsPage() {
         className="care-grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(24rem, 1fr))', gap: '1rem' }}
       >
-        <section className="admin-card" aria-label="Upload file">
+        <section className="admin-card admin-card--lift" aria-label="Upload file">
           <h2 className="admin-card__title">
             <CloudUpload size={18} aria-hidden="true" /> Upload CSV
           </h2>
@@ -260,7 +262,7 @@ export function ImportsPage() {
           ) : null}
         </section>
 
-        <section className="admin-card" aria-label="Ringkasan batch">
+        <section className="admin-card admin-card--hero" aria-label="Ringkasan batch">
           <div className="admin-section__head">
             <h2 className="admin-card__title" style={{ margin: 0 }}>
               Ringkasan batch
@@ -422,7 +424,7 @@ export function ImportsPage() {
           </div>
           {changes.isLoading ? (
             <div style={{ padding: '1.25rem' }}>
-              <Loader label="Memuat perubahan" />
+              <AdminSkeleton lines={4} label="Memuat perubahan" />
             </div>
           ) : (
             <>
@@ -455,7 +457,12 @@ export function ImportsPage() {
                 ]}
                 rows={changeItems as never}
                 rowKey={(r: ChangeRow) => `${r.noReg}-${r.type}`}
-                empty={<span>Tidak ada perubahan</span>}
+                empty={
+                  <AdminEmpty
+                    title="Tidak ada perubahan"
+                    description="Pratinjau batch ini belum memiliki baris pada filter aktif."
+                  />
+                }
               />
               <div className="admin-table-foot">
                 <span>
@@ -482,16 +489,12 @@ export function ImportsPage() {
         </section>
       ) : null}
 
-      <div
-        className="admin-card"
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '0.75rem',
-          position: 'sticky',
-          bottom: '1rem',
-        }}
-      >
+      <div className="admin-stickybar">
+        <span className="admin-stickybar__hint">
+          {data
+            ? `Batch ${data.id.slice(0, 8)} · ${data.status}`
+            : 'Pilih file untuk memulai pratinjau batch.'}
+        </span>
         <Button
           variant="secondary"
           onClick={() => {
@@ -542,7 +545,7 @@ export function ImportsPage() {
         </div>
         {list.isLoading ? (
           <div style={{ padding: '1.25rem' }}>
-            <Loader label="Memuat history" />
+            <AdminSkeleton lines={4} label="Memuat history" />
           </div>
         ) : list.error ? (
           <div style={{ padding: '1.25rem' }}>
@@ -597,7 +600,12 @@ export function ImportsPage() {
               ]}
               rows={(list.data?.items ?? []) as never}
               rowKey={(r: ImportPreview) => r.id}
-              empty={<span>Belum ada import</span>}
+              empty={
+                <AdminEmpty
+                  title="Belum ada import"
+                  description="Unggah file organisasi pertama untuk mengisi riwayat batch."
+                />
+              }
             />
             <div className="admin-table-foot">
               <span>Snapshot aktif: {snapshot.data?.id?.slice(0, 8) ?? '—'}</span>

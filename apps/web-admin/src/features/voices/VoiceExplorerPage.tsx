@@ -1,21 +1,13 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import {
-  Alert,
-  Button,
-  DataTable,
-  Drawer,
-  Input,
-  Loader,
-  Pagination,
-  Select,
-  Stack,
-} from '@care/ui';
+import { Alert, Button, DataTable, Drawer, Input, Pagination, Select, Stack } from '@care/ui';
 import { Funnel, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminFilterBar } from '../../components/AdminFilterBar';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminEmpty } from '../../components/AdminEmpty';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type VoiceItem } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 
@@ -25,6 +17,13 @@ function severityTone(severity: string): 'danger' | 'warning' | 'success' {
     : severity === 'MEDIUM'
       ? 'warning'
       : 'success';
+}
+
+function voiceStatusTone(status: string): 'warning' | 'info' | 'success' | 'neutral' {
+  if (status === 'OPEN' || status === 'IN_VERIFICATION') return 'warning';
+  if (status === 'IN_PROGRESS') return 'info';
+  if (status === 'CLOSED') return 'success';
+  return 'neutral';
 }
 
 export function VoiceExplorerPage() {
@@ -274,20 +273,24 @@ export function VoiceExplorerPage() {
       />
 
       {q.isLoading ? (
-        <Loader label="Memuat voices" />
+        <section className="admin-table-card" aria-label="Memuat voices">
+          <div style={{ padding: '1.25rem' }}>
+            <AdminSkeleton lines={4} label="Memuat voices" />
+          </div>
+        </section>
       ) : q.error ? (
         <Alert tone="danger" title="Gagal">
           {String((q.error as Error).message)}
         </Alert>
       ) : (
-        <section className="admin-table-card" aria-label="Hasil Voice">
+        <section className="admin-table-card admin-card--lift" aria-label="Hasil Voice">
           <DataTable
             caption="Hasil penjelajahan Voice"
             columns={[
               {
                 key: 'displayId',
                 header: 'ID',
-                cell: (r: VoiceItem) => <span className="admin-id">{r.displayId}</span>,
+                cell: (r: VoiceItem) => <span className="admin-id admin-nums">{r.displayId}</span>,
               },
               {
                 key: 'title',
@@ -318,7 +321,15 @@ export function VoiceExplorerPage() {
                     '–'
                   ),
               },
-              { key: 'status', header: 'Status', cell: (r: VoiceItem) => r.status },
+              {
+                key: 'status',
+                header: 'Status',
+                cell: (r: VoiceItem) => (
+                  <span className="admin-pill" data-tone={voiceStatusTone(r.status)}>
+                    {r.status}
+                  </span>
+                ),
+              },
               {
                 key: 'handler',
                 header: 'Handler',
@@ -329,7 +340,7 @@ export function VoiceExplorerPage() {
                 header: 'Terakhir diperbarui',
                 cell: (r: VoiceItem) =>
                   r.updatedAt ? (
-                    <span style={{ whiteSpace: 'nowrap' }}>
+                    <span className="admin-nums" style={{ whiteSpace: 'nowrap' }}>
                       {new Date(r.updatedAt).toLocaleString('id-ID', {
                         day: '2-digit',
                         month: 'short',
@@ -361,7 +372,12 @@ export function VoiceExplorerPage() {
             ]}
             rows={(q.data?.items ?? []) as never}
             rowKey={(r: VoiceItem) => r.id}
-            empty={<span>Tidak ada Voice</span>}
+            empty={
+              <AdminEmpty
+                title="Tidak ada Voice"
+                description="Belum ada Voice pada filter aktif."
+              />
+            }
           />
           <div className="admin-table-foot">
             <Pagination
@@ -396,7 +412,11 @@ export function VoiceExplorerPage() {
             <dl className="admin-dl">
               <div>
                 <dt>Status</dt>
-                <dd>{detail.data.status}</dd>
+                <dd>
+                  <span className="admin-pill" data-tone={voiceStatusTone(detail.data.status)}>
+                    {detail.data.status}
+                  </span>
+                </dd>
               </div>
               <div>
                 <dt>Area</dt>
@@ -427,7 +447,7 @@ export function VoiceExplorerPage() {
                 </div>
               ) : null}
             </dl>
-            <div className="admin-card">
+            <div className="admin-card admin-card--subtle">
               <Stack gap="xs">
                 <strong>Lampiran Voice</strong>
                 {detail.data.attachments.length ? (
@@ -456,47 +476,51 @@ export function VoiceExplorerPage() {
                 )}
               </Stack>
             </div>
-            <div className="admin-card">
+            <div className="admin-card admin-card--subtle">
               <Stack gap="xs">
                 <strong>Timeline</strong>
                 {timeline.isLoading ? (
-                  <Loader label="Memuat timeline" />
+                  <AdminSkeleton lines={3} label="Memuat timeline" />
                 ) : timelineItems.length ? (
-                  <ol className="admin-feed">
+                  <ul className="admin-timeline">
                     {timelineItems.map((event) => (
                       <li key={event.id}>
-                        <strong>{event.type}</strong> —{' '}
-                        {new Date(event.occurredAt).toLocaleString('id-ID')}
-                        {Object.keys(event.payload).length ? (
-                          <div>
-                            <code>{JSON.stringify(event.payload)}</code>
-                          </div>
-                        ) : null}
+                        <div>
+                          <strong>{event.type}</strong> —{' '}
+                          {new Date(event.occurredAt).toLocaleString('id-ID')}
+                          {Object.keys(event.payload).length ? (
+                            <div>
+                              <code>{JSON.stringify(event.payload)}</code>
+                            </div>
+                          ) : null}
+                        </div>
                       </li>
                     ))}
                     {timeline.hasNextPage ? (
                       <li>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => void timeline.fetchNextPage()}
-                          disabled={timeline.isFetching}
-                        >
-                          {timeline.isFetching ? 'Memuat…' : 'Muat lebih'}
-                        </Button>
+                        <div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => void timeline.fetchNextPage()}
+                            disabled={timeline.isFetching}
+                          >
+                            {timeline.isFetching ? 'Memuat…' : 'Muat lebih'}
+                          </Button>
+                        </div>
                       </li>
                     ) : null}
-                  </ol>
+                  </ul>
                 ) : (
                   <span>Belum ada event.</span>
                 )}
               </Stack>
             </div>
-            <div className="admin-card">
+            <div className="admin-card admin-card--subtle">
               <Stack gap="xs">
                 <strong>Percakapan</strong>
                 {messages.isLoading ? (
-                  <Loader label="Memuat percakapan" />
+                  <AdminSkeleton lines={3} label="Memuat percakapan" />
                 ) : messageItems.length ? (
                   <ol className="admin-feed">
                     {messageItems.map((message) => (
@@ -547,7 +571,7 @@ export function VoiceExplorerPage() {
             </p>
           </Stack>
         ) : (
-          <Loader label="Memuat detail" />
+          <AdminSkeleton lines={4} label="Memuat detail" />
         )}
       </Drawer>
     </Stack>

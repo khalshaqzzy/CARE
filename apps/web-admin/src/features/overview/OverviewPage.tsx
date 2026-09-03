@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, careQueryKey } from '@care/frontend-core';
-import { Alert, Badge, Button, Loader, Stack } from '@care/ui';
+import { Alert, Badge, Button, Stack } from '@care/ui';
 import {
   Activity,
   Archive,
@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { AdminKpi } from '../../components/AdminKpi';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminSegmentBar } from '../../components/AdminSegmentBar';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi } from '../../admin-api';
 
 const QUICK_ACTIONS = [
@@ -184,14 +185,18 @@ export function OverviewPage() {
         onRefresh={refetchAll}
         refreshing={refreshing}
       />
-      {overview.isLoading ? <Loader label="Memuat overview" /> : null}
+      {overview.isLoading ? (
+        <section className="admin-card" aria-label="Memuat overview">
+          <AdminSkeleton lines={4} label="Memuat overview" />
+        </section>
+      ) : null}
       {overview.error ? (
         <Alert tone="danger" title="Gagal memuat overview">
           {String((overview.error as Error).message)}
         </Alert>
       ) : null}
       {data ? (
-        <section className="admin-card" aria-label="Ringkasan operasional">
+        <section className="admin-card admin-card--hero" aria-label="Ringkasan operasional">
           <h2 className="admin-card__title">
             <UsersRound size={18} aria-hidden="true" /> Ringkasan operasional
           </h2>
@@ -241,7 +246,7 @@ export function OverviewPage() {
         </section>
       ) : null}
 
-      <section className="admin-card" aria-label="Kesehatan sistem">
+      <section className="admin-card admin-card--subtle" aria-label="Kesehatan sistem">
         <div className="admin-kpi-strip">
           <AdminKpi
             icon={<CheckCircle2 size={20} />}
@@ -282,7 +287,7 @@ export function OverviewPage() {
         className="care-grid"
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(22rem, 1fr))', gap: '1rem' }}
       >
-        <section className="admin-card" aria-label="Aksi prioritas">
+        <section className="admin-card admin-card--lift" aria-label="Aksi prioritas">
           <h2 className="admin-card__title">
             <CircleGauge size={18} aria-hidden="true" /> Aksi prioritas
           </h2>
@@ -316,7 +321,7 @@ export function OverviewPage() {
           </Button>
         </section>
 
-        <section className="admin-card" aria-label="Impor terbaru">
+        <section className="admin-card admin-card--lift" aria-label="Impor terbaru">
           <div className="admin-section__head">
             <h2 className="admin-card__title" style={{ margin: 0 }}>
               <CloudUpload size={18} aria-hidden="true" /> Impor terbaru
@@ -395,7 +400,7 @@ export function OverviewPage() {
         </section>
       </div>
 
-      <section className="admin-card" aria-label="Rute dan dependensi kritis">
+      <section className="admin-card admin-card--subtle" aria-label="Rute dan dependensi kritis">
         <div className="admin-section__head">
           <h2 className="admin-card__title" style={{ margin: 0 }}>
             <RouteIcon size={18} aria-hidden="true" /> Rute &amp; dependensi kritis
@@ -405,7 +410,7 @@ export function OverviewPage() {
           </Button>
         </div>
         {ready.isLoading ? (
-          <Loader label="Memuat dependensi" />
+          <AdminSkeleton lines={2} label="Memuat dependensi" />
         ) : checkNodes.length ? (
           <ul className="admin-nodes">
             {checkNodes.map((node) => (
@@ -449,7 +454,9 @@ export function OverviewPage() {
               className="admin-quick__tile"
               onClick={() => void navigate(action.to)}
             >
-              {action.icon}
+              <span className="admin-quick__tile__icon" aria-hidden="true">
+                {action.icon}
+              </span>
               <span>{action.label}</span>
             </button>
           ))}

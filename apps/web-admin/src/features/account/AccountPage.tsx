@@ -35,16 +35,18 @@ export function AccountPage() {
     }
   }
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" style={{ maxWidth: '44rem', marginInline: 'auto', width: '100%' }}>
       <AdminPageHeader
         eyebrow="Akun"
         title="Akun Saya"
         description="Kelola akun CARE Admin tunggal yang dikelola CLI."
       />
-      <section className="admin-card" aria-label="Profil Admin">
+      <section className="admin-card admin-card--hero" aria-label="Profil Admin">
         <Stack gap="sm">
           <div className="admin-identity">
-            <Avatar name={session.account.displayName || session.account.username} size="lg" />
+            <span className="admin-kpi__icon" data-tone="brand" aria-hidden="true">
+              <Avatar name={session.account.displayName || session.account.username} size="lg" />
+            </span>
             <div>
               <strong>{session.account.displayName || session.account.username}</strong>
               <p className="admin-meta--xs">Single credential dikelola via CLI</p>
@@ -75,9 +77,11 @@ export function AccountPage() {
           </Alert>
         </Stack>
       </section>
-      <section className="admin-card" aria-label="Ganti password">
+      <section className="admin-card admin-card--lift" aria-label="Ganti password">
         <Stack gap="md">
-          <h3 style={{ margin: 0 }}>Ganti password saya</h3>
+          <h3 className="admin-card__title" style={{ margin: 0 }}>
+            Ganti password saya
+          </h3>
           {error ? (
             <Alert tone="danger" title="Gagal">
               {error}

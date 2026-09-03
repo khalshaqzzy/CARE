@@ -1,20 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import {
-  Alert,
-  Button,
-  DataTable,
-  Drawer,
-  Loader,
-  Pagination,
-  Input,
-  Select,
-  Stack,
-} from '@care/ui';
+import { Alert, Button, DataTable, Drawer, Pagination, Input, Select, Stack } from '@care/ui';
 import { Download, ShieldCheck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminEmpty } from '../../components/AdminEmpty';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type AuditEvent as Audit } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 
@@ -267,7 +259,7 @@ export function AuditPage() {
         ) : null}
       </section>
 
-      <div className="admin-section__head">
+      <div className="admin-table-foot">
         <p className="admin-meta" style={{ margin: 0 }}>
           Hasil: <strong>{(q.data?.items.length ?? 0).toLocaleString('id-ID')} kejadian</strong>
           {q.data?.nextCursor ? '+' : ''}
@@ -278,13 +270,17 @@ export function AuditPage() {
       </div>
 
       {q.isLoading ? (
-        <Loader label="Memuat audit" />
+        <section className="admin-table-card" aria-label="Memuat audit">
+          <div style={{ padding: '1.25rem' }}>
+            <AdminSkeleton lines={4} label="Memuat audit" />
+          </div>
+        </section>
       ) : q.error ? (
         <Alert tone="danger" title="Gagal">
           {String((q.error as Error).message)}
         </Alert>
       ) : (
-        <section className="admin-table-card" aria-label="Hasil audit">
+        <section className="admin-table-card admin-card--lift" aria-label="Hasil audit">
           <DataTable
             caption="Jejak audit administratif dan keamanan"
             columns={[
@@ -292,7 +288,9 @@ export function AuditPage() {
                 key: 'occurredAt',
                 header: 'Waktu ↓',
                 cell: (r: Audit) => (
-                  <span style={{ whiteSpace: 'nowrap' }}>{formatDateTime(r.occurredAt)}</span>
+                  <span className="admin-nums" style={{ whiteSpace: 'nowrap' }}>
+                    {formatDateTime(r.occurredAt)}
+                  </span>
                 ),
               },
               {
@@ -301,7 +299,7 @@ export function AuditPage() {
                 cell: (r: Audit) => (
                   <button
                     type="button"
-                    className="care-link"
+                    className="care-link admin-id"
                     style={{
                       fontFamily: 'var(--font-mono, ui-monospace, monospace)',
                       fontSize: 'var(--font-size-xs)',
@@ -331,14 +329,21 @@ export function AuditPage() {
               {
                 key: 'resource',
                 header: 'Resource',
-                cell: (r: Audit) =>
-                  `${r.resourceType}${r.resourceId ? `:${r.resourceId.slice(0, 6)}` : ''}`,
+                cell: (r: Audit) => {
+                  const full = `${r.resourceType}${r.resourceId ? `:${r.resourceId}` : ''}`;
+                  return (
+                    <span
+                      className="admin-nums"
+                      title={full}
+                    >{`${r.resourceType}${r.resourceId ? `:${r.resourceId.slice(0, 6)}` : ''}`}</span>
+                  );
+                },
               },
               {
                 key: 'correlationId',
                 header: 'Correlation ID',
                 cell: (r: Audit) => (
-                  <span className="admin-id">
+                  <span className="admin-id admin-nums" title={r.correlationId ?? undefined}>
                     {r.correlationId ? `${r.correlationId.slice(0, 13)}…` : '—'}
                   </span>
                 ),
@@ -358,7 +363,12 @@ export function AuditPage() {
             ]}
             rows={(q.data?.items ?? []) as never}
             rowKey={(r: Audit) => r.id}
-            empty={<span>Tidak ada audit</span>}
+            empty={
+              <AdminEmpty
+                title="Tidak ada audit"
+                description="Belum ada kejadian audit pada filter aktif."
+              />
+            }
           />
           <div className="admin-table-foot">
             <span>
@@ -391,7 +401,7 @@ export function AuditPage() {
             <div className="admin-kv">
               <div className="admin-kv__row">
                 <span className="admin-kv__label">Aksi</span>
-                <span className="admin-kv__value">{detail.action}</span>
+                <span className="admin-kv__value admin-id">{detail.action}</span>
               </div>
               <div className="admin-kv__row">
                 <span className="admin-kv__label">Hasil</span>
@@ -404,13 +414,13 @@ export function AuditPage() {
               </div>
               <div className="admin-kv__row">
                 <span className="admin-kv__label">Resource</span>
-                <span className="admin-kv__value">
+                <span className="admin-kv__value admin-nums">
                   {detail.resourceType} {detail.resourceId ?? ''}
                 </span>
               </div>
               <div className="admin-kv__row">
                 <span className="admin-kv__label">Waktu</span>
-                <span className="admin-kv__value">
+                <span className="admin-kv__value admin-nums">
                   {new Date(detail.occurredAt).toLocaleString('id-ID')}
                 </span>
               </div>
@@ -420,7 +430,7 @@ export function AuditPage() {
               </div>
               <div className="admin-kv__row">
                 <span className="admin-kv__label">Release</span>
-                <span className="admin-kv__value">{detail.releaseSha}</span>
+                <span className="admin-kv__value admin-id admin-nums">{detail.releaseSha}</span>
               </div>
               <div className="admin-kv__row">
                 <span className="admin-kv__label">Actor snapshot</span>
@@ -436,7 +446,7 @@ export function AuditPage() {
             </p>
           </Stack>
         ) : (
-          <Loader label="Memuat detail audit" />
+          <AdminSkeleton lines={3} label="Memuat detail audit" />
         )}
       </Drawer>
     </Stack>

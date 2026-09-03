@@ -9,7 +9,6 @@ import {
   Dialog,
   Drawer,
   Input,
-  Loader,
   Pagination,
   Select,
   Stack,
@@ -20,6 +19,8 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminFilterBar } from '../../components/AdminFilterBar';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminEmpty } from '../../components/AdminEmpty';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type Account } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 
@@ -179,20 +180,24 @@ export function AccountsPage() {
       />
 
       {q.isLoading ? (
-        <Loader label="Memuat akun" />
+        <section className="admin-table-card" aria-label="Memuat akun">
+          <div style={{ padding: '1.25rem' }}>
+            <AdminSkeleton lines={4} label="Memuat akun" />
+          </div>
+        </section>
       ) : q.error ? (
         <Alert tone="danger" title="Gagal">
           {String((q.error as Error).message)}
         </Alert>
       ) : (
-        <section className="admin-table-card" aria-label="Daftar akun">
+        <section className="admin-table-card admin-card--lift" aria-label="Daftar akun">
           <DataTable
             caption="Daftar akun workforce dan Union"
             columns={[
               {
                 key: 'username',
                 header: 'Username / Nama',
-                cell: (r: Account) => <span className="admin-id">{r.username}</span>,
+                cell: (r: Account) => <span className="admin-id admin-nums">{r.username}</span>,
               },
               { key: 'displayName', header: 'Nama', cell: (r: Account) => r.displayName },
               {
@@ -255,7 +260,9 @@ export function AccountsPage() {
             ]}
             rows={(q.data?.items ?? []) as never}
             rowKey={(r: Account) => r.id}
-            empty={<span>Tidak ada akun</span>}
+            empty={
+              <AdminEmpty title="Tidak ada akun" description="Belum ada akun pada filter aktif." />
+            }
           />
           <div className="admin-table-foot">
             <span>{q.data?.nextCursor ? 'Ada halaman berikutnya' : 'Akhir daftar'}</span>
@@ -280,7 +287,9 @@ export function AccountsPage() {
         {detail ? (
           <Stack gap="md">
             <div className="admin-identity">
-              <Avatar name={detail.displayName || detail.username} size="md" />
+              <span className="admin-kpi__icon" data-tone="brand" aria-hidden="true">
+                <Avatar name={detail.displayName || detail.username} size="md" />
+              </span>
               <div>
                 <strong>{detail.displayName || detail.username}</strong>
                 <p className="admin-meta--xs">
@@ -353,7 +362,7 @@ export function AccountsPage() {
             ) : null}
           </Stack>
         ) : (
-          <Loader label="Memuat detail akun" />
+          <AdminSkeleton lines={3} label="Memuat detail akun" />
         )}
       </Drawer>
 

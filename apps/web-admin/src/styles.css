@@ -444,6 +444,11 @@ body {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
 }
+/* Compact variant: keep selects from stretching full-width in wide cards. */
+.admin-filterbar--compact .admin-filterbar__controls {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 18rem));
+  justify-content: start;
+}
 .admin-filterbar__count {
   font-weight: var(--weight-medium);
 }
@@ -489,9 +494,57 @@ body {
   overflow-x: auto;
   margin-inline: calc(-1 * var(--space-5));
   padding-inline: var(--space-5);
+  scrollbar-width: thin;
 }
 .admin-table-scroll .care-table {
-  min-width: 36rem;
+  min-width: 30rem;
+}
+.admin-table-scroll .care-table thead th {
+  white-space: normal;
+}
+.admin-table-scroll .care-table th,
+.admin-table-scroll .care-table td {
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+}
+/* Grid blowout guard: table min-widths must never force their grid column
+   (and the page) wider than the viewport. */
+.care-app-shell__content .care-grid > * {
+  min-width: 0;
+}
+/* Remediation bottom section: the 7-column queue table needs full width on
+   normal screens; side-by-side only on ultra-wide displays. */
+.admin-stack-split {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 135rem) {
+  .admin-stack-split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* DataTable (`care-table-wrap` already scrolls internally): keep the scroll
+   context inside the premium card, shrink the shared 44rem table minimum to
+   an admin-appropriate density, and stop pills/badges stretching to the
+   column width. */
+.admin-table-card .care-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.admin-table-card .care-table {
+  min-width: 34rem;
+}
+.admin-table-card .care-table th,
+.admin-table-card .care-table td {
+  padding: 0.625rem 0.75rem;
+}
+.admin-table-card .care-badge,
+.admin-table-scroll .care-badge {
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .admin-table-foot {
   display: flex;
@@ -1338,4 +1391,544 @@ body {
 }
 .admin-quick__tile:active {
   transform: translateY(var(--transform-press-y)) scale(0.985);
+}
+
+/* ===== Premium polish layer (creative push, subtle-only motion) ===== */
+
+:root {
+  --admin-ink: #0f172a;
+  --admin-line: #e5eaf1;
+  --admin-line-soft: #edf1f6;
+  --admin-canvas: #f6f8fb;
+  --admin-brand-600: #0a66ff;
+  --admin-brand-700: #0849c4;
+  --admin-ring: 0 0 0 3px rgb(10 102 255 / 22%);
+  --admin-elev-1: 0 1px 2px rgb(15 23 42 / 5%);
+  --admin-elev-2: 0 8px 24px -12px rgb(15 23 42 / 18%);
+  --admin-elev-3: 0 18px 44px -18px rgb(8 102 255 / 28%);
+}
+
+/* Global focus + selection + scrollbars (admin bundle only). */
+.apps-web-admin :focus-visible,
+.admin-card :focus-visible,
+.admin-filterbar :focus-visible,
+.admin-table-card :focus-visible,
+.care-sidebar :focus-visible,
+.care-app-shell__topbar :focus-visible,
+.care-dialog :focus-visible {
+  outline: 2px solid var(--admin-brand-600);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+::selection {
+  background: rgb(10 102 255 / 16%);
+}
+.admin-table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.admin-table-card .care-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.admin-table-scroll::-webkit-scrollbar-thumb,
+.admin-table-card .care-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+/* Page rhythm + entrance (subtle, respects reduced motion). */
+.care-app-shell__content > .care-stack {
+  gap: 1rem;
+  /* Safety net for the no-page-horizontal-scroll contract: wide tables must
+     scroll inside their own card/wrap, never push the page wider. Inner
+     scroll containers and sticky elements are unaffected (clip creates no
+     scroll container).
+     Note: no entrance animation here by design — even a 160ms fade breaks
+     deterministic axe color-contrast under parallel load. */
+  overflow-x: clip;
+}
+
+/* Card hierarchy: hero / default / subtle. */
+.admin-card--hero {
+  border-color: #dbe5f5;
+  box-shadow: var(--admin-elev-2);
+  background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+}
+.admin-card--subtle {
+  background: #fbfdff;
+}
+.admin-card--lift {
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.admin-card--lift:hover {
+  border-color: #d4dded;
+  box-shadow: var(--admin-elev-2);
+  transform: translateY(-1px);
+}
+
+/* Numerals + mono polish. */
+.admin-nums {
+  font-variant-numeric: tabular-nums;
+}
+.admin-id {
+  letter-spacing: -0.01em;
+}
+
+/* Skeleton + empty states. */
+.admin-skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+.admin-skeleton i {
+  display: block;
+  height: 0.875rem;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #eef2f7 25%, #e2e8f0 50%, #eef2f7 75%);
+  background-size: 200% 100%;
+  animation: admin-shimmer 1.4s linear infinite;
+}
+@keyframes admin-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.admin-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+}
+.admin-empty__icon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: var(--admin-brand-700);
+  box-shadow: inset 0 0 0 1px rgb(8 73 196 / 12%);
+}
+.admin-empty strong {
+  color: var(--admin-ink);
+  letter-spacing: var(--tracking-tight);
+}
+.admin-empty p {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Count pill (union slots, result counts). */
+.admin-count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--admin-line);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  padding: 4px var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+}
+.admin-count-pill strong {
+  color: var(--admin-brand-700);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Shell polish ===== */
+
+.care-sidebar nav button {
+  position: relative;
+  padding: 0.55rem 0.75rem;
+}
+.care-sidebar nav button svg {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  padding: 2px;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-sidebar nav button:hover svg {
+  background: rgb(10 102 255 / 8%);
+}
+.care-sidebar nav button[aria-current='page'] {
+  background: linear-gradient(180deg, #1470ff 0%, var(--admin-brand-600) 100%);
+  box-shadow:
+    0 10px 20px -8px rgb(8 102 255 / 55%),
+    inset 0 1px 0 rgb(255 255 255 / 22%);
+}
+.care-sidebar nav button[aria-current='page'] svg {
+  background: rgb(255 255 255 / 16%);
+}
+/* Footer separation + active account affordance. */
+.care-sidebar footer,
+.care-sidebar [data-slot='footer'] {
+  border-top: 1px solid var(--admin-line-soft);
+  padding-top: var(--space-3);
+}
+/* Footer actions read as muted secondary per the design targets; the active
+   account destination keeps its current-page indication. */
+.care-sidebar footer .care-button--ghost,
+.care-sidebar [data-slot='footer'] .care-button--ghost {
+  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+}
+.care-sidebar footer .care-button--ghost:hover,
+.care-sidebar [data-slot='footer'] .care-button--ghost:hover {
+  color: var(--text-primary);
+}
+.admin-topbar__context {
+  min-width: 0;
+}
+.admin-topbar__divider {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--admin-line);
+}
+/* Live session dot: gentle pulse, static under reduced motion. */
+.admin-topbar .care-badge--success {
+  box-shadow: inset 0 0 0 1px rgb(21 128 61 / 14%);
+}
+.admin-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgb(22 163 74 / 16%);
+  animation: admin-pulse-dot 2.4s ease-in-out infinite;
+}
+@keyframes admin-pulse-dot {
+  50% {
+    box-shadow: 0 0 0 5px rgb(22 163 74 / 8%);
+  }
+}
+.admin-topbar__user {
+  border-left: 1px solid var(--admin-line-soft);
+  padding-left: var(--space-3);
+}
+.admin-topbar__user .care-avatar {
+  box-shadow: inset 0 0 0 1px rgb(8 73 196 / 16%);
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+}
+
+/* ===== Header / KPI / segments polish ===== */
+
+.admin-pagehead__title {
+  font-size: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+.admin-pagehead__updated {
+  border: 1px solid var(--admin-line-soft);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  padding: 3px var(--space-2) 3px 4px;
+  box-shadow: var(--admin-elev-1);
+}
+.admin-kpi__icon {
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 6%);
+}
+.admin-kpi__icon[data-tone='brand'] {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+}
+.admin-kpi__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.admin-kpi__label {
+  letter-spacing: 0.01em;
+}
+.admin-segments__track i {
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 5%);
+}
+.admin-segments__track i[data-filled='true'] {
+  background: linear-gradient(180deg, #3b82f6 0%, var(--admin-brand-600) 100%);
+  box-shadow: 0 2px 8px -2px rgb(10 102 255 / 55%);
+}
+
+/* ===== Filters / tables / pills polish ===== */
+
+.admin-filterbar:focus-within {
+  border-color: #c9d8f5;
+  box-shadow: 0 0 0 3px rgb(10 102 255 / 12%);
+}
+.admin-filterbar__controls .care-field label {
+  font-weight: var(--weight-semibold);
+}
+.admin-table-card .care-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fbfdff;
+  box-shadow: inset 0 -1px 0 var(--admin-line-soft);
+}
+.admin-table-card .care-table tbody tr {
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.admin-table-card .care-table tbody tr:hover {
+  background: #f6f9ff;
+}
+.admin-table-card .care-table td {
+  font-variant-numeric: tabular-nums;
+}
+.admin-table-foot {
+  background: #fbfdff;
+  font-variant-numeric: tabular-nums;
+}
+.admin-pill {
+  border: 1px solid transparent;
+  letter-spacing: 0.01em;
+}
+.admin-pill[data-tone='success'] {
+  border-color: #bbf7d0;
+}
+.admin-pill[data-tone='warning'] {
+  border-color: #fde68a;
+}
+.admin-pill[data-tone='danger'] {
+  border-color: #fecaca;
+}
+.admin-pill[data-tone='info'] {
+  border-color: #bfdbfe;
+}
+.admin-pill[data-tone='neutral'] {
+  border-color: var(--admin-line-soft);
+}
+
+/* Sticky action bar (imports) with blur + elevation. */
+.admin-stickybar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+  border: 1px solid var(--admin-line);
+  border-radius: 0.875rem;
+  background: rgb(255 255 255 / 88%);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--admin-elev-2);
+  padding: 0.875rem 1rem;
+}
+.admin-stickybar__hint {
+  margin-right: auto;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* Priority rows: hover + chevron affordance. */
+.admin-rows > li {
+  border-radius: 0.625rem;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+a.admin-rows > li:hover,
+button.admin-rows > li:hover,
+.admin-rows > li[data-clickable='true']:hover {
+  background: #f6f9ff;
+}
+.admin-rowmark {
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 6%);
+}
+
+/* Route nodes: connected premium pills. */
+.admin-nodes > li {
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.625rem 0.75rem;
+  box-shadow: var(--admin-elev-1);
+}
+
+/* Union tree connectors. */
+.admin-tree {
+  position: relative;
+}
+.admin-treenode {
+  position: relative;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+.admin-treenode:hover {
+  border-color: #d4dded;
+  box-shadow: var(--admin-elev-2);
+}
+.admin-treenode--child {
+  margin-left: clamp(1rem, 4vw, 2.5rem);
+}
+.admin-treenode--child::before {
+  content: '';
+  position: absolute;
+  left: calc(clamp(1rem, 4vw, 2.5rem) * -1 + 1.25rem);
+  top: -1rem;
+  bottom: 50%;
+  width: 1.25rem;
+  border-left: 2px solid #dbe3f0;
+  border-bottom: 2px solid #dbe3f0;
+  border-bottom-left-radius: 0.75rem;
+}
+
+/* Feed + timeline + kv dividers. */
+.admin-feed li {
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.admin-feed li:hover {
+  border-color: #d4dded;
+}
+.admin-kv__row + .admin-kv__row {
+  border-top: 1px dashed var(--admin-line-soft);
+  padding-top: var(--space-2);
+}
+.admin-timeline {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-timeline li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  position: relative;
+  padding-bottom: var(--space-4);
+}
+.admin-timeline li::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--admin-brand-600);
+  box-shadow: 0 0 0 3px rgb(10 102 255 / 14%);
+}
+.admin-timeline li::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 20px;
+  bottom: 0;
+  width: 1px;
+  background: var(--admin-line);
+}
+.admin-timeline li:last-child::after {
+  display: none;
+}
+
+/* Dialog/drawer premium scoping (shared ui primitives, admin bundle only). */
+.care-dialog__overlay {
+  backdrop-filter: blur(3px);
+}
+.care-dialog {
+  border: 1px solid var(--admin-line);
+  box-shadow: var(--admin-elev-3);
+}
+.care-dialog__header h2 {
+  letter-spacing: -0.015em;
+}
+.care-dialog__footer {
+  background: #fbfdff;
+}
+
+/* Auth split-panel polish. */
+.admin-auth {
+  grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 28rem);
+}
+.admin-auth__panel {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--admin-line);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 12% 8%, rgb(10 102 255 / 14%), transparent 22rem),
+    radial-gradient(circle at 88% 92%, rgb(24 189 227 / 12%), transparent 24rem),
+    linear-gradient(180deg, #0b1e3f 0%, #10294f 100%);
+  color: #e8eefc;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  box-shadow: var(--admin-elev-3);
+}
+.admin-auth__panel h1 {
+  color: #fff;
+}
+.admin-auth__panel p {
+  color: #b9c6e4;
+}
+.admin-auth__ticks {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-auth__ticks li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: #d5def5;
+}
+.admin-auth__ticks svg {
+  color: #7dd3fc;
+}
+.admin-auth-card {
+  border-radius: 1.25rem;
+  box-shadow: var(--admin-elev-2);
+}
+
+/* Quick tiles: icon plates. */
+.admin-quick__tile {
+  border-radius: 0.875rem;
+}
+.admin-quick__tile__icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: var(--admin-brand-700);
+  box-shadow: inset 0 0 0 1px rgb(8 73 196 / 12%);
+}
+
+/* Actions row default (system page used undefined .admin-actions). */
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  border-top: 1px solid var(--admin-line-soft);
+  padding-top: var(--space-4);
+}
+
+@media (max-width: 56rem) {
+  .admin-auth {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-treenode__meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-treenode__meta > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--border-subtle);
+    padding-left: 0;
+    padding-top: var(--space-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-skeleton i,
+  .admin-live-dot {
+    animation: none;
+  }
+  .admin-card--lift:hover,
+  .admin-quick__tile:hover {
+    transform: none;
+  }
 }

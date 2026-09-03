@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import { Alert, Badge, Button, Dialog, Input, Loader, Stack, Textarea } from '@care/ui';
-import { EllipsisVertical, Info, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Alert, Badge, Button, Dialog, Input, Stack, Textarea } from '@care/ui';
+import { Info, ShieldCheck, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type UnionAccountList } from '../../admin-api';
 
 type UnionTerm = UnionAccountList[number];
@@ -67,18 +68,13 @@ export function UnionPage() {
         title="Union Accounts"
         description="Kelola akun Head dan slot Union. Penggantian akun akan memengaruhi akses sistem."
         badge={
-          <span className="admin-card" style={{ padding: '0.5rem 0.75rem' }}>
-            <span
-              className="admin-meta--xs"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <TrendingUp size={14} aria-hidden="true" /> Workload (Future API) — Tidak tersedia
-            </span>
+          <span className="admin-count-pill">
+            <TrendingUp size={14} aria-hidden="true" /> Workload <strong>—</strong> Tidak tersedia
           </span>
         }
       />
       {q.isLoading ? (
-        <Loader label="Memuat union" />
+        <AdminSkeleton lines={4} label="Memuat union" />
       ) : q.error ? (
         <Alert tone="danger" title="Gagal">
           {String((q.error as Error).message)}
@@ -88,9 +84,12 @@ export function UnionPage() {
           {(['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).map((s) => {
             const term = bySlot(s);
             const meta = SLOT_META[s];
-            const label = s === 'HEAD' ? 'Union Head' : s === 'OFFICER_1' ? 'Union 1' : 'Union 2';
             return (
-              <div className="admin-treenode" role="listitem" key={s}>
+              <div
+                className={s === 'HEAD' ? 'admin-treenode' : 'admin-treenode admin-treenode--child'}
+                role="listitem"
+                key={s}
+              >
                 <div className="admin-treenode__head">
                   <span className="admin-kpi__icon" data-tone="brand" aria-hidden="true">
                     {meta.index ? <strong>{meta.index}</strong> : <ShieldCheck size={18} />}
@@ -105,11 +104,6 @@ export function UnionPage() {
                     <Button size="sm" onClick={() => begin(s)}>
                       {term ? 'Ganti akun' : 'Buat akun'}
                     </Button>
-                    {s !== 'HEAD' ? (
-                      <Button size="sm" variant="ghost" aria-label={`Opsi ${label}`}>
-                        <EllipsisVertical size={16} />
-                      </Button>
-                    ) : null}
                   </span>
                 </div>
                 <div className="admin-treenode__meta">
@@ -122,7 +116,15 @@ export function UnionPage() {
                     <strong>
                       {term ? (
                         <>
-                          <span aria-hidden="true">● </span>
+                          <span
+                            className="admin-live-dot"
+                            style={{
+                              display: 'inline-block',
+                              marginRight: '0.375rem',
+                              verticalAlign: 'middle',
+                            }}
+                            aria-hidden="true"
+                          />
                           {term.account.status}
                         </>
                       ) : (
@@ -204,6 +206,7 @@ export function UnionPage() {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Alasan penggantian akun"
+            helperText={`${reason.length} karakter`}
           />
           {mutate.error ? (
             <Alert tone="danger" title="Gagal">

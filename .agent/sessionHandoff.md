@@ -1,16 +1,54 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 3 September 2026                                                                                                                                                    |
-| Current objective       | Rebuild admin-web UI in the premium design language of `.agent/design-images/admin-web-redesign` across all 9 pages and sub-surfaces                                |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                  |
-| Backend Complete Gate   | Additive overview extension (voices/latestImport.summary/failedAudits) with deterministic OpenAPI/contracts regen complete                                          |
-| Implementation status   | Admin premium redesign implemented locally on `feat/admin-web-redesign`: 9 pages + sub-surfaces, additive overview API, per-page baselines, full local parity green |
-| Latest ADR              | ADR-0034 (Admin web premium redesign)                                                                                                                               |
-| Recommended next action | Review/commit the branch and run hosted CI; Phase 13 staging deployment remains intentionally `in_progress`                                                         |
+| Atribut                 | Nilai                                                                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 3 September 2026                                                                                                                                                     |
+| Current objective       | Polish admin-web to a premium, sleek finish (frontend-only) incl. zero table bleed, judged PASS                                                                      |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                   |
+| Backend Complete Gate   | Unchanged (ADR-0034 additive overview extension stands; this pass adds no API/contract change)                                                                       |
+| Implementation status   | Admin premium polish implemented locally on `feat/admin-web-polish`: tokens/components/CSS + per-page polish, 9 baselines regen, judge PASS, full local parity green |
+| Latest ADR              | ADR-0035 (Admin web premium polish)                                                                                                                                  |
+| Recommended next action | Review/commit the branch and run hosted CI; Phase 13 staging deployment remains intentionally `in_progress`                                                          |
 
 ## Session Outcome
+
+### Admin web premium polish — 3 September 2026
+
+Branch `feat/admin-web-polish`. Implemented ADR-0035 while leaving Phase 13
+`in_progress`: frontend-only polish over the ADR-0034 redesign, judged PASS
+after one FAIL→fix iteration. CARE domain, wire enums, Bahasa Indonesia,
+PRD §11.5 IA, and all contracts preserved; `packages/ui` untouched.
+
+- **Tokens/components/CSS (`apps/web-admin/src/styles.css`, +~450 lines).**
+  `admin-*` tokens (ink/line/canvas/brand/ring, elev-1/2/3), global
+  focus-visible ring, thin scrollbars, card hierarchy (hero/subtle/lift),
+  tabular numerals, skeleton shimmer + illustrated empty, gradient sidebar
+  pill + topbar live-dot/CA plate, sticky thead, blurred sticky action bar,
+  count pill, feed/timeline, dialog scoping, split-panel login, compact
+  filter variant, stacked remediation split, reduced-motion fallbacks. New
+  local `AdminSkeleton` + `AdminEmpty` primitives.
+- **Table-bleed elimination.** Grid-blowout guard, reduced table minimums
+  (34rem cards / 30rem half-width + wrapping headers + compact density),
+  explicit inner scroll containers, stretched-badge fix, remediation queue
+  full-width stacked, `overflow-x: clip` safety net. No page h-scroll at
+  1280/1440; all tables fit fully (verified on fresh 1440px captures).
+- **Per-page.** Hero/lift/subtle assignment, skeleton/empty coverage,
+  status pills, audit truncation tooltips, union connectors, archive Dialog
+  replacing `window.confirm`, muted sidebar footer, 26px page titles.
+- **Judge.** Round 1 FAIL (15 items incl. table bleed) → fixed; Round 2
+  PASS with 4 applied nits; 4 declined as contract-mandated (no fabricated
+  metadata/operational checks, responsive filter wrap kept, fold crop is
+  normal page scroll).
+- **Validation.** typecheck, ESLint zero-warning, Prettier, production
+  build, Admin unit 2/2, `pnpm test:frontend:e2e` 177/177 (incl. 9/9 visual
+  baselines over two deterministic runs, WCAG 2.1 AA + no-overflow
+  1280/1440). Not rerun (frontend-only, no API/schema/contract touch):
+  integration/security/performance/fullstack/deployment gates — covered by
+  the ADR-0034 baseline on the parent branch. No containers started.
+- **Docs.** New `docs/adr/0035-admin-web-premium-polish.md`; PRD unchanged.
+
+Next action: review/commit the branch and run hosted CI; Phase 13 staging
+deployment remains intentionally `in_progress`.
 
 ### Admin web premium redesign — 3 September 2026
 

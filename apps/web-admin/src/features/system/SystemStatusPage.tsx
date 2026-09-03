@@ -1,21 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import {
-  Alert,
-  Badge,
-  Button,
-  Dialog,
-  Input,
-  Loader,
-  PasswordInput,
-  Select,
-  Stack,
-} from '@care/ui';
+import { Alert, Badge, Button, Dialog, Input, PasswordInput, Select, Stack } from '@care/ui';
 import { BrainCircuit, Database, HardDrive, Rocket, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createAdminApi } from '../../admin-api';
 import type { AiConfiguration } from '../../admin-api';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSkeleton } from '../../components/AdminSkeleton';
 
 function statusTone(value: string | undefined): 'success' | 'warning' {
   return value === 'ok' || value === 'ready' ? 'success' : 'warning';
@@ -170,7 +161,7 @@ export function SystemStatusPage() {
         </Alert>
       ) : null}
       <div className="care-grid admin-system-grid">
-        <section className="admin-card" aria-label="Status health">
+        <section className="admin-card admin-card--lift" aria-label="Status health">
           <Stack gap="sm">
             <div className="admin-section__head">
               <h2 className="admin-card__title" style={{ margin: 0 }}>
@@ -181,7 +172,7 @@ export function SystemStatusPage() {
               ) : null}
             </div>
             {health.isLoading ? (
-              <Loader label="Memuat health" />
+              <AdminSkeleton lines={3} label="Memuat health" />
             ) : health.error ? (
               <Alert tone="danger" title="Gagal">
                 {String((health.error as Error).message)}
@@ -198,7 +189,7 @@ export function SystemStatusPage() {
             )}
           </Stack>
         </section>
-        <section className="admin-card" aria-label="Status readiness">
+        <section className="admin-card admin-card--lift" aria-label="Status readiness">
           <Stack gap="sm">
             <div className="admin-section__head">
               <h2 className="admin-card__title" style={{ margin: 0 }}>
@@ -209,7 +200,7 @@ export function SystemStatusPage() {
               ) : null}
             </div>
             {ready.isLoading ? (
-              <Loader label="Memuat ready" />
+              <AdminSkeleton lines={3} label="Memuat ready" />
             ) : ready.error ? (
               <Alert tone="danger" title="Gagal">
                 {String((ready.error as Error).message)}
@@ -240,7 +231,7 @@ export function SystemStatusPage() {
             )}
           </Stack>
         </section>
-        <section className="admin-card" aria-label="Release identity">
+        <section className="admin-card admin-card--lift" aria-label="Release identity">
           <Stack gap="sm">
             <div className="admin-section__head">
               <h2 className="admin-card__title" style={{ margin: 0 }}>
@@ -248,7 +239,7 @@ export function SystemStatusPage() {
               </h2>
             </div>
             {release.isLoading ? (
-              <Loader label="Memuat release" />
+              <AdminSkeleton lines={2} label="Memuat release" />
             ) : release.error ? (
               <Alert tone="danger" title="Gagal">
                 {String((release.error as Error).message)}
@@ -259,7 +250,9 @@ export function SystemStatusPage() {
                   <span className="admin-kv__label">
                     <Rocket size={14} aria-hidden="true" /> Release SHA
                   </span>
-                  <span className="admin-kv__value">{release.data?.releaseSha ?? '-'}</span>
+                  <span className="admin-kv__value admin-id admin-nums">
+                    {release.data?.releaseSha ?? '-'}
+                  </span>
                 </div>
               </div>
             )}
@@ -267,7 +260,7 @@ export function SystemStatusPage() {
         </section>
       </div>
 
-      <section className="admin-card" aria-label="Konfigurasi AI">
+      <section className="admin-card admin-card--hero" aria-label="Konfigurasi AI">
         <Stack gap="md">
           <div className="admin-section__head">
             <div>
@@ -281,7 +274,7 @@ export function SystemStatusPage() {
             </Badge>
           </div>
           {aiConfiguration.isLoading ? (
-            <Loader label="Memuat konfigurasi AI" />
+            <AdminSkeleton lines={4} label="Memuat konfigurasi AI" />
           ) : aiConfiguration.error ? (
             <Alert tone="danger" title="Konfigurasi AI tidak tersedia">
               {String((aiConfiguration.error as Error).message)}
