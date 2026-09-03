@@ -184,10 +184,17 @@
   color: rgb(255 255 255 / 14%);
 }
 /* Login-only hero variant: welcome headline plus the member-voice artwork,
-   whose edges land on the blue panel edges on every breakpoint. */
+   whose edges land on the blue panel edges on every breakpoint. The hero
+   carries no inline padding so the artwork can span it fully; the text
+   items carry the padding instead. */
 .auth-brand--media {
   grid-template-columns: minmax(0, 1fr);
   padding-bottom: 0;
+  padding-inline: 0;
+}
+.auth-brand--media .auth-brand__lockup,
+.auth-brand--media h1 {
+  padding-inline: var(--space-10);
 }
 .auth-brand--media h1 {
   max-width: none;
@@ -210,15 +217,14 @@
 }
 .auth-brand__asset {
   display: block;
-  width: auto;
-  max-width: none;
-  justify-self: stretch;
+  width: 100%;
+  height: auto;
+  align-self: start;
   /* Cancel the hero grid gap and pull the artwork up ~15% of its own height
-     (2:3 aspect, so ~11.5% of the track width) to tuck its transparent top
-     into the headline block. Negative inline margins land the artwork edges
-     on the panel edges; stretch plus auto width extends the content box by
-     the same amount. */
-  margin: calc(-1 * var(--space-5) - 11.5%) calc(-1 * var(--space-10)) 0;
+     (2:3 aspect, so 10% of the hero width). Plain width/height auto keeps
+     the intrinsic ratio in every engine — a stretched grid item distorts on
+     WebKit, which sizes the auto row from the image's natural height. */
+  margin: calc(-1 * var(--space-5) - 10%) 0 0;
 }
 .auth-card {
   position: relative;
@@ -298,6 +304,10 @@
   .auth-layout {
     grid-template-columns: 1fr;
     align-content: stretch;
+    /* The base rule centers items in their (stretched) rows, which leaves a
+       canvas strip above the full-bleed hero — pin items to the row top so
+       the blue panel starts at the viewport's very top edge. */
+    align-items: start;
     gap: 0;
     padding: 0 var(--space-5) var(--space-8);
   }
@@ -316,12 +326,14 @@
      declared later, so the artwork keeps the hero's bottom edge. */
   .auth-brand--media {
     padding-bottom: 0;
+    padding-inline: 0;
+  }
+  .auth-brand--media .auth-brand__lockup,
+  .auth-brand--media h1 {
+    padding-inline: var(--space-6);
   }
   .auth-brand--media h1 {
     font-size: 2.15rem;
-  }
-  .auth-brand__asset {
-    margin-inline: calc(-1 * var(--space-6));
   }
   /* Give long member names room next to the hero orbs. */
   .member-hero__identity {

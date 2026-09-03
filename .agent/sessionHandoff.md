@@ -1,16 +1,46 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                             |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 3 September 2026                                                                                                                                                  |
-| Current objective       | Workforce login hero artwork + copy refresh (frontend-only) on `feat/auth-submit-page-polish`                                                                     |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                                |
-| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                                                                            |
-| Implementation status   | Login hero artwork + copy refresh implemented locally on `feat/auth-submit-page-polish`; login baseline regen; full mocked e2e 177/177 green                      |
-| Latest ADR              | ADR-0036 (workforce login hero artwork and copy refresh)                                                                                                          |
-| Recommended next action | Review/commit the branch and run hosted CI; animated password placeholder intentionally deferred; Phase 13 staging deployment remains intentionally `in_progress` |
+| Atribut                 | Nilai                                                                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 3 September 2026                                                                                                                                            |
+| Current objective       | Login hero real-device fixes pushed directly to `staging` (frontend-only)                                                                                   |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                          |
+| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                                                                      |
+| Implementation status   | Post-merge WebKit stretch + mobile top-gap fixes validated locally and pushed directly to `staging` per product owner                                       |
+| Latest ADR              | ADR-0036 (workforce login hero artwork and copy refresh, updated for the cross-engine artwork pattern)                                                      |
+| Recommended next action | Verify the deployed staging build on a real device; animated password placeholder intentionally deferred; Phase 13 staging deployment remains `in_progress` |
 
 ## Session Outcome
+
+### Login hero real-device fixes (post-merge) — 3 September 2026
+
+After PR #29 merged, the product owner reported two real-device issues;
+both fixed in `apps/web-voice/src/styles.css` only and pushed directly to
+`staging` on request.
+
+- **WebKit artwork stretch (real iPhone report).** The original full-bleed
+  (`justify-self: stretch` + negative inline margins) made WebKit size the
+  auto grid row from the image's natural height and stretch the item on
+  both axes — Chromium resolved the same markup correctly, so the mocked
+  suite never caught it. Replaced with the canonical replaced-element
+  pattern: hero `padding-inline: 0` (lockup/h1 carry the inline padding
+  instead) and `img { width: 100%; height: auto; align-self: start }`,
+  overlap `calc(-1 * var(--space-5) - 10%)` (10% of the full-width track =
+  15% of the 2:3 asset height). A raw Playwright script verified in BOTH
+  engines: image 390×260 (ratio 0.667), hero bottom = image bottom, no
+  distortion.
+- **White strip above the hero on mobile.** The base `.auth-layout` centers
+  items (`align-items: center`) while the mobile rows stretch
+  (`align-content: stretch`), so the hero sat centered in its taller row —
+  an 8 px canvas strip above the blue. Mobile breakpoint now pins
+  `align-items: start`; measured hero top = 0 in both engines.
+- **Validation.** format:check, lint (zero warnings), typecheck, production
+  build (precache 14 entries, 820.97 KiB), PWA artifact gate (131,673 B),
+  login visual baseline regenerated delete-first and verified across two
+  consecutive deterministic runs (47/47 visual specs green). ADR-0036
+  updated to the shipped cross-engine pattern. Unit suites unaffected (no
+  TS/JSX change since their last green run); full mocked e2e re-run skipped
+  on the product owner's direct-push instruction.
 
 ### Workforce login hero artwork and copy refresh — 3 September 2026
 
@@ -26,10 +56,13 @@ ChangePasswordPage hero byte-identical; no API/schema/contract change.
   product-owner update), artwork `src/assets/auth-hero-asset.png` (1152×768
   899 KB PNG; source alpha verified genuinely transparent before use;
   resampled from 1536×1024; Vite-fingerprinted import, decorative `alt=""`,
-  width/height set). Full bleed via `justify-self: stretch` + `width: auto` +
-  `max-width: none` + negative inline margins (percentage width calc proved
-  unreliable in the grid track). Artwork sits flush under the headline
-  (grid gap cancelled, ~15% overlap via `-11.5%` top margin); lockup gap
+  width/height set). Full bleed via the hero's removed inline padding (text
+  items carry it instead) and the canonical replaced-element pattern
+  `width: 100%; height: auto; align-self: start` (percentage width calc
+  proved unreliable in the grid track; see the post-merge fixes above for
+  the WebKit iteration). Artwork sits flush under the headline
+  (grid gap cancelled, ~15% overlap via `calc(-1 * var(--space-5) - 10%)`);
+  lockup gap
   tightened. The wave is the hero's bottom edge (mobile `padding-bottom: 0`
   re-declared after the equal-specificity mobile shorthand — a single-class
   modifier is (0,1,0); cascade lesson recorded in ADR-0036 and a CSS

@@ -32,12 +32,15 @@ username hint, and a NoReg example as the username placeholder.
   fingerprinted immutable asset. It is decorative (`alt=""`), carries
   explicit `width`/`height` to prevent layout shift, and spans the hero's
   full width with its edges on the blue background's edges on every
-  breakpoint, its bottom wave forming the hero's bottom edge.
+  breakpoint, its bottom wave forming the hero's bottom edge. The hero
+  therefore carries no inline padding; the lockup and headline carry it
+  instead (`--space-10` desktop, `--space-6` mobile).
 - The artwork sits flush under the headline: the hero grid gap is cancelled
   and the image is pulled up by roughly 15% of its own height (implemented
-  as `-11.5%` of the track width given the 2:3 aspect) so its transparent
-  top tucks into the headline block. The lockup-to-headline gap is tightened
-  by a small negative margin.
+  as `calc(-1 * var(--space-5) - 10%)` — 10% of the full-width track equals
+  15% of the 2:3 asset's height) so its transparent top tucks into the
+  headline block. The lockup-to-headline gap is tightened by a small
+  negative margin.
 - Login copy: subtitle "Login untuk melanjutkan ke CARE", username
   placeholder "Contoh: 00111111", username helper "Gunakan 8 digit NoReg
   Anda.". The password placeholder remains the plain "Password".
@@ -55,11 +58,21 @@ username hint, and a NoReg example as the username placeholder.
   `padding-bottom: 0` therefore has to be re-declared after the mobile
   `.auth-brand` shorthand inside the media query, not only in the base rules.
 - Percentage widths on the image (`calc(100% + 2 * padding)`) proved
-  unreliable inside the single-column grid track, so the full-bleed is built
-  from `justify-self: stretch`, `width: auto`, `max-width: none` (countering
-  the preflight `img { max-width: 100% }` cap), and negative inline margins
-  equal to the hero padding. This keeps the geometry exact on both
-  breakpoints without percentage resolution ambiguity.
+  unreliable inside the single-column grid track, and the first fix
+  (`justify-self: stretch` + negative inline margins) vertically distorted
+  the artwork on real iOS WebKit devices: WebKit sizes the auto grid row
+  from the image's natural height and stretches the item on both axes to
+  fill it, while Chromium resolves the same markup correctly. The shipped
+  full-bleed uses the canonical cross-engine replaced-element pattern
+  instead — `width: 100%; height: auto; align-self: start` — with the
+  hero's own inline padding removed and re-applied on the text items, so no
+  engine can reinterpret the image's box.
+- The blue hero must start at the viewport's top edge on mobile. The base
+  `.auth-layout` centers items (`align-items: center`) and the mobile rows
+  are stretched (`align-content: stretch`), which left each item centered
+  in its taller row — an 8 px canvas strip above the hero. The mobile
+  breakpoint pins `align-items: start` so full-bleed items sit at the row
+  top.
 - PNG stays the delivery format: WebP is unsupported on the legacy iOS 11.3
   tier (ADR-0026). The source's alpha channel was verified before use — the
   background is genuinely transparent (roughly a third of pixels at alpha 0,
@@ -84,9 +97,11 @@ username hint, and a NoReg example as the username placeholder.
   imported image), subtitle/placeholder/helper copy. No shared component or
   `packages/ui` changes; the form logic is untouched.
 - `apps/web-voice/src/styles.css`: `.auth-brand--media` base rules (single
-  `minmax(0, 1fr)` grid track, `padding-bottom: 0`), accent headline styles,
-  `.auth-brand__asset` full-bleed/overlap rules, and the corresponding
-  mobile overrides declared after the `.auth-brand` mobile shorthand.
+  `minmax(0, 1fr)` grid track, `padding-bottom: 0`, inline padding moved to
+  the text items), accent headline styles, `.auth-brand__asset`
+  `width: 100%`/`height: auto` full-bleed and overlap rules, the
+  corresponding mobile overrides declared after the `.auth-brand` mobile
+  shorthand, and the mobile `align-items: start` on `.auth-layout`.
 - `apps/web-voice/src/assets/auth-hero-asset.png`: artwork, resampled from
   the 1536×1024 source to 1152×768 (899 KB), alpha verified.
 - The service-worker precache manifest is intentionally unchanged: the image
@@ -113,7 +128,11 @@ username hint, and a NoReg example as the username placeholder.
   projects.
 - Manual: rendered inspection at 360 px and 1440 px confirming the artwork
   edges meet the blue background edges, the wave forms the hero bottom edge
-  with no dead blue band, and the updated copy.
+  with no dead blue band, and the updated copy. After a real-device WebKit
+  stretch report, a raw Playwright script measures the artwork box and hero
+  edges in both WebKit and Chromium (image ratio 1.5:1, hero bottom equal
+  to image bottom, hero top at viewport top 0) before every visual-baseline
+  regen.
 
 ## Risks
 
