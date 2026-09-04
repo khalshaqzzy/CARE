@@ -1,16 +1,57 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 4 September 2026                                                                                                                             |
-| Current objective       | Immersive one-time Workforce submit-success receipt implemented locally                                                                      |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                           |
-| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                                                       |
-| Implementation status   | Frontend-only submit-success route, supplied transparent artwork, responsive visual baselines, and PWA precache coverage implemented locally |
-| Latest ADR              | ADR-0037 (workforce submit success page)                                                                                                     |
-| Recommended next action | Review/commit the branch, run hosted CI, then verify the receipt on a real device; Phase 13 staging deployment remains `in_progress`         |
+| Atribut                 | Nilai                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Date                    | 4 September 2026                                                                                              |
+| Current objective       | Reopen-after-low-rating deadline consistency fix implemented locally                                          |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open            |
+| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                        |
+| Implementation status   | API read models, closure worker guards, and Workforce rating state now agree on the two-day reopen boundary   |
+| Latest ADR              | ADR-0037 remains latest; ADR-0032 extended with the reopen consistency correction                             |
+| Recommended next action | Commit/push `fix/reopen-voice`, verify hosted CI, then recheck timely and expired low-rating paths on staging |
 
 ## Session Outcome
+
+### Reopen-after-low-rating deadline consistency — 4 September 2026
+
+Branch `fix/reopen-voice` (from current `staging`). The low-rating reopen path
+was audited end to end. The primary reported failure was an interaction mismatch:
+`Buka kembali` looked like an action but only selected a boolean; users still had
+to discover and press `Kirim penilaian` afterward before the atomic API mutation
+ran. A second deadline-boundary defect let an expired cycle remain visibly
+`PENDING` until the 30-second worker ran, so UI and mutation eligibility could
+also disagree temporarily.
+
+- **API/read model.** Expired stored-`PENDING` cycles are projected as effective
+  `ACCEPTED` immediately on detail and list responses, with the deadline used as
+  the effective resolution time. `closedPendingReview` now counts only cycles
+  whose deadline has not passed. This makes scheduling latency affect only the
+  durable auto-accept event/notifications, never the visible eligibility.
+- **Worker defense.** Auto-accept selection and guarded update now require an
+  unrated, unreopened cycle on a currently Closed Voice, preventing stale or
+  inconsistent rows from producing an auto-accept event.
+- **Workforce defense.** The rating card independently observes the deadline,
+  removes reopen when the window expires while the page is open, and replaces
+  the misleading reopen toggle with two explicit low-rating submit actions.
+  `Buka kembali` now directly sends the atomic rating + reopen mutation; the
+  `Kirim tanpa buka kembali` action records the low rating as final acceptance.
+- **Regression coverage.** PostgreSQL integration asserts effective acceptance,
+  the late-rating-only action, and dashboard count before the worker tick. Browser
+  journeys cover the one-click timely reopen, the explicit accepting decision,
+  and an expired pending payload.
+
+Validation completed: frozen install and Prisma generation; format, ESLint,
+typecheck, 202 unit tests, OpenAI smoke, destructive-migration and OpenAPI drift
+checks; all 56 PostgreSQL integration, 14 security, and the 50k-Voice performance
+suite; reconciliation, production build, PWA compatibility, and all 188 mocked
+browser/a11y/visual/PWA/legacy journeys. Focused closure review passed 6/6 and
+the Member journey passed 9/9. The real full-stack project passed 3/3 in an
+isolated Playwright container on the repository-required Node 22.23 runtime;
+this avoided stopping an unrelated local project already bound to host port 3000. Migration upgrade paths (legacy and previous handover), deployment
+validation/harness, security exception/audit checks, Actionlint, ShellCheck,
+inference Compose/Python checks, deployment shell syntax/bootstrap, and the
+pre-commit Gitleaks directory scan also passed. Audit retains three existing
+moderate findings and no high/critical finding. Hosted CI is checked after push.
 
 ### Workforce submit success page — 4 September 2026
 

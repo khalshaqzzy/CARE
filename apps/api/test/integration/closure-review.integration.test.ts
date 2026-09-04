@@ -175,11 +175,24 @@ describe('Closure review window and auto-acceptance', () => {
 
   it('refuses reopen once the window has passed but still records the late rating', async () => {
     const { voice, closure } = await closeFreshVoice('cr-close-4');
+    const pendingBeforeExpiry = (await voices.dashboardMember(reporter)).closedPendingReview;
     const deadline = new Date(closure.closedAt.getTime() - 60_000);
     await prisma.closureCycle.update({
       where: { id: closure.id },
       data: { reviewDeadline: deadline },
     });
+
+    // Read paths must not expose a stale reopen affordance while the worker is
+    // delayed: the effective state is accepted immediately at the deadline.
+    const expiredDetail = await voices.detail(reporter, voice.id);
+    expect(expiredDetail.closureCycles?.[0]).toMatchObject({
+      reviewState: 'ACCEPTED',
+      reviewResolvedAt: deadline,
+    });
+    expect(expiredDetail.availableActions).toContain('RATE');
+    expect((await voices.dashboardMember(reporter)).closedPendingReview).toBe(
+      pendingBeforeExpiry - 1,
+    );
 
     await expect(
       voices.rate(
