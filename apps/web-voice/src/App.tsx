@@ -40,6 +40,7 @@ import { getBrowserCapabilities } from './lib/browser-capabilities';
 import { AccountPage } from './features/account/AccountPage';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
+import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { HomePage } from './features/home/HomePage';
@@ -89,6 +90,7 @@ export function App() {
           <Route path="voices/new" element={<CreateVoicePage />} />
           <Route path="drafts/:id/edit" element={<CreateVoicePage />} />
           <Route path="drafts/:id/preview" element={<DraftPreviewPage />} />
+          <Route path="voices/submitted" element={<SubmittedVoicePage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="work-items" element={<WorkItemsPage />} />
           <Route path="general" element={<GeneralRoute />} />
@@ -374,6 +376,7 @@ function GeneralRoute() {
 function resolveCurrent(pathname: string, isUnion: boolean): string {
   const p = pathname;
   if (p === '/') return 'home';
+  if (p === '/voices/submitted') return 'submitted';
   if (p.startsWith('/voices/new') || p.startsWith('/drafts/')) return 'create';
   if (p.startsWith('/history')) return 'history';
   // Union reads the same operational inbox as "Private Voice".
@@ -394,6 +397,7 @@ function WorkforceShell() {
   if (!session) return null;
   const caps = capabilityFor(session);
   const current = resolveCurrent(location.pathname, caps.isUnion);
+  if (current === 'submitted') return <Outlet />;
   const iconFor = (id: string) => {
     const Icon =
       {

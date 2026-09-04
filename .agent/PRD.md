@@ -493,7 +493,10 @@ Button **Kirim Voice**:
 4. memvalidasi route owner masih aktif/eligible dan unik;
 5. membuat Voice, immutable organization/identity/classification/location snapshots, attachment link, route owner, event `SUBMITTED`, dan notification dalam satu transaction;
 6. mengubah status menjadi `OPEN`;
-7. menampilkan detail Riwayat Voice yang baru.
+7. menampilkan halaman konfirmasi **Terima kasih** tanpa app chrome. Halaman ini
+   bersifat sementara setelah submit; CTA **Lihat riwayat Voice** menuju Voice
+   Saya (`/history`) dan CTA **Ke dashboard** menuju dashboard capability-aware
+   (`/`). Refresh atau direct access ke route konfirmasi dialihkan ke Riwayat.
 
 Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan `Department = 14`, missing Department Head/default PIC, missing PIC global, atau Union account set tidak lengkap—submission ditolak dengan error yang dapat diperbaiki, draft dan media tetap tersimpan, dan tidak ada Voice parsial.
 

@@ -1,16 +1,55 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 3 September 2026                                                                                                                                            |
-| Current objective       | Login hero real-device fixes pushed directly to `staging` (frontend-only)                                                                                   |
-| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                                          |
-| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                                                                      |
-| Implementation status   | Post-merge WebKit stretch + mobile top-gap fixes validated locally and pushed directly to `staging` per product owner                                       |
-| Latest ADR              | ADR-0036 (workforce login hero artwork and copy refresh, updated for the cross-engine artwork pattern)                                                      |
-| Recommended next action | Verify the deployed staging build on a real device; animated password placeholder intentionally deferred; Phase 13 staging deployment remains `in_progress` |
+| Atribut                 | Nilai                                                                                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 4 September 2026                                                                                                                             |
+| Current objective       | Immersive one-time Workforce submit-success receipt implemented locally                                                                      |
+| Current phase           | Phase 12.5 `done`; Phase 13 `in_progress`; Phase 14 `pending`; Delivery Complete Gate remains open                                           |
+| Backend Complete Gate   | Unchanged (no API/contract/schema change in this pass)                                                                                       |
+| Implementation status   | Frontend-only submit-success route, supplied transparent artwork, responsive visual baselines, and PWA precache coverage implemented locally |
+| Latest ADR              | ADR-0037 (workforce submit success page)                                                                                                     |
+| Recommended next action | Review/commit the branch, run hosted CI, then verify the receipt on a real device; Phase 13 staging deployment remains `in_progress`         |
 
 ## Session Outcome
+
+### Workforce submit success page — 4 September 2026
+
+Branch `feat/submit-voice-asset` (from current `staging`). Successful General
+and Private submission now opens an immersive one-time `/voices/submitted`
+receipt instead of navigating directly to Voice detail, following ADR-0037.
+
+- **Lifecycle/navigation.** `DraftPreviewPage` keeps the established query
+  invalidations and replaces the preview history entry with a transient
+  `{ submitted: true }` receipt. `SubmittedVoicePage` consumes and clears that
+  state immediately; refresh/direct access/later browser-back redirects to
+  `/history`. The static route is resolved before `/voices/:id`. Its shell path
+  renders the outlet directly, so topbar/sidebar/bottom navigation are absent
+  from both the visual and accessibility tree. Actions go to Voice Saya
+  (`/history`) and the capability-aware dashboard (`/`). No fetch, storage,
+  query parameter, Voice ID, API, schema, or OpenAPI change was introduced.
+- **Visual.** The supplied 1122×1402 RGBA artwork is used unchanged as a
+  fingerprinted decorative asset; FFmpeg verified alpha `0..255`. The screen
+  reconstructs the supplied reference with CARE cobalt, a subtle blueprint
+  grid, white CARE lockup, outlined success check, centered character, and four
+  layered code-native SVG waves. The final white crest overlaps the content by
+  2 px to remove the responsive SVG raster seam while retaining a fully curved
+  lower boundary. Mobile is full-bleed; ≥513 px uses a centered 32rem vertical
+  canvas without changing to a split layout. Buttons remain clear of the safe
+  area and reduced motion is respected.
+- **PWA.** Fingerprinted PNG assets are now included in the inject-manifest
+  precache. Production output contains `submit-voice-asset-*.png`; precache is
+  16 entries / approximately 3.02 MiB. The JavaScript compatibility budget
+  remains green at 132,562 bytes gzip.
+- **Tests.** Added mocked journeys for success/history/dashboard,
+  refresh/direct-access consumption, submit failure/no false receipt, absence
+  of app chrome, Axe/keyboard/no-overflow, PWA asset presence, and visual
+  baselines at 360×800, 768×900, and 1440×1000. Baselines were regenerated
+  delete-first and passed a consecutive deterministic run. Format, lint,
+  typecheck, unit (API 79, UI 26, frontend-core 14, Admin 2, workforce 81),
+  production build, PWA compatibility, and the complete mocked Playwright
+  suite (185/185), Gitleaks v8.24.3 directory scan, and `git diff --check`
+  passed. Database-backed suites were not rerun because the change set is
+  frontend-only.
 
 ### Login hero real-device fixes (post-merge) — 3 September 2026
 

@@ -16,7 +16,7 @@ export default defineConfig({
       includeManifestIcons: false,
       injectManifest: {
         target: 'safari11.3',
-        globPatterns: ['assets/**/*.{js,css,woff2}', 'offline.html'],
+        globPatterns: ['assets/**/*.{js,css,woff2,png}', 'offline.html'],
         globIgnores: ['**/design-system-*.js', '**/design-system-*.css', '**/*.map'],
       },
       manifest: {

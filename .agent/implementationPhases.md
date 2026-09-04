@@ -914,3 +914,26 @@ status tidak berubah. Mengikuti ADR-0036.
   mocked e2e 177/177 termasuk baseline login 360 regen delete-first dua
   run deterministik, Gitleaks, dan `git diff --check`. Suite berbasis
   database tidak dijalankan ulang (change set frontend-only).
+
+## Workforce submit success receipt (implementation complete, 4 September 2026)
+
+Status: `done` untuk implementation scope lokal pada branch
+`feat/submit-voice-asset`; **Phase 13 tetap `in_progress`** dan staging status
+tidak berubah. Mengikuti ADR-0037.
+
+- Submit General/Private sukses menuju receipt sementara `/voices/submitted`;
+  receipt dikonsumsi satu kali, refresh/direct access kembali ke `/history`,
+  dan preview diganti dalam history agar draft yang sudah terkirim tidak dibuka
+  kembali.
+- Receipt melewati Workforce shell sepenuhnya dan menyediakan aksi ke Voice
+  Saya serta dashboard capability-aware tanpa fetch atau Voice identifier.
+- Supplied transparent character asset dipertahankan; blueprint grid, success
+  mark, dan layered SVG waves direkonstruksi code-native. White crest terakhir
+  membentuk batas bawah bergelombang tanpa seam lurus.
+- PNG fingerprinted masuk PWA precache; tidak ada perubahan backend, database,
+  OpenAPI, shared UI, atau authorization contract.
+- Acceptance lokal: format/lint/typecheck/unit/build/PWA compatibility hijau;
+  mocked functional/Axe/keyboard/no-overflow/PWA coverage ditambah; tiga
+  baseline 360/768/1440 diregenerasi delete-first dan stabil; full Playwright
+  suite 185/185 hijau. Suite database tidak dijalankan ulang karena perubahan
+  frontend-only.

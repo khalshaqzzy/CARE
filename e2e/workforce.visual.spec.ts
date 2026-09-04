@@ -968,6 +968,26 @@ for (const viewport of [
   { width: 768, height: 900 },
   { width: 1440, height: 1000 },
 ]) {
+  test(`workforce submit success visual at ${viewport.width}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockWorkforceApi(page, {});
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await expect(page).toHaveScreenshot(`workforce-submit-success-${viewport.width}.png`, {
+      ...screenshotOptions,
+      fullPage: true,
+    });
+  });
+}
+
+for (const viewport of [
+  { width: 360, height: 800 },
+  { width: 768, height: 900 },
+  { width: 1440, height: 1000 },
+]) {
   test(`workforce handover selection visual at ${viewport.width}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: 'reduce' });
