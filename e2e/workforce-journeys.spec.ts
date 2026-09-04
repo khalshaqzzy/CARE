@@ -73,6 +73,31 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Karawang 1')).toBeVisible();
   });
 
+  test('new Voice wizard submit opens the immersive receipt', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {});
+    await page.goto('/voices/new');
+    await page.getByRole('radio', { name: /General Voice/ }).click();
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await page
+      .getByRole('textbox', { name: /Detail Lokasi/ })
+      .fill('Lantai 3, dekat mesin produksi');
+    await page
+      .getByRole('textbox', { name: /Judul Voice/ })
+      .fill('Pencahayaan area produksi kurang');
+    await page
+      .getByRole('textbox', { name: /Detail Voice/ })
+      .fill('Lampu redup sehingga operator kesulitan membaca instruksi kerja.');
+    await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+    await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+
+    await expect(page).toHaveURL(/\/voices\/submitted$/);
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+  });
+
   test('successful submit opens the immersive receipt and history action', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { voice: generalVoice });
