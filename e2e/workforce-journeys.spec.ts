@@ -73,6 +73,75 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Karawang 1')).toBeVisible();
   });
 
+  test('successful submit opens the immersive receipt and history action', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { voice: generalVoice });
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+
+    await expect(page).toHaveURL(/\/voices\/submitted$/);
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+    await expect(
+      page.getByText('Voice Anda telah diterima. CARE akan segera menangani Voice Anda.'),
+    ).toBeVisible();
+    await expect(page.getByRole('navigation')).toHaveCount(0);
+    await expect(page.locator('.workforce-topbar')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Lihat riwayat Voice' }).click();
+    await expect(page).toHaveURL(/\/history$/);
+    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await expect(page.getByText(generalVoice.title)).toBeVisible();
+  });
+
+  test('submit receipt dashboard action returns to the capability-aware home', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { voice: generalVoice });
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Ke dashboard' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
+  });
+
+  test('submit receipt is consumed by refresh and rejects direct access', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { voice: generalVoice });
+
+    await page.goto('/voices/submitted');
+    await expect(page).toHaveURL(/\/history$/);
+
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+    await page.reload();
+    await expect(page).toHaveURL(/\/history$/);
+    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+  });
+
+  test('failed submit stays on preview and never renders a false receipt', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {});
+    await page.route('**/api/v1/drafts/*/submit', (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 409,
+          code: 'VERSION_CONFLICT',
+          message: 'Draft telah berubah.',
+        }),
+      }),
+    );
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+
+    await expect(page).toHaveURL(/\/drafts\/draft-1\/preview$/);
+    await expect(page.getByText('Voice tidak dapat dikirim')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toHaveCount(0);
+  });
+
   test('history lists the member own voices', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { voice: generalVoice });

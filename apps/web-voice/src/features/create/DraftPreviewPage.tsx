@@ -49,12 +49,11 @@ export function DraftPreviewPage() {
         submitKey.key(),
       );
     },
-    onSuccess: (data) => {
-      const payload = data as { id: string };
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'dashboard') });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice') });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'draft') });
-      void navigate(`/voices/${payload.id}`, { replace: true });
+      void navigate('/voices/submitted', { replace: true, state: { submitted: true } });
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Voice gagal dikirim.'),
     onSettled: submitKey.reset,

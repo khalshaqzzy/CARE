@@ -276,6 +276,25 @@ test.describe('workforce accessibility and responsive surface', () => {
     await expect(page.getByRole('textbox', { name: 'Username' })).toBeFocused();
   });
 
+  test('submit success receipt is axe clean, contained, and keyboard operable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {});
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+    await expect(page.getByRole('main')).toHaveCount(1);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Lihat riwayat Voice' }).focus();
+    await expect(page.getByRole('button', { name: 'Lihat riwayat Voice' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/history$/);
+  });
+
   test('reduced-motion renders overlays without conflict', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await open(page, { path: '/', heading: 'Budi Santoso', viewport: { width: 360, height: 800 } });
