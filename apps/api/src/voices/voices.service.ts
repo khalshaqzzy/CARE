@@ -1649,6 +1649,7 @@ export class VoicesService {
   async dashboardMember(actor: AuthActor) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
     const where: Prisma.VoiceWhereInput = { reporterId: actor.accountId };
+    const now = new Date();
     const [total, grouped, recent, draft, closedPendingReview] = await Promise.all([
       this.prisma.voice.count({ where }),
       this.prisma.voice.groupBy({ by: ['status'], where, _count: { _all: true } }),
@@ -1669,6 +1670,7 @@ export class VoicesService {
       this.prisma.closureCycle.count({
         where: {
           reviewState: ClosureReviewState.PENDING,
+          reviewDeadline: { gte: now },
           reopenedAt: null,
           voice: { reporterId: actor.accountId, status: VoiceStatus.CLOSED },
         },
@@ -2291,13 +2293,15 @@ export class VoicesService {
       closureCycles,
       ...rest
     } = row;
+    const latestReview = closureCycles?.[0];
+    const closureReviewState = this.effectiveReviewState(latestReview);
     return {
       ...rest,
       category: currentCategoryKey ?? categoryKey,
       categoryNameSnapshot: currentCategoryNameSnapshot ?? categoryNameSnapshot ?? null,
       currentHandlerName: currentHandler?.displayName ?? null,
-      closureReviewState: closureCycles?.[0]?.reviewState ?? null,
-      closureReviewDeadline: closureCycles?.[0]?.reviewDeadline ?? null,
+      closureReviewState,
+      closureReviewDeadline: latestReview?.reviewDeadline ?? null,
     };
   }
   private async authorizedVoice(actor: AuthActor, id: string) {
@@ -2617,26 +2621,32 @@ export class VoicesService {
       currentHandler: voice.currentHandler,
       attachments: voice.attachments,
       locationReview: voice.locationReview,
-      closureCycles: (voice.closureCycles ?? []).map((cycle: any) => ({
-        id: cycle.id,
-        cycleNumber: cycle.cycleNumber,
-        note: cycle.note,
-        closedAt: cycle.closedAt,
-        reopenedAt: cycle.reopenedAt,
-        reviewState: cycle.reviewState,
-        reviewDeadline: cycle.reviewDeadline,
-        reviewResolvedAt: cycle.reviewResolvedAt,
-        actor: cycle.actor,
-        evidence: cycle.evidence,
-        rating: cycle.rating
-          ? {
-              score: cycle.rating.score,
-              feedback: cycle.rating.feedback,
-              reopen: cycle.rating.reopen,
-              createdAt: cycle.rating.createdAt,
-            }
-          : null,
-      })),
+      closureCycles: (voice.closureCycles ?? []).map((cycle: any) => {
+        const reviewState = this.effectiveReviewState(cycle);
+        const expiredPending =
+          reviewState === ClosureReviewState.ACCEPTED &&
+          cycle.reviewState === ClosureReviewState.PENDING;
+        return {
+          id: cycle.id,
+          cycleNumber: cycle.cycleNumber,
+          note: cycle.note,
+          closedAt: cycle.closedAt,
+          reopenedAt: cycle.reopenedAt,
+          reviewState,
+          reviewDeadline: cycle.reviewDeadline,
+          reviewResolvedAt: expiredPending ? cycle.reviewDeadline : cycle.reviewResolvedAt,
+          actor: cycle.actor,
+          evidence: cycle.evidence,
+          rating: cycle.rating
+            ? {
+                score: cycle.rating.score,
+                feedback: cycle.rating.feedback,
+                reopen: cycle.rating.reopen,
+                createdAt: cycle.rating.createdAt,
+              }
+            : null,
+        };
+      }),
       availableActions: this.actionSet(actor, voice),
       conversationState: this.conversationState(actor, voice),
     };
@@ -2739,6 +2749,25 @@ export class VoicesService {
         payload: { notificationId: notification.id },
       },
     });
+  }
+
+  /**
+   * Treat an expired pending cycle as accepted on every read path, even when
+   * the background worker has not persisted the transition yet. The worker is
+   * responsible for the durable event and notifications; reopen eligibility
+   * must never depend on its scheduling latency.
+   */
+  private effectiveReviewState(
+    cycle: { reviewState: ClosureReviewState; reviewDeadline: Date | null } | null | undefined,
+  ): ClosureReviewState | null {
+    if (!cycle) return null;
+    if (
+      cycle.reviewState === ClosureReviewState.PENDING &&
+      cycle.reviewDeadline !== null &&
+      cycle.reviewDeadline.getTime() < Date.now()
+    )
+      return ClosureReviewState.ACCEPTED;
+    return cycle.reviewState;
   }
   private async cleanupLegacy(tx: Prisma.TransactionClient, voiceId: string) {
     await tx.legacyVoiceAccess.updateMany({

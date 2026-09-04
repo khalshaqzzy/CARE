@@ -13,7 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Clock, Info, Map, MessageCircle, Sparkles, UserRound } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
@@ -242,10 +242,10 @@ function ReporterCard({ voice }: { voice: VoiceDetail }) {
 
 /**
  * Reporter-facing closure rating. Rating and the reopen decision leave in one
- * atomic mutation (PRD §17.3): the "Buka kembali" outline toggle only appears
- * for low scores within the review window and simply flips the `reopen` flag
- * that "Kirim penilaian" submits. After auto-acceptance the card switches to
- * the late-rating variant: feedback only, never reopen.
+ * atomic mutation (PRD §17.3). For a timely low score the two submit actions
+ * make the decision explicit: "Buka kembali" sends `reopen: true` immediately,
+ * while "Kirim tanpa buka kembali" accepts the closure. After auto-acceptance
+ * the card switches to the late-rating variant: feedback only, never reopen.
  */
 function RatingCard({ voice }: { voice: VoiceDetail }) {
   const api = useApi();
@@ -254,13 +254,39 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
   const rateKey = useMutationKey('rate');
   const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState('');
-  const [reopen, setReopen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cycles = (voice.closureCycles ?? []) as ClosureCycle[];
   const latest = [...cycles].sort((a, b) => a.cycleNumber - b.cycleNumber).at(-1);
   const autoAccepted = latest?.reviewState === 'ACCEPTED' && !latest.rating;
   const deadline = autoAccepted ? null : (latest?.reviewDeadline ?? null);
+  const deadlineMs = deadline ? new Date(deadline).getTime() : Number.NaN;
+  const [reviewWindowOpen, setReviewWindowOpen] = useState(
+    () => Number.isFinite(deadlineMs) && deadlineMs >= Date.now(),
+  );
+
+  useEffect(() => {
+    if (!Number.isFinite(deadlineMs)) {
+      setReviewWindowOpen(false);
+      return;
+    }
+    const remaining = deadlineMs - Date.now();
+    setReviewWindowOpen(remaining >= 0);
+    if (remaining < 0) return;
+    let timer: number | undefined;
+    const refreshAtDeadline = () => {
+      const nextRemaining = deadlineMs - Date.now();
+      if (nextRemaining < 0) {
+        setReviewWindowOpen(false);
+        return;
+      }
+      timer = window.setTimeout(refreshAtDeadline, Math.min(nextRemaining + 1, 2_147_483_647));
+    };
+    timer = window.setTimeout(refreshAtDeadline, Math.min(remaining + 1, 2_147_483_647));
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [deadlineMs]);
 
   const rate = useMutation({
     mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
@@ -275,6 +301,23 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
 
   const needsFeedback = score !== null && score <= 2;
   const canSubmit = score !== null && (!needsFeedback || feedback.trim().length > 0);
+  const submitRating = (reopen: boolean) => {
+    if (score === null) return;
+    setError(null);
+    if (reopen && (!reviewWindowOpen || deadlineMs < Date.now())) {
+      setReviewWindowOpen(false);
+      setError(
+        'Jendela buka kembali baru saja berakhir. Penilaian belum dikirim; periksa kembali pilihan Anda.',
+      );
+      return;
+    }
+    const trimmed = feedback.trim();
+    rate.mutate({
+      score,
+      reopen,
+      ...(trimmed ? { feedback: trimmed } : {}),
+    });
+  };
 
   return (
     <Card padding="md" className="rating-card">
@@ -323,35 +366,38 @@ function RatingCard({ voice }: { voice: VoiceDetail }) {
           counter={`${feedback.length}/2000`}
           {...(needsFeedback ? { helperText: 'Feedback wajib untuk rating 1–2.' } : {})}
         />
-        {needsFeedback && !autoAccepted ? (
-          <div className="rating-card__reopen">
-            <button
-              type="button"
-              className="rating-card__reopen-toggle"
-              aria-pressed={reopen}
-              onClick={() => setReopen((current) => !current)}
-              disabled={rate.isPending}
-            >
-              Buka kembali
-            </button>
-            <p className="rating-card__reopen-note">Masalah belum sepenuhnya selesai</p>
+        {needsFeedback && !autoAccepted && reviewWindowOpen ? (
+          <div className="rating-card__decision">
+            <p className="rating-card__reopen-note">
+              Masalah belum selesai? Rating dan reopen akan dikirim bersamaan.
+            </p>
+            <div className="rating-card__actions">
+              <Button
+                variant="secondary"
+                onClick={() => submitRating(false)}
+                loading={rate.isPending}
+                disabled={!canSubmit}
+              >
+                Kirim tanpa buka kembali
+              </Button>
+              <Button
+                onClick={() => submitRating(true)}
+                loading={rate.isPending}
+                disabled={!canSubmit}
+              >
+                Buka kembali
+              </Button>
+            </div>
           </div>
-        ) : null}
-        <Button
-          onClick={() => {
-            if (score === null) return;
-            const trimmed = feedback.trim();
-            rate.mutate({
-              score,
-              reopen: autoAccepted ? false : reopen,
-              ...(trimmed ? { feedback: trimmed } : {}),
-            });
-          }}
-          loading={rate.isPending}
-          disabled={!canSubmit}
-        >
-          Kirim penilaian
-        </Button>
+        ) : (
+          <Button
+            onClick={() => submitRating(false)}
+            loading={rate.isPending}
+            disabled={!canSubmit}
+          >
+            Kirim penilaian
+          </Button>
+        )}
       </Stack>
     </Card>
   );

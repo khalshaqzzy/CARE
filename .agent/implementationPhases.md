@@ -3,7 +3,7 @@
 | Atribut                | Nilai                                                                                                                                                                                                                                                                        |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                  |
-| Last updated           | 3 September 2026 (admin-web premium redesign across 9 pages + sub-surfaces with additive overview API and per-page baselines; ADR-0034)                                                                                                                                      |
+| Last updated           | 4 September 2026 (deadline-consistent low-rating reopen/read-model correction; ADR-0032 extension)                                                                                                                                                                           |
 | Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                         |
 | Current implementation | Admin premium redesign plus dynamic General categories and audited Manager-to-Manager `OPEN` Voice handover are implemented locally; mockups treated as layout/style only with CARE domain and contracts preserved. Existing Phase 13 hosted acceptance status is unchanged. |
 | Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                             |
@@ -863,6 +863,15 @@ dengan rating dalam jendela.
   suite baru `closure-review.integration.test.ts` (6 kasus: window, accept,
   reject+reopen, window-closed, worker auto-accept + idempoten + rating
   terlambat, re-close cycle baru) dan seluruh suite lain tetap hijau.
+- Koreksi 4 September 2026: cycle `PENDING` yang deadline-nya sudah lewat kini
+  diproyeksikan langsung sebagai `ACCEPTED` pada detail/list dan dikeluarkan
+  dari `closedPendingReview`, tanpa menunggu tick worker. Worker hanya memilih
+  cycle unrated/unreopened pada Voice `CLOSED`. RatingCard juga menutup dan
+  menyembunyikan reopen saat deadline lewat. Toggle ambigu diganti dua aksi
+  submit eksplisit: `Buka kembali` langsung mengirim rating+reopen atomik dan
+  `Kirim tanpa buka kembali` menerima closure dengan rating rendah.
+  Regression mencakup PostgreSQL read-model sebelum tick serta journey browser
+  expired-pending dan kedua keputusan rating rendah; timely reopen tetap hijau.
 
 ## Manager-to-Manager Voice Handover (implementation complete, 2 September 2026)
 

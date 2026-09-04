@@ -2726,41 +2726,25 @@
   width: 3rem;
   height: 3rem;
 }
-.rating-card__reopen {
+.rating-card__decision {
   display: grid;
-  gap: var(--space-1);
-}
-.rating-card__reopen-toggle {
-  display: inline-flex;
-  min-height: 2.875rem;
-  align-items: center;
-  justify-content: center;
   gap: var(--space-2);
-  border: 1.5px solid var(--action-primary-bg);
-  border-radius: var(--radius-control);
-  color: var(--action-primary-bg);
-  background: transparent;
-  padding: var(--space-2) var(--space-4);
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
 }
-.rating-card__reopen-toggle[aria-pressed='true'] {
-  background: var(--surface-selected);
-  box-shadow: 0 0 0 1px var(--raw-brand-600) inset;
-}
-.rating-card__reopen-toggle:focus-visible {
-  outline: var(--focus-width) solid var(--focus-color);
-  outline-offset: var(--focus-offset);
-}
-.rating-card__reopen-toggle:disabled {
-  opacity: var(--opacity-disabled);
-  cursor: not-allowed;
+.rating-card__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 .rating-card__reopen-note {
   margin: 0;
   color: var(--text-tertiary);
   font-size: var(--font-size-xs);
   text-align: center;
+}
+@media (max-width: 420px) {
+  .rating-card__actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Featured closure (latest cycle) + collapsed older cycles */

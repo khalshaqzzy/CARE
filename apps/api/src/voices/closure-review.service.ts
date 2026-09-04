@@ -24,7 +24,13 @@ export class ClosureReviewService implements OnModuleInit, OnModuleDestroy {
   }
   async tick() {
     const expired = await this.prisma.closureCycle.findMany({
-      where: { reviewState: ClosureReviewState.PENDING, reviewDeadline: { lte: new Date() } },
+      where: {
+        reviewState: ClosureReviewState.PENDING,
+        reviewDeadline: { lte: new Date() },
+        reopenedAt: null,
+        rating: null,
+        voice: { status: 'CLOSED' },
+      },
       select: { id: true, voiceId: true, cycleNumber: true, actorId: true, reviewDeadline: true },
       orderBy: { reviewDeadline: 'asc' },
       take: 50,
@@ -40,7 +46,12 @@ export class ClosureReviewService implements OnModuleInit, OnModuleDestroy {
   }) {
     await this.prisma.$transaction(async (tx) => {
       const resolved = await tx.closureCycle.updateMany({
-        where: { id: cycle.id, reviewState: ClosureReviewState.PENDING },
+        where: {
+          id: cycle.id,
+          reviewState: ClosureReviewState.PENDING,
+          reopenedAt: null,
+          rating: null,
+        },
         data: {
           reviewState: ClosureReviewState.ACCEPTED,
           reviewResolvedAt: cycle.reviewDeadline ?? new Date(),

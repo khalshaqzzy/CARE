@@ -127,3 +127,36 @@ CLOSURE_REVIEW_DAYS` (env, default 2, validated 1–30). Reopen eligibility
   firing on time.
 - Two-day default is environment-tunable (`CLOSURE_REVIEW_DAYS`) but fixed per
   deployment, not per Voice.
+
+## Implementation Correction — 4 September 2026
+
+An audit of a reported low-rating reopen failure found two interaction
+inconsistencies. Most directly, `Buka kembali` was styled and worded as an action
+but only selected a boolean; the user still had to press `Kirim penilaian` to
+execute the mutation. Separately, the mutation correctly derived reopen
+eligibility from `reviewDeadline`, but detail, list, and member-dashboard reads
+exposed the stored `PENDING` value until the worker persisted `ACCEPTED`. During
+that scheduling interval the UI could offer reopen and then receive
+`REOPEN_NOT_ALLOWED`. The claim above that worker latency does not affect
+reporter-facing state therefore was not fully implemented.
+
+The decision is completed as follows:
+
+1. Detail and list serialization project an expired stored-`PENDING` cycle as
+   effective `ACCEPTED`; detail also projects `reviewResolvedAt` from the
+   deadline until the worker persists the transition.
+2. `closedPendingReview` only counts pending cycles whose deadline has not
+   passed.
+3. Worker selection and its guarded update require the cycle to remain unrated
+   and unreopened, and selection additionally requires its Voice to remain
+   `CLOSED`.
+4. The Workforce rating card maintains a client-side deadline guard for a page
+   left open across expiry. For a timely low rating, the former selection-only
+   `Buka kembali` toggle is replaced by two explicit submit actions: `Buka
+kembali` directly sends rating + `reopen: true`, while `Kirim tanpa buka
+kembali` sends the final low rating with `reopen: false`. This removes the
+   misleading extra-submit interaction and any hidden stale boolean.
+
+No schema, OpenAPI, deadline duration, or product rule changes result. A timely
+rating 1–2 still requires feedback and only reopens when the explicit atomic
+choice is selected; an expired low rating remains feedback-only.
