@@ -21,7 +21,10 @@ LABEL org.opencontainers.image.title="care-postgres" \
   org.opencontainers.image.source="https://github.com/khalshaqzzy/CARE" \
   org.opencontainers.image.version="16-pgvector-0.8.6"
 USER 0
-RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libuuid=2.42.3-r0 \
+# The stable x86_64 index lags the patched libuuid release. Only this pinned
+# package may resolve from the tagged security source; stable remains default.
+RUN printf '%s\n' '@care-security https://dl-cdn.alpinelinux.org/alpine/edge/main' >> /etc/apk/repositories \
+  && apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libuuid@care-security=2.42.3-r0 \
   && rm -f /usr/local/bin/gosu
 COPY --from=pgvector-build /usr/local/lib/postgresql/vector.so /usr/local/lib/postgresql/vector.so
 COPY --from=pgvector-build /usr/local/share/postgresql/extension/vector* /usr/local/share/postgresql/extension/

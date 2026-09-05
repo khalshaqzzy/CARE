@@ -23,7 +23,7 @@ Implemented locally: a bounded assignment body with persistent actions, candidat
 
 PR #32 visual CI remediation: platform/architecture-specific Darwin/Linux ARM64/Linux x64 baselines replace cross-OS comparison for the new consent/assignment tests and identified detail. Thresholds and application behavior are unchanged; Phase 13 hosted acceptance remains open.
 
-Staging follow-up (5 September): PR #32 merged and hosted quality passed; container gate requires patched libuuid 2.42.3-r0 in both web runtimes and PostgreSQL. Phase 13 remains in progress until staging delivery succeeds.
+Staging follow-up (5 September): PR #32 merged and hosted quality passed; container gate requires patched libuuid 2.42.3-r0 from a narrowly tagged source until the stable x86_64 package index catches up in both web runtimes and PostgreSQL. Phase 13 remains in progress until staging delivery succeeds.
 
 ## Sequencing Gates
 
