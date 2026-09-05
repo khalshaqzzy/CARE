@@ -114,6 +114,7 @@ export function Menu({
 }
 
 export interface DialogProps {
+  className?: string;
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -128,6 +129,7 @@ export interface DialogProps {
   finalFocusRef?: RefObject<HTMLElement | null>;
 }
 export function Dialog({
+  className,
   open,
   defaultOpen,
   onOpenChange,
@@ -155,6 +157,7 @@ export function Dialog({
         <DialogPrimitive.Content
           className={cn(
             'care-dialog',
+            className,
             `care-dialog--${size}`,
             mobileSheet && 'care-dialog--mobile-sheet',
             drawerSide && `care-dialog--drawer-${drawerSide}`,

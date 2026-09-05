@@ -71,9 +71,7 @@ function csrfIdempotentHeader(key: string): { 'X-CSRF-Token': string; 'Idempoten
   return { 'X-CSRF-Token': '', 'Idempotency-Key': key };
 }
 
-type DraftPatch = Partial<components['schemas']['VoiceDraftRequest']> & {
-  expectedVersion?: number;
-};
+type DraftPatch = components['schemas']['VoiceDraftPatchRequest'];
 
 export function createWorkforceApi(transport: CareTransport) {
   const { client } = transport;
@@ -99,7 +97,7 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<VoiceDraft>(
         client.PATCH('/api/v1/drafts/{id}', {
           params: { path: { id }, header: csrfHeader() },
-          body: body as components['schemas']['VoiceDraftRequest'],
+          body,
         }),
       ),
     createDraft: (body: components['schemas']['VoiceDraftRequest']) =>

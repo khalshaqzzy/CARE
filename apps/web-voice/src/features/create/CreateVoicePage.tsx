@@ -41,6 +41,8 @@ import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import type { Attachment } from '../../workforce-api';
 import {
   ReviewConsentConfirmation,
+  ReviewContactConsent,
+  PRIVATE_CONTACT_CONSENT_TEXT,
   ReviewContent,
   ReviewMetaBar,
   ReviewSummary,
@@ -386,6 +388,13 @@ function FormStep({ wizard }: { wizard: Wizard }) {
                 },
               ]}
             />
+            <div className="private-contact-consent">
+              <Checkbox
+                checked={form.privateContactConsent}
+                onCheckedChange={(checked) => setField({ privateContactConsent: checked })}
+                label={PRIVATE_CONTACT_CONSENT_TEXT}
+              />
+            </div>
           </section>
         ) : (
           <p className="wizard-ai-note">
@@ -529,6 +538,7 @@ function MediaInput({
               onClick={() => inputRef.current?.click()}
               disabled={uploading}
               aria-label={`Tambah foto, sisa ${remaining}`}
+              aria-describedby="atsg-photo-guidance"
             >
               {uploading ? <LoaderCircle size={18} className="spin" /> : <ImagePlus size={20} />}
               <span>{uploading ? 'Mengunggah…' : 'Tambah foto'}</span>
@@ -544,7 +554,11 @@ function MediaInput({
           </span>
         </p>
       </div>
+      <p id="atsg-photo-guidance" className="atsg-photo-guidance">
+        Foto harap mengikuti aturan ATSG ya teman-teman.
+      </p>
       <input
+        aria-describedby="atsg-photo-guidance"
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
@@ -778,6 +792,7 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           visibility={form.visibility}
           severity={severity}
           category={isPrivate ? null : category}
+          categoryName={preview.data?.categoryNameSnapshot}
           routeLabel={isPrivate ? 'Union Head' : routeLabel}
           showIdentity={form.showReporterIdentity}
           fallbackCode={
@@ -795,10 +810,14 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           attachments={wizard.attachments}
         />
 
-        <ReviewMetaBar source={source} completeness={locationReview?.completeness ?? null} />
+        <ReviewMetaBar completeness={locationReview?.completeness ?? null} />
 
         {isPrivate ? (
           <ReviewConsentConfirmation showIdentity={form.showReporterIdentity === true} />
+        ) : null}
+
+        {isPrivate ? (
+          <ReviewContactConsent accepted={draft?.privateContactConsent === true} />
         ) : null}
 
         {isIncomplete ? (
@@ -818,7 +837,9 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
               variant="primary"
               className="wizard-actionsbar__primary"
               loading={wizard.isSubmitting}
-              disabled={isIncomplete && !ack}
+              disabled={
+                (isIncomplete && !ack) || (isPrivate && draft?.privateContactConsent !== true)
+              }
               onClick={() => void wizard.submit()}
             >
               <Radio size={18} /> Kirim Voice

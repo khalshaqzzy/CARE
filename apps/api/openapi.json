@@ -6492,7 +6492,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VoiceDraftRequest"
+                "$ref": "#/components/schemas/VoiceDraftPatchRequest"
               }
             }
           }
@@ -12894,6 +12894,52 @@
           "showReporterIdentity": {
             "type": "boolean",
             "description": "Required only for Private Voice"
+          },
+          "privateContactConsent": {
+            "type": "boolean",
+            "description": "Private only; must be true before submission"
+          }
+        }
+      },
+      "VoiceDraftPatchRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "showReporterIdentity": {
+            "type": "boolean"
+          },
+          "privateContactConsent": {
+            "type": "boolean"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
           }
         }
       },
@@ -14387,6 +14433,19 @@
             ],
             "nullable": true
           },
+          "privateContactConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "privateContactConsentRecordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "privateContactConsentVersion": {
+            "type": "string",
+            "nullable": true
+          },
           "reporter": {
             "type": "object",
             "required": [
@@ -15474,6 +15533,19 @@
             ],
             "nullable": true
           },
+          "privateContactConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "privateContactConsentRecordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "privateContactConsentVersion": {
+            "type": "string",
+            "nullable": true
+          },
           "reporter": {
             "type": "object",
             "required": [
@@ -15963,6 +16035,10 @@
             "type": "string"
           },
           "showReporterIdentity": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "privateContactConsent": {
             "type": "boolean",
             "nullable": true
           },
@@ -17621,6 +17697,10 @@
             "type": "boolean",
             "nullable": true
           },
+          "privateContactConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
           "version": {
             "type": "integer",
             "minimum": 1
@@ -17656,6 +17736,10 @@
               "routeReadiness"
             ],
             "properties": {
+              "categoryNameSnapshot": {
+                "type": "string",
+                "nullable": true
+              },
               "routeReadiness": {
                 "type": "object",
                 "required": [

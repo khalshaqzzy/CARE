@@ -24,6 +24,7 @@ export type DraftForm = {
   title: string;
   detail: string;
   showReporterIdentity: boolean | null;
+  privateContactConsent: boolean;
 };
 
 const EMPTY_FORM: DraftForm = {
@@ -33,6 +34,7 @@ const EMPTY_FORM: DraftForm = {
   title: '',
   detail: '',
   showReporterIdentity: null,
+  privateContactConsent: false,
 };
 
 export function useDraftWizard(draftId?: string) {
@@ -72,7 +74,9 @@ export function useDraftWizard(draftId?: string) {
       title: loaded.data.title,
       detail: loaded.data.detail,
       showReporterIdentity: loaded.data.showReporterIdentity ?? null,
+      privateContactConsent: loaded.data.privateContactConsent === true,
     });
+    setAttachments(loaded.data.attachments ?? []);
     setDraft(loaded.data);
     setClassification(loaded.data.classification ?? null);
     setLocationReview(loaded.data.locationReview ?? null);
@@ -84,23 +88,22 @@ export function useDraftWizard(draftId?: string) {
 
   const persist = useMutation({
     mutationFn: async (patch: Partial<DraftForm>) => {
-      const body: Record<string, unknown> = {};
-      for (const key of Object.keys(patch) as (keyof DraftForm)[]) {
-        const value = patch[key];
-        if (value !== undefined) body[key] = value;
-      }
-      if (draft) return api.updateDraft(draft.id, body as never);
       const next = { ...form, ...patch };
-      return api.createDraft({
-        area: next.area as never,
+      const body = {
+        area: next.area as VoiceDraft['area'],
         locationDetail: next.locationDetail,
         title: next.title,
         detail: next.detail,
         visibility: next.visibility,
         ...(next.visibility === 'PRIVATE'
-          ? { showReporterIdentity: next.showReporterIdentity ?? false }
+          ? {
+              showReporterIdentity: next.showReporterIdentity ?? false,
+              privateContactConsent: next.privateContactConsent,
+            }
           : {}),
-      });
+      };
+      if (draft) return api.updateDraft(draft.id, { ...body, expectedVersion: draft.version });
+      return api.createDraft(body);
     },
     onSuccess: (data) => {
       setDraft(data);
@@ -165,10 +168,9 @@ export function useDraftWizard(draftId?: string) {
   });
 
   const uploadAttachments = useMutation({
-    mutationFn: async (files: File[]) => {
-      if (!draft) return [];
+    mutationFn: async ({ files, draftId }: { files: File[]; draftId: string }) => {
       const uploaded: Attachment[] = [];
-      for (const file of files) uploaded.push(await api.uploadDraftAttachment(draft.id, file));
+      for (const file of files) uploaded.push(await api.uploadDraftAttachment(draftId, file));
       return uploaded;
     },
     onSuccess: (uploaded) => {
@@ -185,7 +187,14 @@ export function useDraftWizard(draftId?: string) {
   });
 
   const setField = useCallback(
-    (patch: Partial<DraftForm>) => setForm((current) => ({ ...current, ...patch })),
+    (patch: Partial<DraftForm>) =>
+      setForm((current) => ({
+        ...current,
+        ...patch,
+        ...(patch.visibility && patch.visibility !== current.visibility
+          ? { showReporterIdentity: null, privateContactConsent: false }
+          : {}),
+      })),
     [],
   );
 
@@ -194,6 +203,10 @@ export function useDraftWizard(draftId?: string) {
     if (!form.visibility) return setStep('visibility');
     if (!form.area || !form.locationDetail.trim() || !form.title.trim() || !form.detail.trim()) {
       setError('Lengkapi area, detail lokasi, judul, dan detail Voice.');
+      return;
+    }
+    if (form.visibility === 'PRIVATE' && form.showReporterIdentity === null) {
+      setError('Pilih apakah identitas Anda ditampilkan kepada Union.');
       return;
     }
     try {
@@ -250,7 +263,7 @@ export function useDraftWizard(draftId?: string) {
         if (!targetDraft) targetDraft = (await saveOnly()) ?? null;
         if (!targetDraft) return;
         setDraft(targetDraft);
-        await uploadAttachments.mutateAsync(files);
+        await uploadAttachments.mutateAsync({ files, draftId: targetDraft.id });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Lampiran gagal diunggah.');
       }
@@ -276,6 +289,10 @@ export function useDraftWizard(draftId?: string) {
 
   const submit = useCallback(async () => {
     setError(null);
+    if (draft?.visibility === 'PRIVATE' && draft.privateContactConsent !== true) {
+      setError('Setujui kesediaan komunikasi pribadi pada form sebelum mengirim.');
+      return;
+    }
     setStep('submitting');
     setAckDisabled(true);
     try {
@@ -286,7 +303,7 @@ export function useDraftWizard(draftId?: string) {
     } finally {
       setAckDisabled(false);
     }
-  }, [submitMutation]);
+  }, [draft, submitMutation]);
 
   const dirty = useMemo(
     () =>
@@ -295,7 +312,9 @@ export function useDraftWizard(draftId?: string) {
           draft.detail !== form.detail ||
           draft.locationDetail !== form.locationDetail ||
           draft.area !== form.area ||
-          draft.visibility !== form.visibility
+          draft.visibility !== form.visibility ||
+          draft.showReporterIdentity !== form.showReporterIdentity ||
+          (draft.privateContactConsent === true) !== form.privateContactConsent
         : true,
     [draft, form],
   );

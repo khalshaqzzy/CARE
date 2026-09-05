@@ -1,3 +1,4 @@
+import { visualPlatform } from './helpers/visual-platform';
 import { expect, test, type Page } from '@playwright/test';
 import {
   baseVoiceItem,
@@ -659,7 +660,10 @@ test('workforce union identified detail visual at 360', async ({ page }) => {
   // The name renders in both the hero chip and the reporter card.
   await expect(page.getByText('Sari Wulandari').first()).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-union-identified-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-union-identified-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce close sheet visual at 360', async ({ page }) => {

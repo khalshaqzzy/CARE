@@ -365,7 +365,7 @@ function successSchema(operationId: string) {
 function requestSchema(operationId: string) {
   const mapping: Record<string, string> = {
     VoicesController_createDraft: 'VoiceDraftRequest',
-    VoicesController_updateDraft: 'VoiceDraftRequest',
+    VoicesController_updateDraft: 'VoiceDraftPatchRequest',
     VoicesController_manual: 'ManualClassificationRequest',
     VoicesController_submit: 'SubmitVoiceRequest',
     VoicesController_assign: 'AssignmentRequest',
@@ -646,6 +646,24 @@ const schemas: Record<string, any> = {
       detail: { type: 'string' },
       visibility: baseVoiceProperties.visibility,
       showReporterIdentity: { type: 'boolean', description: 'Required only for Private Voice' },
+      privateContactConsent: {
+        type: 'boolean',
+        description: 'Private only; must be true before submission',
+      },
+    },
+  },
+  VoiceDraftPatchRequest: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      area: baseVoiceProperties.area,
+      locationDetail: { type: 'string' },
+      title: { type: 'string' },
+      detail: { type: 'string' },
+      visibility: baseVoiceProperties.visibility,
+      showReporterIdentity: { type: 'boolean' },
+      privateContactConsent: { type: 'boolean' },
+      expectedVersion: { type: 'integer', minimum: 1 },
     },
   },
   ManualClassificationRequest: {
@@ -1187,6 +1205,9 @@ const schemas: Record<string, any> = {
     properties: {
       ...baseVoiceProperties,
       audience: { type: 'string', enum: ['REPORTER_SELF'] },
+      privateContactConsent: { type: 'boolean', nullable: true },
+      privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
+      privateContactConsentVersion: { type: 'string', nullable: true },
       reporter: {
         type: 'object',
         required: ['self'],
@@ -1259,6 +1280,9 @@ const schemas: Record<string, any> = {
     properties: {
       ...baseVoiceProperties,
       audience: { type: 'string', enum: ['ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY'] },
+      privateContactConsent: { type: 'boolean', nullable: true },
+      privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
+      privateContactConsentVersion: { type: 'string', nullable: true },
       reporter: {
         type: 'object',
         required: ['noReg', 'name', 'directorate', 'division', 'department', 'section', 'position'],
@@ -1476,6 +1500,7 @@ const schemas: Record<string, any> = {
       title: { type: 'string' },
       detail: { type: 'string' },
       showReporterIdentity: { type: 'boolean', nullable: true },
+      privateContactConsent: { type: 'boolean', nullable: true },
       version: { type: 'integer', minimum: 1 },
       expiresAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
@@ -2173,6 +2198,7 @@ const schemas: Record<string, any> = {
       title: { type: 'string' },
       detail: { type: 'string' },
       showReporterIdentity: { type: 'boolean', nullable: true },
+      privateContactConsent: { type: 'boolean', nullable: true },
       version: { type: 'integer', minimum: 1 },
       classificationContentHash: { type: 'string' },
       locationContentHash: { type: 'string' },
@@ -2188,6 +2214,7 @@ const schemas: Record<string, any> = {
         type: 'object',
         required: ['routeReadiness'],
         properties: {
+          categoryNameSnapshot: { type: 'string', nullable: true },
           routeReadiness: {
             type: 'object',
             required: ['ready'],

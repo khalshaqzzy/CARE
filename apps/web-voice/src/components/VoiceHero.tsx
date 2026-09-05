@@ -44,6 +44,12 @@ export function VoiceHero({
   const alias = voice.audience === 'UNION_ANONYMOUS' ? voice.anonymousReporter.alias : null;
   const reporterName = voice.audience === 'UNION_IDENTIFIED' ? voice.reporter.name : null;
   const pic = voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—';
+  const personLabel =
+    voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'UNION_IDENTIFIED'
+      ? `Pelapor: ${voice.reporter.name}`
+      : voice.audience === 'UNION_ANONYMOUS'
+        ? `Alias: ${voice.anonymousReporter.alias}`
+        : `PIC: ${pic}`;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const categoryName = voice.category
     ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
@@ -107,6 +113,10 @@ export function VoiceHero({
                     aria-hidden="true"
                   />
                   {SEVERITY_LABELS[voice.severity] ?? voice.severity}
+                </span>
+                <span className="voice-hero__pill voice-hero__pill--plain">
+                  <UserRound size={14} aria-hidden="true" />
+                  {personLabel}
                 </span>
                 {lastClosedAt ? (
                   <span className="voice-hero__pill voice-hero__pill--plain">
@@ -178,10 +188,10 @@ export function VoiceHero({
                     </div>
                     {!alias ? (
                       <div className="voice-hero__column">
-                        <small>PIC</small>
+                        <small>Pelapor</small>
                         <span>
                           <UserRound size={14} aria-hidden="true" />
-                          {pic}
+                          {reporterName}
                         </span>
                       </div>
                     ) : null}
@@ -246,7 +256,7 @@ export function VoiceHero({
                 {variant === 'compact' ? (
                   <span className="voice-hero__chip">
                     <UserRound size={15} aria-hidden="true" />
-                    PIC: {pic}
+                    {personLabel}
                   </span>
                 ) : null}
                 {variant === 'compact' ? (
@@ -265,7 +275,7 @@ export function VoiceHero({
                     </span>
                     <span>
                       <UserRound size={17} aria-hidden="true" />
-                      PIC: {pic}
+                      {personLabel}
                     </span>
                   </div>
                   <p className="voice-hero__location">

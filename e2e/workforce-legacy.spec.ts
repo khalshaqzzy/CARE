@@ -173,3 +173,27 @@ test('iOS 11.3 renders the forced-password gate instead of a blank root', async 
   await expect(page.getByLabel('Password saat ini')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Simpan password' })).toBeVisible();
 });
+
+test('assignment sheet scrolls many candidates on legacy WebKit', async ({ page }) => {
+  await emulateLegacyApis(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'MANAGER'] }),
+    voice: { ...voice, status: 'OPEN', availableActions: ['ASSIGN'] },
+    assignmentCandidates: Array.from({ length: 25 }, (_, i) => ({
+      id: `sh-${i}`,
+      displayName: `Section Head ${i}`,
+      activeCount: 0,
+    })),
+  });
+  await page.goto(`/voices/${voice.id}`);
+  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('radio', { name: /Section Head 24/ }).click();
+  expect(await dialog.locator('.care-dialog__body').evaluate((el) => el.scrollTop)).toBeGreaterThan(
+    0,
+  );
+  await expect(
+    dialog.locator('.care-dialog__footer').getByRole('button', { name: 'Tugaskan' }),
+  ).toBeInViewport();
+});

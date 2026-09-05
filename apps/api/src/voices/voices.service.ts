@@ -60,6 +60,7 @@ const draftListItemSelect = Prisma.validator<Prisma.VoiceDraftSelect>()({
   title: true,
   detail: true,
   showReporterIdentity: true,
+  privateContactConsent: true,
   version: true,
   expiresAt: true,
   updatedAt: true,
@@ -73,6 +74,7 @@ const draftSchema = z
     detail: z.string().trim().min(1).max(5000),
     visibility: z.nativeEnum(VoiceVisibility),
     showReporterIdentity: z.boolean().optional(),
+    privateContactConsent: z.boolean().optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -82,7 +84,10 @@ const draftSchema = z
         path: ['showReporterIdentity'],
         message: 'Required for Private Voice',
       });
-    if (value.visibility === VoiceVisibility.GENERAL && value.showReporterIdentity !== undefined)
+    if (
+      value.visibility === VoiceVisibility.GENERAL &&
+      (value.showReporterIdentity !== undefined || value.privateContactConsent !== undefined)
+    )
       context.addIssue({
         code: 'custom',
         path: ['showReporterIdentity'],
@@ -97,6 +102,7 @@ const draftPatchSchema = z
     detail: z.string().trim().min(1).max(5000).optional(),
     visibility: z.nativeEnum(VoiceVisibility).optional(),
     showReporterIdentity: z.boolean().optional(),
+    privateContactConsent: z.boolean().optional(),
     expectedVersion: z.number().int().positive().optional(),
   })
   .strict()
@@ -108,7 +114,10 @@ const draftPatchSchema = z
         path: ['showReporterIdentity'],
         message: 'Required when switching to Private Voice',
       });
-    if (effectiveVisibility === VoiceVisibility.GENERAL && value.showReporterIdentity !== undefined)
+    if (
+      effectiveVisibility === VoiceVisibility.GENERAL &&
+      (value.showReporterIdentity !== undefined || value.privateContactConsent !== undefined)
+    )
       context.addIssue({
         code: 'custom',
         path: ['showReporterIdentity'],
@@ -258,18 +267,39 @@ export class VoicesService {
     if (expectedVersion !== undefined && expectedVersion !== draft.version)
       throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
     const { visibility, area, locationDetail, title, detail } = { ...draft, ...patch };
+    if (
+      visibility === VoiceVisibility.GENERAL &&
+      (patch.showReporterIdentity !== undefined || patch.privateContactConsent !== undefined)
+    )
+      throw badRequest(
+        'PRIVATE_CONSENT_FORBIDDEN',
+        'Private consent is not accepted for General Voice',
+      );
     const merged = { visibility, area, locationDetail, title, detail };
     const hashes = await this.hashes(merged);
     const classificationChanged =
       hashes.classificationContentHash !== draft.classificationContentHash;
     const locationChanged = hashes.locationContentHash !== draft.locationContentHash;
-    const data = { ...patch, ...hashes };
+    const data = {
+      ...patch,
+      ...hashes,
+      ...(visibility === VoiceVisibility.GENERAL
+        ? { showReporterIdentity: null, privateContactConsent: null }
+        : {}),
+    };
+
     const updated = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.voiceDraft.updateMany({
+        where: { id, version: draft.version, submittedAt: null },
+        data: { version: { increment: 1 } },
+      });
+      if (claimed.count !== 1)
+        throw conflict('DRAFT_VERSION_CONFLICT', 'Draft berubah; muat ulang sebelum menyimpan.');
       if (classificationChanged) await tx.aIClassification.deleteMany({ where: { draftId: id } });
       if (locationChanged) await tx.locationReviewSnapshot.deleteMany({ where: { draftId: id } });
       return tx.voiceDraft.update({
         where: { id },
-        data: { ...data, version: { increment: 1 } },
+        data,
         include: { classification: true, locationReview: true },
       });
     });
@@ -421,6 +451,14 @@ export class VoicesService {
     const draft = await this.ownedDraft(actor, id);
     return {
       ...this.publicDraft(draft),
+      categoryNameSnapshot: draft.classification?.categoryRevisionId
+        ? ((
+            await this.prisma.generalVoiceCategoryRevision.findUnique({
+              where: { id: draft.classification.categoryRevisionId },
+              select: { name: true },
+            })
+          )?.name ?? null)
+        : null,
       routeReadiness: await this.routeReadiness(draft),
       routeTarget: await this.routeTargetLabel(draft),
     };
@@ -456,6 +494,12 @@ export class VoicesService {
     const draft = await this.ownedDraft(actor, id);
     if (draft.version !== body.version)
       throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
+    if (draft.visibility === VoiceVisibility.PRIVATE && draft.privateContactConsent !== true)
+      throw new AppError(
+        'PRIVATE_CONTACT_CONSENT_REQUIRED',
+        'Setujui kesediaan komunikasi pribadi sebelum mengirim Private Voice.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     const currentHashes = await this.hashes(draft);
     if (
       currentHashes.classificationContentHash !== draft.classificationContentHash ||
@@ -512,6 +556,19 @@ export class VoicesService {
       where: { id: current.organizationUnitId },
     });
     const response = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.voiceDraft.updateMany({
+        where: { id, version: body.version, submittedAt: null },
+        data: { submittedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        const replay = await tx.idempotencyRecord.findUnique({
+          where: {
+            accountId_scope_key: { accountId: actor.accountId, scope: `submit:${id}`, key },
+          },
+        });
+        if (replay && replay.requestHash === requestHash) return replay.response;
+        throw conflict('DRAFT_VERSION_CONFLICT', 'Draft berubah; muat ulang sebelum mengirim.');
+      }
       const displayId = await this.nextDisplayId(tx);
       const now = new Date();
       const voice = await tx.voice.create({
@@ -529,6 +586,10 @@ export class VoicesService {
           reporterDepartmentSnapshot: unit.department,
           reporterSectionSnapshot: current.section,
           reporterPositionSnapshot: current.structuralPosition,
+          privateContactConsent: draft.visibility === VoiceVisibility.PRIVATE ? true : null,
+          privateContactConsentRecordedAt:
+            draft.visibility === VoiceVisibility.PRIVATE ? now : null,
+          privateContactConsentVersion: draft.visibility === VoiceVisibility.PRIVATE ? 'v1' : null,
           showReporterIdentity:
             draft.visibility === VoiceVisibility.PRIVATE ? draft.showReporterIdentity : null,
           locationDetail: draft.locationDetail,
@@ -2650,8 +2711,13 @@ export class VoicesService {
       availableActions: this.actionSet(actor, voice),
       conversationState: this.conversationState(actor, voice),
     };
+    const contactConsent = {
+      privateContactConsent: voice.privateContactConsent,
+      privateContactConsentRecordedAt: voice.privateContactConsentRecordedAt,
+      privateContactConsentVersion: voice.privateContactConsentVersion,
+    };
     if (voice.reporterId === actor.accountId)
-      return { ...base, audience: 'REPORTER_SELF', reporter: { self: true } };
+      return { ...base, ...contactConsent, audience: 'REPORTER_SELF', reporter: { self: true } };
     if (voice.visibility === VoiceVisibility.GENERAL)
       return {
         ...base,
@@ -2675,6 +2741,7 @@ export class VoicesService {
     if (actor.capabilities.includes('CARE_ADMIN'))
       return {
         ...base,
+        ...contactConsent,
         audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY',
         reporter: {
           noReg: voice.reporterNoRegSnapshot,

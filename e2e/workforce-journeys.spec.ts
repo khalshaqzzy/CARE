@@ -475,7 +475,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(page.getByText('Pilih satu petugas untuk menangani Voice ini.')).toBeVisible();
+    await expect(page.getByText('Pilih Union Officer untuk menangani Voice ini.')).toBeVisible();
     // Candidate cards are a radio group with workload subtitles, not a select.
     await dialog.getByRole('radio', { name: /Union Officer 1/ }).click();
     await expect(dialog.getByRole('radio', { name: /Union Officer 1/ })).toBeChecked();

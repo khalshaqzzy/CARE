@@ -1080,6 +1080,7 @@ const notificationPageFixture = (): unknown => ({
 export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
   const session = opts.session ?? memberSession();
   const voice = opts.voice;
+  let savedDraft: Record<string, unknown> | null = null;
   // Messages the mocked composer sends; the GET echo merges them so the log
   // keeps showing a sent reply after the post-send refetch.
   const sentThreadMessages: Record<string, unknown[]> = {};
@@ -1382,10 +1383,16 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     // Drafts
     if (method === 'GET' && path === '/api/v1/drafts')
       return satisfy(200, { items: [draftFixture(voice)], nextCursor: null });
-    if (method === 'POST' && path === '/api/v1/drafts') return satisfy(201, draftFixture(voice));
+    if (method === 'POST' && path === '/api/v1/drafts') {
+      savedDraft = {
+        ...(draftFixture(voice) as Record<string, unknown>),
+        ...route.request().postDataJSON(),
+      };
+      return satisfy(201, savedDraft);
+    }
     const draftPreviewMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/preview$/);
     if (method === 'GET' && draftPreviewMatch)
-      return satisfy(200, opts.draftPreview ?? previewFixture());
+      return satisfy(200, opts.draftPreview ?? { ...previewFixture(), ...(savedDraft ?? {}) });
     const draftClassifyMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/classify$/);
     if (method === 'POST' && draftClassifyMatch)
       return satisfy(
@@ -1441,8 +1448,17 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         status: 'OPEN',
       });
     const draftMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)$/);
-    if (method === 'GET' && draftMatch) return satisfy(200, opts.draft ?? draftFixture(voice));
-    if (method === 'PATCH' && draftMatch) return satisfy(200, opts.draft ?? draftFixture(voice));
+    if (method === 'GET' && draftMatch)
+      return satisfy(200, savedDraft ?? opts.draft ?? draftFixture(voice));
+    if (method === 'PATCH' && draftMatch) {
+      const previous = savedDraft ?? opts.draft ?? (draftFixture(voice) as Record<string, unknown>);
+      savedDraft = {
+        ...previous,
+        ...route.request().postDataJSON(),
+        version: Number(previous.version) + 1,
+      };
+      return satisfy(200, savedDraft);
+    }
     if (method === 'DELETE' && draftMatch) return satisfy(200, { success: true });
 
     // Notifications

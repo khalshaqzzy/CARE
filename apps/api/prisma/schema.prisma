@@ -515,6 +515,7 @@ model VoiceDraft {
   visibility                VoiceVisibility
   organizationSnapshotId    String?                 @db.Uuid
   organizationUnitId        String?                 @db.Uuid
+  privateContactConsent     Boolean?
   showReporterIdentity      Boolean?
   classificationContentHash String                  @db.Char(64)
   locationContentHash       String                  @db.Char(64)
@@ -535,60 +536,63 @@ model VoiceDraft {
 }
 
 model Voice {
-  id                             String                  @id @default(uuid()) @db.Uuid
-  displayId                      String                  @unique @db.VarChar(30)
-  reporterId                     String                  @db.Uuid
-  visibility                     VoiceVisibility
-  area                           Area
-  reporterOrganizationSnapshotId String?                 @db.Uuid
-  reporterOrganizationUnitId     String?                 @db.Uuid
-  reporterNoRegSnapshot          String                  @db.VarChar(64)
-  reporterNameSnapshot           String                  @db.VarChar(200)
-  reporterDirectorateSnapshot    String?                 @db.VarChar(200)
-  reporterDivisionSnapshot       String                  @db.VarChar(200)
-  reporterDepartmentSnapshot     String                  @db.VarChar(200)
-  reporterSectionSnapshot        String?                 @db.VarChar(200)
-  reporterPositionSnapshot       String?                 @db.VarChar(200)
-  showReporterIdentity           Boolean?
-  locationDetail                 String                  @db.VarChar(200)
-  title                          String                  @db.VarChar(150)
-  detail                         String                  @db.VarChar(5000)
-  categoryLegacy                 RoutingCategory?        @map("category")
-  categoryKey                    String?                 @db.VarChar(80)
-  categoryId                     String?                 @db.Uuid
-  categoryNameSnapshot           String?                 @db.VarChar(160)
-  currentCategoryKey             String?                 @db.VarChar(80)
-  currentCategoryId              String?                 @db.Uuid
-  currentCategoryNameSnapshot    String?                 @db.VarChar(160)
-  severity                       Severity
-  status                         VoiceStatus             @default(OPEN)
-  routeOwnerId                   String                  @db.Uuid
-  routeMappingId                 String?                 @db.Uuid
-  currentHandlerId               String?                 @db.Uuid
-  handlerType                    HandlerType
-  anonymousAlias                 String                  @db.VarChar(80)
-  locationWarningAcknowledgedAt  DateTime?
-  version                        Int                     @default(1)
-  submittedAt                    DateTime                @default(now())
-  updatedAt                      DateTime                @updatedAt
-  reporter                       UserAccount             @relation("VoiceReporter", fields: [reporterId], references: [id])
-  routeOwner                     UserAccount             @relation("VoiceRouteOwner", fields: [routeOwnerId], references: [id])
-  currentHandler                 UserAccount?            @relation("VoiceHandler", fields: [currentHandlerId], references: [id])
-  reporterOrganizationSnapshot   OrganizationSnapshot?   @relation("VoiceOrganizationSnapshot", fields: [reporterOrganizationSnapshotId], references: [id])
-  reporterOrganizationUnit       OrganizationUnit?       @relation("VoiceOrganizationUnit", fields: [reporterOrganizationUnitId], references: [id])
-  routeMapping                   RouteMapping?           @relation(fields: [routeMappingId], references: [id])
-  categoryRecord                 GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
-  currentCategoryRecord          GeneralVoiceCategory?   @relation("VoiceCurrentCategory", fields: [currentCategoryId], references: [id])
-  classification                 AIClassification?
-  locationReview                 LocationReviewSnapshot?
-  attachments                    Attachment[]
-  assignments                    VoiceAssignment[]
-  events                         VoiceEvent[]
-  conversation                   Conversation?
-  closureCycles                  ClosureCycle[]
-  notifications                  Notification[]
-  legacyAccess                   LegacyVoiceAccess[]
-  handovers                      VoiceHandover[]
+  id                              String                  @id @default(uuid()) @db.Uuid
+  displayId                       String                  @unique @db.VarChar(30)
+  reporterId                      String                  @db.Uuid
+  visibility                      VoiceVisibility
+  area                            Area
+  reporterOrganizationSnapshotId  String?                 @db.Uuid
+  reporterOrganizationUnitId      String?                 @db.Uuid
+  reporterNoRegSnapshot           String                  @db.VarChar(64)
+  reporterNameSnapshot            String                  @db.VarChar(200)
+  reporterDirectorateSnapshot     String?                 @db.VarChar(200)
+  reporterDivisionSnapshot        String                  @db.VarChar(200)
+  reporterDepartmentSnapshot      String                  @db.VarChar(200)
+  reporterSectionSnapshot         String?                 @db.VarChar(200)
+  reporterPositionSnapshot        String?                 @db.VarChar(200)
+  privateContactConsent           Boolean?
+  privateContactConsentRecordedAt DateTime?
+  privateContactConsentVersion    String?                 @db.VarChar(16)
+  showReporterIdentity            Boolean?
+  locationDetail                  String                  @db.VarChar(200)
+  title                           String                  @db.VarChar(150)
+  detail                          String                  @db.VarChar(5000)
+  categoryLegacy                  RoutingCategory?        @map("category")
+  categoryKey                     String?                 @db.VarChar(80)
+  categoryId                      String?                 @db.Uuid
+  categoryNameSnapshot            String?                 @db.VarChar(160)
+  currentCategoryKey              String?                 @db.VarChar(80)
+  currentCategoryId               String?                 @db.Uuid
+  currentCategoryNameSnapshot     String?                 @db.VarChar(160)
+  severity                        Severity
+  status                          VoiceStatus             @default(OPEN)
+  routeOwnerId                    String                  @db.Uuid
+  routeMappingId                  String?                 @db.Uuid
+  currentHandlerId                String?                 @db.Uuid
+  handlerType                     HandlerType
+  anonymousAlias                  String                  @db.VarChar(80)
+  locationWarningAcknowledgedAt   DateTime?
+  version                         Int                     @default(1)
+  submittedAt                     DateTime                @default(now())
+  updatedAt                       DateTime                @updatedAt
+  reporter                        UserAccount             @relation("VoiceReporter", fields: [reporterId], references: [id])
+  routeOwner                      UserAccount             @relation("VoiceRouteOwner", fields: [routeOwnerId], references: [id])
+  currentHandler                  UserAccount?            @relation("VoiceHandler", fields: [currentHandlerId], references: [id])
+  reporterOrganizationSnapshot    OrganizationSnapshot?   @relation("VoiceOrganizationSnapshot", fields: [reporterOrganizationSnapshotId], references: [id])
+  reporterOrganizationUnit        OrganizationUnit?       @relation("VoiceOrganizationUnit", fields: [reporterOrganizationUnitId], references: [id])
+  routeMapping                    RouteMapping?           @relation(fields: [routeMappingId], references: [id])
+  categoryRecord                  GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
+  currentCategoryRecord           GeneralVoiceCategory?   @relation("VoiceCurrentCategory", fields: [currentCategoryId], references: [id])
+  classification                  AIClassification?
+  locationReview                  LocationReviewSnapshot?
+  attachments                     Attachment[]
+  assignments                     VoiceAssignment[]
+  events                          VoiceEvent[]
+  conversation                    Conversation?
+  closureCycles                   ClosureCycle[]
+  notifications                   Notification[]
+  legacyAccess                    LegacyVoiceAccess[]
+  handovers                       VoiceHandover[]
 
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
