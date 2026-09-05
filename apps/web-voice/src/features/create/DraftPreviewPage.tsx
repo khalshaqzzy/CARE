@@ -8,6 +8,7 @@ import { AREA_LABELS } from '../../lib/formatters';
 import { useMutationKey, useApi, useSessionId, voiceQuery } from '../../lib/query';
 import {
   ReviewConsentConfirmation,
+  ReviewContactConsent,
   ReviewContent,
   ReviewMetaBar,
   ReviewSummary,
@@ -104,6 +105,7 @@ export function DraftPreviewPage() {
         visibility={data.visibility}
         severity={severity}
         category={data.visibility === 'GENERAL' ? (category ?? null) : null}
+        categoryName={data.categoryNameSnapshot}
         routeLabel={data.visibility === 'PRIVATE' ? 'Union Head' : routeLabel}
         showIdentity={data.showReporterIdentity ?? null}
         fallbackCode={source === 'MANUAL_FALLBACK' ? fallbackCode : null}
@@ -117,12 +119,16 @@ export function DraftPreviewPage() {
         attachments={data.attachments ?? []}
       />
 
-      <ReviewMetaBar source={source} completeness={data.locationReview?.completeness ?? null} />
+      <ReviewMetaBar completeness={data.locationReview?.completeness ?? null} />
 
       {data.showReporterIdentity !== null &&
       data.showReporterIdentity !== undefined &&
       data.visibility === 'PRIVATE' ? (
         <ReviewConsentConfirmation showIdentity={data.showReporterIdentity} />
+      ) : null}
+
+      {data.visibility === 'PRIVATE' ? (
+        <ReviewContactConsent accepted={data.privateContactConsent === true} />
       ) : null}
 
       {isIncomplete ? (
@@ -143,7 +149,10 @@ export function DraftPreviewPage() {
           variant="primary"
           className="wizard-actionsbar__primary"
           loading={submit.isPending}
-          disabled={isIncomplete && !ack}
+          disabled={
+            (isIncomplete && !ack) ||
+            (data.visibility === 'PRIVATE' && data.privateContactConsent !== true)
+          }
           onClick={() => void submit.mutate()}
         >
           <Radio size={18} /> Kirim Voice

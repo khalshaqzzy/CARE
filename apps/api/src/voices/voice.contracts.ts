@@ -101,10 +101,16 @@ export type VoiceDetailBase = {
   availableActions: string[];
   conversationState: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
 };
-export type ReporterSelfVoiceDetail = VoiceDetailBase & {
-  audience: 'REPORTER_SELF';
-  reporter: { self: true };
+type PrivateContactConsentSnapshot = {
+  privateContactConsent: boolean | null;
+  privateContactConsentRecordedAt: Date | null;
+  privateContactConsentVersion: string | null;
 };
+export type ReporterSelfVoiceDetail = VoiceDetailBase &
+  PrivateContactConsentSnapshot & {
+    audience: 'REPORTER_SELF';
+    reporter: { self: true };
+  };
 export type GeneralResponderVoiceDetail = VoiceDetailBase & {
   audience: 'GENERAL_RESPONDER';
   reporter: {
@@ -128,10 +134,11 @@ export type UnionIdentifiedVoiceDetail = VoiceDetailBase & {
   audience: 'UNION_IDENTIFIED';
   reporter: { noReg: string; name: string; division: string; department: string };
 };
-export type AdminPrivateVoiceDetail = VoiceDetailBase & {
-  audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY';
-  reporter: GeneralResponderVoiceDetail['reporter'];
-};
+export type AdminPrivateVoiceDetail = VoiceDetailBase &
+  PrivateContactConsentSnapshot & {
+    audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY';
+    reporter: GeneralResponderVoiceDetail['reporter'];
+  };
 export type DashboardAggregate = {
   total: number;
   status: Array<{ label: string; value: number }>;
@@ -155,6 +162,7 @@ export type DraftListItem = {
   title: string;
   detail: string;
   showReporterIdentity: boolean | null;
+  privateContactConsent: boolean | null;
   version: number;
   expiresAt: Date;
   updatedAt: Date;

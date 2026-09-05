@@ -293,6 +293,8 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 - Setiap Union account adalah account individual; credential dan session tidak dibagi.
 - Penggantian password hanya mencabut session lain milik account tersebut.
 
+Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi biasa, atau Kembali ke login melalui logout untuk sesi yang wajib mengganti password. Gate wajib ganti password tetap berlaku.
+
 ### 8.3 CARE Admin Bootstrap
 
 - v1 memiliki tepat satu akun CARE Admin yang dibuat melalui CLI/runtime secret; tidak ada Admin kedua dan tidak ada pembuatan akun Admin via UI.
@@ -451,7 +453,15 @@ Field wajib:
 - Visibility: `PRIVATE` atau `GENERAL`, berasal dari pilihan langkah pertama;
 - `Tampilkan nama`: `YA` atau `TIDAK`, wajib hanya untuk Private dan tidak boleh dikirim untuk General.
 
-Lampiran foto bersifat opsional:
+Private Voice juga memiliki checkbox kesediaan komunikasi pribadi di bawah pilihan identitas:
+**“Untuk menghindari fitnah, jika diperlukan saya bersedia diajak komunikasi lebih lanjut secara pribadi oleh Team CARE dengan tetap menjaga kerahasiaan identitas saya.”**
+Checkbox awalnya tidak dicentang. Draft dapat disimpan/dianalisis tanpa persetujuan, tetapi submit wajib memiliki `privateContactConsent=true`.
+Consent ini terpisah dari `showReporterIdentity` dan tidak memberi akses identitas tambahan kepada Union. Peralihan ke General menghapus kedua pilihan Private.
+Voice menyimpan snapshot immutable consent, waktu pencatatan server saat submit, dan versi pernyataan `v1`; Voice historis tetap `null`, tanpa backfill persetujuan.
+
+Lampiran foto bersifat opsional. Form buat/edit Voice menampilkan helper abu-abu **“Foto harap mengikuti aturan ATSG ya teman-teman.”**
+
+Batas lampiran:
 
 - maksimum lima file;
 - maksimum 10 MB per file;
@@ -461,6 +471,8 @@ Lampiran foto bersifat opsional:
 Detail Lokasi menjalankan location review otomatis setelah debounce/on-blur ketika nilai memenuhi minimum length. Review di-cache berdasarkan content hash. Hasil `INCOMPLETE` menampilkan warning dan maksimal tiga pertanyaan saran di bawah field; pertanyaan tersebut adalah guidance, bukan field/action wajib. Kegagalan review menampilkan degraded state tetapi tidak memblokir form.
 
 Button **Selesai** menyimpan/update `VoiceDraft`, memvalidasi media, lalu meminta AI classification. Private meminta severity saja; General meminta category dan severity. Button tidak mengirim Voice kepada responder.
+
+Pada detail dan percakapan, audience General responder melihat nama snapshot pelapor, sedangkan reporter sendiri melihat PIC. Identitas Private tetap mengikuti consent/alias yang disaring server, termasuk pada detail Closed.
 
 ### 12.2 Preview Voice
 
@@ -475,9 +487,9 @@ Preview menampilkan:
 - Severity Low/Medium/High/Critical;
 - Private/General;
 - kategori routing untuk General;
-- pilihan tampil/sembunyikan identitas untuk Private;
+- pilihan tampil/sembunyikan identitas dan status kesediaan komunikasi pribadi untuk Private;
 - hasil location review dan warning terbaru;
-- indikator apakah hasil berasal dari AI atau Manual Fallback.
+- status kelengkapan lokasi; sumber klasifikasi AI/Manual Fallback tidak ditampilkan pada kartu konfirmasi.
 
 Hasil AI confidence tinggi bersifat read-only. Reporter dapat memilih **Kembali** untuk mengubah input; perubahan area, detail lokasi, judul, detail, visibility, consent identity, atau organization master reporter membatalkan snapshot yang content hash-nya terpengaruh dan mewajibkan review/klasifikasi ulang.
 
@@ -487,7 +499,7 @@ Jika snapshot location review terbaru adalah `INCOMPLETE`, lanjut/submit wajib m
 
 Button **Kirim Voice**:
 
-1. memvalidasi draft ownership dan version;
+1. memvalidasi draft ownership/version secara atomik dan kesediaan komunikasi pribadi pada Private;
 2. memvalidasi classification masih cocok dengan content hash;
 3. memvalidasi location-review acknowledgment bila snapshot terbaru `INCOMPLETE`;
 4. memvalidasi route owner masih aktif/eligible dan unik;
@@ -723,10 +735,10 @@ kelima (§17.4).
 
 ### 17.1 Closure
 
-Close wajib memuat:
+Close wajib memuat catatan, version, dan idempotency key. Foto bersifat opsional:
 
 - closure note 1–4.000 karakter;
-- minimal satu dan maksimal lima foto bukti;
+- foto bukti opsional, maksimum lima foto;
 - expected Voice version;
 - idempotency key.
 

@@ -212,6 +212,31 @@ describe('Voice lifecycle backend completion', () => {
     expect((await voices.messages(reporter, voice.id, {})).items).toHaveLength(1);
   });
 
+  it.each([0, 1, 5])(
+    'closes with %i optional photos and preserves the review cycle',
+    async (count) => {
+      const voice = await createVoice({
+        status: VoiceStatus.IN_PROGRESS,
+        currentHandlerId: manager.accountId,
+      });
+      await evidence(voice.id, manager.accountId, `optional-${count}`, count);
+      await voices.close(
+        manager,
+        voice.id,
+        { note: 'Perbaikan selesai', version: 1 },
+        `optional-close-${count}`,
+      );
+      const result = await voices.detail(reporter, voice.id);
+      expect(result.status).toBe('CLOSED');
+      expect(result.closureCycles[0].evidence).toHaveLength(count);
+      expect(result.closureCycles[0].reviewState).toBe('PENDING');
+      const event = await prisma.voiceEvent.findFirstOrThrow({
+        where: { voiceId: voice.id, type: 'CLOSED' },
+      });
+      expect(event.payload).toMatchObject({ evidenceCount: count });
+    },
+  );
+
   it('preserves an asked conversation through IN_PROGRESS and makes it read-only when CLOSED', async () => {
     const voice = await createVoice({ status: VoiceStatus.OPEN });
     const asked = await voices.ask(

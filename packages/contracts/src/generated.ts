@@ -1320,6 +1320,20 @@ export interface components {
             visibility: "GENERAL" | "PRIVATE";
             /** @description Required only for Private Voice */
             showReporterIdentity?: boolean;
+            /** @description Private only; must be true before submission */
+            privateContactConsent?: boolean;
+        };
+        VoiceDraftPatchRequest: {
+            /** @enum {string} */
+            area?: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail?: string;
+            title?: string;
+            detail?: string;
+            /** @enum {string} */
+            visibility?: "GENERAL" | "PRIVATE";
+            showReporterIdentity?: boolean;
+            privateContactConsent?: boolean;
+            expectedVersion?: number;
         };
         ManualClassificationRequest: {
             category?: string | null;
@@ -1680,6 +1694,10 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            privateContactConsent?: boolean | null;
+            /** Format: date-time */
+            privateContactConsentRecordedAt?: string | null;
+            privateContactConsentVersion?: string | null;
             reporter: {
                 /** @enum {boolean} */
                 self: true;
@@ -1958,6 +1976,10 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            privateContactConsent?: boolean | null;
+            /** Format: date-time */
+            privateContactConsentRecordedAt?: string | null;
+            privateContactConsentVersion?: string | null;
             reporter: {
                 noReg: string;
                 name: string;
@@ -2082,6 +2104,7 @@ export interface components {
             title: string;
             detail: string;
             showReporterIdentity?: boolean | null;
+            privateContactConsent?: boolean | null;
             version: number;
             /** Format: date-time */
             expiresAt: string;
@@ -2536,6 +2559,7 @@ export interface components {
             title: string;
             detail: string;
             showReporterIdentity?: boolean | null;
+            privateContactConsent?: boolean | null;
             version: number;
             classificationContentHash?: string;
             locationContentHash?: string;
@@ -2544,6 +2568,7 @@ export interface components {
             attachments?: components["schemas"]["AttachmentResponse"][];
         };
         VoiceDraftPreview: components["schemas"]["VoiceDraftResponse"] & {
+            categoryNameSnapshot?: string | null;
             routeReadiness: {
                 ready: boolean;
                 reason?: string;
@@ -8453,7 +8478,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoiceDraftRequest"];
+                "application/json": components["schemas"]["VoiceDraftPatchRequest"];
             };
         };
         responses: {

@@ -16,6 +16,7 @@ import {
 } from '@care/ui';
 import { useIsMutating } from '@tanstack/react-query';
 import {
+  ArrowLeft,
   ArrowRight,
   Bell,
   Bot,
@@ -234,14 +235,31 @@ function LoginPage() {
 }
 
 function ChangePasswordPage() {
-  const { session, transport, refresh } = useAuth();
+  const { session, transport, refresh, logout, loading } = useAuth();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  if (loading) return <RouteLoader />;
   if (!session) return <Navigate to="/login" replace />;
+  async function back() {
+    if (pending) return;
+    if (!session?.passwordChangeRequired) {
+      void navigate('/account', { replace: true });
+      return;
+    }
+    setPending(true);
+    try {
+      await logout();
+    } catch {
+      /* Existing auth cleanup still removes local session. */
+    } finally {
+      void navigate('/login', { replace: true });
+      setPending(false);
+    }
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (newPassword !== confirm) {
@@ -267,13 +285,28 @@ function ChangePasswordPage() {
           <LockKeyhole size={22} />
         </span>
         <h1>Keamanan akun</h1>
-        <p>Ganti password sementara untuk menjaga keamanan akun Anda.</p>
+        <p>
+          {session.passwordChangeRequired
+            ? 'Ganti password sementara untuk menjaga keamanan akun Anda.'
+            : 'Perbarui password untuk menjaga keamanan akun Anda.'}
+        </p>
         <Shield className="auth-brand__watermark" aria-hidden="true" />
       </section>
       <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
-            <h2>Ganti password sementara</h2>
+            <Button
+              variant="ghost"
+              className="auth-back"
+              disabled={pending}
+              onClick={() => void back()}
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              {session.passwordChangeRequired ? 'Kembali ke login' : 'Kembali'}
+            </Button>
+            <h2>
+              {session.passwordChangeRequired ? 'Ganti password sementara' : 'Ganti password'}
+            </h2>
             <p>
               Gunakan 6–128 karakter dan jangan samakan dengan username atau password sebelumnya.
             </p>

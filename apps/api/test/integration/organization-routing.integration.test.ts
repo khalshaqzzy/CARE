@@ -298,14 +298,34 @@ describe('Organization, remediation, and routing journey', () => {
       routeOwnerId: departmentHead.id,
     });
 
-    const privateDraft = await voices.createDraft(member, {
+    let privateDraft = await voices.createDraft(member, {
       visibility: 'PRIVATE',
       showReporterIdentity: false,
+      privateContactConsent: false,
       area: 'KARAWANG_1',
       locationDetail: 'Line A station 4',
       title: 'Private concern',
       detail: 'A private workplace concern',
     });
+    await expect(
+      voices.submit(
+        member,
+        privateDraft.id,
+        { version: privateDraft.version },
+        'missing-contact-consent',
+      ),
+    ).rejects.toMatchObject({ code: 'PRIVATE_CONTACT_CONSENT_REQUIRED' });
+    const previousVersion = privateDraft.version;
+    privateDraft = await voices.updateDraft(member, privateDraft.id, {
+      privateContactConsent: true,
+      expectedVersion: previousVersion,
+    });
+    await expect(
+      voices.updateDraft(member, privateDraft.id, {
+        privateContactConsent: false,
+        expectedVersion: previousVersion,
+      }),
+    ).rejects.toMatchObject({ code: 'DRAFT_VERSION_CONFLICT' });
     await voices.manualClassification(member, privateDraft.id, {
       category: null,
       severity: Severity.MEDIUM,
@@ -319,12 +339,76 @@ describe('Organization, remediation, and routing journey', () => {
     const privateVoice = await prisma.voice.findUniqueOrThrow({
       where: { id: (privateResult as { id: string }).id },
     });
+    expect(privateVoice.privateContactConsentRecordedAt).toBeInstanceOf(Date);
+    expect(privateVoice.privateContactConsentVersion).toBe('v1');
+    expect(
+      await voices.submit(
+        member,
+        privateDraft.id,
+        { version: privateDraft.version },
+        'organization-routing-private',
+      ),
+    ).toEqual(privateResult);
+    const ownPrivate = await voices.detail(member, privateVoice.id);
+    expect(ownPrivate).toMatchObject({
+      privateContactConsent: true,
+      privateContactConsentVersion: 'v1',
+    });
     const head = await prisma.userAccount.findUniqueOrThrow({ where: { username: 'union-head' } });
     expect(privateVoice).toMatchObject({
       categoryKey: null,
       showReporterIdentity: false,
+      privateContactConsent: true,
       routeOwnerId: head.id,
     });
+
+    const raceDraft = await voices.createDraft(member, {
+      visibility: 'PRIVATE',
+      showReporterIdentity: false,
+      privateContactConsent: true,
+      area: 'KARAWANG_1',
+      locationDetail: 'Line A',
+      title: 'Concurrent consent',
+      detail: 'Concurrent consent update and submit',
+    });
+    await voices.manualClassification(member, raceDraft.id, {
+      category: null,
+      severity: Severity.MEDIUM,
+    });
+    const race = await Promise.allSettled([
+      voices.updateDraft(member, raceDraft.id, {
+        privateContactConsent: false,
+        expectedVersion: raceDraft.version,
+      }),
+      voices.submit(member, raceDraft.id, { version: raceDraft.version }, 'contact-consent-race'),
+    ]);
+    expect(race.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const finalDraft = await prisma.voiceDraft.findUniqueOrThrow({ where: { id: raceDraft.id } });
+    if (race[0].status === 'fulfilled') {
+      expect(finalDraft.privateContactConsent).toBe(false);
+      expect(finalDraft.submittedAt).toBeNull();
+    } else {
+      expect(finalDraft.privateContactConsent).toBe(true);
+      expect(finalDraft.submittedAt).not.toBeNull();
+    }
+    const switchDraft = await voices.createDraft(member, {
+      visibility: 'PRIVATE',
+      showReporterIdentity: false,
+      privateContactConsent: true,
+      area: 'KARAWANG_1',
+      locationDetail: 'Line A',
+      title: 'Switch consent',
+      detail: 'Visibility transition',
+    });
+    const switched = await voices.updateDraft(member, switchDraft.id, {
+      visibility: 'GENERAL',
+      expectedVersion: switchDraft.version,
+    });
+    expect(switched.privateContactConsent).toBeNull();
+    expect(switched.showReporterIdentity).toBeNull();
+    await expect(
+      voices.updateDraft(member, switchDraft.id, { privateContactConsent: true }),
+    ).rejects.toMatchObject({ code: 'PRIVATE_CONSENT_FORBIDDEN' });
 
     const department14 = await actor('000014');
     const blockedDraft = await voices.createDraft(department14, {

@@ -10,7 +10,6 @@ import {
   Send,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -39,6 +38,7 @@ export function ReviewSummary({
   visibility,
   severity,
   category,
+  categoryName,
   routeLabel,
   showIdentity,
   fallbackCode,
@@ -46,6 +46,7 @@ export function ReviewSummary({
   visibility: Visibility;
   severity: Severity | null;
   category: Category | null;
+  categoryName?: string | null | undefined;
   routeLabel: string;
   showIdentity: boolean | null;
   fallbackCode: string | null;
@@ -102,7 +103,7 @@ export function ReviewSummary({
           <SummaryRow
             icon={<Layers size={16} />}
             label="Kategori"
-            value={CATEGORY_LABELS[category] ?? category}
+            value={categoryName ?? CATEGORY_LABELS[category] ?? category}
           />
         ) : null}
         <SummaryRow icon={<Send size={16} />} label="Rute tujuan" value={routeLabel} />
@@ -131,10 +132,13 @@ export function ReviewContent({
           <FileText size={20} />
         </span>
         <div>
-          <h3>{title}</h3>
+          <h2>{title}</h2>
           <p>
-            <MapPin size={13} aria-hidden="true" /> {areaLabel}
-            {locationDetail ? ` • ${locationDetail}` : ''}
+            <MapPin size={13} aria-hidden="true" />
+            <span>
+              {areaLabel}
+              {locationDetail ? ` • ${locationDetail}` : ''}
+            </span>
           </p>
         </div>
       </div>
@@ -144,24 +148,9 @@ export function ReviewContent({
   );
 }
 
-export function ReviewMetaBar({
-  source,
-  completeness,
-}: {
-  source: 'AI' | 'MANUAL_FALLBACK' | null;
-  completeness: Completeness | null;
-}) {
+export function ReviewMetaBar({ completeness }: { completeness: Completeness | null }) {
   return (
     <div className="review-meta">
-      <div className="review-meta__cell">
-        <Sparkles size={16} aria-hidden="true" />
-        <div>
-          <small>Sumber klasifikasi</small>
-          <strong>
-            {source === 'MANUAL_FALLBACK' ? 'Manual Fallback' : source === 'AI' ? 'AI' : '—'}
-          </strong>
-        </div>
-      </div>
       <div className="review-meta__cell">
         <MapPin size={16} aria-hidden="true" />
         <div>
@@ -193,6 +182,24 @@ export function ReviewConsentConfirmation({ showIdentity }: { showIdentity: bool
       <span className="review-consent__check" aria-hidden="true">
         <Check size={14} strokeWidth={3} />
       </span>
+    </div>
+  );
+}
+
+export const PRIVATE_CONTACT_CONSENT_TEXT =
+  'Untuk menghindari fitnah, jika diperlukan saya bersedia diajak komunikasi lebih lanjut secara pribadi oleh Team CARE dengan tetap menjaga kerahasiaan identitas saya.';
+
+export function ReviewContactConsent({ accepted }: { accepted: boolean }) {
+  return (
+    <div className="private-contact-consent" role={accepted ? undefined : 'status'}>
+      <strong>
+        {accepted ? 'Persetujuan komunikasi pribadi' : 'Persetujuan komunikasi pribadi diperlukan'}
+      </strong>
+      <p>
+        {accepted
+          ? PRIVATE_CONTACT_CONSENT_TEXT
+          : 'Kembali ke form dan centang kesediaan komunikasi pribadi sebelum mengirim Private Voice.'}
+      </p>
     </div>
   );
 }
