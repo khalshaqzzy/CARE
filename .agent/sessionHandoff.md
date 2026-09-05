@@ -3,12 +3,12 @@
 | Atribut                 | Nilai                                                                                                         |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Date                    | 5 September 2026                                                                                              |
-| Current objective       | Voice refinements and scrollable PIC assignment implemented locally; Union General deferred                   |
+| Current objective       | PR #32 merged; staging container libuuid security remediation in progress                                     |
 | Current phase           | Phase 13 `in_progress`; Phase 14 `pending`; hosted Delivery Complete Gate remains open                        |
-| Branch                  | `feat/voice-consent-ui-polish` from `staging`                                                                 |
+| Branch                  | `staging` (PR #32 merged as `a29c3622`)                                                                       |
 | Backend contract        | Additive Private contact consent snapshots and explicit draft PATCH schema; migration required before rollout |
 | Latest ADR              | ADR-0039                                                                                                      |
-| Recommended next action | PR delivery to staging authorized; local pre-commit checks passed; hosted checks intentionally unmonitored    |
+| Recommended next action | Complete container remediation and verify staging CI/deployment                                               |
 
 ## Quick resume guide — verified 5 September 2026
 
@@ -57,6 +57,10 @@ Private contact consent is separate from identity permission. Drafts may omit co
 - Stop only task-started servers and run `pnpm db:down` after DB verification. At this handoff the CARE database/network and preview/test processes are stopped. Temporary `/tmp/care-*` logs are convenience evidence only, not durable dependencies.
 
 ## Session Outcome
+
+### Staging libuuid security correction — 5 September 2026
+
+PR #32 is merged (`a29c3622`). Run `33956898087` passed quality, including visual/fullstack tests; the architecture correction is confirmed in hosted CI. The container job failed on seven newly reported High util-linux advisories in `libuuid 2.42.1-r0` inherited from the pinned Alpine image. Both web runtimes and PostgreSQL contain this package, so their existing explicit APK patch layers now pin `libuuid=2.42.3-r0`. No base digest, application code or scanner exception changes. Verify all affected images because CI stops scanning at the first failed image. Validation passed: all three rebuilt images scan clean at High/Critical with Trivy 0.70.0; production Compose migration/bootstrap, routing/headers, health, non-root users, private DB port and persistent DB/media restart checks; Hadolint, deployment config validation, format, Gitleaks and diff checks. Task-started runtime containers were removed after verification.
 
 ### PR #32 Linux architecture correction — 5 September 2026
 

@@ -52,3 +52,7 @@ Local production-like testing composes the same release images and remote servic
 ## Verification
 
 The repository enforces Dockerfile/Compose validation, Linux lock and archive-safety tests, fresh and upgrade migration checks, dual-host routing, exact SHA readiness, non-root users, private PostgreSQL networking, persistent PostgreSQL/media checks, and High/Critical filesystem/image scans. The local runner additionally verifies both frontend release documents and API readiness against the current full Git SHA; a down/up rehearsal preserves the PostgreSQL system identifier. Hosted release and rollback evidence is recorded separately for each candidate; local evidence alone does not prove a successful VM deployment.
+
+## Alpine libuuid patch layer — 5 September 2026
+
+The pinned Alpine runtime images include libuuid 2.42.1-r0, which the refreshed vulnerability database associates with seven High util-linux advisories. The existing explicit runtime APK patch layers for workforce, Admin and PostgreSQL are extended with libuuid 2.42.3-r0. This retains immutable base digests and non-root runtime identities while applying the available distribution fix. Scanner severity and exceptions are unchanged. Validation covers rebuilt image scans, routing, health, non-root execution and persistent database/media restart behavior; future base refreshes should reconcile these explicit package pins.

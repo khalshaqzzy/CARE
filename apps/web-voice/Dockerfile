@@ -31,7 +31,7 @@ LABEL org.opencontainers.image.title="care-web-voice" \
 USER 0
 # Pinned alpine packages: force patched versions past the frozen base image
 # so the Trivy gate stays green between base-image digest bumps.
-RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.4-r0
+RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.4-r0 libuuid=2.42.3-r0
 COPY deploy/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /workspace/apps/web-voice/dist/ /usr/share/nginx/html/
 USER 101

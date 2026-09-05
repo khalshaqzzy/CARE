@@ -21,7 +21,7 @@ LABEL org.opencontainers.image.title="care-postgres" \
   org.opencontainers.image.source="https://github.com/khalshaqzzy/CARE" \
   org.opencontainers.image.version="16-pgvector-0.8.6"
 USER 0
-RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 \
+RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libuuid=2.42.3-r0 \
   && rm -f /usr/local/bin/gosu
 COPY --from=pgvector-build /usr/local/lib/postgresql/vector.so /usr/local/lib/postgresql/vector.so
 COPY --from=pgvector-build /usr/local/share/postgresql/extension/vector* /usr/local/share/postgresql/extension/
