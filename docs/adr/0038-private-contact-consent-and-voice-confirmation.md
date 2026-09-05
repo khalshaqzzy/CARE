@@ -36,3 +36,7 @@ Regression coverage includes draft persistence, stale versions and concurrent su
 ## Consequences and follow-up
 
 New Private submissions have durable consent evidence without expanding Union identity permissions. Deployment requires the migration and refreshed workforce assets. Hosted acceptance and production release remain separate delivery work. Contact scheduling and communication mechanisms are outside this change.
+
+### Cross-platform visual verification
+
+Strict screenshot baselines are stored separately for Darwin and Linux because CoreText and FreeType rasterization differ. Linux baselines are generated and checked in Ubuntu 22.04 with the pinned Node and Playwright versions; Darwin images are verified separately. Screenshot thresholds remain unchanged. Both environments must be verified when these UI baselines change; a local macOS pass alone does not establish CI visual parity.

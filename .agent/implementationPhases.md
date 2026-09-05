@@ -21,6 +21,8 @@ Implemented locally on `feat/voice-consent-ui-polish`: audience-aware reporter l
 
 Implemented locally: a bounded assignment body with persistent actions, candidate search, selection summary, and loading/error recovery (ADR-0039). Responsive, keyboard, Axe and legacy WebKit regressions plus new visual baselines cover long candidate lists. Union General viewing investigation is explicitly deferred at user request; no browse changes were made. Phase 13 remains `in_progress` with hosted acceptance unchanged.
 
+PR #32 visual CI remediation: platform-specific Darwin/Linux baselines replace cross-OS comparison for the new consent/assignment tests and identified detail. Thresholds and application behavior are unchanged; Phase 13 hosted acceptance remains open.
+
 ## Sequencing Gates
 
 Tiga gate berikut bersifat wajib:

@@ -57,6 +57,10 @@ Private contact consent is separate from identity permission. Drafts may omit co
 
 ## Session Outcome
 
+### PR #32 visual CI correction — 5 September 2026
+
+CI run `33936946016` passed all jobs except quality (13 visual failures) and its dependent release gate. Ubuntu reproduction confirmed the twelve new strict screenshot cases differed in text rasterization from macOS; the identified detail also failed in hosted CI. These snapshots now use explicit `darwin`/`linux` filenames. Existing macOS PNGs are retained except four text-only fixtures refreshed after runtime restoration; Linux PNGs are generated with Ubuntu 22.04 / Node 22.23.2 / Playwright 1.62.1, and thresholds are unchanged. Production application code is untouched. Generate and verify each affected baseline on its corresponding OS; a macOS pass is not Linux visual parity. Union General work remains deferred. Linux full frontend suite passed 219 tests and a second visual run passed 62 without snapshot updates. macOS visual verification passed 62 tests twice after the production rebuild. Format, lint, typecheck, PWA compatibility, directory Gitleaks and diff checks passed. Representative PNGs were inspected. No API/schema/runtime source changed; the prior complete pre-commit and hosted non-visual gates remain applicable to those unchanged files.
+
 ### Pre-commit verification and PR delivery — 5 September 2026
 
 The target-branch CI workflow and reusable/manual deployment workflows were inspected. Build directories and TypeScript build caches were moved aside before verification. Changes were staged excluding `.design/dashboard-home-v2/`; OpenAPI generation was checked against the staged candidate. The user authorized commit/push and a PR to `staging`, explicitly without monitoring hosted checks. No merge or hosted deployment is authorized by this delivery.

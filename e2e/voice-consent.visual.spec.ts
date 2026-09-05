@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { memberSession, mockWorkforceApi } from './helpers/mock-api';
 
+// Keep strict visual comparisons within one OS font rasterizer (Darwin/Linux).
+
 const draft = {
   id: 'draft-1',
   visibility: 'PRIVATE',
@@ -39,7 +41,7 @@ for (const width of [360, 768, 1440]) {
     });
     await page.goto('/drafts/draft-1/preview');
     await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
-    await expect(page).toHaveScreenshot(`review-long-${width}.png`, screenshot);
+    await expect(page).toHaveScreenshot(`review-long-${width}-${process.platform}.png`, screenshot);
   });
 }
 for (const accepted of [false, true]) {
@@ -48,7 +50,10 @@ for (const accepted of [false, true]) {
     await mockWorkforceApi(page, { draft: { ...draft, privateContactConsent: accepted } });
     await page.goto('/drafts/draft-1/edit');
     await expect(page.getByRole('checkbox', { name: /Untuk menghindari fitnah/ })).toBeAttached();
-    await expect(page).toHaveScreenshot(`private-consent-${accepted}-360.png`, screenshot);
+    await expect(page).toHaveScreenshot(
+      `private-consent-${accepted}-360-${process.platform}.png`,
+      screenshot,
+    );
   });
 }
 test('legacy preview missing consent', async ({ page }) => {
@@ -56,14 +61,17 @@ test('legacy preview missing consent', async ({ page }) => {
   await mockWorkforceApi(page, { draftPreview: draft });
   await page.goto('/drafts/draft-1/preview');
   await expect(page.getByRole('button', { name: 'Kirim Voice' })).toBeDisabled();
-  await expect(page).toHaveScreenshot('private-legacy-preview-360.png', screenshot);
+  await expect(page).toHaveScreenshot(
+    `private-legacy-preview-360-${process.platform}.png`,
+    screenshot,
+  );
 });
 test('normal password change', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 900 });
   await mockWorkforceApi(page, {});
   await page.goto('/change-password');
   await expect(page.getByRole('heading', { name: 'Ganti password', exact: true })).toBeVisible();
-  await expect(page).toHaveScreenshot('password-normal-360.png', screenshot);
+  await expect(page).toHaveScreenshot(`password-normal-360-${process.platform}.png`, screenshot);
 });
 for (const audience of ['GENERAL_RESPONDER', 'REPORTER_SELF']) {
   test(`detail identity ${audience}`, async ({ page }) => {
@@ -110,6 +118,9 @@ for (const audience of ['GENERAL_RESPONDER', 'REPORTER_SELF']) {
         { exact: true },
       ),
     ).toBeVisible();
-    await expect(page).toHaveScreenshot(`detail-identity-${audience}-360.png`, screenshot);
+    await expect(page).toHaveScreenshot(
+      `detail-identity-${audience}-360-${process.platform}.png`,
+      screenshot,
+    );
   });
 }

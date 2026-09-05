@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { memberSession, mockWorkforceApi } from './helpers/mock-api';
 
+// Keep strict visual comparisons within one OS font rasterizer (Darwin/Linux).
+
 for (const width of [360, 768, 1440]) {
   test(`assignment many candidates at ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
@@ -29,7 +31,7 @@ for (const width of [360, 768, 1440]) {
     await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('textbox', { name: 'Cari penanggung' })).toBeVisible();
-    await expect(dialog).toHaveScreenshot(`assignment-list-${width}.png`, {
+    await expect(dialog).toHaveScreenshot(`assignment-list-${width}-${process.platform}.png`, {
       animations: 'disabled',
       maxDiffPixelRatio: 0.001,
     });
@@ -37,7 +39,7 @@ for (const width of [360, 768, 1440]) {
     await expect(
       dialog.locator('.care-dialog__footer').getByRole('button', { name: 'Tugaskan' }),
     ).toBeInViewport();
-    await expect(dialog).toHaveScreenshot(`assignment-selected-${width}.png`, {
+    await expect(dialog).toHaveScreenshot(`assignment-selected-${width}-${process.platform}.png`, {
       animations: 'disabled',
       maxDiffPixelRatio: 0.001,
     });

@@ -24,3 +24,7 @@ The shared Dialog gains an optional styling hook without changing its default la
 ## Validation and follow-up
 
 Regression coverage exercises thirty candidates at 360, 390, 768 and 1440 pixels, payload preservation, search, empty results, retry, keyboard focus and Axe. Legacy WebKit covers scrolling and last-candidate selection. Six new visual baselines cover initial and selected states at 360/768/1440; the existing assignment sheet baseline is refreshed and screenshots are inspected after a production build. Full suite results are recorded in the session handoff. Hosted acceptance remains a separate release check.
+
+### Cross-platform visual verification
+
+Strict screenshot baselines are stored separately for Darwin and Linux because CoreText and FreeType rasterization differ. Linux baselines are generated and checked in Ubuntu 22.04 with the pinned Node and Playwright versions; Darwin images are verified separately. Screenshot thresholds remain unchanged. Both environments must be verified when these UI baselines change; a local macOS pass alone does not establish CI visual parity.
