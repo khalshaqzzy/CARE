@@ -1,3 +1,4 @@
+import { visualPlatform } from './helpers/visual-platform';
 import { expect, test, type Page } from '@playwright/test';
 import {
   baseVoiceItem,
@@ -660,7 +661,7 @@ test('workforce union identified detail visual at 360', async ({ page }) => {
   await expect(page.getByText('Sari Wulandari').first()).toBeVisible();
   await scrollToTop(page);
   await expect(page).toHaveScreenshot(
-    `workforce-union-identified-360-${process.platform}.png`,
+    `workforce-union-identified-360-${visualPlatform}.png`,
     screenshotOptions,
   );
 });

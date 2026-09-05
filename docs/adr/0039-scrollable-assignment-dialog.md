@@ -28,3 +28,5 @@ Regression coverage exercises thirty candidates at 360, 390, 768 and 1440 pixels
 ### Cross-platform visual verification
 
 Strict screenshot baselines are stored separately for Darwin and Linux because CoreText and FreeType rasterization differ. Linux baselines are generated and checked in Ubuntu 22.04 with the pinned Node and Playwright versions; Darwin images are verified separately. Screenshot thresholds remain unchanged. Both environments must be verified when these UI baselines change; a local macOS pass alone does not establish CI visual parity.
+
+Linux screenshot names also include CPU architecture (`linux-x64` or `linux-arm64`). Explicit amd64 reproduction matched hosted CI pixel differences; an ARM64 Linux pass does not establish x64 parity. `visual-platform.ts` centralizes this distinction without changing tolerances.

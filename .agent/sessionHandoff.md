@@ -46,6 +46,7 @@ Private contact consent is separate from identity permission. Drafts may omit co
 - Playwright runs **production preview builds**, not source/dev servers. Run `NODE_ENV=production pnpm build` after application changes before browser checks. Workforce preview is 4173 and Admin is 4174; stale reused preview servers/builds can test old code.
 - `pnpm exec playwright test --workers=4` runs the default mocked Chromium, visual, PWA, push and legacy WebKit projects. It does **not** run the real API fullstack project. Latest result: 219 passed; the subsequent visual-only run passed 62 tests.
 - Focused entrypoints: `e2e/assignment-scroll.spec.ts`, `e2e/assignment-scroll.visual.spec.ts`, `e2e/voice-consent.spec.ts`, `e2e/voice-consent.visual.spec.ts`, `e2e/workforce-legacy.spec.ts`. Shared fixtures/routes are in `e2e/helpers/mock-api.ts`; preserve stateful draft versions and consent when extending mocks.
+- CI visual parity requires **Linux x64**, not native ARM64 Docker on Apple Silicon. Use `docker run --platform linux/amd64 …`, verify `node -p process.arch` prints `x64`, and match Node 22.23.2 / Playwright 1.62.1 / Ubuntu 22.04. The affected specs use `visual-platform.ts` to select `linux-x64`, `linux-arm64`, or `darwin` images.
 - Baselines live beside specs in `*-snapshots/` directories. Build first, delete only affected PNGs, generate with `--update-snapshots`, inspect images, then run twice without updating. Do not loosen thresholds. Use reduced motion for deterministic overlay accessibility checks; wait for the intended state rather than measuring an animation frame.
 - Candidate queries can reuse cached data. For a fetch-failure test, install the error route before the first fetch or start with a fresh page/session; otherwise cached successful results can hide the failure fixture.
 - Real API E2E requires `FULLSTACK_E2E=1`, the CI test environment, a built API, and migrated disposable Docker DB. `playwright.config.ts` forces one fullstack worker; global setup seeds the Admin baseline. Read the workflow for the complete environment rather than reusing stale shell values.
@@ -56,6 +57,12 @@ Private contact consent is separate from identity permission. Drafts may omit co
 - Stop only task-started servers and run `pnpm db:down` after DB verification. At this handoff the CARE database/network and preview/test processes are stopped. Temporary `/tmp/care-*` logs are convenience evidence only, not durable dependencies.
 
 ## Session Outcome
+
+### PR #32 Linux architecture correction — 5 September 2026
+
+Run `33955215596` exposed a missing part of visual parity: Docker on Apple Silicon defaults to Linux ARM64, while GitHub Ubuntu uses x64. An explicit `--platform linux/amd64` reproduction with Node 22.23.2 / Playwright 1.62.1 reproduced all thirteen failures, including the exact 1,848-pixel assignment and 24,950-pixel identified-detail differences from CI. The earlier OS-only correction was insufficient.
+
+Affected tests now use `e2e/helpers/visual-platform.ts`: `linux-x64` for CI, `linux-arm64` for native Apple Silicon Docker, and the existing `darwin` snapshots for macOS. Existing PNGs are renamed without modification; sixteen x64 PNGs are generated and visually reviewed. Thresholds and production UI are unchanged. Future Linux baseline generation must explicitly match CPU architecture, not just distribution/browser version. Validation: explicit amd64 full frontend suite 219 passed, followed by 62 visual tests without updates; macOS visual suite 62 passed. Format, lint, typecheck, directory Gitleaks and diff checks passed. No production source changed; all other hosted jobs passed on the preceding commit. Test containers exit automatically (`--rm`).
 
 ### PR #32 visual CI correction — 5 September 2026
 
