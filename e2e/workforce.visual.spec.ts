@@ -789,6 +789,17 @@ test('workforce password change visual at 360', async ({ page }) => {
   await expect(page).toHaveScreenshot('workforce-password-change-360.png', screenshotOptions);
 });
 
+test('workforce password deferral action visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: { ...memberSession(), passwordChangeRequired: true },
+  });
+  await page.goto('/change-password');
+  await page.getByRole('button', { name: 'Lain kali' }).scrollIntoViewIfNeeded();
+  await expect(page).toHaveScreenshot('workforce-password-defer-360.png', screenshotOptions);
+});
+
 test('workforce create voice type visual at 360', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -820,6 +831,28 @@ test('workforce create general form visual at 360', async ({ page }) => {
   });
   await scrollToTop(page);
   await expect(page).toHaveScreenshot('workforce-create-general-form-360.png', screenshotOptions);
+});
+
+test('workforce create empty location visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await openGeneralAreaSheet(page);
+  await page.getByRole('radio', { name: 'Karawang 1' }).click();
+  await page.waitForTimeout(450);
+  await scrollToTop(page);
+  await expect(page).toHaveScreenshot('workforce-create-empty-location-360.png', screenshotOptions);
+});
+
+test('workforce create composer visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {});
+  await openGeneralAreaSheet(page);
+  await page.getByRole('radio', { name: 'Karawang 1' }).click();
+  await page.waitForTimeout(450);
+  await page.getByRole('region', { name: 'Isi Voice' }).scrollIntoViewIfNeeded();
+  await expect(page).toHaveScreenshot('workforce-create-composer-360.png', screenshotOptions);
 });
 
 test('workforce create processing visual at 360', async ({ page }) => {

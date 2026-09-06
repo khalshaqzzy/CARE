@@ -193,13 +193,13 @@ function VisibilityStep({ wizard }: { wizard: Wizard }) {
             {
               value: 'GENERAL',
               label: 'General Voice',
-              description: 'Ditangani oleh PIC organisasi',
+              description: 'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
               icon: <Briefcase size={20} />,
             },
             {
               value: 'PRIVATE',
               label: 'Private Voice',
-              description: 'Ditangani secara aman oleh Union',
+              description: 'Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).',
               icon: <ShieldCheck size={20} />,
             },
           ]}
@@ -294,7 +294,7 @@ function FormStep({ wizard }: { wizard: Wizard }) {
               rows={3}
               maxLength={200}
               counter={`${form.locationDetail.length}/200`}
-              placeholder="Masukkan detail lokasi temuan"
+              placeholder="Contoh: Welding 2, Toilet Selatan"
               required
             />
             {form.locationDetail.trim().length >= 3 ? <LocationReviewHint wizard={wizard} /> : null}
@@ -306,12 +306,12 @@ function FormStep({ wizard }: { wizard: Wizard }) {
           padding="lg"
           className={`wizard-card${isPrivate ? ' wizard-card--flagged' : ''}`}
         >
-          <section className="wizard-section" aria-label="Voice composer">
+          <section className="wizard-section" aria-label="Isi Voice">
             <div className="wizard-card__head">
               <span className="wizard-card__icon" aria-hidden="true">
                 <SquarePen size={18} />
               </span>
-              <h3 className="wizard-card__title">Voice composer</h3>
+              <h3 className="wizard-card__title">Isi Voice</h3>
             </div>
             <Input
               label="Judul Voice"

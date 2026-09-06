@@ -62,10 +62,21 @@ test.describe('workforce journeys (mocked contract)', () => {
     await mockWorkforceApi(page, {});
     await page.goto('/voices/new');
     await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+    await expect(
+      page.getByText('Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan'),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).'),
+    ).toBeVisible();
     await page.getByRole('radio', { name: /General Voice/ }).click();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
     await expect(page.getByRole('heading', { name: 'Detail Voice General' })).toBeVisible();
     // The required detail fields are present; areas open from the Ubah sheet.
+    await expect(page.getByRole('region', { name: 'Isi Voice' })).toBeAttached();
+    await expect(page.getByRole('textbox', { name: /Detail Lokasi/ })).toHaveAttribute(
+      'placeholder',
+      'Contoh: Welding 2, Toilet Selatan',
+    );
     await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toBeVisible();
     await page.getByRole('button', { name: /area temuan/ }).click();
     await expect(page.getByRole('dialog')).toBeVisible();

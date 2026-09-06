@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { memberSession, mockWorkforceApi } from './helpers/mock-api';
+import { memberSession, mockWorkforceApi, unionSession } from './helpers/mock-api';
 
 const consent = /Untuk menghindari fitnah/;
 const draft = {
@@ -84,6 +84,64 @@ for (const forced of [false, true]) {
     await expect(page).toHaveURL(forced ? /\/login$/ : /\/account$/);
   });
 }
+
+test('workforce can defer a required password change for the current session', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: { ...memberSession(), passwordChangeRequired: true },
+  });
+  await page.goto('/change-password');
+  const request = page.waitForRequest(
+    (candidate) =>
+      candidate.method() === 'POST' &&
+      candidate.url().endsWith('/api/v1/auth/defer-password-change'),
+  );
+  await page.getByRole('button', { name: 'Lain kali' }).click();
+  expect((await request).headers()['x-csrf-token']).toBe('csrf-token');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
+});
+
+test('failed password deferral stays on the form and remains retryable', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: { ...memberSession(), passwordChangeRequired: true },
+    deferPasswordError: { status: 500, code: 'DEFER_FAILED' },
+  });
+  await page.goto('/change-password');
+  await page.getByRole('button', { name: 'Lain kali' }).click();
+  await expect(page).toHaveURL(/\/change-password$/);
+  await expect(page.getByRole('alert')).toContainText('Ganti password belum ditunda');
+  await expect(page.getByRole('alert')).toContainText('Ganti password tidak dapat ditunda.');
+  await expect(page.getByRole('button', { name: 'Lain kali' })).toBeEnabled();
+});
+
+for (const [code, message] of [
+  ['CURRENT_PASSWORD_INVALID', 'Password saat ini tidak sesuai.'],
+  ['PASSWORD_REUSE', 'Password baru tidak boleh sama dengan username atau password sebelumnya.'],
+] as const) {
+  test(`password edit failure ${code} shows its matching state`, async ({ page }) => {
+    await mockWorkforceApi(page, {
+      changePasswordError: { status: 400, code },
+    });
+    await page.goto('/change-password');
+    await page.getByLabel('Password saat ini').fill('password-sekarang');
+    await page.getByLabel(/^Password baru/).fill('password-baru');
+    await page.getByLabel('Konfirmasi password baru').fill('password-baru');
+    await page.getByRole('button', { name: 'Simpan password' }).click();
+    await expect(page).toHaveURL(/\/change-password$/);
+    await expect(page.getByRole('alert')).toContainText('Password belum diubah');
+    await expect(page.getByRole('alert')).toContainText(message);
+    await expect(page.getByRole('button', { name: 'Simpan password' })).toBeEnabled();
+  });
+}
+
+test('Union cannot defer a required password change', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: { ...unionSession(), passwordChangeRequired: true },
+  });
+  await page.goto('/change-password');
+  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
+});
 
 for (const width of [360, 390, 768, 1440]) {
   test(`long review content fits and remains accessible at ${width}`, async ({ page }) => {

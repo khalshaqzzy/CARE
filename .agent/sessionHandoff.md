@@ -1,22 +1,22 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Date                    | 5 September 2026                                                                                              |
-| Current objective       | PR #32 merged; staging container libuuid security remediation in progress                                     |
-| Current phase           | Phase 13 `in_progress`; Phase 14 `pending`; hosted Delivery Complete Gate remains open                        |
-| Branch                  | `staging` (PR #32 merged as `a29c3622`)                                                                       |
-| Backend contract        | Additive Private contact consent snapshots and explicit draft PATCH schema; migration required before rollout |
-| Latest ADR              | ADR-0039                                                                                                      |
-| Recommended next action | Complete container remediation and verify staging CI/deployment                                               |
+| Atribut                 | Nilai                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date                    | 6 September 2026                                                                                                                                  |
+| Current objective       | Deliver workforce password deferral, login/Create Voice copy, polished UI baselines, and stable Alpine container remediation                      |
+| Current phase           | Phase 13 `in_progress`; Phase 14 `pending`; hosted Delivery Complete Gate remains open                                                            |
+| Branch                  | `feat/visual-improvements-1` at base `6c1cb51f`; delivery authorized and prepared for commit/PR to `staging`                                      |
+| Backend contract        | Additive session-only defer endpoint for `WORKFORCE`; no schema/migration; account password flag, sibling sessions, and Union/Admin gates persist |
+| Latest ADR              | ADR-0041                                                                                                                                          |
+| Recommended next action | Commit the verified change set, push `feat/visual-improvements-1`, and open the authorized PR to `staging` without monitoring hosted checks       |
 
-## Quick resume guide — verified 5 September 2026
+## Quick resume guide — verified 6 September 2026
 
 Read this guide and the latest Session Outcome first. Earlier work is condensed into the reference index below; consult the linked ADRs and Git history only when needed. The top status table and `.agent/implementationPhases.md` describe current progress; `.agent/rules.md` and `.agent/PRD.md` remain authoritative for process and product behavior.
 
 ### Workspace and scope to preserve
 
-- Start with `git status --short` and `git branch --show-current`. Voice consent/polish and assignment changes are on `feat/voice-consent-ui-polish`; commit/push and a PR to `staging` are authorized. Inspect Git status for the delivery state; do not recreate the branch, reset these changes, or assume they are deployed.
+- Start with `git status --short` and `git branch --show-current`. The current password-defer/copy/baseline/container changes are on `feat/visual-improvements-1`; the user explicitly authorized commit, push, and a PR to `staging`, but requested that hosted checks not be monitored after the PR is opened. Local validation is not hosted acceptance.
 - `.design/dashboard-home-v2/` is preexisting unrelated untracked work. Do not stage, delete, or regenerate it as part of these fixes.
 - Union General viewing is deferred. Local seeded-account success did not explain the reported issue. Resume investigation only when requested; first distinguish a failed request from an empty filtered result. `features/general/GeneralBrowsePage.tsx` is the entry point. No fix for that flow is included here.
 - Phase 13 hosted acceptance remains open. Local test success is not deployment completion or full pre-commit parity. Consult the actual target-branch workflows and `.agent/rules.md` before committing.
@@ -40,6 +40,20 @@ Paths in this table are repository-relative.
 
 Private contact consent is separate from identity permission. Drafts may omit consent, but Private submission requires true from the saved draft. Server snapshots are immutable, nullable for historical/General Voices, and restricted to reporter/Admin detail; never add identity hints to anonymous Union responses or consent fields to AI inputs/hashes. See ADR-0038 for the full contract and ADR-0039 for assignment layout decisions.
 
+### Session-scoped workforce password defer and copy polish — 6 September 2026
+
+Added `POST /api/v1/auth/defer-password-change` through controller/service, restricted-session allowlist, OpenAPI enrichment, generated client, shared transport and auth cache. It accepts only an authenticated `WORKFORCE` session with CSRF, updates only that current session from restricted to unrestricted, and emits `PASSWORD_CHANGE_DEFERRED` once on the actual transition. The persistent account flag, sibling sessions, password, and push subscriptions are untouched; therefore logout/new login restores the gate until a real password change. Union and CARE Admin receive default-deny and never see `Lain kali`.
+
+The forced-password screen now has primary `Simpan password` and secondary `Lain kali`; per the final user direction there is no “Permintaan ini akan muncul…” helper. Its policy helper says `Password minimal 6 karakter dan tidak boleh sama dengan username dan password sebelumnya`. Failed edits remain on the page with safe, state-specific alerts for confirmation mismatch, incorrect current password, reuse, rate limiting/offline, and unknown failure; an incorrect current password no longer invalidates the valid login session. Login says `Silahkan login sesuai petunjuk.` Create Voice uses the approved General/Private descriptions, `Isi Voice` as visible and accessible composer label, and `Contoh: Welding 2, Toilet Selatan` as the location placeholder. Existing CARE tokens were retained; long choice text, mobile spacing, touch targets, keyboard/loading/error behavior and no-overflow coverage were refined without changing Voice authorization.
+
+Tests cover pre-defer denial, CSRF, workforce-only access, current/sibling session isolation, persistent account flag, idempotent audit, relogin restriction and permanent password change. Mocked browser coverage includes success/error/cache behavior, Union absence, Axe, focus/touch targets and 360/768/1440 overflow. The real full-stack journey proves defer → dashboard → logout → relogin gate → password change. Affected login/password/type/private-form baselines and new defer/empty-location/composer baselines were regenerated; Linux x64 canonical images used Ubuntu 22.04, Node 22.23.2 and Playwright 1.62.1, then passed without update. Representative PNGs were inspected visually.
+
+Validation completed: OpenAPI generation byte-stable; lint, typecheck, production build, unit suites (API 79, UI 26, frontend-core 15, workforce 81, Admin 2), integration 62, security 14, PWA compatibility, migration upgrade/destructive checks and Compose config passed. Default Playwright produced 223/226 initially: two intentionally stale Private Voice baselines and one service-worker timing flake. Both baselines were delete-first regenerated and the PWA test passed immediately in isolation. After the final password-copy/error additions, a four-worker rerun was interrupted by host resource starvation across unrelated Chromium and WebKit fixtures; every failed file then passed in isolation (63/63 Chromium and 5/5 WebKit), and the stable final complete run passed 228/228 without updates using two workers. Full-stack passed 3/3 on the final rerun; an immediately preceding run had an unrelated Admin import polling timeout while the new workforce journey passed. `pnpm audit --audit-level high` passed with three Moderate and zero High/Critical; Gitleaks 8.24.3 found no leaks. No schema change or migration was required.
+
+PR preparation was explicitly authorized after implementation. Target `origin/staging` remained at `6c1cb51f`. Frozen install, Prisma generation, OpenAI smoke, staging-relative destructive migration check, deployment/runtime validation, security exception validation, Compose config, Actionlint, ShellCheck, Hadolint, inference syntax, Ubuntu bootstrap contract, Linux deployment harness (including real `flock`), performance fixture/test, and reconciliation all passed. The required production Compose build with `--pull` then failed in the unchanged `deploy/postgres/Dockerfile`: Alpine resolution offered `libuuid-2.42.1-r0`, conflicting with the inherited exact `libuuid@care-security=2.42.3-r0` pin. This is the existing Phase 13 container blocker, not a regression from this feature. Because `.agent/rules.md` forbids committing while a mandatory CI-equivalent gate fails, no commit, push, or PR was created; container-pin remediation requires separate scope or an explicit process decision. Trivy image scans could not run because the required images were not produced.
+
+The user subsequently authorized the narrow container remediation. Stable Alpine v3.24 package probes expose patched `libuuid 2.42.3-r1` on both Linux x64 and ARM64. ADR-0041 advances the exact pin in PostgreSQL and both nginx runtimes and removes the temporary tagged edge repository; base-image digests and other patched-library pins remain unchanged. A pulled Linux x64 production Compose build succeeded for all five images. Migration/bootstrap, readiness, release metadata, SPA fallback, auth boundary, manifest/CSP, non-root execution, private PostgreSQL port, and database/media persistence checks passed. Trivy 0.70.0 filesystem/secret/misconfiguration scanning and all five image scans reported zero HIGH/CRITICAL findings; the three Alpine runtime images were directly verified at `libuuid-2.42.3-r1`. Task-started containers and temporary staging/Trivy directories were removed afterward.
+
 ### Fast, reliable verification
 
 - Runtime: root `package.json` pins pnpm 11.8.0 and Node `>=22.23.0 <23`; this session used Node 22.23.2. Use root scripts rather than inventing package commands.
@@ -54,7 +68,7 @@ Private contact consent is separate from identity permission. Drafts may omit co
 - `pnpm db:up`, `db:wait`, `db:verify`, `db:test:reset`, `db:test:migrate` operate the Docker test setup (host port 54329). Reset only the disposable test database. The production-like local stack is a different workflow: `pnpm local:up/status/logs/down`; never source or print its `.env.local` secret store.
 - `pnpm openapi:check` regenerates and compares against Git HEAD. Intentional uncommitted generated changes therefore make it fail even if generation is deterministic. Compare before/after hashes to investigate determinism, but still require the ordinary workflow gate before delivery.
 - `pnpm pwa:compat-check` inspects built artifacts. Legacy WebKit coverage matters: Chromium success alone has missed layout defects here. Keep API/private data network-only and Admin free of workforce PWA behavior.
-- Stop only task-started servers and run `pnpm db:down` after DB verification. At this handoff the CARE database/network and preview/test processes are stopped. Temporary `/tmp/care-*` logs are convenience evidence only, not durable dependencies.
+- Stop only task-started servers and run `pnpm db:down` after DB verification. At this handoff the CARE database/network, production-like stack, and preview/test processes are stopped. Temporary staging and Trivy directories were removed.
 
 ## Session Outcome
 

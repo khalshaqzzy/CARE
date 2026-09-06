@@ -41,7 +41,7 @@ const errorJson = (status: number) =>
   });
 
 function AuthProbe() {
-  const { session: current, logout, transport } = useAuth();
+  const { session: current, logout, deferPasswordChange, transport } = useAuth();
   return (
     <div>
       <span>{current ? `authenticated:${current.sessionId}` : 'unauthenticated'}</span>
@@ -50,6 +50,9 @@ function AuthProbe() {
       </button>
       <button type="button" onClick={() => void transport.session().catch(() => undefined)}>
         request-session
+      </button>
+      <button type="button" onClick={() => void deferPasswordChange().catch(() => undefined)}>
+        defer-password
       </button>
     </div>
   );
@@ -146,6 +149,24 @@ describe('auth bootstrap and route guards', () => {
     await userEvent.click(screen.getByRole('button', { name: 'logout' }));
     expect(await screen.findByText('unauthenticated')).toBeVisible();
     resolveLogout(json({ success: true }));
+  });
+
+  it('updates the observed session after password deferral', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      if (request.url.endsWith('/api/v1/auth/session'))
+        return json(session({ passwordChangeRequired: true }));
+      if (request.url.endsWith('/api/v1/auth/csrf')) return json({ token: 'csrf-token' });
+      if (request.url.endsWith('/api/v1/auth/defer-password-change'))
+        return json(session({ passwordChangeRequired: false }));
+      return errorJson(500);
+    });
+    const client = renderProbe();
+    expect(await screen.findByText('authenticated:session-1')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'defer-password' }));
+    await waitFor(() => {
+      expect(client.getQueryData<Session>(['session'])?.passwordChangeRequired).toBe(false);
+    });
   });
 
   it('keeps local state unauthenticated when the logout request fails', async () => {

@@ -33,10 +33,8 @@ LABEL org.opencontainers.image.title="care-web-admin" \
 USER 0
 # Pinned alpine packages: force patched versions past the frozen base image
 # so the Trivy gate stays green between base-image digest bumps.
-# The stable x86_64 index lags the patched libuuid release. Only this pinned
-# package may resolve from the tagged security source; stable remains default.
-RUN printf '%s\n' '@care-security https://dl-cdn.alpinelinux.org/alpine/edge/main' >> /etc/apk/repositories \
-  && apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.4-r0 libuuid@care-security=2.42.3-r0
+# Stable Alpine now carries the patched libuuid release on both architectures.
+RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.4-r0 libuuid=2.42.3-r1
 COPY deploy/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /workspace/apps/web-admin/dist/ /usr/share/nginx/html/
 USER 101

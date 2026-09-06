@@ -1,17 +1,21 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                  |
-| Last updated           | 4 September 2026 (deadline-consistent low-rating reopen/read-model correction; ADR-0032 extension)                                                                                                                                                                           |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                         |
-| Current implementation | Admin premium redesign plus dynamic General categories and audited Manager-to-Manager `OPEN` Voice handover are implemented locally; mockups treated as layout/style only with CARE domain and contracts preserved. Existing Phase 13 hosted acceptance status is unchanged. |
-| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                             |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                    |
+| Last updated           | 6 September 2026 (password deferral/Voice polish and stable Alpine container remediation; ADR-0040/0041)                                                                                                                                                                       |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                           |
+| Current implementation | Workforce-only, session-scoped password deferral plus the approved login/Create Voice copy and polished responsive states are implemented locally. Persistent password policy and Union/Admin gates remain unchanged. Existing Phase 13 hosted acceptance status is unchanged. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                               |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                  |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
+
+## Workforce password deferral and Voice copy polish — 6 September 2026
+
+Implemented locally on `feat/visual-improvements-1`: authenticated and CSRF-protected `POST /api/v1/auth/defer-password-change` unlocks only the current restricted `WORKFORCE` session, records one transition audit, and leaves the account flag plus other sessions unchanged. Union and CARE Admin remain mandatory/default-deny. The workforce password gate offers `Lain kali` without explanatory helper copy; its policy helper and state-specific safe failure alerts use the approved copy. Login and Create Voice use the approved Indonesian copy, accessible `Isi Voice` label, location placeholder, and responsive wrapping/touch-target polish. ADR-0040 records the security and UX decision. Generated OpenAPI/client outputs, integration/full-stack coverage, and affected Linux x64/macOS visual baselines were refreshed. Phase 13 remains `in_progress`; no hosted delivery is claimed.
 
 ## Voice consent and confirmation refinement — 5 September 2026
 
@@ -24,6 +28,8 @@ Implemented locally: a bounded assignment body with persistent actions, candidat
 PR #32 visual CI remediation: platform/architecture-specific Darwin/Linux ARM64/Linux x64 baselines replace cross-OS comparison for the new consent/assignment tests and identified detail. Thresholds and application behavior are unchanged; Phase 13 hosted acceptance remains open.
 
 Staging follow-up (5 September): PR #32 merged and hosted quality passed; container gate requires patched libuuid 2.42.3-r0 from a narrowly tagged source until the stable x86_64 package index catches up in both web runtimes and PostgreSQL. Phase 13 remains in progress until staging delivery succeeds.
+
+Container follow-up (6 September): stable Alpine v3.24 now supplies patched `libuuid 2.42.3-r1` for Linux x64 and ARM64. ADR-0041 removes the temporary edge repository and advances the exact pin in PostgreSQL and both nginx runtimes. Pulled Linux x64 production Compose build/runtime/persistence parity and Trivy 0.70.0 filesystem plus five-image HIGH/CRITICAL scans passed; task-started containers were removed. Hosted Phase 13 acceptance remains open until the authorized PR runs in CI.
 
 ## Sequencing Gates
 

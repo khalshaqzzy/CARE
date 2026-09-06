@@ -190,6 +190,7 @@ const idempotentOperations = new Set([
 
 const noBodyOperations = new Set([
   'AuthController_logout',
+  'AuthController_deferPasswordChange',
   'VoicesController_classify',
   'VoicesController_locationReview',
   'NotificationsController_readAll',
@@ -315,6 +316,7 @@ function successSchema(operationId: string) {
     AdminCategoriesController_update: 'GeneralVoiceCategoryAdmin',
     AdminCategoriesController_status: 'GeneralVoiceCategoryAdmin',
     AuthController_changePassword: 'SuccessResponse',
+    AuthController_deferPasswordChange: 'SessionResponse',
     AuthController_logout: 'SuccessResponse',
     ImportsController_changes: 'OrganizationChangeList',
     ImportsController_confirm: 'ImportQueuedResponse',
