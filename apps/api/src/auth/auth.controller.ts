@@ -55,4 +55,12 @@ export class AuthController {
   changePassword(@Actor() actor: AuthActor, @Body() body: unknown) {
     return this.auth.changePassword(actor, body);
   }
+  @Post('defer-password-change')
+  @ApiCookieAuth()
+  deferPasswordChange(@Actor() actor: AuthActor, @Req() request: Request) {
+    return this.auth.deferPasswordChange(
+      actor,
+      String(request.headers['x-correlation-id'] ?? 'unknown'),
+    );
+  }
 }

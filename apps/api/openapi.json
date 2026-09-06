@@ -1141,6 +1141,138 @@
         ]
       }
     },
+    "/api/v1/auth/defer-password-change": {
+      "post": {
+        "operationId": "AuthController_deferPasswordChange",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
     "/api/v1/general-voice-categories": {
       "get": {
         "operationId": "CategoriesController_list",

@@ -55,6 +55,7 @@ export class AuthGuard implements CanActivate {
         '/api/v1/auth/session',
         '/api/v1/auth/csrf',
         '/api/v1/auth/change-password',
+        '/api/v1/auth/defer-password-change',
         '/api/v1/auth/logout',
       ].includes(path)
     )

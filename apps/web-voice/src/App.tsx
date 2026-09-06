@@ -22,6 +22,7 @@ import {
   Bot,
   ChevronRight,
   ClipboardList,
+  Clock3,
   Home,
   Inbox,
   Lock,
@@ -195,7 +196,7 @@ function LoginPage() {
       <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
-            <h2>Selamat datang kembali</h2>
+            <h2>Silahkan login sesuai petunjuk.</h2>
             <p>Login untuk melanjutkan ke CARE</p>
           </div>
           {error ? (
@@ -234,14 +235,38 @@ function LoginPage() {
   );
 }
 
+function passwordChangeFailureMessage(cause: unknown) {
+  if (typeof cause === 'object' && cause) {
+    const failure = cause as { code?: unknown; kind?: unknown; message?: unknown };
+    if (failure.code === 'CURRENT_PASSWORD_INVALID') return 'Password saat ini tidak sesuai.';
+    if (failure.code === 'PASSWORD_REUSE')
+      return 'Password baru tidak boleh sama dengan username atau password sebelumnya.';
+    if (failure.kind === 'rate-limited')
+      return 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+    if (failure.kind === 'offline' && typeof failure.message === 'string') return failure.message;
+  }
+  return 'Password tidak dapat diubah. Silakan coba lagi.';
+}
+
+function passwordDeferralFailureMessage(cause: unknown) {
+  if (typeof cause === 'object' && cause) {
+    const failure = cause as { kind?: unknown; message?: unknown };
+    if (failure.kind === 'rate-limited')
+      return 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+    if (failure.kind === 'offline' && typeof failure.message === 'string') return failure.message;
+  }
+  return 'Ganti password tidak dapat ditunda. Silakan coba lagi.';
+}
+
 function ChangePasswordPage() {
-  const { session, transport, refresh, logout, loading } = useAuth();
+  const { session, transport, refresh, logout, deferPasswordChange, loading } = useAuth();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<{ title: string; message: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<'back' | 'password' | 'defer' | null>(null);
+  const pending = pendingAction !== null;
   if (loading) return <RouteLoader />;
   if (!session) return <Navigate to="/login" replace />;
   async function back() {
@@ -250,34 +275,50 @@ function ChangePasswordPage() {
       void navigate('/account', { replace: true });
       return;
     }
-    setPending(true);
+    setPendingAction('back');
     try {
       await logout();
     } catch {
       /* Existing auth cleanup still removes local session. */
     } finally {
       void navigate('/login', { replace: true });
-      setPending(false);
+      setPendingAction(null);
     }
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (newPassword !== confirm) {
-      setError('Konfirmasi password tidak sama.');
+      setError({ title: 'Periksa password', message: 'Konfirmasi password tidak sama.' });
       return;
     }
-    setPending(true);
-    setError('');
+    setPendingAction('password');
+    setError(null);
     try {
       await transport.changePassword(currentPassword, newPassword);
       await refresh();
       void navigate('/', { replace: true });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Password tidak dapat diubah.');
+      setError({ title: 'Password belum diubah', message: passwordChangeFailureMessage(cause) });
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
+  async function defer() {
+    if (pending) return;
+    setPendingAction('defer');
+    setError(null);
+    try {
+      await deferPasswordChange();
+      void navigate('/', { replace: true });
+    } catch (cause) {
+      setError({
+        title: 'Ganti password belum ditunda',
+        message: passwordDeferralFailureMessage(cause),
+      });
+      setPendingAction(null);
+    }
+  }
+  const canDefer = session.passwordChangeRequired && session.account.accountKind === 'WORKFORCE';
   return (
     <main className="auth-layout">
       <section className="auth-brand auth-brand--security">
@@ -308,12 +349,13 @@ function ChangePasswordPage() {
               {session.passwordChangeRequired ? 'Ganti password sementara' : 'Ganti password'}
             </h2>
             <p>
-              Gunakan 6–128 karakter dan jangan samakan dengan username atau password sebelumnya.
+              Password minimal 6 karakter dan tidak boleh sama dengan username dan password
+              sebelumnya
             </p>
           </div>
           {error ? (
-            <Alert tone="danger" title="Periksa password">
-              {error}
+            <Alert tone="danger" title={error.title}>
+              {error.message}
             </Alert>
           ) : null}
           <form onSubmit={submit} className="auth-form">
@@ -343,10 +385,28 @@ function ChangePasswordPage() {
               onChange={(event) => setConfirm(event.target.value)}
               required
             />
-            <Button type="submit" className="auth-submit" loading={pending}>
+            <Button
+              type="submit"
+              className="auth-submit"
+              loading={pendingAction === 'password'}
+              disabled={pending}
+            >
               Simpan password
               <ArrowRight size={18} aria-hidden="true" />
             </Button>
+            {canDefer ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="auth-defer__button"
+                loading={pendingAction === 'defer'}
+                disabled={pending}
+                onClick={() => void defer()}
+              >
+                <Clock3 size={18} aria-hidden="true" />
+                Lain kali
+              </Button>
+            ) : null}
           </form>
         </Stack>
       </Card>

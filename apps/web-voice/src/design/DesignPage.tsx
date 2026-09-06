@@ -448,12 +448,13 @@ export default function DesignPage() {
                     {
                       value: 'GENERAL',
                       label: 'General Voice',
-                      description: 'Ditangani route organisasi.',
+                      description:
+                        'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
                     },
                     {
                       value: 'PRIVATE',
                       label: 'Private Voice',
-                      description: 'Ditangani Union Head.',
+                      description: 'Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).',
                     },
                   ]}
                 />
@@ -505,13 +506,14 @@ export default function DesignPage() {
                   {
                     value: 'GENERAL',
                     label: 'General Voice',
-                    description: 'Ditangani route organisasi.',
+                    description:
+                      'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
                     icon: <UsersRound size={16} />,
                   },
                   {
                     value: 'PRIVATE',
                     label: 'Private Voice',
-                    description: 'Ditangani Union Head.',
+                    description: 'Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).',
                     icon: <ShieldCheck size={16} />,
                   },
                 ]}
@@ -535,13 +537,14 @@ export default function DesignPage() {
                   {
                     value: 'GENERAL',
                     label: 'General Voice',
-                    description: 'Ditangani PIC organisasi.',
+                    description:
+                      'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
                     icon: <Briefcase size={16} />,
                   },
                   {
                     value: 'PRIVATE',
                     label: 'Private Voice',
-                    description: 'Ditangani secara aman oleh Union.',
+                    description: 'Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).',
                     icon: <ShieldCheck size={16} />,
                   },
                 ]}

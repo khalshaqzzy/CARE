@@ -19,7 +19,7 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   // smoke room without loosening the assertion budgets.
   test.setTimeout(90_000);
   await page.goto(`${ORIGIN}/login`);
-  await expect(page.getByRole('heading', { name: 'Selamat datang kembali' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' })).toBeVisible({
     timeout: 60_000,
   });
   await page.getByLabel('Username').fill(USERNAME);
@@ -29,7 +29,20 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Masuk' }).click();
 
-  // First login is restricted and forces a password change.
+  // A workforce account can defer for this session, but the account-level
+  // requirement survives and is enforced again after the next login.
+  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await page.getByRole('button', { name: 'Lain kali' }).click();
+  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.getByRole('banner').getByRole('button', { name: 'Keluar' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
+  ).toBeVisible();
+  await page.getByLabel('Username').fill(USERNAME);
+  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Masuk' }).click();
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
   await page.getByLabel('Password saat ini').fill(USERNAME);
   // The required new-password field's accessible name is "Password baru *"; anchor

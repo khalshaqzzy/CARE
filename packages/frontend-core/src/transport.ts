@@ -86,6 +86,13 @@ export function createCareTransport({
       if (!data) throw normalizeApiError(error, response.status);
       return data;
     },
+    async deferPasswordChange(): Promise<SessionResponse> {
+      const { data, error, response } = await client.POST('/api/v1/auth/defer-password-change', {
+        params: { header: { 'X-CSRF-Token': '' } },
+      });
+      if (!data) throw normalizeApiError(error, response.status);
+      return data;
+    },
   };
 }
 
