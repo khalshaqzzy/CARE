@@ -89,6 +89,7 @@ export function App() {
           }
         >
           <Route index element={<HomePage />} />
+          <Route path="dashboard" element={<HomePage />} />
           <Route path="voices/new" element={<CreateVoicePage />} />
           <Route path="drafts/:id/edit" element={<CreateVoicePage />} />
           <Route path="drafts/:id/preview" element={<DraftPreviewPage />} />

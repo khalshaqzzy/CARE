@@ -1,3 +1,4 @@
+import { dashboardFixture } from './dashboard-fixture';
 import type { Page } from '@playwright/test';
 import type { components } from '@care/contracts';
 
@@ -1164,6 +1165,26 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         },
       );
     }
+    if (method === 'GET' && path === '/api/v1/dashboard/metadata')
+      return satisfy(200, dashboardFixture(session, url).metadata);
+    if (method === 'GET' && path === '/api/v1/dashboard/preview')
+      return satisfy(
+        200,
+        opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
+      );
+    if (
+      method === 'GET' &&
+      ['/api/v1/dashboard/general', '/api/v1/dashboard/private'].includes(path) &&
+      url.searchParams.has('basis')
+    )
+      return satisfy(
+        200,
+        dashboardFixture(
+          session,
+          url,
+          path.endsWith('/private') ? opts.privateDashboard : opts.generalDashboard,
+        ).view,
+      );
     if (method === 'GET' && path === '/api/v1/dashboard/general')
       return satisfy(200, opts.generalDashboard ?? defaultGENERAL_DASHBOARD());
     if (method === 'GET' && path === '/api/v1/dashboard/private')

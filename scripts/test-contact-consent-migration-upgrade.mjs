@@ -42,7 +42,7 @@ function psql(target, input) {
 psql('postgres', `DROP DATABASE IF EXISTS ${database} WITH (FORCE); CREATE DATABASE ${database};`);
 const migrationRoot = resolve(repository, 'apps/api/prisma/migrations');
 for (const directory of readdirSync(migrationRoot)
-  .filter((name) => /^\d/.test(name) && name !== latest)
+  .filter((name) => /^\d/.test(name) && name < latest)
   .sort())
   psql(database, readFileSync(resolve(migrationRoot, directory, 'migration.sql'), 'utf8'));
 

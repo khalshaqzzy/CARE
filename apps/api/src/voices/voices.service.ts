@@ -39,6 +39,7 @@ import { CategoriesService } from '../categories/categories.service';
 import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
+import { OrganizationDashboard, type DashboardQuery } from './dashboard';
 
 const attachmentResponseSelect = Prisma.validator<Prisma.AttachmentSelect>()({
   id: true,
@@ -181,7 +182,7 @@ const remediationCodes: Record<string, string> = {
   CLASSIFICATION_REQUIRED: 'MANUAL_CLASSIFICATION_REQUIRED',
 };
 
-type DashboardFilter = {
+type DashboardFilter = DashboardQuery & {
   area?: string;
   category?: string;
   severity?: Severity;
@@ -586,6 +587,9 @@ export class VoicesService {
           reporterDepartmentSnapshot: unit.department,
           reporterSectionSnapshot: current.section,
           reporterPositionSnapshot: current.structuralPosition,
+          ...(draft.visibility === VoiceVisibility.GENERAL
+            ? await this.handlingProjection(tx, route.id)
+            : {}),
           privateContactConsent: draft.visibility === VoiceVisibility.PRIVATE ? true : null,
           privateContactConsentRecordedAt:
             draft.visibility === VoiceVisibility.PRIVATE ? now : null,
@@ -995,6 +999,9 @@ export class VoicesService {
           where: { id },
           data: {
             currentHandlerId: candidate.id,
+            ...(voice.visibility === VoiceVisibility.GENERAL
+              ? { handlingSectionSnapshot: candidate.employee?.memberships[0]?.section || null }
+              : {}),
             handlerType,
             status: VoiceStatus.IN_VERIFICATION,
             version: { increment: 1 },
@@ -1215,6 +1222,12 @@ export class VoicesService {
             currentCategoryNameSnapshot: destination.category.name,
             routeOwnerId: destination.pic.id,
             routeMappingId: destination.routeMappingId,
+            handlingOrganizationUnitId: destination.department.id,
+            handlingDirectorateSnapshot: destination.department.directorate,
+            handlingDivisionSnapshot: destination.department.division,
+            handlingDepartmentSnapshot: destination.department.department,
+            handlingSectionSnapshot: null,
+            handlingOrganizationSource: 'HANDOVER',
             currentHandlerId: null,
             handlerType: HandlerType.MANAGER,
             version: { increment: 1 },
@@ -1633,6 +1646,10 @@ export class VoicesService {
               version: { increment: 1 },
               currentHandlerId: handlerId,
               handlerType,
+              ...(voice.visibility === VoiceVisibility.GENERAL &&
+              handlerType !== HandlerType.SECTION_HEAD
+                ? { handlingSectionSnapshot: null }
+                : {}),
             },
           });
         } else if (cycle.reviewState === ClosureReviewState.PENDING) {
@@ -1662,6 +1679,23 @@ export class VoicesService {
         return rating;
       },
     );
+  }
+
+  private async handlingProjection(tx: Prisma.TransactionClient, routeId: string | null) {
+    const route = routeId
+      ? await tx.routeMapping.findUnique({
+          where: { id: routeId },
+          include: { organizationUnit: true },
+        })
+      : null;
+    const unit = route?.organizationUnit;
+    return {
+      handlingOrganizationUnitId: unit?.id ?? null,
+      handlingDirectorateSnapshot: unit?.directorate ?? null,
+      handlingDivisionSnapshot: unit?.division ?? null,
+      handlingDepartmentSnapshot: unit?.department ?? null,
+      handlingOrganizationSource: unit ? 'ROUTE' : 'UNKNOWN',
+    };
   }
 
   async dashboardGeneral(actor: AuthActor, filter: DashboardFilter = {}) {
@@ -1705,8 +1739,59 @@ export class VoicesService {
           })
         : Promise.resolve(undefined),
     ]);
-    return { ...aggregate, pendingAssignment };
+    const isUnion = actor.capabilities.some((cap) => ['UNION_HEAD', 'UNION_OFFICER'].includes(cap));
+    return {
+      ...aggregate,
+      ...(isUnion
+        ? {
+            division: [],
+            department: [],
+            category: [],
+            suppression: {
+              ...aggregate.suppression,
+              division: { suppressedBuckets: 0, suppressedValue: 0 },
+              department: { suppressedBuckets: 0, suppressedValue: 0 },
+            },
+          }
+        : {}),
+      pendingAssignment,
+    };
   }
+  private get organizationDashboard() {
+    return new OrganizationDashboard(this.prisma, this.policy);
+  }
+
+  dashboardView(actor: AuthActor, query: DashboardQuery = {}) {
+    return this.organizationDashboard.aggregate(actor, query);
+  }
+
+  dashboardMetadata(actor: AuthActor, query: DashboardQuery = {}) {
+    return this.organizationDashboard.metadata(actor, query);
+  }
+
+  async dashboardPreview(actor: AuthActor, query: DashboardQuery = {}) {
+    const context = await this.organizationDashboard.context(actor, query);
+    const rows = await this.prisma.voice.findMany({
+      where: {
+        AND: [
+          context.where,
+          await this.policy.detailScope(actor),
+          { status: { in: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS'] } },
+        ],
+      },
+      orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
+      take: 3,
+      select: { ...this.listSelect(true), anonymousAlias: true },
+    });
+    return {
+      items: rows.map(({ anonymousAlias, ...row }) => ({
+        ...this.toListItem(row),
+        ...(context.q.visibility === 'PRIVATE' ? { reporterAlias: anonymousAlias } : {}),
+      })),
+      nextCursor: null,
+    };
+  }
+
   async dashboardMember(actor: AuthActor) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
     const where: Prisma.VoiceWhereInput = { reporterId: actor.accountId };

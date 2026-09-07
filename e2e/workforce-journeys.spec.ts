@@ -299,7 +299,11 @@ test.describe('workforce journeys (mocked contract)', () => {
     });
     await page.goto('/');
     await expect(page.getByText('Private Voice').first()).toBeVisible();
-    await expect(page.getByText('General Voice · Read-only')).toBeVisible();
+    await expect(
+      page.getByLabel('Jenis dashboard').getByRole('button', { name: 'General Voice' }),
+    ).toBeVisible();
+    await page.getByLabel('Jenis dashboard').getByRole('button', { name: 'General Voice' }).click();
+    await expect(page.getByText('General · Read-only')).toBeVisible();
     await expect(page.getByText('Gagal memuat ringkasan')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Buat Voice' })).toHaveCount(0);
     expect(memberDashboardRequests).toBe(0);

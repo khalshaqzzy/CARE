@@ -264,6 +264,10 @@ describe('Manager Voice handover', () => {
       currentCategoryKey: 'REPORTER_HANDOVER',
       currentCategoryNameSnapshot: 'Kondisi Area Reporter',
       routeOwnerId: managerC.accountId,
+      handlingOrganizationUnitId: managerC.organizationUnitId,
+      handlingDepartmentSnapshot: managerC.department,
+      handlingOrganizationSource: 'HANDOVER',
+      handlingSectionSnapshot: null,
       currentHandlerId: null,
     });
 

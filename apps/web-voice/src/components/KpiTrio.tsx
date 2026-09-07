@@ -43,8 +43,8 @@ export function KpiTrio({
 }
 
 /** Shared Total/Aktif/Kritis trio for General aggregates. */
-export function generalKpiItems(buckets: Bucket[], total: number): KpiItem[] {
-  const critical = bucketValue(buckets, 'CRITICAL');
+export function generalKpiItems(buckets: Bucket[], total: number, severity: Bucket[]): KpiItem[] {
+  const critical = bucketValue(severity, 'CRITICAL');
   return [
     { key: 'total', icon: <Layers3 />, value: total, label: 'Total', tone: 'brand' },
     {

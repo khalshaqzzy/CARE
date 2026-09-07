@@ -94,6 +94,7 @@ export class PolicyService {
       unionSlot: unionTerm?.slot ?? null,
       capabilities: [...capabilitySet],
       routeUnitIds: routes
+        .filter((route) => route.kind !== RouteKind.LEGACY)
         .map((route) => route.organizationUnitId)
         .filter((value): value is string => Boolean(value)),
       isGlobalPic: routes.some((route) => route.kind === RouteKind.GLOBAL_SPECIAL),

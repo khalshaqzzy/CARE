@@ -1108,6 +1108,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_dashboardMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_dashboardPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/{id}": {
         parameters: {
             query?: never;
@@ -2015,6 +2047,139 @@ export interface components {
             questions: string[];
             contentHash: string;
         } | null;
+        DashboardMetadata: {
+            /** @enum {string} */
+            basis: "HANDLING" | "REPORTER";
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            level: "division" | "department" | "section";
+            allowedLevels: ("division" | "department" | "section")[];
+            organization: {
+                directorate: {
+                    id: string;
+                    label: string;
+                    parentId?: string | null;
+                }[];
+                division: {
+                    id: string;
+                    label: string;
+                    parentId?: string | null;
+                }[];
+                department: {
+                    id: string;
+                    label: string;
+                    parentId?: string | null;
+                }[];
+                section: {
+                    id: string;
+                    label: string;
+                    parentId?: string | null;
+                }[];
+            };
+            selected: {
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
+            };
+            handlers: {
+                id: string;
+                label: string;
+                parentId?: string | null;
+            }[];
+            categories: {
+                id: string;
+                label: string;
+                parentId?: string | null;
+            }[];
+            scopeLabel: string;
+        };
+        DashboardView: {
+            /** @enum {string} */
+            basis: "HANDLING" | "REPORTER";
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            level: "division" | "department" | "section";
+            allowedLevels: ("division" | "department" | "section")[];
+            organization: {
+                id?: string;
+                label: string;
+                value: number;
+                key?: string;
+                name?: string;
+            }[];
+            selected: {
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
+            };
+            handlers: {
+                id: string;
+                label: string;
+                parentId?: string | null;
+            }[];
+            categories: {
+                id: string;
+                label: string;
+                parentId?: string | null;
+            }[];
+            scopeLabel: string;
+            total: number | null;
+            status: {
+                id?: string;
+                label: string;
+                value: number;
+                key?: string;
+                name?: string;
+            }[];
+            severity: {
+                id?: string;
+                label: string;
+                value: number;
+                key?: string;
+                name?: string;
+            }[];
+            category: {
+                id?: string;
+                label: string;
+                value: number;
+                key?: string;
+                name?: string;
+            }[];
+            trend: {
+                id?: string;
+                label: string;
+                value: number;
+                key?: string;
+                name?: string;
+            }[];
+            area: {
+                id?: string;
+                label: string;
+                value: number;
+                key?: string;
+                name?: string;
+            }[];
+            previousTotal: number | null;
+            /** @enum {string} */
+            trendGrain: "day" | "week" | "month";
+            pendingAssignment?: number;
+            protected: boolean;
+            suppressedDimensions: string[];
+            suppression: {
+                enabled: boolean;
+                threshold: number;
+            };
+            handlingUnresolved: number | null;
+            filters: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            generatedAt: string;
+        };
         DashboardAggregate: {
             total: number;
             status: components["schemas"]["AggregateBuckets"];
@@ -12322,6 +12487,14 @@ export interface operations {
     VoicesController_dashboardGeneral: {
         parameters: {
             query?: {
+                basis?: string;
+                visibility?: string;
+                level?: string;
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
+                handler?: string;
                 area?: string;
                 category?: string;
                 severity?: string;
@@ -12340,7 +12513,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardAggregate"];
+                    "application/json": components["schemas"]["DashboardAggregate"] | components["schemas"]["DashboardView"];
                 };
             };
             /** @description Request validation failed */
@@ -12450,6 +12623,14 @@ export interface operations {
     VoicesController_dashboardPrivate: {
         parameters: {
             query?: {
+                basis?: string;
+                visibility?: string;
+                level?: string;
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
+                handler?: string;
                 area?: string;
                 category?: string;
                 severity?: string;
@@ -12468,7 +12649,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardAggregate"];
+                    "application/json": components["schemas"]["DashboardAggregate"] | components["schemas"]["DashboardView"];
                 };
             };
             /** @description Request validation failed */
@@ -12590,6 +12771,278 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberDashboard"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_dashboardMetadata: {
+        parameters: {
+            query?: {
+                basis?: string;
+                visibility?: string;
+                level?: string;
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
+                handler?: string;
+                area?: string;
+                category?: string;
+                severity?: string;
+                status?: string;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardMetadata"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_dashboardPreview: {
+        parameters: {
+            query?: {
+                basis?: string;
+                visibility?: string;
+                level?: string;
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
+                handler?: string;
+                area?: string;
+                category?: string;
+                severity?: string;
+                status?: string;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceListResponse"];
                 };
             };
             /** @description Request validation failed */

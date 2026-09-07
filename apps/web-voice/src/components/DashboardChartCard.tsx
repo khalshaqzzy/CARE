@@ -1,7 +1,7 @@
 import { Card } from '@care/ui';
 import { CATEGORY_LABELS, SEVERITY_LABELS, STATUS_LABELS } from '../lib/formatters';
 
-type Bucket = { label: string; value: number };
+type Bucket = { id?: string; label: string; value: number };
 
 /** Raw enum bucket labels rendered in Bahasa Indonesia; unknown labels pass through. */
 const BUCKET_LABELS: Record<string, string> = {
@@ -14,6 +14,7 @@ const BUCKET_LABELS: Record<string, string> = {
 
 function barColor(label: string): string {
   if (label === 'CRITICAL') return 'var(--state-danger)';
+  if (label === 'MEDIUM') return '#f4bd12';
   if (label === 'HIGH') return 'var(--state-warning)';
   if (label === 'IN_PROGRESS') return 'var(--raw-brand-400)';
   if (label === 'CLOSED') return 'var(--state-success)';
@@ -42,7 +43,7 @@ export function DashboardChartCard({
       </div>
       <ul className="chart-card__list" role="list">
         {buckets.map((bucket) => (
-          <li className="chart-card__row" key={bucket.label}>
+          <li className="chart-card__row" key={bucket.id ?? bucket.label}>
             <span className="chart-card__name" title={BUCKET_LABELS[bucket.label] ?? bucket.label}>
               {BUCKET_LABELS[bucket.label] ?? bucket.label}
             </span>

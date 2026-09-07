@@ -153,7 +153,15 @@ describe('Organization, remediation, and routing journey', () => {
       batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     }
     expect(batch.status).toBe('CONFIRMED');
-    await expect(access(resolve(process.env.MEDIA_ROOT!, rawStorageKey))).rejects.toThrow();
+    // Raw-file cleanup follows the confirmation transaction asynchronously.
+    await expect
+      .poll(async () =>
+        access(resolve(process.env.MEDIA_ROOT!, rawStorageKey)).then(
+          () => false,
+          () => true,
+        ),
+      )
+      .toBe(true);
     expect(await prisma.organizationMembership.count()).toBe(4);
     expect(
       await prisma.routeMapping.count({ where: { kind: 'DEPARTMENT_HEAD', effectiveTo: null } }),
@@ -296,7 +304,10 @@ describe('Organization, remediation, and routing journey', () => {
     expect(generalVoice).toMatchObject({
       categoryKey: 'WORK_DIFFICULTY',
       routeOwnerId: departmentHead.id,
+      handlingOrganizationSource: 'ROUTE',
+      handlingSectionSnapshot: null,
     });
+    expect(generalVoice.handlingOrganizationUnitId).toBe(generalVoice.reporterOrganizationUnitId);
 
     let privateDraft = await voices.createDraft(member, {
       visibility: 'PRIVATE',

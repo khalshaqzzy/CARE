@@ -964,3 +964,13 @@ tidak berubah. Mengikuti ADR-0037.
   baseline 360/768/1440 diregenerasi delete-first dan stabil; full Playwright
   suite 185/185 hijau. Suite database tidak dijalankan ulang karena perubahan
   frontend-only.
+
+## PIC, Management and Union organization dashboards — 7 September 2026
+
+Implementation complete locally on `feat/pic-dashboard`; local parity is complete and PR delivery is authorized under the existing Phase 13. Phase 13 remains the only current `in_progress` phase; hosted acceptance is unchanged.
+
+- ADR-0042 and PRD §18.8 define handling/reporter aggregation, primary PIC mapping, section projection, Union isolation and privacy threshold five.
+- Additive migration/backfill, lifecycle projection, strict scoped metadata/aggregate/preview endpoints and regenerated OpenAPI/client are implemented.
+- Dashboard body includes KPI, URL filters, SVG charts, authorized inbox and personal reporting below. Mobile filters use a compact organization sheet; Member/Admin shell behavior is preserved.
+- New platform baselines cover 360/768/1440, persona/level/basis and empty/loading/error/protected states. Functional, accessibility, lifecycle, migration, performance and full-stack coverage is included.
+- Commit/push and a PR to `staging` are authorized. Hosted checks must not be monitored for this delivery. Actual local parity results and remaining limitations are maintained in the session handoff.
