@@ -1,16 +1,53 @@
 # CARE Session Handoff
 
-| Atribut                 | Nilai                                                                                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Date                    | 6 September 2026                                                                                                                                  |
-| Current objective       | Deliver workforce password deferral, login/Create Voice copy, polished UI baselines, and stable Alpine container remediation                      |
-| Current phase           | Phase 13 `in_progress`; Phase 14 `pending`; hosted Delivery Complete Gate remains open                                                            |
-| Branch                  | `feat/visual-improvements-1` at base `6c1cb51f`; delivery authorized and prepared for commit/PR to `staging`                                      |
-| Backend contract        | Additive session-only defer endpoint for `WORKFORCE`; no schema/migration; account password flag, sibling sessions, and Union/Admin gates persist |
-| Latest ADR              | ADR-0041                                                                                                                                          |
-| Recommended next action | Commit the verified change set, push `feat/visual-improvements-1`, and open the authorized PR to `staging` without monitoring hosted checks       |
+| Attribute           | Current status                                                    |
+| ------------------- | ----------------------------------------------------------------- |
+| Date                | 7 September 2026                                                  |
+| Objective           | Deliver organization dashboards for PIC, management and Union     |
+| Branch              | `feat/pic-dashboard`; commit, push and PR to `staging` authorized |
+| Phase               | Phase 13 `in_progress`; hosted acceptance remains open            |
+| Latest ADR          | ADR-0042                                                          |
+| Delivery constraint | Do not monitor hosted checks after creating the PR                |
 
-## Quick resume guide — verified 6 September 2026
+## CI performance correction — 7 September 2026
+
+PR #34 run `34071476255` failed only the organization dashboard performance test (4,518 ms p95); migration, container, deployment, secrets, dependency review and CodeQL jobs passed. The failure was reproduced on Linux x64 with application and PostgreSQL each limited to two CPUs (4,464 ms p95).
+
+Replaced full-row materialized CTE / five scans with GROUPING SETS and combined total/date-bounds/unresolved counts. EXPLAIN ANALYZE improved from 84.8 ms with 9,864 temporary reads / 2,466 writes to 27.2 ms with no temporary I/O. Full workload improved to 2,460 ms p95 for 150 requests / 50 concurrency. Threshold remains 3,000 ms; schema, API, permissions and baselines are unchanged. Added real PostgreSQL bucket-consistency regression for nullable category and section.
+
+Correction parity passed: clean-artifact frozen install/Prisma generation/audit/format/lint/typecheck/unit/OpenAI smoke, staging-relative destructive check and four upgrade harnesses; integration 75/75, security 14/14, performance 2/2, reconciliation, generated OpenAPI check, production build/PWA compatibility, browser 282/282 without snapshot updates and full-stack 4/4. The full quality run measured 1,636 ms p95 with PostgreSQL limited to two CPUs; the dedicated two-CPU Linux reproduction remains the comparable 2,460 ms result. Previous-staging-to-current migration/status, deployment validators, Actionlint/ShellCheck/Hadolint, inference syntax, Ubuntu bootstrap, real-flock Linux harness, x64 production Compose build/routing/non-root/persistence, Gitleaks directory scan and Trivy filesystem/all five images passed. No HIGH/CRITICAL findings or scanner exceptions were added. Task-started stacks are shut down before delivery. Original no-monitoring preference remains in force after pushing the correction; this inspection was explicitly requested to diagnose the failed run.
+
+## Organization dashboard — 7 September 2026
+
+Operational dashboards replace the monitoring homepage content while preserving the shell, identity hero and ordinary Member homepage. General defaults to handling organization with a reporter switch; Union has isolated Private/General URL state. KPI, filters, dense time series, privacy states, scoped preview and personal reporting sections use the generated API contract. Mobile filters are three compact rows: basis/reset, an organization summary opening an accessible sheet, and area/period/advanced filters. Desktop retains inline cascading hierarchy.
+
+Key implementation paths: `apps/api/src/voices/dashboard.ts`, `voices.service.ts`, `voices.controller.ts`, `apps/web-voice/src/features/home/DashboardHome.tsx`, `PersonalVoiceSection.tsx`, `apps/api/scripts/dashboard-openapi.ts`, and the new dashboard integration/performance/browser suites. ADR-0042 and PRD §18.8 explain scope, default PIC primary mapping, privacy and lifecycle decisions.
+
+Migration `20260907090000_dashboard_handling_projection` is additive. Deploy it before the application. Backfill uses handover/route evidence and memberships effective at assignment; unresolved historical organization remains explicitly unknown. Master updates do not rewrite Voice history. Backfill is idempotent and reports mapped/unresolved counts. Existing handover/contact migration harnesses now apply only migrations preceding their target, so later migrations cannot run before their dependencies.
+
+Application and container validation are complete locally; commit/PR delivery is authorized. No hosted CodeQL, dependency review, deployment or acceptance result is implied. Follow the user's explicit no-monitoring instruction for this delivery.
+
+### Local validation commands and results
+
+Pinned Node 22.23.2 and pnpm 11.8.0 were used. Ignored application/package `dist` directories were removed before the ordered quality run. Safe CI environment values were used with `NODE_ENV=test`, `RELEASE_SHA=ci`, `OUTBOX_ENABLED=false`, and the Docker-managed `care_test` database; no host PostgreSQL service is required.
+
+- `pnpm install --frozen-lockfile`, `pnpm db:generate`, `pnpm security:audit`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`: passed. Format/lint/typecheck passed again after the compact-filter and test refinements.
+- `pnpm test:unit`: API 82, workforce 82, Admin 2, UI 26, frontend-core 15 passed. `pnpm test:openai:smoke` passed with the mock provider.
+- `pnpm migrations:destructive-check` and `pnpm migrations:destructive-check origin/staging`: passed. Fresh migrate deploy, previous-staging schema deploy → current deploy → migrate status passed on a separate disposable database.
+- `env -u DATABASE_URL pnpm test:migration:upgrade`: all four upgrade harnesses passed using Docker psql. Historical handling section and idempotent backfill assertions passed.
+- `pnpm test:integration`: 74/74 passed. An initial 73/74 run exposed the existing import cleanup race: confirmation commits before raw-file deletion; the test now polls the actual eventual deletion instead of assuming synchronous cleanup.
+- `pnpm test:security`: 14/14 passed. `pnpm seed:performance` and `pnpm test:performance`: 2/2 passed on 50,000 Voices / 10,000 accounts. Dashboard mixed Manager/global Director and handling/reporter p95 was 1,151 ms over 150 requests at 50 concurrency (target ≤3,000 ms). `pnpm maintenance:reconcile` dry-run passed with no orphan counts.
+- `pnpm openapi:check`: generated contract byte-stable against staged generated output. `NODE_ENV=production pnpm build`, `pnpm pwa:compat-check`, and `pnpm exec playwright install --with-deps chromium webkit`: passed.
+- `pnpm exec playwright test --workers=2`: 282/282 passed without snapshot updates. `FULLSTACK_E2E=1 pnpm exec playwright test --project=fullstack`: 4/4 passed against the API and Docker database.
+- New dashboard PNGs cover 17 scenarios at 360/768/1440 on darwin and canonical Linux x64 (102 new images). Four existing monitoring homepage baselines were updated. Representative mobile/desktop/Union/protected images were inspected, compact mobile filters reviewed, and `pnpm exec playwright test e2e/dashboard.visual.spec.ts e2e/dashboard.spec.ts --workers=2` passed 54/54 on Linux without updates. The compact-sheet Axe test uses reduced motion to avoid testing an intermediate animation opacity.
+- `pnpm deployment:validate`, `pnpm security:exceptions:check`, Compose config, Actionlint 1.7.7, ShellCheck 0.11.0, Hadolint 2.14.0, inference Compose/Python syntax and Ubuntu bootstrap contract passed. `pnpm test:deployment` ran inside Linux with real `flock` and passed.
+- Gitleaks 8.24.3 directory scan passed with no leaks. Trivy 0.70.0 filesystem/secret/misconfiguration and the five native runtime images passed at HIGH/CRITICAL using the committed exact ignore policy. Canonical Linux x64 production Compose build with `--pull`, migration/bootstrap, release/routing/header/non-root checks and persistent database/media restart checks also passed. All five x64 images returned zero HIGH/CRITICAL findings. An initial npm network failure required a retry; no dependency or scanner policy was relaxed.
+
+Runtime cleanup: production Compose stacks were shut down by their test harness, and `pnpm db:down` stops the task-started development database before delivery. No application/test servers are retained. Hosted checks are intentionally not monitored.
+
+## Previous session reference
+
+## Archived quick resume guide — verified 6 September 2026
 
 Read this guide and the latest Session Outcome first. Earlier work is condensed into the reference index below; consult the linked ADRs and Git history only when needed. The top status table and `.agent/implementationPhases.md` describe current progress; `.agent/rules.md` and `.agent/PRD.md` remain authoritative for process and product behavior.
 

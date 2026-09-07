@@ -149,7 +149,7 @@ export function GeneralBrowsePage() {
             <HeroInset title="Ringkasan organisasi" ariaLabel="Ringkasan organisasi">
               <KpiTrio
                 ariaLabel="Ringkasan organisasi"
-                items={generalKpiItems(data.status, data.total)}
+                items={generalKpiItems(data.status, data.total, data.severity)}
               />
             </HeroInset>
           ) : chart.isLoading ? (

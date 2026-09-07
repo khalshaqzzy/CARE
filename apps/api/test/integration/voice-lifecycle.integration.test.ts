@@ -196,6 +196,8 @@ describe('Voice lifecycle backend completion', () => {
     );
 
     expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
+    const projected = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
+    expect(projected.handlingSectionSnapshot).toBe(sectionHead.section);
     const assignedDetail = await voices.detail(sectionHead, voice.id);
     expect(assignedDetail.conversationState).toBe('ACTIVE');
     expect(assignedDetail.availableActions).toContain('MESSAGE');
@@ -408,5 +410,6 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.status).toBe(VoiceStatus.IN_VERIFICATION);
     expect(reopened.currentHandlerId).toBe(manager.accountId);
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
+    expect(reopened.handlingSectionSnapshot).toBeNull();
   });
 });

@@ -90,9 +90,17 @@ export function trendGeometry(
   const rawMax = Math.max(...buckets.map((bucket) => bucket.value), 1);
   const step = rawMax > 40 ? 20 : rawMax > 15 ? 10 : rawMax > 7 ? 5 : 2;
   const niceMax = Math.max(Math.ceil(rawMax / step) * step, step);
+  const times = buckets.map((b) => Date.parse(b.label));
+  const firstTime = times[0] ?? NaN;
+  const duration = (times.at(-1) ?? NaN) - firstTime;
+  const useTime = times.every(Number.isFinite) && duration > 0;
   const points = buckets.map((bucket, index) => {
     const x =
-      buckets.length <= 1 ? width / 2 : pad + (index / (buckets.length - 1)) * (width - pad * 2);
+      buckets.length <= 1
+        ? width / 2
+        : pad +
+          (useTime ? (times[index]! - firstTime) / duration : index / (buckets.length - 1)) *
+            (width - pad * 2);
     const y = height - pad - (bucket.value / niceMax) * (height - pad * 2);
     return { ...bucket, x, y };
   });

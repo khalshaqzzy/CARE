@@ -249,16 +249,53 @@ export class VoicesController {
     @Actor() a: AuthActor,
     @Query() q: Parameters<VoicesService['dashboardGeneral']>[1],
   ) {
-    return this.voices.dashboardGeneral(a, q ?? {});
+    return q &&
+      [
+        'basis',
+        'visibility',
+        'level',
+        'directorate',
+        'division',
+        'department',
+        'section',
+        'handler',
+      ].some((key) => Object.hasOwn(q, key))
+      ? this.voices.dashboardView(a, { ...q, visibility: 'GENERAL' })
+      : this.voices.dashboardGeneral(a, q ?? {});
   }
   @Get('dashboard/private') dashboardPrivate(
     @Actor() a: AuthActor,
     @Query() q: Parameters<VoicesService['dashboardPrivate']>[1],
   ) {
-    return this.voices.dashboardPrivate(a, q ?? {});
+    return q &&
+      [
+        'basis',
+        'visibility',
+        'level',
+        'directorate',
+        'division',
+        'department',
+        'section',
+        'handler',
+      ].some((key) => Object.hasOwn(q, key))
+      ? this.voices.dashboardView(a, { ...q, visibility: 'PRIVATE' })
+      : this.voices.dashboardPrivate(a, q ?? {});
   }
   @Get('dashboard/member') dashboardMember(@Actor() a: AuthActor) {
     return this.voices.dashboardMember(a);
+  }
+  @Get('dashboard/metadata') dashboardMetadata(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardMetadata']>[1],
+  ) {
+    return this.voices.dashboardMetadata(a, q ?? {});
+  }
+
+  @Get('dashboard/preview') dashboardPreview(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardPreview']>[1],
+  ) {
+    return this.voices.dashboardPreview(a, q ?? {});
   }
 
   @Get('media/:id')

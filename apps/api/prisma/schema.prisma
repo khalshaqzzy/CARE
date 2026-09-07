@@ -550,6 +550,12 @@ model Voice {
   reporterDepartmentSnapshot      String                  @db.VarChar(200)
   reporterSectionSnapshot         String?                 @db.VarChar(200)
   reporterPositionSnapshot        String?                 @db.VarChar(200)
+  handlingOrganizationUnitId      String?                 @db.Uuid
+  handlingDirectorateSnapshot     String?                 @db.VarChar(200)
+  handlingDivisionSnapshot        String?                 @db.VarChar(200)
+  handlingDepartmentSnapshot      String?                 @db.VarChar(200)
+  handlingSectionSnapshot         String?                 @db.VarChar(200)
+  handlingOrganizationSource      String                  @default("UNKNOWN") @db.VarChar(32)
   privateContactConsent           Boolean?
   privateContactConsentRecordedAt DateTime?
   privateContactConsentVersion    String?                 @db.VarChar(16)

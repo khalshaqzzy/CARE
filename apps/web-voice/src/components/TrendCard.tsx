@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Card } from '@care/ui';
 import { trendDeltaPercent, trendGeometry } from '../lib/dashboard-math';
 import type { Bucket } from '../lib/dashboard-math';
@@ -24,6 +25,7 @@ export function TrendCard({
   previousTotal?: number | undefined;
   total?: number | undefined;
 }) {
+  const gradientId = useId();
   const { points, niceMax } = trendGeometry(buckets, WIDTH, HEIGHT, PAD);
   const firstPoint = points[0];
   const lastPoint = points.at(-1);
@@ -50,7 +52,11 @@ export function TrendCard({
             <small>vs periode sebelumnya</small>
           </span>
         ) : (
-          <span className="chart-card__total">{sum}</span>
+          <span className="chart-card__caption">
+            {previousTotal === 0
+              ? 'Belum ada Voice pada periode sebelumnya'
+              : 'Perbandingan periode belum tersedia'}
+          </span>
         )}
       </div>
       {points.length && first && last ? (
@@ -62,7 +68,7 @@ export function TrendCard({
             aria-label={`Trend Voice dari ${formatAxisDate(first.label)} sampai ${formatAxisDate(last.label)}: total ${sum} Voice`}
           >
             <defs>
-              <linearGradient id="trend-area-fill" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="rgb(8 102 255 / 16%)" />
                 <stop offset="100%" stopColor="rgb(8 102 255 / 2%)" />
               </linearGradient>
@@ -80,7 +86,7 @@ export function TrendCard({
               );
             })}
             {area ? (
-              <path className="trend-chart__area" d={area} fill="url(#trend-area-fill)" />
+              <path className="trend-chart__area" d={area} fill={`url(#${gradientId})`} />
             ) : null}
             <path className="trend-chart__line" d={path} />
             {points.map((point) => (

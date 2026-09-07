@@ -1,3 +1,4 @@
+import { dashboardParameters, dashboardSchemas } from './dashboard-openapi';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
 type MutableOperation = Record<string, any>;
@@ -167,8 +168,10 @@ const queryParameters: Record<string, string[]> = {
     'handler',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
-  VoicesController_dashboardGeneral: ['area', 'category', 'severity', 'status', 'from', 'to'],
-  VoicesController_dashboardPrivate: ['area', 'category', 'severity', 'status', 'from', 'to'],
+  VoicesController_dashboardGeneral: dashboardParameters,
+  VoicesController_dashboardPrivate: dashboardParameters,
+  VoicesController_dashboardMetadata: dashboardParameters,
+  VoicesController_dashboardPreview: dashboardParameters,
   VoicesController_timeline: ['cursor', 'limit', 'order'],
   VoicesController_messages: ['cursor', 'limit', 'order'],
   VoicesController_myHandovers: ['cursor', 'limit', 'search'],
@@ -270,7 +273,16 @@ function successSchema(operationId: string) {
     operationId === 'VoicesController_dashboardGeneral' ||
     operationId === 'VoicesController_dashboardPrivate'
   )
-    return { $ref: '#/components/schemas/DashboardAggregate' };
+    return {
+      oneOf: [
+        { $ref: '#/components/schemas/DashboardAggregate' },
+        { $ref: '#/components/schemas/DashboardView' },
+      ],
+    };
+  if (operationId === 'VoicesController_dashboardMetadata')
+    return { $ref: '#/components/schemas/DashboardMetadata' };
+  if (operationId === 'VoicesController_dashboardPreview')
+    return { $ref: '#/components/schemas/VoiceListResponse' };
   if (operationId === 'VoicesController_dashboardMember')
     return { $ref: '#/components/schemas/MemberDashboard' };
   if (operationId === 'VoicesController_listDrafts')
@@ -1313,6 +1325,7 @@ const schemas: Record<string, any> = {
       contentHash: { type: 'string' },
     },
   },
+  ...dashboardSchemas,
   DashboardAggregate: {
     type: 'object',
     required: [

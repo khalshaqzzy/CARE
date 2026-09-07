@@ -2059,3 +2059,55 @@ currentCategoryNameSnapshot` adalah kategori operasional, diinisialisasi
 - Security assertion memastikan note tidak pernah hadir pada timeline,
   notification/outbox, unauthorized response, atau DOM pembaca yang tidak
   berhak. Seluruh parity gate `.agent/rules.md` tetap wajib sebelum delivery.
+
+### 18.8 Amandemen Dashboard Organisasi — 7 September 2026
+
+Homepage PIC General, leadership dan Union menempatkan dashboard di atas Voice
+Saya; topbar, navigasi dan hero identitas workforce tetap digunakan. Member biasa
+mempertahankan homepage personal. Union memiliki tab Private/General, default
+Private. Amandemen ini menggantikan default scope/presentasi §18.2–18.5 yang
+bertentangan, tanpa mengubah permission detail atau lifecycle.
+
+General default memakai **Penanganan**: organisasi department penerima route
+terakhir, diperbarui saat handover; section berasal dari assignment Section Head.
+Switch **Pelapor** memakai snapshot organisasi saat submit. Aggregate permission
+mengikuti basis terpilih: Dept Head division sendiri atau Default PIC division mapping utama, plus exact department mapping
+atau route Voice yang sah; Division/Deputy/Pjt. aggregate global; Director dan
+Union seluruh General. Default PIC tidak memperoleh aggregate seluruh division
+asing hanya karena satu department mapping. Legacy route bukan izin memperluas
+organisasi. Section Head tetap pada penugasan/legacy history yang diizinkan.
+
+Default Dept Head adalah department sendiri; Default PIC memakai mapping department (prioritas organisasi actor, lalu nama komposit stabil), keduanya dengan bar section. Pilihan
+Department memperluas seluruh metrik ke division yang diizinkan. Division Head
+memulai dari division sendiri dengan bar department dan dapat memilih global
+bar division. Director/Union General memulai global. Filter berantai memakai
+identifier komposit opaque, basis, level, area, kategori dinamis, severity,
+status, dan periode berbasis URL; default 30 hari. Filter invalid atau di luar
+scope tidak boleh diam-diam memperluas data. Akun multi-capability mempertahankan
+akses sah tiap capability, dengan default presentasi posisi tertinggi.
+
+Projection penanganan disimpan terpisah dari reporter snapshot dan diperbarui
+atomik bersama submit/assignment/handover/reopen. Close mempertahankan projection.
+Perubahan master tidak menulis ulang histori. Backfill memakai route/handover dan
+membership yang berlaku pada assignment; data yang tidak terbukti tetap unknown.
+Tren menghitung waktu submit, bukan waktu assignment atau handover, dengan
+bucket harian/mingguan/bulanan dan pembanding periode berdurasi sama.
+
+KPI Total mengikuti filter, Aktif menjumlah Open/In Verification/In Progress,
+dan Kritis berasal dari severity. Angka yang dilindungi ditampilkan sebagai tidak
+tersedia, bukan nol. Cohort lintas detail scope di bawah lima tidak mengembalikan
+angka metrik/pembanding. Dimensi yang memiliki bucket kecil dilindungi keseluruhan
+agar total dikurangi bucket lain tidak mengungkap kelompok tersebut. API baru
+tidak mengembalikan `suppressedValue` atau `suppressedBuckets`.
+
+Union Private hanya menggunakan scope Head atau assigned Officer. Tidak ada
+filter/breakdown organisasi pelapor atau kategori General. Cakupan penanganan
+menampilkan PIC Union dan belum didelegasikan; Officer tidak mendapat antrean
+Head atau pilihan Officer lain. Preview terpisah berisi maksimal tiga Voice aktif
+berdasarkan severity lalu waktu submit, selalu diiriskan dengan detail scope.
+
+Kontrak lama tanpa parameter organisasi tetap tersedia bagi consumer existing.
+Kontrak baru ditandai basis eksplisit dan menyediakan metadata ter-scope, bucket
+organisasi, state privacy, kelengkapan projection, serta timestamp. Baseline visual
+mencakup persona, basis, level, filter, state dan viewport 360/768/1440; verifikasi
+harus meliputi PostgreSQL integration, privacy, accessibility dan full-stack.

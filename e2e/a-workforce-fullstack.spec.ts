@@ -66,3 +66,31 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   ).toBeVisible();
   await expect(page.getByText('Timeline')).toBeVisible();
 });
+
+test('manager dashboard uses real hierarchy metadata and scoped aggregates', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto(`${ORIGIN}/login`);
+  await page.getByLabel('Username').fill('000003');
+  await page.getByRole('textbox', { name: 'Password' }).fill('000003');
+  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.getByRole('button', { name: 'Lain kali' }).click();
+  await expect(page.locator('.dashboard-context')).toContainText('Department A');
+  await expect(
+    page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }).locator('strong'),
+  ).toHaveText('1');
+  await page.getByRole('button', { name: 'Department', exact: true }).click();
+  await expect(page.locator('.dashboard-context')).toContainText('Division A');
+  await page.getByRole('button', { name: 'Pelapor', exact: true }).click();
+  await expect(page.locator('.dashboard-context')).toContainText('Organisasi pelapor');
+  const aggregate = await page.request.get(`${ORIGIN}/api/v1/dashboard/general?basis=HANDLING`);
+  expect(aggregate.ok()).toBe(true);
+  const payload = await aggregate.json();
+  expect(payload.total).toBe(1);
+  expect(JSON.stringify(payload)).not.toContain('Pencahayaan area produksi kurang');
+  const preview = await page.request.get(`${ORIGIN}/api/v1/dashboard/preview?basis=HANDLING`);
+  expect((await preview.json()).items).toHaveLength(1);
+  await page.locator('.dashboard-inbox').getByRole('button', { name: /Buka/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
+  ).toBeVisible();
+});

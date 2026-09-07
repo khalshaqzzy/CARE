@@ -1,3 +1,4 @@
+import { DashboardHome } from './DashboardHome';
 import { Alert, Button, Card, EmptyState, Input, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -56,6 +57,24 @@ const RANGE_LABELS: Record<DashboardRange, string> = {
 };
 
 export function HomePage() {
+  const { session } = useAuth();
+  return session?.capabilities.some((c) =>
+    [
+      'MANAGER',
+      'SECTION_HEAD',
+      'DIVISION_LEADERSHIP',
+      'DIRECTOR',
+      'UNION_HEAD',
+      'UNION_OFFICER',
+    ].includes(c),
+  ) ? (
+    <DashboardHome />
+  ) : (
+    <MemberHomePage />
+  );
+}
+
+function MemberHomePage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const api = useApi();
@@ -262,7 +281,11 @@ export function HomePage() {
                           privateDash.data.total,
                           privateDash.data.pendingAssignment,
                         )
-                      : generalKpiItems(privateDash.data.status, privateDash.data.total)
+                      : generalKpiItems(
+                          privateDash.data.status,
+                          privateDash.data.total,
+                          privateDash.data.severity,
+                        )
                   }
                 />
               </HeroInset>
@@ -297,7 +320,7 @@ export function HomePage() {
             <HeroInset title="Ringkasan General Voice" ariaLabel="Ringkasan General Voice">
               <KpiTrio
                 ariaLabel="Ringkasan General Voice"
-                items={generalKpiItems(generalData.status, generalData.total)}
+                items={generalKpiItems(generalData.status, generalData.total, generalData.severity)}
               />
             </HeroInset>
           ) : null
@@ -418,7 +441,7 @@ export function HomePage() {
             </div>
             <KpiTrio
               ariaLabel="Ringkasan General Voice"
-              items={generalKpiItems(generalData.status, generalData.total)}
+              items={generalKpiItems(generalData.status, generalData.total, generalData.severity)}
             />
             {isLeadership ? (
               <>

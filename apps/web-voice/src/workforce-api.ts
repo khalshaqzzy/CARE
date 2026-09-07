@@ -17,6 +17,8 @@ export type VoiceDraftPreview = components['schemas']['VoiceDraftPreview'];
 export type DraftListItem = components['schemas']['DraftListItem'];
 export type DraftList = components['schemas']['DraftListResponse'];
 export type MemberDashboard = components['schemas']['MemberDashboard'];
+export type DashboardView = components['schemas']['DashboardView'];
+export type DashboardMetadata = components['schemas']['DashboardMetadata'];
 export type DashboardAggregate = components['schemas']['DashboardAggregate'];
 export type VoiceListItem = components['schemas']['VoiceListItem'];
 export type VoiceList = components['schemas']['VoiceListResponse'];
@@ -78,15 +80,42 @@ export function createWorkforceApi(transport: CareTransport) {
   return {
     generalVoiceCategories: () =>
       dataOrThrow<GeneralVoiceCategory[]>(client.GET('/api/v1/general-voice-categories')),
+    dashboardMetadata: (query: QueryInput<DashboardQuery> = {}) =>
+      dataOrThrow<DashboardMetadata>(
+        client.GET('/api/v1/dashboard/metadata', { params: { query: compactQuery(query) } }),
+      ),
+    dashboardView: async (query: QueryInput<DashboardQuery> = {}) => {
+      const result = await dataOrThrow(
+        client.GET(
+          query.visibility === 'PRIVATE'
+            ? '/api/v1/dashboard/private'
+            : '/api/v1/dashboard/general',
+          { params: { query: compactQuery({ ...query, basis: query.basis ?? 'HANDLING' }) } },
+        ),
+      );
+      if (!('basis' in result))
+        throw new Error('Dashboard response requires organization metadata');
+      return result;
+    },
+    dashboardPreview: (query: QueryInput<DashboardQuery> = {}) =>
+      dataOrThrow<VoiceList>(
+        client.GET('/api/v1/dashboard/preview', { params: { query: compactQuery(query) } }),
+      ),
     dashboardMember: () => dataOrThrow<MemberDashboard>(client.GET('/api/v1/dashboard/member')),
-    dashboardGeneral: (query: QueryInput<DashboardQuery> = {}) =>
-      dataOrThrow<DashboardAggregate>(
+    dashboardGeneral: async (query: QueryInput<DashboardQuery> = {}) => {
+      const result = await dataOrThrow(
         client.GET('/api/v1/dashboard/general', { params: { query: compactQuery(query) } }),
-      ),
-    dashboardPrivate: (query: QueryInput<DashboardQuery> = {}) =>
-      dataOrThrow<DashboardAggregate>(
+      );
+      if ('basis' in result) throw new Error('Expected legacy dashboard response');
+      return result;
+    },
+    dashboardPrivate: async (query: QueryInput<DashboardQuery> = {}) => {
+      const result = await dataOrThrow(
         client.GET('/api/v1/dashboard/private', { params: { query: compactQuery(query) } }),
-      ),
+      );
+      if ('basis' in result) throw new Error('Expected legacy dashboard response');
+      return result;
+    },
     listDrafts: (query: QueryInput<DraftsQuery>) =>
       dataOrThrow<DraftList>(
         client.GET('/api/v1/drafts', { params: { query: compactQuery(query) } }),
