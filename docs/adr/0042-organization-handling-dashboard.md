@@ -107,3 +107,27 @@ Per product-owner decision, the organization dashboard aggregates no longer appl
 Unknown organization buckets now merge into single rows per meaning with stable identifiers — "Belum ditugaskan ke section", "Section belum teridentifikasi", "Organisasi belum teridentifikasi", and "Union sebelumnya" — because the prior per-department unknown rows shared one label and collided as list keys, visually accumulating rows across scope switches. Severity rows with zero counts are not rendered. The trend and inbox helper captions were removed from the UI.
 
 Consequences: management roles see exact small cross-department cohort counts on authorized aggregates; this trades the conservative withholding posture for usability and is accepted as product policy. Validation re-ran integration, performance (dashboard p95 improved to 327 ms with the removed detail-scope count), browser and visual coverage on darwin and Linux x64, replacing the protected-baseline scenario with an unknown-section scenario.
+
+## Scope restoration and selectable hierarchy — 7 September 2026
+
+### Context and decision
+
+Returning from department grouping to section grouping retained the division URL parameter but dropped department. Default resolution only ran for requests with no organization parameters, leaving the returned view at division breadth. A synthetic reproduction and the reported 12/17/17 screenshots identified this as a cohort change. Browser fixtures had concealed the behavior by unconditionally restoring default departments.
+
+Scope is now represented explicitly by optional `scopeMode` (`OWN`, `PARENT`, `GLOBAL`) and is resolved separately from grouping level and selectable organization options. Mode and allowed modes are included in metadata/view contracts. Existing requests infer the mode from role and level. Ancestor-only OWN requests remain anchored at the default own unit. Mode changes clear organization parameters in one URL update and preserve non-organization filters.
+
+Section Heads start at their section and may view their department's section overview. Department Heads start at their department and may view the division's department overview. Default PICs use their primary mapped department/division, with exact additional mappings selectable. Division leadership starts at its division and retains global division aggregates across directorates. Selecting a peer unit or its descendants is forbidden; permitted overview buckets remain visible. Department/section selections within one's own higher-level unit remain permitted. Highest capabilities take precedence. Director, Union and Admin scope and all object/detail policies are retained. Missing required organization context fails closed.
+
+### Implementation and alternatives
+
+The organization resolver supplies metadata, aggregate and preview predicates. Selectable units are derived independently of overview breadth, including validation of encoded ancestor paths. Client-only restrictions were rejected because URL and API callers could bypass them. Retaining previous organization selections on a mode transition was rejected in favor of deterministic role defaults. Restricting Division Head aggregates to one directorate was rejected; global visibility remains intentional.
+
+Aggregate context, summary, GROUPING SETS dimensions, date series and previous-period totals execute inside one REPEATABLE READ transaction. This prevents concurrent submissions or lifecycle mutations from making one response internally inconsistent. The existing SQL aggregation is retained rather than adding browser aggregation or a result cache. Separate preview requests continue to use detail policy and are not represented as part of the same database snapshot as the aggregate.
+
+The browser uses a stable semantic query key and one refresh coordinator, sharing Jakarta date bounds between aggregate and preview while keeping their success/error states separate. Polling advances relative date bounds. Query abort signals cancel abandoned requests; retry clicks do not overlap an in-flight refresh. Legacy WebKit is supported without requiring Promise.allSettled. Category stable keys and organization identifiers provide stable row identity; deterministic ordering and existing unknown-bucket merging are retained.
+
+### Consequences and validation
+
+Section Head organization aggregates now include authorized organization totals beyond personal assignments, while preview/detail remain restricted. Selection privacy is enforced by preventing explicit peer filters; this is not a claim of differential privacy or prevention of inference from authorized overview counts. No schema migration or historical data rewrite is required. Existing legacy response shapes remain available.
+
+Validation covers two-basis 12 → 17 → 12 PostgreSQL/browser roundtrips, sibling/descendant rejection on all readers, global Division Head visibility, exact extra PIC mappings, Section Head overview/detail separation, missing organization, and a real concurrent database insertion between summary and dimension reads. Date tests cover Jakarta boundaries, year rollover, leap days and invalid calendar dates. Browser checks include navigation, shared refresh timestamps, late responses, partial failure and responsive accessibility. The performance gate remains p95 below three seconds at 50,000 Voices and 50 concurrent requests. Exact execution results, visual baseline status and remaining delivery checks are recorded in the session handoff.

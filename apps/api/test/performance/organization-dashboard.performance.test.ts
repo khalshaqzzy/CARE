@@ -19,7 +19,12 @@ it('serves the full organization aggregate at p95 under three seconds on 50k voi
       Array.from({ length: 50 }, async (_, i) => {
         const start = performance.now();
         const data = await dashboard.aggregate(
-          i % 3 === 0 ? { ...actor, capabilities: ['MEMBER', 'DIRECTOR'] } : actor,
+          i % 3 === 0
+            ? {
+                ...actor,
+                capabilities: ['MEMBER', i % 6 === 0 ? 'DIRECTOR' : 'DIVISION_LEADERSHIP'],
+              }
+            : actor,
           {
             basis: i % 2 ? 'HANDLING' : 'REPORTER',
             level: i % 3 === 0 ? 'division' : 'department',

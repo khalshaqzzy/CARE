@@ -17,6 +17,11 @@ const selected = {
   properties: { directorate: string, division: string, department: string, section: string },
 };
 const metadata = {
+  scopeMode: { type: 'string', enum: ['OWN', 'PARENT', 'GLOBAL'] },
+  allowedScopeModes: {
+    type: 'array',
+    items: { type: 'string', enum: ['OWN', 'PARENT', 'GLOBAL'] },
+  },
   basis: { type: 'string', enum: ['HANDLING', 'REPORTER'] },
   visibility: { type: 'string', enum: ['GENERAL', 'PRIVATE'] },
   level: { type: 'string', enum: ['division', 'department', 'section'] },
@@ -45,6 +50,7 @@ const buckets = {
   },
 };
 export const dashboardParameters = [
+  'scopeMode',
   'basis',
   'visibility',
   'level',

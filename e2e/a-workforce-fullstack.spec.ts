@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import type { PrismaClient as PrismaClientType } from '../apps/api/node_modules/@prisma/client';
+const { PrismaClient } = createRequire(resolve('apps/api/package.json'))('@prisma/client') as {
+  PrismaClient: new () => PrismaClientType;
+};
 
 const ORIGIN = 'http://127.0.0.1:4173';
 const USERNAME = '000128';
@@ -78,6 +84,63 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   await expect(
     page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }).locator('strong'),
   ).toHaveText('1');
+  const db = new PrismaClient();
+  const ids: string[] = [];
+  try {
+    const original = await db.voice.findUniqueOrThrow({
+      where: { displayId: 'CARE-202608-900001' },
+    });
+    const sibling = await db.organizationUnit.findFirstOrThrow({
+      where: { department: 'Department B' },
+    });
+    for (let i = 0; i < 16; i++) {
+      const row = await db.voice.create({
+        data: {
+          ...original,
+          id: crypto.randomUUID(),
+          displayId: `CARE-202609-${910000 + i}`,
+          anonymousAlias: `Dashboard-${i}`,
+          ...(i < 11
+            ? {}
+            : {
+                handlingOrganizationUnitId: sibling.id,
+                handlingDirectorateSnapshot: sibling.directorate,
+                handlingDivisionSnapshot: sibling.division,
+                handlingDepartmentSnapshot: sibling.department,
+                reporterOrganizationUnitId: sibling.id,
+                reporterDirectorateSnapshot: sibling.directorate,
+                reporterDivisionSnapshot: sibling.division,
+                reporterDepartmentSnapshot: sibling.department,
+              }),
+        },
+      });
+      ids.push(row.id);
+    }
+    const total = page
+      .locator('.dashboard-summary__metric')
+      .filter({ hasText: 'Total' })
+      .locator('strong');
+    for (const basis of ['HANDLING', 'REPORTER']) {
+      await page.goto(`/?basis=${basis}`);
+      await expect(total).toHaveText('12');
+      for (let round = 0; round < 2; round++) {
+        await page.getByRole('button', { name: 'Department', exact: true }).click();
+        await expect(total).toHaveText('17');
+        await page.getByRole('button', { name: 'Section', exact: true }).click();
+        await expect(total).toHaveText('12');
+      }
+      await page.reload();
+      await expect(total).toHaveText('12');
+      await page.goBack();
+      await expect(total).toHaveText('17');
+      await page.goForward();
+      await expect(total).toHaveText('12');
+    }
+  } finally {
+    await db.voice.deleteMany({ where: { id: { in: ids } } });
+    await db.$disconnect();
+  }
+  await page.goto('/');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await expect(page.locator('.dashboard-context')).toContainText('Division A');
   await page.getByRole('button', { name: 'Pelapor', exact: true }).click();

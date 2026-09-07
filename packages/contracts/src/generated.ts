@@ -2049,6 +2049,9 @@ export interface components {
         } | null;
         DashboardMetadata: {
             /** @enum {string} */
+            scopeMode: "OWN" | "PARENT" | "GLOBAL";
+            allowedScopeModes: ("OWN" | "PARENT" | "GLOBAL")[];
+            /** @enum {string} */
             basis: "HANDLING" | "REPORTER";
             /** @enum {string} */
             visibility: "GENERAL" | "PRIVATE";
@@ -2096,6 +2099,9 @@ export interface components {
             scopeLabel: string;
         };
         DashboardView: {
+            /** @enum {string} */
+            scopeMode: "OWN" | "PARENT" | "GLOBAL";
+            allowedScopeModes: ("OWN" | "PARENT" | "GLOBAL")[];
             /** @enum {string} */
             basis: "HANDLING" | "REPORTER";
             /** @enum {string} */
@@ -12481,6 +12487,7 @@ export interface operations {
     VoicesController_dashboardGeneral: {
         parameters: {
             query?: {
+                scopeMode?: string;
                 basis?: string;
                 visibility?: string;
                 level?: string;
@@ -12617,6 +12624,7 @@ export interface operations {
     VoicesController_dashboardPrivate: {
         parameters: {
             query?: {
+                scopeMode?: string;
                 basis?: string;
                 visibility?: string;
                 level?: string;
@@ -12874,6 +12882,7 @@ export interface operations {
     VoicesController_dashboardMetadata: {
         parameters: {
             query?: {
+                scopeMode?: string;
                 basis?: string;
                 visibility?: string;
                 level?: string;
@@ -13010,6 +13019,7 @@ export interface operations {
     VoicesController_dashboardPreview: {
         parameters: {
             query?: {
+                scopeMode?: string;
                 basis?: string;
                 visibility?: string;
                 level?: string;

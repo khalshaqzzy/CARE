@@ -11060,6 +11060,14 @@
         "operationId": "VoicesController_dashboardGeneral",
         "parameters": [
           {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "basis",
             "in": "query",
             "required": false,
@@ -11301,6 +11309,14 @@
       "get": {
         "operationId": "VoicesController_dashboardPrivate",
         "parameters": [
+          {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "basis",
             "in": "query",
@@ -11666,6 +11682,14 @@
         "operationId": "VoicesController_dashboardMetadata",
         "parameters": [
           {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "basis",
             "in": "query",
             "required": false,
@@ -11900,6 +11924,14 @@
       "get": {
         "operationId": "VoicesController_dashboardPreview",
         "parameters": [
+          {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "basis",
             "in": "query",
@@ -16372,6 +16404,8 @@
       "DashboardMetadata": {
         "type": "object",
         "required": [
+          "scopeMode",
+          "allowedScopeModes",
           "basis",
           "visibility",
           "level",
@@ -16384,6 +16418,25 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "scopeMode": {
+            "type": "string",
+            "enum": [
+              "OWN",
+              "PARENT",
+              "GLOBAL"
+            ]
+          },
+          "allowedScopeModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "OWN",
+                "PARENT",
+                "GLOBAL"
+              ]
+            }
+          },
           "basis": {
             "type": "string",
             "enum": [
@@ -16585,6 +16638,8 @@
       "DashboardView": {
         "type": "object",
         "required": [
+          "scopeMode",
+          "allowedScopeModes",
           "basis",
           "visibility",
           "level",
@@ -16608,6 +16663,25 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "scopeMode": {
+            "type": "string",
+            "enum": [
+              "OWN",
+              "PARENT",
+              "GLOBAL"
+            ]
+          },
+          "allowedScopeModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "OWN",
+                "PARENT",
+                "GLOBAL"
+              ]
+            }
+          },
           "basis": {
             "type": "string",
             "enum": [

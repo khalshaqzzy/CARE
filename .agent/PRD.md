@@ -2130,3 +2130,22 @@ digabung menjadi satu baris per jenis dengan identifier stabil, sehingga
 pergantian cakupan/level tidak pernah menampilkan baris duplikat berlabel sama.
 Baris severity dengan nilai 0 tidak dirender. Catatan helper pada kartu tren dan
 inbox dihapus dari UI.
+
+### 18.8.2 Konsistensi Cakupan dan Pemilihan Unit — 7 September 2026
+
+Amandemen ini menggantikan aturan default/filter dashboard organisasi pada §18.3 dan §18.8 yang bertentangan. Berlaku identik untuk basis HANDLING dan REPORTER; permission detail, inbox penugasan, dan riwayat legacy tidak diperluas.
+
+| Peran                     | Default                                  | Overview lebih luas                             | Unit spesifik yang boleh dipilih                    |
+| ------------------------- | ---------------------------------------- | ----------------------------------------------- | --------------------------------------------------- |
+| Section Head              | Section sendiri                          | Seluruh section dalam department sendiri        | Section sendiri                                     |
+| Department Head           | Department sendiri, bucket section       | Seluruh department dalam division sendiri       | Department sendiri dan section di dalamnya          |
+| Default PIC               | Department mapping utama, bucket section | Seluruh department dalam division mapping utama | Department mapping resmi dan section di dalamnya    |
+| Division/Deputy/Pjt. Head | Division sendiri, bucket department      | Global seluruh division, lintas direktorat      | Division sendiri dan department/section di dalamnya |
+
+Overview yang berizin tetap menampilkan bucket unit saudara, tetapi bukan izin memilih unit tersebut secara spesifik. Pemilihan unit saudara atau descendant-nya melalui metadata, agregat, maupun preview wajib ditolak server. Identifier organisasi tetap komposit; label duplikat tidak memberikan akses lintas unit. Mapping tambahan Default PIC hanya memberi pemilihan department tepat tersebut, bukan seluruh division asing. Akun multi-capability mengikuti kewenangan tertinggi. Director, Union, Admin dan Member mempertahankan kontraknya.
+
+Dashboard organisasi Section Head menghitung snapshot section sesuai basis, termasuk Voice di section yang tidak ditugaskan pribadi kepadanya. Preview tetap diiriskan dengan object policy. Organisasi wajib yang tidak tersedia menghasilkan keadaan tidak tersedia, bukan fallback global.
+
+`scopeMode` opsional (`OWN`, `PARENT`, `GLOBAL`) memisahkan cakupan dari pengelompokan `level`. Metadata/respons mengembalikan mode efektif dan mode yang diizinkan. Request lama tanpa mode diinterpretasikan dari peran dan level, dengan validasi unit yang sama. Pergantian mode/level menghapus pilihan organisasi lama dan memulihkan default jabatan/mapping; filter basis/periode/area/kategori/severity/status dipertahankan. Reload dan riwayat browser mengikuti URL. Pada data sumber dan filter yang sama, Section → Department → Section wajib memulihkan semua metrik awal, misalnya 12 → 17 → 12.
+
+Satu respons agregat memakai satu snapshot transaksi PostgreSQL REPEATABLE READ. Total wajib sama dengan jumlah masing-masing dimensi status, severity, kategori, organisasi, area dan tren. Kalender memakai Asia/Jakarta, periode relatif memperbarui batas akhir pada polling, dan agregat/preview dalam satu siklus memakai batas tanggal yang sama. Kegagalan preview tidak menghilangkan agregat yang berhasil. Respons filter lama tidak boleh menggantikan konteks aktif. Ketentuan tanpa small-cohort suppression pada §18.8.1 tetap berlaku.
