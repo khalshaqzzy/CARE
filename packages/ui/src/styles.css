@@ -39,6 +39,7 @@
   --text-inverse: var(--raw-neutral-0);
   --text-link: var(--raw-brand-700);
   --text-danger: var(--raw-danger);
+  --border-subtle: rgba(232, 235, 239, 0.72);
   --border-subtle: color-mix(in srgb, var(--raw-neutral-200) 72%, transparent);
   --border-default: var(--raw-neutral-200);
   --border-strong: var(--raw-neutral-300);
@@ -188,6 +189,7 @@ select,
 }
 ::selection {
   color: var(--text-primary);
+  background: rgb(234 179 8 / 35%);
   background: color-mix(in srgb, var(--raw-accent-500) 35%, transparent);
 }
 
@@ -269,6 +271,7 @@ select,
   background: var(--state-danger);
 }
 .care-button--danger:hover {
+  background: #9f1239;
   background: color-mix(in srgb, var(--state-danger) 88%, black);
 }
 .care-button--sm {
@@ -317,6 +320,7 @@ select,
   box-shadow: var(--shadow-card);
 }
 .care-surface--selected {
+  border-color: var(--raw-brand-300);
   border-color: color-mix(in srgb, var(--raw-brand-600) 38%, var(--border-default));
   background: var(--surface-selected);
 }
@@ -422,6 +426,7 @@ select,
 }
 .care-input-shell:focus-within {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 var(--focus-width) rgb(37 99 235 / 18%);
   box-shadow: 0 0 0 var(--focus-width) color-mix(in srgb, var(--focus-color) 18%, transparent);
 }
 .care-field[data-invalid] .care-input-shell {
@@ -486,6 +491,15 @@ select,
 .care-select-trigger:hover {
   border-color: var(--border-strong);
 }
+.care-select-trigger__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+.care-select-trigger__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
 .care-select-content,
 .care-combobox__panel {
   /* Popovers portal to <body>; when opened inside a modal they must stack
@@ -525,6 +539,10 @@ select,
 }
 .care-combobox__panel {
   position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  bottom: auto;
+  left: 0;
   inset: calc(100% + var(--space-2)) 0 auto;
 }
 .care-combobox__search {
@@ -653,6 +671,10 @@ select,
 }
 .care-segmented__indicator {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   border: 1px solid var(--border-default);
   border-radius: inherit;
@@ -760,6 +782,10 @@ select,
 .care-dialog__overlay {
   position: fixed;
   z-index: var(--layer-modal);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   background: rgb(23 26 31 / var(--opacity-scrim));
   animation: care-fade-in var(--duration-overlay) var(--ease-enter);
@@ -791,6 +817,7 @@ select,
   top: 0;
   bottom: 0;
   width: min(32rem, calc(100vw - var(--space-6)));
+  height: 100vh;
   height: 100dvh;
   max-height: none;
   border-radius: 0;
@@ -842,6 +869,188 @@ select,
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--surface-inset);
+}
+
+/* ===== Lightbox (full-screen attachment viewer) =====
+   The content layer is opaque with a subtle top-lit gradient so text chrome
+   always sits on a deterministic dark surface (axe color-contrast composites
+   translucent scrims with the page behind, which is unpredictable); the
+   overlay stays a simple fade layer beneath it. */
+.care-lightbox__overlay {
+  position: fixed;
+  z-index: var(--layer-modal);
+  inset: 0;
+  background: rgb(6 9 14 / 88%);
+  animation: care-fade-in var(--duration-overlay) var(--ease-enter);
+}
+.care-lightbox {
+  position: fixed;
+  z-index: calc(var(--layer-modal) + 1);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: radial-gradient(120% 90% at 50% 0%, #131820 0%, #0a0d12 60%);
+  user-select: none;
+  animation: care-fade-in var(--duration-overlay) var(--ease-enter);
+}
+.care-lightbox__top {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+}
+.care-lightbox__glass {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-weight: var(--weight-semibold);
+  background: rgb(255 255 255 / 14%);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-lightbox__glass:hover {
+  background: rgb(255 255 255 / 24%);
+}
+.care-lightbox__counter {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  background: rgb(255 255 255 / 14%);
+}
+.care-lightbox__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  touch-action: none;
+}
+/* Absolutely positioned with definite insets so the image's max-width/max-height
+   percentages resolve against a definite box in every engine (a frame sized by
+   its own content makes those percentages engine-dependent). */
+.care-lightbox__frame {
+  position: absolute;
+  inset: var(--space-6) var(--space-4);
+  display: grid;
+  place-items: center;
+}
+.care-lightbox__frame--snap {
+  transition: transform var(--duration-medium) var(--ease-standard);
+}
+/* The image itself never animates: transitioning its opacity on a freshly
+   decoded (potentially very large) photo inside the animating fixed overlay
+   composites as a permanently blank stage on iOS Safari. Reveal happens by
+   unmounting the loader; the overlay's own fade covers the open transition. */
+.care-lightbox__img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-card);
+  object-fit: contain;
+  box-shadow: var(--shadow-modal);
+}
+.care-lightbox__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgb(255 255 255 / 82%);
+}
+.care-lightbox__error {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border-radius: var(--radius-card);
+  color: #fff;
+  text-align: center;
+  background: rgb(255 255 255 / 10%);
+}
+.care-lightbox__error p {
+  margin: var(--space-0);
+  font-weight: var(--weight-semibold);
+}
+/* Dark glass so the chevrons stay readable over bright images and the dark
+   stage alike; the hairline border keeps the circle defined on both. */
+.care-lightbox__nav {
+  position: absolute;
+  top: 50%;
+  display: inline-grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: rgb(15 18 24 / 60%);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-lightbox__nav:hover:not(:disabled) {
+  background: rgb(15 18 24 / 78%);
+}
+.care-lightbox__nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.care-lightbox__nav--prev {
+  left: var(--space-3);
+}
+.care-lightbox__nav--next {
+  right: var(--space-3);
+}
+.care-lightbox__thumbs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  overflow-x: auto;
+}
+/* Center the strip while it fits; the auto margins collapse when the strip
+   overflows so scrolling still reaches both ends. */
+.care-lightbox__thumb:first-child {
+  margin-left: auto;
+}
+.care-lightbox__thumb:last-child {
+  margin-right: auto;
+}
+.care-lightbox__thumb {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.care-lightbox__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.care-lightbox__thumb[aria-current='true'] {
+  border-color: #fff;
+  opacity: 1;
 }
 
 .care-tabs {
@@ -926,6 +1135,7 @@ select,
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   border-top: 1px solid var(--border-default);
+  background: rgb(255 255 255 / 96%);
   background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
   padding: var(--space-2) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
   box-shadow: var(--shadow-sticky);
@@ -1053,16 +1263,22 @@ select,
 }
 .care-badge--success {
   color: var(--state-success);
+  border-color: #a7f3d0;
+  background: #ecfdf5;
   border-color: color-mix(in srgb, var(--state-success) 28%, transparent);
   background: color-mix(in srgb, var(--state-success) 9%, white);
 }
 .care-badge--warning {
   color: var(--state-warning);
+  border-color: #fed7aa;
+  background: #fff7ed;
   border-color: color-mix(in srgb, var(--state-warning) 28%, transparent);
   background: color-mix(in srgb, var(--state-warning) 9%, white);
 }
 .care-badge--danger {
   color: var(--state-danger);
+  border-color: #fecdd3;
+  background: #fff1f2;
   border-color: color-mix(in srgb, var(--state-danger) 28%, transparent);
   background: color-mix(in srgb, var(--state-danger) 8%, white);
 }
@@ -1091,14 +1307,17 @@ select,
 }
 .care-alert--success {
   color: var(--state-success);
+  background: #ecfdf5;
   background: color-mix(in srgb, var(--state-success) 8%, white);
 }
 .care-alert--warning {
   color: var(--state-warning);
+  background: #fff7ed;
   background: color-mix(in srgb, var(--state-warning) 8%, white);
 }
 .care-alert--danger {
   color: var(--state-danger);
+  background: #fff1f2;
   background: color-mix(in srgb, var(--state-danger) 7%, white);
 }
 .care-alert__actions {
@@ -1159,6 +1378,7 @@ select,
   height: 100%;
   min-height: inherit;
   content: '';
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 70%), transparent);
   background: linear-gradient(
     90deg,
     transparent,
@@ -1394,6 +1614,11 @@ select,
 .care-app-shell:has(> .care-sidebar) > .care-sidebar {
   grid-row: 1 / -1;
 }
+@supports not selector(:has(*)) {
+  .care-app-shell {
+    min-width: 0;
+  }
+}
 .care-app-shell__topbar {
   position: sticky;
   z-index: var(--layer-sticky);
@@ -1471,6 +1696,7 @@ select,
     top: 0;
     bottom: 0;
     width: calc(100vw - var(--space-6));
+    height: 100vh;
     height: 100dvh;
     max-height: none;
     border-radius: 0;
@@ -1594,6 +1820,168 @@ select,
   padding-top: var(--space-4);
 }
 
+/* ===== Dot label — semantic dot with a text label (text is the value) ===== */
+.care-dot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-semibold);
+}
+.care-dot-label i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: currentcolor;
+}
+.care-dot-label[data-tone='neutral'] {
+  color: var(--text-secondary);
+}
+.care-dot-label[data-tone='info'] {
+  color: var(--raw-brand-700);
+}
+.care-dot-label[data-tone='brand'] {
+  color: var(--action-primary-bg);
+}
+.care-dot-label[data-tone='success'] {
+  color: var(--state-success);
+}
+.care-dot-label[data-tone='warning'] {
+  color: var(--state-warning);
+}
+.care-dot-label[data-tone='danger'] {
+  color: var(--state-danger);
+}
+
+/* ===== Rating — star radios (1–5); stars fill cumulatively left to right ===== */
+.care-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.care-rating__star {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.care-rating__star svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  fill: transparent;
+  transition: fill var(--duration-fast) var(--ease-standard);
+}
+.care-rating__star[data-filled='true'] {
+  color: var(--action-primary-bg);
+}
+.care-rating__star[data-filled='true'] svg {
+  fill: currentcolor;
+}
+.care-rating__star:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+.care-rating.is-readonly {
+  gap: 2px;
+}
+.care-rating.is-readonly svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--text-tertiary);
+}
+.care-rating.is-readonly svg[data-filled='true'] {
+  color: var(--raw-brand-500);
+  fill: currentcolor;
+}
+.care-rating__value {
+  margin-left: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+}
+
+/* ===== Disclosure row — collapsible card with a rotating-chevron trigger ===== */
+.care-disclosure {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.care-disclosure__heading {
+  margin: 0;
+}
+.care-disclosure__trigger {
+  display: flex;
+  min-height: 3.25rem;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  border: 0;
+  color: var(--text-primary);
+  background: transparent;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  cursor: pointer;
+}
+.care-disclosure__trigger:hover {
+  background: var(--surface-subtle);
+}
+.care-disclosure__trigger:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: calc(-1 * var(--focus-width));
+}
+.care-disclosure__icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-control);
+  color: var(--raw-brand-700);
+  background: var(--surface-selected);
+}
+.care-disclosure__icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.care-disclosure__text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.care-disclosure__text strong {
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-control);
+}
+.care-disclosure__text small {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.care-disclosure__chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+.care-disclosure__trigger[aria-expanded='true'] .care-disclosure__chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .care-disclosure__chevron {
+    transition: none;
+  }
+}
+.care-disclosure__body {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-4);
+}
+
 /* ===== Choice cards (radio semantics, card or compact chip variant) ===== */
 .care-choice-card-group {
   display: grid;
@@ -1649,6 +2037,7 @@ select,
 }
 .care-choice-card[data-state='checked'] .care-choice-card__icon {
   color: var(--raw-brand-700);
+  background: var(--raw-brand-100);
   background: color-mix(in srgb, var(--raw-brand-100) 72%, white);
 }
 .care-choice-card__text {
@@ -1712,6 +2101,93 @@ select,
   width: 1rem;
   height: 1rem;
 }
+/* Ring-and-dot radio marker for choice cards. */
+.care-choice-card__indicator--radio {
+  border: 2px solid var(--border-strong);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.care-choice-card__indicator--radio::after {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.care-choice-card[data-state='checked'] .care-choice-card__indicator--radio {
+  border-color: var(--action-primary-bg);
+  background: var(--surface-raised);
+}
+.care-choice-card[data-state='checked'] .care-choice-card__indicator--radio::after {
+  background: var(--action-primary-bg);
+}
+/* Solid primary selected card — used by prominent single-choice moments. */
+.care-choice-card-group--brand .care-choice-card[data-state='checked'] {
+  border-color: var(--action-primary-bg);
+  color: var(--text-inverse);
+  background: var(--action-primary-bg);
+  box-shadow: var(--shadow-cta);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__text
+  strong {
+  color: var(--text-inverse);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__text
+  small {
+  /* Solid #0866ff needs full white for AA at 12px; 92% white measures 4.31:1. */
+  color: var(--text-inverse);
+}
+.care-choice-card-group--brand .care-choice-card[data-state='checked'] .care-choice-card__icon {
+  color: var(--text-inverse);
+  background: rgb(255 255 255 / 18%);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__indicator {
+  border-color: transparent;
+  color: var(--action-primary-bg);
+  background: var(--surface-raised);
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__indicator--radio {
+  border-color: var(--text-inverse);
+  background: transparent;
+}
+.care-choice-card-group--brand
+  .care-choice-card[data-state='checked']
+  .care-choice-card__indicator--radio::after {
+  background: var(--text-inverse);
+}
+
+/* ===== Password input with visibility toggle ===== */
+.care-password-input__toggle {
+  display: grid;
+  width: 2.75rem;
+  align-self: stretch;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-tertiary);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+.care-password-input__toggle:hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+.care-password-input__toggle:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
 
 /* ===== Settings rows (icon + text + control, hairline-divided group) ===== */
 .care-settings-group {
@@ -1751,6 +2227,7 @@ a.care-settings-row:hover {
 }
 .care-settings-row--danger .care-settings-row__icon {
   color: var(--state-danger);
+  background: #fff1f2;
   background: color-mix(in srgb, var(--state-danger) 9%, white);
 }
 .care-settings-row__icon {

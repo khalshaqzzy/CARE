@@ -2,7 +2,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { X } from 'lucide-react';
-import { useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode, type RefObject } from 'react';
 import { choreographyTokens } from './tokens.js';
 import { Button } from './primitives.js';
 import { cn } from './utils.js';
@@ -114,6 +114,7 @@ export function Menu({
 }
 
 export interface DialogProps {
+  className?: string;
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -125,8 +126,10 @@ export interface DialogProps {
   size?: 'sm' | 'md' | 'lg';
   mobileSheet?: boolean;
   drawerSide?: 'left' | 'right';
+  finalFocusRef?: RefObject<HTMLElement | null>;
 }
 export function Dialog({
+  className,
   open,
   defaultOpen,
   onOpenChange,
@@ -138,6 +141,7 @@ export function Dialog({
   size = 'md',
   mobileSheet,
   drawerSide,
+  finalFocusRef,
 }: DialogProps) {
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   const rootProps = {
@@ -153,6 +157,7 @@ export function Dialog({
         <DialogPrimitive.Content
           className={cn(
             'care-dialog',
+            className,
             `care-dialog--${size}`,
             mobileSheet && 'care-dialog--mobile-sheet',
             drawerSide && `care-dialog--drawer-${drawerSide}`,
@@ -166,8 +171,8 @@ export function Dialog({
           onCloseAutoFocus={(event) => {
             // A controlled dialog with an external trigger can have focus go to
             // <body> instead of returning to the opening control; restore it.
-            const last = lastFocusedRef.current;
-            if (last && last.isConnected) {
+            const last = finalFocusRef?.current ?? lastFocusedRef.current;
+            if (last && last.isConnected && !last.matches(':disabled, [aria-disabled="true"]')) {
               event.preventDefault();
               last.focus();
             }

@@ -1,3 +1,4 @@
+import { dashboardParameters, dashboardSchemas } from './dashboard-openapi';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
 type MutableOperation = Record<string, any>;
@@ -60,6 +61,11 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
           content: { 'multipart/form-data': { schema: multipartSchema } },
         };
       const hasMultipart = operation.requestBody?.content?.['multipart/form-data'];
+      if (operation.operationId === 'AdminController_resetAiConfiguration')
+        operation.requestBody = {
+          required: true,
+          content: { 'application/json': { schema: requestSchema(operation.operationId) } },
+        };
       if (
         method !== 'get' &&
         method !== 'delete' &&
@@ -129,7 +135,9 @@ const queryParameters: Record<string, string[]> = {
   ],
   ImportsController_list: ['cursor', 'limit', 'status'],
   ImportsController_changes: ['cursor', 'limit', 'filter'],
-  OrganizationUnitsController_list: ['cursor', 'limit', 'search'],
+  OrganizationUnitsController_list: ['cursor', 'limit', 'search', 'division'],
+  OrganizationUnitsController_divisions: ['search'],
+  AdminCategoriesController_list: ['status'],
   VoicesController_list: [
     'cursor',
     'limit',
@@ -160,10 +168,13 @@ const queryParameters: Record<string, string[]> = {
     'handler',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
-  VoicesController_dashboardGeneral: ['area', 'category', 'severity', 'status', 'from', 'to'],
-  VoicesController_dashboardPrivate: ['area', 'category', 'severity', 'status', 'from', 'to'],
+  VoicesController_dashboardGeneral: dashboardParameters,
+  VoicesController_dashboardPrivate: dashboardParameters,
+  VoicesController_dashboardMetadata: dashboardParameters,
+  VoicesController_dashboardPreview: dashboardParameters,
   VoicesController_timeline: ['cursor', 'limit', 'order'],
   VoicesController_messages: ['cursor', 'limit', 'order'],
+  VoicesController_myHandovers: ['cursor', 'limit', 'search'],
   NotificationsController_list: ['cursor', 'limit'],
 };
 
@@ -171,13 +182,18 @@ const idempotentOperations = new Set([
   'AdminController_resetPassword',
   'AdminController_setStatus',
   'AdminController_defaultPic',
-  'AdminController_globalPic',
   'AdminController_unionAccount',
+  'AdminController_updateAiConfiguration',
+  'AdminController_resetAiConfiguration',
+  'AdminCategoriesController_create',
+  'AdminCategoriesController_update',
+  'AdminCategoriesController_status',
   'ImportsController_confirm',
 ]);
 
 const noBodyOperations = new Set([
   'AuthController_logout',
+  'AuthController_deferPasswordChange',
   'VoicesController_classify',
   'VoicesController_locationReview',
   'NotificationsController_readAll',
@@ -192,12 +208,19 @@ const noBodyOperations = new Set([
   'AdminController_unionAccounts',
   'AdminController_auditEvents',
   'AdminController_auditDetail',
+  'AdminController_aiConfiguration',
+  'AdminController_testAiConfiguration',
   'ImportsController_list',
   'ImportsController_detail',
   'ImportsController_changes',
   'OrganizationSnapshotsController_current',
   'OrganizationUnitsController_list',
   'OrganizationUnitsController_detail',
+  'OrganizationUnitsController_divisions',
+  'CategoriesController_list',
+  'AdminCategoriesController_list',
+  'AdminCategoriesController_detail',
+  'AdminCategoriesController_history',
 ]);
 
 function addHeader(
@@ -250,7 +273,16 @@ function successSchema(operationId: string) {
     operationId === 'VoicesController_dashboardGeneral' ||
     operationId === 'VoicesController_dashboardPrivate'
   )
-    return { $ref: '#/components/schemas/DashboardAggregate' };
+    return {
+      oneOf: [
+        { $ref: '#/components/schemas/DashboardAggregate' },
+        { $ref: '#/components/schemas/DashboardView' },
+      ],
+    };
+  if (operationId === 'VoicesController_dashboardMetadata')
+    return { $ref: '#/components/schemas/DashboardMetadata' };
+  if (operationId === 'VoicesController_dashboardPreview')
+    return { $ref: '#/components/schemas/VoiceListResponse' };
   if (operationId === 'VoicesController_dashboardMember')
     return { $ref: '#/components/schemas/MemberDashboard' };
   if (operationId === 'VoicesController_listDrafts')
@@ -273,18 +305,30 @@ function successSchema(operationId: string) {
     AdminController_auditEvents: 'AuditEventList',
     AdminController_auditDetail: 'AuditEvent',
     AdminController_defaultPic: 'RouteMappingResponse',
-    AdminController_globalPic: 'RouteMappingResponse',
     AdminController_issues: 'RemediationIssueList',
     AdminController_resolutions: 'RemediationResolutionList',
     AdminController_sectionHeads: 'SectionHeadCandidateList',
     AdminController_unionAccount: 'UnionProvisionResponse',
     AdminController_unionAccounts: 'UnionAccountList',
+    AdminController_aiConfiguration: 'AiConfigurationResponse',
+    AdminController_updateAiConfiguration: 'AiConfigurationResponse',
+    AdminController_resetAiConfiguration: 'AiConfigurationResponse',
+    AdminController_testAiConfiguration: 'AiConfigurationTestResponse',
     ImportsController_detail: 'OrganizationImportPreview',
     ImportsController_preview: 'OrganizationImportPreview',
     OrganizationSnapshotsController_current: 'OrganizationSnapshot',
     OrganizationUnitsController_list: 'OrganizationUnitList',
     OrganizationUnitsController_detail: 'OrganizationUnit',
+    OrganizationUnitsController_divisions: 'StringList',
+    CategoriesController_list: 'GeneralVoiceCategoryPublicList',
+    AdminCategoriesController_list: 'GeneralVoiceCategoryAdminList',
+    AdminCategoriesController_detail: 'GeneralVoiceCategoryAdmin',
+    AdminCategoriesController_history: 'GeneralVoiceCategoryRevisionList',
+    AdminCategoriesController_create: 'GeneralVoiceCategoryAdmin',
+    AdminCategoriesController_update: 'GeneralVoiceCategoryAdmin',
+    AdminCategoriesController_status: 'GeneralVoiceCategoryAdmin',
     AuthController_changePassword: 'SuccessResponse',
+    AuthController_deferPasswordChange: 'SessionResponse',
     AuthController_logout: 'SuccessResponse',
     ImportsController_changes: 'OrganizationChangeList',
     ImportsController_confirm: 'ImportQueuedResponse',
@@ -309,10 +353,14 @@ function successSchema(operationId: string) {
     VoicesController_deleteDraft: 'SuccessResponse',
     VoicesController_evidence: 'AttachmentResponse',
     VoicesController_getDraft: 'VoiceDraftResponse',
+    VoicesController_handover: 'VoiceMutationResponse',
+    VoicesController_handoverOptions: 'HandoverOptionsResponse',
+    VoicesController_handovers: 'HandoverHistoryResponse',
     VoicesController_list: 'VoiceListResponse',
     VoicesController_mediaFile: 'MediaBinary',
     VoicesController_message: 'MessageResponse',
     VoicesController_messages: 'MessagePage',
+    VoicesController_myHandovers: 'MyHandoverPage',
     VoicesController_previewDraft: 'VoiceDraftPreview',
     VoicesController_proceed: 'VoiceMutationResponse',
     VoicesController_rate: 'RatingResponse',
@@ -331,15 +379,20 @@ function successSchema(operationId: string) {
 function requestSchema(operationId: string) {
   const mapping: Record<string, string> = {
     VoicesController_createDraft: 'VoiceDraftRequest',
-    VoicesController_updateDraft: 'VoiceDraftRequest',
+    VoicesController_updateDraft: 'VoiceDraftPatchRequest',
     VoicesController_manual: 'ManualClassificationRequest',
     VoicesController_submit: 'SubmitVoiceRequest',
     VoicesController_assign: 'AssignmentRequest',
     VoicesController_reassign: 'AssignmentRequest',
+    VoicesController_handover: 'HandoverRequest',
     AdminController_defaultPic: 'AccountSelectionRequest',
-    AdminController_globalPic: 'AccountSelectionRequest',
     AdminController_unionAccount: 'UnionAccountRequest',
     AdminController_setStatus: 'AccountStatusRequest',
+    AdminController_updateAiConfiguration: 'AiConfigurationUpdateRequest',
+    AdminController_resetAiConfiguration: 'AiConfigurationResetRequest',
+    AdminCategoriesController_create: 'GeneralVoiceCategoryCreateRequest',
+    AdminCategoriesController_update: 'GeneralVoiceCategoryUpdateRequest',
+    AdminCategoriesController_status: 'GeneralVoiceCategoryStatusRequest',
     ImportsController_confirm: 'ConfirmImportRequest',
     AuthController_login: 'LoginRequest',
     AuthController_changePassword: 'ChangePasswordRequest',
@@ -381,7 +434,16 @@ const baseVoiceProperties = {
   category: {
     type: 'string',
     nullable: true,
-    enum: ['SAFETY', 'ENVIRONMENT', 'FACILITY', 'WORK_DIFFICULTY'],
+  },
+  categoryNameSnapshot: { type: 'string', nullable: true },
+  classificationCategory: {
+    type: 'object',
+    nullable: true,
+    required: ['key', 'name'],
+    properties: {
+      key: { type: 'string' },
+      name: { type: 'string', nullable: true },
+    },
   },
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
@@ -471,6 +533,96 @@ const sessionBaseSchema = {
 };
 
 const schemas: Record<string, any> = {
+  StringList: { type: 'array', items: { type: 'string' } },
+  GeneralVoiceCategoryPublic: {
+    type: 'object',
+    required: ['id', 'key', 'name'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      key: { type: 'string' },
+      name: { type: 'string' },
+    },
+  },
+  GeneralVoiceCategoryPublicList: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/GeneralVoiceCategoryPublic' },
+  },
+  GeneralVoiceCategoryRouteInput: {
+    type: 'object',
+    required: ['mode'],
+    additionalProperties: false,
+    properties: {
+      mode: { type: 'string', enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'] },
+      organizationUnitId: { type: 'string', format: 'uuid' },
+    },
+  },
+  GeneralVoiceCategoryCreateRequest: {
+    type: 'object',
+    required: ['name', 'definition', 'examples', 'route'],
+    additionalProperties: false,
+    properties: {
+      name: { type: 'string' },
+      definition: { type: 'string' },
+      examples: { type: 'array', items: { type: 'string' } },
+      route: { $ref: '#/components/schemas/GeneralVoiceCategoryRouteInput' },
+    },
+  },
+  GeneralVoiceCategoryUpdateRequest: {
+    allOf: [
+      { $ref: '#/components/schemas/GeneralVoiceCategoryCreateRequest' },
+      {
+        type: 'object',
+        required: ['expectedVersion'],
+        properties: { expectedVersion: { type: 'integer', minimum: 1 } },
+      },
+    ],
+  },
+  GeneralVoiceCategoryStatusRequest: {
+    type: 'object',
+    required: ['status', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  GeneralVoiceCategoryAdmin: {
+    type: 'object',
+    required: [
+      'id',
+      'key',
+      'status',
+      'version',
+      'name',
+      'definition',
+      'examples',
+      'revision',
+      'route',
+      'updatedAt',
+    ],
+    additionalProperties: true,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      key: { type: 'string' },
+      status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+      version: { type: 'integer' },
+      name: { type: 'string' },
+      definition: { type: 'string' },
+      examples: { type: 'array', items: { type: 'string' } },
+      revision: { type: 'integer' },
+      route: { type: 'object', additionalProperties: true },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  GeneralVoiceCategoryAdminList: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/GeneralVoiceCategoryAdmin' },
+  },
+  GeneralVoiceCategoryRevisionList: {
+    type: 'array',
+    items: { type: 'object', additionalProperties: true },
+  },
   ErrorEnvelope: {
     type: 'object',
     required: ['code', 'message', 'errors', 'correlationId'],
@@ -508,13 +660,35 @@ const schemas: Record<string, any> = {
       detail: { type: 'string' },
       visibility: baseVoiceProperties.visibility,
       showReporterIdentity: { type: 'boolean', description: 'Required only for Private Voice' },
+      privateContactConsent: {
+        type: 'boolean',
+        description: 'Private only; must be true before submission',
+      },
+    },
+  },
+  VoiceDraftPatchRequest: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      area: baseVoiceProperties.area,
+      locationDetail: { type: 'string' },
+      title: { type: 'string' },
+      detail: { type: 'string' },
+      visibility: baseVoiceProperties.visibility,
+      showReporterIdentity: { type: 'boolean' },
+      privateContactConsent: { type: 'boolean' },
+      expectedVersion: { type: 'integer', minimum: 1 },
     },
   },
   ManualClassificationRequest: {
     type: 'object',
     required: ['severity'],
     additionalProperties: false,
-    properties: { category: baseVoiceProperties.category, severity: baseVoiceProperties.severity },
+    properties: {
+      category: baseVoiceProperties.category,
+      categoryKey: baseVoiceProperties.category,
+      severity: baseVoiceProperties.severity,
+    },
   },
   SubmitVoiceRequest: {
     type: 'object',
@@ -541,14 +715,179 @@ const schemas: Record<string, any> = {
     type: 'array',
     items: {
       type: 'object',
-      required: ['id', 'displayName'],
+      required: ['id', 'displayName', 'activeCount'],
       additionalProperties: false,
       properties: {
         id: { type: 'string', format: 'uuid' },
         displayName: { type: 'string' },
         slot: { type: 'string', enum: ['OFFICER_1', 'OFFICER_2'] },
         structuralPosition: { type: 'string' },
+        // Active voices currently handled by this candidate (assignment sheet
+        // workload subtitle).
+        activeCount: { type: 'integer', minimum: 0 },
       },
+    },
+  },
+  HandoverRequest: {
+    type: 'object',
+    required: ['targetCategoryId', 'detail', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      targetCategoryId: { type: 'string', format: 'uuid' },
+      detail: { type: 'string', minLength: 1, maxLength: 4000 },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  HandoverCategory: {
+    type: 'object',
+    required: ['id', 'key', 'name'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid', nullable: true },
+      key: { type: 'string', nullable: true },
+      name: { type: 'string', nullable: true },
+    },
+  },
+  HandoverDepartment: {
+    type: 'object',
+    required: ['id', 'directorate', 'division', 'department'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid', nullable: true },
+      directorate: { type: 'string', nullable: true },
+      division: { type: 'string', nullable: true },
+      department: { type: 'string', nullable: true },
+    },
+  },
+  HandoverPic: {
+    type: 'object',
+    required: ['id', 'displayName'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string' },
+      type: { type: 'string', enum: ['DEPARTMENT_HEAD', 'DEFAULT_PIC'] },
+    },
+  },
+  HandoverOption: {
+    type: 'object',
+    required: [
+      'category',
+      'routeMode',
+      'department',
+      'pic',
+      'isReporterDepartment',
+      'available',
+      'disabledReason',
+    ],
+    additionalProperties: false,
+    properties: {
+      category: { $ref: '#/components/schemas/HandoverCategory' },
+      routeMode: {
+        type: 'string',
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'],
+        nullable: true,
+      },
+      department: {
+        allOf: [{ $ref: '#/components/schemas/HandoverDepartment' }],
+        nullable: true,
+      },
+      pic: { allOf: [{ $ref: '#/components/schemas/HandoverPic' }], nullable: true },
+      isReporterDepartment: { type: 'boolean' },
+      available: { type: 'boolean' },
+      disabledReason: { type: 'string', nullable: true },
+    },
+  },
+  HandoverOptionsResponse: {
+    type: 'object',
+    required: ['current', 'options'],
+    additionalProperties: false,
+    properties: {
+      current: {
+        type: 'object',
+        required: ['category', 'department', 'pic'],
+        properties: {
+          category: { $ref: '#/components/schemas/HandoverCategory' },
+          department: {
+            allOf: [{ $ref: '#/components/schemas/HandoverDepartment' }],
+            nullable: true,
+          },
+          pic: { $ref: '#/components/schemas/HandoverPic' },
+        },
+      },
+      options: { type: 'array', items: { $ref: '#/components/schemas/HandoverOption' } },
+    },
+  },
+  HandoverHistoryItem: {
+    type: 'object',
+    required: ['id', 'sequence', 'from', 'to', 'routeMode', 'isReporterDepartment', 'createdAt'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      sequence: { type: 'integer', minimum: 1 },
+      from: {
+        type: 'object',
+        required: ['category', 'department', 'pic'],
+        properties: {
+          category: { $ref: '#/components/schemas/HandoverCategory' },
+          department: { $ref: '#/components/schemas/HandoverDepartment' },
+          pic: { $ref: '#/components/schemas/HandoverPic' },
+        },
+      },
+      to: {
+        type: 'object',
+        required: ['category', 'department', 'pic'],
+        properties: {
+          category: { $ref: '#/components/schemas/HandoverCategory' },
+          department: { $ref: '#/components/schemas/HandoverDepartment' },
+          pic: { $ref: '#/components/schemas/HandoverPic' },
+        },
+      },
+      routeMode: {
+        type: 'string',
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'],
+      },
+      isReporterDepartment: { type: 'boolean' },
+      createdAt: { type: 'string', format: 'date-time' },
+      detail: {
+        type: 'string',
+        description: 'Present only when the caller is the source or destination PIC.',
+      },
+      direction: { type: 'string', enum: ['SENT', 'RECEIVED'] },
+      voice: {
+        type: 'object',
+        required: ['id', 'displayId'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          displayId: { type: 'string' },
+        },
+      },
+    },
+  },
+  HandoverHistoryResponse: {
+    type: 'object',
+    required: ['voice', 'accessMode', 'items'],
+    additionalProperties: false,
+    properties: {
+      voice: {
+        type: 'object',
+        required: ['id', 'displayId'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          displayId: { type: 'string' },
+        },
+      },
+      accessMode: { type: 'string', enum: ['PARTICIPANT_ONLY', 'VOICE_READER'] },
+      items: { type: 'array', items: { $ref: '#/components/schemas/HandoverHistoryItem' } },
+    },
+  },
+  MyHandoverPage: {
+    type: 'object',
+    required: ['items', 'nextCursor'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/HandoverHistoryItem' } },
+      nextCursor: { type: 'string', nullable: true },
     },
   },
   MonitoringOptions: {
@@ -720,11 +1059,15 @@ const schemas: Record<string, any> = {
           mediaRoot: { type: 'string' },
           openai: {
             type: 'object',
-            required: ['configured', 'model'],
+            required: ['configured', 'model', 'reasoningEffort'],
             additionalProperties: false,
             properties: {
               configured: { type: 'boolean' },
               model: { type: 'string', nullable: true },
+              reasoningEffort: {
+                type: 'string',
+                enum: ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+              },
             },
           },
           push: {
@@ -876,6 +1219,9 @@ const schemas: Record<string, any> = {
     properties: {
       ...baseVoiceProperties,
       audience: { type: 'string', enum: ['REPORTER_SELF'] },
+      privateContactConsent: { type: 'boolean', nullable: true },
+      privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
+      privateContactConsentVersion: { type: 'string', nullable: true },
       reporter: {
         type: 'object',
         required: ['self'],
@@ -948,6 +1294,9 @@ const schemas: Record<string, any> = {
     properties: {
       ...baseVoiceProperties,
       audience: { type: 'string', enum: ['ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY'] },
+      privateContactConsent: { type: 'boolean', nullable: true },
+      privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
+      privateContactConsentVersion: { type: 'string', nullable: true },
       reporter: {
         type: 'object',
         required: ['noReg', 'name', 'directorate', 'division', 'department', 'section', 'position'],
@@ -976,6 +1325,7 @@ const schemas: Record<string, any> = {
       contentHash: { type: 'string' },
     },
   },
+  ...dashboardSchemas,
   DashboardAggregate: {
     type: 'object',
     required: [
@@ -986,6 +1336,8 @@ const schemas: Record<string, any> = {
       'trend',
       'division',
       'department',
+      'area',
+      'areaCritical',
       'suppression',
       'filters',
       'generatedAt',
@@ -995,10 +1347,15 @@ const schemas: Record<string, any> = {
       total: { type: 'integer' },
       status: { $ref: '#/components/schemas/AggregateBuckets' },
       severity: { $ref: '#/components/schemas/AggregateBuckets' },
-      category: { $ref: '#/components/schemas/AggregateBuckets' },
+      category: { $ref: '#/components/schemas/CategoryAggregateBuckets' },
       trend: { $ref: '#/components/schemas/AggregateBuckets' },
       division: { $ref: '#/components/schemas/AggregateBuckets' },
       department: { $ref: '#/components/schemas/AggregateBuckets' },
+      area: { $ref: '#/components/schemas/AggregateBuckets' },
+      areaCritical: { $ref: '#/components/schemas/AggregateBuckets' },
+      // Only populated when the dashboard filters carry a from/to window: the
+      // total of the immediately preceding window of the same duration.
+      previousTotal: { type: 'integer', minimum: 0 },
       suppression: {
         type: 'object',
         required: ['enabled', 'threshold', 'division', 'department'],
@@ -1024,8 +1381,9 @@ const schemas: Record<string, any> = {
         },
       },
       generatedAt: { type: 'string', format: 'date-time' },
-      // Only populated for the Union Head private dashboard: the number of
-      // Private Voices still awaiting a Union Officer assignment.
+      // Operational "awaiting assignment" count: Private Voices without a Union
+      // Officer on the Union Head private dashboard, and route General Voices
+      // without a Section Head on the scoped Manager general dashboard.
       pendingAssignment: { type: 'integer', minimum: 0 },
     },
   },
@@ -1046,15 +1404,46 @@ const schemas: Record<string, any> = {
       properties: { label: { type: 'string' }, value: { type: 'integer' } },
     },
   },
+  CategoryAggregateBuckets: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['key', 'name', 'label', 'value'],
+      additionalProperties: false,
+      properties: {
+        key: { type: 'string' },
+        name: { type: 'string' },
+        label: { type: 'string' },
+        value: { type: 'integer', minimum: 0 },
+      },
+    },
+  },
   ClosureCycleResponse: {
     type: 'object',
-    required: ['id', 'cycleNumber', 'note', 'closedAt', 'actor', 'evidence', 'rating'],
+    required: [
+      'id',
+      'cycleNumber',
+      'note',
+      'closedAt',
+      'reviewState',
+      'actor',
+      'evidence',
+      'rating',
+    ],
     properties: {
       id: { type: 'string', format: 'uuid' },
       cycleNumber: { type: 'integer' },
       note: { type: 'string' },
       closedAt: { type: 'string', format: 'date-time' },
       reopenedAt: { type: 'string', format: 'date-time', nullable: true },
+      reviewState: {
+        type: 'string',
+        enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+        description:
+          'Reporter review state of this closure cycle: pending within the review window, accepted by rating or auto-acceptance, rejected by a reopen.',
+      },
+      reviewDeadline: { type: 'string', format: 'date-time', nullable: true },
+      reviewResolvedAt: { type: 'string', format: 'date-time', nullable: true },
       actor: {
         type: 'object',
         required: ['id', 'displayName'],
@@ -1076,7 +1465,7 @@ const schemas: Record<string, any> = {
   },
   MemberDashboard: {
     type: 'object',
-    required: ['total', 'counts', 'recent', 'draft', 'generatedAt'],
+    required: ['total', 'counts', 'closedPendingReview', 'recent', 'draft', 'generatedAt'],
     additionalProperties: false,
     properties: {
       total: { type: 'integer' },
@@ -1090,6 +1479,11 @@ const schemas: Record<string, any> = {
           IN_PROGRESS: { type: 'integer' },
           CLOSED: { type: 'integer' },
         },
+      },
+      closedPendingReview: {
+        type: 'integer',
+        minimum: 0,
+        description: 'Closed voices whose latest closure cycle still awaits the reporter rating.',
       },
       recent: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
       draft: {
@@ -1121,6 +1515,7 @@ const schemas: Record<string, any> = {
       title: { type: 'string' },
       detail: { type: 'string' },
       showReporterIdentity: { type: 'boolean', nullable: true },
+      privateContactConsent: { type: 'boolean', nullable: true },
       version: { type: 'integer', minimum: 1 },
       expiresAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
@@ -1222,9 +1617,96 @@ const schemas: Record<string, any> = {
       nextCursor: { type: 'string', nullable: true, description: 'Signed opaque cursor' },
     },
   },
+  AiConfigurationResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'source',
+      'baseUrl',
+      'model',
+      'reasoningEffort',
+      'confidenceThreshold',
+      'apiKeyConfigured',
+      'version',
+      'updatedAt',
+    ],
+    properties: {
+      source: { type: 'string', enum: ['ENVIRONMENT', 'ADMIN_OVERRIDE'] },
+      baseUrl: { type: 'string', description: 'Effective HTTPS base URL, or empty when unset.' },
+      model: { type: 'string' },
+      reasoningEffort: {
+        type: 'string',
+        enum: ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      confidenceThreshold: { type: 'number', minimum: 0, maximum: 1 },
+      apiKeyConfigured: { type: 'boolean' },
+      version: { type: 'integer', nullable: true },
+      updatedAt: { type: 'string', format: 'date-time', nullable: true },
+    },
+  },
+  AiConfigurationUpdateRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['baseUrl', 'model', 'reasoningEffort', 'confidenceThreshold', 'expectedVersion'],
+    properties: {
+      baseUrl: { type: 'string', format: 'uri', pattern: '^https://' },
+      model: { type: 'string', minLength: 1, maxLength: 200 },
+      apiKey: {
+        type: 'string',
+        format: 'password',
+        maxLength: 512,
+        writeOnly: true,
+        description: 'Omit or leave empty to preserve the effective API key.',
+      },
+      reasoningEffort: {
+        type: 'string',
+        enum: ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      confidenceThreshold: { type: 'number', minimum: 0, maximum: 1 },
+      expectedVersion: { type: 'integer', minimum: 1, nullable: true },
+    },
+  },
+  AiConfigurationResetRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['expectedVersion'],
+    properties: { expectedVersion: { type: 'integer', minimum: 1 } },
+  },
+  AiConfigurationTestResponse: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['ok', 'classification', 'location', 'latencyMs'],
+    properties: {
+      ok: { type: 'boolean' },
+      classification: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['source'],
+        properties: { source: { type: 'string', enum: ['AI', 'MANUAL_FALLBACK'] } },
+      },
+      location: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['completeness', 'valid'],
+        properties: {
+          completeness: { type: 'string', enum: ['COMPLETE', 'INCOMPLETE', 'UNKNOWN'] },
+          valid: { type: 'boolean' },
+        },
+      },
+      latencyMs: { type: 'integer', minimum: 0 },
+    },
+  },
   AdminOverview: {
     type: 'object',
-    required: ['accounts', 'openRemediation', 'latestImport', 'unionSlots', 'recentResolution'],
+    required: [
+      'accounts',
+      'openRemediation',
+      'latestImport',
+      'unionSlots',
+      'recentResolution',
+      'voices',
+      'failedAudits',
+    ],
     additionalProperties: false,
     properties: {
       accounts: {
@@ -1247,6 +1729,17 @@ const schemas: Record<string, any> = {
           id: { type: 'string', format: 'uuid' },
           status: { type: 'string' },
           createdAt: { type: 'string', format: 'date-time' },
+          summary: {
+            type: 'object',
+            nullable: true,
+            additionalProperties: false,
+            properties: {
+              rowCount: { type: 'integer' },
+              create: { type: 'integer' },
+              update: { type: 'integer' },
+              deactivate: { type: 'integer' },
+            },
+          },
         },
       },
       unionSlots: { type: 'integer' },
@@ -1261,6 +1754,19 @@ const schemas: Record<string, any> = {
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
+      voices: {
+        type: 'object',
+        required: ['open', 'inVerification', 'inProgress', 'closed', 'critical'],
+        additionalProperties: false,
+        properties: {
+          open: { type: 'integer' },
+          inVerification: { type: 'integer' },
+          inProgress: { type: 'integer' },
+          closed: { type: 'integer' },
+          critical: { type: 'integer' },
+        },
+      },
+      failedAudits: { type: 'integer' },
     },
   },
   AccountSummary: {
@@ -1374,6 +1880,7 @@ const schemas: Record<string, any> = {
         allOf: [{ $ref: '#/components/schemas/RemediationOrganizationUnit' }],
         nullable: true,
       },
+      category: { type: 'object', nullable: true, additionalProperties: true },
       accountId: { type: 'string', format: 'uuid', nullable: true },
       details: { type: 'object', additionalProperties: true },
       createdAt: { type: 'string', format: 'date-time' },
@@ -1668,8 +2175,21 @@ const schemas: Record<string, any> = {
       area: baseVoiceProperties.area,
       title: { type: 'string' },
       category: baseVoiceProperties.category,
+      categoryNameSnapshot: baseVoiceProperties.categoryNameSnapshot,
       severity: baseVoiceProperties.severity,
       status: baseVoiceProperties.status,
+      // PIC display name; only present on work-item/general lists for
+      // authorized responders, leadership, and Union (absent on reporter lists).
+      currentHandlerName: { type: 'string', nullable: true },
+      // Per-Voice reporter alias; only present on Union private inbox lists.
+      reporterAlias: { type: 'string', nullable: true },
+      // Review state of the latest closure cycle; null for voices without one.
+      closureReviewState: {
+        type: 'string',
+        enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+        nullable: true,
+      },
+      closureReviewDeadline: { type: 'string', format: 'date-time', nullable: true },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },
@@ -1693,6 +2213,7 @@ const schemas: Record<string, any> = {
       title: { type: 'string' },
       detail: { type: 'string' },
       showReporterIdentity: { type: 'boolean', nullable: true },
+      privateContactConsent: { type: 'boolean', nullable: true },
       version: { type: 'integer', minimum: 1 },
       classificationContentHash: { type: 'string' },
       locationContentHash: { type: 'string' },
@@ -1708,6 +2229,7 @@ const schemas: Record<string, any> = {
         type: 'object',
         required: ['routeReadiness'],
         properties: {
+          categoryNameSnapshot: { type: 'string', nullable: true },
           routeReadiness: {
             type: 'object',
             required: ['ready'],
@@ -1742,6 +2264,7 @@ const schemas: Record<string, any> = {
       version: { type: 'integer', minimum: 1 },
       currentHandlerId: { type: 'string', format: 'uuid', nullable: true },
       handlerType: { type: 'string' },
+      handoverId: { type: 'string', format: 'uuid' },
     },
   },
   TimelineEvent: {

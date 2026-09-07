@@ -52,6 +52,7 @@ test('precache excludes design/API and provides an explicit offline fallback', a
   });
   expect(cachedUrls.some((url) => /design-system/.test(url))).toBe(false);
   expect(cachedUrls.some((url) => /\/api\//.test(url))).toBe(false);
+  expect(cachedUrls.some((url) => /submit-voice-asset-.*\.png$/.test(url))).toBe(true);
   await expect
     .poll(() => controlledPage.evaluate(() => navigator.serviceWorker.controller?.state ?? null))
     .toBe('activated');

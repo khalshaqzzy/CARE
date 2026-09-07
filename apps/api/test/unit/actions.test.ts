@@ -30,6 +30,7 @@ describe('computeAvailableActions', () => {
     expect(result).toContain('PROCEED');
     expect(result).not.toContain('MESSAGE');
     expect(result).toContain('ASSIGN');
+    expect(result).toContain('HANDOVER');
   });
 
   it('offers reassign only in IN_VERIFICATION for a managing route owner', () => {
@@ -40,6 +41,7 @@ describe('computeAvailableActions', () => {
     expect(result).toContain('REASSIGN');
     expect(result).toContain('PROCEED');
     expect(result).not.toContain('ASSIGN');
+    expect(result).not.toContain('HANDOVER');
   });
 
   it('offers close and message from IN_PROGRESS only when a conversation exists', () => {
@@ -57,18 +59,47 @@ describe('computeAvailableActions', () => {
     expect(result).toEqual([]);
   });
 
-  it('gives the reporter message only after verification begins, and rate/reopen on closed', () => {
+  it.each([
+    ['Section Head', actor(['SECTION_HEAD'], 'owner'), voice()],
+    [
+      'Union Head',
+      actor(['UNION_HEAD'], 'owner'),
+      voice({ visibility: 'PRIVATE' as VoiceVisibility }),
+    ],
+    ['reporter', actor(['MEMBER'], 'reporter'), voice()],
+    ['unrelated Manager', actor(['MANAGER'], 'other'), voice()],
+    [
+      'Manager after verification',
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'IN_VERIFICATION' as VoiceStatus }),
+    ],
+    [
+      'Manager while in progress',
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'IN_PROGRESS' as VoiceStatus }),
+    ],
+    [
+      'Manager after closure',
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'CLOSED' as VoiceStatus }),
+    ],
+  ])('does not expose handover to %s', (_label, testActor, testVoice) => {
+    expect(computeAvailableActions(testActor, testVoice)).not.toContain('HANDOVER');
+  });
+
+  it('gives the reporter message only after verification begins, and rate on an unrated closure', () => {
     const replyer = actor(['MEMBER'], 'reporter');
     const closed = computeAvailableActions(
       replyer,
       voice({
         status: 'CLOSED' as VoiceStatus,
         reporterId: 'reporter',
-        closureCycles: [{ reopenedAt: null, rating: { score: 2 } }],
+        closureCycles: [{ reopenedAt: null }],
       }),
     );
     expect(closed).toContain('RATE');
-    expect(closed).toContain('REOPEN');
+    // Reopen is never a standalone action: it rides atomically on a low rating.
+    expect(closed).not.toContain('REOPEN');
     const open = computeAvailableActions(replyer, voice({ reporterId: 'reporter' }));
     expect(open).not.toContain('MESSAGE');
     const verification = computeAvailableActions(
@@ -78,16 +109,14 @@ describe('computeAvailableActions', () => {
     expect(verification).toContain('MESSAGE');
   });
 
-  it('does not offer reopen for a high rating', () => {
-    const result = computeAvailableActions(
-      actor(['MEMBER'], 'reporter'),
-      voice({
-        status: 'CLOSED' as VoiceStatus,
-        reporterId: 'reporter',
-        closureCycles: [{ reopenedAt: null, rating: { score: 4 } }],
-      }),
-    );
-    expect(result).toContain('RATE');
+  it('stops offering rate once the closure cycle has a rating', () => {
+    const pending = voice({
+      status: 'CLOSED' as VoiceStatus,
+      reporterId: 'reporter',
+      closureCycles: [{ reopenedAt: null, rating: { score: 4 } }],
+    });
+    const result = computeAvailableActions(actor(['MEMBER'], 'reporter'), pending);
+    expect(result).not.toContain('RATE');
     expect(result).not.toContain('REOPEN');
   });
 

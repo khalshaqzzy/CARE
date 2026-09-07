@@ -4,7 +4,6 @@ import type {
   Area,
   ClassificationSource,
   LocationCompleteness,
-  RoutingCategory,
   Severity,
   UnionSlot,
   VoiceStatus,
@@ -52,7 +51,9 @@ export type SessionResponse = {
 };
 export type ClassificationPreview = {
   source: ClassificationSource;
-  category: RoutingCategory | null;
+  category: string | null;
+  categoryNameSnapshot?: string | null;
+  classificationCategory: { key: string; name: string | null } | null;
   severity: Severity;
   confidence: number;
   rationaleCode: string;
@@ -73,7 +74,7 @@ export type VoiceDetailBase = {
   locationDetail: string;
   title: string;
   detail: string;
-  category: RoutingCategory | null;
+  category: string | null;
   severity: Severity;
   status: VoiceStatus;
   version: number;
@@ -90,6 +91,9 @@ export type VoiceDetailBase = {
     note: string;
     closedAt: Date;
     reopenedAt: Date | null;
+    reviewState: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    reviewDeadline: Date | null;
+    reviewResolvedAt: Date | null;
     actor: { id: string; displayName: string };
     evidence: unknown[];
     rating: { score: number; feedback: string | null; reopen: boolean; createdAt: Date } | null;
@@ -97,10 +101,16 @@ export type VoiceDetailBase = {
   availableActions: string[];
   conversationState: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
 };
-export type ReporterSelfVoiceDetail = VoiceDetailBase & {
-  audience: 'REPORTER_SELF';
-  reporter: { self: true };
+type PrivateContactConsentSnapshot = {
+  privateContactConsent: boolean | null;
+  privateContactConsentRecordedAt: Date | null;
+  privateContactConsentVersion: string | null;
 };
+export type ReporterSelfVoiceDetail = VoiceDetailBase &
+  PrivateContactConsentSnapshot & {
+    audience: 'REPORTER_SELF';
+    reporter: { self: true };
+  };
 export type GeneralResponderVoiceDetail = VoiceDetailBase & {
   audience: 'GENERAL_RESPONDER';
   reporter: {
@@ -124,15 +134,16 @@ export type UnionIdentifiedVoiceDetail = VoiceDetailBase & {
   audience: 'UNION_IDENTIFIED';
   reporter: { noReg: string; name: string; division: string; department: string };
 };
-export type AdminPrivateVoiceDetail = VoiceDetailBase & {
-  audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY';
-  reporter: GeneralResponderVoiceDetail['reporter'];
-};
+export type AdminPrivateVoiceDetail = VoiceDetailBase &
+  PrivateContactConsentSnapshot & {
+    audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY';
+    reporter: GeneralResponderVoiceDetail['reporter'];
+  };
 export type DashboardAggregate = {
   total: number;
   status: Array<{ label: string; value: number }>;
   severity: Array<{ label: string; value: number }>;
-  category: Array<{ label: string; value: number }>;
+  category: Array<{ key: string; name: string; label: string; value: number }>;
   trend: Array<{ label: string; value: number }>;
   division: Array<{ label: string; value: number }>;
   department: Array<{ label: string; value: number }>;
@@ -151,6 +162,7 @@ export type DraftListItem = {
   title: string;
   detail: string;
   showReporterIdentity: boolean | null;
+  privateContactConsent: boolean | null;
   version: number;
   expiresAt: Date;
   updatedAt: Date;
@@ -162,15 +174,18 @@ export type DraftListResponse = {
 export type MemberDashboard = {
   total: number;
   counts: Record<VoiceStatus, number>;
+  closedPendingReview: number;
   recent: Array<{
     id: string;
     displayId: string;
     visibility: VoiceVisibility;
     area: Area;
     title: string;
-    category: RoutingCategory | null;
+    category: string | null;
     severity: Severity;
     status: VoiceStatus;
+    closureReviewState: 'PENDING' | 'ACCEPTED' | 'REJECTED' | null;
+    closureReviewDeadline: Date | null;
     updatedAt: Date;
   }>;
   draft: DraftListItem | null;

@@ -58,7 +58,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
     mimeType: 'text/csv',
     buffer: Buffer.from(invalidCsv),
   });
-  await page.getByRole('button', { name: 'Preview' }).click();
+  await page.getByRole('button', { name: 'Validasi data' }).click();
   await expect(page.getByRole('alert').first()).toBeVisible();
 
   // Remediation shows the open routing issue.
@@ -66,12 +66,14 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   await expect(page.getByRole('heading', { name: 'Remediation & Route' })).toBeVisible();
   await expect(page.getByText('Department Head belum tersedia').first()).toBeVisible();
 
-  // Union: the three fixed slots are populated from the seed.
+  // Union: the three fixed slots are populated from the seed. The Head node
+  // carries the design title "Head (Akun Utama)", so match the account names
+  // as substrings rather than exact node titles.
   await page.goto(`${ADMIN}/union`);
   await expect(page.getByRole('heading', { name: 'Union Accounts' })).toBeVisible();
-  await expect(page.getByText('Union Head', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Union 1', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Union 2', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Union Head').first()).toBeVisible();
+  await expect(page.getByText('Union 1').first()).toBeVisible();
+  await expect(page.getByText('Union 2').first()).toBeVisible();
 
   // Accounts: reset a workforce password through the detail drawer; a successful
   // reset closes the confirm dialog (session revocation is covered in the
@@ -97,11 +99,13 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   await expect(page.getByText(/Tidak ada kontrol aksi/)).toBeVisible();
 
   // Audit: reading the Private voice recorded a redacted read event; the seeded
-  // + generated events render and can be filtered.
+  // + generated events render and can be filtered via the Action select.
   await page.goto(`${ADMIN}/audit`);
   await expect(page.getByRole('heading', { name: 'Audit' })).toBeVisible();
   await expect(page.getByText('VOICE_PRIVATE_DETAIL_READ').first()).toBeVisible();
-  await page.getByLabel('Filter action').fill('VOICE_PRIVATE_DETAIL_READ');
+  // Filters are URL-driven; navigate with the action param (the Action control
+  // is a Radix select, not a native <select>).
+  await page.goto(`${ADMIN}/audit?action=VOICE_PRIVATE_DETAIL_READ`);
   await expect(page.getByText('VOICE_PRIVATE_DETAIL_READ').first()).toBeVisible();
 
   // System Status surface renders the real health/readiness/release.
@@ -120,7 +124,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
     mimeType: 'text/csv',
     buffer: Buffer.from(validCsv),
   });
-  await page.getByRole('button', { name: 'Preview' }).click();
+  await page.getByRole('button', { name: 'Validasi data' }).click();
   await expect(page.getByText('Checksum').first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('button', { name: 'Konfirmasi import' })).toBeVisible({
     timeout: 10_000,

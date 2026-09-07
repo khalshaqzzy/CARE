@@ -1,21 +1,38 @@
-import { Alert, Button, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
+import { Alert, Card, EmptyState, Input, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, AlertTriangle, CheckCircle2, Inbox, Lock, Search } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  ArrowRight,
+  ArrowRightLeft,
+  Building2,
+  Inbox,
+  Lock,
+  ScrollText,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
+import { FilterPillRow } from '../../components/FilterPills';
+import { HeroBand, HeroChip } from '../../components/HeroBand';
+import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { Pager } from '../../components/Pager';
-import { VoiceCard } from '../../components/VoiceCard';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatRelative,
+  formatDate,
   STATUS_LABELS,
   SEVERITY_LABELS,
 } from '../../lib/formatters';
+import { activeCount, bucketValue } from '../../lib/dashboard-math';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
 import { useOnlineStatus } from '../../lib/use-online-status';
-import type { DashboardAggregate } from '../../workforce-api';
+import type { HandoverHistoryItem } from '../../workforce-api';
 
 const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED']);
 
@@ -24,6 +41,7 @@ export function WorkItemsPage() {
   const api = useApi();
   const sessionId = useSessionId();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const nav = useCursorPagination(searchParams, setSearchParams);
   const offline = !useOnlineStatus();
@@ -36,15 +54,17 @@ export function WorkItemsPage() {
     ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
   );
   const isDirector = caps.includes('DIRECTOR');
-  const isSectionHead = caps.includes('SECTION_HEAD') && !caps.includes('MANAGER');
+  const isManager = caps.includes('MANAGER');
+  const isSectionHead = caps.includes('SECTION_HEAD') && !isManager;
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
-  const view = STATUS_VIEWS.has(rawView) ? rawView : 'ACTIVE';
+  const handoverMode = isManager && rawView === 'HANDOVERS';
+  const view = handoverMode ? 'HANDOVERS' : STATUS_VIEWS.has(rawView) ? rawView : 'ACTIVE';
   const status = ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'].includes(view)
     ? view
     : undefined;
-  const statusGroup = status ? undefined : (view as 'ACTIVE' | 'CLOSED' | 'ALL');
+  const statusGroup = status || handoverMode ? undefined : (view as 'ACTIVE' | 'CLOSED' | 'ALL');
   const severity = searchParams.get('severity') ?? undefined;
   const area = searchParams.get('area') ?? undefined;
   const category = searchParams.get('category') ?? undefined;
@@ -88,21 +108,35 @@ export function WorkItemsPage() {
         ? api.listVoices({ ...common, visibility: 'GENERAL', sort: 'severity' })
         : api.workItems({ ...common, ...(unassignedOnly ? { unassigned: 'true' } : {}) });
     },
-    enabled: !!session,
+    enabled: Boolean(session) && !handoverMode,
     refetchInterval: 3000,
   });
 
-  const aggregate = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring', severity, area, category, from, to),
+  const handovers = useQuery({
+    queryKey: voiceQuery(sessionId, 'my-handovers', search, nav.cursor),
     queryFn: () =>
-      api.dashboardGeneral({
-        ...(severity ? { severity: severity as never } : {}),
-        ...(area ? { area } : {}),
-        ...(category ? { category: category as never } : {}),
-        ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}),
-        ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
+      api.myHandovers({
+        limit: 10,
+        ...(search ? { search } : {}),
+        ...(nav.cursor ? { cursor: nav.cursor } : {}),
       }),
+    enabled: Boolean(session) && handoverMode,
+  });
+
+  // Header stats stay unfiltered: the strip describes the whole queue, not the
+  // active filter combination.
+  const aggregate = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring'),
+    queryFn: () => api.dashboardGeneral({}),
     enabled: !!session && !isUnion,
+    refetchInterval: 3000,
+  });
+
+  // Union hero stats come from the private dashboard (incl. pendingAssignment).
+  const privateDash = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'private'),
+    queryFn: () => api.dashboardPrivate(),
+    enabled: !!session && isUnion,
     refetchInterval: 3000,
   });
 
@@ -124,7 +158,10 @@ export function WorkItemsPage() {
   const clearFilters = () =>
     setSearchParams(isUnion ? new URLSearchParams() : new URLSearchParams({ view: 'ACTIVE' }));
   const items = inbox.data?.items ?? [];
-  const nextCursor = inbox.data?.nextCursor ?? null;
+  const handoverItems = handovers.data?.items ?? [];
+  const nextCursor = handoverMode
+    ? (handovers.data?.nextCursor ?? null)
+    : (inbox.data?.nextCursor ?? null);
   const intro = introFor({
     isUnion,
     isUnionHead,
@@ -133,104 +170,232 @@ export function WorkItemsPage() {
     isSectionHead,
     unassignedOnly,
   });
-  const filterCount = [
-    search,
-    view !== (isUnion ? 'ALL' : 'ACTIVE') ? view : undefined,
-    severity,
-    area,
-    category,
-    handler,
-    from,
-    to,
-    unassignedOnly ? 'yes' : undefined,
-  ].filter(Boolean).length;
+  const severityOptions = [
+    { value: '', label: 'Semua' },
+    ...Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label })),
+  ];
+  const areaOptions = Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }));
+  const categoryOptions = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }));
 
   return (
     <Stack gap="lg" className="monitoring-page">
-      <header className="page-intro page-intro--monitoring">
-        <div>
-          <p className="care-eyebrow">{intro.eyebrow}</p>
-          <h1>{intro.title}</h1>
-          <p>{intro.description}</p>
-        </div>
-        {!isUnion && aggregate.data ? (
-          <span className="dashboard-updated">
-            Diperbarui {formatRelative(aggregate.data.generatedAt)}
-          </span>
-        ) : null}
-      </header>
+      <HeroBand
+        eyebrow={intro.eyebrow}
+        title={intro.title}
+        description={intro.description}
+        updated={
+          !isUnion && aggregate.data
+            ? `Diperbarui ${formatRelative(aggregate.data.generatedAt)}`
+            : undefined
+        }
+        stats={
+          isUnion
+            ? privateDash.data
+              ? [
+                  {
+                    key: 'aktif',
+                    icon: <Activity />,
+                    value: activeCount(privateDash.data.status),
+                    label: 'Aktif',
+                    tone: 'brand',
+                  },
+                  isUnionHead
+                    ? {
+                        key: 'pending',
+                        icon: <Clock3 />,
+                        value: privateDash.data.pendingAssignment ?? 0,
+                        label: 'Belum ditugaskan',
+                        tone: 'brand',
+                      }
+                    : {
+                        key: 'selesai',
+                        icon: <CheckCircle2 />,
+                        value: bucketValue(privateDash.data.status, 'CLOSED'),
+                        label: 'Selesai',
+                        tone: 'brand',
+                      },
+                  {
+                    key: 'kritis',
+                    icon: <AlertTriangle />,
+                    value: bucketValue(privateDash.data.severity, 'CRITICAL'),
+                    label: 'Kritis',
+                    tone: 'danger',
+                  },
+                ]
+              : []
+            : aggregate.data
+              ? [
+                  {
+                    key: 'aktif',
+                    icon: <Activity />,
+                    value: activeCount(aggregate.data.status),
+                    label: 'Aktif',
+                    tone: 'brand',
+                  },
+                  isManager
+                    ? {
+                        key: 'pending',
+                        icon: <Clock3 />,
+                        value: aggregate.data.pendingAssignment ?? 0,
+                        label: 'Menunggu penugasan',
+                        tone: 'brand',
+                      }
+                    : isSectionHead
+                      ? {
+                          key: 'verifikasi',
+                          icon: <ScrollText />,
+                          value: bucketValue(aggregate.data.status, 'IN_VERIFICATION'),
+                          label: 'Verifikasi',
+                          tone: 'brand',
+                        }
+                      : {
+                          key: 'selesai',
+                          icon: <CheckCircle2 />,
+                          value: bucketValue(aggregate.data.status, 'CLOSED'),
+                          label: 'Selesai',
+                          tone: 'brand',
+                        },
+                  {
+                    key: 'kritis',
+                    icon: <AlertTriangle />,
+                    value: bucketValue(aggregate.data.severity, 'CRITICAL'),
+                    label: 'Kritis',
+                    tone: 'danger',
+                  },
+                ]
+              : []
+        }
+        chip={
+          isUnion ? (
+            <HeroChip icon={<ShieldCheck size={12} aria-hidden="true" />} label="Union Private" />
+          ) : isLeadership ? (
+            <HeroChip icon={<Lock size={12} aria-hidden="true" />} label="Read-only" />
+          ) : undefined
+        }
+      />
       {offline ? (
         <Alert tone="warning" title="Anda sedang offline">
           Daftar terbaru, detail, dan seluruh tindakan memerlukan koneksi.
         </Alert>
       ) : null}
-      {!isUnion && aggregate.data ? <MonitoringKpis data={aggregate.data} /> : null}
+      {typeof location.state === 'object' &&
+      location.state &&
+      'handoverSuccess' in location.state ? (
+        <Alert tone="success" title="Handover berhasil">
+          {String(location.state.handoverSuccess)}
+        </Alert>
+      ) : null}
 
-      <Card className="history-filters monitoring-filters">
-        <div className="history-filters__row">
-          <div className="history-filters__search">
-            <Input
-              label="Cari Voice"
-              value={search ?? ''}
-              onChange={(event) => setParam('search', event.target.value || undefined)}
-              leading={<Search size={16} />}
-              placeholder="ID atau judul"
-            />
-          </div>
-          <Select
-            label="Status"
-            value={view}
-            onValueChange={(value) => setParam('view', value)}
-            options={[
+      <div className="monitoring-search">
+        <Input
+          label="Cari Voice"
+          value={search ?? ''}
+          onChange={(event) => setParam('search', event.target.value || undefined)}
+          leading={<Search size={16} />}
+          placeholder={handoverMode ? 'Cari ID Voice' : 'Cari judul atau ID'}
+          hideLabel
+        />
+      </div>
+
+      <FilterPillRow
+        primary={[
+          ...(handoverMode
+            ? []
+            : [
+                {
+                  id: 'severity',
+                  label: 'Prioritas',
+                  value: severity ?? '',
+                  onValueChange: (value: string) => setParam('severity', value || undefined),
+                  options: severityOptions,
+                },
+              ]),
+          {
+            id: 'view',
+            label: 'Status',
+            value: view,
+            alwaysNeutral: true,
+            onValueChange: (value) => setParam('view', value),
+            options: [
               { value: 'ACTIVE', label: 'Aktif' },
+              ...(isManager ? [{ value: 'HANDOVERS', label: 'Handover Saya' }] : []),
               ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
               { value: 'ALL', label: 'Semua status' },
-            ]}
-          />
-          <Select
-            label="Severity"
-            value={severity ?? ''}
-            onValueChange={(value) => setParam('severity', value || undefined)}
-            options={Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-          <Select
-            label="Kategori"
-            value={category ?? ''}
-            onValueChange={(value) => setParam('category', value || undefined)}
-            options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-          <Select
-            label="Area"
-            value={area ?? ''}
-            onValueChange={(value) => setParam('area', value || undefined)}
-            options={Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }))}
-          />
-          {!isUnion ? (
-            <Select
-              label="Penanggung jawab"
-              value={handler ?? ''}
-              onValueChange={(value) => setParam('handler', value || undefined)}
-              options={(options.data?.handlers ?? []).map((option) => ({
-                value: option.id,
-                label: option.displayName,
-              }))}
-            />
-          ) : null}
-          {isUnionHead ? (
-            <Select
-              label="Penugasan"
-              value={unassignedOnly ? 'unassigned' : 'all'}
-              onValueChange={(value) =>
-                setParam('unassigned', value === 'unassigned' ? 'true' : undefined)
-              }
-              options={[
-                { value: 'all', label: 'Semua' },
-                { value: 'unassigned', label: 'Perlu ditugaskan' },
-              ]}
-            />
-          ) : null}
-          {!isUnion ? (
-            <>
+            ],
+          },
+          ...(handoverMode
+            ? []
+            : isUnion
+              ? isUnionHead
+                ? [
+                    {
+                      id: 'unassigned',
+                      label: 'Penugasan',
+                      value: unassignedOnly ? 'unassigned' : 'all',
+                      neutralValue: 'all',
+                      onValueChange: (value: string) =>
+                        setParam('unassigned', value === 'unassigned' ? 'true' : undefined),
+                      options: [
+                        { value: 'all', label: 'Semua' },
+                        { value: 'unassigned', label: 'Perlu ditugaskan' },
+                      ],
+                    },
+                  ]
+                : []
+              : [
+                  {
+                    id: 'area',
+                    label: 'Area',
+                    value: area ?? '',
+                    onValueChange: (value: string) => setParam('area', value || undefined),
+                    options: areaOptions,
+                  },
+                  {
+                    id: 'handler',
+                    label: 'PIC',
+                    value: handler ?? '',
+                    onValueChange: (value: string) => setParam('handler', value || undefined),
+                    options: [
+                      { value: '', label: 'Semua' },
+                      ...(options.data?.handlers ?? []).map((option) => ({
+                        value: option.id,
+                        label: option.displayName,
+                      })),
+                    ],
+                  },
+                ]),
+        ]}
+        secondary={
+          handoverMode
+            ? []
+            : [
+                ...(isUnion
+                  ? [
+                      {
+                        id: 'area',
+                        label: 'Area',
+                        value: area ?? '',
+                        onValueChange: (value: string) => setParam('area', value || undefined),
+                        options: areaOptions,
+                      },
+                    ]
+                  : []),
+                {
+                  id: 'category',
+                  label: 'Kategori',
+                  value: category ?? '',
+                  onValueChange: (value: string) => setParam('category', value || undefined),
+                  options: categoryOptions,
+                },
+              ]
+        }
+        onClear={clearFilters}
+        sheetContent={
+          handoverMode ? null : (
+            <div className="filter-pills__dates">
               <Input
                 label="Dari tanggal"
                 type="date"
@@ -243,46 +408,51 @@ export function WorkItemsPage() {
                 value={to ?? ''}
                 onChange={(event) => setParam('to', event.target.value || undefined)}
               />
-            </>
-          ) : null}
-        </div>
-        <div className="filter-summary">
-          <span>
-            {filterCount
-              ? `${filterCount} filter aktif`
-              : 'Menampilkan prioritas tertinggi lebih dulu'}
-          </span>
-          {filterCount ? (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Bersihkan filter
-            </Button>
-          ) : null}
-        </div>
-      </Card>
+            </div>
+          )
+        }
+      />
 
-      {inbox.isLoading ? (
-        <Skeleton label="Memuat daftar Voice" />
-      ) : inbox.isError ? (
+      {(handoverMode ? handovers.isLoading : inbox.isLoading) ? (
+        <Skeleton label={handoverMode ? 'Memuat riwayat handover' : 'Memuat daftar Voice'} />
+      ) : (handoverMode ? handovers.isError : inbox.isError) ? (
         <Card>
           <EmptyState
-            title="Daftar gagal dimuat"
+            title={handoverMode ? 'Riwayat handover gagal dimuat' : 'Daftar gagal dimuat'}
             description="Periksa koneksi lalu coba muat ulang."
           />
         </Card>
-      ) : items.length === 0 ? (
+      ) : handoverMode && handoverItems.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<ArrowRightLeft size={24} />}
+            title="Belum ada handover"
+            description="Handover yang Anda kirim atau terima akan muncul di sini tanpa memengaruhi antrean aktif."
+          />
+        </Card>
+      ) : !handoverMode && items.length === 0 ? (
         <Card>
           <EmptyState {...emptyStateFor({ isUnion, isUnionHead, unassignedOnly })} />
         </Card>
       ) : (
         <Stack gap="md">
-          <div className="voice-grid">
-            {items.map((voice) => (
-              <VoiceCard
-                key={voice.id}
-                voice={voice}
-                onOpen={() => void navigate(`/voices/${voice.id}`)}
-              />
-            ))}
+          <div className="inbox-list">
+            {handoverMode
+              ? handoverItems.map((item) => (
+                  <MyHandoverCard
+                    key={item.id}
+                    item={item}
+                    onOpen={() => void navigate(`/voices/${item.voice?.id}/handover-history`)}
+                  />
+                ))
+              : items.map((voice) => (
+                  <InboxVoiceCard
+                    key={voice.id}
+                    voice={voice}
+                    {...(isUnion ? { identity: { alias: voice.reporterAlias ?? null } } : {})}
+                    onOpen={() => void navigate(`/voices/${voice.id}`)}
+                  />
+                ))}
           </div>
           <Pager
             page={nav.page}
@@ -290,7 +460,7 @@ export function WorkItemsPage() {
             hasNext={Boolean(nextCursor)}
             onPrevious={() => nav.previous()}
             onNext={nextCursor ? () => nav.next(nextCursor) : undefined}
-            loading={inbox.isFetching}
+            loading={handoverMode ? handovers.isFetching : inbox.isFetching}
           />
         </Stack>
       )}
@@ -298,41 +468,30 @@ export function WorkItemsPage() {
   );
 }
 
-function MonitoringKpis({ data }: { data: DashboardAggregate }) {
-  const count = (label: string) => data.status.find((bucket) => bucket.label === label)?.value ?? 0;
-  const critical = data.severity.find((bucket) => bucket.label === 'CRITICAL')?.value ?? 0;
-  const active = count('OPEN') + count('IN_VERIFICATION') + count('IN_PROGRESS');
+function MyHandoverCard({ item, onOpen }: { item: HandoverHistoryItem; onOpen: () => void }) {
+  const source = item.direction === 'SENT' ? item.from : item.to;
+  const destination = item.direction === 'SENT' ? item.to : item.from;
   return (
-    <div className="monitor-kpis" aria-label="Ringkasan Voice Member">
-      <Card padding="md">
-        <Activity />
-        <span>
-          <strong>{active}</strong>
-          <small>Aktif</small>
-        </span>
-      </Card>
-      <Card padding="md">
-        <Inbox />
-        <span>
-          <strong>{count('IN_VERIFICATION')}</strong>
-          <small>Verifikasi</small>
-        </span>
-      </Card>
-      <Card padding="md">
-        <AlertTriangle />
-        <span>
-          <strong>{critical}</strong>
-          <small>Critical</small>
-        </span>
-      </Card>
-      <Card padding="md">
-        <CheckCircle2 />
-        <span>
-          <strong>{count('CLOSED')}</strong>
-          <small>Selesai</small>
-        </span>
-      </Card>
-    </div>
+    <button type="button" className="my-handover-card" onClick={onOpen}>
+      <span className="my-handover-card__topline">
+        <strong>{item.voice?.displayId}</strong>
+        <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+      </span>
+      <span className="my-handover-card__direction">
+        <em>{item.direction === 'SENT' ? 'Dikirim' : 'Diterima'}</em>
+        <span>{source.category.name ?? source.category.key}</span>
+        <ArrowRight size={15} aria-hidden="true" />
+        <span>{destination.category.name ?? destination.category.key}</span>
+      </span>
+      <span className="my-handover-card__department">
+        <Building2 size={15} aria-hidden="true" />
+        {destination.department.department ?? 'Department'} · {destination.pic.displayName}
+      </span>
+      {item.detail ? <span className="my-handover-card__note">“{item.detail}”</span> : null}
+      <span className="my-handover-card__open">
+        Buka riwayat <ArrowRight size={15} aria-hidden="true" />
+      </span>
+    </button>
   );
 }
 

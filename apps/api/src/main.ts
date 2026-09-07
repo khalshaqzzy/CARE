@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { createApp } from './bootstrap';
 import { loadConfig } from './config';
+import { createApp } from './bootstrap';
 
 async function main() {
   const app = await createApp();

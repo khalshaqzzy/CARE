@@ -157,29 +157,30 @@ Di repository GitHub buka **Settings → Environments**, lalu buat environment b
 
 Tambahkan environment secrets berikut:
 
-| Secret                  | Isi                                                         |
-| ----------------------- | ----------------------------------------------------------- |
-| `VM_HOST`               | hostname atau IPv4 VM tanpa scheme/port                     |
-| `VM_USER`               | deploy user, misalnya `care-deploy`                         |
-| `VM_SSH_PRIVATE_KEY`    | private key OpenSSH lengkap                                 |
-| `VM_SSH_KNOWN_HOSTS`    | output known-hosts yang fingerprint-nya telah diverifikasi  |
-| `CADDY_EMAIL`           | email valid untuk ACME                                      |
-| `POSTGRES_USER`         | identifier dotenv-safe, misalnya `care`                     |
-| `POSTGRES_PASSWORD`     | random minimum 32 karakter                                  |
-| `POSTGRES_DATABASE`     | identifier dotenv-safe, misalnya `care`                     |
-| `SESSION_HASH_SECRET`   | random minimum 32 karakter                                  |
-| `SESSION_CSRF_SECRET`   | random minimum 32 karakter dan berbeda                      |
-| `AUTH_THROTTLE_SECRET`  | random minimum 32 karakter dan berbeda                      |
-| `CURSOR_SIGNING_SECRET` | random minimum 32 karakter dan berbeda                      |
-| `METRICS_TOKEN`         | random minimum 32 karakter dan berbeda                      |
-| `CARE_ADMIN_USERNAME`   | username tunggal CARE Admin                                 |
-| `CARE_ADMIN_PASSWORD`   | initial password minimum 12 karakter, berbeda dari username |
-| `OPENAI_API_KEY`        | server-only DeepSeek key staging                            |
-| `OPENAI_MODEL`          | `deepseek-v4-flash`                                         |
-| `OPENAI_BASE_URL`       | `https://api.deepseek.com`                                  |
-| `VAPID_SUBJECT`         | `mailto:` atau HTTPS contact subject                        |
-| `VAPID_PUBLIC_KEY`      | public key dari CLI CARE                                    |
-| `VAPID_PRIVATE_KEY`     | private key pasangan VAPID staging                          |
+| Secret                         | Isi                                                            |
+| ------------------------------ | -------------------------------------------------------------- |
+| `VM_HOST`                      | hostname atau IPv4 VM tanpa scheme/port                        |
+| `VM_USER`                      | deploy user, misalnya `care-deploy`                            |
+| `VM_SSH_PRIVATE_KEY`           | private key OpenSSH lengkap                                    |
+| `VM_SSH_KNOWN_HOSTS`           | output known-hosts yang fingerprint-nya telah diverifikasi     |
+| `CADDY_EMAIL`                  | email valid untuk ACME                                         |
+| `POSTGRES_USER`                | identifier dotenv-safe, misalnya `care`                        |
+| `POSTGRES_PASSWORD`            | random minimum 32 karakter                                     |
+| `POSTGRES_DATABASE`            | identifier dotenv-safe, misalnya `care`                        |
+| `SESSION_HASH_SECRET`          | random minimum 32 karakter                                     |
+| `SESSION_CSRF_SECRET`          | random minimum 32 karakter dan berbeda                         |
+| `AUTH_THROTTLE_SECRET`         | random minimum 32 karakter dan berbeda                         |
+| `CURSOR_SIGNING_SECRET`        | random minimum 32 karakter dan berbeda                         |
+| `METRICS_TOKEN`                | random minimum 32 karakter dan berbeda                         |
+| `CARE_ADMIN_USERNAME`          | username tunggal CARE Admin                                    |
+| `CARE_ADMIN_PASSWORD`          | initial password minimum 12 karakter, berbeda dari username    |
+| `OPENAI_API_KEY`               | server-only key untuk provider staging aktif                   |
+| `OPENAI_CONFIG_ENCRYPTION_KEY` | random 32-byte base64url key, distinct from every other secret |
+| `OPENAI_MODEL`                 | saat ini `ibm-granite/granite-4.2-3b`                          |
+| `OPENAI_BASE_URL`              | saat ini `https://inference.qd-tmmin.site/v1`                  |
+| `VAPID_SUBJECT`                | `mailto:` atau HTTPS contact subject                           |
+| `VAPID_PUBLIC_KEY`             | public key dari CLI CARE                                       |
+| `VAPID_PRIVATE_KEY`            | private key pasangan VAPID staging                             |
 
 Optional environment secret:
 
@@ -189,10 +190,10 @@ Optional environment secret:
 
 Tambahkan environment variables:
 
-| Variable                  | Isi                                                                                    |
-| ------------------------- | -------------------------------------------------------------------------------------- |
-| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                            |
-| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; kosong berarti `none` |
+| Variable                  | Isi                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                                                                                          |
+| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; staging Granite saat ini sengaja kosong agar memakai provider default/full thinking |
 
 Secret proteksi yang berbeda fungsi harus memiliki value berbeda. Untuk secret dotenv-safe:
 

@@ -1,17 +1,35 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status roadmap         | Phase 0–12 done; Phase 13 staging delivery implementation complete locally and hosted acceptance in progress; Phase 14 pending                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Last updated           | 29 Agustus 2026 (Workforce secondary-surface polish — Account, Create Voice, Notifications — ADR-0020; no phase-status change)                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Current implementation | Production delivery remains locally verified. AI targets `deepseek-v4-flash` via Chat Completions (ADR-0017). Union Private Voice is role-aware (ADR-0018); leadership dashboards, unified monitoring, and conversation-state enforcement are implemented (ADR-0019). Workforce secondary surfaces — Account, Create Voice, Notifications — are polished through shared padded-surface/section primitives added to `packages/ui` (ADR-0020), with no API or schema change. Full local parity for the latest change is recorded in the session handoff. |
-| Current phase          | Phase 13 `in_progress`: QA remediation is locally complete; authenticated operator Safari retest plus GitHub/hosted two-origin/rehearsal evidence must still pass before `done`                                                                                                                                                                                                                                                                                                                                                                        |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Atribut                | Nilai                                                                                                                                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                    |
+| Last updated           | 6 September 2026 (password deferral/Voice polish and stable Alpine container remediation; ADR-0040/0041)                                                                                                                                                                       |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                           |
+| Current implementation | Workforce-only, session-scoped password deferral plus the approved login/Create Voice copy and polished responsive states are implemented locally. Persistent password policy and Union/Admin gates remain unchanged. Existing Phase 13 hosted acceptance status is unchanged. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                               |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                  |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
+
+## Workforce password deferral and Voice copy polish — 6 September 2026
+
+Implemented locally on `feat/visual-improvements-1`: authenticated and CSRF-protected `POST /api/v1/auth/defer-password-change` unlocks only the current restricted `WORKFORCE` session, records one transition audit, and leaves the account flag plus other sessions unchanged. Union and CARE Admin remain mandatory/default-deny. The workforce password gate offers `Lain kali` without explanatory helper copy; its policy helper and state-specific safe failure alerts use the approved copy. Login and Create Voice use the approved Indonesian copy, accessible `Isi Voice` label, location placeholder, and responsive wrapping/touch-target polish. ADR-0040 records the security and UX decision. Generated OpenAPI/client outputs, integration/full-stack coverage, and affected Linux x64/macOS visual baselines were refreshed. Phase 13 remains `in_progress`; no hosted delivery is claimed.
+
+## Voice consent and confirmation refinement — 5 September 2026
+
+Implemented locally on `feat/voice-consent-ui-polish`: audience-aware reporter labels, Private contact consent with additive immutable snapshots and atomic draft updates/submission, ATSG form helper, password back navigation, compact confirmation without classification-source metadata, and optional closure photos. ADR-0038 records the contract and migration. Phase 13 remains `in_progress`; hosted delivery is not claimed by this local refinement. Validation evidence is recorded in the latest session handoff.
+
+## Assignment scrolling refinement — 5 September 2026
+
+Implemented locally: a bounded assignment body with persistent actions, candidate search, selection summary, and loading/error recovery (ADR-0039). Responsive, keyboard, Axe and legacy WebKit regressions plus new visual baselines cover long candidate lists. Union General viewing investigation is explicitly deferred at user request; no browse changes were made. Phase 13 remains `in_progress` with hosted acceptance unchanged.
+
+PR #32 visual CI remediation: platform/architecture-specific Darwin/Linux ARM64/Linux x64 baselines replace cross-OS comparison for the new consent/assignment tests and identified detail. Thresholds and application behavior are unchanged; Phase 13 hosted acceptance remains open.
+
+Staging follow-up (5 September): PR #32 merged and hosted quality passed; container gate requires patched libuuid 2.42.3-r0 from a narrowly tagged source until the stable x86_64 package index catches up in both web runtimes and PostgreSQL. Phase 13 remains in progress until staging delivery succeeds.
+
+Container follow-up (6 September): stable Alpine v3.24 now supplies patched `libuuid 2.42.3-r1` for Linux x64 and ARM64. ADR-0041 removes the temporary edge repository and advances the exact pin in PostgreSQL and both nginx runtimes. Pulled Linux x64 production Compose build/runtime/persistence parity and Trivy 0.70.0 filesystem plus five-image HIGH/CRITICAL scans passed; task-started containers were removed. Hosted Phase 13 acceptance remains open until the authorized PR runs in CI.
 
 ## Sequencing Gates
 
@@ -527,6 +545,21 @@ Dependencies: Phase 7–10.
 
 Scope (implemented):
 
+- workforce capability resolver menetapkan `unsupported | core-online | pwa |
+push`: iOS 11.3 adalah minimum Core Online, Web Push iOS membutuhkan 16.4+
+  dan Home Screen, sedangkan Android/non-iOS tetap capability-driven tanpa
+  standalone requirement khusus iOS;
+- app dan custom service worker diturunkan ke target `safari11.3`; external ES5
+  bootstrap/polyfill mempertahankan static loading shell dan mengubahnya menjadi
+  retry/compatibility guidance ketika module gagal mount, tanpa inline script
+  atau legacy-plugin CSP exception;
+- Service Worker/Workbox diload secara lazy setelah probe PWA lulus. Failure
+  turun non-blocking ke Core Online dan legacy tier melakukan best-effort cleanup
+  registration/cache CARE lama; shared Select memakai native control ketika
+  PointerEvent/ResizeObserver tidak tersedia;
+- compatibility unit/artifact gate dan current-WebKit iOS 11.3 capability
+  emulation mencakup workforce online journeys. Real-device iOS 11.3 bukan
+  acceptance requirement dan limitation tersebut dicatat eksplisit;
 - workforce Web Push opt-in: `useWebPush` + `PushSettingsCard` (subscribe/
   unsubscribe/status, unconfigured/unsupported/denied/iOS-install degraded
   states, explicit gesture, session-keyed invalidation) wired to the existing
@@ -609,9 +642,34 @@ Evidence 28 Agustus 2026:
   ownership checks, CI bind setup, and local volume initialization use that
   image-defined identity.
 
+## Phase 12.5 — Dynamic General Voice Category Catalog
+
+Status: `done` — implementation and local static/database/full-stack parity complete; hosted delivery continues in Phase 13.
+
+Dependencies: Phase 12 baseline and ADR-0029.
+
+Scope:
+
+- migrate four static category assumptions to a revisioned database catalog with six Indonesian defaults, stable keys, archive/reactivate, immutable historical snapshots, and category reconciliation issues;
+- route each category to an exact fixed department or reporter department, derive PIC from active Department Head/default route, and retire global-special routing for new Voice;
+- expose authenticated workforce catalog and CSRF/idempotent/versioned Admin CRUD/history/status APIs plus server-side organization search and exact division filters;
+- inject only active Definition/Examples as structured AI context while retaining code-owned instruction/tool wrapper and Private `category=null`;
+- make Admin remediation and workforce fallback/dashboard/detail/filter surfaces consume the dynamic catalog;
+- update OpenAPI/contracts, fixtures, seeds, PRD, ADR, and handoff.
+
+Acceptance:
+
+- unit, lint, typecheck, OpenAPI, build, destructive-migration, and diff checks pass;
+- fresh and previous-schema migrations preserve Voice/classification/assignment/timeline/owner history and map legacy `FACILITY` to Fasilitas Umum;
+- database integration proves six default routes, related reporter department, effective-time PIC changes, archive semantics, and deterministic reconciliation;
+- Playwright proves Admin category lifecycle/search/filter/reorder/conflict/accessibility and workforce dynamic fallback/historical display;
+- mandatory security, deployment, performance, and full-stack parity passes before this phase becomes `done` and Phase 13 resumes.
+
+---
+
 ## Phase 13 — Staging Deployment and Rehearsal
 
-Status: `in_progress`
+Status: `in_progress` — resumed after Phase 12.5 local parity completed.
 
 Dependencies: Phase 12.
 
@@ -629,6 +687,29 @@ Acceptance:
 - end-to-end bootstrap/import/remediation serta critical workforce/Admin journeys green.
 
 Implementation state 28 Agustus 2026:
+
+- 2 September 2026 inference timeout alignment raises the env-only
+  `OPENAI_TIMEOUT_MS` default and ceiling from 30,000 to 60,000 ms per provider
+  attempt across API validation, local setup, deployment rendering, Compose,
+  and committed environment examples. The existing single transient retry is
+  retained, so two failed attempts can consume approximately 120 seconds. PRD
+  §13.5 and ADR-0028 now record the same boundary; Phase 13 status is unchanged;
+- 1 September 2026 classification prompt enrichment is locally complete: the
+  code-owned classification system prompt advances to `care-classification-v1.4`
+  with expanded injection defense, dominant-primary category selection with
+  boundary guidance, the full PRD severity rubric with per-level examples,
+  rationale-code definitions, fallback-threshold-aware confidence calibration,
+  and the smoke-test `DEFAULT_CATEGORY_CONTEXT` synchronized with the seeded
+  catalog definitions and ordered examples. Location prompt remains
+  `care-location-v1.2`. See ADR-0030;
+- 1 September 2026 local-provider extension is complete without changing this
+  phase status: independent `/inference` Compose runs Granite 4.2 3B through
+  SGLang on `dx-2`; the existing Cloudflare tunnel publishes
+  `inference.qd-tmmin.site`; CARE supports encrypted, hot-reloaded Admin AI
+  configuration with environment fallback; and live Granite plus DeepSeek
+  `none`/`high` classification/location scenarios passed. Context is 32,768
+  tokens and generated output is capped at 4,096. See ADR-0028. Hosted CARE
+  exact-SHA acceptance and rollback evidence below remain outstanding;
 
 - route remediation follow-up is locally complete: affected departments are
   visible in a comprehensive KPI/filter/impact/hierarchy/timestamp workspace and
@@ -657,10 +738,14 @@ Implementation state 28 Agustus 2026:
   fresh and previous-SHA migrations, mocked/serial full-stack browser journeys,
   workflow/shell/container acceptance, Gitleaks, dependency audit/review,
   CodeQL, and Trivy before calling the reusable deployment workflow;
-- automatic staging deploy includes live DeepSeek Chat Completions classification/location
-  validation and two-origin smoke. Web Push canary is implemented as a manually
+- automatic staging deploy includes live configured-provider Chat Completions
+  classification/location validation and two-origin smoke. Web Push canary is implemented as a manually
   invoked operational profile and is deliberately outside automated tests,
   deployment smoke, and the automatic deploy gate;
+- the PR #21 Caddy container gate remediation upgrades the embedded Go crypto,
+  network, and text modules to their fixed compatible set and moves the local
+  inference gateway runtime to pinned distroless; local Trivy 0.70.0 reports
+  zero High/Critical findings without an exception;
 - hosted GitHub run, exact-SHA origin verification, acceptance-data journeys,
   overlapping-candidate evidence, and forced-failure rollback rehearsal remain
   required. Authenticated Safari operator retest also remains required because
@@ -695,14 +780,201 @@ Delivery Complete Gate acceptance:
 
 ## Next Recommended Action
 
-Phase 12 selesai dan Phase 13 adalah satu-satunya phase `in_progress`. Langkah berikutnya:
+Phase 13 adalah satu-satunya phase `in_progress`. Langkah berikutnya:
 
-1. push candidate ke `staging`, pantau seluruh required GitHub job dan reusable
-   deploy sampai hijau, lalu cocokkan `/ready` dan kedua `/release.json` dengan
-   exact branch HEAD;
+1. pantau seluruh required GitHub job dan reusable deploy untuk candidate di
+   `staging`, lalu cocokkan `/ready` dan kedua `/release.json` dengan exact branch
+   HEAD;
 2. jalankan hosted acceptance-data journeys dan staging rehearsal guarded setelah
    dua release tersedia; rekam bukti pada `.agent/releaseExecutionChecklist.md`;
 3. enroll dan jalankan Web Push canary secara manual bila operator membutuhkan
    bukti provider delivery. Canary bukan automated test atau deployment gate;
 4. hanya setelah seluruh hosted evidence hijau, ubah Phase 13 menjadi `done`.
    Phase 14 dan seluruh production activation tetap `pending`.
+
+## Visual Exploration Track — Mobile Member Voice (done, 30 Agustus 2026)
+
+Status: `done` (non-code design artifact; tidak mengubah current Phase 13 status).
+
+- 25 current mobile states captured untuk Member, Manager/Section Head, Leadership, Union Head, dan Union Officer;
+- 25 standalone selected concepts tersusun per page/flow di `.design/member-voice-redesign/`;
+- Member Home core dipertahankan; Create Voice dan Voice detail mendapat focused visual redesign;
+- permission/read-only behavior dan anonymous/identified Private invariants tercatat dalam manifest dan prompt set;
+- implementation aplikasi sengaja deferred sampai ada approval terpisah atas visual direction.
+
+Acceptance evidence: `.design/member-voice-redesign/manifest.md` dan ADR-0021.
+
+## Voice Detail & Dedicated Chat Page Redesign (done, 1 September 2026)
+
+Status: `done` pada branch `feat/voice-detail-chat-redesign` (implementasi UI
+scoped; tidak mengubah API, schema, kontrak, atau Phase 13 status). Mengikuti
+ADR-0031 dan keputusan product owner: chatroom jadi halaman terpisah, hero biru
+menggantikan topbar hanya pada dua halaman ini, bintang rating biru kumulatif
+kiri→kanan, seluruh audiens distyle dengan elemen consent Union dipertahankan
+verbatim, dan bottom dock tidak diubah.
+
+- `packages/ui`: `RatingInput` mengisi bintang kumulatif (brand blue) untuk nilai
+  terpilih plus preview hover/keyboard; radio semantics dan label aksesibel
+  tetap; Admin tetap byte-identical.
+- `apps/web-voice`: komponen baru `VoiceHero` (varian full/compact/union/closed),
+  `LinkCard`, hook bersama `useConversation`; `ConversationPage` pada route baru
+  `/voices/:id/chat` menggantikan `ConversationPanel` inline (UNAVAILABLE →
+  redirect ke detail, READ_ONLY → log tanpa composer); `VoiceDetailPage`
+  direstrukturisasi (action row, seksi "Detail Voice" dengan meta rows berikon,
+  link cards Percakapan/Timeline, rating/closure/union cards restyle);
+  `WorkforceShell` menyembunyikan topbar hanya untuk dua route ini.
+- e2e: mock API mendapat `POST /voices/{id}/messages` stateful +
+  `categoryNameSnapshot`; specs journeys/member/legacy/a11y/security/visual
+  diperbarui; baseline visual detail/chat/lightbox/close-sheet/assign-sheet/
+  union-identified diregenerasi delete-first dan diverifikasi dua run
+  berturut-turut; axe/no-overflow chat page pada 360/768/1440.
+- Validasi lokal hijau: format, lint, typecheck, unit (UI 26, workforce 68,
+  Admin 2, frontend-core 14, API 70), build production, pwa compat, openapi
+  tanpa drift, destructive-migration check, compose config, audit (1 moderate,
+  di bawah ambang high), seluruh proyek Playwright non-fullstack 156 passed,
+  Gitleaks, `git diff --check`. Suite berbasis database dilewati sesuai
+  preseden change set frontend-only. Review visual: dua putaran judge terhadap
+  kedua mockup referensi (truncation ID hero, clearance composer, avatar plate,
+  focus ring, chip separators diperbaiki; putaran kedua pass semua).
+
+## Closure Review Window & Auto-Acceptance (done, 2 September 2026)
+
+Status: `done` pada branch `feat/close-voice-2-days` (skema + API + kontrak +
+workforce UI; Phase 13 staging acceptance tidak berubah). Mengikuti ADR-0032
+dan keputusan product owner terkunci: empat status Voice tetap; hasil review
+penutupan adalah state `ClosureReviewState` (PENDING/ACCEPTED/REJECTED) pada
+`ClosureCycle`; lewat 2 hari tanpa rating → auto-accept oleh worker dengan
+notifikasi reporter + PIC penutup; rating terlambat setelah auto-accept masih
+bisa (sekali, tanpa reopen); rating ≤2 tanpa reopen final; reopen hanya atomik
+dengan rating dalam jendela.
+
+- `apps/api`: enum `ClosureReviewState`, `VoiceEventType.AUTO_ACCEPTED`,
+  `NotificationType.CLOSURE_AUTO_ACCEPTED`; `ClosureCycle` +
+  `reviewState/reviewDeadline/reviewResolvedAt` + index; migrasi aditif dengan
+  backfill deterministik (REJECTED untuk cycle reopen, ACCEPTED untuk cycle
+  ber-rating/expired, sisanya PENDING); env `CLOSURE_REVIEW_DAYS` (default 2);
+  `close()` membuka jendela + body notifikasi menyebut jendela 2 hari;
+  `rate()` menegakkan satu-rating-per-cycle, eligibilitas reopen dari deadline
+  (kebal lag worker), rating terlambat tanpa mengubah `reviewResolvedAt`;
+  worker `ClosureReviewService` (interval 30 detik, `OUTBOX_ENABLED`, state-
+  guarded & idempoten) flip expired → ACCEPTED + event `AUTO_ACCEPTED`
+  system-generated (actor snapshot PIC penutup, `payload.system: true`) + 2
+  notifikasi via outbox; serializer cycle/list/dashboard
+  (`closedPendingReview`); OpenAPI + generated client diregenerasi.
+- `apps/web-voice`: `voiceStatusDisplay` + `formatRemaining` +
+  `statusFlagTone` review-aware; hero pill/dot, VoiceCard/HistoryVoiceCard/
+  InboxVoiceCard memakai label turunan ("Menunggu Penilaian"/"Diterima"/
+  "Dibuka Kembali"); RatingCard dua varian (notice countdown untuk PENDING,
+  notice auto-accept untuk ACCEPTED tanpa rating; toggle reopen hilang pada
+  varian auto-accepted); ClosureSection badge review; HomePage attention card
+  "Menunggu penilaian Anda" dari `closedPendingReview`.
+- e2e: mock API stateful `POST /voices/{id}/rate` (menulis rating + review
+  state + flip status pada reopen) dan dashboard `closedPendingReview`; empat
+  journey baru (reopen, accept, auto-accept + rating terlambat, attention
+  card home); axe/no-overflow detail closed 360px; baseline
+  `workforce-detail-closed-360.png` diregenerasi delete-first + baseline baru
+  `workforce-detail-closed-auto-accepted-360.png`, dua run berturut-turut
+  hijau, judge visual pass.
+- Unit: `actions.test.ts` (RATE hanya cycle tanpa rating, REOPEN tak pernah
+  standalone), `domain.test.ts` (ratingError reopenAllowed), `config.test.ts`
+  (env baru), `formatters.test.ts` (label turunan + countdown). Integration:
+  suite baru `closure-review.integration.test.ts` (6 kasus: window, accept,
+  reject+reopen, window-closed, worker auto-accept + idempoten + rating
+  terlambat, re-close cycle baru) dan seluruh suite lain tetap hijau.
+- Koreksi 4 September 2026: cycle `PENDING` yang deadline-nya sudah lewat kini
+  diproyeksikan langsung sebagai `ACCEPTED` pada detail/list dan dikeluarkan
+  dari `closedPendingReview`, tanpa menunggu tick worker. Worker hanya memilih
+  cycle unrated/unreopened pada Voice `CLOSED`. RatingCard juga menutup dan
+  menyembunyikan reopen saat deadline lewat. Toggle ambigu diganti dua aksi
+  submit eksplisit: `Buka kembali` langsung mengirim rating+reopen atomik dan
+  `Kirim tanpa buka kembali` menerima closure dengan rating rendah.
+  Regression mencakup PostgreSQL read-model sebelum tick serta journey browser
+  expired-pending dan kedua keputusan rating rendah; timely reopen tetap hijau.
+
+## Manager-to-Manager Voice Handover (implementation complete, 2 September 2026)
+
+Status: `done` untuk implementation scope lokal pada branch
+`feat/manager-handoff`; **Phase 13 tetap `in_progress`** dan existing staging
+status tidak berubah. Mengikuti ADR-0033 dan PRD §41.
+
+- Additive operational-category fields dan append-only `VoiceHandover` ledger;
+  immutable submission classification dipertahankan. Migration backfill
+  menginisialisasi operational category tanpa mengubah owner/status/event/ID.
+- Manager current route owner dapat handover hanya pada unassigned General
+  Voice `OPEN`; status tetap `OPEN`, destination category/route/PIC di-resolve
+  ulang, version naik, event/audit sanitasi dibuat, dan hanya PIC baru menerima
+  notification. Row lock + version recheck juga diterapkan pada Ask/Proceed/
+  Assign untuk one-winner concurrency.
+- Note 1–4.000 karakter diotorisasi per transfer pair. Former PIC mendapat
+  restricted history dan `Handover Saya` tanpa Voice content; CARE Admin,
+  reporter, leadership, timeline, notification/outbox, dan work-item DTO tidak
+  menerima note.
+- Workforce menambah decision-row Handover, route `/voices/:id/handover` dengan
+  exact shared `VoiceHero`, current route, searchable category cards,
+  Department Reporter badge, disabled route gaps, required private note,
+  confirmation, sticky responsive footer, stale recovery, dan restricted
+  history. Design showcase mengunci seluruh component state.
+- Acceptance lokal mencakup generated schema/OpenAPI, action/search unit tests,
+  PostgreSQL A→B→C/idempotency/privacy tests, serta Playwright journey,
+  conflict retention, keyboard selection, axe, dan restricted history.
+  Final parity results dicatat di `sessionHandoff.md`; hosted deployment tetap
+  pekerjaan Phase 13 terpisah.
+
+## Workforce login hero artwork and copy refresh (implementation complete, 3 September 2026)
+
+Status: `done` untuk implementation scope lokal pada branch
+`feat/auth-submit-page-polish`; **Phase 13 tetap `in_progress`** dan staging
+status tidak berubah. Mengikuti ADR-0036.
+
+- Login page (hanya login; ChangePasswordPage tidak berubah) memakai hero
+  varian media: lockup, headline "Selamat datang di CARE." dengan aksen,
+  dan artwork member-voice full-bleed (`src/assets/auth-hero-asset.png`,
+  1152×768 PNG dengan alpha terverifikasi) yang tepinya menyentuh tepi
+  background biru dan wave-nya menjadi tepi bawah hero.
+- Copy login diperbarui: subtitle "Login untuk melanjutkan ke CARE",
+  placeholder username "Contoh: 00111111", helper "Gunakan 8 digit NoReg
+  Anda.". Password placeholder tetap "Password".
+- Animated drifting password placeholder ditunda secara eksplisit
+  (follow-up ADR-0036); tidak ada kode overlay/animasi yang di-commit.
+- Acceptance lokal: format/lint/typecheck/unit (API 79, UI 26,
+  frontend-core 14, Admin 2, workforce 81), production build, PWA budget,
+  mocked e2e 177/177 termasuk baseline login 360 regen delete-first dua
+  run deterministik, Gitleaks, dan `git diff --check`. Suite berbasis
+  database tidak dijalankan ulang (change set frontend-only).
+
+## Workforce submit success receipt (implementation complete, 4 September 2026)
+
+Status: `done` untuk implementation scope lokal pada branch
+`feat/submit-voice-asset`; **Phase 13 tetap `in_progress`** dan staging status
+tidak berubah. Mengikuti ADR-0037.
+
+- Submit General/Private sukses menuju receipt sementara `/voices/submitted`;
+  receipt dikonsumsi satu kali, refresh/direct access kembali ke `/history`,
+  dan preview diganti dalam history agar draft yang sudah terkirim tidak dibuka
+  kembali.
+- Receipt melewati Workforce shell sepenuhnya dan menyediakan aksi ke Voice
+  Saya serta dashboard capability-aware tanpa fetch atau Voice identifier.
+- Supplied transparent character asset dipertahankan; blueprint grid, success
+  mark, dan layered SVG waves direkonstruksi code-native. White crest terakhir
+  membentuk batas bawah bergelombang tanpa seam lurus.
+- PNG fingerprinted masuk PWA precache; tidak ada perubahan backend, database,
+  OpenAPI, shared UI, atau authorization contract.
+- Acceptance lokal: format/lint/typecheck/unit/build/PWA compatibility hijau;
+  mocked functional/Axe/keyboard/no-overflow/PWA coverage ditambah; tiga
+  baseline 360/768/1440 diregenerasi delete-first dan stabil; full Playwright
+  suite 185/185 hijau. Suite database tidak dijalankan ulang karena perubahan
+  frontend-only.
+
+## PIC, Management and Union organization dashboards — 7 September 2026
+
+Implementation complete locally on `feat/pic-dashboard`; local parity is complete and PR delivery is authorized under the existing Phase 13. Phase 13 remains the only current `in_progress` phase; hosted acceptance is unchanged.
+
+- ADR-0042 and PRD §18.8 define handling/reporter aggregation, primary PIC mapping, section projection, Union isolation and privacy threshold five.
+- Additive migration/backfill, lifecycle projection, strict scoped metadata/aggregate/preview endpoints and regenerated OpenAPI/client are implemented.
+- Dashboard body includes KPI, URL filters, SVG charts, authorized inbox and personal reporting below. Mobile filters use a compact organization sheet; Member/Admin shell behavior is preserved.
+- New platform baselines cover 360/768/1440, persona/level/basis and empty/loading/error/protected states. Functional, accessibility, lifecycle, migration, performance and full-stack coverage is included.
+- Commit/push and a PR to `staging` are authorized. Hosted checks must not be monitored for this delivery. Actual local parity results and remaining limitations are maintained in the session handoff.
+
+### Dashboard CI performance correction — 7 September 2026
+
+The initial hosted quality job failed at dashboard p95 4,518 ms. SQL aggregation now avoids full-row temporary materialization and combines summary queries. The same constrained Linux workload improved from 4,464 to 2,460 ms without changing the 3,000 ms target. Bucket consistency is covered by an additional PostgreSQL integration test. Local parity is complete (integration 75, security 14, browser 282, full-stack 4, constrained Linux performance and production container/security gates passed). Corrective delivery remains within Phase 13; hosted acceptance is not inferred.

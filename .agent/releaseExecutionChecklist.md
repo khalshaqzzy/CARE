@@ -15,6 +15,10 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 ## CI Release Gate
 
 - [ ] Quality/contracts/build green.
+- [ ] Workforce app dan custom worker dibangun dengan target `safari11.3`; compatibility bootstrap external berada sebelum module entry dan tidak ada inline script CSP exception.
+- [ ] `pnpm pwa:compat-check` lulus: entry/worker bebas syntax yang tidak dapat diparse Safari 11.3 dan gzip bootstrap-app tidak melewati budget +15% tanpa ADR/review.
+- [ ] Chromium, PWA Chromium, current WebKit legacy-capability emulation, visual, dan full-stack browser projects yang relevan hijau.
+- [ ] Evidence menyatakan iOS 11.3 diuji melalui build/probe/artifact/current-WebKit emulation; real-device iOS 11.3 tidak diklaim sebagai acceptance evidence.
 - [ ] PostgreSQL integration, security, performance, and reconciliation green.
 - [ ] Fresh migration and previous-SHA-to-current migration/status green.
 - [ ] Mocked Playwright and serial full-stack Playwright green.
@@ -31,6 +35,7 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 - [ ] PostgreSQL healthy; forward-only migration completed; Admin bootstrap completed without credential output.
 - [ ] API exact-SHA readiness passed.
 - [ ] Live DeepSeek Chat Completions classification and location function schemas passed.
+- [x] 1 September 2026: independent `dx-2` Granite stack, `inference.qd-tmmin.site` tunnel route, unauthenticated 401, authenticated model list, and exact-one classification/location calls passed; this stack was not built by CARE deploy. Granite retains named forcing; DeepSeek thinking uses its documented tool mode without named `tool_choice` and remains fail-closed.
 - [ ] Workforce, Admin, and Caddy became healthy in order.
 - [ ] Internal and external two-origin smoke passed.
 - [ ] `current` and `current_release` changed only after smoke success.

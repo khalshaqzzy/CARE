@@ -1,8 +1,18 @@
-import { Alert, Button, Card, Checkbox, Dialog, Select, Stack, Textarea } from '@care/ui';
+import { Alert, Button, ChoiceCardGroup, Dialog, Input, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { ACTION_LABELS, STATUS_LABELS } from '../lib/formatters';
+import {
+  ArrowLeftRight,
+  Check,
+  ImagePlus,
+  Lock,
+  MessagesSquare,
+  Play,
+  Send,
+  UserRound,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ACTION_LABELS } from '../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
@@ -13,6 +23,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const api = useApi();
   const sessionId = useSessionId();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const actions = detail.availableActions ?? [];
   const [active, setActive] = useState<Action>('none');
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +32,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const askKey = useMutationKey('ask');
   const proceedKey = useMutationKey('proceed');
   const closeKey = useMutationKey('close');
-  const rateKey = useMutationKey('rate');
   const assignKey = useMutationKey('assign');
 
   const invalidate = () => {
@@ -32,10 +42,10 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const ask = useMutation({
     mutationFn: async (text: string) =>
       api.ask(detail.id, { text, version: detail.version }, askKey.key()),
+    // PRD §16: asking opens and focuses the verification room.
     onSuccess: () => {
       invalidate();
-      setNotice('Percakapan verifikasi telah dibuka.');
-      setActive('none');
+      void navigate(`/voices/${detail.id}/chat`);
     },
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
     onSettled: askKey.reset,
@@ -61,17 +71,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
     onSettled: closeKey.reset,
   });
-  const rate = useMutation({
-    mutationFn: (body: { score: number; feedback?: string; reopen: boolean }) =>
-      api.rate(detail.id, body, rateKey.key()),
-    onSuccess: () => {
-      invalidate();
-      setNotice('Rating berhasil disimpan.');
-      setActive('none');
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: rateKey.reset,
-  });
   const assign = useMutation({
     mutationFn: (body: { handlerAccountId: string; reason?: string }) =>
       api.assign(detail.id, { ...body, expectedVersion: detail.version }, assignKey.key()),
@@ -87,10 +86,59 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   if (!actions.length) return null;
 
   return (
-    <Card className="action-panel" padding="md">
-      <div className="action-panel__head">
-        <h3>Tindakan</h3>
-        <span className="action-panel__status">{STATUS_LABELS[detail.status]}</span>
+    <>
+      <div className="action-panel" role="group" aria-label="Tindakan">
+        {actions.some((action) => ['ASSIGN', 'REASSIGN', 'ASK'].includes(action)) ? (
+          <div
+            className="action-row action-row--secondary"
+            role="group"
+            aria-label="Aksi pendukung"
+          >
+            {actions.includes('ASSIGN') ? (
+              <Button variant="secondary" onClick={() => setActive('assign')}>
+                <UserRound size={18} aria-hidden="true" />
+                {ACTION_LABELS.ASSIGN}
+              </Button>
+            ) : null}
+            {actions.includes('REASSIGN') ? (
+              <Button variant="secondary" onClick={() => setActive('reassign')}>
+                <ArrowLeftRight size={18} aria-hidden="true" />
+                {ACTION_LABELS.REASSIGN}
+              </Button>
+            ) : null}
+            {actions.includes('ASK') ? (
+              <Button variant="secondary" onClick={() => setActive('ask')}>
+                <MessagesSquare size={18} aria-hidden="true" />
+                {ACTION_LABELS.ASK}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {actions.some((action) => ['HANDOVER', 'PROCEED', 'CLOSE'].includes(action)) ? (
+          <div className="action-row action-row--primary" role="group" aria-label="Keputusan Voice">
+            {actions.includes('HANDOVER') ? (
+              <Button
+                variant="secondary"
+                onClick={() => void navigate(`/voices/${detail.id}/handover`)}
+              >
+                <Send size={18} aria-hidden="true" />
+                {ACTION_LABELS.HANDOVER}
+              </Button>
+            ) : null}
+            {actions.includes('PROCEED') ? (
+              <Button variant="primary" onClick={() => setActive('proceed')}>
+                <Play size={18} aria-hidden="true" />
+                {ACTION_LABELS.PROCEED}
+              </Button>
+            ) : null}
+            {actions.includes('CLOSE') ? (
+              <Button variant="primary" onClick={() => setActive('close')}>
+                <Check size={18} aria-hidden="true" />
+                {ACTION_LABELS.CLOSE}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {error ? (
         <Alert tone="danger" title="Periksa kembali">
@@ -102,28 +150,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           {notice}
         </Alert>
       ) : null}
-      <div className="action-panel__grid">
-        {actions.includes('ASK') ? (
-          <Button onClick={() => setActive('ask')}>{ACTION_LABELS.ASK}</Button>
-        ) : null}
-        {actions.includes('ASSIGN') ? (
-          <Button onClick={() => setActive('assign')}>{ACTION_LABELS.ASSIGN}</Button>
-        ) : null}
-        {actions.includes('REASSIGN') ? (
-          <Button onClick={() => setActive('reassign')}>{ACTION_LABELS.REASSIGN}</Button>
-        ) : null}
-        {actions.includes('PROCEED') ? (
-          <Button onClick={() => setActive('proceed')}>{ACTION_LABELS.PROCEED}</Button>
-        ) : null}
-        {actions.includes('CLOSE') ? (
-          <Button variant="primary" onClick={() => setActive('close')}>
-            {ACTION_LABELS.CLOSE}
-          </Button>
-        ) : null}
-        {actions.includes('RATE') ? (
-          <Button onClick={() => setActive('rate')}>{ACTION_LABELS.RATE}</Button>
-        ) : null}
-      </div>
 
       <Dialog
         open={active === 'ask'}
@@ -138,27 +164,21 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         />
       </Dialog>
 
-      <Dialog
+      <AssignDialog
         open={active === 'assign' || active === 'reassign'}
-        onOpenChange={(open) => setActive(open ? active : 'none')}
-        title={active === 'reassign' ? 'Alihkan Penanggung' : 'Tugaskan Penanggung'}
-        description={
-          detail.visibility === 'PRIVATE'
-            ? active === 'reassign'
-              ? 'Pilih Union Officer lain untuk melanjutkan penanganan Voice ini.'
-              : 'Pilih Union Officer yang akan menangani Voice ini.'
-            : active === 'reassign'
-              ? 'Pilih Section Head lain untuk melanjutkan penanganan Voice ini.'
-              : 'Pilih Section Head yang akan menangani Voice ini.'
+        reassign={active === 'reassign'}
+        detail={detail}
+        onCancel={() => setActive('none')}
+        onConfirm={(body) => assign.mutate(body)}
+        loading={assign.isPending}
+        error={
+          assign.isError
+            ? assign.error instanceof Error
+              ? assign.error.message
+              : 'Penugasan gagal. Coba lagi.'
+            : null
         }
-      >
-        <AssignDialog
-          detail={detail}
-          onCancel={() => setActive('none')}
-          onConfirm={(body) => assign.mutate(body)}
-          loading={assign.isPending}
-        />
-      </Dialog>
+      />
 
       <Dialog
         open={active === 'proceed'}
@@ -176,8 +196,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       <Dialog
         open={active === 'close'}
         onOpenChange={(open) => setActive(open ? 'close' : 'none')}
+        mobileSheet
         title="Tutup Voice"
-        description="Voice hanya dapat ditutup dari In Progress dengan catatan penutupan."
+        description="Voice akan ditutup dan status berubah menjadi Selesai."
       >
         <CloseDialog
           detail={detail}
@@ -186,29 +207,22 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           loading={close.isPending}
         />
       </Dialog>
-
-      <Dialog
-        open={active === 'rate'}
-        onOpenChange={(open) => setActive(open ? 'rate' : 'none')}
-        title="Beri rating"
-        description="Rating 1–2 mewajibkan feedback dan dapat membuka kembali Voice."
-      >
-        <RateDialog
-          onCancel={() => setActive('none')}
-          onConfirm={(body) => rate.mutate(body)}
-          loading={rate.isPending}
-        />
-      </Dialog>
-    </Card>
+    </>
   );
 }
 
 function AssignDialog({
+  open,
+  reassign,
+  error,
   detail,
   onCancel,
   onConfirm,
   loading,
 }: {
+  open: boolean;
+  reassign: boolean;
+  error: string | null;
   detail: VoiceDetail;
   onCancel: () => void;
   onConfirm: (body: { handlerAccountId: string; reason?: string }) => void;
@@ -219,59 +233,132 @@ function AssignDialog({
   const candidates = useQuery({
     queryKey: voiceQuery(sessionId, 'assign-candidates', detail.id),
     queryFn: () => api.assignmentCandidates(detail.id),
+    enabled: open,
   });
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
-  const options: { value: string; label: string }[] = (candidates.data ?? []).map((candidate) => ({
-    value: candidate.id,
-    label: candidate.slot
-      ? `${candidate.displayName} (${candidate.slot.replace('_', ' ')})`
-      : candidate.displayName,
-  }));
-  const empty = (candidates.data ?? []).length === 0;
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    if (!open) {
+      setSelected('');
+      setReason('');
+      setSearch('');
+    }
+  }, [open]);
+  const all = candidates.data ?? [];
+  const visible = all.filter((candidate) =>
+    candidate.displayName.toLocaleLowerCase('id').includes(search.trim().toLocaleLowerCase('id')),
+  );
+  const selectedCandidate = all.find((candidate) => candidate.id === selected);
   return (
-    <Stack gap="md">
-      {candidates.isLoading ? (
-        <p className="dialog-copy">Memuat penanggung yang tersedia…</p>
-      ) : empty ? (
-        <Alert tone="warning" title="Tidak ada penanggung">
-          Tidak ada kandidat eligible untuk Voice ini.
-        </Alert>
-      ) : (
-        <Select
-          label="Penanggung"
-          value={selected}
-          onValueChange={setSelected}
-          options={options}
-          {...(detail.visibility === 'PRIVATE'
-            ? { helperText: 'Hanya Union Officer yang dapat ditugaskan.' }
-            : {})}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !loading) onCancel();
+      }}
+      mobileSheet
+      className="assignment-dialog"
+      title={reassign ? 'Alihkan Penanggung' : 'Tugaskan Penanggung'}
+      description={
+        detail.visibility === 'PRIVATE'
+          ? 'Pilih Union Officer untuk menangani Voice ini.'
+          : 'Pilih Section Head untuk menangani Voice ini.'
+      }
+      footer={
+        <div className="assignment-footer">
+          {selectedCandidate ? (
+            <p className="assignment-footer__selection">
+              Dipilih: <strong>{selectedCandidate.displayName}</strong>
+            </p>
+          ) : null}
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={loading} onClick={onCancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={loading}
+              disabled={!selectedCandidate || candidates.isError}
+              onClick={() => {
+                const trimmed = reason.trim();
+                onConfirm({ handlerAccountId: selected, ...(trimmed ? { reason: trimmed } : {}) });
+              }}
+            >
+              Tugaskan
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <Stack gap="md">
+        {error ? (
+          <Alert tone="danger" title="Penugasan belum tersimpan">
+            {error}
+          </Alert>
+        ) : null}
+        {all.length > 5 ? (
+          <Input
+            label="Cari penanggung"
+            placeholder={
+              detail.visibility === 'PRIVATE' ? 'Cari nama petugas' : 'Cari nama Section Head'
+            }
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        ) : null}
+        {candidates.isLoading ? (
+          <p className="dialog-copy">Memuat penanggung yang tersedia…</p>
+        ) : candidates.isError ? (
+          <Alert tone="danger" title="Kandidat gagal dimuat">
+            <Button variant="secondary" onClick={() => void candidates.refetch()}>
+              Coba lagi
+            </Button>
+          </Alert>
+        ) : all.length === 0 ? (
+          <Alert tone="warning" title="Tidak ada penanggung">
+            Tidak ada penanggung yang tersedia untuk Voice ini.
+          </Alert>
+        ) : visible.length === 0 ? (
+          <p className="dialog-copy" role="status">
+            Tidak ada nama yang cocok. Coba kata pencarian lain.
+          </p>
+        ) : (
+          <>
+            {all.length > 5 ? (
+              <p className="assignment-count" role="status">
+                {visible.length} dari {all.length} penanggung
+              </p>
+            ) : null}
+            <ChoiceCardGroup
+              label="Penanggung"
+              value={selected}
+              onValueChange={setSelected}
+              columns={1}
+              indicator="radio"
+              appearance="brand"
+              options={visible.map((candidate) => ({
+                value: candidate.id,
+                label: candidate.displayName,
+                ...(candidate.activeCount !== undefined
+                  ? { description: `${candidate.activeCount} Voice aktif` }
+                  : {}),
+                icon: <UserRound size={18} />,
+              }))}
+            />
+          </>
+        )}
+        {detail.visibility === 'PRIVATE' ? (
+          <p className="dialog-copy">Hanya Union Officer yang dapat ditugaskan.</p>
+        ) : null}
+        <Textarea
+          label="Alasan (opsional)"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          rows={2}
+          maxLength={500}
         />
-      )}
-      <Textarea
-        label="Alasan (opsional)"
-        value={reason}
-        onChange={(event) => setReason(event.target.value)}
-        rows={2}
-        maxLength={500}
-      />
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onCancel}>
-          Batal
-        </Button>
-        <Button
-          variant="primary"
-          loading={loading}
-          disabled={!selected}
-          onClick={() => {
-            const trimmed = reason.trim();
-            onConfirm({ handlerAccountId: selected, ...(trimmed ? { reason: trimmed } : {}) });
-          }}
-        >
-          Tugaskan
-        </Button>
-      </div>
-    </Stack>
+      </Stack>
+    </Dialog>
   );
 }
 
@@ -378,24 +465,28 @@ function CloseDialog({
     <Stack gap="md">
       <div className="closure-evidence">
         <Textarea
-          label="Catatan penutupan"
+          label="Catatan penyelesaian"
           value={note}
           onChange={(event) => setNote(event.target.value)}
           rows={4}
           maxLength={4000}
           required
+          placeholder="Jelaskan tindakan yang telah dilakukan"
         />
-        <p className="dialog-copy">
-          Bukti penutupan (foto) diperlukan. Bukti dan catatan bersifat permanen setelah tersimpan.
-        </p>
-        <button
-          type="button"
-          className="closure-evidence__add"
-          onClick={() => fileInput.current?.click()}
-          disabled={uploading || evidence.length >= 5}
-        >
-          <ImagePlus size={16} /> Tambah foto bukti ({evidence.length}/5)
-        </button>
+        <p className="closure-evidence__label">Foto bukti penyelesaian (opsional)</p>
+        <div className="closure-evidence__shelf">
+          {evidence.length ? (
+            <MediaGallery attachments={evidence} label="Bukti penyelesaian" />
+          ) : null}
+          <button
+            type="button"
+            className="closure-evidence__add"
+            onClick={() => fileInput.current?.click()}
+            disabled={uploading || evidence.length >= 5}
+          >
+            <ImagePlus size={16} /> Tambah foto
+          </button>
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -412,11 +503,12 @@ function CloseDialog({
             {uploadError}
           </Alert>
         ) : null}
-        {evidence.length ? (
-          <MediaGallery attachments={evidence} label="Bukti penutupan" />
-        ) : (
-          <p className="dialog-copy">Minimal satu foto bukti wajib dilampirkan.</p>
-        )}
+        {evidence.length === 0 && !uploading ? (
+          <p className="dialog-copy">Tambahkan hingga 5 foto bila diperlukan.</p>
+        ) : null}
+        <p className="closure-evidence__privacy">
+          <Lock size={14} aria-hidden="true" /> Catatan dan bukti akan terlihat oleh pelapor.
+        </p>
       </div>
       <div className="dialog-actions">
         <Button variant="ghost" onClick={onCancel}>
@@ -425,72 +517,10 @@ function CloseDialog({
         <Button
           variant="primary"
           loading={loading}
-          disabled={!note.trim() || evidence.length === 0}
+          disabled={!note.trim() || uploading}
           onClick={() => onConfirm({ note, version: detail.version })}
         >
           Tutup Voice
-        </Button>
-      </div>
-    </Stack>
-  );
-}
-
-function RateDialog({
-  onCancel,
-  onConfirm,
-  loading,
-}: {
-  onCancel: () => void;
-  onConfirm: (body: { score: number; feedback?: string; reopen: boolean }) => void;
-  loading: boolean;
-}) {
-  const [score, setScore] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('');
-  const [reopen, setReopen] = useState(false);
-  const needsFeedback = score !== null && score <= 2;
-  return (
-    <Stack gap="md">
-      <Select
-        label="Rating"
-        value={score ? String(score) : ''}
-        onValueChange={(value) => setScore(Number(value))}
-        options={[1, 2, 3, 4, 5].map((value) => ({ value: String(value), label: `${value}/5` }))}
-      />
-      <Textarea
-        label="Feedback"
-        value={feedback}
-        onChange={(event) => setFeedback(event.target.value)}
-        rows={3}
-        maxLength={2000}
-        helperText={needsFeedback ? 'Wajib untuk rating 1–2' : 'Opsional untuk rating 3–5'}
-        required={needsFeedback}
-      />
-      {needsFeedback ? (
-        <Checkbox
-          checked={reopen}
-          onCheckedChange={setReopen}
-          label="Buka kembali Voice ini"
-          description="Membuka kembali memulai siklus penutupan baru dengan PIC terakhir."
-        />
-      ) : null}
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onCancel}>
-          Batal
-        </Button>
-        <Button
-          variant="primary"
-          loading={loading}
-          disabled={score === null || (needsFeedback && !feedback.trim())}
-          onClick={() => {
-            const trimmed = feedback.trim();
-            onConfirm({
-              score: score!,
-              reopen,
-              ...(trimmed ? { feedback: trimmed } : {}),
-            });
-          }}
-        >
-          Kirim Rating
         </Button>
       </div>
     </Stack>

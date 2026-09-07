@@ -26,10 +26,18 @@ export default tseslint.config(
   },
   { files: ['**/*.mjs'], extends: [tseslint.configs.disableTypeChecked] },
   {
+    files: ['apps/web-voice/public/compat-bootstrap.js'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ['**/*.test.ts', '**/*.spec.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      // Unit-test files are excluded from their package tsconfig, so the
+      // projectService resolves their imports as `any`.
+      '@typescript-eslint/no-unsafe-return': 'off',
     },
   },
 );

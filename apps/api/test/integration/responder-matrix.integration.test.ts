@@ -66,7 +66,7 @@ async function seedVoice(
       title: 'matrix voice',
       detail: 'detail',
       severity: Severity.MEDIUM,
-      category: null,
+      categoryKey: null,
       anonymousAlias: `R-${seq}`,
       version: 1,
     },
@@ -238,6 +238,19 @@ describe('Responder and leadership permission matrix', () => {
     await expect(
       voices.workItems(manager, { status: VoiceStatus.OPEN, statusGroup: 'ACTIVE' }),
     ).rejects.toMatchObject({ code: 'STATUS_FILTER_CONFLICT' });
+  });
+
+  it('exposes the PIC display name on work items and null while unassigned', async () => {
+    const assigned = await seedVoice({
+      status: VoiceStatus.IN_VERIFICATION,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    const unassigned = await seedVoice({ status: VoiceStatus.OPEN });
+    const items = await voices.workItems(manager, {});
+    const byId = new Map(items.items.map((item) => [item.id, item]));
+    expect(byId.get(assigned.id)).toMatchObject({ currentHandlerName: 'Section Head' });
+    expect(byId.get(unassigned.id)).toMatchObject({ currentHandlerName: null });
   });
 
   it('isolates Union Officer access to assigned Private voices only', async () => {

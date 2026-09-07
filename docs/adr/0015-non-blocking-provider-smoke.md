@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 28 August 2026
-- Related: ADR-0007 (local SGLang inference provider), ADR-0011 (single VM / immutable releases), PRD §13.5 (Manual Fallback), §28.3 (readiness with degraded dependency), §31.1 (staging auto-deploy), §39 (release readiness)
+- Related: ADR-0028 (local Granite inference and Admin runtime configuration), ADR-0011 (single VM / immutable releases), PRD §13.5 (Manual Fallback), §28.3 (readiness with degraded dependency), §31.1 (staging auto-deploy), §39 (release readiness)
 
 ## Context
 
@@ -18,7 +18,7 @@ integration, and container tests.
 
 However, the provider is an external, environment-specific dependency. The
 configured staging provider (the local SGLang tunnel behind
-`pad-llm-api.qd-tmmin.site`, ADR-0007) was not yet verifiable from the
+the former experimental local-provider hostname) was not yet verifiable from the
 deployment environment at the time this decision was made, which blocked every
 otherwise-green staging release. The product already treats an unavailable AI
 provider as a degraded, non-fatal condition (PRD §13.5 Manual Fallback and
@@ -110,7 +110,7 @@ with Manual Fallback active.` warning.
   requires the live smoke to pass.
 - The provider itself still needs remediation: the `OPENAI_*` secrets must
   resolve to a reachable, function-compatible `/chat/completions` endpoint before the
-  staging acceptance evidence is complete (ADR-0007 follow-up).
+  staging acceptance evidence is complete (ADR-0028 follow-up).
 
 ## Validation
 
@@ -123,8 +123,8 @@ with Manual Fallback active.` warning.
 
 ## Follow-up work
 
-- Restore/verify the provider public hostname (`pad-llm-api.qd-tmmin.site`
-  DNS record in the Cloudflare `qd-tmmin.site` zone) or point `OPENAI_*`
-  staging secrets at a reachable, schema-compatible endpoint.
+- Verify the supported provider public hostname (`inference.qd-tmmin.site`,
+  ADR-0028) or point the effective Admin/environment configuration at another
+  reachable, schema-compatible endpoint.
 - Re-run a live provider smoke to green before claiming hosted Phase 13
   acceptance evidence.

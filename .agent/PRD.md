@@ -1,15 +1,15 @@
 # Product Requirements Document (PRD): CARE Enterprise Member Voice
 
-| Atribut             | Nilai                                                                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Status dokumen      | **Active product contract v1.1**                                                                                           |
-| Status implementasi | **Phase 0–12 complete; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
-| Versi dokumen       | 1.1                                                                                                                        |
-| Tanggal             | 28 Agustus 2026                                                                                                            |
-| Product owner       | TMMIN                                                                                                                      |
-| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                  |
-| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                 |
-| Source of truth     | Dokumen ini                                                                                                                |
+| Atribut             | Nilai                                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status dokumen      | **Active product contract v1.1**                                                                                                                                       |
+| Status implementasi | **Phase 0–12 complete; Manager Voice handover implemented locally; Phase 13 staging implementation locally complete, hosted acceptance in progress; Phase 14 pending** |
+| Versi dokumen       | 1.1                                                                                                                                                                    |
+| Tanggal             | 31 Agustus 2026                                                                                                                                                        |
+| Product owner       | TMMIN                                                                                                                                                                  |
+| Pengguna utama      | Member/karyawan, Manager/Department Head, Section Head, leadership, Union, dan CARE Admin                                                                              |
+| Platform            | Workforce mobile-first PWA dan aplikasi Admin React terpisah, dengan satu backend/OpenAPI contract bersama                                                             |
+| Source of truth     | Dokumen ini                                                                                                                                                            |
 
 Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**, **MUST NOT/dilarang**, **SHOULD/sebaiknya**, dan **MAY/dapat** bersifat normatif. Bila source code, prototype, fixture, atau asumsi implementasi berbeda dengan dokumen ini, perbedaan wajib diekskalasi dan source of truth terkait wajib diperbarui; implementer tidak boleh memilih perilaku secara diam-diam.
 
@@ -20,6 +20,12 @@ Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**,
 CARE adalah aplikasi pelaporan suara member (_member voice_) untuk lingkungan enterprise manufacturing. CARE menyediakan jalur mobile yang aman dan dapat ditelusuri untuk menyampaikan temuan, keluhan, ide, informasi, atau apresiasi; mengklasifikasikan kategori dan severity melalui DeepSeek Chat Completions dengan function calling; memberi peringatan kelengkapan lokasi; meneruskan General Voice kepada Manager/Department Head atau Section Head dan Private Voice kepada Union; menyediakan chat verifikasi; serta mencatat penyelesaian, bukti, rating, feedback, dan reopen.
 
 CARE memakai workforce PWA dan aplikasi Admin React yang terpisah, tetapi keduanya menggunakan satu backend dan generated OpenAPI client yang sama. Backend menjadi satu-satunya akses ke PostgreSQL dan media. Seluruh perubahan lifecycle disimpan sebagai timeline append-only dengan actor dan timestamp. General Voice memakai deterministic server routing dari organization master. Private Voice selalu masuk kepada Union Head dan dapat didelegasikan kepada Union 1 atau Union 2; identitas reporter kepada Union mengikuti consent immutable pada Voice, sedangkan CARE Admin memiliki read-only access ke content dan identitas lengkap.
+
+### 1.1 Amandemen Kategori General Voice Dinamis — 1 September 2026
+
+Amandemen ini menggantikan seluruh referensi lama kepada empat enum kategori dan PIC global di dokumen ini. General Voice memakai katalog kategori database yang berversi, dapat dikelola Admin, dan memiliki stable key. Enam seed awal adalah `SAFETY`, `ENVIRONMENT`, `FACILITY` (nama **Fasilitas Umum**), `FACILITY_REPAIR`, `WORK_DIFFICULTY`, dan `WELFARE`. Admin dapat menambah kategori, mengubah nama/Definition/Examples dan route, serta archive/reactivate tanpa hard delete. Instruction, anti-prompt-injection, severity rubric, tool wrapper, dan output contract tetap immutable di kode; Definition dan Examples hanyalah structured context tambahan berbahasa Indonesia.
+
+Setiap kategori memilih `FIXED_DEPARTMENT` atau `RELATED_REPORTER_DEPARTMENT`. Fixed department menunjuk exact composite organization unit dan memakai route aktif Department Head/default PIC unit tersebut. Related department berarti organization unit reporter. PIC efektif selalu diturunkan dari route department saat submit; perubahan berikutnya tidak memindahkan Voice historis. `GLOBAL_SPECIAL` dan remediation PIC global dipertahankan hanya untuk membaca histori/rollback satu release dan tidak digunakan Voice baru.
 
 V1 memakai arsitektur monolitik single-VM per environment. Staging menyediakan workforce di `https://care.qd-tmmin.site` dan Admin di `https://admin-ped.qd-tmmin.site`; kedua production domain akan ditentukan kemudian. Keputusan v1 tidak menyediakan backup, point-in-time recovery, high availability, atau disaster recovery. Hal tersebut merupakan **Critical Accepted Risk**, bukan kemampuan yang boleh diklaim tersedia.
 
@@ -276,8 +282,10 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 
 - Username karyawan adalah `no_reg` dan unik.
 - Password awal sama dengan `no_reg`.
-- Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`; hanya endpoint session, logout, dan change password yang dapat diakses.
+- Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**
+- Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`. Akun `WORKFORCE` dapat memilih **Lain kali** untuk membuka hanya sesi aktif; `UserAccount.passwordChangeRequired` tetap `true`, sehingga sesi baru kembali restricted sampai password benar-benar diganti. Sebelum change atau defer, hanya endpoint session, CSRF, logout, change password, dan workforce defer password yang dapat diakses.
 - Password baru memiliki panjang 6–128 karakter, tidak memiliki syarat simbol/huruf/angka, dan tidak boleh sama dengan username atau password sementara.
+- Helper form menggunakan copy **“Password minimal 6 karakter dan tidak boleh sama dengan username dan password sebelumnya”**. Alert kegagalan tetap berada di halaman dan membedakan konfirmasi yang tidak sama, password saat ini yang tidak sesuai, reuse, rate limit/offline, dan kegagalan umum tanpa menampilkan pesan backend mentah.
 - Password disimpan dengan Argon2id; plaintext tidak pernah disimpan atau dicatat.
 
 ### 8.2 Union Login
@@ -286,6 +294,8 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 - Password awal sama dengan username dan wajib diganti saat login pertama.
 - Setiap Union account adalah account individual; credential dan session tidak dibagi.
 - Penggantian password hanya mencabut session lain milik account tersebut.
+
+Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi biasa, atau Kembali ke login melalui logout untuk sesi yang wajib mengganti password. Pilihan **Lain kali** hanya tersedia bagi account kind `WORKFORCE`, berlaku pada sesi aktif, dan wajib muncul kembali pada login berikutnya selama account flag belum dihapus melalui change password. Union tetap wajib mengganti password sebelum mengakses aplikasi dan tidak dapat menunda.
 
 ### 8.3 CARE Admin Bootstrap
 
@@ -347,22 +357,19 @@ Aturan:
 
 ### 9.3 Route dan Account Remediation
 
-Preview wajib menampilkan create/update/deactivate/unchanged, perubahan posisi/unit, missing Department Head, invalid default/global PIC, `Department = 14`, dan status tiga akun Union. Confirm memakai checksum, expected version, idempotency key, dan satu transaction.
+Preview wajib menampilkan create/update/deactivate/unchanged, perubahan posisi/unit, missing Department Head, invalid default PIC atau category route, `Department = 14`, dan status tiga akun Union. Confirm memakai checksum, expected version, idempotency key, dan satu transaction.
 
 Setelah confirm, Admin remediation queue menyediakan minimum action berikut:
 
 - menunjuk karyawan aktif mana pun sebagai default PIC untuk organization unit bernama tanpa Department Head;
-- memilih tepat satu Department Head aktif sebagai PIC global Safety/Environment/Facility;
+- memperbaiki fixed category target atau default PIC department ketika category route tidak sehat;
+- mengelola katalog General Voice: nama, Definition, Examples terurut, route, status, dan revision history;
 - membuat/memperbaiki tepat satu Union Head dan dua Union Officer;
 - mengganti mapping yang invalid karena monthly snapshot dengan audit reason.
 
-Setiap issue route wajib menampilkan nama department yang terdampak; issue PIC global
-menampilkan scope seluruh department. Penyelesaian default PIC dan PIC global hanya
-meminta satu input **No. Reg**. Backend mencari account workforce aktif dari No. Reg,
-memvalidasi eligibility route, dan membuat audit reason sistem; Account ID, expected
-route ID, dan alasan bebas tidak ditampilkan atau diterima dari form remediation.
+Setiap issue route wajib menampilkan nama department atau kategori yang terdampak. Penyelesaian default PIC meminta satu input **No. Reg**. Konfigurasi kategori memilih organization unit melalui pencarian server-side dengan exact division filter. Backend memvalidasi organization unit dan PIC efektif; Account ID tidak dipilih secara khusus per kategori.
 
-Default PIC memperoleh Manager capability hanya pada unit target dan hanya dapat assign Section Head unit target. PIC global hanya dapat assign Section Head department asalnya. Mapping tidak memindahkan ownership Voice yang sudah disubmit.
+Default PIC memperoleh Manager capability hanya pada unit target dan hanya dapat assign Section Head unit target. Assignment kategori selalu memakai Section Head unit route yang benar-benar dipakai. Mapping tidak memindahkan ownership Voice yang sudah disubmit.
 
 ### 9.4 Import Audit dan Raw File
 
@@ -439,6 +446,9 @@ Workforce mobile memakai bottom navigation untuk primary journeys dan sidebar/to
 
 Langkah pertama wajib menampilkan dua pilihan eksplisit: **Private Voice** atau **General Voice**. Setelah pilihan dibuat, form menampilkan field berikut.
 
+- General Voice memakai keterangan **“Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan”**.
+- Private Voice memakai keterangan **“Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).”**
+
 Field wajib:
 
 - Area Temuan: satu dari lima `Area`;
@@ -448,7 +458,17 @@ Field wajib:
 - Visibility: `PRIVATE` atau `GENERAL`, berasal dari pilihan langkah pertama;
 - `Tampilkan nama`: `YA` atau `TIDAK`, wajib hanya untuk Private dan tidak boleh dikirim untuk General.
 
-Lampiran foto bersifat opsional:
+Detail Lokasi memakai placeholder **“Contoh: Welding 2, Toilet Selatan”** dan kelompok input judul/detail/foto memakai heading **“Isi Voice”**.
+
+Private Voice juga memiliki checkbox kesediaan komunikasi pribadi di bawah pilihan identitas:
+**“Untuk menghindari fitnah, jika diperlukan saya bersedia diajak komunikasi lebih lanjut secara pribadi oleh Team CARE dengan tetap menjaga kerahasiaan identitas saya.”**
+Checkbox awalnya tidak dicentang. Draft dapat disimpan/dianalisis tanpa persetujuan, tetapi submit wajib memiliki `privateContactConsent=true`.
+Consent ini terpisah dari `showReporterIdentity` dan tidak memberi akses identitas tambahan kepada Union. Peralihan ke General menghapus kedua pilihan Private.
+Voice menyimpan snapshot immutable consent, waktu pencatatan server saat submit, dan versi pernyataan `v1`; Voice historis tetap `null`, tanpa backfill persetujuan.
+
+Lampiran foto bersifat opsional. Form buat/edit Voice menampilkan helper abu-abu **“Foto harap mengikuti aturan ATSG ya teman-teman.”**
+
+Batas lampiran:
 
 - maksimum lima file;
 - maksimum 10 MB per file;
@@ -458,6 +478,8 @@ Lampiran foto bersifat opsional:
 Detail Lokasi menjalankan location review otomatis setelah debounce/on-blur ketika nilai memenuhi minimum length. Review di-cache berdasarkan content hash. Hasil `INCOMPLETE` menampilkan warning dan maksimal tiga pertanyaan saran di bawah field; pertanyaan tersebut adalah guidance, bukan field/action wajib. Kegagalan review menampilkan degraded state tetapi tidak memblokir form.
 
 Button **Selesai** menyimpan/update `VoiceDraft`, memvalidasi media, lalu meminta AI classification. Private meminta severity saja; General meminta category dan severity. Button tidak mengirim Voice kepada responder.
+
+Pada detail dan percakapan, audience General responder melihat nama snapshot pelapor, sedangkan reporter sendiri melihat PIC. Identitas Private tetap mengikuti consent/alias yang disaring server, termasuk pada detail Closed.
 
 ### 12.2 Preview Voice
 
@@ -472,9 +494,9 @@ Preview menampilkan:
 - Severity Low/Medium/High/Critical;
 - Private/General;
 - kategori routing untuk General;
-- pilihan tampil/sembunyikan identitas untuk Private;
+- pilihan tampil/sembunyikan identitas dan status kesediaan komunikasi pribadi untuk Private;
 - hasil location review dan warning terbaru;
-- indikator apakah hasil berasal dari AI atau Manual Fallback.
+- status kelengkapan lokasi; sumber klasifikasi AI/Manual Fallback tidak ditampilkan pada kartu konfirmasi.
 
 Hasil AI confidence tinggi bersifat read-only. Reporter dapat memilih **Kembali** untuk mengubah input; perubahan area, detail lokasi, judul, detail, visibility, consent identity, atau organization master reporter membatalkan snapshot yang content hash-nya terpengaruh dan mewajibkan review/klasifikasi ulang.
 
@@ -484,13 +506,16 @@ Jika snapshot location review terbaru adalah `INCOMPLETE`, lanjut/submit wajib m
 
 Button **Kirim Voice**:
 
-1. memvalidasi draft ownership dan version;
+1. memvalidasi draft ownership/version secara atomik dan kesediaan komunikasi pribadi pada Private;
 2. memvalidasi classification masih cocok dengan content hash;
 3. memvalidasi location-review acknowledgment bila snapshot terbaru `INCOMPLETE`;
 4. memvalidasi route owner masih aktif/eligible dan unik;
 5. membuat Voice, immutable organization/identity/classification/location snapshots, attachment link, route owner, event `SUBMITTED`, dan notification dalam satu transaction;
 6. mengubah status menjadi `OPEN`;
-7. menampilkan detail Riwayat Voice yang baru.
+7. menampilkan halaman konfirmasi **Terima kasih** tanpa app chrome. Halaman ini
+   bersifat sementara setelah submit; CTA **Lihat riwayat Voice** menuju Voice
+   Saya (`/history`) dan CTA **Ke dashboard** menuju dashboard capability-aware
+   (`/`). Refresh atau direct access ke route konfirmasi dialihkan ke Riwayat.
 
 Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan `Department = 14`, missing Department Head/default PIC, missing PIC global, atau Union account set tidak lengkap—submission ditolak dengan error yang dapat diperbaiki, draft dan media tetap tersimpan, dan tidak ada Voice parsial.
 
@@ -506,13 +531,14 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 
 ### 13.1 Model Contract
 
-- Protocol: DeepSeek OpenAI-compatible Chat Completions API, endpoint `/chat/completions`.
+- Protocol: OpenAI-compatible Chat Completions API, endpoint `/chat/completions`, untuk DeepSeek maupun local Granite.
 - SDK: official `openai` JavaScript/TypeScript package dengan `chat.completions.create`.
-- Base URL, model, dan API key tidak memiliki non-test production default dan akan diberikan melalui runtime environment.
-- Runtime config: `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, dan `OPENAI_CONFIDENCE_THRESHOLD`.
-- Prompt version, reasoning effort, timeout, dan confidence threshold berasal dari runtime/config; reasoning effort kosong memakai default `none`, default threshold tetap `0.75`, dan timeout maksimum per attempt tetap 10 detik sampai product config menggantinya.
-- Authentication menggunakan server-only API key dari runtime environment. API key tidak boleh masuk repository, dokumentasi, log, response, metric, atau client bundle.
-- Request memakai dua messages, satu forced named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
+- Base URL, model, API key, reasoning effort, dan confidence threshold memakai singleton Admin override bila tersedia dan environment sebagai bootstrap/fallback. Perubahan Admin aktif untuk request berikutnya tanpa restart; timeout tetap env-only.
+- Admin override menyimpan API key dengan AES-256-GCM menggunakan `OPENAI_CONFIG_ENCRYPTION_KEY`, optimistic version, actor, dan waktu update. Kegagalan dekripsi fail-closed dan tidak boleh fallback diam-diam ke key environment.
+- Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Granite kosong memakai full thinking dengan `enable_thinking=true` dan `low_effort=false`.
+- Authentication menggunakan server-only API key. API key/ciphertext tidak boleh masuk repository, dokumentasi, log, response, audit, readiness, metric, OpenAPI example, atau client bundle.
+- Request memakai dua messages, tepat satu named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Named `tool_choice` dipaksa untuk Granite dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
+- Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.4`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, definisi rationaleCode, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Setiap perubahan konten prompt wajib menaikkan versi prompt.
 
 Structured response minimum:
 
@@ -568,12 +594,12 @@ AI tidak memilih user/PIC ID. Backend memetakan category kepada master data seca
 | High     | Dampak signifikan atau potensi risiko terhadap safety, quality, productivity, atau people | Ergonomi menyebabkan sakit, abnormalitas mesin, manpower shortage berulang, blocked walkway, konflik berulang                                                  |
 | Critical | Bahaya segera, serious people/compliance issue, atau potensi dampak bisnis besar          | Near miss berpotensi cedera berat, api/asap/listrik, unsafe machine, harassment/violence/discrimination, chemical spill, major line stop/customer quality risk |
 
-Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emergency response. UI Critical wajib menyarankan reporter menghubungi jalur darurat lokal bila terdapat bahaya langsung; CARE tetap menerima Voice jika reporter melanjutkan.
+Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emergency response. UI Critical wajib menyarankan reporter menghubungi jalur darurat lokal bila terdapat bahaya langsung; CARE tetap menerima Voice jika reporter melanjutkan. Rubrik ini, termasuk contoh per level, tertanam dalam classification system prompt yang code-owned; perubahan konten prompt wajib menaikkan versi prompt.
 
 ### 13.5 Confidence dan Fallback
 
 - Default confidence threshold adalah `0.75` dan configurable per environment.
-- Satu retry diperbolehkan untuk transient error dengan timeout maksimum 10 detik per attempt.
+- Satu retry diperbolehkan untuk transient error dengan timeout default dan maksimum 60 detik per attempt.
 - Timeout, exhausted retry, refusal/incomplete response, invalid JSON/schema, empty response, atau confidence di bawah threshold mengaktifkan Manual Fallback.
 - Manual Fallback General mewajibkan reporter memilih category dan severity; Private hanya memilih severity.
 - Location review failure menghasilkan `UNKNOWN`/degraded state dan tidak memblokir form atau submit.
@@ -607,19 +633,22 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 - Union Head dapat assign/reassign Union 1 atau Union 2 sebelum `IN_PROGRESS`; Officer hanya memperoleh assigned scope.
 - Consent identity disnapshot saat submit dan menentukan Union DTO; Admin DTO selalu memuat profil reporter lengkap secara read-only.
 
-### 14.2 Safety, Environment, dan Facility
+### 14.2 Route Berbasis Kategori
 
-- Ketiga category route kepada satu PIC global yang sama untuk seluruh area.
-- PIC global wajib merupakan Department Head aktif yang dipilih Admin.
-- Area Temuan dan department reporter tidak memengaruhi owner, tetapi tetap disnapshot untuk context, filter, dan analytics.
-- PIC global hanya dapat assign Section Head pada department asal PIC global.
-
-### 14.3 Work Difficulty
-
-- Route kepada Department Head aktif pada organization unit komposit reporter.
-- Bila unit bernama tidak mempunyai Department Head, route memakai default PIC aktif yang dipilih Admin.
-- Default PIC dapat berasal dari department/division mana pun tetapi memperoleh scoped Manager capability hanya pada unit target dan assign kandidat Section Head unit target.
+- Safety, Environment, dan Fasilitas Umum seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Plant GA & SHE Dept`.
+- Facility Repair seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Smart Plant Facility Mfg Dept`.
+- Fasilitas Kerja / Kesulitan Kerja dan Kesejahteraan seed memakai `RELATED_REPORTER_DEPARTMENT`.
+- Fixed route memilih tepat satu Department Head/default PIC aktif pada organization unit target. Related route memilih route aktif organization unit reporter.
+- Bila exact seed unit belum tersedia, kategori tetap ada, route berstatus gap, dan remediation issue dibuka; sistem tidak menebak unit dari nama parsial.
 - Reporter dengan `Department = 14` tidak mempunyai General route; submission ditolak dan hanya Private yang dapat dibuat.
+
+### 14.3 Versioning dan Histori Kategori
+
+- Stable key immutable dan menjadi nilai filter/dashboard; nama dapat berubah melalui revision baru.
+- Voice menyimpan category ID/key/name snapshot, route mapping, serta route owner pada saat submit.
+- Klasifikasi menyimpan category revision yang dipakai; edit prompt tidak membatalkan klasifikasi lama selama kategori tetap aktif.
+- Archive menghapus kategori dari AI context dan fallback baru. Draft lama ditolak dengan `CATEGORY_CONFIGURATION_CHANGED` dan media/draft dipertahankan.
+- Minimal satu kategori aktif. Tidak ada hard delete terhadap kategori atau revision.
 
 ### 14.4 Route Invariant dan Effective History
 
@@ -655,8 +684,12 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 | In Verification | Ask/continue chat | Route owner/current handler            | In Verification | Status tetap; message/event ditambah           |
 | In Verification | Proceed           | Route owner/current handler            | In Progress     | Handler dikonfirmasi                           |
 | In Verification | Reassign          | Manager atau Union Head                | In Verification | Scoped handler diganti                         |
-| In Progress     | Close             | Route owner/current handler            | Closed          | Closure cycle selesai                          |
+| In Progress     | Close             | Route owner/current handler            | Closed          | Closure cycle selesai; review window dibuka    |
 | Closed          | Rate 1–2 + Reopen | Reporter                               | In Verification | PIC terakhir dipertahankan; cycle baru dimulai |
+
+Status Voice tetap empat nilai; hasil review penutupan (`PENDING`/`ACCEPTED`/`REJECTED`)
+adalah state pada `ClosureCycle` yang ditampilkan sebagai label turunan, bukan status
+kelima (§17.4).
 
 ### 15.3 Transition Rules
 
@@ -709,10 +742,10 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 ### 17.1 Closure
 
-Close wajib memuat:
+Close wajib memuat catatan, version, dan idempotency key. Foto bersifat opsional:
 
 - closure note 1–4.000 karakter;
-- minimal satu dan maksimal lima foto bukti;
+- foto bukti opsional, maksimum lima foto;
 - expected Voice version;
 - idempotency key.
 
@@ -744,6 +777,40 @@ Closure yang sudah tersimpan tidak dapat diedit. Kesalahan diperbaiki melalui re
 - Jika PIC terakhir telah inactive, reopen ditolak dengan remediation Admin sampai ownership diperbaiki; record Closed/rating tetap aman.
 - Reopen menambahkan event `REOPENED`, menyertakan feedback sebagai alasan, dan memulai Closure Cycle berikutnya.
 - Reopen dapat berulang tanpa limit numerik; seluruh cycle tetap immutable.
+
+### 17.4 Closure Review Window dan Auto-Acceptance
+
+Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
+(enum `ClosureReviewState`) beserta `reviewDeadline` dan `reviewResolvedAt`:
+
+- Close membuka **jendela review 2 hari** (`CLOSURE_REVIEW_DAYS`, default 2):
+  `reviewDeadline = closedAt + 2 hari`, cycle dimulai pada `PENDING`. Notifikasi
+  closure kepada reporter menyebutkan jendela penilaian ini.
+- **Rating 3–5** (feedback opsional) menyelesaikan cycle menjadi `ACCEPTED`
+  secara final; opsi reopen tidak pernah ditawarkan.
+- **Rating 1–2** wajib feedback; reopen bersifat atomik dengan rating (§17.3):
+  - Reopen ditolak (`REJECTED`, `reopenedAt` terisi, Voice kembali In
+    Verification, cycle baru dimulai pada close berikutnya) — hanya jika
+    `now <= reviewDeadline`.
+  - Tanpa reopen, cycle menjadi `ACCEPTED` secara final; reopen belakangan
+    tidak mungkin (reopen tidak pernah ditawarkan sebagai action terpisah).
+- **Lewat 2 hari tanpa rating** → background worker (interval ±30 detik,
+  state-guarded dan idempoten) menandai cycle `ACCEPTED` dengan
+  `reviewResolvedAt = reviewDeadline`, menambahkan event `AUTO_ACCEPTED`
+  (system-generated, di-atribusikan ke snapshot PIC penutup dengan
+  `payload.system: true` sehingga UI menampilkannya tanpa nama actor), dan
+  menotifikasi reporter maupun PIC penutup (`CLOSURE_AUTO_ACCEPTED`).
+- **Rating terlambat setelah auto-accept tetap bisa** (sekali, karena satu
+  rating per cycle): direkam sebagai masukan, Voice tetap `ACCEPTED`,
+  `reviewResolvedAt` tidak berubah, dan reopen selalu ditolak
+  (`REOPEN_NOT_ALLOWED`) setelah jendela tutup.
+- Eligibilitas reopen dievaluasi dari `reviewDeadline` pada saat rating (kebal
+  lag worker), bukan dari review state tersimpan.
+- Status Voice yang tampil adalah label turunan: Closed+PENDING →
+  "Menunggu Penilaian", Closed+ACCEPTED → "Diterima",
+  In Verification dengan cycle terakhir REJECTED → "Dibuka Kembali".
+- Member Home menampilkan card perhatian "Menunggu penilaian Anda" dengan
+  jumlah Voice milik reporter yang cycle-nya masih `PENDING`.
 
 ---
 
@@ -839,6 +906,7 @@ tidak mempunyai Voice Saya.
 - status menjadi In Verification/In Progress;
 - closure kepada reporter;
 - rating/reopen kepada PIC;
+- auto-accept closure kepada reporter dan PIC penutup (`CLOSURE_AUTO_ACCEPTED`);
 - reset/deactivation/security event yang relevan.
 
 ### 19.3 Privacy Payload
@@ -868,7 +936,8 @@ tidak mempunyai Voice Saya.
 | UserAccount             | username, password hash, account kind, password-change/legacy state              |
 | AccountCapability       | derived/scoped Member, Manager, Section Head, leadership, atau legacy access     |
 | DepartmentRoute         | structural Department Head atau Admin default PIC mapping dan effective history  |
-| GlobalCategoryRoute     | satu active Department Head owner untuk Safety/Environment/Facility              |
+| GeneralVoiceCategory    | stable key, status, audit metadata, dan relasi revision/route                    |
+| CategoryRevision/Route  | nama/Definition/Examples dan mode/target dengan effective history                |
 | UnionProfile            | Union Head atau Union Officer slot dan active state                              |
 | ImportBatch/ImportIssue | checksum, authoritative diff, issue/remediation, actor, dan resolution audit     |
 | VoiceDraft              | reporter input, identity consent, version, location/classification state, expiry |
@@ -880,7 +949,7 @@ tidak mempunyai Voice Saya.
 | Attachment              | storage key, purpose, MIME, size, checksum, processed state                      |
 | Conversation            | satu room per Voice                                                              |
 | Message                 | immutable text/sender/capability/timestamp                                       |
-| ClosureCycle            | close/reopen sequence, actor, note, evidence, timestamps                         |
+| ClosureCycle            | close/reopen sequence, actor, note, evidence, review state/deadline, timestamps  |
 | Rating                  | score/comment/feedback per Closure Cycle                                         |
 | Notification            | persistent recipient/event/read state                                            |
 | PushSubscription        | user/device endpoint dan delivery lifecycle                                      |
@@ -903,16 +972,19 @@ type StructuralCapability =
 type UnionLevel = 'HEAD' | 'OFFICER';
 type VoiceVisibility = 'PRIVATE' | 'GENERAL';
 type PrivateIdentityConsent = 'SHOW' | 'HIDE';
-type RoutingCategory = 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY';
+type GeneralVoiceCategoryStatus = 'ACTIVE' | 'ARCHIVED';
+type GeneralVoiceCategoryRouteMode = 'FIXED_DEPARTMENT' | 'RELATED_REPORTER_DEPARTMENT';
+type GeneralVoiceCategoryKey = string; // immutable, server-managed stable key
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 type VoiceStatus = 'OPEN' | 'IN_VERIFICATION' | 'IN_PROGRESS' | 'CLOSED';
 type HandlerType = 'MANAGER' | 'SECTION_HEAD' | 'UNION_HEAD' | 'UNION_OFFICER';
 type ClassificationSource = 'AI' | 'MANUAL_FALLBACK';
 type LocationCompleteness = 'COMPLETE' | 'INCOMPLETE' | 'UNKNOWN';
 type AttachmentPurpose = 'VOICE' | 'CHAT' | 'CLOSURE_EVIDENCE';
+type ClosureReviewState = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 ```
 
-`VoiceEventType` minimum: `SUBMITTED`, `ASKED_REPORTER`, `MESSAGE_SENT`, `ASSIGNED`, `REASSIGNED`, `PROCEEDED`, `CLOSED`, `RATED`, dan `REOPENED`.
+`VoiceEventType` minimum: `SUBMITTED`, `ASKED_REPORTER`, `MESSAGE_SENT`, `ASSIGNED`, `REASSIGNED`, `PROCEEDED`, `CLOSED`, `RATED`, `REOPENED`, dan `AUTO_ACCEPTED`.
 
 ### 20.3 Common Fields dan Invariants
 
@@ -950,7 +1022,7 @@ Path final dapat disesuaikan selama OpenAPI mempertahankan capability berikut:
 
 - login, logout, session introspection;
 - session response dengan account kind, structural position, capability list, dan safe overview/detail/action scopes;
-- mandatory password change;
+- password change serta session-scoped defer khusus `WORKFORCE`; defer tidak mengubah account flag atau sesi lain dan Union/CARE Admin tetap mandatory;
 - CARE Admin password reset dan account activation/deactivation;
 - CSRF token lifecycle.
 
@@ -1099,9 +1171,22 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 
 ### 23.4 Browser Support
 
-- Current dan previous major Chrome/Edge desktop dan Android;
-- current Safari iOS/iPadOS;
-- Web Push iOS hanya dianggap supported pada Home Screen PWA sesuai browser/platform capability;
+Workforce memakai capability tiers berikut. Batas versi hanya mengatur minimum
+iOS dan pesan pengguna; aktivasi service worker dan Push API tetap berdasarkan
+probe capability runtime. Android tidak dikenai batas versi iOS dan tetap
+didukung sesuai capability browser-nya.
+
+| Tier        | Platform                                                                                             | Perilaku wajib                                                                                                                                                           |
+| ----------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unsupported | iOS/iPadOS <11.3 atau runtime core tidak memadai                                                     | Shell kompatibilitas statis dengan retry/guidance; root kosong atau white screen dilarang.                                                                               |
+| Core Online | iOS/iPadOS 11.3–16.3, atau browser lain yang lulus core probe tetapi tidak lulus PWA probe           | Login, read, create, upload, chat, dan lifecycle action berjalan online. Notification Center adalah fallback authoritative; offline cache dan Web Push tidak dijanjikan. |
+| PWA         | Browser yang lulus probe Service Worker, Cache Storage, Request/Response, dan runtime worker minimum | Core Online ditambah install/update, privacy-safe offline summary, offline fallback, dan cache cleanup.                                                                  |
+| PWA + Push  | iOS/iPadOS ≥16.4 dalam Home Screen mode dengan Push API, atau browser non-iOS yang lulus push probe  | Seluruh capability PWA ditambah Web Push opt-in; permission hanya diminta setelah gesture eksplisit.                                                                     |
+
+- Current dan previous major Chrome/Edge desktop dan Android tetap didukung;
+- `/design` adalah current-browser-only dan menampilkan guidance tanpa memuat design chunk pada legacy iOS;
+- kegagalan registration/update/cache menurunkan runtime ke Core Online dan tidak boleh menggagalkan render;
+- iOS/iPadOS 11.3 real-device tidak menjadi release acceptance requirement. Dukungan legacy ditegakkan melalui lowered production target, bootstrap/probe unit tests, artifact syntax inspection, dan current-WebKit capability emulation; keterbatasan ini wajib dicatat pada release evidence;
 - browser unsupported mendapat guidance, bukan silent malfunction.
 
 ---
@@ -1308,7 +1393,7 @@ CI wajib mencakup:
 Event minimum:
 
 - login success/failure/lockout/logout;
-- first-password change/reset/deactivation/session revocation;
+- first-password change, workforce session-scoped password defer, reset/deactivation/session revocation;
 - XLSX/CSV import preview/confirm/failure dan authoritative deactivation;
 - default/global route change dan remediation resolution;
 - derived Section Head capability change akibat snapshot;
@@ -1543,7 +1628,7 @@ Risiko diberi status **Critical / Accepted by product decision** dan wajib mempe
 
 Minimum:
 
-- password/first-login/reset/session rules;
+- password/first-login/reset/session rules, termasuk defer idempoten khusus `WORKFORCE` yang tidak mengubah account flag atau sesi lain;
 - account-kind/capability/object permission matrix dan tiga Private serializer variants;
 - XLSX sheet serta XLSX/CSV header/row/effective-diff/default/global route/remediation validation;
 - AI function-call parsing, no-fixed-priority behavior, confidence/fallback, location hash invalidation/acknowledgment;
@@ -1581,7 +1666,7 @@ Minimum journeys:
 2. XLSX/CSV invalid/valid preview, authoritative confirm, diff, remediation, dan preserved leading-zero no.reg.
 3. Default PIC, PIC global, serta exactly-one-Head/two-Officer setup.
 4. Monthly snapshot deactivation dan legacy handler menyelesaikan Voice aktif tanpa menerima Voice baru.
-5. Member first login/change password dan pilihan awal Private/General.
+5. Member first login dapat defer untuk sesi aktif, login berikutnya kembali restricted sampai change password, sedangkan Union/Admin tidak dapat defer; pilihan awal Private/General memakai copy final.
 6. General Safety/Environment/Facility → AI Preview → satu PIC global lintas area.
 7. Work Difficulty → composite department Head/default PIC; `Department=14` dan missing route preserve draft.
 8. AI timeout/low confidence → General category+severity atau Private severity Manual Fallback.
@@ -1636,9 +1721,9 @@ Minimum journeys:
 - [ ] Leading-zero no.reg dipertahankan dan monthly snapshot menonaktifkan account yang hilang serta mencabut session-nya.
 - [ ] Capability diturunkan dari posisi struktural dan route assignment tanpa menghilangkan capability Member.
 - [ ] Department Head aktif otomatis menjadi Manager; department tanpa Department Head dapat memperoleh default PIC yang ditunjuk Admin.
-- [ ] Tepat satu PIC global aktif melayani Safety, Environment, dan Facility untuk seluruh area.
+- [ ] Enam kategori default aktif, fixed target memakai exact composite unit, dan category route gap muncul sebagai remediation issue.
 - [ ] Tepat satu Union Head dan dua Union Officer dikelola Admin di luar workbook.
-- [ ] Username/password awal dan forced change bekerja untuk setiap account kind; Admin reset mencabut session.
+- [ ] Username/password awal dan forced change bekerja untuk setiap account kind; hanya `WORKFORCE` dapat defer untuk sesi aktif, login berikutnya kembali restricted sampai password diganti, Union/Admin tetap mandatory, dan Admin reset mencabut session.
 - [ ] Section Head candidates sepenuhnya read-only dan diturunkan dari snapshot organisasi aktif; tidak ada promote/transfer/remove manual.
 - [ ] Perubahan snapshot atau route tidak menulis ulang reporter, route owner, assignment, actor, closure, atau PIC historis.
 
@@ -1647,13 +1732,15 @@ Minimum journeys:
 - [ ] Form dimulai dengan pilihan Private Voice atau General Voice dan photo limits tervalidasi frontend/backend.
 - [ ] Private mewajibkan pilihan `Tampilkan nama = Ya/Tidak`; snapshot consent dan profil yang boleh ditampilkan immutable setelah submit.
 - [ ] Preview menampilkan seluruh field, severity, category bila General, visibility, source classification, dan warning lokasi terbaru.
-- [ ] Official OpenAI JavaScript SDK memakai `chat.completions.create`, `/chat/completions`, DeepSeek `thinking.disabled` untuk effort `none`, forced named functions, payload tereduksi, dan function arguments tervalidasi lokal.
+- [ ] Official OpenAI JavaScript SDK memakai `chat.completions.create`, `/chat/completions`, DeepSeek `thinking.disabled` untuk effort `none`, named tool choice ketika didukung provider, exact-one-tool fail-closed validation, payload tereduksi, dan function arguments tervalidasi lokal.
 - [ ] General menghasilkan category termasuk `ENVIRONMENT` dan severity; Private menghasilkan severity dengan category `null`.
 - [ ] Tidak ada category priority tetap; low confidence, ambiguity, refusal, incomplete response, timeout, atau invalid schema masuk Manual Fallback yang sesuai jenis Voice.
 - [ ] Location review otomatis menghasilkan `COMPLETE | INCOMPLETE | UNKNOWN`, warning, dan maksimal tiga pertanyaan saran tanpa memblokir form saat provider gagal.
 - [ ] Review `INCOMPLETE` memerlukan acknowledgment pada snapshot terbaru sebelum submit; perubahan lokasi membatalkan review/acknowledgment lama.
 - [ ] Private selalu menuju Union Head tanpa AI category routing.
-- [ ] Safety, Environment, dan Facility selalu menuju satu PIC global lintas area; Work Difficulty menuju Department Head/default PIC pada composite organization unit reporter.
+- [ ] Safety/Environment/Fasilitas Umum menuju Plant GA & SHE, Facility Repair menuju Smart Plant Facility Mfg, dan Work Difficulty/Kesejahteraan mengikuti department reporter melalui PIC aktif saat submit.
+- [ ] Admin dapat menambah, merevisi, archive/reactivate kategori; Definition/Examples terurut tidak dapat mengubah core prompt/tool wrapper; histori Voice mempertahankan nama dan PIC snapshot.
+- [ ] Department picker melakukan search/pagination dan exact division filter di server; tabel kategori menampilkan department, PIC/No. Reg, health, status, serta revision history.
 - [ ] `Department=14` atau route General yang tidak sah menolak submit tanpa menghilangkan draft dan memberi remediation yang jelas; Private tetap tersedia.
 
 ### 34.3 Privacy dan Authorization
@@ -1687,6 +1774,12 @@ Minimum journeys:
 - [ ] Rating 3–5 comment opsional dan tidak menawarkan reopen.
 - [ ] Reopen kembali In Verification pada PIC terakhir dan membuat cycle baru.
 - [ ] Multiple cycle tidak menimpa closure/rating sebelumnya.
+- [x] Close membuka jendela review 2 hari: cycle `PENDING` dengan `reviewDeadline` dan label "Menunggu Penilaian" beserta countdown pada detail reporter.
+- [x] Rating ≥3, rating ≤2 tanpa reopen, atau lewatnya jendela tanpa rating menyelesaikan cycle `ACCEPTED`; rating pada cycle yang sudah ber-rating ditolak (tanpa double-rate).
+- [x] Rating ≤2 + reopen dalam jendela menandai cycle `REJECTED`, mengembalikan Voice ke In Verification ("Dibuka Kembali"), dan close berikutnya memulai cycle `PENDING` baru.
+- [x] Worker auto-accept mengubah cycle expired menjadi `ACCEPTED`, menambah event `AUTO_ACCEPTED` system-generated, dan menotifikasi reporter serta PIC penutup; tick idempoten.
+- [x] Setelah auto-accept, rating terlambat masih dapat dikirim sebagai masukan tanpa opsi reopen dan tanpa mengubah `reviewResolvedAt`; reopen ditolak dengan `REOPEN_NOT_ALLOWED`.
+- [x] Member Home menampilkan card "Menunggu penilaian Anda" dengan jumlah dan akses langsung ke Voice yang menunggu rating.
 
 ### 34.6 Dashboard, Frontend, PWA, dan Notification
 
@@ -1802,7 +1895,7 @@ V1 siap production bila:
 4. capability/scope/privacy/conditional-Private-identity negative tests lulus;
 5. PostgreSQL fresh dan previous-release upgrade lulus;
 6. performance baseline lulus;
-7. workforce real-device PWA/push/offline dan Admin responsive UAT lulus;
+7. workforce current real-device PWA/push/offline dan Admin responsive UAT lulus; iOS 11.3 legacy divalidasi melalui automatic compatibility gate, bukan real-device acceptance;
 8. kedua staging origin lulus host-isolation, auto-deploy, release identity, smoke, dan rollback rehearsal;
 9. production workforce/admin domains, VM, DNS, secrets, OpenAI config, dan VAPID tersedia;
 10. authoritative XLSX/CSV UAT, monthly diff, Union setup, dan route remediation lengkap;
@@ -1818,22 +1911,25 @@ V1 siap production bila:
 - Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
 - Workforce master diimpor melalui Admin UI dan tidak disimpan di Git; tiga akun Union dikelola Admin di luar workbook.
 - First login/reset memakai username/no.reg sebagai temporary password dan wajib change.
+- Akun `WORKFORCE` boleh menunda change password untuk sesi aktif melalui **Lain kali**; account flag dan sesi lain tidak berubah, sehingga prompt kembali pada login berikutnya. Union dan CARE Admin tidak dapat menunda.
 - Department Head dan Manager interchangeable; Department Head aktif otomatis menjadi Manager department-nya.
 - Department tanpa Department Head dapat memakai default PIC yang dipilih Admin dari karyawan aktif; kandidat assignment tetap Section Head pada department target.
-- Tepat satu PIC global dari Department Head aktif menangani Safety, Environment, dan Facility untuk seluruh area.
-- Work Difficulty route berdasarkan composite `Directorat + Division + Department`; `Department=14` tidak memiliki route General yang sah.
+- Katalog kategori General Voice bersifat database-driven, berversi, archive-only, dan dimulai dengan enam stable key yang ditetapkan pada §1.1.
+- Category route memilih fixed exact department atau related reporter department; PIC efektif berasal dari Department Head/default PIC aktif saat submit. `Department=14` tidak memiliki route General yang sah.
 - Private selalu menuju Union Head; Union Officer hanya menangani assignment-nya.
 - Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
 - General bukan public feed.
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
-- AI memakai official OpenAI JavaScript SDK untuk DeepSeek Chat Completions melalui configurable `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, dan `OPENAI_REASONING_EFFORT`; target model/base URL adalah `deepseek-v4-flash`/`https://api.deepseek.com`, base URL/model/key tidak memiliki production default, dan reasoning effort kosong default ke `none`.
+- AI memakai official OpenAI JavaScript SDK untuk OpenAI-compatible Chat Completions. DeepSeek `deepseek-v4-flash` dan local `ibm-granite/granite-4.2-3b` didukung; reasoning kosong adalah provider default, sedangkan DeepSeek non-thinking memakai `none` eksplisit. Admin dapat mengaktifkan encrypted runtime override tanpa restart, dengan environment sebagai fallback.
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
-- Empat status saja; reopen adalah event menuju In Verification dengan PIC terakhir.
+- Empat status saja; reopen adalah event menuju In Verification dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
+- Handover hanya untuk current route-owning Manager pada General Voice `OPEN` yang belum ditugaskan; dapat berulang, tidak mengubah status, dan memindahkan operational category + route owner tanpa mengubah immutable submission classification.
+- Detail tiap handover hanya dapat dibaca PIC sumber dan PIC tujuan transfer tersebut; CARE Admin, reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
 - Manager atau current handler dapat close dari In Progress; closure note dan foto wajib.
-- Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen.
+- Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
 - Gambar saja; media authorized dan sanitized.
 - Offline mutation tidak didukung.
@@ -1844,3 +1940,174 @@ V1 siap production bila:
 - Push `staging` menjadi trigger deployment staging setelah seluruh checks hijau dan candidate masih menjadi branch HEAD.
 - Push/PR `main` hanya menjalankan CI pada scope saat ini; production deployment caller belum tersedia.
 - Web Push canary adalah operasi staging manual, bukan automated test, deployment smoke, atau auto-deploy gate.
+
+---
+
+## 41. Manager-to-Manager General Voice Handover
+
+Bagian ini adalah kontrak normatif fitur handover dan melengkapi persona,
+permission matrix, routing, lifecycle, API, privacy, audit, UX, serta acceptance
+criteria pada bagian sebelumnya. Bila istilah kategori pada daftar/dashboard
+tidak dibedakan, istilah tersebut berarti **current operational category**.
+
+### 41.1 Persona, Permission, dan Lifecycle
+
+- Hanya akun aktif dengan capability `MANAGER` yang sekaligus merupakan
+  `routeOwnerId` terkini dapat memulai handover.
+- Voice wajib `GENERAL`, `OPEN`, dan `currentHandlerId=null`. Handover tidak
+  tersedia untuk reporter, Section Head, Union Head/Officer, leadership,
+  CARE Admin, previous PIC, Private Voice, atau status `IN_VERIFICATION`,
+  `IN_PROGRESS`, dan `CLOSED`.
+- Transfer mempertahankan `status=OPEN`, `handlerType=MANAGER`, dan
+  `currentHandlerId=null`; Voice version bertambah satu. Voice dapat berpindah
+  A→B→C tanpa batas khusus selain lifecycle dan konfigurasi aktif.
+- Ask, Proceed, Assign, dan Handover berkompetisi pada transaction-level row
+  lock dan expected version yang sama; tepat satu aksi paralel boleh berhasil.
+
+### 41.2 Kategori dan Routing
+
+- `Voice.categoryId/categoryKey/categoryNameSnapshot` adalah klasifikasi saat
+  submit dan immutable. `currentCategoryId/currentCategoryKey/
+currentCategoryNameSnapshot` adalah kategori operasional, diinisialisasi
+  dari klasifikasi submit dan berubah pada handover.
+- Hero/detail terkini, work item/list, filter, dan dashboard aggregation memakai
+  kategori operasional dengan fallback untuk row legacy. Detail menyebut
+  klasifikasi awal ketika berbeda; timeline/ledger mempertahankan sejarah.
+- Opsi berisi setiap kategori aktif, satu card per kategori walau department
+  sama. Kategori archived tidak muncul. Kategori yang menghasilkan current PIC
+  tidak muncul. Active route gap/route ambigu tetap muncul disabled dengan
+  alasan aman dan actionable.
+- Fixed route memakai exact configured organization unit.
+  `RELATED_REPORTER_DEPARTMENT` selalu memakai immutable
+  `reporterOrganizationUnitId` Voice dan wajib diberi badge ikon+teks
+  “Department Reporter”. Destination harus memiliki tepat satu active
+  Department Head/default PIC dan tidak boleh current PIC.
+
+### 41.3 Persistence, Privacy, Audit, dan Notification
+
+- `VoiceHandover` append-only menyimpan Voice + sequence, snapshot kategori,
+  snapshot komposit directorate/division/department, organization unit, route
+  mapping, from/to PIC, actor, route mode, reporter-department flag, required
+  trimmed detail 1–4.000 karakter, dan timestamp.
+- Otorisasi note dievaluasi per record: A melihat A→B; B melihat A→B dan B→C;
+  C melihat B→C. CARE Admin tidak diberi akses aplikasi ke note.
+- Current Voice reader dapat mengambil metadata transfer sanitasi. Former PIC
+  tanpa akses Voice hanya menerima transfer yang melibatkan dirinya serta
+  minimal `{id, displayId}`; title, reporter, description, attachment, chat,
+  dan transfer lain tidak boleh muncul.
+- `HANDOVER_COMPLETED` ditulis ke timeline tanpa note. Audit summary menyimpan
+  marker redaksi, bukan note. Log, work-item DTO, unrestricted detail DTO,
+  notification, dan outbox dilarang memuat note.
+- Hanya destination PIC menerima `HANDOVER_RECEIVED`. Tidak ada conversation,
+  assignment, reporter notification, atau status-change notification.
+
+### 41.4 API Contract dan Stable Errors
+
+- `availableActions` menambahkan `HANDOVER` hanya pada kondisi §41.1.
+- `GET /api/v1/voices/:id/handover-options` mengembalikan current route summary
+  dan option category/route mode/composite department/PIC type/
+  `isReporterDepartment`/availability/disabled reason.
+- `POST /api/v1/voices/:id/handovers` menerima `targetCategoryId`, required
+  `detail`, `expectedVersion`, dan required `Idempotency-Key`; submit selalu
+  re-resolve konfigurasi aktif dalam transaksi.
+- `GET /api/v1/voices/:id/handovers` menerapkan redaksi per record dan mode
+  `VOICE_READER`/`PARTICIPANT_ONLY`.
+- `GET /api/v1/handovers/mine` cursor-paginated, Manager-only, dan mengembalikan
+  satu card per transfer dengan direction, minimal Voice ID, route/PIC summary,
+  timestamp, dan note yang memang authorized.
+- Error stabil mencakup `VERSION_CONFLICT`, `HANDOVER_INVALID_STATE`,
+  `HANDOVER_DESTINATION_SELF`, `HANDOVER_DESTINATION_UNAVAILABLE`, dan
+  `HANDOVER_CATEGORY_CONFIGURATION_CHANGED`.
+
+### 41.5 Workforce UX dan Visual Contract
+
+- Manager action page mempertahankan shared cobalt/white `VoiceHero`.
+  Secondary row memuat Tugaskan/Tanya Reporter; decision row menempatkan outline
+  Handover tepat di samping primary Proses.
+- `/voices/:id/handover` menyembunyikan global topbar melalui aturan shell route
+  detail, menggunakan exact shared `VoiceHero`, current-route card, guidance,
+  search kategori/department/directorate/division/PIC, semantic radio cards,
+  route-gap state, dan selected check state.
+- Required `Detail handover` memiliki counter, validation, serta lock message
+  “Hanya dapat dilihat oleh PIC lama dan PIC baru.” Footer sticky menghormati
+  safe area/bottom navigation; confirmation dialog merangkum kategori,
+  department, PIC baru, dan privacy sebelum mutation.
+- Success kembali ke `/work-items` default active queue dengan notice. Pada
+  stale version/status/route, note dipertahankan, opsi dimuat ulang, dan pilihan
+  hanya dibersihkan bila tidak lagi valid.
+- `Handover Saya` adalah filter eksplisit yang default-nya off dan tidak
+  memengaruhi active workload counts. Card membuka restricted history surface,
+  bukan Voice detail.
+- 360px menggunakan single column/full-width card; 768px memakai reading width
+  terbatas; ≥1280/1440px memakai layout dua kolom options+sticky note. Semua
+  state memakai token CARE, visible focus, ≥44px target, reduced-motion
+  fallback, dan tanpa horizontal overflow.
+
+### 41.6 Test dan Acceptance
+
+- Unit mengunci action matrix, option projection/exclusion, reporter badge,
+  route gaps, search, dan redaksi note.
+- PostgreSQL integration mengunci fixed/related route, A→B→C, operational vs
+  immutable category, pairwise note access, former/current PIC access,
+  notification recipient, rejection matrix, idempotent replay, configuration
+  revalidation, dan concurrent lifecycle winner.
+- Migration gate wajib membuktikan fresh install serta previous-schema upgrade
+  dengan backfill tanpa mengubah ID/status/owner/event/classification lama.
+- Playwright mencakup journey penuh, required note, confirmation, search,
+  disabled/empty/error/stale states, keyboard/focus return, restricted history,
+  axe/reduced motion/legacy PWA/no overflow, dan responsive 360/768/1440.
+- Security assertion memastikan note tidak pernah hadir pada timeline,
+  notification/outbox, unauthorized response, atau DOM pembaca yang tidak
+  berhak. Seluruh parity gate `.agent/rules.md` tetap wajib sebelum delivery.
+
+### 18.8 Amandemen Dashboard Organisasi — 7 September 2026
+
+Homepage PIC General, leadership dan Union menempatkan dashboard di atas Voice
+Saya; topbar, navigasi dan hero identitas workforce tetap digunakan. Member biasa
+mempertahankan homepage personal. Union memiliki tab Private/General, default
+Private. Amandemen ini menggantikan default scope/presentasi §18.2–18.5 yang
+bertentangan, tanpa mengubah permission detail atau lifecycle.
+
+General default memakai **Penanganan**: organisasi department penerima route
+terakhir, diperbarui saat handover; section berasal dari assignment Section Head.
+Switch **Pelapor** memakai snapshot organisasi saat submit. Aggregate permission
+mengikuti basis terpilih: Dept Head division sendiri atau Default PIC division mapping utama, plus exact department mapping
+atau route Voice yang sah; Division/Deputy/Pjt. aggregate global; Director dan
+Union seluruh General. Default PIC tidak memperoleh aggregate seluruh division
+asing hanya karena satu department mapping. Legacy route bukan izin memperluas
+organisasi. Section Head tetap pada penugasan/legacy history yang diizinkan.
+
+Default Dept Head adalah department sendiri; Default PIC memakai mapping department (prioritas organisasi actor, lalu nama komposit stabil), keduanya dengan bar section. Pilihan
+Department memperluas seluruh metrik ke division yang diizinkan. Division Head
+memulai dari division sendiri dengan bar department dan dapat memilih global
+bar division. Director/Union General memulai global. Filter berantai memakai
+identifier komposit opaque, basis, level, area, kategori dinamis, severity,
+status, dan periode berbasis URL; default 30 hari. Filter invalid atau di luar
+scope tidak boleh diam-diam memperluas data. Akun multi-capability mempertahankan
+akses sah tiap capability, dengan default presentasi posisi tertinggi.
+
+Projection penanganan disimpan terpisah dari reporter snapshot dan diperbarui
+atomik bersama submit/assignment/handover/reopen. Close mempertahankan projection.
+Perubahan master tidak menulis ulang histori. Backfill memakai route/handover dan
+membership yang berlaku pada assignment; data yang tidak terbukti tetap unknown.
+Tren menghitung waktu submit, bukan waktu assignment atau handover, dengan
+bucket harian/mingguan/bulanan dan pembanding periode berdurasi sama.
+
+KPI Total mengikuti filter, Aktif menjumlah Open/In Verification/In Progress,
+dan Kritis berasal dari severity. Angka yang dilindungi ditampilkan sebagai tidak
+tersedia, bukan nol. Cohort lintas detail scope di bawah lima tidak mengembalikan
+angka metrik/pembanding. Dimensi yang memiliki bucket kecil dilindungi keseluruhan
+agar total dikurangi bucket lain tidak mengungkap kelompok tersebut. API baru
+tidak mengembalikan `suppressedValue` atau `suppressedBuckets`.
+
+Union Private hanya menggunakan scope Head atau assigned Officer. Tidak ada
+filter/breakdown organisasi pelapor atau kategori General. Cakupan penanganan
+menampilkan PIC Union dan belum didelegasikan; Officer tidak mendapat antrean
+Head atau pilihan Officer lain. Preview terpisah berisi maksimal tiga Voice aktif
+berdasarkan severity lalu waktu submit, selalu diiriskan dengan detail scope.
+
+Kontrak lama tanpa parameter organisasi tetap tersedia bagi consumer existing.
+Kontrak baru ditandai basis eksplisit dan menyediakan metadata ter-scope, bucket
+organisasi, state privacy, kelengkapan projection, serta timestamp. Baseline visual
+mencakup persona, basis, level, filter, state dan viewport 360/768/1440; verifikasi
+harus meliputi PostgreSQL integration, privacy, accessibility dan full-stack.

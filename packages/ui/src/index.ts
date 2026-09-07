@@ -2,6 +2,7 @@ export * from './coverage.js';
 export * from './data.js';
 export * from './feedback.js';
 export * from './forms.js';
+export * from './lightbox.js';
 export * from './motion.js';
 export * from './navigation.js';
 export * from './overlays.js';

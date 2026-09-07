@@ -10,42 +10,66 @@ import {
   EmptyState,
   Input,
   Loader,
+  PasswordInput,
   Sidebar,
   Stack,
 } from '@care/ui';
 import { useIsMutating } from '@tanstack/react-query';
 import {
+  ArrowLeft,
+  ArrowRight,
   Bell,
   Bot,
+  ChevronRight,
   ClipboardList,
+  Clock3,
   Home,
   Inbox,
   Lock,
+  LockKeyhole,
   MoreHorizontal,
   Plus,
   ScrollText,
+  Shield,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import authHeroAsset from './assets/auth-hero-asset.png';
 import { registerCareServiceWorker } from './register-sw.js';
+import { getBrowserCapabilities } from './lib/browser-capabilities';
 import { AccountPage } from './features/account/AccountPage';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
+import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { ConversationPage } from './features/voice/ConversationPage';
+import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
+import { HandoverPage } from './features/voice/HandoverPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
 import { desktopQuery, useMediaQuery } from './lib/use-media-query';
 import { navigationForCapabilities } from './lib/navigation';
 
 export function App() {
-  useEffect(() => registerCareServiceWorker(), []);
+  const [onlineOnly] = useState(() => !getBrowserCapabilities().serviceWorkerSupported);
+  useEffect(() => {
+    void registerCareServiceWorker();
+  }, []);
   return (
     <>
+      {onlineOnly ? (
+        <div className="pwa-mode-notice">
+          <Alert tone="info" title="CARE berjalan dalam mode online">
+            Fitur utama tetap tersedia. Offline cache dan notifikasi push tidak didukung perangkat
+            ini; Pusat notifikasi di dalam CARE tetap dapat digunakan.
+          </Alert>
+        </div>
+      ) : null}
       <ServiceWorkerUpdatePrompt />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -65,13 +89,18 @@ export function App() {
           }
         >
           <Route index element={<HomePage />} />
+          <Route path="dashboard" element={<HomePage />} />
           <Route path="voices/new" element={<CreateVoicePage />} />
           <Route path="drafts/:id/edit" element={<CreateVoicePage />} />
           <Route path="drafts/:id/preview" element={<DraftPreviewPage />} />
+          <Route path="voices/submitted" element={<SubmittedVoicePage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="work-items" element={<WorkItemsPage />} />
           <Route path="general" element={<GeneralRoute />} />
           <Route path="voices/:id" element={<VoiceDetailPage />} />
+          <Route path="voices/:id/chat" element={<ConversationPage />} />
+          <Route path="voices/:id/handover" element={<HandoverPage />} />
+          <Route path="voices/:id/handover-history" element={<HandoverHistoryPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -155,18 +184,21 @@ function LoginPage() {
   }
   return (
     <main className="auth-layout">
-      <section className="auth-brand">
-        <div className="brand-mark">C</div>
-        <p>CARE Enterprise Member Voice</p>
-        <h1>Sampaikan suara. Pantau tindak lanjutnya.</h1>
-        <p>Kanal internal untuk laporan General dan Private yang aman serta dapat ditelusuri.</p>
+      <section className="auth-brand auth-brand--media">
+        <div className="auth-brand__lockup">
+          <div className="brand-mark">C</div>
+          <strong>CARE</strong>
+        </div>
+        <h1>
+          <span>Selamat datang</span> <span className="auth-brand__title-accent">di CARE.</span>
+        </h1>
+        <img alt="" className="auth-brand__asset" height={768} src={authHeroAsset} width={1152} />
       </section>
       <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
-            <p className="care-eyebrow">Masuk ke CARE</p>
-            <h2>Selamat datang kembali</h2>
-            <p>Gunakan nomor registrasi atau username Union Anda.</p>
+            <h2>Silahkan login sesuai petunjuk.</h2>
+            <p>Login untuk melanjutkan ke CARE</p>
           </div>
           {error ? (
             <Alert tone="danger" title="Tidak dapat masuk">
@@ -177,20 +209,25 @@ function LoginPage() {
             <Input
               label="Username"
               autoComplete="username"
+              leading={<UserRound size={18} />}
+              placeholder="Contoh: 00111111"
+              helperText="Gunakan 8 digit NoReg Anda."
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
             />
-            <Input
+            <PasswordInput
               label="Password"
-              type="password"
               autoComplete="current-password"
+              leading={<Lock size={18} />}
+              placeholder="Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-            <Button type="submit" loading={pending}>
+            <Button type="submit" className="auth-submit" loading={pending}>
               Masuk
+              <ArrowRight size={18} aria-hidden="true" />
             </Button>
           </form>
         </Stack>
@@ -199,76 +236,178 @@ function LoginPage() {
   );
 }
 
+function passwordChangeFailureMessage(cause: unknown) {
+  if (typeof cause === 'object' && cause) {
+    const failure = cause as { code?: unknown; kind?: unknown; message?: unknown };
+    if (failure.code === 'CURRENT_PASSWORD_INVALID') return 'Password saat ini tidak sesuai.';
+    if (failure.code === 'PASSWORD_REUSE')
+      return 'Password baru tidak boleh sama dengan username atau password sebelumnya.';
+    if (failure.kind === 'rate-limited')
+      return 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+    if (failure.kind === 'offline' && typeof failure.message === 'string') return failure.message;
+  }
+  return 'Password tidak dapat diubah. Silakan coba lagi.';
+}
+
+function passwordDeferralFailureMessage(cause: unknown) {
+  if (typeof cause === 'object' && cause) {
+    const failure = cause as { kind?: unknown; message?: unknown };
+    if (failure.kind === 'rate-limited')
+      return 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+    if (failure.kind === 'offline' && typeof failure.message === 'string') return failure.message;
+  }
+  return 'Ganti password tidak dapat ditunda. Silakan coba lagi.';
+}
+
 function ChangePasswordPage() {
-  const { session, transport, refresh } = useAuth();
+  const { session, transport, refresh, logout, deferPasswordChange, loading } = useAuth();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<{ title: string; message: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<'back' | 'password' | 'defer' | null>(null);
+  const pending = pendingAction !== null;
+  if (loading) return <RouteLoader />;
   if (!session) return <Navigate to="/login" replace />;
+  async function back() {
+    if (pending) return;
+    if (!session?.passwordChangeRequired) {
+      void navigate('/account', { replace: true });
+      return;
+    }
+    setPendingAction('back');
+    try {
+      await logout();
+    } catch {
+      /* Existing auth cleanup still removes local session. */
+    } finally {
+      void navigate('/login', { replace: true });
+      setPendingAction(null);
+    }
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (newPassword !== confirm) {
-      setError('Konfirmasi password tidak sama.');
+      setError({ title: 'Periksa password', message: 'Konfirmasi password tidak sama.' });
       return;
     }
-    setPending(true);
-    setError('');
+    setPendingAction('password');
+    setError(null);
     try {
       await transport.changePassword(currentPassword, newPassword);
       await refresh();
       void navigate('/', { replace: true });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Password tidak dapat diubah.');
+      setError({ title: 'Password belum diubah', message: passwordChangeFailureMessage(cause) });
     } finally {
-      setPending(false);
+      setPendingAction(null);
     }
   }
+  async function defer() {
+    if (pending) return;
+    setPendingAction('defer');
+    setError(null);
+    try {
+      await deferPasswordChange();
+      void navigate('/', { replace: true });
+    } catch (cause) {
+      setError({
+        title: 'Ganti password belum ditunda',
+        message: passwordDeferralFailureMessage(cause),
+      });
+      setPendingAction(null);
+    }
+  }
+  const canDefer = session.passwordChangeRequired && session.account.accountKind === 'WORKFORCE';
   return (
-    <main className="centered-page">
-      <Card variant="raised" className="password-card">
+    <main className="auth-layout">
+      <section className="auth-brand auth-brand--security">
+        <span className="auth-brand__badge" aria-hidden="true">
+          <LockKeyhole size={22} />
+        </span>
+        <h1>Keamanan akun</h1>
+        <p>
+          {session.passwordChangeRequired
+            ? 'Ganti password sementara untuk menjaga keamanan akun Anda.'
+            : 'Perbarui password untuk menjaga keamanan akun Anda.'}
+        </p>
+        <Shield className="auth-brand__watermark" aria-hidden="true" />
+      </section>
+      <Card variant="raised" className="auth-card">
         <Stack gap="lg">
           <div>
-            <p className="care-eyebrow">Keamanan akun</p>
-            <h1>Ganti password sementara</h1>
+            <Button
+              variant="ghost"
+              className="auth-back"
+              disabled={pending}
+              onClick={() => void back()}
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              {session.passwordChangeRequired ? 'Kembali ke login' : 'Kembali'}
+            </Button>
+            <h2>
+              {session.passwordChangeRequired ? 'Ganti password sementara' : 'Ganti password'}
+            </h2>
             <p>
-              Gunakan 6–128 karakter dan jangan samakan dengan username atau password sebelumnya.
+              Password minimal 6 karakter dan tidak boleh sama dengan username dan password
+              sebelumnya
             </p>
           </div>
           {error ? (
-            <Alert tone="danger" title="Periksa password">
-              {error}
+            <Alert tone="danger" title={error.title}>
+              {error.message}
             </Alert>
           ) : null}
           <form onSubmit={submit} className="auth-form">
-            <Input
+            <PasswordInput
               label="Password saat ini"
-              type="password"
+              autoComplete="current-password"
+              leading={<Lock size={18} />}
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               required
             />
-            <Input
+            <PasswordInput
               label="Password baru"
-              type="password"
+              autoComplete="new-password"
+              leading={<Lock size={18} />}
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               minLength={6}
               maxLength={128}
               required
             />
-            <Input
+            <PasswordInput
               label="Konfirmasi password baru"
-              type="password"
+              autoComplete="new-password"
+              leading={<Lock size={18} />}
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
               required
             />
-            <Button type="submit" loading={pending}>
+            <Button
+              type="submit"
+              className="auth-submit"
+              loading={pendingAction === 'password'}
+              disabled={pending}
+            >
               Simpan password
+              <ArrowRight size={18} aria-hidden="true" />
             </Button>
+            {canDefer ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="auth-defer__button"
+                loading={pendingAction === 'defer'}
+                disabled={pending}
+                onClick={() => void defer()}
+              >
+                <Clock3 size={18} aria-hidden="true" />
+                Lain kali
+              </Button>
+            ) : null}
           </form>
         </Stack>
       </Card>
@@ -331,6 +470,7 @@ function GeneralRoute() {
 function resolveCurrent(pathname: string, isUnion: boolean): string {
   const p = pathname;
   if (p === '/') return 'home';
+  if (p === '/voices/submitted') return 'submitted';
   if (p.startsWith('/voices/new') || p.startsWith('/drafts/')) return 'create';
   if (p.startsWith('/history')) return 'history';
   // Union reads the same operational inbox as "Private Voice".
@@ -351,6 +491,7 @@ function WorkforceShell() {
   if (!session) return null;
   const caps = capabilityFor(session);
   const current = resolveCurrent(location.pathname, caps.isUnion);
+  if (current === 'submitted') return <Outlet />;
   const iconFor = (id: string) => {
     const Icon =
       {
@@ -374,8 +515,11 @@ function WorkforceShell() {
   const desktopNav = withIcons(true);
   const bottomNav = withIcons(false);
 
-  // The reference home leads with the hero identity, so the chrome topbar yields on mobile.
-  const showTopbar = !(!isDesktop && current === 'home');
+  // The reference home leads with the hero identity, so the chrome topbar
+  // yields on mobile; the voice detail and conversation surfaces carry their
+  // own cobalt hero header (back control + CARE lockup + status) on every
+  // breakpoint, so the shared topbar yields there entirely.
+  const showTopbar = !(!isDesktop && current === 'home') && current !== 'voices';
 
   return (
     <AppShell
@@ -472,6 +616,7 @@ function WorkforceShell() {
                 <strong>Notifikasi</strong>
                 <small>Lihat pembaruan Voice terbaru</small>
               </span>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -485,6 +630,7 @@ function WorkforceShell() {
                 <strong>Akun</strong>
                 <small>Profil, akses, dan keamanan</small>
               </span>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
         </Dialog>

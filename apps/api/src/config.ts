@@ -4,10 +4,9 @@ import { loadLocalEnv } from './load-local-env';
 loadLocalEnv();
 
 const optionalSecret = z.string().min(24).optional().or(z.literal(''));
-const openAiReasoningEffort = z.preprocess(
-  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-  z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']).default('none'),
-);
+const openAiReasoningEffort = z
+  .enum(['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+  .default('');
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -22,12 +21,18 @@ const schema = z.object({
   CURSOR_SIGNING_SECRET: z.string().min(32),
   SESSION_IDLE_HOURS: z.coerce.number().positive().default(8),
   SESSION_ABSOLUTE_DAYS: z.coerce.number().positive().default(7),
+  CLOSURE_REVIEW_DAYS: z.coerce.number().int().min(1).max(30).default(2),
   OPENAI_API_KEY: optionalSecret,
+  OPENAI_CONFIG_ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{43}$/)
+    .optional()
+    .or(z.literal('')),
   OPENAI_MODEL: z.string().optional().or(z.literal('')),
   OPENAI_BASE_URL: z.string().url().optional().or(z.literal('')),
   OPENAI_REASONING_EFFORT: openAiReasoningEffort,
   OPENAI_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.75),
-  OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(60000),
   VAPID_SUBJECT: z.string().optional().or(z.literal('')),
   VAPID_PUBLIC_KEY: optionalSecret,
   VAPID_PRIVATE_KEY: optionalSecret,
@@ -59,10 +64,20 @@ export function loadConfig(): AppConfig {
   }
   const value = parsed.data;
   if (value.NODE_ENV !== 'development' && value.NODE_ENV !== 'test') {
-    for (const key of ['METRICS_TOKEN'] as const) {
+    for (const key of ['METRICS_TOKEN', 'OPENAI_CONFIG_ENCRYPTION_KEY'] as const) {
       if (!value[key]) throw new Error(`Missing required runtime configuration field: ${key}`);
     }
   }
+  if (
+    value.OPENAI_CONFIG_ENCRYPTION_KEY &&
+    [
+      value.SESSION_HASH_SECRET,
+      value.SESSION_CSRF_SECRET,
+      value.AUTH_THROTTLE_SECRET,
+      value.CURSOR_SIGNING_SECRET,
+    ].includes(value.OPENAI_CONFIG_ENCRYPTION_KEY)
+  )
+    throw new Error('OPENAI_CONFIG_ENCRYPTION_KEY must be distinct from other protection secrets');
   if (value.NODE_ENV === 'production') {
     for (const key of ['VAPID_SUBJECT', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY'] as const) {
       if (!value[key]) throw new Error(`Missing required runtime configuration field: ${key}`);
@@ -90,6 +105,7 @@ export function redactedConfig(config = loadConfig()) {
     openai: {
       configured: Boolean(config.OPENAI_API_KEY && config.OPENAI_MODEL && config.OPENAI_BASE_URL),
       model: config.OPENAI_MODEL || null,
+      reasoningEffort: config.OPENAI_REASONING_EFFORT,
     },
     push: { configured: Boolean(config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) },
   };

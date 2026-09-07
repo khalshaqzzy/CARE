@@ -1,4 +1,4 @@
-import { AccountKind, PrismaClient, RoutingCategory, Severity } from '@prisma/client';
+import { AccountKind, PrismaClient, Severity } from '@prisma/client';
 import { hash } from 'argon2';
 import ExcelJS from 'exceljs';
 import { access } from 'node:fs/promises';
@@ -77,6 +77,32 @@ describe('Organization, remediation, and routing journey', () => {
       id: crypto.randomUUID(),
       passwordRestricted: false,
     });
+    for (const category of [
+      {
+        key: 'ENVIRONMENT',
+        name: 'Environment',
+        mode: 'FIXED_DEPARTMENT' as const,
+      },
+      {
+        key: 'WORK_DIFFICULTY',
+        name: 'Fasilitas Kerja / Kesulitan Kerja',
+        mode: 'RELATED_REPORTER_DEPARTMENT' as const,
+      },
+    ])
+      await prisma.generalVoiceCategory.create({
+        data: {
+          key: category.key,
+          revisions: {
+            create: {
+              revision: 1,
+              name: category.name,
+              definition: `Definition ${category.name}`,
+              examples: [`Example ${category.name}`],
+            },
+          },
+          routes: { create: { mode: category.mode } },
+        },
+      });
   });
   afterAll(async () => prisma.$disconnect());
 
@@ -127,7 +153,15 @@ describe('Organization, remediation, and routing journey', () => {
       batch = await prisma.importBatch.findUniqueOrThrow({ where: { id: preview.id } });
     }
     expect(batch.status).toBe('CONFIRMED');
-    await expect(access(resolve(process.env.MEDIA_ROOT!, rawStorageKey))).rejects.toThrow();
+    // Raw-file cleanup follows the confirmation transaction asynchronously.
+    await expect
+      .poll(async () =>
+        access(resolve(process.env.MEDIA_ROOT!, rawStorageKey)).then(
+          () => false,
+          () => true,
+        ),
+      )
+      .toBe(true);
     expect(await prisma.organizationMembership.count()).toBe(4);
     expect(
       await prisma.routeMapping.count({ where: { kind: 'DEPARTMENT_HEAD', effectiveTo: null } }),
@@ -136,7 +170,9 @@ describe('Organization, remediation, and routing journey', () => {
       await prisma.importIssue.count({ where: { type: 'DEPARTMENT_14', status: 'OPEN' } }),
     ).toBe(1);
     expect(
-      await prisma.importIssue.count({ where: { type: 'INVALID_GLOBAL_PIC', status: 'OPEN' } }),
+      await prisma.importIssue.count({
+        where: { type: 'CATEGORY_TARGET_UNAVAILABLE', status: 'OPEN' },
+      }),
     ).toBe(1);
   });
 
@@ -196,8 +232,7 @@ describe('Organization, remediation, and routing journey', () => {
     ).toBe(4);
   });
 
-  it('provisions one global PIC and three Union slots, then routes General and Private correctly', async () => {
-    await adminService.setGlobalPic(admin, { noReg: '000001' }, 'organization-routing-global-pic');
+  it('provisions three Union slots, then routes related General and Private correctly', async () => {
     const departmentHead = await prisma.userAccount.findUniqueOrThrow({
       where: { username: '000001' },
     });
@@ -223,11 +258,11 @@ describe('Organization, remediation, and routing journey', () => {
       visibility: 'GENERAL',
       area: 'KARAWANG_1',
       locationDetail: 'Line A station 4',
-      title: 'Environmental leak',
-      detail: 'Liquid waste is leaking near the process',
+      title: 'Equipment breakdown',
+      detail: 'The equipment repeatedly stops and blocks production work',
     });
     await voices.manualClassification(member, generalDraft.id, {
-      category: RoutingCategory.ENVIRONMENT,
+      category: 'WORK_DIFFICULTY',
       severity: Severity.HIGH,
     });
     const locationReview = await prisma.locationReviewSnapshot.create({
@@ -267,18 +302,41 @@ describe('Organization, remediation, and routing journey', () => {
       where: { id: (general as { id: string }).id },
     });
     expect(generalVoice).toMatchObject({
-      category: RoutingCategory.ENVIRONMENT,
+      categoryKey: 'WORK_DIFFICULTY',
       routeOwnerId: departmentHead.id,
+      handlingOrganizationSource: 'ROUTE',
+      handlingSectionSnapshot: null,
     });
+    expect(generalVoice.handlingOrganizationUnitId).toBe(generalVoice.reporterOrganizationUnitId);
 
-    const privateDraft = await voices.createDraft(member, {
+    let privateDraft = await voices.createDraft(member, {
       visibility: 'PRIVATE',
       showReporterIdentity: false,
+      privateContactConsent: false,
       area: 'KARAWANG_1',
       locationDetail: 'Line A station 4',
       title: 'Private concern',
       detail: 'A private workplace concern',
     });
+    await expect(
+      voices.submit(
+        member,
+        privateDraft.id,
+        { version: privateDraft.version },
+        'missing-contact-consent',
+      ),
+    ).rejects.toMatchObject({ code: 'PRIVATE_CONTACT_CONSENT_REQUIRED' });
+    const previousVersion = privateDraft.version;
+    privateDraft = await voices.updateDraft(member, privateDraft.id, {
+      privateContactConsent: true,
+      expectedVersion: previousVersion,
+    });
+    await expect(
+      voices.updateDraft(member, privateDraft.id, {
+        privateContactConsent: false,
+        expectedVersion: previousVersion,
+      }),
+    ).rejects.toMatchObject({ code: 'DRAFT_VERSION_CONFLICT' });
     await voices.manualClassification(member, privateDraft.id, {
       category: null,
       severity: Severity.MEDIUM,
@@ -292,12 +350,76 @@ describe('Organization, remediation, and routing journey', () => {
     const privateVoice = await prisma.voice.findUniqueOrThrow({
       where: { id: (privateResult as { id: string }).id },
     });
+    expect(privateVoice.privateContactConsentRecordedAt).toBeInstanceOf(Date);
+    expect(privateVoice.privateContactConsentVersion).toBe('v1');
+    expect(
+      await voices.submit(
+        member,
+        privateDraft.id,
+        { version: privateDraft.version },
+        'organization-routing-private',
+      ),
+    ).toEqual(privateResult);
+    const ownPrivate = await voices.detail(member, privateVoice.id);
+    expect(ownPrivate).toMatchObject({
+      privateContactConsent: true,
+      privateContactConsentVersion: 'v1',
+    });
     const head = await prisma.userAccount.findUniqueOrThrow({ where: { username: 'union-head' } });
     expect(privateVoice).toMatchObject({
-      category: null,
+      categoryKey: null,
       showReporterIdentity: false,
+      privateContactConsent: true,
       routeOwnerId: head.id,
     });
+
+    const raceDraft = await voices.createDraft(member, {
+      visibility: 'PRIVATE',
+      showReporterIdentity: false,
+      privateContactConsent: true,
+      area: 'KARAWANG_1',
+      locationDetail: 'Line A',
+      title: 'Concurrent consent',
+      detail: 'Concurrent consent update and submit',
+    });
+    await voices.manualClassification(member, raceDraft.id, {
+      category: null,
+      severity: Severity.MEDIUM,
+    });
+    const race = await Promise.allSettled([
+      voices.updateDraft(member, raceDraft.id, {
+        privateContactConsent: false,
+        expectedVersion: raceDraft.version,
+      }),
+      voices.submit(member, raceDraft.id, { version: raceDraft.version }, 'contact-consent-race'),
+    ]);
+    expect(race.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const finalDraft = await prisma.voiceDraft.findUniqueOrThrow({ where: { id: raceDraft.id } });
+    if (race[0].status === 'fulfilled') {
+      expect(finalDraft.privateContactConsent).toBe(false);
+      expect(finalDraft.submittedAt).toBeNull();
+    } else {
+      expect(finalDraft.privateContactConsent).toBe(true);
+      expect(finalDraft.submittedAt).not.toBeNull();
+    }
+    const switchDraft = await voices.createDraft(member, {
+      visibility: 'PRIVATE',
+      showReporterIdentity: false,
+      privateContactConsent: true,
+      area: 'KARAWANG_1',
+      locationDetail: 'Line A',
+      title: 'Switch consent',
+      detail: 'Visibility transition',
+    });
+    const switched = await voices.updateDraft(member, switchDraft.id, {
+      visibility: 'GENERAL',
+      expectedVersion: switchDraft.version,
+    });
+    expect(switched.privateContactConsent).toBeNull();
+    expect(switched.showReporterIdentity).toBeNull();
+    await expect(
+      voices.updateDraft(member, switchDraft.id, { privateContactConsent: true }),
+    ).rejects.toMatchObject({ code: 'PRIVATE_CONSENT_FORBIDDEN' });
 
     const department14 = await actor('000014');
     const blockedDraft = await voices.createDraft(department14, {
@@ -308,7 +430,7 @@ describe('Organization, remediation, and routing journey', () => {
       detail: 'This draft must remain after route rejection',
     });
     await voices.manualClassification(department14, blockedDraft.id, {
-      category: RoutingCategory.WORK_DIFFICULTY,
+      category: 'WORK_DIFFICULTY',
       severity: Severity.LOW,
     });
     await expect(

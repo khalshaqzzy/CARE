@@ -7,6 +7,7 @@ process.env.SESSION_CSRF_SECRET ??= 'test-session-csrf-secret-000000000000';
 process.env.AUTH_THROTTLE_SECRET ??= 'test-auth-throttle-secret-00000000000';
 process.env.CURSOR_SIGNING_SECRET ??= 'test-cursor-signing-secret-0000000000';
 process.env.OPENAI_API_KEY ??= '';
+process.env.OPENAI_CONFIG_ENCRYPTION_KEY ??= 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 process.env.OPENAI_MODEL ??= '';
 process.env.OPENAI_BASE_URL ??= '';
 process.env.OPENAI_REASONING_EFFORT ??= '';

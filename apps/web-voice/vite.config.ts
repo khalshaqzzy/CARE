@@ -15,7 +15,8 @@ export default defineConfig({
       injectRegister: false,
       includeManifestIcons: false,
       injectManifest: {
-        globPatterns: ['assets/**/*.{js,css,woff2}', 'offline.html'],
+        target: 'safari11.3',
+        globPatterns: ['assets/**/*.{js,css,woff2,png}', 'offline.html'],
         globIgnores: ['**/design-system-*.js', '**/design-system-*.css', '**/*.map'],
       },
       manifest: {
@@ -51,6 +52,7 @@ export default defineConfig({
     proxy: { '/api/v1': { target: 'http://127.0.0.1:3000', changeOrigin: false } },
   },
   build: {
+    target: 'safari11.3',
     rollupOptions: {
       output: {
         manualChunks(id) {

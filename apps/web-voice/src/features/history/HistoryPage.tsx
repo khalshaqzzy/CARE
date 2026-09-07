@@ -1,9 +1,9 @@
-import { Button, Card, EmptyState, Select, Skeleton, Stack, Input } from '@care/ui';
+import { Button, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Search } from 'lucide-react';
+import { ClipboardList, Flag, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { HistoryVoiceCard } from '../../components/HistoryVoiceCard';
 import { Pager } from '../../components/Pager';
-import { VoiceCard } from '../../components/VoiceCard';
 import { AREA_LABELS, STATUS_LABELS, SEVERITY_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useCursorPagination } from '../../lib/useCursorPagination';
@@ -46,55 +46,65 @@ export function HistoryPage() {
 
   const items = voices.data?.items ?? [];
   const nextCursor = voices.data?.nextCursor ?? null;
+  const hasFilters = Boolean(search || status || severity || area);
 
   return (
     <Stack gap="lg">
       <header className="page-intro">
         <p className="care-eyebrow">Voice Saya</p>
         <h1>Voice milik Anda</h1>
-        <p>Cari, saring, dan telusuri seluruh Voice yang pernah Anda laporkan.</p>
       </header>
 
-      <Card className="history-filters">
-        <div className="history-filters__row">
-          <div className="history-filters__search">
-            <Input
-              label="Cari"
-              value={search ?? ''}
-              onChange={(event) => setParam('search', event.target.value || undefined)}
-              leading={<Search size={16} />}
-              aria-label="Cari berdasarkan ID atau judul"
-            />
-          </div>
+      <div className="history-toolbar">
+        <Input
+          label="Cari"
+          hideLabel
+          value={search ?? ''}
+          onChange={(event) => setParam('search', event.target.value || undefined)}
+          leading={<Search size={16} />}
+          placeholder="Cari ID atau judul"
+          aria-label="Cari berdasarkan ID atau judul"
+        />
+        <div className="history-toolbar__filters">
           <Select
             label="Status"
+            hideLabel
             value={status ?? ''}
             onValueChange={(value) => setParam('status', value || undefined)}
             options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+            leading={<SlidersHorizontal size={15} />}
+            placeholder="Status"
           />
           <Select
             label="Severity"
+            hideLabel
             value={severity ?? ''}
             onValueChange={(value) => setParam('severity', value || undefined)}
             options={Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label }))}
+            leading={<Flag size={15} />}
+            placeholder="Severity"
           />
           <Select
             label="Area"
+            hideLabel
             value={area ?? ''}
             onValueChange={(value) => setParam('area', value || undefined)}
             options={Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label }))}
+            leading={<MapPin size={15} />}
+            placeholder="Area"
           />
-          {search || status || severity || area ? (
+          {hasFilters ? (
             <Button
               variant="ghost"
               size="sm"
+              className="history-toolbar__clear"
               onClick={() => setSearchParams(new URLSearchParams())}
             >
               Bersihkan
             </Button>
           ) : null}
         </div>
-      </Card>
+      </div>
 
       {voices.isLoading ? (
         <Skeleton label="Memuat riwayat" />
@@ -110,9 +120,9 @@ export function HistoryPage() {
         </Card>
       ) : (
         <Stack gap="md">
-          <div className="voice-grid">
+          <div className="history-list">
             {items.map((voice) => (
-              <VoiceCard
+              <HistoryVoiceCard
                 key={voice.id}
                 voice={voice}
                 onOpen={() => void navigate(`/voices/${voice.id}`)}

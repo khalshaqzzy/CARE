@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getInstallationId,
   isIos,
@@ -10,6 +10,8 @@ import {
   urlBase64ToUint8Array,
 } from '../../lib/push';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
+import { getBrowserCapabilities } from '../../lib/browser-capabilities';
+import { SERVICE_WORKER_FAILURE_MARKER } from '../../register-sw';
 
 type PushStatus = Awaited<ReturnType<ReturnType<typeof useApi>['pushStatus']>>;
 
@@ -23,17 +25,38 @@ export function useWebPush() {
   const api = useApi();
   const sessionId = useSessionId();
   const queryClient = useQueryClient();
+  const capabilities = getBrowserCapabilities();
+  const [serviceWorkerFailed, setServiceWorkerFailed] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(SERVICE_WORKER_FAILURE_MARKER) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const degraded = () => setServiceWorkerFailed(true);
+    const restored = () => setServiceWorkerFailed(false);
+    window.addEventListener('care-sw-degraded', degraded);
+    window.addEventListener('care-sw-restored', restored);
+    return () => {
+      window.removeEventListener('care-sw-degraded', degraded);
+      window.removeEventListener('care-sw-restored', restored);
+    };
+  }, []);
+  const canUsePushApi = capabilities.pushSupported && !serviceWorkerFailed;
 
   const publicKey = useQuery({
     queryKey: voiceQuery(sessionId, 'push', 'public-key'),
     queryFn: () => api.pushPublicKey(),
     staleTime: 60_000,
+    enabled: canUsePushApi,
   });
 
   const status = useQuery({
     queryKey: voiceQuery(sessionId, 'push', 'status'),
     queryFn: () => api.pushStatus(),
     refetchInterval: 30_000,
+    enabled: canUsePushApi,
   });
 
   const invalidate = () => {
@@ -102,6 +125,9 @@ export function useWebPush() {
     supported,
     standalone,
     ios,
+    pushRequiresIosUpgrade: capabilities.pushRequiresIosUpgrade,
+    pushRequiresInstall: capabilities.pushRequiresInstall,
+    serviceWorkerFailed,
     permission,
     enabled,
     subscriptionCount: subscriptions.length,

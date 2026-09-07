@@ -7,7 +7,7 @@ source "${SCRIPT_DIR}/lib.sh"
 RUNTIME_ENV="$1"
 [[ -s "${RUNTIME_ENV}" ]] || die "Runtime env file is missing or empty."
 
-allowed='^(APP_ENV|RELEASE_SHA|DEPLOY_RUN_NUMBER|COMPOSE_PROJECT_NAME|SHARED_DIR|WORKFORCE_DOMAIN|ADMIN_DOMAIN|CADDY_EMAIL|CADDY_SCHEME|PUBLISHED_HTTP_PORT|PUBLISHED_HTTPS_PORT|POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DATABASE|SESSION_HASH_SECRET|SESSION_CSRF_SECRET|AUTH_THROTTLE_SECRET|CURSOR_SIGNING_SECRET|METRICS_TOKEN|CARE_ADMIN_USERNAME|CARE_ADMIN_PASSWORD|OPENAI_API_KEY|OPENAI_MODEL|OPENAI_BASE_URL|OPENAI_REASONING_EFFORT|OPENAI_CONFIDENCE_THRESHOLD|OPENAI_TIMEOUT_MS|VAPID_SUBJECT|VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|PUSH_ENDPOINT_HOSTS|PUSH_CANARY_ENDPOINT_HASH|SESSION_IDLE_HOURS|SESSION_ABSOLUTE_DAYS)='
+allowed='^(APP_ENV|RELEASE_SHA|DEPLOY_RUN_NUMBER|COMPOSE_PROJECT_NAME|SHARED_DIR|WORKFORCE_DOMAIN|ADMIN_DOMAIN|CADDY_EMAIL|CADDY_SCHEME|PUBLISHED_HTTP_PORT|PUBLISHED_HTTPS_PORT|POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DATABASE|SESSION_HASH_SECRET|SESSION_CSRF_SECRET|AUTH_THROTTLE_SECRET|CURSOR_SIGNING_SECRET|METRICS_TOKEN|CARE_ADMIN_USERNAME|CARE_ADMIN_PASSWORD|OPENAI_API_KEY|OPENAI_CONFIG_ENCRYPTION_KEY|OPENAI_MODEL|OPENAI_BASE_URL|OPENAI_REASONING_EFFORT|OPENAI_CONFIDENCE_THRESHOLD|OPENAI_TIMEOUT_MS|VAPID_SUBJECT|VAPID_PUBLIC_KEY|VAPID_PRIVATE_KEY|PUSH_ENDPOINT_HOSTS|PUSH_CANARY_ENDPOINT_HASH|SESSION_IDLE_HOURS|SESSION_ABSOLUTE_DAYS)='
 while IFS= read -r line || [[ -n "${line}" ]]; do
   [[ -z "${line}" || "${line}" == \#* ]] && continue
   [[ "${line}" =~ ${allowed} ]] || die "Runtime env contains an unknown or malformed key."
@@ -25,20 +25,22 @@ require_sha "${RELEASE_SHA}"
 [[ "${COMPOSE_PROJECT_NAME}" == "care-${APP_ENV}" ]] || die "COMPOSE_PROJECT_NAME does not match APP_ENV."
 [[ "${SHARED_DIR}" == "/opt/care/${APP_ENV}/shared" || "${SHARED_DIR}" == /tmp/care-* ]] || die "SHARED_DIR is outside the approved path."
 
-safe_names=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DATABASE SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN CARE_ADMIN_USERNAME CARE_ADMIN_PASSWORD OPENAI_API_KEY OPENAI_MODEL VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY)
+safe_names=(POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DATABASE SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN CARE_ADMIN_USERNAME CARE_ADMIN_PASSWORD OPENAI_API_KEY OPENAI_CONFIG_ENCRYPTION_KEY OPENAI_MODEL VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY)
 for name in "${safe_names[@]}"; do
   value="$(require_env_value "${RUNTIME_ENV}" "${name}")"
   [[ "${value}" =~ ^[A-Za-z0-9._/-]+$ ]] || die "${name} contains unsupported dotenv characters."
 done
-for name in POSTGRES_PASSWORD SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN; do
+for name in POSTGRES_PASSWORD SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN OPENAI_CONFIG_ENCRYPTION_KEY; do
   value="$(require_env_value "${RUNTIME_ENV}" "${name}")"
   (( ${#value} >= 32 )) || die "${name} must contain at least 32 characters."
 done
 admin_password="$(require_env_value "${RUNTIME_ENV}" CARE_ADMIN_PASSWORD)"
 (( ${#admin_password} >= 12 )) || die "CARE_ADMIN_PASSWORD must contain at least 12 characters."
+openai_encryption_key="$(require_env_value "${RUNTIME_ENV}" OPENAI_CONFIG_ENCRYPTION_KEY)"
+[[ "${openai_encryption_key}" =~ ^[A-Za-z0-9_-]{43}$ ]] || die "OPENAI_CONFIG_ENCRYPTION_KEY must be a 32-byte base64url value."
 
 secrets=()
-for name in POSTGRES_PASSWORD SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN CARE_ADMIN_PASSWORD; do secrets+=("$(require_env_value "${RUNTIME_ENV}" "${name}")"); done
+for name in POSTGRES_PASSWORD SESSION_HASH_SECRET SESSION_CSRF_SECRET AUTH_THROTTLE_SECRET CURSOR_SIGNING_SECRET METRICS_TOKEN CARE_ADMIN_PASSWORD OPENAI_CONFIG_ENCRYPTION_KEY; do secrets+=("$(require_env_value "${RUNTIME_ENV}" "${name}")"); done
 [[ "$(printf '%s\n' "${secrets[@]}" | sort -u | wc -l | tr -d ' ')" == "${#secrets[@]}" ]] || die "Runtime secrets that protect different purposes must be distinct."
 
 for name in WORKFORCE_DOMAIN ADMIN_DOMAIN; do
@@ -50,8 +52,8 @@ caddy_email="$(require_env_value "${RUNTIME_ENV}" CADDY_EMAIL)"
 openai_base_url="$(require_env_value "${RUNTIME_ENV}" OPENAI_BASE_URL)"
 url_pattern='^https://[-A-Za-z0-9._~:/?#@!&()*+,;=%]+$'
 [[ "${openai_base_url}" =~ ${url_pattern} ]] || die "OPENAI_BASE_URL must use HTTPS."
-openai_reasoning_effort="$(require_env_value "${RUNTIME_ENV}" OPENAI_REASONING_EFFORT)"
-[[ "${openai_reasoning_effort}" =~ ^(none|minimal|low|medium|high|xhigh|max)$ ]] || die "OPENAI_REASONING_EFFORT is invalid."
+openai_reasoning_effort="$(env_value "${RUNTIME_ENV}" OPENAI_REASONING_EFFORT)" || die "OPENAI_REASONING_EFFORT must be present."
+[[ "${openai_reasoning_effort}" =~ ^(none|minimal|low|medium|high|xhigh|max)?$ ]] || die "OPENAI_REASONING_EFFORT is invalid."
 vapid_subject="$(require_env_value "${RUNTIME_ENV}" VAPID_SUBJECT)"
 [[ "${vapid_subject}" =~ ^(mailto:|https://) ]] || die "VAPID_SUBJECT must use mailto: or https:."
 endpoint_hosts="$(require_env_value "${RUNTIME_ENV}" PUSH_ENDPOINT_HOSTS)"

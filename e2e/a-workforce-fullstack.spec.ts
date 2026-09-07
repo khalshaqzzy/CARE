@@ -19,14 +19,30 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   // smoke room without loosening the assertion budgets.
   test.setTimeout(90_000);
   await page.goto(`${ORIGIN}/login`);
-  await expect(page.getByRole('heading', { name: 'Selamat datang kembali' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' })).toBeVisible({
     timeout: 60_000,
   });
   await page.getByLabel('Username').fill(USERNAME);
-  await page.getByLabel('Password').fill(PASSWORD);
+  // Role + name — getByLabel('Password') would also match the PasswordInput
+  // visibility toggle ("Tampilkan password"), and the label text is
+  // "Password *" because of the required marker.
+  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Masuk' }).click();
 
-  // First login is restricted and forces a password change.
+  // A workforce account can defer for this session, but the account-level
+  // requirement survives and is enforced again after the next login.
+  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await page.getByRole('button', { name: 'Lain kali' }).click();
+  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.getByRole('banner').getByRole('button', { name: 'Keluar' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
+  ).toBeVisible();
+  await page.getByLabel('Username').fill(USERNAME);
+  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Masuk' }).click();
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
   await page.getByLabel('Password saat ini').fill(USERNAME);
   // The required new-password field's accessible name is "Password baru *"; anchor
@@ -49,4 +65,32 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
     page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
   ).toBeVisible();
   await expect(page.getByText('Timeline')).toBeVisible();
+});
+
+test('manager dashboard uses real hierarchy metadata and scoped aggregates', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto(`${ORIGIN}/login`);
+  await page.getByLabel('Username').fill('000003');
+  await page.getByRole('textbox', { name: 'Password' }).fill('000003');
+  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.getByRole('button', { name: 'Lain kali' }).click();
+  await expect(page.locator('.dashboard-context')).toContainText('Department A');
+  await expect(
+    page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }).locator('strong'),
+  ).toHaveText('1');
+  await page.getByRole('button', { name: 'Department', exact: true }).click();
+  await expect(page.locator('.dashboard-context')).toContainText('Division A');
+  await page.getByRole('button', { name: 'Pelapor', exact: true }).click();
+  await expect(page.locator('.dashboard-context')).toContainText('Organisasi pelapor');
+  const aggregate = await page.request.get(`${ORIGIN}/api/v1/dashboard/general?basis=HANDLING`);
+  expect(aggregate.ok()).toBe(true);
+  const payload = await aggregate.json();
+  expect(payload.total).toBe(1);
+  expect(JSON.stringify(payload)).not.toContain('Pencahayaan area produksi kurang');
+  const preview = await page.request.get(`${ORIGIN}/api/v1/dashboard/preview?basis=HANDLING`);
+  expect((await preview.json()).items).toHaveLength(1);
+  await page.locator('.dashboard-inbox').getByRole('button', { name: /Buka/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
+  ).toBeVisible();
 });

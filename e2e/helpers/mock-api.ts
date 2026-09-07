@@ -1,3 +1,4 @@
+import { dashboardFixture } from './dashboard-fixture';
 import type { Page } from '@playwright/test';
 import type { components } from '@care/contracts';
 
@@ -23,6 +24,8 @@ type VoiceDetail = components['schemas']['AdminPrivateVoiceDetail'];
 type TimelinePage = components['schemas']['TimelinePage'];
 type MessagePage = components['schemas']['MessagePage'];
 type AdminOverview = components['schemas']['AdminOverview'];
+type AiConfiguration = components['schemas']['AiConfigurationResponse'];
+type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCategoryAdmin'];
 
 /** A safe, non-leaking error envelope for the mock. */
 export function errorBody(code: string, message = 'Not found in mock') {
@@ -155,7 +158,14 @@ export type MockVoice = {
   availableActions: string[];
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  category?: 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY' | null;
+  category?: string | null;
+  attachments?: { id: string; mimeType: string; purpose?: string }[];
+  closureCycles?: unknown[];
+  updatedAt?: string;
+  /** PIC display name on work-item/general list items. */
+  currentHandlerName?: string | null;
+  /** Per-Voice alias on Union private list items. */
+  reporterAlias?: string | null;
 };
 
 const voiceDetail = (voice: MockVoice): VoiceDetail => ({
@@ -174,6 +184,7 @@ const voiceDetail = (voice: MockVoice): VoiceDetail => ({
   submittedAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-03T00:00:00.000Z',
   classificationSource: 'AI',
+  classificationCategory: { key: 'SAFETY', name: 'Safety' },
   availableActions: voice.availableActions,
   conversationState:
     voice.conversationState ??
@@ -213,7 +224,25 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
   category: voice.category ?? (voice.visibility === 'PRIVATE' ? null : 'SAFETY'),
   severity: voice.severity ?? 'HIGH',
   status: voice.status as VoiceListItem['status'],
-  updatedAt: '2026-08-03T00:00:00.000Z',
+  updatedAt: voice.updatedAt ?? '2026-08-03T00:00:00.000Z',
+  // Review state of the latest closure cycle for status chips and the home
+  // "Menunggu penilaian" card; absent while the voice has no closure yet.
+  ...(() => {
+    const latest = (
+      voice.closureCycles as
+        Array<{ reviewState?: string; reviewDeadline?: string | null }> | undefined
+    )?.at(-1);
+    return latest
+      ? {
+          closureReviewState: latest.reviewState ?? null,
+          closureReviewDeadline: latest.reviewDeadline ?? null,
+        }
+      : {};
+  })(),
+  ...(voice.currentHandlerName !== undefined
+    ? { currentHandlerName: voice.currentHandlerName }
+    : {}),
+  ...(voice.reporterAlias !== undefined ? { reporterAlias: voice.reporterAlias } : {}),
 });
 
 /**
@@ -282,7 +311,7 @@ const readyFixture = (): Readiness => ({
     environment: 'test',
     releaseSha: 'ci',
     mediaRoot: './.tmp',
-    openai: { configured: false, model: null },
+    openai: { configured: false, model: null, reasoningEffort: '' },
     push: { configured: false },
   },
 });
@@ -292,13 +321,31 @@ const releaseFixture = (): Release => ({ releaseSha: 'ci', version: '1.0.0', ser
 const overviewFixture = (): AdminOverview => ({
   accounts: { active: 3, legacy: 1, inactive: 2 },
   openRemediation: 2,
-  latestImport: { id: 'batch-1', status: 'CONFIRMED', createdAt: '2026-08-01T00:00:00.000Z' },
+  latestImport: {
+    id: 'batch-1',
+    status: 'CONFIRMED',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    summary: { rowCount: 6, create: 3, update: 1, deactivate: 2 },
+  },
   unionSlots: 3,
   recentResolution: {
     id: 'res-1',
     action: 'set_default_pic',
     createdAt: '2026-08-01T00:00:00.000Z',
   },
+  voices: { open: 2, inVerification: 1, inProgress: 1, closed: 5, critical: 1 },
+  failedAudits: 0,
+});
+
+const aiConfigurationFixture = (): AiConfiguration => ({
+  source: 'ENVIRONMENT',
+  baseUrl: 'https://api.deepseek.com',
+  model: 'deepseek-v4-flash',
+  reasoningEffort: 'none',
+  confidenceThreshold: 0.75,
+  apiKeyConfigured: true,
+  version: null,
+  updatedAt: null,
 });
 
 const accountFixtures = (): AccountSummary[] => [
@@ -425,6 +472,29 @@ const remediationHistoryFixture = (): RemediationResolutionList => ({
     },
   ],
   nextCursor: null,
+});
+
+const categoryFixture = (): GeneralVoiceCategoryAdmin => ({
+  id: '10000000-0000-4000-8000-000000000001',
+  key: 'SAFETY',
+  status: 'ACTIVE',
+  version: 1,
+  name: 'Safety',
+  definition: 'Kondisi atau tindakan yang berkaitan dengan keselamatan kerja.',
+  examples: ['Jalur forklift dan pedestrian bercampur.'],
+  revision: 1,
+  route: {
+    mode: 'FIXED_DEPARTMENT',
+    organizationUnit: {
+      id: 'unit-1',
+      directorate: 'Manufacturing & PE Dir',
+      division: 'Plant Administration Div',
+      department: 'Plant GA & SHE Dept',
+    },
+    pic: { id: 'manager-1', name: 'Department Head', noReg: '000001' },
+    health: 'HEALTHY',
+  },
+  updatedAt: '2026-09-01T00:00:00.000Z',
 });
 
 const sectionHeadFixture = (): SectionHeadCandidateList => [
@@ -581,6 +651,8 @@ export async function mockAdminApi(
     health?: Health;
     ready?: Readiness;
     release?: Release;
+    aiConfiguration?: AiConfiguration;
+    categories?: GeneralVoiceCategoryAdmin[];
   } = {},
 ) {
   const session = opts.session ?? adminSession();
@@ -611,6 +683,53 @@ export async function mockAdminApi(
     }
     if (method === 'GET' && path === '/api/v1/admin/overview')
       return fulfill(200, override('overview') ?? overviewFixture());
+    if (method === 'GET' && path === '/api/v1/admin/general-voice-categories')
+      return fulfill(200, override('categories') ?? [categoryFixture()]);
+    if (method === 'POST' && path === '/api/v1/admin/general-voice-categories') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      return fulfill(201, {
+        ...categoryFixture(),
+        id: '10000000-0000-4000-8000-000000000099',
+        key: 'CUSTOM_CATEGORY',
+        ...body,
+      });
+    }
+    if (
+      method === 'GET' &&
+      /\/api\/v1\/admin\/general-voice-categories\/[^/]+\/history$/.test(path)
+    )
+      return fulfill(200, [
+        {
+          id: 'revision-1',
+          revision: 1,
+          name: 'Safety',
+          effectiveFrom: '2026-09-01T00:00:00.000Z',
+        },
+      ]);
+    if (method === 'GET' && path === '/api/v1/admin/ai-configuration')
+      return fulfill(200, override('aiConfiguration') ?? aiConfigurationFixture());
+    if (method === 'PUT' && path === '/api/v1/admin/ai-configuration') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      return fulfill(200, {
+        source: 'ADMIN_OVERRIDE',
+        baseUrl: body.baseUrl,
+        model: body.model,
+        reasoningEffort: body.reasoningEffort,
+        confidenceThreshold: body.confidenceThreshold,
+        apiKeyConfigured: true,
+        version: 1,
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      });
+    }
+    if (method === 'DELETE' && path === '/api/v1/admin/ai-configuration')
+      return fulfill(200, aiConfigurationFixture());
+    if (method === 'POST' && path === '/api/v1/admin/ai-configuration/test')
+      return fulfill(200, {
+        ok: true,
+        classification: { source: 'AI' },
+        location: { completeness: 'COMPLETE', valid: true },
+        latencyMs: 42,
+      });
     if (method === 'GET' && path === '/api/v1/admin/accounts')
       return fulfill(200, override('accounts') ?? { items: accountFixtures(), nextCursor: null });
     if (method === 'GET' && path.startsWith('/api/v1/admin/accounts/')) {
@@ -662,11 +781,7 @@ export async function mockAdminApi(
       return fulfill(200, override('remediation') ?? remediationFixture());
     if (method === 'GET' && path === '/api/v1/admin/remediation-issues/history')
       return fulfill(200, override('remediationHistory') ?? remediationHistoryFixture());
-    if (
-      method === 'PUT' &&
-      (/\/api\/v1\/admin\/organization-units\/[^/]+\/default-pic$/.test(path) ||
-        path === '/api/v1/admin/routes/global-special-pic')
-    )
+    if (method === 'PUT' && /\/api\/v1\/admin\/organization-units\/[^/]+\/default-pic$/.test(path))
       return fulfill(200, { id: 'route-1' });
     if (
       method === 'GET' &&
@@ -749,6 +864,10 @@ export type MockApiOptions = {
   session?: Session;
   /** Return 401 for the session endpoint (login / unauthenticated surfaces). */
   unauthenticated?: boolean;
+  /** Fail only the session-scoped password deferral mutation. */
+  deferPasswordError?: { status: number; code: string };
+  /** Fail only the password-change mutation with a structured API state. */
+  changePasswordError?: { status: number; code: string };
   voice?: MockVoice;
   /** Force every data endpoint to return a safe error envelope. */
   error?: { status: number; code: string };
@@ -760,6 +879,11 @@ export type MockApiOptions = {
   unassignedVoiceList?: unknown;
   /** Override for `GET /voices/{id}/assignment-candidates`. */
   assignmentCandidates?: unknown;
+  /** Override for the Manager handover selection and restricted history surfaces. */
+  handoverOptions?: unknown;
+  handoverHistory?: unknown;
+  myHandovers?: unknown;
+  handoverError?: { status: number; code: string; message?: string };
   memberDashboard?: unknown;
   generalDashboard?: unknown;
   privateDashboard?: unknown;
@@ -769,6 +893,8 @@ export type MockApiOptions = {
   locationReview?: unknown;
   notifications?: unknown;
   unread?: number;
+  /** Replacement bytes for the media stub; defaults to a 1×1 transparent PNG. */
+  mediaBody?: Buffer;
   push?: {
     configured?: boolean;
     publicKey?: string | null;
@@ -785,7 +911,17 @@ export type MockApiOptions = {
 };
 
 const PNG_1x1 = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4dusBAAUaApFBDgH7AAAAAElFTkSuQmCC',
+  'base64',
+);
+
+/**
+ * Deterministic 320×200 two-tone PNG used when a test needs the media stub to
+ * be visibly rendered (e.g. the lightbox visual baseline). The default stub
+ * stays PNG_1x1 so existing baselines remain byte-identical.
+ */
+export const PNG_MEDIA_SAMPLE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAUAAAADICAIAAAAWZq/8AAAB4ElEQVR42u3TMQ0AIRBEUfxefxLQchIQcWpItqDDAA3lwkuegpn88rUfSKqYAAQMCBgQMAgYEDAgYEDAIGBAwICAQcCAgAEBAwIGAQMCBgQMCBgEDAgYEDAIGBAwIGBAwCBgQMCAgAEBg4ABAQMCBgEDAgYEDAgYBAwIGEgdcI+xxVUgYBCwgEHAAgYBg4AFDAIWMAhYwCBgELCAQcACBgEDAgYBCxgELGAQMAgYEDAgYEDAIGBAwICAAQGDgAEBAwIGAQMCBgQMCBgEDAgYEDAI2AogYEDAgIBBwICAAQEDAgYBAwIGBAwCBgQMCBgQMAgYEDAgYEDAIGBAwICA4b6AewwgKQGDgAEBAwIGAQMCBgQMrAJ+3gokJWAQMCBgQMAgYEDAgIABAYOAAQEDAgYBAwIGBAwIGAQMCBgQMCBgEDAgYEDAIGBAwICAAQGDgAEBAwIGBAwCBgQMCBgEDAgYEDAgYBAwIGBAwCBgK4CAAQEDAgYBAwIGBAwIGAQMCBgQMAgYEDAgYEDAIGBAwICAAQGDgAEBAwIGAQMCBgQMCBgEDAgYEDAgYBAwIGBAwCBgQMCAgAEBg4ABAQMCBgEDAgYEDAgYBAwIGBAwIGAQMCBgQMAgYEDAgIABAcPRJpIQdtevCHTHAAAAAElFTkSuQmCC',
   'base64',
 );
 
@@ -797,6 +933,8 @@ const defaultGENERAL_DASHBOARD = (): DashboardAggregate => ({
   trend: [],
   division: [],
   department: [],
+  area: [],
+  areaCritical: [],
   suppression: {
     enabled: false,
     threshold: 0,
@@ -852,15 +990,17 @@ function detail(voice: MockVoice) {
     title: voice.title,
     detail: voice.detail,
     category: 'SAFETY',
+    categoryNameSnapshot: 'Safety',
     severity: 'HIGH',
     status: voice.status,
     version: 3,
     submittedAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-03T00:00:00.000Z',
     classificationSource: 'AI',
+    classificationCategory: { key: 'SAFETY', name: 'Safety' },
     routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
     currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
-    attachments: [],
+    attachments: voice.attachments ?? [],
     locationReview: {
       id: 'lr-1',
       completeness: 'COMPLETE',
@@ -868,7 +1008,7 @@ function detail(voice: MockVoice) {
       questions: [],
       contentHash: 'a'.repeat(64),
     },
-    closureCycles: [],
+    closureCycles: voice.closureCycles ?? [],
     availableActions: voice.availableActions,
     conversationState:
       voice.conversationState ??
@@ -889,6 +1029,10 @@ function detail(voice: MockVoice) {
   };
 }
 
+/**
+ * A four-item notification page spanning today, yesterday, and older with
+ * mixed read states so grouping and unread affordances render (screen 15).
+ */
 const notificationPageFixture = (): unknown => ({
   items: [
     {
@@ -897,8 +1041,35 @@ const notificationPageFixture = (): unknown => ({
       title: 'Voice baru ditugaskan',
       body: 'Sebuah Voice baru telah dirutekan kepada Anda.',
       deepLink: '/voices/voice-1',
-      createdAt: '2026-08-01T00:00:00.000Z',
+      createdAt: '2026-08-05T00:00:00.000Z',
       readAt: null,
+    },
+    {
+      id: 'note-2',
+      type: 'STATUS_CHANGED',
+      title: 'Ada pembaruan Private Voice',
+      body: 'Update pada sebuah Private Voice telah tersedia.',
+      deepLink: '/voices/voice-1',
+      createdAt: '2026-08-04T23:30:00.000Z',
+      readAt: null,
+    },
+    {
+      id: 'note-3',
+      type: 'MESSAGE',
+      title: 'Voice diperbarui',
+      body: 'Detail pada sebuah Voice telah diperbarui.',
+      deepLink: null,
+      createdAt: '2026-08-04T08:45:00.000Z',
+      readAt: '2026-08-04T09:00:00.000Z',
+    },
+    {
+      id: 'note-4',
+      type: 'CLOSED',
+      title: 'Verifikasi selesai',
+      body: 'Verifikasi pada sebuah Voice telah selesai.',
+      deepLink: null,
+      createdAt: '2026-08-03T02:10:00.000Z',
+      readAt: '2026-08-03T03:00:00.000Z',
     },
   ],
   nextCursor: null,
@@ -912,10 +1083,17 @@ const notificationPageFixture = (): unknown => ({
  * its error state.
  */
 export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
-  const session = opts.session ?? memberSession();
+  let session = opts.session ?? memberSession();
   const voice = opts.voice;
+  let savedDraft: Record<string, unknown> | null = null;
+  // Messages the mocked composer sends; the GET echo merges them so the log
+  // keeps showing a sent reply after the post-send refetch.
+  const sentThreadMessages: Record<string, unknown[]> = {};
 
-  await page.route('**/api/v1/**', async (route) => {
+  // Context-level routing keeps the mocks working when the production service
+  // worker is active (push project): requests re-issued by the worker's
+  // NetworkOnly handler bypass page routes but still hit context routes.
+  await page.context().route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
     const method = route.request().method();
@@ -929,11 +1107,47 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     }
     if (method === 'GET' && path === '/api/v1/auth/csrf')
       return satisfy(200, { token: 'csrf-token' });
+    if (method === 'POST' && path === '/api/v1/auth/defer-password-change') {
+      if (opts.deferPasswordError)
+        return satisfy(
+          opts.deferPasswordError.status,
+          JSON.parse(
+            errorBody(opts.deferPasswordError.code, 'Ganti password tidak dapat ditunda.'),
+          ),
+        );
+      session = { ...session, passwordChangeRequired: false };
+      return satisfy(201, session);
+    }
+    if (method === 'POST' && path === '/api/v1/auth/change-password' && opts.changePasswordError)
+      return satisfy(
+        opts.changePasswordError.status,
+        JSON.parse(errorBody(opts.changePasswordError.code, 'Password tidak dapat diubah.')),
+      );
     if (opts.error)
       return satisfy(opts.error.status, errorBody(opts.error.code, 'Mocked state error'));
 
+    if (method === 'GET' && path === '/api/v1/general-voice-categories')
+      return satisfy(200, [
+        { id: 'category-safety', key: 'SAFETY', name: 'Safety' },
+        { id: 'category-environment', key: 'ENVIRONMENT', name: 'Environment' },
+        { id: 'category-facility', key: 'FACILITY', name: 'Fasilitas Umum' },
+        { id: 'category-repair', key: 'FACILITY_REPAIR', name: 'Facility Repair' },
+        {
+          id: 'category-work',
+          key: 'WORK_DIFFICULTY',
+          name: 'Fasilitas Kerja / Kesulitan Kerja',
+        },
+        { id: 'category-welfare', key: 'WELFARE', name: 'Kesejahteraan' },
+      ]);
+
     // Dashboards
     if (method === 'GET' && path === '/api/v1/dashboard/member') {
+      const latestCycle = (
+        voice?.closureCycles as
+          Array<{ reviewState?: string; reopenedAt?: string | null }> | undefined
+      )?.at(-1);
+      const closedPendingReview =
+        voice?.status === 'CLOSED' && latestCycle?.reviewState === 'PENDING' ? 1 : 0;
       return satisfy(
         200,
         opts.memberDashboard ?? {
@@ -942,14 +1156,35 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
             OPEN: 0,
             IN_VERIFICATION: 0,
             IN_PROGRESS: voice?.status === 'IN_PROGRESS' ? 1 : 0,
-            CLOSED: 0,
+            CLOSED: voice?.status === 'CLOSED' ? 1 : 0,
           },
+          closedPendingReview,
           recent: voice ? [baseVoiceItem(voice)] : [],
           draft: null,
           generatedAt: new Date().toISOString(),
         },
       );
     }
+    if (method === 'GET' && path === '/api/v1/dashboard/metadata')
+      return satisfy(200, dashboardFixture(session, url).metadata);
+    if (method === 'GET' && path === '/api/v1/dashboard/preview')
+      return satisfy(
+        200,
+        opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
+      );
+    if (
+      method === 'GET' &&
+      ['/api/v1/dashboard/general', '/api/v1/dashboard/private'].includes(path) &&
+      url.searchParams.has('basis')
+    )
+      return satisfy(
+        200,
+        dashboardFixture(
+          session,
+          url,
+          path.endsWith('/private') ? opts.privateDashboard : opts.generalDashboard,
+        ).view,
+      );
     if (method === 'GET' && path === '/api/v1/dashboard/general')
       return satisfy(200, opts.generalDashboard ?? defaultGENERAL_DASHBOARD());
     if (method === 'GET' && path === '/api/v1/dashboard/private')
@@ -983,6 +1218,61 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         generatedAt: new Date().toISOString(),
       });
     }
+    if (method === 'GET' && path === '/api/v1/handovers/mine') {
+      return satisfy(200, opts.myHandovers ?? { items: [], nextCursor: null });
+    }
+
+    const handoverMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/handovers$/);
+    if (method === 'GET' && handoverMatch) {
+      return satisfy(
+        200,
+        opts.handoverHistory ?? {
+          voice: { id: handoverMatch[1], displayId: voice?.displayId ?? 'CARE-202608-000001' },
+          accessMode: 'VOICE_READER',
+          items: [],
+        },
+      );
+    }
+    if (method === 'POST' && handoverMatch) {
+      if (opts.handoverError)
+        return satisfy(
+          opts.handoverError.status,
+          JSON.parse(
+            errorBody(
+              opts.handoverError.code,
+              opts.handoverError.message ?? 'Mocked handover error',
+            ),
+          ),
+        );
+      return satisfy(200, {
+        id: handoverMatch[1],
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: 'OPEN',
+        version: 4,
+        currentHandlerId: null,
+        handlerType: 'MANAGER',
+        handoverId: 'handover-1',
+      });
+    }
+    const handoverOptionsMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/handover-options$/);
+    if (method === 'GET' && handoverOptionsMatch) {
+      return satisfy(
+        200,
+        opts.handoverOptions ?? {
+          current: {
+            category: { id: 'category-safety', key: 'SAFETY', name: 'Safety' },
+            department: {
+              id: 'department-current',
+              directorate: 'Manufacturing',
+              division: 'Plant',
+              department: 'Plant GA & SHE',
+            },
+            pic: { id: 'handler-1', displayName: 'Manager PIC', type: 'DEPARTMENT_HEAD' },
+          },
+          options: [],
+        },
+      );
+    }
 
     const messagesMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/messages$/);
     if (method === 'GET' && messagesMatch) {
@@ -997,9 +1287,38 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
             sender: { kind: 'WORKFORCE' },
             attachments: [],
           },
+          {
+            id: 'msg-2',
+            text: 'Lantai 3, dekat mesin produksi.',
+            createdAt: '2026-08-02T01:05:00.000Z',
+            senderId: 'member-1',
+            senderAccountKind: 'WORKFORCE',
+            sender: { kind: 'WORKFORCE' },
+            attachments: [],
+          },
+          ...(sentThreadMessages[messagesMatch[1] ?? ''] ?? []),
         ],
         nextCursor: 'msg-next',
       });
+    }
+    if (method === 'POST' && messagesMatch) {
+      // The composer posts multipart form data; echo the text field back as a
+      // message authored by the mocked session, then remember it so the next
+      // GET keeps the reply in the log.
+      const raw = route.request().postData() ?? '';
+      const text = /name="text"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(raw)?.[1] ?? '';
+      const message = {
+        id: `msg-sent-${Object.keys(sentThreadMessages).length + 1}`,
+        ...(text ? { text } : {}),
+        createdAt: new Date().toISOString(),
+        senderId: session.account.id,
+        senderAccountKind: session.account.accountKind,
+        sender: { kind: session.account.accountKind },
+        attachments: [],
+      };
+      const threadId = messagesMatch[1] ?? '';
+      sentThreadMessages[threadId] = [...(sentThreadMessages[threadId] ?? []), message];
+      return satisfy(200, message);
     }
     const timelineMatch = path.match(/^\/api\/v1\/voices\/([^/]+)\/timeline$/);
     if (method === 'GET' && timelineMatch) {
@@ -1028,11 +1347,13 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
                   id: 'union-officer-1',
                   displayName: 'Union Officer 1',
                   slot: 'OFFICER_1',
+                  activeCount: 3,
                 },
                 {
                   id: 'union-officer-2',
                   displayName: 'Union Officer 2',
                   slot: 'OFFICER_2',
+                  activeCount: 2,
                 },
               ]
             : []),
@@ -1043,9 +1364,42 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       return satisfy(200, opts.voiceDetail ?? (voice ? detail(voice) : {}));
     }
     // Lifecycle mutations
+    // The rate endpoint is stateful: it records the rating on the latest
+    // closure cycle, resolves the review state, and on reopen flips the voice
+    // back into verification so the journey asserts post-mutation UI.
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/rate$/.test(path)) {
+      const body = (await route.request().postDataJSON()) as {
+        score: number;
+        feedback?: string;
+        reopen?: boolean;
+      };
+      const cycle = (voice?.closureCycles as Array<Record<string, unknown>> | undefined)?.at(-1);
+      if (voice && cycle) {
+        cycle.rating = {
+          score: body.score,
+          feedback: body.feedback ?? null,
+          reopen: Boolean(body.reopen),
+        };
+        cycle.reviewState = body.reopen ? 'REJECTED' : 'ACCEPTED';
+        cycle.reviewResolvedAt = new Date().toISOString();
+        if (body.reopen) {
+          cycle.reopenedAt = new Date().toISOString();
+          voice.status = 'IN_VERIFICATION';
+          voice.availableActions = ['MESSAGE'];
+        } else {
+          voice.availableActions = [];
+        }
+      }
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'CLOSED',
+        version: 4,
+      });
+    }
     if (
       method === 'POST' &&
-      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|ask|proceed|close|rate)$/.test(
+      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|ask|proceed|close)$/.test(
         path,
       )
     ) {
@@ -1070,10 +1424,16 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     // Drafts
     if (method === 'GET' && path === '/api/v1/drafts')
       return satisfy(200, { items: [draftFixture(voice)], nextCursor: null });
-    if (method === 'POST' && path === '/api/v1/drafts') return satisfy(201, draftFixture(voice));
+    if (method === 'POST' && path === '/api/v1/drafts') {
+      savedDraft = {
+        ...(draftFixture(voice) as Record<string, unknown>),
+        ...route.request().postDataJSON(),
+      };
+      return satisfy(201, savedDraft);
+    }
     const draftPreviewMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/preview$/);
     if (method === 'GET' && draftPreviewMatch)
-      return satisfy(200, opts.draftPreview ?? previewFixture());
+      return satisfy(200, opts.draftPreview ?? { ...previewFixture(), ...(savedDraft ?? {}) });
     const draftClassifyMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)\/classify$/);
     if (method === 'POST' && draftClassifyMatch)
       return satisfy(
@@ -1129,15 +1489,24 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         status: 'OPEN',
       });
     const draftMatch = path.match(/^\/api\/v1\/drafts\/([^/]+)$/);
-    if (method === 'GET' && draftMatch) return satisfy(200, opts.draft ?? draftFixture(voice));
-    if (method === 'PATCH' && draftMatch) return satisfy(200, opts.draft ?? draftFixture(voice));
+    if (method === 'GET' && draftMatch)
+      return satisfy(200, savedDraft ?? opts.draft ?? draftFixture(voice));
+    if (method === 'PATCH' && draftMatch) {
+      const previous = savedDraft ?? opts.draft ?? (draftFixture(voice) as Record<string, unknown>);
+      savedDraft = {
+        ...previous,
+        ...route.request().postDataJSON(),
+        version: Number(previous.version) + 1,
+      };
+      return satisfy(200, savedDraft);
+    }
     if (method === 'DELETE' && draftMatch) return satisfy(200, { success: true });
 
     // Notifications
     if (method === 'GET' && path === '/api/v1/notifications')
       return satisfy(200, opts.notifications ?? notificationPageFixture());
     if (method === 'GET' && path === '/api/v1/notifications/unread-count')
-      return satisfy(200, { count: opts.unread ?? 1 });
+      return satisfy(200, { count: opts.unread ?? 2 });
     if (method === 'PATCH' && path === '/api/v1/notifications/read-all')
       return satisfy(200, { updated: 1 });
     const readMatch = path.match(/^\/api\/v1\/notifications\/([^/]+)\/read$/);
@@ -1168,9 +1537,11 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     return satisfy(404, errorBody('NOT_FOUND'));
   });
 
-  await page.route('**/api/v1/media/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1x1 }),
-  );
+  await page
+    .context()
+    .route('**/api/v1/media/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: opts.mediaBody ?? PNG_1x1 }),
+    );
 }
 
 /** Legacy thin wrapper used by earlier specs: a Member session + one voice. */

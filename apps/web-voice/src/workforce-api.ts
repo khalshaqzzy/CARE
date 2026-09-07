@@ -17,6 +17,8 @@ export type VoiceDraftPreview = components['schemas']['VoiceDraftPreview'];
 export type DraftListItem = components['schemas']['DraftListItem'];
 export type DraftList = components['schemas']['DraftListResponse'];
 export type MemberDashboard = components['schemas']['MemberDashboard'];
+export type DashboardView = components['schemas']['DashboardView'];
+export type DashboardMetadata = components['schemas']['DashboardMetadata'];
 export type DashboardAggregate = components['schemas']['DashboardAggregate'];
 export type VoiceListItem = components['schemas']['VoiceListItem'];
 export type VoiceList = components['schemas']['VoiceListResponse'];
@@ -30,6 +32,12 @@ export type NotificationItem = components['schemas']['NotificationPage']['items'
 export type NotificationPage = components['schemas']['NotificationPage'];
 export type AssignmentCandidate = components['schemas']['AssignmentCandidateList'][number];
 export type MonitoringOptions = components['schemas']['MonitoringOptions'];
+export type GeneralVoiceCategory = components['schemas']['GeneralVoiceCategoryPublic'];
+export type HandoverOption = components['schemas']['HandoverOption'];
+export type HandoverOptions = components['schemas']['HandoverOptionsResponse'];
+export type HandoverHistory = components['schemas']['HandoverHistoryResponse'];
+export type HandoverHistoryItem = components['schemas']['HandoverHistoryItem'];
+export type MyHandoverPage = components['schemas']['MyHandoverPage'];
 
 export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
@@ -48,6 +56,9 @@ type DashboardQuery = NonNullable<
 type NotificationsQuery = NonNullable<
   operations['NotificationsController_list']['parameters']['query']
 >;
+type MyHandoversQuery = NonNullable<
+  operations['VoicesController_myHandovers']['parameters']['query']
+>;
 type QueryInput<T> = { [K in keyof T]?: T[K] | undefined };
 
 function compactQuery<T extends object>(query: QueryInput<T>): T {
@@ -62,22 +73,49 @@ function csrfIdempotentHeader(key: string): { 'X-CSRF-Token': string; 'Idempoten
   return { 'X-CSRF-Token': '', 'Idempotency-Key': key };
 }
 
-type DraftPatch = Partial<components['schemas']['VoiceDraftRequest']> & {
-  expectedVersion?: number;
-};
+type DraftPatch = components['schemas']['VoiceDraftPatchRequest'];
 
 export function createWorkforceApi(transport: CareTransport) {
   const { client } = transport;
   return {
+    generalVoiceCategories: () =>
+      dataOrThrow<GeneralVoiceCategory[]>(client.GET('/api/v1/general-voice-categories')),
+    dashboardMetadata: (query: QueryInput<DashboardQuery> = {}) =>
+      dataOrThrow<DashboardMetadata>(
+        client.GET('/api/v1/dashboard/metadata', { params: { query: compactQuery(query) } }),
+      ),
+    dashboardView: async (query: QueryInput<DashboardQuery> = {}) => {
+      const result = await dataOrThrow(
+        client.GET(
+          query.visibility === 'PRIVATE'
+            ? '/api/v1/dashboard/private'
+            : '/api/v1/dashboard/general',
+          { params: { query: compactQuery({ ...query, basis: query.basis ?? 'HANDLING' }) } },
+        ),
+      );
+      if (!('basis' in result))
+        throw new Error('Dashboard response requires organization metadata');
+      return result;
+    },
+    dashboardPreview: (query: QueryInput<DashboardQuery> = {}) =>
+      dataOrThrow<VoiceList>(
+        client.GET('/api/v1/dashboard/preview', { params: { query: compactQuery(query) } }),
+      ),
     dashboardMember: () => dataOrThrow<MemberDashboard>(client.GET('/api/v1/dashboard/member')),
-    dashboardGeneral: (query: QueryInput<DashboardQuery> = {}) =>
-      dataOrThrow<DashboardAggregate>(
+    dashboardGeneral: async (query: QueryInput<DashboardQuery> = {}) => {
+      const result = await dataOrThrow(
         client.GET('/api/v1/dashboard/general', { params: { query: compactQuery(query) } }),
-      ),
-    dashboardPrivate: (query: QueryInput<DashboardQuery> = {}) =>
-      dataOrThrow<DashboardAggregate>(
+      );
+      if ('basis' in result) throw new Error('Expected legacy dashboard response');
+      return result;
+    },
+    dashboardPrivate: async (query: QueryInput<DashboardQuery> = {}) => {
+      const result = await dataOrThrow(
         client.GET('/api/v1/dashboard/private', { params: { query: compactQuery(query) } }),
-      ),
+      );
+      if ('basis' in result) throw new Error('Expected legacy dashboard response');
+      return result;
+    },
     listDrafts: (query: QueryInput<DraftsQuery>) =>
       dataOrThrow<DraftList>(
         client.GET('/api/v1/drafts', { params: { query: compactQuery(query) } }),
@@ -88,7 +126,7 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<VoiceDraft>(
         client.PATCH('/api/v1/drafts/{id}', {
           params: { path: { id }, header: csrfHeader() },
-          body: body as components['schemas']['VoiceDraftRequest'],
+          body,
         }),
       ),
     createDraft: (body: components['schemas']['VoiceDraftRequest']) =>
@@ -166,6 +204,27 @@ export function createWorkforceApi(transport: CareTransport) {
     assignmentCandidates: (id: string) =>
       dataOrThrow<AssignmentCandidate[]>(
         client.GET('/api/v1/voices/{id}/assignment-candidates', { params: { path: { id } } }),
+      ),
+    handoverOptions: (id: string) =>
+      dataOrThrow<HandoverOptions>(
+        client.GET('/api/v1/voices/{id}/handover-options', { params: { path: { id } } }),
+      ),
+    handover: (id: string, body: components['schemas']['HandoverRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/handovers', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    handovers: (id: string) =>
+      dataOrThrow<HandoverHistory>(
+        client.GET('/api/v1/voices/{id}/handovers', { params: { path: { id } } }),
+      ),
+    myHandovers: (query: QueryInput<MyHandoversQuery> = {}) =>
+      dataOrThrow<MyHandoverPage>(
+        client.GET('/api/v1/handovers/mine', {
+          params: { query: compactQuery(query) },
+        }),
       ),
     assign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(

@@ -1,6 +1,6 @@
+import { loadConfig } from '../config';
 import { VoiceVisibility } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
-import { loadConfig } from '../config';
 
 function say(message: string) {
   process.stdout.write(`[live-provider-smoke] ${message}\n`);
@@ -19,12 +19,18 @@ async function main() {
 
   const ai = new AiService();
 
-  const classification = await ai.classify({
-    visibility: VoiceVisibility.GENERAL,
-    area: 'KARAWANG_1',
-    title: 'Pelindung mesin produksi terlepas',
-    detail: 'Pelindung mesin terlepas dan berpotensi mengenai operator saat mesin dijalankan.',
-  });
+  const [classification, location] = await Promise.all([
+    ai.classify({
+      visibility: VoiceVisibility.GENERAL,
+      area: 'KARAWANG_1',
+      title: 'Pelindung mesin produksi terlepas',
+      detail: 'Pelindung mesin terlepas dan berpotensi mengenai operator saat mesin dijalankan.',
+    }),
+    ai.reviewLocation({
+      area: 'KARAWANG_1',
+      locationDetail: 'Gedung Produksi A, line 2, mesin press nomor 4',
+    }),
+  ]);
   if (classification.source === 'AI') {
     say(
       `classification source=AI category=${classification.result.category} severity=${classification.result.severity} confidence=${classification.result.confidence} model=${classification.model} promptVersion=${classification.promptVersion} latencyMs=${classification.latencyMs}`,
@@ -50,10 +56,6 @@ async function main() {
       `Live classification contract validation failed (fallbackCode=${classification.fallbackCode})`,
     );
 
-  const location = await ai.reviewLocation({
-    area: 'KARAWANG_1',
-    locationDetail: 'Gedung Produksi A, line 2, mesin press nomor 4',
-  });
   say(
     `location review fallbackCode=${location.fallbackCode ?? 'none'} completeness=${location.completeness} latencyMs=${location.latencyMs}`,
   );
@@ -61,7 +63,7 @@ async function main() {
     throw new Error(
       `Live location contract validation failed (fallbackCode=${location.fallbackCode})`,
     );
-  say('Live DeepSeek Chat Completions classification and location contracts passed');
+  say('Live OpenAI-compatible Chat Completions classification and location contracts passed');
 }
 
 void main();

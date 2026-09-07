@@ -11,12 +11,16 @@ import {
   VoiceVisibility,
 } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { PolicyService, type Principal } from '../../src/auth/policy.service';
+import { MediaService } from '../../src/media/media.service';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const prisma = new PrismaClient();
 const policy = new PolicyService(prisma as never);
 const voices = new VoicesService(prisma as never, {} as never, {} as never, policy);
+const media = new MediaService(prisma as never, policy);
 
 let reporter: Principal;
 let manager: Principal;
@@ -49,7 +53,7 @@ function voiceSeed(overrides: VoiceOverride = {}): Prisma.VoiceUncheckedCreateIn
     title: 'test voice',
     detail: 'detail',
     severity: Severity.MEDIUM,
-    category: null,
+    categoryKey: null,
     anonymousAlias: `R-${seq}`,
     version: 1,
     ...overrides,
@@ -57,20 +61,24 @@ function voiceSeed(overrides: VoiceOverride = {}): Prisma.VoiceUncheckedCreateIn
 }
 
 async function evidence(voiceId: string, uploaderId: string, key: string, count = 1) {
+  const attachments = [];
   for (let index = 0; index < count; index += 1)
-    await prisma.attachment.create({
-      data: {
-        voiceId,
-        uploaderId,
-        purpose: AttachmentPurpose.CLOSURE_EVIDENCE,
-        state: AttachmentState.READY,
-        storageKey: `voice-lifecycle/${key}-${index}.webp`,
-        mimeType: 'image/webp',
-        size: 10,
-        checksum: 'a'.repeat(64),
-        readyAt: new Date(),
-      },
-    });
+    attachments.push(
+      await prisma.attachment.create({
+        data: {
+          voiceId,
+          uploaderId,
+          purpose: AttachmentPurpose.CLOSURE_EVIDENCE,
+          state: AttachmentState.READY,
+          storageKey: `voice-lifecycle/${key}-${index}.webp`,
+          mimeType: 'image/webp',
+          size: 10,
+          checksum: 'a'.repeat(64),
+          readyAt: new Date(),
+        },
+      }),
+    );
+  return attachments;
 }
 
 async function createVoice(overrides: VoiceOverride = {}) {
@@ -188,6 +196,8 @@ describe('Voice lifecycle backend completion', () => {
     );
 
     expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
+    const projected = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
+    expect(projected.handlingSectionSnapshot).toBe(sectionHead.section);
     const assignedDetail = await voices.detail(sectionHead, voice.id);
     expect(assignedDetail.conversationState).toBe('ACTIVE');
     expect(assignedDetail.availableActions).toContain('MESSAGE');
@@ -203,6 +213,31 @@ describe('Voice lifecycle backend completion', () => {
     expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(1);
     expect((await voices.messages(reporter, voice.id, {})).items).toHaveLength(1);
   });
+
+  it.each([0, 1, 5])(
+    'closes with %i optional photos and preserves the review cycle',
+    async (count) => {
+      const voice = await createVoice({
+        status: VoiceStatus.IN_PROGRESS,
+        currentHandlerId: manager.accountId,
+      });
+      await evidence(voice.id, manager.accountId, `optional-${count}`, count);
+      await voices.close(
+        manager,
+        voice.id,
+        { note: 'Perbaikan selesai', version: 1 },
+        `optional-close-${count}`,
+      );
+      const result = await voices.detail(reporter, voice.id);
+      expect(result.status).toBe('CLOSED');
+      expect(result.closureCycles[0].evidence).toHaveLength(count);
+      expect(result.closureCycles[0].reviewState).toBe('PENDING');
+      const event = await prisma.voiceEvent.findFirstOrThrow({
+        where: { voiceId: voice.id, type: 'CLOSED' },
+      });
+      expect(event.payload).toMatchObject({ evidenceCount: count });
+    },
+  );
 
   it('preserves an asked conversation through IN_PROGRESS and makes it read-only when CLOSED', async () => {
     const voice = await createVoice({ status: VoiceStatus.OPEN });
@@ -257,11 +292,22 @@ describe('Voice lifecycle backend completion', () => {
     expect(privateCandidates).toEqual([
       expect.objectContaining({ id: officer.accountId, slot: UnionSlot.OFFICER_1 }),
     ]);
+    // Workload subtitle: the candidate has no active voice yet, then gains one.
+    expect(privateCandidates[0]).toMatchObject({ activeCount: 0 });
+    await createVoice({
+      status: VoiceStatus.IN_VERIFICATION,
+      visibility: VoiceVisibility.PRIVATE,
+      routeOwnerId: unionHead.accountId,
+      handlerType: HandlerType.UNION_HEAD,
+      currentHandlerId: officer.accountId,
+    });
+    const reloaded = await voices.assignmentCandidates(unionHead, privateVoice.id);
+    expect(reloaded[0]).toMatchObject({ id: officer.accountId, activeCount: 1 });
   });
 
   it('links staged closure evidence to the closure cycle with a 1-5 cap', async () => {
     const voice = await createVoice({ status: VoiceStatus.IN_PROGRESS });
-    await evidence(voice.id, manager.accountId, 'close-evidence', 2);
+    const staged = await evidence(voice.id, manager.accountId, 'close-evidence', 2);
     const closure = await voices.close(
       manager,
       voice.id,
@@ -276,6 +322,23 @@ describe('Voice lifecycle backend completion', () => {
       },
     });
     expect(linked).toBe(2);
+
+    const mediaPath = resolve(process.env.MEDIA_ROOT!, 'objects', staged[0]!.storageKey);
+    await mkdir(dirname(mediaPath), { recursive: true });
+    await writeFile(mediaPath, 'closure evidence');
+    try {
+      await expect(media.readAuthorized(staged[0]!.id, reporter)).resolves.toMatchObject({
+        buffer: Buffer.from('closure evidence'),
+      });
+      await expect(media.readAuthorized(staged[0]!.id, manager)).resolves.toMatchObject({
+        buffer: Buffer.from('closure evidence'),
+      });
+      await expect(media.readAuthorized(staged[0]!.id, sectionHead)).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+    } finally {
+      await unlink(mediaPath).catch(() => undefined);
+    }
   });
 
   it('enforces the closure evidence cap', async () => {
@@ -347,5 +410,6 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.status).toBe(VoiceStatus.IN_VERIFICATION);
     expect(reopened.currentHandlerId).toBe(manager.accountId);
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
+    expect(reopened.handlingSectionSnapshot).toBeNull();
   });
 });

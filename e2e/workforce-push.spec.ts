@@ -44,6 +44,27 @@ async function stubPushApi(page: import('@playwright/test').Page, permission = '
 }
 
 test.describe('workforce Web Push opt-in', () => {
+  // Pre-activating the production worker mirrors the deployed Home Screen
+  // state and removes the first-registration `controlling` reload from the
+  // middle of each journey, so the opt-in gesture cannot be aborted mid-flight.
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/offline.html');
+    await page.evaluate(() => navigator.serviceWorker.register('/sw.js', { scope: '/' }));
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const registration = await navigator.serviceWorker.getRegistration('/');
+          return (
+            registration?.active?.state ??
+            registration?.installing?.state ??
+            registration?.waiting?.state ??
+            null
+          );
+        }),
+      )
+      .toBe('activated');
+  });
+
   test('shows an unconfigured state when the server has no VAPID key', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { push: { configured: false, publicKey: null } });
@@ -62,8 +83,10 @@ test.describe('workforce Web Push opt-in', () => {
         status: { configured: true, subscriptions: [] },
       },
     });
-    // Register the capture route after the broad mock so it wins priority.
-    await page.route('**/api/v1/notifications/push/subscriptions', async (route) => {
+    // Register the capture route on the context after the broad mock so it wins
+    // priority, and so it still intercepts requests re-issued by the active
+    // service worker's NetworkOnly handler.
+    await page.context().route('**/api/v1/notifications/push/subscriptions', async (route) => {
       if (route.request().method() === 'POST') {
         posted.push(route.request().postDataJSON());
         return route.fulfill({

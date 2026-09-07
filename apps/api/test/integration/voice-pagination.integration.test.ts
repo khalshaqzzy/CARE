@@ -39,7 +39,7 @@ async function seedVoice(status: VoiceStatus = VoiceStatus.OPEN) {
       title: 'pagination voice',
       detail: 'detail',
       severity: Severity.MEDIUM,
-      category: null,
+      categoryKey: null,
       anonymousAlias: `R-${seq}`,
       version: 1,
     },

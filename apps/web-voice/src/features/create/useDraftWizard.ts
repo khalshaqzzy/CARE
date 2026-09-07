@@ -13,7 +13,7 @@ import { AREA_LABELS } from '../../lib/formatters';
 
 export type Visibility = 'GENERAL' | 'PRIVATE';
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type Category = 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY';
+export type Category = string;
 
 export type Step = 'visibility' | 'form' | 'processing' | 'fallback' | 'review' | 'submitting';
 
@@ -24,6 +24,7 @@ export type DraftForm = {
   title: string;
   detail: string;
   showReporterIdentity: boolean | null;
+  privateContactConsent: boolean;
 };
 
 const EMPTY_FORM: DraftForm = {
@@ -33,6 +34,7 @@ const EMPTY_FORM: DraftForm = {
   title: '',
   detail: '',
   showReporterIdentity: null,
+  privateContactConsent: false,
 };
 
 export function useDraftWizard(draftId?: string) {
@@ -42,6 +44,11 @@ export function useDraftWizard(draftId?: string) {
   const navigate = useNavigate();
   const sessionId = useSessionId();
   const isEdit = Boolean(draftId);
+  const categoryCatalog = useQuery({
+    queryKey: voiceQuery(sessionId, 'general-voice-categories'),
+    queryFn: () => api.generalVoiceCategories(),
+    enabled: !!session,
+  });
 
   const [step, setStep] = useState<Step>(() => (draftId ? 'form' : 'visibility'));
   const [form, setForm] = useState<DraftForm>(EMPTY_FORM);
@@ -67,7 +74,9 @@ export function useDraftWizard(draftId?: string) {
       title: loaded.data.title,
       detail: loaded.data.detail,
       showReporterIdentity: loaded.data.showReporterIdentity ?? null,
+      privateContactConsent: loaded.data.privateContactConsent === true,
     });
+    setAttachments(loaded.data.attachments ?? []);
     setDraft(loaded.data);
     setClassification(loaded.data.classification ?? null);
     setLocationReview(loaded.data.locationReview ?? null);
@@ -79,23 +88,22 @@ export function useDraftWizard(draftId?: string) {
 
   const persist = useMutation({
     mutationFn: async (patch: Partial<DraftForm>) => {
-      const body: Record<string, unknown> = {};
-      for (const key of Object.keys(patch) as (keyof DraftForm)[]) {
-        const value = patch[key];
-        if (value !== undefined) body[key] = value;
-      }
-      if (draft) return api.updateDraft(draft.id, body as never);
       const next = { ...form, ...patch };
-      return api.createDraft({
-        area: next.area as never,
+      const body = {
+        area: next.area as VoiceDraft['area'],
         locationDetail: next.locationDetail,
         title: next.title,
         detail: next.detail,
         visibility: next.visibility,
         ...(next.visibility === 'PRIVATE'
-          ? { showReporterIdentity: next.showReporterIdentity ?? false }
+          ? {
+              showReporterIdentity: next.showReporterIdentity ?? false,
+              privateContactConsent: next.privateContactConsent,
+            }
           : {}),
-      });
+      };
+      if (draft) return api.updateDraft(draft.id, { ...body, expectedVersion: draft.version });
+      return api.createDraft(body);
     },
     onSuccess: (data) => {
       setDraft(data);
@@ -116,7 +124,7 @@ export function useDraftWizard(draftId?: string) {
     mutationFn: async (payload: { category?: Category | null; severity: Severity }) => {
       const id = draft!.id;
       const result = await api.manualClassification(id, {
-        category: payload.category ?? null,
+        categoryKey: payload.category ?? null,
         severity: payload.severity,
       });
       return result;
@@ -151,20 +159,18 @@ export function useDraftWizard(draftId?: string) {
         key,
       );
     },
-    onSuccess: (data) => {
-      const payload = data as { id: string };
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'dashboard') });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice') });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'draft') });
-      void navigate(`/voices/${payload.id}`, { replace: true });
+      void navigate('/voices/submitted', { replace: true, state: { submitted: true } });
     },
   });
 
   const uploadAttachments = useMutation({
-    mutationFn: async (files: File[]) => {
-      if (!draft) return [];
+    mutationFn: async ({ files, draftId }: { files: File[]; draftId: string }) => {
       const uploaded: Attachment[] = [];
-      for (const file of files) uploaded.push(await api.uploadDraftAttachment(draft.id, file));
+      for (const file of files) uploaded.push(await api.uploadDraftAttachment(draftId, file));
       return uploaded;
     },
     onSuccess: (uploaded) => {
@@ -181,7 +187,14 @@ export function useDraftWizard(draftId?: string) {
   });
 
   const setField = useCallback(
-    (patch: Partial<DraftForm>) => setForm((current) => ({ ...current, ...patch })),
+    (patch: Partial<DraftForm>) =>
+      setForm((current) => ({
+        ...current,
+        ...patch,
+        ...(patch.visibility && patch.visibility !== current.visibility
+          ? { showReporterIdentity: null, privateContactConsent: false }
+          : {}),
+      })),
     [],
   );
 
@@ -192,16 +205,24 @@ export function useDraftWizard(draftId?: string) {
       setError('Lengkapi area, detail lokasi, judul, dan detail Voice.');
       return;
     }
+    if (form.visibility === 'PRIVATE' && form.showReporterIdentity === null) {
+      setError('Pilih apakah identitas Anda ditampilkan kepada Union.');
+      return;
+    }
     try {
       setStep('processing');
       const saved = await persist.mutateAsync({});
       if (!saved) return;
       setDraft(saved);
-      const [classificationResult] = await Promise.all([
+      // Keep these independent provider calls concurrent: routing depends on
+      // classification, while location completeness does not.
+      const [classificationResult, reviewResult] = await Promise.all([
         classifyMutation.mutateAsync(saved.id),
         reviewLocationMutation.mutateAsync(saved.id),
       ]);
-      setLocationReview(reviewLocationMutation.data ?? null);
+      // Read the awaited result: the mutation object captured by this closure
+      // still holds its pre-flight state, so `.data` here would be stale.
+      setLocationReview(reviewResult);
       if (
         classificationResult &&
         'source' in classificationResult &&
@@ -242,7 +263,7 @@ export function useDraftWizard(draftId?: string) {
         if (!targetDraft) targetDraft = (await saveOnly()) ?? null;
         if (!targetDraft) return;
         setDraft(targetDraft);
-        await uploadAttachments.mutateAsync(files);
+        await uploadAttachments.mutateAsync({ files, draftId: targetDraft.id });
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Lampiran gagal diunggah.');
       }
@@ -268,6 +289,10 @@ export function useDraftWizard(draftId?: string) {
 
   const submit = useCallback(async () => {
     setError(null);
+    if (draft?.visibility === 'PRIVATE' && draft.privateContactConsent !== true) {
+      setError('Setujui kesediaan komunikasi pribadi pada form sebelum mengirim.');
+      return;
+    }
     setStep('submitting');
     setAckDisabled(true);
     try {
@@ -278,7 +303,7 @@ export function useDraftWizard(draftId?: string) {
     } finally {
       setAckDisabled(false);
     }
-  }, [submitMutation]);
+  }, [draft, submitMutation]);
 
   const dirty = useMemo(
     () =>
@@ -287,12 +312,24 @@ export function useDraftWizard(draftId?: string) {
           draft.detail !== form.detail ||
           draft.locationDetail !== form.locationDetail ||
           draft.area !== form.area ||
-          draft.visibility !== form.visibility
+          draft.visibility !== form.visibility ||
+          draft.showReporterIdentity !== form.showReporterIdentity ||
+          (draft.privateContactConsent === true) !== form.privateContactConsent
         : true,
     [draft, form],
   );
 
   const zoneLabel = form.area ? AREA_LABELS[form.area] : null;
+
+  // Live stage states for the processing surface: persist completes first,
+  // then classification and location review resolve together.
+  const stages = {
+    persisted: persist.isSuccess,
+    classifying: classifyMutation.isPending,
+    classified: classifyMutation.isSuccess,
+    reviewing: reviewLocationMutation.isPending,
+    reviewed: reviewLocationMutation.isSuccess,
+  };
 
   return {
     step,
@@ -309,6 +346,9 @@ export function useDraftWizard(draftId?: string) {
     dirty,
     loaded,
     zoneLabel,
+    categories: categoryCatalog.data ?? [],
+    categoriesLoading: categoryCatalog.isLoading,
+    stages,
     saveAndProcess,
     saveOnly,
     uploadFiles,

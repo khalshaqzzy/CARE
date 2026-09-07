@@ -26,6 +26,12 @@ export type VoiceDetail =
   operations['VoicesController_detail']['responses'][200]['content']['application/json'];
 export type VoiceTimeline = components['schemas']['TimelinePage'];
 export type VoiceMessages = components['schemas']['MessagePage'];
+export type AiConfiguration = components['schemas']['AiConfigurationResponse'];
+export type AiConfigurationUpdate = components['schemas']['AiConfigurationUpdateRequest'];
+export type AiConfigurationTest = components['schemas']['AiConfigurationTestResponse'];
+export type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCategoryAdmin'];
+export type GeneralVoiceCategoryAdminList = components['schemas']['GeneralVoiceCategoryAdminList'];
+export type OrganizationUnitList = components['schemas']['OrganizationUnitList'];
 type AccountsQuery = NonNullable<operations['AdminController_accounts']['parameters']['query']>;
 type RemediationQuery = NonNullable<operations['AdminController_issues']['parameters']['query']>;
 type RemediationHistoryQuery = NonNullable<
@@ -48,6 +54,63 @@ function compactQuery<T extends object>(query: QueryInput<T>): T {
 export function createAdminApi(transport: CareTransport) {
   const { client } = transport;
   return {
+    generalVoiceCategories: (status = 'ALL') =>
+      dataOrThrow<GeneralVoiceCategoryAdminList>(
+        client.GET('/api/v1/admin/general-voice-categories', { params: { query: { status } } }),
+      ),
+    generalVoiceCategoryHistory: (id: string) =>
+      dataOrThrow<Array<Record<string, unknown>>>(
+        client.GET('/api/v1/admin/general-voice-categories/{id}/history', {
+          params: { path: { id } },
+        }),
+      ),
+    createGeneralVoiceCategory: (
+      body: components['schemas']['GeneralVoiceCategoryCreateRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<GeneralVoiceCategoryAdmin>(
+        client.POST('/api/v1/admin/general-voice-categories', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    updateGeneralVoiceCategory: (
+      id: string,
+      body: components['schemas']['GeneralVoiceCategoryUpdateRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<GeneralVoiceCategoryAdmin>(
+        client.PUT('/api/v1/admin/general-voice-categories/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    setGeneralVoiceCategoryStatus: (
+      id: string,
+      body: components['schemas']['GeneralVoiceCategoryStatusRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<GeneralVoiceCategoryAdmin>(
+        client.PUT('/api/v1/admin/general-voice-categories/{id}/status', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    organizationUnits: (query: {
+      search?: string;
+      division?: string;
+      cursor?: string;
+      limit?: number;
+    }) =>
+      dataOrThrow<OrganizationUnitList>(
+        client.GET('/api/v1/admin/organization-units', { params: { query } }),
+      ),
+    organizationDivisions: (search?: string) =>
+      dataOrThrow<string[]>(
+        client.GET('/api/v1/admin/organization-units/filters/divisions', {
+          params: { query: search ? { search } : {} },
+        }),
+      ),
     overview: () => dataOrThrow(client.GET('/api/v1/admin/overview')),
     accounts: (query: QueryInput<AccountsQuery>) =>
       dataOrThrow<AccountList>(
@@ -110,16 +173,6 @@ export function createAdminApi(transport: CareTransport) {
           body,
         }),
       ),
-    setGlobalPic: (
-      body: components['schemas']['AccountSelectionRequest'],
-      idempotencyKey: string,
-    ) =>
-      dataOrThrow(
-        client.PUT('/api/v1/admin/routes/global-special-pic', {
-          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey } },
-          body,
-        }),
-      ),
     unionAccounts: () => dataOrThrow<UnionAccountList>(client.GET('/api/v1/admin/union-accounts')),
     setUnionAccount: (
       slot: string,
@@ -142,6 +195,31 @@ export function createAdminApi(transport: CareTransport) {
     auditEvent: (id: string) =>
       dataOrThrow<AuditEvent>(
         client.GET('/api/v1/admin/audit-events/{id}', { params: { path: { id } } }),
+      ),
+    aiConfiguration: () =>
+      dataOrThrow<AiConfiguration>(client.GET('/api/v1/admin/ai-configuration')),
+    updateAiConfiguration: (body: AiConfigurationUpdate, idempotencyKey: string) =>
+      dataOrThrow<AiConfiguration>(
+        client.PUT('/api/v1/admin/ai-configuration', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey } },
+          body,
+        }),
+      ),
+    resetAiConfiguration: (
+      body: components['schemas']['AiConfigurationResetRequest'],
+      idempotencyKey: string,
+    ) =>
+      dataOrThrow<AiConfiguration>(
+        client.DELETE('/api/v1/admin/ai-configuration', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey } },
+          body,
+        }),
+      ),
+    testAiConfiguration: () =>
+      dataOrThrow<AiConfigurationTest>(
+        client.POST('/api/v1/admin/ai-configuration/test', {
+          params: { header: { 'X-CSRF-Token': '' } },
+        }),
       ),
     imports: (query: QueryInput<ImportsQuery>) =>
       dataOrThrow<ImportList>(

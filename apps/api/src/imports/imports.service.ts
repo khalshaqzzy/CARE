@@ -23,6 +23,7 @@ import { decodeCursor, encodeCursor } from '../common/cursor';
 import { badRequest, conflict, forbiddenAsNotFound } from '../common/errors';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
+import { CategoriesService } from '../categories/categories.service';
 import type { AuthActor } from '../auth/auth.types';
 
 export const ORGANIZATION_HEADERS = [
@@ -163,10 +164,6 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         )
         .map((route) => unitKey(route.organizationUnit!)),
     );
-    const globalRoute = configuredRoutes.find((route) => route.kind === RouteKind.GLOBAL_SPECIAL);
-    const incomingGlobalOwner = globalRoute?.owner.employee
-      ? incoming.get(globalRoute.owner.employee.noReg)
-      : undefined;
     const summary = {
       rowCount: rows.length,
       unitCount: units.size,
@@ -187,10 +184,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           department: unit.row.department,
         })),
       department14Rows: rows.filter((row) => normalize(row.department) === '14').length,
-      globalPicInvalid:
-        !globalRoute ||
-        normalize(incomingGlobalOwner?.structuralPosition ?? '').toLocaleLowerCase('en-US') !==
-          'department head',
+      globalPicInvalid: false,
       unionGaps: (['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).filter(
         (slot) => !unionTerms.some((term) => term.slot === slot),
       ),
@@ -414,19 +408,23 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     cursor?: string;
     limit?: string | number;
     search?: string;
+    division?: string;
   }) {
     const take = Math.min(Math.max(Number(query?.limit ?? 20), 1), 100);
     const cursorId = query?.cursor ? decodeCursor(query.cursor) : undefined;
     const search = query?.search?.trim();
-    const where: Prisma.OrganizationUnitWhereInput = search
-      ? {
-          OR: [
-            { directorate: { contains: search, mode: 'insensitive' } },
-            { division: { contains: search, mode: 'insensitive' } },
-            { department: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+    const where: Prisma.OrganizationUnitWhereInput = {
+      ...(query?.division ? { division: query.division } : {}),
+      ...(search
+        ? {
+            OR: [
+              { directorate: { contains: search, mode: 'insensitive' } },
+              { division: { contains: search, mode: 'insensitive' } },
+              { department: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
     const units = await this.prisma.organizationUnit.findMany({
       where,
       orderBy: [{ directorate: 'asc' }, { division: 'asc' }, { department: 'asc' }, { id: 'asc' }],
@@ -477,6 +475,17 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       hasNext && enriched.length ? encodeCursor(enriched[enriched.length - 1].id) : null;
     // for units beyond take, we already sliced; return paginated
     return { items: enriched, nextCursor };
+  }
+
+  async listOrganizationDivisions(search?: string) {
+    const rows = await this.prisma.organizationUnit.findMany({
+      where: search?.trim() ? { division: { contains: search.trim(), mode: 'insensitive' } } : {},
+      distinct: ['division'],
+      select: { division: true },
+      orderBy: { division: 'asc' },
+      take: 200,
+    });
+    return rows.map((row) => row.division);
   }
 
   async getOrganizationUnit(id: string) {
@@ -845,7 +854,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         const unitHeads = new Set(headRows.map(unitKey));
         const configurableRoutes = await tx.routeMapping.findMany({
           where: {
-            kind: { in: [RouteKind.DEFAULT_DEPARTMENT, RouteKind.GLOBAL_SPECIAL] },
+            kind: RouteKind.DEFAULT_DEPARTMENT,
             effectiveTo: null,
           },
           include: { owner: true, organizationUnit: true },
@@ -862,10 +871,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
             !unitHeads.has(unitKey(route.organizationUnit));
           const valid =
             route.owner.status === AccountStatus.ACTIVE &&
-            (route.kind === RouteKind.GLOBAL_SPECIAL
-              ? ownerMembership?.structuralPosition.trim().toLocaleLowerCase('en-US') ===
-                'department head'
-              : Boolean(ownerMembership && defaultUnitStillPresent));
+            Boolean(ownerMembership && defaultUnitStillPresent);
           if (!valid) {
             await tx.routeMapping.update({
               where: { id: route.id },
@@ -874,10 +880,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
             await tx.importIssue.create({
               data: {
                 batchId: batch.id,
-                type:
-                  route.kind === RouteKind.GLOBAL_SPECIAL
-                    ? ImportIssueType.INVALID_GLOBAL_PIC
-                    : ImportIssueType.INVALID_DEFAULT_PIC,
+                type: ImportIssueType.INVALID_DEFAULT_PIC,
                 organizationUnitId: route.organizationUnitId,
                 accountId: route.ownerAccountId,
                 details: { routeMappingId: route.id },
@@ -885,18 +888,6 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
             });
           }
         }
-        if (
-          !(await tx.routeMapping.count({
-            where: { kind: RouteKind.GLOBAL_SPECIAL, effectiveTo: null },
-          }))
-        )
-          await tx.importIssue.create({
-            data: {
-              batchId: batch.id,
-              type: ImportIssueType.INVALID_GLOBAL_PIC,
-              details: { reason: 'MISSING' },
-            },
-          });
         await tx.routeMapping.updateMany({
           where: { kind: RouteKind.DEPARTMENT_HEAD, effectiveTo: null },
           data: { effectiveTo: new Date() },
@@ -911,6 +902,30 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
               reason: `Organization import ${batch.id}`,
             })),
           });
+        const fixedCategoryTargets = [
+          { keys: ['SAFETY', 'ENVIRONMENT', 'FACILITY'], department: 'Plant GA & SHE Dept' },
+          { keys: ['FACILITY_REPAIR'], department: 'Smart Plant Facility Mfg Dept' },
+        ];
+        for (const target of fixedCategoryTargets) {
+          const unit = await tx.organizationUnit.findUnique({
+            where: {
+              directorate_division_department: {
+                directorate: 'Manufacturing & PE Dir',
+                division: 'Plant Administration Div',
+                department: target.department,
+              },
+            },
+          });
+          if (unit)
+            await tx.generalVoiceCategoryRoute.updateMany({
+              where: {
+                effectiveTo: null,
+                organizationUnitId: null,
+                category: { key: { in: target.keys } },
+              },
+              data: { organizationUnitId: unit.id },
+            });
+        }
         const derivedIssues: Prisma.ImportIssueCreateManyInput[] = [];
         for (const row of uniqueUnitRows.values()) {
           if (normalize(row.department) === '14')
@@ -971,6 +986,9 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 120_000 },
     );
+    const categoryIds = await this.prisma.generalVoiceCategory.findMany({ select: { id: true } });
+    const categoryService = new CategoriesService(this.prisma);
+    for (const category of categoryIds) await categoryService.reconcile(category.id);
     await unlink(path).catch(() => undefined);
   }
 

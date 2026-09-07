@@ -29,6 +29,32 @@ function configure(root: string) {
 }
 
 describe('media and push security boundaries', () => {
+  it.each([AttachmentState.STAGED, AttachmentState.PROCESSED, AttachmentState.ORPHANED])(
+    'does not serve attachment state %s',
+    async (state) => {
+      configure('/tmp/care-unused');
+      const prisma = {
+        attachment: {
+          findUnique: async () => ({
+            id: 'attachment-id',
+            state,
+            draft: { reporterId: 'account-id' },
+            voice: null,
+            message: null,
+            closure: null,
+          }),
+        },
+      };
+      const service = new MediaService(prisma as any, {} as any);
+      await expect(
+        service.readAuthorized('attachment-id', {
+          accountId: 'account-id',
+          capabilities: ['MEMBER'],
+        } as any),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    },
+  );
+
   it('rejects MIME/signature disagreement and marks the staged record orphaned', async () => {
     const root = await mkdtemp(join(tmpdir(), 'care-media-'));
     roots.push(root);

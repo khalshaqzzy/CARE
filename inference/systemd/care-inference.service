@@ -1,0 +1,20 @@
+[Unit]
+Description=CARE local Granite inference stack
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=pcsistem
+Group=pcsistem
+WorkingDirectory=/home/pcsistem/GitHub/CARE/inference
+ExecStart=/usr/bin/docker compose --env-file /home/pcsistem/GitHub/CARE/inference/.env -f /home/pcsistem/GitHub/CARE/inference/docker-compose.yml up -d
+ExecReload=/usr/bin/docker compose --env-file /home/pcsistem/GitHub/CARE/inference/.env -f /home/pcsistem/GitHub/CARE/inference/docker-compose.yml up -d
+ExecStop=/usr/bin/docker compose --env-file /home/pcsistem/GitHub/CARE/inference/.env -f /home/pcsistem/GitHub/CARE/inference/docker-compose.yml stop
+TimeoutStartSec=infinity
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

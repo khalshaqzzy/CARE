@@ -1,13 +1,24 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { useState } from 'react';
 import { vi } from 'vitest';
 import { Button } from '../primitives.js';
-import { Checkbox, Combobox, Input, SegmentedControl } from '../forms.js';
+import {
+  Checkbox,
+  Combobox,
+  Input,
+  PasswordInput,
+  RatingInput,
+  Select,
+  SegmentedControl,
+} from '../forms.js';
 import { Dialog } from '../overlays.js';
+import { Lightbox } from '../lightbox.js';
+import { DotLabel } from '../feedback.js';
 import {
   ChoiceCardGroup,
+  DisclosureRow,
   KeyValueGrid,
   SectionCard,
   SettingsGroup,
@@ -71,6 +82,28 @@ describe('interactive component contracts', () => {
     });
   });
 
+  it('uses an operable native select when enhanced positioning APIs are unavailable', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    Object.defineProperty(window, 'PointerEvent', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'ResizeObserver', { configurable: true, value: undefined });
+    render(
+      <Select
+        label="Status"
+        placeholder="Pilih status"
+        onValueChange={onChange}
+        options={[
+          { value: 'OPEN', label: 'Open' },
+          { value: 'CLOSED', label: 'Closed' },
+        ]}
+      />,
+    );
+    const select = screen.getByRole('combobox', { name: 'Status' });
+    expect(select.tagName).toBe('SELECT');
+    await user.selectOptions(select, 'CLOSED');
+    expect(onChange).toHaveBeenCalledWith('CLOSED');
+  });
+
   it('traps dialog focus, closes with Escape, and returns focus', async () => {
     const user = userEvent.setup();
     render(
@@ -96,6 +129,26 @@ describe('interactive component contracts', () => {
     );
     expect(await axe(container)).toHaveNoViolations();
     expect(screen.getByLabelText('Lokasi')).toHaveAccessibleDescription('Lokasi wajib diisi');
+  });
+
+  it('toggles password visibility through a labelled pressed control', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <main>
+        <PasswordInput label="Password" autoComplete="current-password" />
+      </main>,
+    );
+    const field = screen.getByLabelText('Password');
+    expect(field).toHaveAttribute('type', 'password');
+    const toggle = screen.getByRole('button', { name: 'Tampilkan password' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    expect(field).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Sembunyikan password' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 
@@ -143,6 +196,34 @@ describe('composed section contracts', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it('renders radio indicator and brand appearance hooks without changing the default DOM', () => {
+    const options = [
+      { value: 'GENERAL', label: 'General Voice' },
+      { value: 'PRIVATE', label: 'Private Voice' },
+    ];
+    const { container: defaultRender } = render(
+      <ChoiceCardGroup label="Jenis" options={options} />,
+    );
+    expect(defaultRender.querySelectorAll('.care-choice-card__indicator--radio')).toHaveLength(0);
+    expect(
+      defaultRender.querySelector('.care-choice-card__indicator')?.querySelector('svg'),
+    ).not.toBeNull();
+
+    const { container } = render(
+      <ChoiceCardGroup
+        label="Jenis"
+        defaultValue="GENERAL"
+        indicator="radio"
+        appearance="brand"
+        options={options}
+      />,
+    );
+    expect(container.querySelector('.care-choice-card-group--brand')).not.toBeNull();
+    const indicators = container.querySelectorAll('.care-choice-card__indicator--radio');
+    expect(indicators).toHaveLength(2);
+    expect(indicators[0]?.querySelector('svg')).toBeNull();
+  });
+
   it('renders navigational and danger settings rows', async () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
@@ -178,5 +259,221 @@ describe('composed section contracts', () => {
     expect(screen.getByText('Status akun')).toBeInTheDocument();
     expect(container.querySelector('[data-tone="success"]')).toHaveTextContent('Aktif');
     expect(container.querySelector('.care-kv-grid--brand')).not.toBeNull();
+  });
+
+  it('toggles a disclosure row and exposes expanded semantics', async () => {
+    const user = userEvent.setup();
+    render(
+      <DisclosureRow
+        icon={<span>i</span>}
+        title="Kemampuan akses"
+        description="Diturunkan dari posisi struktural"
+        defaultOpen={false}
+      >
+        <DotLabel tone="info">Member</DotLabel>
+      </DisclosureRow>,
+    );
+    const trigger = screen.getByRole('button', { name: /Kemampuan akses/ });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Member')).not.toBeInTheDocument();
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('region', { name: /Kemampuan akses/ })).toBeInTheDocument();
+    expect(screen.getByText('Member')).toBeInTheDocument();
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Member')).not.toBeInTheDocument();
+  });
+
+  it('defaults a disclosure row open when asked', () => {
+    render(
+      <DisclosureRow title="Timeline" description="3 pembaruan" defaultOpen>
+        <p>Isi timeline</p>
+      </DisclosureRow>,
+    );
+    expect(screen.getByRole('button', { name: /Timeline/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByText('Isi timeline')).toBeInTheDocument();
+  });
+
+  it('selects a star rating through radio semantics and renders read-only summaries', async () => {
+    const user = userEvent.setup();
+    function Controlled() {
+      const [value, setValue] = useState<number | undefined>(undefined);
+      return (
+        <>
+          <RatingInput label="Beri rating" value={value} onValueChange={setValue} />
+          {value ? <RatingInput label="Rating terkirim" value={value} readOnly /> : null}
+        </>
+      );
+    }
+    const { container } = render(<Controlled />);
+    const group = screen.getByRole('radiogroup', { name: 'Beri rating' });
+    expect(group).toBeInTheDocument();
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(0);
+    await user.click(screen.getByRole('radio', { name: '4/5' }));
+    expect(screen.getByRole('radio', { name: '4/5' })).toBeChecked();
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(4);
+    const summary = screen.getByRole('img', { name: 'Rating terkirim: 4/5' });
+    expect(summary).toBeInTheDocument();
+    expect(summary.querySelectorAll('svg[data-filled="true"]')).toHaveLength(4);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('fills stars cumulatively through hover and keyboard focus previews', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<RatingInput label="Beri rating" />);
+    const group = screen.getByRole('radiogroup', { name: 'Beri rating' });
+    const third = screen.getByRole('radio', { name: '3/5' });
+    await user.hover(third);
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(3);
+    await user.unhover(third);
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(0);
+    await user.tab();
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(1);
+    await user.click(screen.getByRole('radio', { name: '2/5' }));
+    expect(group.querySelectorAll('.care-rating__star[data-filled="true"]')).toHaveLength(2);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('keeps dot labels textual with a decorative dot', () => {
+    const { container } = render(
+      <main>
+        <DotLabel tone="danger">High</DotLabel>
+        <DotLabel>Netral</DotLabel>
+      </main>,
+    );
+    const danger = container.querySelector('.care-dot-label[data-tone="danger"]');
+    expect(danger).toHaveTextContent('High');
+    expect(danger?.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.care-dot-label[data-tone="neutral"]')).toHaveTextContent(
+      'Netral',
+    );
+  });
+});
+
+describe('lightbox contracts', () => {
+  const images = [
+    { src: 'https://media.test/a.png', alt: 'Lampiran a' },
+    { src: 'https://media.test/b.png', alt: 'Lampiran b' },
+    { src: 'https://media.test/c.png', alt: 'Lampiran c' },
+  ];
+
+  function Viewer({ index, onIndexChange }: { index: number; onIndexChange: (i: number) => void }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <main>
+        <Button onClick={() => setOpen(true)}>Buka galeri</Button>
+        <Lightbox
+          open={open}
+          onOpenChange={setOpen}
+          images={images}
+          index={index}
+          onIndexChange={onIndexChange}
+        />
+      </main>
+    );
+  }
+
+  it('opens on the requested image, closes with Escape, and returns focus', async () => {
+    const user = userEvent.setup();
+    render(<Viewer index={1} onIndexChange={() => undefined} />);
+    await user.click(screen.getByRole('button', { name: 'Buka galeri' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    // First focusable control is the labelled back affordance.
+    expect(screen.getByRole('button', { name: 'Kembali' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Buka galeri' })).toHaveFocus();
+  });
+
+  it('navigates with arrow keys and disables navigation at the ends', async () => {
+    const user = userEvent.setup();
+    function Host() {
+      const [index, setIndex] = useState(0);
+      return <Lightbox open images={images} index={index} onIndexChange={setIndex} />;
+    }
+    render(<Host />);
+    const prev = screen.getByRole('button', { name: 'Gambar sebelumnya' });
+    const next = screen.getByRole('button', { name: 'Gambar berikutnya' });
+    expect(prev).toBeDisabled();
+    expect(next).toBeEnabled();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    expect(next).toBeDisabled();
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('jumps through thumbnails and marks the active one', async () => {
+    const user = userEvent.setup();
+    const onIndexChange = vi.fn();
+    render(<Lightbox open images={images} index={1} onIndexChange={onIndexChange} />);
+    const strip = screen.getByRole('group', { name: 'Pilih gambar' });
+    expect(within(strip).getByRole('button', { name: 'Gambar 2' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await user.click(within(strip).getByRole('button', { name: 'Gambar 3' }));
+    expect(onIndexChange).toHaveBeenLastCalledWith(2);
+  });
+
+  it('renders an accessible, axe-clean viewer', async () => {
+    render(<Lightbox open images={images} index={0} onIndexChange={() => undefined} />);
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Gambar 1 dari 3');
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it('settles an image that completed without a load event (WebKit memory-cache hit)', async () => {
+    // WebKit can finish an image that is already in its memory cache without
+    // dispatching load/error when src is set before insertion, so the reveal
+    // must also come from the inserted element being synchronously complete.
+    const complete = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'complete');
+    const naturalWidth = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      'naturalWidth',
+    );
+    Object.defineProperty(HTMLImageElement.prototype, 'complete', {
+      configurable: true,
+      get: () => true,
+    });
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', {
+      configurable: true,
+      get: () => 320,
+    });
+    try {
+      render(<Lightbox open images={images} index={0} onIndexChange={() => undefined} />);
+      await waitFor(() => {
+        expect(screen.getByRole('img', { name: 'Lampiran a' })).toHaveAttribute(
+          'data-state',
+          'ready',
+        );
+      });
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    } finally {
+      if (complete) {
+        Object.defineProperty(HTMLImageElement.prototype, 'complete', complete);
+      }
+      if (naturalWidth) {
+        Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', naturalWidth);
+      }
+    }
+  });
+
+  it('renders nothing when closed or empty', () => {
+    const { container } = render(
+      <Lightbox open={false} images={images} index={0} onIndexChange={() => undefined} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+    const empty = render(<Lightbox open images={[]} index={0} onIndexChange={() => undefined} />);
+    expect(empty.container).toBeEmptyDOMElement();
   });
 });

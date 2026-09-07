@@ -32,7 +32,7 @@ async function overflow(page: Page) {
 
 const memberRoutes: RouteCase[] = [
   { path: '/', heading: 'Budi Santoso', viewport: { width: 360, height: 800 } },
-  { path: '/voices/new', heading: 'Pilih jenis Voice', viewport: { width: 360, height: 800 } },
+  { path: '/voices/new', heading: 'Mulai Voice baru', viewport: { width: 360, height: 800 } },
   { path: '/history', heading: 'Voice milik Anda', viewport: { width: 360, height: 800 } },
   { path: '/notifications', heading: 'Pusat notifikasi', viewport: { width: 360, height: 800 } },
   { path: '/account', heading: 'Pengaturan akun', viewport: { width: 360, height: 800 } },
@@ -78,6 +78,72 @@ test.describe('workforce accessibility and responsive surface', () => {
     });
   }
 
+  for (const width of [360, 768, 1440]) {
+    test(`chat page is axe clean with no overflow at ${width}px`, async ({ page }) => {
+      await open(page, {
+        path: '/voices/voice-1/chat',
+        heading: 'Percakapan',
+        viewport: { width, height: 900 },
+        opts: {
+          voice: {
+            id: 'voice-1',
+            displayId: 'CARE-202608-000001',
+            audience: 'REPORTER_SELF',
+            visibility: 'PRIVATE',
+            status: 'IN_VERIFICATION',
+            area: 'KARAWANG_1',
+            title: 'Keluhan fasilitas toilet',
+            detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
+            availableActions: ['MESSAGE'],
+            conversationState: 'ACTIVE',
+          },
+        },
+      });
+      expect(await axe(page)).toEqual([]);
+      expect(await overflow(page)).toBeLessThanOrEqual(1);
+    });
+  }
+
+  // Closed voice under review: countdown notice, derived status chip, and the
+  // rating card with its reopen toggle are all on screen at once.
+  test('closed voice with pending review is axe clean at 360px', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+    await open(page, {
+      path: '/voices/voice-1',
+      heading: 'Keluhan fasilitas toilet',
+      viewport: { width: 360, height: 900 },
+      opts: {
+        voice: {
+          id: 'voice-1',
+          displayId: 'CARE-202608-000001',
+          audience: 'REPORTER_SELF',
+          visibility: 'PRIVATE',
+          status: 'CLOSED',
+          area: 'KARAWANG_1',
+          title: 'Keluhan fasilitas toilet',
+          detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
+          availableActions: ['RATE'],
+          closureCycles: [
+            {
+              id: 'cycle-1',
+              cycleNumber: 1,
+              note: 'Keran telah diganti.',
+              closedAt: '2026-08-04T07:00:00.000Z',
+              reopenedAt: null,
+              reviewState: 'PENDING',
+              reviewDeadline: '2026-08-06T07:00:00.000Z',
+              reviewResolvedAt: null,
+              evidence: [],
+              rating: null,
+            },
+          ],
+        },
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
   test('responder work-items is axe clean at 360px', async ({ page }) => {
     await open(page, {
       path: '/work-items',
@@ -96,6 +162,46 @@ test.describe('workforce accessibility and responsive surface', () => {
           detail: 'Lampu di stasiun 3 redup.',
           availableActions: ['ASK', 'PROCEED'],
         },
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('manager home is axe clean at 360px', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Budi Santoso',
+      viewport: { width: 360, height: 800 },
+      opts: {
+        session: responder,
+        voice: {
+          id: 'voice-1',
+          displayId: 'CARE-202608-000001',
+          audience: 'GENERAL_RESPONDER',
+          visibility: 'GENERAL',
+          status: 'IN_VERIFICATION',
+          area: 'KARAWANG_1',
+          title: 'Pencahayaan area produksi kurang',
+          detail: 'Lampu di stasiun 3 redup.',
+          availableActions: ['ASK', 'PROCEED'],
+        },
+      },
+    });
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+  });
+
+  test('leadership home is axe clean at 360px', async ({ page }) => {
+    await open(page, {
+      path: '/',
+      heading: 'Budi Santoso',
+      viewport: { width: 360, height: 800 },
+      opts: {
+        session: memberSession({
+          capabilities: ['MEMBER', 'DIVISION_LEADERSHIP'],
+          structuralPosition: 'Division Head',
+        }),
       },
     });
     expect(await axe(page)).toEqual([]);
@@ -163,11 +269,52 @@ test.describe('workforce accessibility and responsive surface', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { unauthenticated: true });
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'Selamat datang kembali' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
+    ).toBeVisible();
     expect(await axe(page)).toEqual([]);
     await page.evaluate(() => document.body.focus());
     await page.keyboard.press('Tab');
     await expect(page.getByRole('textbox', { name: 'Username' })).toBeFocused();
+  });
+
+  test('password deferral stays accessible and contained across viewports', async ({ page }) => {
+    await mockWorkforceApi(page, {
+      session: { ...memberSession(), passwordChangeRequired: true },
+    });
+    for (const viewport of [
+      { width: 360, height: 800 },
+      { width: 768, height: 900 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/change-password');
+      const defer = page.getByRole('button', { name: 'Lain kali' });
+      await defer.scrollIntoViewIfNeeded();
+      await expect(defer).toBeVisible();
+      expect((await defer.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      expect(await axe(page)).toEqual([]);
+      expect(await overflow(page)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('submit success receipt is axe clean, contained, and keyboard operable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {});
+    await page.goto('/drafts/draft-1/preview');
+    await page.getByRole('button', { name: 'Kirim Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+    await expect(page.getByRole('main')).toHaveCount(1);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Lihat riwayat Voice' }).focus();
+    await expect(page.getByRole('button', { name: 'Lihat riwayat Voice' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/history$/);
   });
 
   test('reduced-motion renders overlays without conflict', async ({ page }) => {
@@ -196,12 +343,11 @@ test.describe('workforce accessibility and responsive surface', () => {
   test('media attachment remove control keeps an expanded touch halo', async ({ page }) => {
     await open(page, {
       path: '/voices/new',
-      heading: 'Pilih jenis Voice',
+      heading: 'Mulai Voice baru',
       viewport: { width: 360, height: 800 },
     });
     await page.getByRole('radio', { name: /General Voice/ }).click();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
-    await expect(page.getByRole('radio', { name: 'Karawang 1' })).toBeVisible();
     // The remove control is 24px visually; its ::after halo must grow the hit
     // area to ≥44px (24px + 2 × 10px inset).
     const haloInset = await page.locator('.media-input').evaluate((media) => {
@@ -213,5 +359,43 @@ test.describe('workforce accessibility and responsive surface', () => {
       return inset;
     });
     expect(haloInset).toBe('-10px');
+  });
+
+  test('lightbox viewer is axe clean, contained, and meets touch targets', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      voice: {
+        id: 'voice-1',
+        displayId: 'CARE-202608-000001',
+        audience: 'REPORTER_SELF',
+        visibility: 'PRIVATE',
+        status: 'IN_PROGRESS',
+        area: 'KARAWANG_1',
+        title: 'Keluhan fasilitas toilet',
+        detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
+        availableActions: [],
+        attachments: [
+          { id: 'att-1', mimeType: 'image/png' },
+          { id: 'att-2', mimeType: 'image/png' },
+        ],
+      },
+    });
+    await page.goto('/voices/voice-1');
+    await expect(page.getByRole('heading', { name: 'Keluhan fasilitas toilet' })).toBeVisible();
+    await page.getByRole('button', { name: 'Lihat gambar 1 dari 2' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    expect(await axe(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(1);
+    const targets = await dialog.locator('button').evaluateAll((els) =>
+      els.map((el) => {
+        const rect = el.getBoundingClientRect();
+        return { w: rect.width, h: rect.height };
+      }),
+    );
+    for (const target of targets) {
+      expect(target.h).toBeGreaterThanOrEqual(44);
+      expect(target.w).toBeGreaterThanOrEqual(44);
+    }
   });
 });

@@ -91,8 +91,8 @@ test('Admin shell visual', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-01T10:00:00Z'));
   await page.goto('http://127.0.0.1:4174/');
   await expect(page.getByRole('heading', { name: 'Overview operasional' })).toBeVisible();
-  // Wait until the overview data (pulse card) has rendered before capturing.
-  await expect(page.getByText('Ringkasan akun', { exact: true })).toBeVisible();
+  // Wait until the overview data (operational summary card) has rendered before capturing.
+  await expect(page.getByText('Ringkasan operasional', { exact: true })).toBeVisible();
   await expect(page).toHaveScreenshot('admin-shell-1440.png', {
     animations: 'disabled',
     threshold: 0.25,
