@@ -251,6 +251,7 @@ export class VoicesController {
   ) {
     return q &&
       [
+        'scopeMode',
         'basis',
         'visibility',
         'level',
@@ -269,6 +270,7 @@ export class VoicesController {
   ) {
     return q &&
       [
+        'scopeMode',
         'basis',
         'visibility',
         'level',

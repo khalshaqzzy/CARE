@@ -1,13 +1,53 @@
 # CARE Session Handoff
 
-| Attribute           | Current status                                                                    |
-| ------------------- | --------------------------------------------------------------------------------- |
-| Date                | 7 September 2026                                                                  |
-| Objective           | Unlock one-level-up dashboard visuals; fix unknown-row pile-up and UI copy        |
-| Branch              | `feat/pic-dashboard-improvements-oc`; commit, push and PR to `staging` authorized |
-| Phase               | Phase 13 `in_progress`; hosted acceptance remains open                            |
-| Latest ADR          | ADR-0042 (small-cohort suppression removal amendment)                             |
-| Delivery constraint | Do not monitor hosted checks after creating the PR                                |
+| Attribute | Current status                                                                         |
+| --------- | -------------------------------------------------------------------------------------- |
+| Date      | 7 September 2026                                                                       |
+| Objective | Restore consistent PIC/management scope and enforce selectable organization boundaries |
+| Branch    | `fix/pic-dashboard-data`                                                               |
+| Phase     | Phase 13 `in_progress`; hosted acceptance remains open                                 |
+| Decision  | PRD §18.8.2; ADR-0042 scope restoration amendment                                      |
+| Delivery  | Commit/push authorized; PR targets staging; hosted CI monitoring explicitly excluded   |
+
+## Dashboard scope consistency — current session
+
+Implemented explicit OWN/PARENT/GLOBAL scope resolution, permitted selection options separate from overview buckets, Section Head own/department aggregation, Department Head own/division, Default PIC exact mappings, and Division Head own/global. Switching scope clears organization URL state; non-organization filters remain. API validation rejects peer units and their descendants. Aggregate reads share a REPEATABLE READ transaction. Browser refresh shares Jakarta date bounds for view/preview, advances relative ranges, cancels abandoned requests and separates failures. Stable category ids and deterministic bucket ordering preserve rendering integrity.
+
+Key changes: organization dashboard resolver/controller/OpenAPI/generated client; workforce DashboardHome, date utilities and API abort signals; integration/performance/browser/full-stack fixtures and tests. Source screenshots in untracked `tmp/` are preserved and are not delivery artifacts.
+
+Validation (Node 22.23.2, pnpm 11.8.0; Docker PostgreSQL care_test at port 54329):
+
+- `pnpm db:up`, `pnpm db:wait`, `pnpm db:test:reset`, `pnpm db:test:migrate`: passed, all ten existing migrations; no new migration.
+- `pnpm test:unit`: API 82, UI 26, frontend-core 15, Admin 2, workforce 83 passed (208 total).
+- `pnpm test:integration`: final rerun 84 passed; focused organization suite 22 passed, including both-basis 12 → 17 → 12, sibling/descendant denial, mapped-PIC ancestor navigation, own/parent/global policies and concurrent insert snapshot consistency.
+- `pnpm test:security`: final rerun 14 passed.
+- `NODE_ENV=test DATABASE_URL=<Docker care_test> pnpm seed:performance`, `pnpm test:performance`: two passed; mixed Manager/Director/Division Head global workload p95 333 ms, 150 requests / 50 concurrent, 50,000 Voices.
+- `pnpm openapi:generate`: passed; SHA-256 before/after a second generation matched for OpenAPI and generated client. `pnpm typecheck`, `pnpm lint`, full build and subsequent affected-app builds passed.
+- `pnpm pwa:compat-check`: latest passed (main gzip 139322 bytes). Relative calendar validation also protects the legacy General browse from issuing broad requests for invalid dates.
+- `pnpm test:frontend:e2e --workers=2`: 289 passed, including existing Chromium, WebKit legacy, PWA, push and visual suites. After final date guard and fixture adjustments, dashboard browser/visual rerun passed 62 tests; after adding metadata freshness coverage, current focused Chromium dashboard suite passed 12 tests.
+- `FULLSTACK_E2E=1 NODE_ENV=test DATABASE_URL=<Docker care_test> RELEASE_SHA=ci SESSION_HASH_SECRET=ci-session-hash-secret-32-characters SESSION_CSRF_SECRET=ci-session-csrf-secret-32-characters AUTH_THROTTLE_SECRET=ci-auth-throttle-secret-32-characters CURSOR_SIGNING_SECRET=dddddddddddddddddddddddddddddddd OUTBOX_ENABLED=false pnpm exec playwright test --project=fullstack`: final rerun 4 passed. The manager journey creates and cleans 16 extra Voices and verifies 12 → 17 → 12 for both bases, reload and history against the actual API/database.
+- Darwin dashboard visual baselines regenerated for 17 scenarios at 360/768/1440 and verified without updates. Representative Section Head mobile, Department Head overview desktop and Division Head global tablet images were inspected. Section Head fixture now represents an actual named section rather than an impossible unassigned bucket in OWN scope.
+- Linux x64: pinned Node/pnpm and frozen install, Prisma generation and build passed in Ubuntu-based `care-visual-check:x64`. Focused browser suite 11 passed and final Section Head visuals 3 passed without updates. Full canonical visual baselines regenerated 51/51, then verified 51/51 without updates (one worker, 60-second test deadline for x64 emulation).
+
+Initial test corrections: the Section Head assignment-only expectation was updated for the accepted organization cohort; browser comparison now uses innerText consistently. The CommonJS full-stack runner required an absolute package resolver instead of import.meta. Two Linux visual captures timed out while an emulated container was paused for a local dependency-cache snapshot; the canonical rerun uses one worker and a 60-second test deadline, retaining the original 1% pixel tolerance and screenshot assertion timeout. No API permission or performance threshold was relaxed.
+
+The selectors also detect a changed server-selected organization during live polling, refresh metadata, and disable stale choices until the metadata matches. A browser regression simulates a master update while the page remains open.
+
+Current dashboard suite also passed 12/12 on WebKit using a temporary config with the Desktop Safari device and the same test file. Representative final Linux baseline images were inspected. Runtime cleanup completed: `pnpm db:down` stopped the session-started PostgreSQL stack, all task visual containers exited, and the temporary `care-dashboard-visual-runtime:scope-fix` image was removed. No task-started app/test servers remain on ports 3000/4173/4174. Implementation validation was followed by the complete pre-commit parity below. Logs for this session are in `/tmp/care-dashboard-*.log` and are not repository deliverables.
+
+## Delivery validation — 7 September 2026
+
+User authorized commit/push on `fix/pic-dashboard-data` and a PR to `staging`, explicitly without hosted CI monitoring. Inspected all three workflows; rehearsal is manual and reusable deployment is not invoked by this PR. No merge or hosted deployment is authorized or claimed.
+
+Fresh pre-commit parity used Node 22.23.2 / pnpm 11.8.0, removed the six workspace `dist` directories before frozen installation, and used Docker PostgreSQL `care_test` at port 54329. Safe CI environment: `NODE_ENV=test`, `RELEASE_SHA=ci`, `OUTBOX_ENABLED=false`, CI session/CSRF/throttle secrets and the 32-character `d` cursor secret documented above. Candidate tracked changes were staged before `openapi:check`; original untracked `tmp/` screenshots remain excluded.
+
+Passed in workflow order: `pnpm install --frozen-lockfile`, `pnpm db:generate`, `pnpm security:audit` (3 moderate, zero High/Critical), `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (208), `pnpm test:openai:smoke`, `pnpm migrations:destructive-check origin/staging`, `pnpm --filter @care/api prisma:migrate:deploy`, `env -u DATABASE_URL pnpm test:migration:upgrade` (four harnesses, Docker psql), `pnpm test:integration` (84), `pnpm test:security` (14), `pnpm seed:performance`, `pnpm test:performance` (2; p95 **324 ms**, 150 requests / 50 concurrent), `pnpm maintenance:reconcile`, `pnpm openapi:check`, `NODE_ENV=production pnpm build`, `pnpm pwa:compat-check` (139322 bytes main gzip), `pnpm exec playwright install --with-deps chromium webkit`, `pnpm exec playwright test --workers=2` (**291 passed**, no snapshot updates), `FULLSTACK_E2E=1 pnpm exec playwright test --project=fullstack` (**4 passed**), `docker compose config --quiet`, and `git diff --check`.
+
+Also passed: previous `origin/staging` Prisma schema deploy followed by candidate deploy/status on separate Docker `care_release_upgrade`; `pnpm deployment:validate`; `pnpm security:exceptions:check`; pinned Actionlint 1.7.7, ShellCheck 0.11.0 and Hadolint 2.14.0 over the exact workflow paths; inference Compose config and Python syntax; Ubuntu bootstrap `--check`; `bash deploy/tests/deployment-scripts.sh` in Linux Docker with real `flock` (including the intentional provider-failure scenario). Production Compose `build --pull`, migrate/bootstrap, startup/readiness, release/routing/CSP/auth boundaries, non-root/private database port and persistence checks passed for all five services. Trivy 0.70.0 filesystem and all five freshly built runtime images passed at HIGH/CRITICAL using the committed exact exception file. Gitleaks 8.24.3 directory scan passed with zero leaks.
+
+Commands and output are preserved locally in `/tmp/care-delivery-{quality,deployment,harness,migration,containers,trivy,gitleaks}.log`; runner scripts are `/tmp/care-ci-{quality,quality-rest,deployment-checks,containers,scans}.sh`. No scanner exceptions or test thresholds were changed. `pnpm db:down` and production Compose shutdown completed; no task containers or listeners on 3000/4173/4174 remain. Hosted CI/CodeQL/dependency-review results are not claimed and will not be monitored per user instruction.
+
+## Previous session reference
 
 ## Organization dashboard corrections — 7 September 2026
 

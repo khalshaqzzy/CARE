@@ -1,5 +1,5 @@
 import { Alert, Button, Card, Dialog, EmptyState, Input, Select, Skeleton } from '@care/ui';
-import { useAuth } from '@care/frontend-core';
+import { FrontendError, useAuth } from '@care/frontend-core';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
@@ -18,7 +18,7 @@ import {
   RotateCcw,
   UserRound,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardChartCard } from '../../components/DashboardChartCard';
 import { DonutChart, DonutLegend } from '../../components/DonutChart';
@@ -26,7 +26,7 @@ import { FilterPillRow } from '../../components/FilterPills';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { TrendCard } from '../../components/TrendCard';
 import { activeCount, bucketValue } from '../../lib/dashboard-math';
-import { dashboardDates, type DashboardRange } from '../../lib/dashboard-range';
+import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
 import { AREA_LABELS, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
@@ -48,6 +48,7 @@ const rangeOptions = [
 ];
 const filterNames = [
   'basis',
+  'scopeMode',
   'level',
   ...orgLevels,
   'handler',
@@ -59,6 +60,14 @@ const filterNames = [
   'dashFrom',
   'dashTo',
 ];
+
+// Promise.allSettled is absent on the supported legacy WebKit tier.
+function settled<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> {
+  return promise.then(
+    (value) => ({ status: 'fulfilled', value }),
+    (reason) => ({ status: 'rejected', reason }),
+  );
+}
 
 export function DashboardHome() {
   const { session } = useAuth();
@@ -82,18 +91,15 @@ export function DashboardHome() {
     (range === 'custom' &&
       (!from ||
         !to ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
+        !isDashboardDate(from) ||
+        !isDashboardDate(to) ||
         from > to ||
         !Number.isFinite(Date.parse(from)) ||
         !Number.isFinite(Date.parse(to))));
-  const dates = useMemo(
-    () => (invalidDates ? {} : dashboardDates(range, from, to)),
-    [range, from, to, invalidDates],
-  );
   const query = {
     basis: isPrivate ? 'HANDLING' : (read('basis') ?? 'HANDLING'),
     visibility: isPrivate ? 'PRIVATE' : 'GENERAL',
+    scopeMode: read('scopeMode'),
     level: read('level'),
     directorate: read('directorate'),
     division: read('division'),
@@ -104,7 +110,6 @@ export function DashboardHome() {
     category: isPrivate ? undefined : read('dashCategory'),
     severity: read('dashSeverity'),
     status: read('dashStatus'),
-    ...dates,
   };
   const metadataQuery = {
     ...query,
@@ -119,24 +124,62 @@ export function DashboardHome() {
   };
   const metadata = useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'metadata', metadataQuery),
-    queryFn: () => api.dashboardMetadata(metadataQuery),
+    queryFn: ({ signal }) => api.dashboardMetadata(metadataQuery, signal),
     enabled: online,
     staleTime: 30000,
   });
-  const dashboard = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'view', query),
-    queryFn: () => api.dashboardView(query),
-    enabled: online && !invalidDates,
+  // One refresh owns the date bounds and waits for both independent results.
+  // A stable semantic key prevents time-driven cache churn; changed filters
+  // get a different key, so delayed responses cannot replace the current view.
+  const refresh = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'snapshot', query, range, from, to),
+    queryFn: async ({ signal }) => {
+      const dates = dashboardDates(range, from, to);
+      const request = { ...query, ...dates };
+      const [view, inbox] = await Promise.all([
+        settled(api.dashboardView(request, signal)),
+        settled(api.dashboardPreview(request, signal)),
+      ]);
+      return { view, inbox, dates };
+    },
+    enabled: online && !invalidDates && sessionId !== 'anon',
     refetchInterval: online ? 3000 : false,
   });
-  const preview = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'preview', query),
-    queryFn: () => api.dashboardPreview(query),
-    enabled: online && !invalidDates,
-    refetchInterval: online ? 3000 : false,
-  });
+  const dashboard = {
+    data: refresh.data?.view.status === 'fulfilled' ? refresh.data.view.value : undefined,
+    isError: refresh.isError || refresh.data?.view.status === 'rejected',
+    refetch: () => refresh.refetch({ cancelRefetch: false }),
+  };
+  const preview = {
+    data: refresh.data?.inbox.status === 'fulfilled' ? refresh.data.inbox.value : undefined,
+    isError: refresh.isError || refresh.data?.inbox.status === 'rejected',
+    isPending: refresh.isPending,
+    refetch: () => refresh.refetch({ cancelRefetch: false }),
+  };
+  const viewError =
+    refresh.data?.view.status === 'rejected' ? refresh.data.view.reason : refresh.error;
+  const organizationUnavailable =
+    viewError instanceof FrontendError && viewError.code === 'DASHBOARD_ORGANIZATION_UNAVAILABLE';
   const data = !invalidDates && !dashboard.isError ? dashboard.data : undefined;
   const meta = metadata.data;
+  const selectionSignature = JSON.stringify(data?.selected);
+  const metadataSignature = JSON.stringify(meta?.selected);
+  const metadataMatches = Boolean(
+    meta &&
+    data &&
+    meta.basis === data.basis &&
+    meta.visibility === data.visibility &&
+    meta.level === data.level &&
+    meta.scopeMode === data.scopeMode &&
+    selectionSignature === metadataSignature,
+  );
+  const refetchMetadata = metadata.refetch;
+  useEffect(() => {
+    // A master import can change the default unit while this page is polling.
+    // Refresh selector options before allowing interaction with that new scope.
+    if (online && data && meta && !metadataMatches && !metadata.isFetching && !metadata.isError)
+      void refetchMetadata();
+  }, [online, data, meta, metadataMatches, metadata.isFetching, metadata.isError, refetchMetadata]);
   const set = (values: Record<string, string | undefined>) => {
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(values)) {
@@ -157,15 +200,35 @@ export function DashboardHome() {
     orgLevels.forEach((key, n) => {
       changes[key] = n < i ? meta?.selected[key] : n === i ? value || undefined : undefined;
     });
+    const ownSelection = sectionOnly
+      ? changes.section
+      : caps.includes('DIVISION_LEADERSHIP')
+        ? changes.division
+        : changes.department;
+    if (ownSelection && !union && !caps.includes('DIRECTOR')) {
+      changes.scopeMode = 'OWN';
+      changes.level = caps.includes('DIVISION_LEADERSHIP') ? 'department' : 'section';
+    }
     set(changes);
   };
   const pickLevel = (level: string) => {
-    const keep = level === 'section' ? 3 : level === 'department' ? 2 : 0;
-    set({
-      level,
-      ...Object.fromEntries(orgLevels.map((l, i) => [l, i < keep ? meta?.selected[l] : undefined])),
-    });
+    const scopeMode =
+      caps.includes('DIRECTOR') || union
+        ? 'GLOBAL'
+        : caps.includes('DIVISION_LEADERSHIP')
+          ? level === 'division'
+            ? 'GLOBAL'
+            : 'OWN'
+          : level === 'department'
+            ? 'PARENT'
+            : 'OWN';
+    set({ ...clearOrg, scopeMode, level });
   };
+  const sectionOnly =
+    !union &&
+    !caps.includes('DIRECTOR') &&
+    !caps.includes('DIVISION_LEADERSHIP') &&
+    !caps.includes('MANAGER');
   const scope = data?.scopeLabel ?? meta?.scopeLabel;
   const title = isPrivate ? 'Private Voice' : 'General Voice';
   const readonly =
@@ -187,8 +250,9 @@ export function DashboardHome() {
           : 'Selamat malam';
   const listUrl = () => {
     const p = new URLSearchParams();
+    const listQuery = { ...query, ...refresh.data?.dates };
     for (const key of ['area', 'category', 'severity', 'status', 'from', 'to', 'handler'] as const)
-      if (query[key]) p.set(key, query[key]!);
+      if (listQuery[key]) p.set(key, listQuery[key]!);
     if (!query.status) p.set('statusGroup', 'ACTIVE');
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
@@ -292,7 +356,9 @@ export function DashboardHome() {
                     type="button"
                     key={b.id}
                     aria-pressed={query.basis === b.id}
-                    onClick={() => set({ ...clearOrg, basis: b.id, level: undefined })}
+                    onClick={() =>
+                      set({ ...clearOrg, basis: b.id, level: undefined, scopeMode: undefined })
+                    }
                   >
                     {b.label}
                   </button>
@@ -328,9 +394,10 @@ export function DashboardHome() {
                   .map((l) => (
                     <Select
                       key={l}
+                      disabled={metadata.isFetching || metadata.isError || !metadataMatches}
                       label={orgLabels[l]}
                       placeholder={`Semua ${orgLabels[l].toLowerCase()}`}
-                      value={meta?.selected[l] ?? ''}
+                      value={data?.selected[l] ?? meta?.selected[l] ?? ''}
                       onValueChange={(v) => pickOrg(l, v)}
                       options={[
                         { value: '', label: `Semua ${orgLabels[l].toLowerCase()}` },
@@ -354,9 +421,10 @@ export function DashboardHome() {
                     .map((l) => (
                       <Select
                         key={l}
+                        disabled={metadata.isFetching || metadata.isError || !metadataMatches}
                         label={orgLabels[l]}
                         placeholder={`Semua ${orgLabels[l].toLowerCase()}`}
-                        value={meta?.selected[l] ?? ''}
+                        value={data?.selected[l] ?? meta?.selected[l] ?? ''}
                         onValueChange={(v) => pickOrg(l, v)}
                         options={[
                           { value: '', label: `Semua ${orgLabels[l].toLowerCase()}` },
@@ -483,7 +551,9 @@ export function DashboardHome() {
           </Alert>
         ) : dashboard.isError ? (
           <Alert tone="danger" title="Dashboard gagal dimuat">
-            Coba muat ulang atau reset filter.
+            {organizationUnavailable
+              ? 'Organisasi akun belum lengkap. Hubungi Admin untuk memperbarui data organisasi.'
+              : 'Coba muat ulang atau reset filter.'}
             <Button onClick={() => void dashboard.refetch()}>Coba lagi</Button>
           </Alert>
         ) : !data ? (
@@ -550,16 +620,27 @@ export function DashboardHome() {
                 <h2>{isPrivate ? 'Cakupan penanganan' : 'Cakupan organisasi'}</h2>
                 {!isPrivate && meta ? (
                   <div className="dashboard-tabs" aria-label="Level cakupan">
-                    {meta.allowedLevels.map((l) => (
-                      <button
-                        type="button"
-                        key={l}
-                        aria-pressed={data.level === l}
-                        onClick={() => pickLevel(l)}
-                      >
-                        {orgLabels[l]}
-                      </button>
-                    ))}
+                    {sectionOnly
+                      ? meta.allowedScopeModes.map((mode) => (
+                          <button
+                            type="button"
+                            key={mode}
+                            aria-pressed={data.scopeMode === mode}
+                            onClick={() => set({ ...clearOrg, scopeMode: mode, level: 'section' })}
+                          >
+                            {mode === 'OWN' ? 'Section saya' : 'Seluruh section di department'}
+                          </button>
+                        ))
+                      : meta.allowedLevels.map((l) => (
+                          <button
+                            type="button"
+                            key={l}
+                            aria-pressed={data.level === l}
+                            onClick={() => pickLevel(l)}
+                          >
+                            {orgLabels[l]}
+                          </button>
+                        ))}
                   </div>
                 ) : null}
               </div>

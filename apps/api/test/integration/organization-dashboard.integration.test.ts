@@ -233,14 +233,14 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       currentHandlerId: section.accountId,
     });
     const division = organizationKey([a.directorate, a.division]);
-    const result = await dashboard.aggregate(manager, { ...common, level: 'section', division });
+    const result = await dashboard.aggregate(director, { ...common, level: 'section', division });
     expect(result.organization).toEqual([
       { id: 'section-unassigned', label: 'Belum ditugaskan ke section', value: 2 },
       { id: 'section-unknown', label: 'Section belum teridentifikasi', value: 1 },
     ]);
     // Repeating the same aggregate (simulated scope switch) is stable and never
     // duplicates the unknown bucket.
-    const again = await dashboard.aggregate(manager, { ...common, level: 'section', division });
+    const again = await dashboard.aggregate(director, { ...common, level: 'section', division });
     expect(again.organization).toEqual(result.organization);
     expect(
       again.organization.filter((b) => b.label === 'Belum ditugaskan ke section'),
@@ -298,9 +298,10 @@ describe('Organization dashboard scope, privacy and filtering', () => {
         )
       ).total,
     ).toBe(1);
-    expect((await dashboard.aggregate(section, common)).total).toBe(0);
-    await seed({ currentHandlerId: section.accountId, handlerType: 'SECTION_HEAD' });
     expect((await dashboard.aggregate(section, common)).total).toBe(1);
+    expect((await voices.dashboardPreview(section, common)).items).toHaveLength(0);
+    await seed({ currentHandlerId: section.accountId, handlerType: 'SECTION_HEAD' });
+    expect((await dashboard.aggregate(section, common)).total).toBe(2);
     await expect(
       dashboard.aggregate(section, { ...common, level: 'department' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
@@ -321,13 +322,214 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       (
         await dashboard.metadata(pic, { ...common, level: 'department' })
       ).organization.department.map((o) => o.label),
-    ).toContain(b.department);
+    ).not.toContain(b.department);
     await expect(
       dashboard.metadata(pic, {
         ...common,
         department: organizationKey([remote.directorate, remote.division, remote.department]),
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+  it.each(['HANDLING', 'REPORTER'] as const)(
+    'restores every dimension in a 12 → 17 → 12 roundtrip for %s',
+    async (basis) => {
+      const snapshots = (u: OrganizationUnit) => ({
+        handlingOrganizationUnitId: u.id,
+        handlingDirectorateSnapshot: u.directorate,
+        handlingDivisionSnapshot: u.division,
+        handlingDepartmentSnapshot: u.department,
+        reporterOrganizationUnitId: u.id,
+        reporterDirectorateSnapshot: u.directorate,
+        reporterDivisionSnapshot: u.division,
+        reporterDepartmentSnapshot: u.department,
+        reporterSectionSnapshot: 'Assembly',
+      });
+      for (let i = 0; i < 12; i++)
+        await seed({
+          ...snapshots(a),
+          severity: i < 4 ? 'HIGH' : i < 10 ? 'MEDIUM' : 'LOW',
+          status: i < 6 ? 'OPEN' : i < 9 ? 'IN_PROGRESS' : 'CLOSED',
+        });
+      for (let i = 0; i < 5; i++)
+        await seed({
+          ...snapshots(b),
+          routeOwnerId: reporter.accountId,
+          severity: i < 2 ? 'HIGH' : 'MEDIUM',
+        });
+      const initial = await dashboard.aggregate(manager, { ...common, basis });
+      expect(initial.total).toBe(12);
+      for (let round = 0; round < 3; round++) {
+        const wider = await dashboard.aggregate(manager, {
+          ...common,
+          basis,
+          scopeMode: 'PARENT',
+          level: 'department',
+        });
+        expect(wider.total).toBe(17);
+        expect(wider.organization.map((b) => b.value).sort((a, b) => a - b)).toEqual([5, 12]);
+        // Old URLs with only ancestors must also remain anchored in OWN mode.
+        const returned = await dashboard.aggregate(manager, {
+          ...common,
+          basis,
+          scopeMode: 'OWN',
+          level: 'section',
+          division: initial.selected.division,
+        });
+        expect(returned.total).toBe(12);
+        for (const dimension of [
+          'status',
+          'severity',
+          'category',
+          'area',
+          'organization',
+          'trend',
+        ] as const) {
+          expect(returned[dimension]).toEqual(initial[dimension]);
+          expect(wider[dimension].reduce((sum, b) => sum + b.value, 0)).toBe(17);
+        }
+        expect(returned.previousTotal).toBe(initial.previousTotal);
+      }
+    },
+  );
+  it.each(['HANDLING', 'REPORTER'] as const)(
+    'rejects sibling filters and descendant bypasses on all three readers for %s',
+    async (basis) => {
+      for (const actor of [manager, section, deputy]) {
+        const siblingPath =
+          actor === deputy
+            ? [remote.directorate, remote.division]
+            : actor === manager
+              ? [b.directorate, b.division, b.department]
+              : [a.directorate, a.division, a.department, 'Other section'];
+        for (const path of [siblingPath, [...siblingPath, 'Child'].slice(0, 4)]) {
+          const key = ['directorate', 'division', 'department', 'section'][path.length - 1]!;
+          const query = { ...common, basis, [key]: organizationKey(path) };
+          for (const read of [
+            () => dashboard.metadata(actor, query),
+            () => dashboard.aggregate(actor, query),
+            () => voices.dashboardPreview(actor, query),
+          ])
+            await expect(read()).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        }
+      }
+      const overview = await dashboard.metadata(manager, { basis, scopeMode: 'PARENT' });
+      expect(overview.organization.department.map((o) => o.label)).toEqual([a.department]);
+    },
+  );
+  it('opens all own-department sections without granting foreign section details', async () => {
+    await seed({ handlingSectionSnapshot: 'Assembly' });
+    await seed({ handlingSectionSnapshot: 'Other section', routeOwnerId: reporter.accountId });
+    expect((await dashboard.aggregate(section, common)).total).toBe(1);
+    const parent = await dashboard.aggregate(section, { ...common, scopeMode: 'PARENT' });
+    expect(parent.total).toBe(2);
+    expect(parent.organization).toHaveLength(2);
+    expect(
+      (await dashboard.metadata(section, { scopeMode: 'PARENT' })).organization.section.map(
+        (o) => o.label,
+      ),
+    ).toEqual(['Assembly']);
+    expect(
+      (await voices.dashboardPreview(section, { ...common, scopeMode: 'PARENT' })).items,
+    ).toEqual([]);
+  });
+  it('retains global division overview while restricting selectable divisions', async () => {
+    await seed();
+    await seed({
+      handlingDirectorateSnapshot: remote.directorate,
+      handlingDivisionSnapshot: remote.division,
+      handlingDepartmentSnapshot: remote.department,
+    });
+    expect((await dashboard.aggregate(deputy, common)).total).toBe(1);
+    const global = await dashboard.aggregate(deputy, { ...common, scopeMode: 'GLOBAL' });
+    expect(global.total).toBe(2);
+    expect(global.organization).toHaveLength(2);
+    const meta = await dashboard.metadata(deputy, { scopeMode: 'GLOBAL' });
+    expect(meta.organization.division.map((o) => o.label)).toEqual([a.division]);
+  });
+  it('allows exact additional PIC mappings without expanding their foreign division', async () => {
+    const pic = {
+      ...reporter,
+      capabilities: ['MEMBER', 'MANAGER'] as Principal['capabilities'],
+      organizationUnitId: a.id,
+      routeUnitIds: [a.id, remote.id],
+    };
+    const query = {
+      ...common,
+      department: organizationKey([remote.directorate, remote.division, remote.department]),
+    };
+    await seed({
+      handlingDirectorateSnapshot: remote.directorate,
+      handlingDivisionSnapshot: remote.division,
+      handlingDepartmentSnapshot: remote.department,
+    });
+    expect((await dashboard.aggregate(pic, query)).total).toBe(1);
+    const cascade = await dashboard.metadata(pic, {
+      basis: 'HANDLING',
+      directorate: organizationKey([remote.directorate]),
+    });
+    expect(cascade.selected.department).toBe(query.department);
+    expect(
+      (
+        await dashboard.aggregate(pic, {
+          ...common,
+          directorate: organizationKey([remote.directorate]),
+        })
+      ).total,
+    ).toBe(1);
+    expect((await dashboard.aggregate(pic, { ...common, scopeMode: 'PARENT' })).total).toBe(0);
+  });
+  it('fails closed when required own organization is missing', async () => {
+    for (const actor of [
+      { ...manager, organizationUnitId: null, routeUnitIds: [] },
+      { ...section, section: null },
+      { ...deputy, organizationUnitId: null },
+    ])
+      await expect(dashboard.aggregate(actor, common)).rejects.toMatchObject({
+        code: 'DASHBOARD_ORGANIZATION_UNAVAILABLE',
+      });
+  });
+  it('keeps all dimensions on one database snapshot during a concurrent submission', async () => {
+    await seed();
+    let inserted = false;
+    const transactional = {
+      $transaction: (run: (tx: Prisma.TransactionClient) => Promise<unknown>, options: object) =>
+        db.$transaction(
+          async (tx) =>
+            run(
+              new Proxy(tx, {
+                get(target, property) {
+                  if (property === '$queryRaw')
+                    return async (...args: Parameters<typeof tx.$queryRaw>) => {
+                      const result = await tx.$queryRaw(...args);
+                      if (!inserted) {
+                        inserted = true;
+                        await seed({ status: 'CLOSED', severity: 'LOW' });
+                      }
+                      return result;
+                    };
+                  return Reflect.get(target, property);
+                },
+              }),
+            ),
+          options,
+        ),
+    };
+    const result = await new OrganizationDashboard(transactional as never).aggregate(
+      manager,
+      common,
+    );
+    expect(inserted).toBe(true);
+    expect(result.total).toBe(1);
+    for (const dimension of [
+      'status',
+      'severity',
+      'category',
+      'area',
+      'organization',
+      'trend',
+    ] as const)
+      expect(result[dimension].reduce((sum, b) => sum + b.value, 0)).toBe(1);
+    expect((await dashboard.aggregate(manager, common)).total).toBe(2);
   });
   it('keeps Private data scoped to Union and never groups or filters by reporter organization', async () => {
     await seed({
