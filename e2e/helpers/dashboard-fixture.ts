@@ -134,21 +134,28 @@ export function dashboardFixture(
     })),
     organization: isPrivate
       ? [{ id: 'union-1', label: 'Union 1', value: total }]
-      : (level === 'section'
-          ? ['Assembly 1', 'Welding', 'Painting', 'Logistics', 'Quality']
-          : level === 'department'
-            ? ['Production Control', 'Manufacturing Engineering', 'Quality Assurance']
-            : ['Production Division', 'Corporate Planning', 'Quality Division']
-        ).map((label, i) => ({ id: `bucket-${i}`, label, value: [12, 9, 8, 7, 6][i]! })),
+      : [
+          ...(level === 'section'
+            ? [
+                { id: 'section-unassigned', label: 'Belum ditugaskan ke section', value: 12 },
+                ...['Assembly 1', 'Welding', 'Painting', 'Logistics', 'Quality'].map(
+                  (label, i) => ({ id: `bucket-${i}`, label, value: [12, 9, 8, 7, 6][i]! }),
+                ),
+              ]
+            : level === 'department'
+              ? ['Production Control', 'Manufacturing Engineering', 'Quality Assurance'].map(
+                  (label, i) => ({ id: `bucket-${i}`, label, value: [12, 9, 8][i]! }),
+                )
+              : ['Production Division', 'Corporate Planning', 'Quality Division'].map(
+                  (label, i) => ({ id: `bucket-${i}`, label, value: [12, 9, 8][i]! }),
+                )),
+        ],
     area: old?.area ?? [],
     previousTotal: old?.previousTotal ?? 39,
     trendGrain: 'day',
     ...(isPrivate && caps.includes('UNION_HEAD')
       ? { pendingAssignment: old?.pendingAssignment ?? 3 }
       : {}),
-    protected: false,
-    suppressedDimensions: [],
-    suppression: { enabled: !global && !isPrivate, threshold: 5 },
     handlingUnresolved: 0,
     filters: Object.fromEntries(url.searchParams),
     generatedAt: '2026-08-30T03:00:00Z',

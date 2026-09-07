@@ -2127,7 +2127,7 @@ export interface components {
                 parentId?: string | null;
             }[];
             scopeLabel: string;
-            total: number | null;
+            total: number;
             status: {
                 id?: string;
                 label: string;
@@ -2167,12 +2167,6 @@ export interface components {
             /** @enum {string} */
             trendGrain: "day" | "week" | "month";
             pendingAssignment?: number;
-            protected: boolean;
-            suppressedDimensions: string[];
-            suppression: {
-                enabled: boolean;
-                threshold: number;
-            };
             handlingUnresolved: number | null;
             filters: {
                 [key: string]: string;

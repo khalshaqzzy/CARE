@@ -26,10 +26,10 @@ const cases = [
   { id: 'reporter', caps: ['MEMBER', 'MANAGER'], query: 'basis=REPORTER' },
   { id: 'filters', caps: ['MEMBER', 'MANAGER'], query: 'dashSeverity=HIGH&dashCategory=SAFETY' },
   { id: 'long-labels', caps: ['MEMBER', 'MANAGER'] },
+  { id: 'unknown-section', caps: ['MEMBER', 'MANAGER'] },
   { id: 'empty', caps: ['MEMBER', 'MANAGER'] },
   { id: 'loading', caps: ['MEMBER', 'MANAGER'] },
   { id: 'error', caps: ['MEMBER', 'MANAGER'] },
-  { id: 'protected', caps: ['MEMBER', 'MANAGER'] },
 ];
 for (const width of [360, 768, 1440])
   for (const scenario of cases) {
@@ -72,16 +72,6 @@ for (const width of [360, 768, 1440])
           view.organization = [];
           view.trend = [];
           view.previousTotal = 0;
-        }
-        if (scenario.id === 'protected') {
-          view.total = null;
-          view.protected = true;
-          view.status = [];
-          view.severity = [];
-          view.category = [];
-          view.organization = [];
-          view.trend = [];
-          view.previousTotal = null;
         }
         if (scenario.id === 'long-labels')
           view.organization[0]!.label =

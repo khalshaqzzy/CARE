@@ -6,7 +6,7 @@ import { VoicesService } from '../../src/voices/voices.service';
 
 const db = new PrismaClient();
 const policy = new PolicyService(db as never);
-const dashboard = new OrganizationDashboard(db as never, policy);
+const dashboard = new OrganizationDashboard(db as never);
 const voices = new VoicesService(db as never, {} as never, {} as never, policy);
 let manager: Principal,
   deputy: Principal,
@@ -204,25 +204,47 @@ describe('Organization dashboard scope, privacy and filtering', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     expect((await voices.dashboardPreview(manager, common)).items).toEqual([]);
   });
-  it('protects a selected out-of-detail cohort below five, including previous-period data', async () => {
+  it('returns small cross-detail cohorts as real numbers without suppression', async () => {
     for (let n = 0; n < 4; n++) await seed({ routeOwnerId: reporter.accountId });
     const result = await dashboard.aggregate(manager, common);
-    expect(result.protected).toBe(true);
-    expect(result.total).toBeNull();
-    expect(result.previousTotal).toBeNull();
-    expect(result.organization).toEqual([]);
-    expect(result.severity).toEqual([]);
-    expect(JSON.stringify(result)).not.toContain('suppressedValue');
+    expect(result.total).toBe(4);
+    expect(result.severity).toEqual([{ label: 'CRITICAL', value: 4 }]);
+    expect(result.organization).toEqual([
+      {
+        id: organizationKey([a.directorate, a.division, a.department, 'Assembly']),
+        label: 'Assembly',
+        value: 4,
+      },
+    ]);
     await seed({ routeOwnerId: reporter.accountId });
     expect((await dashboard.aggregate(manager, common)).total).toBe(5);
   });
-  it('does not expose a small organization bucket through complement arithmetic', async () => {
-    for (let n = 0; n < 5; n++) await seed({ routeOwnerId: reporter.accountId });
-    await seed({ routeOwnerId: reporter.accountId, handlingSectionSnapshot: 'Small section' });
-    const result = await dashboard.aggregate(manager, common);
-    expect(result.total).toBe(6);
-    expect(result.organization).toEqual([]);
-    expect(result.suppressedDimensions).toContain('organization');
+  it('merges unknown organization rows into one bucket across departments and switches', async () => {
+    await seed({ handlingSectionSnapshot: null });
+    await seed({
+      handlingOrganizationUnitId: b.id,
+      handlingDepartmentSnapshot: b.department,
+      handlingSectionSnapshot: null,
+      routeOwnerId: reporter.accountId,
+    });
+    await seed({
+      handlingSectionSnapshot: null,
+      handlerType: 'SECTION_HEAD',
+      currentHandlerId: section.accountId,
+    });
+    const division = organizationKey([a.directorate, a.division]);
+    const result = await dashboard.aggregate(manager, { ...common, level: 'section', division });
+    expect(result.organization).toEqual([
+      { id: 'section-unassigned', label: 'Belum ditugaskan ke section', value: 2 },
+      { id: 'section-unknown', label: 'Section belum teridentifikasi', value: 1 },
+    ]);
+    // Repeating the same aggregate (simulated scope switch) is stable and never
+    // duplicates the unknown bucket.
+    const again = await dashboard.aggregate(manager, { ...common, level: 'section', division });
+    expect(again.organization).toEqual(result.organization);
+    expect(
+      again.organization.filter((b) => b.label === 'Belum ditugaskan ke section'),
+    ).toHaveLength(1);
   });
   it('fills zero days and compares the same filters over the preceding period', async () => {
     await seed();
