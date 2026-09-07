@@ -185,8 +185,6 @@ export function DashboardHome() {
         : hour < 18
           ? 'Selamat sore'
           : 'Selamat malam';
-  const suppressed = (dimension: string) =>
-    data?.protected || data?.suppressedDimensions.includes(dimension);
   const listUrl = () => {
     const p = new URLSearchParams();
     for (const key of ['area', 'category', 'severity', 'status', 'from', 'to', 'handler'] as const)
@@ -261,14 +259,10 @@ export function DashboardHome() {
           {data ? (
             <div className="dashboard-summary__grid">
               <Metric label="Total" value={data.total} icon={<Layers3 />} />
-              <Metric
-                label="Aktif"
-                value={suppressed('status') ? null : activeCount(data.status)}
-                icon={<Activity />}
-              />
+              <Metric label="Aktif" value={activeCount(data.status)} icon={<Activity />} />
               <Metric
                 label="Kritis"
-                value={suppressed('severity') ? null : bucketValue(data.severity, 'CRITICAL')}
+                value={bucketValue(data.severity, 'CRITICAL')}
                 icon={<AlertTriangle />}
                 danger
               />
@@ -510,9 +504,7 @@ export function DashboardHome() {
                 {!online ? ' · usang' : ''}
               </span>
             </div>
-            {data.protected ? (
-              <Protected title="Ringkasan dilindungi" />
-            ) : data.total === 0 ? (
+            {data.total === 0 ? (
               <Card>
                 <EmptyState
                   icon={<Inbox size={26} />}
@@ -527,44 +519,30 @@ export function DashboardHome() {
               </Card>
             ) : null}
             <div className="dashboard-visual-grid">
-              {suppressed('status') ? (
-                <Protected title="Distribusi status" />
-              ) : (
-                <Card className="distribution-card dashboard-donut">
-                  <h2>Distribusi status</h2>
-                  <div className="donut-card__grid">
-                    <DonutChart buckets={data.status} />
-                    <DonutLegend buckets={data.status} />
-                  </div>
-                </Card>
-              )}
-              {suppressed('trend') ? (
-                <Protected title="Tren Voice" />
-              ) : (
-                <TrendCard
-                  title={`Tren ${range === '30d' ? '30 hari' : range === '90d' ? '90 hari' : range === 'year' ? 'tahun berjalan' : range === 'custom' ? 'periode terpilih' : 'seluruh periode'}`}
-                  buckets={data.trend}
-                  total={data.total ?? undefined}
-                  previousTotal={data.previousTotal ?? undefined}
-                />
-              )}
-              {suppressed('severity') ? (
-                <Protected title="Voice menurut severity" />
-              ) : (
-                <DashboardChartCard
-                  title="Voice menurut severity"
-                  buckets={['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((label) => ({
+              <Card className="distribution-card dashboard-donut">
+                <h2>Distribusi status</h2>
+                <div className="donut-card__grid">
+                  <DonutChart buckets={data.status} />
+                  <DonutLegend buckets={data.status} />
+                </div>
+              </Card>
+              <TrendCard
+                title={`Tren ${range === '30d' ? '30 hari' : range === '90d' ? '90 hari' : range === 'year' ? 'tahun berjalan' : range === 'custom' ? 'periode terpilih' : 'seluruh periode'}`}
+                buckets={data.trend}
+                total={data.total ?? undefined}
+                previousTotal={data.previousTotal ?? undefined}
+              />
+              <DashboardChartCard
+                title="Voice menurut severity"
+                buckets={['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+                  .map((label) => ({
                     label,
                     value: bucketValue(data.severity, label),
-                  }))}
-                />
-              )}
+                  }))
+                  .filter((bucket) => bucket.value > 0)}
+              />
               {!isPrivate ? (
-                suppressed('category') ? (
-                  <Protected title="Voice menurut kategori" />
-                ) : (
-                  <DashboardChartCard title="Voice menurut kategori" buckets={data.category} />
-                )
+                <DashboardChartCard title="Voice menurut kategori" buckets={data.category} />
               ) : null}
             </div>
             <Card className="dashboard-organization" padding="none">
@@ -585,25 +563,19 @@ export function DashboardHome() {
                   </div>
                 ) : null}
               </div>
-              {suppressed('organization') ? (
-                <Protected title="Kelompok organisasi dilindungi" />
-              ) : (
-                <DashboardChartCard
-                  title={
-                    isPrivate
-                      ? 'Penanggung jawab'
-                      : `Voice per ${orgLabels[data.level].toLowerCase()}`
-                  }
-                  buckets={data.organization}
-                />
-              )}
+              <DashboardChartCard
+                title={
+                  isPrivate
+                    ? 'Penanggung jawab'
+                    : `Voice per ${orgLabels[data.level].toLowerCase()}`
+                }
+                buckets={data.organization}
+              />
               <p className="dashboard-privacy">
                 <Lock size={14} />
-                {data.suppression.enabled
-                  ? 'Kelompok kecil dilindungi untuk menjaga privasi.'
-                  : isPrivate
-                    ? 'Identitas pelapor tidak ditampilkan dalam ringkasan.'
-                    : 'Akses detail Voice mengikuti kewenangan Anda.'}
+                {isPrivate
+                  ? 'Identitas pelapor tidak ditampilkan dalam ringkasan.'
+                  : 'Akses detail Voice mengikuti kewenangan Anda.'}
               </p>
               {data.handlingUnresolved ? (
                 <p className="chart-card__caption">
@@ -625,18 +597,6 @@ export function DashboardHome() {
                 <ArrowUp size={16} /> Lihat satu level lebih luas
               </Button>
             ) : null}
-            <p className="dashboard-trend-note">
-              Tren menghitung Voice yang disubmit
-              {data.trendGrain === 'week'
-                ? ' per minggu'
-                : data.trendGrain === 'month'
-                  ? ' per bulan'
-                  : ' per hari'}
-              .{' '}
-              {query.basis === 'HANDLING'
-                ? 'Organisasi mengikuti penanggung jawab terakhir.'
-                : 'Organisasi mengikuti snapshot pelapor saat submit.'}
-            </p>
           </>
         )}
         {isPrivate && unionHead && data?.pendingAssignment !== undefined ? (
@@ -660,9 +620,6 @@ export function DashboardHome() {
               Lihat semua
             </Button>
           </div>
-          <p className="dashboard-inbox__note">
-            Hanya Voice yang boleh Anda buka. Jumlahnya dapat berbeda dari ringkasan organisasi.
-          </p>
           {preview.isError ? (
             <Alert tone="danger" title="Inbox gagal dimuat">
               <Button onClick={() => void preview.refetch()}>Coba lagi</Button>
@@ -730,25 +687,15 @@ function Metric({
   danger,
 }: {
   label: string;
-  value: number | null;
+  value: number;
   icon: ReactNode;
   danger?: boolean;
 }) {
   return (
     <div className="dashboard-summary__metric" data-danger={danger || undefined}>
       <span aria-hidden="true">{icon}</span>
-      <strong>{value ?? '—'}</strong>
+      <strong>{value}</strong>
       <span>{label}</span>
-      {value === null ? <small>Dilindungi</small> : null}
     </div>
-  );
-}
-function Protected({ title }: { title: string }) {
-  return (
-    <Card className="dashboard-protected">
-      <h2>{title}</h2>
-      <Lock size={24} aria-hidden="true" />
-      <p>Data kelompok kecil dilindungi. Pilih cakupan yang lebih luas untuk melihat ringkasan.</p>
-    </Card>
   );
 }

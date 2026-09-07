@@ -4,7 +4,7 @@ import { PolicyService } from '../../src/auth/policy.service';
 import { OrganizationDashboard } from '../../src/voices/dashboard';
 const db = new PrismaClient();
 const policy = new PolicyService(db as never);
-const dashboard = new OrganizationDashboard(db as never, policy);
+const dashboard = new OrganizationDashboard(db as never);
 afterAll(() => db.$disconnect());
 it('serves the full organization aggregate at p95 under three seconds on 50k voices', async () => {
   expect(await db.voice.count()).toBeGreaterThanOrEqual(50000);

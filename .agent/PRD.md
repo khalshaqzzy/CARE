@@ -2108,6 +2108,25 @@ berdasarkan severity lalu waktu submit, selalu diiriskan dengan detail scope.
 
 Kontrak lama tanpa parameter organisasi tetap tersedia bagi consumer existing.
 Kontrak baru ditandai basis eksplisit dan menyediakan metadata ter-scope, bucket
-organisasi, state privacy, kelengkapan projection, serta timestamp. Baseline visual
+organisasi, kelengkapan projection, serta timestamp. Baseline visual
 mencakup persona, basis, level, filter, state dan viewport 360/768/1440; verifikasi
 harus meliputi PostgreSQL integration, privacy, accessibility dan full-stack.
+
+### 18.8.1 Amandemen Threshold Privasi Dashboard — 7 September 2026
+
+Berdasarkan keputusan product owner, agregat dashboard organisasi
+(`/api/v1/dashboard/general|private` dengan parameter organisasi) **tidak lagi
+menerapkan threshold privasi cohort kecil**. Seluruh dimensi (status, tren,
+severity, kategori, organisasi/area) selalu mengembalikan angka sebenarnya selama
+filter tervalidasi; kartu "dilindungi" per dimensi dihapus. Field respons
+`protected`, `suppressedDimensions`, dan `suppression` dihapus dari kontrak
+`DashboardView`, `total` selalu numerik, dan `previousTotal` dihitung langsung
+dari periode pembanding. Detail-scope, permission matrix, dan larangan
+`suppressedValue`/`suppressedBuckets` pada kontrak monitoring lama tidak berubah.
+
+Bucket organisasi yang tidak teridentifikasi (section belum ditugaskan, section
+belum teridentifikasi, organisasi tidak teridentifikasi, PIC Union sebelumnya)
+digabung menjadi satu baris per jenis dengan identifier stabil, sehingga
+pergantian cakupan/level tidak pernah menampilkan baris duplikat berlabel sama.
+Baris severity dengan nilai 0 tidak dirender. Catatan helper pada kartu tren dan
+inbox dihapus dari UI.

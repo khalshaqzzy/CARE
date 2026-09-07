@@ -51,12 +51,8 @@ export function TrendCard({
             </strong>
             <small>vs periode sebelumnya</small>
           </span>
-        ) : (
-          <span className="chart-card__caption">
-            {previousTotal === 0
-              ? 'Belum ada Voice pada periode sebelumnya'
-              : 'Perbandingan periode belum tersedia'}
-          </span>
+        ) : previousTotal === 0 ? null : (
+          <span className="chart-card__caption">Perbandingan periode belum tersedia</span>
         )}
       </div>
       {points.length && first && last ? (

@@ -1,17 +1,21 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                    |
-| Last updated           | 6 September 2026 (password deferral/Voice polish and stable Alpine container remediation; ADR-0040/0041)                                                                                                                                                                       |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                           |
-| Current implementation | Workforce-only, session-scoped password deferral plus the approved login/Create Voice copy and polished responsive states are implemented locally. Persistent password policy and Union/Admin gates remain unchanged. Existing Phase 13 hosted acceptance status is unchanged. |
-| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                               |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                  |
+| Atribut                | Nilai                                                                                                                                                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                     |
+| Last updated           | 7 September 2026 (dashboard privacy-threshold removal and unknown-bucket merge; ADR-0042 amendment)                                                                                                                                                             |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                            |
+| Current implementation | Organization dashboard aggregates return real counts without small-cohort suppression; unknown organization rows merge into single stable buckets; severity zero rows hidden; helper captions removed. Existing Phase 13 hosted acceptance status is unchanged. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                   |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
+
+## Organization dashboard visibility corrections — 7 September 2026
+
+Implemented locally on `feat/pic-dashboard-improvements-oc` per product-owner decision: the organization dashboard aggregate no longer withholds dimensions for cross-detail cohorts below five; `protected`/`suppressedDimensions`/`suppression` were removed from the `DashboardView` contract and `total` is always numeric. Unknown organization buckets merge into one stable row per meaning, fixing duplicated "Belum ditugaskan ke section" rows that accumulated across level switches via duplicate React keys. Zero-count severity rows are hidden and three helper captions were removed. ADR-0042 records the amendment and PRD §18.8.1 captures the product decision. Phase 13 remains `in_progress`; no hosted delivery is claimed.
 
 ## Workforce password deferral and Voice copy polish — 6 September 2026
 

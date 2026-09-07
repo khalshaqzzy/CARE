@@ -84,3 +84,35 @@ test('filters are keyboard accessible, show valid dates, and avoid overflow', as
   expect(results.violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+test('repeated level switches keep one unassigned row, filter zero severity, and drop helper texts', async ({
+  page,
+}) => {
+  await mockWorkforceApi(page, {
+    session: manager,
+    generalDashboard: {
+      severity: [
+        { label: 'HIGH', value: 5 },
+        { label: 'MEDIUM', value: 10 },
+      ],
+      previousTotal: 0,
+    },
+  });
+  await page.goto('/');
+  for (let round = 0; round < 3; round++) {
+    await page.getByRole('button', { name: 'Department', exact: true }).click();
+    await expect(page.locator('.dashboard-context')).toContainText('Production Division');
+    await page.getByRole('button', { name: 'Section', exact: true }).click();
+    await expect(page.locator('.dashboard-context')).toContainText('Production Control');
+    const unassigned = page
+      .locator('.dashboard-organization .chart-card__row')
+      .filter({ hasText: 'Belum ditugaskan ke section' });
+    await expect(unassigned).toHaveCount(1);
+  }
+  await page.goto('/?dashFrom=2026-08-01&dashTo=2026-08-30&range=custom');
+  const severityCard = page.locator('.chart-card').filter({ hasText: 'Voice menurut severity' });
+  await expect(severityCard.locator('.chart-card__row')).toHaveCount(2);
+  await expect(page.getByText('Belum ada Voice pada periode sebelumnya')).toHaveCount(0);
+  await expect(page.getByText('Perbandingan periode belum tersedia')).toHaveCount(0);
+  await expect(page.getByText('Tren menghitung Voice yang disubmit')).toHaveCount(0);
+  await expect(page.getByText('Hanya Voice yang boleh Anda buka')).toHaveCount(0);
+});

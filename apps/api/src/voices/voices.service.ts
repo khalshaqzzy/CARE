@@ -1758,7 +1758,7 @@ export class VoicesService {
     };
   }
   private get organizationDashboard() {
-    return new OrganizationDashboard(this.prisma, this.policy);
+    return new OrganizationDashboard(this.prisma);
   }
 
   dashboardView(actor: AuthActor, query: DashboardQuery = {}) {

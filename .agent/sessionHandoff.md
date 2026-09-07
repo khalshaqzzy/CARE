@@ -1,13 +1,33 @@
 # CARE Session Handoff
 
-| Attribute           | Current status                                                    |
-| ------------------- | ----------------------------------------------------------------- |
-| Date                | 7 September 2026                                                  |
-| Objective           | Deliver organization dashboards for PIC, management and Union     |
-| Branch              | `feat/pic-dashboard`; commit, push and PR to `staging` authorized |
-| Phase               | Phase 13 `in_progress`; hosted acceptance remains open            |
-| Latest ADR          | ADR-0042                                                          |
-| Delivery constraint | Do not monitor hosted checks after creating the PR                |
+| Attribute           | Current status                                                                    |
+| ------------------- | --------------------------------------------------------------------------------- |
+| Date                | 7 September 2026                                                                  |
+| Objective           | Unlock one-level-up dashboard visuals; fix unknown-row pile-up and UI copy        |
+| Branch              | `feat/pic-dashboard-improvements-oc`; commit, push and PR to `staging` authorized |
+| Phase               | Phase 13 `in_progress`; hosted acceptance remains open                            |
+| Latest ADR          | ADR-0042 (small-cohort suppression removal amendment)                             |
+| Delivery constraint | Do not monitor hosted checks after creating the PR                                |
+
+## Organization dashboard corrections — 7 September 2026
+
+Product decisions (confirmed with the product owner): organization dashboard aggregates return real numbers with **no small-cohort privacy threshold**, and unassigned/unidentified organization rows render as **one** row per meaning. Implementation:
+
+- `apps/api/src/voices/dashboard.ts`: removed the `inaccessible` detail-scope count, `protectedCohort`, per-dimension `safe()` withholding, `suppressedDimensions`/`suppression` response fields and the `previousOutside` gate; `previousTotal` is computed directly; unknown organization buckets merge by stable ids (`section-unassigned`, `section-unknown`, `organization-unknown`, Private `unassigned`/`previous-union`) with summed values. `OrganizationDashboard` no longer depends on `PolicyService`.
+- `apps/api/scripts/dashboard-openapi.ts`: `DashboardView` drops `protected`/`suppressedDimensions`/`suppression`, `total` is a non-nullable integer; generated OpenAPI/client regenerated and byte-stable (deterministic regeneration verified by SHA-256 before/after).
+- `apps/web-voice`: `DashboardHome.tsx` removes all protected/suppressed branches and the `Protected` component, filters zero-value severity rows, removes the `dashboard-trend-note` and `dashboard-inbox__note` paragraphs; `TrendCard.tsx` renders no caption for `previousTotal === 0` (the "Belum ada Voice pada periode sebelumnya" text is gone; the "+n% vs periode sebelumnya" badge remains); `styles.css` drops `dashboard-protected`, `dashboard-trend-note`, `dashboard-inbox__note` rules. The legacy monitoring homepage and General browse suppression (separate contracts) are untouched.
+
+The reported "Belum ditugaskan ke section" pile-up was duplicate-labeled per-department unknown buckets colliding as React list keys; the backend merge plus stable ids removes it. Regression coverage: integration tests `returns small cross-detail cohorts as real numbers without suppression` and `merges unknown organization rows into one bucket across departments and switches`; e2e `repeated level switches keep one unassigned row, filter zero severity, and drop helper texts`.
+
+### Local validation commands and results
+
+Pinned Node 22.23.2 / pnpm 11.8.0. CI-equivalent secrets used `ci-*-32-characters` values; Docker test DB `care_test` on port 54329. Passed: frozen install, `db:generate`, `security:audit` (3 moderate, 0 High/Critical), `format:check`, `lint`, `typecheck`, `test:unit` (API 82, workforce 82, Admin 2, UI 26, frontend-core 15), `test:openai:smoke`, `migrations:destructive-check` (current + `origin/staging`), all four migration-upgrade harnesses, `test:integration` 75/75, `test:security` 14/14, `seed:performance`, `test:performance` (organization dashboard p95 **327 ms** / 150 requests / 50 concurrency — improved by removing the detail-scope count), `maintenance:reconcile` dry-run (all zero), deterministic OpenAPI regeneration, `NODE_ENV=production pnpm build`, `pwa:compat-check` (main gzip 138489 bytes), Playwright Chromium/WebKit install.
+
+Playwright: full mocked suite **283 passed** (282 existing + 1 new) with 2 workers; visual baselines regenerated for all 17 dashboard scenarios at 360/768/1440 on **darwin** and canonical **Linux x64** (Docker `--platform linux/amd64`, Ubuntu 22.04.5, Node 22.23.2, Playwright 1.62.1 — installed inside `mcr.microsoft.com/playwright:v1.62.1-jammy`), verified twice without updates; representative PNGs inspected (single unassigned row, no helper texts, severity/category/trend visible). The `protected` scenario and its six PNGs were replaced by `unknown-section`. `FULLSTACK_E2E=1` fullstack 4/4.
+
+Deployment parity: Compose config, Actionlint 1.7.7, ShellCheck 0.11.0 (digest-pinned), Hadolint 2.14.0, inference Compose/Python syntax, Ubuntu bootstrap `--check` contract, `deployment:validate`, `security:exceptions:check`, Gitleaks 8.24.3 directory scan (no leaks), `git diff --check`. Linux x64 deployment harness (Docker ubuntu 22.04 + docker CLI/compose plugin + host socket) passed with real `flock`. x64 production Compose build (`--pull`), migrate/bootstrap, release/routing/CSP/auth-boundary/non-root/private-port/persistence checks passed; Trivy 0.70.0 filesystem (with committed `.trivyignore`) and all five runtime images at HIGH/CRITICAL: zero findings. Production-like stack was shut down with `compose down -v` and `/tmp/care-staging` removed; the development Docker database was stopped with `pnpm db:down`. No application, preview or test servers remain. Hosted checks are not monitored per instruction.
+
+### Previous session reference
 
 ## CI performance correction — 7 September 2026
 

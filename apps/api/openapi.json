@@ -16602,9 +16602,6 @@
           "area",
           "previousTotal",
           "trendGrain",
-          "protected",
-          "suppressedDimensions",
-          "suppression",
           "handlingUnresolved",
           "filters",
           "generatedAt"
@@ -16736,8 +16733,7 @@
             "type": "string"
           },
           "total": {
-            "type": "integer",
-            "nullable": true
+            "type": "integer"
           },
           "status": {
             "type": "array",
@@ -16888,30 +16884,6 @@
           },
           "pendingAssignment": {
             "type": "integer"
-          },
-          "protected": {
-            "type": "boolean"
-          },
-          "suppressedDimensions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "suppression": {
-            "type": "object",
-            "required": [
-              "enabled",
-              "threshold"
-            ],
-            "properties": {
-              "enabled": {
-                "type": "boolean"
-              },
-              "threshold": {
-                "type": "integer"
-              }
-            }
           },
           "handlingUnresolved": {
             "type": "integer",
