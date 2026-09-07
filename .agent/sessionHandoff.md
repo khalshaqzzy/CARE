@@ -9,6 +9,14 @@
 | Latest ADR          | ADR-0042                                                          |
 | Delivery constraint | Do not monitor hosted checks after creating the PR                |
 
+## CI performance correction — 7 September 2026
+
+PR #34 run `34071476255` failed only the organization dashboard performance test (4,518 ms p95); migration, container, deployment, secrets, dependency review and CodeQL jobs passed. The failure was reproduced on Linux x64 with application and PostgreSQL each limited to two CPUs (4,464 ms p95).
+
+Replaced full-row materialized CTE / five scans with GROUPING SETS and combined total/date-bounds/unresolved counts. EXPLAIN ANALYZE improved from 84.8 ms with 9,864 temporary reads / 2,466 writes to 27.2 ms with no temporary I/O. Full workload improved to 2,460 ms p95 for 150 requests / 50 concurrency. Threshold remains 3,000 ms; schema, API, permissions and baselines are unchanged. Added real PostgreSQL bucket-consistency regression for nullable category and section.
+
+Correction parity passed: clean-artifact frozen install/Prisma generation/audit/format/lint/typecheck/unit/OpenAI smoke, staging-relative destructive check and four upgrade harnesses; integration 75/75, security 14/14, performance 2/2, reconciliation, generated OpenAPI check, production build/PWA compatibility, browser 282/282 without snapshot updates and full-stack 4/4. The full quality run measured 1,636 ms p95 with PostgreSQL limited to two CPUs; the dedicated two-CPU Linux reproduction remains the comparable 2,460 ms result. Previous-staging-to-current migration/status, deployment validators, Actionlint/ShellCheck/Hadolint, inference syntax, Ubuntu bootstrap, real-flock Linux harness, x64 production Compose build/routing/non-root/persistence, Gitleaks directory scan and Trivy filesystem/all five images passed. No HIGH/CRITICAL findings or scanner exceptions were added. Task-started stacks are shut down before delivery. Original no-monitoring preference remains in force after pushing the correction; this inspection was explicitly requested to diagnose the failed run.
+
 ## Organization dashboard — 7 September 2026
 
 Operational dashboards replace the monitoring homepage content while preserving the shell, identity hero and ordinary Member homepage. General defaults to handling organization with a reporter switch; Union has isolated Private/General URL state. KPI, filters, dense time series, privacy states, scoped preview and personal reporting sections use the generated API contract. Mobile filters are three compact rows: basis/reset, an organization summary opening an accessible sheet, and area/period/advanced filters. Desktop retains inline cascading hierarchy.

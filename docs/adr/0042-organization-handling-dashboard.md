@@ -89,3 +89,11 @@ selection privacy, Union isolation, lifecycle projection, migration/backfill,
 baselines cover 360/768/1440 and loading/error/empty/protected states. Actual command
 results and remaining delivery checks are recorded in the session handoff.
 Hosted checks are not monitored as part of this delivery.
+
+## Aggregate execution refinement — 7 September 2026
+
+The first hosted performance run measured 4,518 ms at p95 against the 3,000 ms budget. A Linux x64 reproduction with two CPU limits on both the application runner and PostgreSQL measured 4,464 ms. The multi-consumer CTE materialized all Voice columns and scanned that intermediate result five times; EXPLAIN ANALYZE recorded 9,864 temporary blocks read and 2,466 written on 50,000 Voices.
+
+Dimension aggregation now uses PostgreSQL GROUPING SETS so status, severity, category, organization and area share one scan. Total, date bounds and unresolved-handling counts share a separate summary aggregate. Privacy predicates and decisions are unchanged, including withheld cohorts and nullable organization/category buckets. No cache, index, schema change or relaxed performance threshold is introduced.
+
+The dimension query fell from 84.8 ms to 27.2 ms with a single 72 kB hash aggregate and no temporary I/O. The complete endpoint workload measured p95 2,460 ms over 150 requests at 50 concurrency on the same constrained Linux fixture. This is a local reproduction, not a claim that a subsequent hosted run has passed.

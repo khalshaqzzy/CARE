@@ -350,14 +350,21 @@ export class OrganizationDashboard {
     const c = await this.context(actor, input);
     const { q, where, col, level } = c;
     const sql = dashboardSql(where);
-    const [total, inaccessible] = await Promise.all([
-      this.db.voice.count({ where }),
+    const [summaries, inaccessible] = await Promise.all([
+      this.db.$queryRaw<
+        Array<{ total: bigint; first: Date | null; last: Date | null; missing: bigint }>
+      >(Prisma.sql`
+        SELECT count(*) AS total, min(v."submittedAt") AS first, max(v."submittedAt") AS last,
+          count(*) FILTER (WHERE v."handlingOrganizationSource" = 'UNKNOWN') AS missing
+        FROM "Voice" v WHERE ${sql}`),
       c.global || q.visibility === 'PRIVATE'
         ? 0
         : this.db.voice.count({
             where: { AND: [where, { NOT: await this.policy.detailScope(actor) }] },
           }),
     ]);
+    const summary = summaries[0]!;
+    const total = Number(summary.total);
     const protectedCohort = inaccessible > 0 && total < 5;
     const protect = inaccessible > 0;
     const orgN = levels.indexOf(level) + 1;
@@ -378,12 +385,23 @@ export class OrganizationDashboard {
       : await this.db.$queryRaw<
           Array<{ kind: string; label: string | null; value: bigint }>
         >(Prisma.sql`
-      WITH scoped AS (SELECT v.* FROM "Voice" v WHERE ${sql})
-      SELECT 'status' AS kind, v.status::text AS label, count(*) AS value FROM scoped v GROUP BY 2
-      UNION ALL SELECT 'severity', v.severity::text, count(*) FROM scoped v GROUP BY 2
-      UNION ALL SELECT 'category', COALESCE(v."currentCategoryKey", v."categoryKey"), count(*) FROM scoped v GROUP BY 2
-      UNION ALL SELECT 'organization', ${groupExpr}, count(*) FROM scoped v GROUP BY 2
-      UNION ALL SELECT 'area', v.area::text, count(*) FROM scoped v GROUP BY 2`);
+      SELECT
+        CASE
+          WHEN GROUPING(v.status) = 0 THEN 'status'
+          WHEN GROUPING(v.severity) = 0 THEN 'severity'
+          WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN 'category'
+          WHEN GROUPING(${groupExpr}) = 0 THEN 'organization'
+          ELSE 'area'
+        END AS kind,
+        COALESCE(v.status::text, v.severity::text,
+          COALESCE(v."currentCategoryKey", v."categoryKey"), ${groupExpr}, v.area::text) AS label,
+        count(*) AS value
+      FROM "Voice" v WHERE ${sql}
+      GROUP BY GROUPING SETS (
+        (v.status), (v.severity),
+        (COALESCE(v."currentCategoryKey", v."categoryKey")),
+        (${groupExpr}), (v.area)
+      )`);
     const get = (kind: string): DashboardBucket[] =>
       count(metrics.filter((m) => m.kind === kind)).map((m) => ({
         label: m.label ?? 'NONE',
@@ -436,13 +454,8 @@ export class OrganizationDashboard {
         };
       }),
     ).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
-    const bounds = await this.db.voice.aggregate({
-      where,
-      _min: { submittedAt: true },
-      _max: { submittedAt: true },
-    });
-    const from = q.from ? new Date(q.from) : bounds._min.submittedAt;
-    const to = q.to ? new Date(q.to) : bounds._max.submittedAt;
+    const from = q.from ? new Date(q.from) : summary.first;
+    const to = q.to ? new Date(q.to) : summary.last;
     const days = from && to ? (to.getTime() - from.getTime()) / 86400000 : 0;
     const grain = days > 730 ? 'month' : days > 100 ? 'week' : 'day';
     const trend =
@@ -473,9 +486,7 @@ export class OrganizationDashboard {
     }
     const missing =
       q.visibility === 'GENERAL' && q.basis === 'HANDLING' && !protectedCohort && !protect
-        ? await this.db.voice.count({
-            where: { AND: [where, { handlingOrganizationSource: 'UNKNOWN' }] },
-          })
+        ? Number(summary.missing)
         : null;
     const pendingAssignment =
       q.visibility === 'PRIVATE' && actor.capabilities.includes('UNION_HEAD')

@@ -974,3 +974,7 @@ Implementation complete locally on `feat/pic-dashboard`; local parity is complet
 - Dashboard body includes KPI, URL filters, SVG charts, authorized inbox and personal reporting below. Mobile filters use a compact organization sheet; Member/Admin shell behavior is preserved.
 - New platform baselines cover 360/768/1440, persona/level/basis and empty/loading/error/protected states. Functional, accessibility, lifecycle, migration, performance and full-stack coverage is included.
 - Commit/push and a PR to `staging` are authorized. Hosted checks must not be monitored for this delivery. Actual local parity results and remaining limitations are maintained in the session handoff.
+
+### Dashboard CI performance correction — 7 September 2026
+
+The initial hosted quality job failed at dashboard p95 4,518 ms. SQL aggregation now avoids full-row temporary materialization and combines summary queries. The same constrained Linux workload improved from 4,464 to 2,460 ms without changing the 3,000 ms target. Bucket consistency is covered by an additional PostgreSQL integration test. Local parity is complete (integration 75, security 14, browser 282, full-stack 4, constrained Linux performance and production container/security gates passed). Corrective delivery remains within Phase 13; hosted acceptance is not inferred.

@@ -143,6 +143,45 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       /Hidden Reporter|Hidden Voice|Private detail|DASH-R/,
     );
   });
+  it('keeps nullable category and organization buckets separate from other dimensions', async () => {
+    await seed();
+    await seed({
+      status: 'CLOSED',
+      severity: 'LOW',
+      area: 'SUNTER_1',
+      handlingSectionSnapshot: null,
+    });
+    await seed({ status: 'IN_PROGRESS', severity: 'HIGH', categoryKey: 'SAFETY' });
+    const result = await dashboard.aggregate(director, { ...common, level: 'section' });
+    expect(result.total).toBe(3);
+    for (const dimension of ['status', 'severity', 'area', 'category', 'organization'] as const)
+      expect(result[dimension].reduce((sum, bucket) => sum + bucket.value, 0)).toBe(3);
+    expect(result.status).toEqual(
+      expect.arrayContaining([
+        { label: 'OPEN', value: 1 },
+        { label: 'CLOSED', value: 1 },
+        { label: 'IN_PROGRESS', value: 1 },
+      ]),
+    );
+    expect(result.area).toEqual(
+      expect.arrayContaining([
+        { label: 'KARAWANG_1', value: 2 },
+        { label: 'SUNTER_1', value: 1 },
+      ]),
+    );
+    expect(result.category).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'NONE', value: 2 }),
+        expect.objectContaining({ key: 'SAFETY', value: 1 }),
+      ]),
+    );
+    expect(result.organization).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Assembly', value: 2 }),
+        expect.objectContaining({ label: 'Belum ditugaskan ke section', value: 1 }),
+      ]),
+    );
+  });
   it('expands all metrics when moving from department to division', async () => {
     await seed();
     for (let n = 0; n < 5; n++)
