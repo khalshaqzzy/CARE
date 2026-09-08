@@ -4,7 +4,7 @@ import { ArrowLeft, Radio } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
-import { AREA_LABELS } from '../../lib/formatters';
+import { AREA_LABELS, PRIVATE_ROUTE_LABEL } from '../../lib/formatters';
 import { useMutationKey, useApi, useSessionId, voiceQuery } from '../../lib/query';
 import {
   ReviewConsentConfirmation,
@@ -106,7 +106,7 @@ export function DraftPreviewPage() {
         severity={severity}
         category={data.visibility === 'GENERAL' ? (category ?? null) : null}
         categoryName={data.categoryNameSnapshot}
-        routeLabel={data.visibility === 'PRIVATE' ? 'Union Head' : routeLabel}
+        routeLabel={data.visibility === 'PRIVATE' ? PRIVATE_ROUTE_LABEL : routeLabel}
         showIdentity={data.showReporterIdentity ?? null}
         fallbackCode={source === 'MANUAL_FALLBACK' ? fallbackCode : null}
       />

@@ -273,7 +273,7 @@ test('workforce manager dashboard visual at 1440', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ringkasan General Voice' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
   await expect(page).toHaveScreenshot('workforce-manager-dashboard-1440.png', {
     animations: 'disabled',
     threshold: 0.25,
@@ -518,7 +518,7 @@ test('workforce manager home visual at 360', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ringkasan General Voice' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
   await scrollToTop(page);
   await expect(page).toHaveScreenshot('workforce-manager-home-360.png', screenshotOptions);
 });
@@ -987,6 +987,7 @@ test('workforce create review private visual at 360', async ({ page }) => {
     detail: 'Sandaran kursi patah dan berisiko menyebabkan ketidaknyamanan.',
   });
   await page.getByRole('radio', { name: /Sembunyikan identitas/ }).click();
+  await page.getByRole('checkbox', { name: /Untuk menghindari fitnah/ }).check();
   await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
   await expect(page.getByRole('heading', { name: 'Klasifikasi manual' })).toBeVisible({
     timeout: 15000,

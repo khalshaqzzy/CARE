@@ -36,7 +36,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DotMatrixOrb } from '../../components/DotMatrixOrb';
-import { AREA_LABELS, mediaUrl } from '../../lib/formatters';
+import { AREA_LABELS, mediaUrl, PRIVATE_ROUTE_LABEL } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import type { Attachment } from '../../workforce-api';
 import {
@@ -232,6 +232,11 @@ function FormStep({ wizard }: { wizard: Wizard }) {
   const [uploading, setUploading] = useState(false);
   const [areaOpen, setAreaOpen] = useState(false);
   const isPrivate = form.visibility === 'PRIVATE';
+  // Private analysis is gated on the full privacy checklist: identity choice
+  // and personal-contact consent must both be set before "Simpan & Analisis".
+  const privacyComplete =
+    !isPrivate || (form.showReporterIdentity !== null && form.privateContactConsent);
+  const privacyGate = isPrivate && !privacyComplete;
 
   useEffect(() => {
     const guard = (event: BeforeUnloadEvent) => {
@@ -352,7 +357,11 @@ function FormStep({ wizard }: { wizard: Wizard }) {
         </Card>
 
         {isPrivate ? (
-          <section className="wizard-block" aria-label="Identitas kepada Union">
+          <section
+            className="wizard-block"
+            aria-label="Identitas kepada Union"
+            id="privacy-checklist"
+          >
             <div className="wizard-block__head">
               <span className="wizard-card__icon" aria-hidden="true">
                 <ShieldCheck size={18} />
@@ -403,6 +412,13 @@ function FormStep({ wizard }: { wizard: Wizard }) {
           </p>
         )}
 
+        {privacyGate ? (
+          <p className="wizard-privacy-gate" id="privacy-gate-hint" aria-live="polite">
+            <ShieldCheck size={15} aria-hidden="true" />
+            Centang persetujuan pada bagian Identitas kepada Union untuk melanjutkan analisis.
+          </p>
+        ) : null}
+
         <ActionsBar
           onBack={() => wizard.setStep('visibility')}
           primary={
@@ -410,6 +426,8 @@ function FormStep({ wizard }: { wizard: Wizard }) {
               variant="primary"
               className="wizard-actionsbar__primary"
               loading={wizard.busy || uploading}
+              disabled={!privacyComplete}
+              aria-describedby={privacyGate ? 'privacy-gate-hint' : undefined}
               onClick={() => void wizard.saveAndProcess()}
             >
               Simpan &amp; Analisis
@@ -545,18 +563,17 @@ function MediaInput({
             </button>
           ) : null}
         </div>
-        <p className="media-input__note">
+      </div>
+      <div className="media-input__guidance">
+        <p className="media-input__hint">
           <Info size={14} aria-hidden="true" />
-          <span>
-            JPG, PNG, atau WebP
-            <br />
-            maksimum 10 MB per file.
-          </span>
+          <span>JPG, PNG, atau WebP · maksimum 10 MB per file.</span>
+        </p>
+        <p className="media-input__hint" id="atsg-photo-guidance">
+          <Info size={14} aria-hidden="true" />
+          <span>Foto harap mengikuti aturan ATSG ya teman-teman.</span>
         </p>
       </div>
-      <p id="atsg-photo-guidance" className="atsg-photo-guidance">
-        Foto harap mengikuti aturan ATSG ya teman-teman.
-      </p>
       <input
         aria-describedby="atsg-photo-guidance"
         ref={inputRef}
@@ -793,7 +810,7 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           severity={severity}
           category={isPrivate ? null : category}
           categoryName={preview.data?.categoryNameSnapshot}
-          routeLabel={isPrivate ? 'Union Head' : routeLabel}
+          routeLabel={isPrivate ? PRIVATE_ROUTE_LABEL : routeLabel}
           showIdentity={form.showReporterIdentity}
           fallbackCode={
             source === 'MANUAL_FALLBACK' && classification && 'fallbackCode' in classification

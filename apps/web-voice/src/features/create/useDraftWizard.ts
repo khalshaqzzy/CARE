@@ -209,6 +209,10 @@ export function useDraftWizard(draftId?: string) {
       setError('Pilih apakah identitas Anda ditampilkan kepada Union.');
       return;
     }
+    if (form.visibility === 'PRIVATE' && !form.privateContactConsent) {
+      setError('Centang persetujuan komunikasi pribadi untuk melanjutkan analisis.');
+      return;
+    }
     try {
       setStep('processing');
       const saved = await persist.mutateAsync({});

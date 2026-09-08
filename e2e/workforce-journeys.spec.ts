@@ -431,7 +431,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/work-items');
     await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
     await expect(
-      page.getByText('Seluruh Private Voice melalui Union Head, diurutkan berdasarkan severity.'),
+      page.getByText('Seluruh Private Voice melalui Komite, diurutkan berdasarkan severity.'),
     ).toBeVisible();
     await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
 

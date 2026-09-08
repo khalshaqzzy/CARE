@@ -34,6 +34,9 @@ export const VISIBILITY_LABELS: Record<string, string> = {
   PRIVATE: 'Private',
 };
 
+/** Safe Private Voice destination label: never exposes Union account names. */
+export const PRIVATE_ROUTE_LABEL = 'Komite';
+
 export const CLASSIFICATION_LABELS: Record<string, string> = {
   AI: 'AI',
   MANUAL_FALLBACK: 'Manual',

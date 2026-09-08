@@ -80,7 +80,7 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   await page.getByRole('textbox', { name: 'Password' }).fill('000003');
   await page.getByRole('button', { name: 'Masuk' }).click();
   await page.getByRole('button', { name: 'Lain kali' }).click();
-  await expect(page.locator('.dashboard-context')).toContainText('Department A');
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Department A');
   await expect(
     page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }).locator('strong'),
   ).toHaveText('1');
@@ -142,9 +142,12 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   }
   await page.goto('/');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
-  await expect(page.locator('.dashboard-context')).toContainText('Division A');
-  await page.getByRole('button', { name: 'Pelapor', exact: true }).click();
-  await expect(page.locator('.dashboard-context')).toContainText('Organisasi pelapor');
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Division A');
+  await page.getByRole('button', { name: 'Pelaporan', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pelaporan', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const aggregate = await page.request.get(`${ORIGIN}/api/v1/dashboard/general?basis=HANDLING`);
   expect(aggregate.ok()).toBe(true);
   const payload = await aggregate.json();

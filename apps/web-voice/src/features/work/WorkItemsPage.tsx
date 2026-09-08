@@ -25,6 +25,7 @@ import {
   CATEGORY_LABELS,
   formatRelative,
   formatDate,
+  PRIVATE_ROUTE_LABEL,
   STATUS_LABELS,
   SEVERITY_LABELS,
 } from '../../lib/formatters';
@@ -510,7 +511,7 @@ function introFor({
       description: unassignedOnly
         ? 'Private Voice yang masih menunggu penugasan Union Officer.'
         : isUnionHead
-          ? 'Seluruh Private Voice melalui Union Head, diurutkan berdasarkan severity.'
+          ? `Seluruh Private Voice melalui ${PRIVATE_ROUTE_LABEL}, diurutkan berdasarkan severity.`
           : 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
     };
   if (isLeadership)

@@ -339,7 +339,7 @@ function ChangePasswordPage() {
           <div>
             <Button
               variant="ghost"
-              className="auth-back"
+              className={`auth-back${session.passwordChangeRequired ? ' auth-back--login' : ''}`}
               disabled={pending}
               onClick={() => void back()}
             >

@@ -14,6 +14,7 @@ import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatDate,
+  PRIVATE_ROUTE_LABEL,
   SEVERITY_LABELS,
   VISIBILITY_LABELS,
   voiceStatusDisplay,
@@ -43,7 +44,12 @@ export function VoiceHero({
     voice.audience === 'UNION_ANONYMOUS' || voice.audience === 'UNION_IDENTIFIED';
   const alias = voice.audience === 'UNION_ANONYMOUS' ? voice.anonymousReporter.alias : null;
   const reporterName = voice.audience === 'UNION_IDENTIFIED' ? voice.reporter.name : null;
-  const pic = voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—';
+  // Private destinations always present as the committee label so Union
+  // account names never leak through route/handler metadata.
+  const pic =
+    voice.visibility === 'PRIVATE'
+      ? PRIVATE_ROUTE_LABEL
+      : (voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—');
   const personLabel =
     voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'UNION_IDENTIFIED'
       ? `Pelapor: ${voice.reporter.name}`
