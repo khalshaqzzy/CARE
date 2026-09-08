@@ -14,17 +14,17 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   await expect(
     page.locator('.dashboard-summary__metric').filter({ hasText: 'Kritis' }).locator('strong'),
   ).toHaveText('3');
-  await expect(page.locator('.dashboard-context')).toContainText('Production Control');
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await expect(page).toHaveURL(/level=department/);
-  await expect(page.locator('.dashboard-context')).toContainText('Production Division');
-  await page.getByRole('button', { name: 'Pelapor', exact: true }).click();
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
+  await page.getByRole('button', { name: 'Pelaporan', exact: true }).click();
   await expect(page).toHaveURL(/basis=REPORTER/);
   await expect(page).not.toHaveURL(/level=/);
   await page.goBack();
   await expect(page).toHaveURL(/level=department/);
   await page.reload();
-  await expect(page.locator('.dashboard-context')).toContainText('Production Division');
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
   await page.getByRole('button', { name: 'Reset', exact: true }).click();
   await expect(page).not.toHaveURL(/level=|basis=/);
   const summary = await page.locator('.dashboard-summary').boundingBox();
@@ -36,15 +36,15 @@ test('Union tabs isolate filters and never expose reporter organization on Priva
 }) => {
   await mockWorkforceApi(page, { session: unionSession({ slot: 'OFFICER_1' }) });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ringkasan Private Voice' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pelapor', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaporan', exact: true })).toHaveCount(0);
   await expect(page.getByLabel('PIC Union')).toHaveCount(0);
   await expect(page.getByText(/menunggu penugasan/)).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Semua area' }).click();
   await page.getByRole('option', { name: 'Sunter 1', exact: true }).click();
   await expect(page).toHaveURL(/private.dashArea=SUNTER_1/);
   await page.getByRole('button', { name: 'General Voice', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Pelapor', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pelaporan', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Semua area' })).toContainText('Semua area');
   await page
     .getByLabel('Jenis dashboard')
@@ -80,7 +80,7 @@ test('filters are keyboard accessible, show valid dates, and avoid overflow', as
   await page.getByLabel('Dari tanggal').fill('2026-08-01');
   await page.getByLabel('Sampai tanggal').fill('2026-08-30');
   await expect(page.getByText('Periksa rentang tanggal')).toHaveCount(0);
-  await expect(page.locator('.dashboard-context')).toBeVisible();
+  await expect(page.locator('.dashboard-org-summary')).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -101,9 +101,9 @@ test('repeated level switches keep one unassigned row, filter zero severity, and
   await page.goto('/');
   for (let round = 0; round < 3; round++) {
     await page.getByRole('button', { name: 'Department', exact: true }).click();
-    await expect(page.locator('.dashboard-context')).toContainText('Production Division');
+    await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
     await page.getByRole('button', { name: 'Section', exact: true }).click();
-    await expect(page.locator('.dashboard-context')).toContainText('Production Control');
+    await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
     const unassigned = page
       .locator('.dashboard-organization .chart-card__row')
       .filter({ hasText: 'Belum ditugaskan ke section' });
@@ -178,7 +178,9 @@ test('relative range refresh shares timestamps between aggregate and preview', a
   });
   await mockWorkforceApi(page, { session: manager });
   await page.goto('/');
-  await expect(page.locator('.dashboard-context')).toBeVisible();
+  await expect(
+    page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }),
+  ).toBeVisible();
   await page.clock.runFor(3500);
   await expect.poll(() => bounds.general!.length).toBeGreaterThan(1);
   await expect.poll(() => bounds.preview!.length).toBe(bounds.general!.length);
@@ -279,11 +281,11 @@ test('refreshes selector metadata when a master update changes the default depar
     return route.fulfill({ json: metadata ? fixture.metadata : fixture.view });
   });
   await page.goto('/');
-  await expect(page.locator('.dashboard-context')).toContainText('Production Control');
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
   expect(metadataReads).toBe(1);
   moved = true;
   await page.clock.runFor(3500);
-  await expect(page.locator('.dashboard-context')).toContainText('New Department');
+  await expect(page.locator('.dashboard-org-summary')).toContainText('New Department');
   await expect.poll(() => metadataReads).toBe(2);
   await expect(page.getByRole('combobox', { name: 'Department', exact: true })).toContainText(
     'New Department',

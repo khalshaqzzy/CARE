@@ -462,11 +462,18 @@ Detail Lokasi memakai placeholder **“Contoh: Welding 2, Toilet Selatan”** da
 
 Private Voice juga memiliki checkbox kesediaan komunikasi pribadi di bawah pilihan identitas:
 **“Untuk menghindari fitnah, jika diperlukan saya bersedia diajak komunikasi lebih lanjut secara pribadi oleh Team CARE dengan tetap menjaga kerahasiaan identitas saya.”**
-Checkbox awalnya tidak dicentang. Draft dapat disimpan/dianalisis tanpa persetujuan, tetapi submit wajib memiliki `privateContactConsent=true`.
+Checkbox awalnya tidak dicentang. Sejak 8 September 2026, analisis Private
+wajib menyelesaikan seluruh checklist privasi terlebih dahulu: pilihan
+`Tampilkan nama` dan checkbox kesediaan komunikasi harus terisi sebelum tombol
+**Simpan & Analisis** aktif (helper eksplisit menyebut kekurangannya). Submit
+tetap wajib memiliki `privateContactConsent=true`.
 Consent ini terpisah dari `showReporterIdentity` dan tidak memberi akses identitas tambahan kepada Union. Peralihan ke General menghapus kedua pilihan Private.
 Voice menyimpan snapshot immutable consent, waktu pencatatan server saat submit, dan versi pernyataan `v1`; Voice historis tetap `null`, tanpa backfill persetujuan.
 
-Lampiran foto bersifat opsional. Form buat/edit Voice menampilkan helper abu-abu **“Foto harap mengikuti aturan ATSG ya teman-teman.”**
+Lampiran foto bersifat opsional. Form buat/edit Voice menampilkan satu blok
+guidance di bawah picker (tidak di samping thumbnail) dengan dua baris bergaya
+identik berikon `(i)`: pertama **“JPG, PNG, atau WebP · maksimum 10 MB per
+file.”**, kedua **“Foto harap mengikuti aturan ATSG ya teman-teman.”**
 
 Batas lampiran:
 
@@ -486,7 +493,9 @@ Pada detail dan percakapan, audience General responder melihat nama snapshot pel
 Preview menampilkan:
 
 - Area;
-- Department/route tujuan (`Union Head`, `PIC Global`, Department Head, atau default PIC);
+- Department/route tujuan (`Komite` untuk Private — label aman yang tidak
+  membocorkan akun Union, sejak 8 September 2026; sebelumnya `Union Head`,
+  `PIC Global`, Department Head, atau default PIC);
 - Detail Lokasi;
 - Judul;
 - Detail Voice;
@@ -707,7 +716,10 @@ kelima (§17.4).
 
 - Open menampilkan route tujuan; Private menampilkan `Union Head` tanpa membocorkan operator/session.
 - In Verification dan In Progress menampilkan current handler/PIC.
-- Reporter Private Voice melihat label `Union` atau current Union handler display label yang aman, bukan session/operator metadata.
+- Reporter Private Voice melihat label `Komite` (sejak 8 September 2026) pada
+  seluruh tampilan tujuan/PIC Private — nama akun Union tidak pernah
+  ditampilkan sebagai destination; label `Union` atau current Union handler
+  display label yang aman tidak lagi digunakan pada PIC display.
 - Closed menampilkan closure actor dan PIC terakhir yang relevan.
 
 ---
@@ -2149,3 +2161,23 @@ Dashboard organisasi Section Head menghitung snapshot section sesuai basis, term
 `scopeMode` opsional (`OWN`, `PARENT`, `GLOBAL`) memisahkan cakupan dari pengelompokan `level`. Metadata/respons mengembalikan mode efektif dan mode yang diizinkan. Request lama tanpa mode diinterpretasikan dari peran dan level, dengan validasi unit yang sama. Pergantian mode/level menghapus pilihan organisasi lama dan memulihkan default jabatan/mapping; filter basis/periode/area/kategori/severity/status dipertahankan. Reload dan riwayat browser mengikuti URL. Pada data sumber dan filter yang sama, Section → Department → Section wajib memulihkan semua metrik awal, misalnya 12 → 17 → 12.
 
 Satu respons agregat memakai satu snapshot transaksi PostgreSQL REPEATABLE READ. Total wajib sama dengan jumlah masing-masing dimensi status, severity, kategori, organisasi, area dan tren. Kalender memakai Asia/Jakarta, periode relatif memperbarui batas akhir pada polling, dan agregat/preview dalam satu siklus memakai batas tanggal yang sama. Kegagalan preview tidak menghilangkan agregat yang berhasil. Respons filter lama tidak boleh menggantikan konteks aktif. Ketentuan tanpa small-cohort suppression pada §18.8.1 tetap berlaku.
+
+### 18.8.3 Amandemen Presentasi Responder Dashboard — 8 September 2026
+
+Berlaku untuk seluruh hero organization dashboard (`DashboardHome`) pada semua
+persona responder/leadership/Union:
+
+- Judul ringkasan dan accessible name-nya adalah **“Ringkasan Voice”** untuk
+  tab General maupun Private. Tab basis reporter berlabel **“Pelaporan”**.
+- Hero tidak menampilkan avatar inisial, tombol **Buat Voice**, badge persona
+  **“Operasional Responder”**, maupun baris metadata konteks (label scope,
+  deskripsi basis organisasi, dan timestamp **Diperbarui**). Chip read-only
+  (`General · Read-only` / `Leadership · Read-only`) untuk Union/leadership
+  dipertahankan.
+- Penanda offline/stale tetap disediakan oleh Alert offline pada body
+  dashboard; penghapusan baris metadata tidak menghapus kewajiban §22.4.
+- Akses Buat Voice tetap tersedia melalui bottom navigation, quick actions,
+  dan CTA section personal.
+- Verifikasi scope pada test memakai ringkasan selector organisasi
+  (`.dashboard-org-summary`, sumber `scopeLabel` yang sama) dan state
+  `aria-pressed` tab basis — bukan baris metadata yang dihapus.

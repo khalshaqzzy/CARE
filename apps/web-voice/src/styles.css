@@ -2033,19 +2033,24 @@
   opacity: var(--opacity-disabled);
   cursor: not-allowed;
 }
-.media-input__note {
+.media-input__guidance {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+.media-input__hint {
   display: flex;
-  flex: 1;
   align-items: flex-start;
   gap: var(--space-2);
   min-width: 0;
   margin: 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
 }
-.media-input__note svg {
+.media-input__hint svg {
   flex: 0 0 auto;
-  margin-top: 1px;
+  margin-top: 2px;
   color: var(--raw-brand-600);
 }
 
@@ -5237,12 +5242,6 @@
 }
 
 /* Voice consent and review: readable complete values at every viewport. */
-.atsg-photo-guidance {
-  margin: var(--space-3) 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-}
 .private-contact-consent {
   margin-top: var(--space-4);
   padding: var(--space-4);
@@ -5263,6 +5262,23 @@
 .auth-back {
   min-height: 44px;
   margin-bottom: var(--space-3);
+}
+/* Forced-password "Kembali ke login" must stand out from the ghost default. */
+.auth-back--login {
+  align-self: flex-start;
+  border: 1.5px solid var(--raw-brand-200);
+  color: var(--raw-brand-700);
+  background: var(--raw-brand-50);
+  font-weight: var(--weight-bold);
+}
+.auth-back--login:hover:not(:disabled) {
+  color: var(--raw-brand-800);
+  background: var(--raw-brand-100);
+  border-color: var(--raw-brand-300);
+}
+.auth-back--login:focus-visible {
+  outline: 2px solid var(--raw-brand-600);
+  outline-offset: 2px;
 }
 .review-summary__row {
   grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.5fr);
@@ -5593,16 +5609,6 @@
 }
 .dashboard-private-handler {
   padding: 16px 16px 0;
-}
-.dashboard-context {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 5px 14px;
-  font-size: 11px;
-  color: #68768b;
-  line-height: 1.5;
-  padding: 0 3px;
 }
 .dashboard-visual-grid {
   display: grid;

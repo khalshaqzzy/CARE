@@ -230,7 +230,6 @@ export function DashboardHome() {
     !caps.includes('DIVISION_LEADERSHIP') &&
     !caps.includes('MANAGER');
   const scope = data?.scopeLabel ?? meta?.scopeLabel;
-  const title = isPrivate ? 'Private Voice' : 'General Voice';
   const readonly =
     !isPrivate && (union || caps.includes('DIVISION_LEADERSHIP') || caps.includes('DIRECTOR'));
   const name = session?.account.displayName ?? '';
@@ -261,7 +260,6 @@ export function DashboardHome() {
       <section className="member-hero organization-home__hero">
         <div className="member-hero__top">
           <div className="member-hero__identity">
-            <span className="member-hero__avatar">{name.trim().charAt(0).toUpperCase()}</span>
             <div className="member-hero__who">
               <p className="member-hero__greeting">{greeting},</p>
               <h1 className="member-hero__name">{name}</h1>
@@ -269,17 +267,6 @@ export function DashboardHome() {
             </div>
           </div>
           <div className="member-hero__actions">
-            {!union ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="member-hero__orb"
-                aria-label="Buat Voice"
-                onClick={() => void navigate('/voices/new')}
-              >
-                <Plus size={20} />
-              </Button>
-            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -291,15 +278,11 @@ export function DashboardHome() {
             </Button>
           </div>
         </div>
-        <span className="member-hero__context">
-          {readonly ? (
-            <>
-              <Lock size={12} /> {union ? 'General' : 'Leadership'} · Read-only
-            </>
-          ) : (
-            'Operasional Responder'
-          )}
-        </span>
+        {readonly ? (
+          <span className="member-hero__context">
+            <Lock size={12} /> {union ? 'General' : 'Leadership'} · Read-only
+          </span>
+        ) : null}
         {union ? (
           <div className="dashboard-tabs dashboard-tabs--hero" aria-label="Jenis dashboard">
             {['private', 'general'].map((tab) => (
@@ -318,8 +301,8 @@ export function DashboardHome() {
             ))}
           </div>
         ) : null}
-        <div className="dashboard-summary" aria-label={`Ringkasan ${title}`}>
-          <h2>Ringkasan {title}</h2>
+        <div className="dashboard-summary" aria-label="Ringkasan Voice">
+          <h2>Ringkasan Voice</h2>
           {data ? (
             <div className="dashboard-summary__grid">
               <Metric label="Total" value={data.total} icon={<Layers3 />} />
@@ -350,7 +333,7 @@ export function DashboardHome() {
               <div className="dashboard-tabs" aria-label="Basis organisasi">
                 {[
                   { id: 'HANDLING', label: 'Penanganan' },
-                  { id: 'REPORTER', label: 'Pelapor' },
+                  { id: 'REPORTER', label: 'Pelaporan' },
                 ].map((b) => (
                   <button
                     type="button"
@@ -560,20 +543,6 @@ export function DashboardHome() {
           <Skeleton label="Memuat dashboard organisasi" />
         ) : (
           <>
-            <div className="dashboard-context">
-              <span>
-                {scope} ·{' '}
-                {query.basis === 'HANDLING' ? 'Organisasi penanganan' : 'Organisasi pelapor'}
-              </span>
-              <span>
-                Diperbarui{' '}
-                {new Date(data.generatedAt).toLocaleTimeString('id-ID', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-                {!online ? ' · usang' : ''}
-              </span>
-            </div>
             {data.total === 0 ? (
               <Card>
                 <EmptyState

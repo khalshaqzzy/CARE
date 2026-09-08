@@ -1,13 +1,37 @@
 # CARE Session Handoff
 
-| Attribute | Current status                                                                         |
-| --------- | -------------------------------------------------------------------------------------- |
-| Date      | 7 September 2026                                                                       |
-| Objective | Restore consistent PIC/management scope and enforce selectable organization boundaries |
-| Branch    | `fix/pic-dashboard-data`                                                               |
-| Phase     | Phase 13 `in_progress`; hosted acceptance remains open                                 |
-| Decision  | PRD §18.8.2; ADR-0042 scope restoration amendment                                      |
-| Delivery  | Commit/push authorized; PR targets staging; hosted CI monitoring explicitly excluded   |
+| Attribute | Current status                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| Date      | 8 September 2026                                                                               |
+| Objective | Responder dashboard and create-flow UI polish (seven product-owner corrections)                |
+| Branch    | `feat/ui-tuning-8-sep` (fresh from `staging`)                                                  |
+| Phase     | Phase 13 `in_progress`; hosted acceptance remains open                                         |
+| Decision  | ADR-0043; PRD §18.8.3 and §12.1/§12.2/§15.4 amendments                                         |
+| Delivery  | Local parity complete; commit/push/PR not yet performed — awaiting explicit user authorization |
+
+## UI polish batch — 8 September 2026
+
+Implemented seven display-layer corrections with no API/schema change (`openapi:check` byte-stable):
+
+1. Photo guidance unified into one `(i)` block below the picker: `JPG, PNG, atau WebP · maksimum 10 MB per file.` above `Foto harap mengikuti aturan ATSG ya teman-teman.`, identical styling (`media-input__guidance`/`media-input__hint`; `media-input__note` and `atsg-photo-guidance` CSS removed, element id preserved for `aria-describedby`).
+2. Private "Simpan & Analisis" is disabled until identity choice AND contact consent are set (`privacyComplete` in `CreateVoicePage`), with an `aria-live` hint; `useDraftWizard.saveAndProcess` keeps click-time consent validation.
+3. Private destinations render as `Komite` via `PRIVATE_ROUTE_LABEL` (formatters.ts): create route row, preview route row, `VoiceHero` PIC line, and the Union Head work-items description.
+4. Forced-password "Kembali ke login" uses bold cobalt `auth-back--login`; ordinary "Kembali" stays ghost.
+5. Dashboard basis tab `Pelaporan`; summary heading/name `Ringkasan Voice` for both tabs.
+6. Dashboard hero: avatar, Buat Voice orb, `Operasional Responder` badge, and the `dashboard-context` metadata line removed; read-only chip retained; `dashboard-context` CSS removed. Offline staleness remains covered by the body Alert.
+7. Scope verification in e2e moved to `.dashboard-org-summary` (same `scopeLabel` source) and basis-tab `aria-pressed`; `MemberHomePage` legacy blocks in `HomePage.tsx` are unreachable and untouched.
+
+Key files: `apps/web-voice/src/features/home/DashboardHome.tsx`, `features/create/CreateVoicePage.tsx`, `features/create/useDraftWizard.ts`, `features/create/DraftPreviewPage.tsx`, `components/VoiceHero.tsx`, `features/work/WorkItemsPage.tsx`, `lib/formatters.ts`, `App.tsx`, `styles.css`; specs `dashboard.spec.ts`, `dashboard.visual.spec.ts`, `voice-consent.spec.ts`, `voice-consent.visual.spec.ts`, `workforce.visual.spec.ts`, `workforce-journeys.spec.ts`, `a-workforce-fullstack.spec.ts`.
+
+### Local validation commands and results
+
+Node 22.23.2 / pnpm 11.8.0; Docker PostgreSQL `care_test` at 54329; CI-safe test env as documented below. Passed: clean-artifact frozen install (six `dist` removed), `db:generate`, `security:audit` (3 moderate, 0 High/Critical), `format:check`, `lint`, `typecheck`, `test:unit` (API 82, frontend-core 15, Admin 2, workforce 83), `migrations:destructive-check origin/staging`, `openapi:check` (byte-stable), `test:integration` (84), `test:security` (14), `seed:performance` + `test:performance` (organization dashboard p95 **317 ms**, 150 requests / 50 concurrent, 50,000 Voices), `maintenance:reconcile` dry-run (all zero), `NODE_ENV=production pnpm build`, `pnpm pwa:compat-check` (main gzip 139392 bytes), mocked Playwright suite **292 passed** (Chromium, PWA, push, legacy iOS; +1 new privacy-gating test), `FULLSTACK_E2E=1 … --project=fullstack` **4 passed**, `docker compose config --quiet`, Gitleaks 8.24.3 directory scan (no leaks), `git diff --check`.
+
+Visual baselines: deleted affected PNGs only, regenerated with `--update-snapshots`, inspected representative images (manager/union home 360, dashboard default-pic 1440, union-head 360, password change 360, private-consent-false 360), then verified twice without updates on **darwin** (116/116) and canonical **Linux x64** (Docker `--platform linux/amd64`, image `care-visual-check:x64`, Node 22.23.2, pnpm 11.8.0, Playwright 1.62.1, one worker, 60-second deadline; 116/116 twice). Regenerated sets: all 17 dashboard scenarios × 3 widths × 2 platforms, `workforce-manager-home-360`, `workforce-leadership-home-360`, `workforce-union-home-360`, `workforce-manager-dashboard-1440`, `workforce-union-private-1440`, `workforce-union-private-inbox-360`, `workforce-password-change-360`, `workforce-password-defer-360`, `workforce-create-private-form-360`, `workforce-create-composer-360`, `workforce-create-general-form-360`, `workforce-create-empty-location-360`, `workforce-create-review-private-360`, `private-consent-{false,true}-360`, `private-legacy-preview-360` (per platform where suffixed). Deployment/container parity was not rerun: no deploy script, workflow, or Dockerfile input changed in this diff.
+
+Runtime cleanup completed: `pnpm db:down` stopped the Docker PostgreSQL stack; the x64 visual container and the temporary repo copy under `/private/var/folders/.../T/opencode/care-visual-x64` were removed; no preview/test servers remain. Commit/push and PR to `staging` require explicit user authorization per the standing delivery process; hosted CI monitoring preference remains no-monitoring unless stated otherwise.
+
+## Previous session reference
 
 ## Dashboard scope consistency — current session
 
