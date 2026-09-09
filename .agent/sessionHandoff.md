@@ -40,15 +40,24 @@ routing/CSP/auth boundaries, non-root/private-database-port and database/media
 persistence checks passed. A local Trivy 0.70.0 scan was stopped at the user's
 direction when its vulnerability database download stalled in Docker Desktop;
 the unchanged scanner policy remains mandatory in hosted CI. An initial full-stack
-run after the focused integration left an extra audit page and missed an older
-seeded event; a clean database reset and exact integration-to-full-stack workflow
-rerun passed 5/5, confirming local fixture pollution rather than a product defect.
+run after the focused integration generated enough audit events to push an older
+event onto the next unfiltered page; a clean database reset passed 5/5.
+
+Hosted PR run `34320722503` passed the dashboard performance gate at 1,574 ms p95
+(150 requests/50 concurrent) without `P2028`, plus every migration, container,
+Trivy, secret, dependency, CodeQL and deployment-script gate. `quality` later
+failed only because the full-stack Admin journey expected
+`VOICE_PRIVATE_DETAIL_READ` on the first unfiltered audit page after earlier
+journeys had legitimately generated more than its ten-row page size. The test now
+asserts that event through its existing `action` filter, retaining real API/UI
+wiring coverage without depending on total audit volume; focused full-stack
+validation passes 5/5. A new hosted run is required.
 
 Runtime cleanup completed: both Compose stacks, test servers and temporary Linux,
 migration, artifact and production directories were removed or moved to Trash;
-no task-started CARE container or listener remains. Commit `558e7c0f` was pushed
-and PR #41 targets `staging`; hosted checks are being monitored. Merge and staging
-deployment are not authorized.
+no task-started CARE container or listener remained before the focused hosted-fix
+validation. PR #41 targets `staging`; hosted checks are being monitored. Merge and
+staging deployment are not authorized.
 
 ## Previous session reference
 

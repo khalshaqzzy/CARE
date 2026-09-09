@@ -98,11 +98,11 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   // Read-only: no lifecycle action affordance is exposed.
   await expect(page.getByText(/Tidak ada kontrol aksi/)).toBeVisible();
 
-  // Audit: reading the Private voice recorded a redacted read event; the seeded
-  // + generated events render and can be filtered via the Action select.
+  // Audit: reading the Private voice recorded a redacted read event. Filter by
+  // action before asserting it because earlier CI stages can legitimately add
+  // enough audit rows to move the event beyond the first unfiltered page.
   await page.goto(`${ADMIN}/audit`);
   await expect(page.getByRole('heading', { name: 'Audit' })).toBeVisible();
-  await expect(page.getByText('VOICE_PRIVATE_DETAIL_READ').first()).toBeVisible();
   // Filters are URL-driven; navigate with the action param (the Action control
   // is a Radix select, not a native <select>).
   await page.goto(`${ADMIN}/audit?action=VOICE_PRIVATE_DETAIL_READ`);
