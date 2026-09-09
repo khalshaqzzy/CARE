@@ -1,5 +1,71 @@
 # CARE Session Handoff
 
+## Inbox card PIC alignment and hero audience polish — 9 September 2026
+
+Implemented on `feat/pic-voice-polish` (fresh from `staging` at `f861e0dd`) three
+product-owner display corrections with no API/schema change (`openapi:check`
+byte-stable); ADR-0046 records the decisions:
+
+1. `InboxVoiceCard`: the PIC/"Belum ditugaskan" chip moved from the footer to
+   the severity row, right-aligned with severity on plain cards; Union identity
+   cards keep the footer chip. PIC names clip to the first two words plus `…`
+   (`shortenPersonName` in `lib/formatters.ts`, CSS `max-width` + ellipsis on
+   `.inbox-card__pic-name`; footer `margin-left: auto` scoped to
+   `.inbox-card__foot .inbox-card__pic`).
+2. `VoiceHero` for `GENERAL_RESPONDER` and `LEADERSHIP_GENERAL_READ_ONLY`:
+   full-variant chips gain `Area: <area>` after the category chip and the grid
+   becomes `PIC: <pic>` | `Pelapor: <reporter>`. Reporter, compact
+   conversation, closed pills, and Union branches are untouched.
+   `HandoverPage` inherits the new layout; its visual fixture was updated to
+   `audience: 'GENERAL_RESPONDER'` for truthful coverage.
+3. `VoiceDetailPage`: the "Klasifikasi" and "Klasifikasi awal" rows are hidden
+   for `REPORTER_SELF`; other audiences keep them.
+
+Changed files: workforce `components/InboxVoiceCard.tsx`, `components/VoiceHero.tsx`,
+`features/voice/VoiceDetailPage.tsx`, `lib/formatters.ts`,
+`lib/formatters.test.ts`, `styles.css`; specs `voice-consent.spec.ts`,
+`voice-consent.visual.spec.ts`, `workforce-journeys.spec.ts` (asserts the
+clipped `PIC: Union Officer…` chip), `workforce.visual.spec.ts`.
+
+### Local validation commands and results
+
+Node 22.23.2 / pnpm 11.8.0. Docker PostgreSQL `care_test` at 54329 with the
+CI-safe environment (NODE_ENV=test, RELEASE_SHA=ci, OUTBOX_ENABLED=false,
+CI session/CSRF/throttle secrets, 32-character `d` cursor secret). Passed:
+frozen install, `db:generate`, `format:check` (two files needed Prettier), lint
+(one `restrict-template-expressions` error in `VoiceHero.tsx` fixed with a
+typed reporter-name extraction), typecheck, `test:unit` (API 83, UI 26,
+frontend-core 15, Admin 2, workforce 86 — three new `shortenPersonName` cases),
+`openapi:check` byte-stable, `NODE_ENV=production pnpm build`,
+`pnpm pwa:compat-check` (main gzip 140186 bytes),
+`pnpm migrations:destructive-check origin/staging`, integration 88/88, security
+14/14, `FULLSTACK_E2E=1` fullstack 4/4, Gitleaks 8.24.3 directory scan (no
+leaks), and `git diff --check`.
+
+Visual baselines: affected families only were deleted and regenerated with
+`--update-snapshots`, inspected, then verified twice without updates —
+dashboard inbox previews (16 scenarios × 360/768/1440),
+`detail-identity-{GENERAL-RESPONDER,REPORTER-SELF}-360` (darwin, linux-x64,
+linux-arm64 — arm64 via a native ARM64 container after a clean install),
+`workforce-voice-member-{1440,360}`, `workforce-manager-home-360`,
+`workforce-detail-{active,closed,closed-auto-accepted}-360`, and
+`workforce-handover-{360,768,1440}`. Linux x64 regeneration ran in
+`care-visual-check:x64` with `--platform linux/amd64` (clean reinstall needed
+after the arm64 run swapped native binaries), verified three times without
+updates. `workforce-leadership-home-360`, `workforce-union-home-360`, the
+lifecycle family, and `dashboard-loading` were verified byte-identical and
+left untouched. Caveat: several legacy workforce visual assertions allow
+`maxDiffPixelRatio: 0.06`, so the moved chip passed under stale baselines;
+those families were regenerated deliberately rather than trusting the
+allowance. Docker PostgreSQL was stopped with `pnpm db:down`, the temporary
+worktree under `/tmp/care-pic-polish-linux` was removed, and no task-started
+servers or containers remain.
+
+Delivery status: local parity complete; no commit, push, or PR has been made —
+commit/PR to `staging` requires explicit user authorization. No deploy,
+workflow, or Dockerfile input changed, so deployment/container parity was not
+triggered.
+
 ## Dependency audit correction — 9 September 2026
 
 PR #39 hosted run `34299072437` failed only the `quality` job at

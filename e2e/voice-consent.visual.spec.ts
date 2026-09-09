@@ -119,6 +119,10 @@ for (const audience of ['GENERAL_RESPONDER', 'REPORTER_SELF']) {
         { exact: true },
       ),
     ).toBeVisible();
+    if (audience === 'GENERAL_RESPONDER') {
+      await expect(page.getByText('PIC: Manager PIC', { exact: true })).toBeVisible();
+      await expect(page.getByText('Area: Karawang 1', { exact: true })).toBeVisible();
+    }
     await expect(page).toHaveScreenshot(
       `detail-identity-${audience}-360-${visualPlatform}.png`,
       screenshot,

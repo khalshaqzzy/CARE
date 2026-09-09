@@ -10,6 +10,7 @@ import {
   mediaUrl,
   SEVERITY_LABELS,
   severityRank,
+  shortenPersonName,
   STATUS_LABELS,
   VISIBILITY_LABELS,
   voiceStatusDisplay,
@@ -134,6 +135,23 @@ describe('closure review status display', () => {
   it('leaves non-closure statuses untouched', () => {
     expect(voiceStatusDisplay('OPEN')).toBe('Terbuka');
     expect(voiceStatusDisplay('IN_PROGRESS', 'PENDING')).toBe('Diproses');
+  });
+});
+
+describe('compact person names for tight chips', () => {
+  it('keeps short names intact', () => {
+    expect(shortenPersonName('Imelda')).toBe('Imelda');
+    expect(shortenPersonName('Kukuh Prastyaningtyas')).toBe('Kukuh Prastyaningtyas');
+  });
+
+  it('ellipsizes long names to the first two words', () => {
+    expect(shortenPersonName('Kukuh Prastyaningtyas Santoso')).toBe('Kukuh Prastyaningtyas…');
+    expect(shortenPersonName('Muhammad Budi Santoso Pratama Wicaksono')).toBe('Muhammad Budi…');
+  });
+
+  it('collapses extra whitespace', () => {
+    expect(shortenPersonName('  Budi   Santoso  ')).toBe('Budi Santoso');
+    expect(shortenPersonName('   ')).toBe('');
   });
 });
 

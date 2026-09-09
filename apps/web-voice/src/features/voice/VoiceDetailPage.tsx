@@ -114,17 +114,21 @@ export function VoiceDetailPage() {
             <span className="voice-meta-list__label">Diperbarui</span>
             <strong>{formatDateTime(voice.updatedAt)}</strong>
           </li>
-          <li>
-            <Sparkles size={17} aria-hidden="true" />
-            <span className="voice-meta-list__label">Klasifikasi</span>
-            <strong>
-              {voice.classificationSource === 'AI'
-                ? 'AI'
-                : voice.classificationSource
-                  ? 'Manual Fallback'
-                  : '—'}
-            </strong>
-          </li>
+          {/* Classification metadata is responder-facing; the reporter's own
+              detail keeps submission facts without AI/fallback bookkeeping. */}
+          {voice.audience !== 'REPORTER_SELF' ? (
+            <li>
+              <Sparkles size={17} aria-hidden="true" />
+              <span className="voice-meta-list__label">Klasifikasi</span>
+              <strong>
+                {voice.classificationSource === 'AI'
+                  ? 'AI'
+                  : voice.classificationSource
+                    ? 'Manual Fallback'
+                    : '—'}
+              </strong>
+            </li>
+          ) : null}
           {voice.category ? (
             <li>
               <CategoryIcon size={17} aria-hidden="true" />
@@ -134,7 +138,8 @@ export function VoiceDetailPage() {
               </strong>
             </li>
           ) : null}
-          {voice.classificationCategory?.key &&
+          {voice.audience !== 'REPORTER_SELF' &&
+          voice.classificationCategory?.key &&
           voice.classificationCategory.key !== voice.category ? (
             <li>
               <Info size={17} aria-hidden="true" />

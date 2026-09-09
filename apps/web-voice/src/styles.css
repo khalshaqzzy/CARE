@@ -4376,14 +4376,22 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
-  padding: 3px var(--space-2);
+  padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   color: var(--raw-brand-700);
   background: var(--raw-brand-50);
   font-size: var(--font-size-xs);
   font-weight: var(--weight-semibold);
   white-space: nowrap;
+}
+.inbox-card__foot .inbox-card__pic {
+  margin-left: auto;
+}
+.inbox-card__pic-name {
+  min-width: 0;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .inbox-card__pic--open {
   border: 1px solid var(--raw-brand-300);
