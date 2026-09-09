@@ -46,8 +46,9 @@ rerun passed 5/5, confirming local fixture pollution rather than a product defec
 
 Runtime cleanup completed: both Compose stacks, test servers and temporary Linux,
 migration, artifact and production directories were removed or moved to Trash;
-no task-started CARE container or listener remains. Commit/push, PR creation, and
-hosted monitoring are pending; merge and staging deployment are not authorized.
+no task-started CARE container or listener remains. Commit `558e7c0f` was pushed
+and PR #41 targets `staging`; hosted checks are being monitored. Merge and staging
+deployment are not authorized.
 
 ## Previous session reference
 
