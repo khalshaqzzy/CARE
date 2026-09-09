@@ -492,8 +492,13 @@ describe('Organization dashboard scope, privacy and filtering', () => {
     await seed();
     let inserted = false;
     const transactional = {
-      $transaction: (run: (tx: Prisma.TransactionClient) => Promise<unknown>, options: object) =>
-        db.$transaction(
+      $transaction: (run: (tx: Prisma.TransactionClient) => Promise<unknown>, options: object) => {
+        expect(options).toEqual({
+          isolationLevel: 'RepeatableRead',
+          maxWait: 5_000,
+          timeout: 5_000,
+        });
+        return db.$transaction(
           async (tx) =>
             run(
               new Proxy(tx, {
@@ -512,7 +517,8 @@ describe('Organization dashboard scope, privacy and filtering', () => {
               }),
             ),
           options,
-        ),
+        );
+      },
     };
     const result = await new OrganizationDashboard(transactional as never).aggregate(
       manager,

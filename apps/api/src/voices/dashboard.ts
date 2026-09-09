@@ -413,7 +413,11 @@ export class OrganizationDashboard {
     if (!('$transaction' in this.db)) return this.aggregateSnapshot(actor, input);
     return this.db.$transaction(
       (tx) => new OrganizationDashboard(tx).aggregateSnapshot(actor, input),
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+        maxWait: 5_000,
+        timeout: 5_000,
+      },
     );
   }
 
