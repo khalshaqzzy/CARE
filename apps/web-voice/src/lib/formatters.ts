@@ -78,6 +78,17 @@ export const CLOSURE_REVIEW_LABELS: Record<ClosureReviewState, string> = {
 };
 
 /**
+ * Compact person label for tight pill surfaces: keeps the first two
+ * whitespace-separated name segments and ellipsizes the rest so long
+ * employee names never overflow an inbox chip.
+ */
+export function shortenPersonName(name: string, maxWords = 2): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return words.join(' ');
+  return `${words.slice(0, maxWords).join(' ')}…`;
+}
+
+/**
  * Status label that folds the closure review state into the four voice
  * statuses: a closed voice shows its review outcome. Reopened voices retain
  * Diproses as their primary status and display a separate contextual badge.

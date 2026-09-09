@@ -1075,6 +1075,7 @@ for (const viewport of [
       session: managerSession,
       voice: {
         ...voice,
+        audience: 'GENERAL_RESPONDER',
         displayId: 'CARE-202609-000007',
         status: 'OPEN',
         title: 'Bahaya kebakaran',

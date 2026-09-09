@@ -394,8 +394,9 @@ test.describe('workforce journeys (mocked contract)', () => {
     // Localized status labels on the private list chips, never raw enums.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
     await expect(page.getByText('Diproses').first()).toBeVisible();
-    // PIC label comes from the consent-safe handler display name.
-    await expect(page.getByText('PIC: Union Officer 1')).toBeVisible();
+    // PIC label comes from the consent-safe handler display name, clipped to
+    // the first two words for the tight top-row chip.
+    await expect(page.getByText('PIC: Union Officer…')).toBeVisible();
     // Private operational list with the shared voice card.
     await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
     // Union never sees reporter self surfaces.
