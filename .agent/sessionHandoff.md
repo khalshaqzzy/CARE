@@ -1,5 +1,56 @@
 # CARE Session Handoff
 
+## Organization dashboard CI transaction stabilization — 9 September 2026
+
+Current branch: `fix/dashboard-transaction-acquisition`, created from `staging`
+at failed push `95ca2b50`. Run `34315592488` passed migration, deployment,
+container/Trivy, secrets, dependency-security and CodeQL jobs; only `quality`
+failed at `pnpm test:performance`, and the release gate/deploy consequently did
+not run. The failing organization request raised Prisma `P2028` after 2,074 ms:
+the default interactive-transaction `maxWait` is 2,000 ms, below the unchanged
+3,000 ms p95 budget. Six immediately preceding hosted runs passed at 1,763–2,055
+ms p95, so this was an acquisition-boundary failure rather than a SQL or feature
+regression.
+
+`OrganizationDashboard.aggregate` now keeps REPEATABLE READ and explicitly sets
+`maxWait: 5_000` and `timeout: 5_000`. No retry, query, pool, concurrency,
+threshold, schema, or API/OpenAPI behavior changed. The concurrent-insert
+snapshot integration test also asserts the exact transaction policy.
+
+Focused validation passed on Docker PostgreSQL: organization integration 22/22;
+three local seeded performance runs at 319, 337 and 330 ms p95; and three clean
+Linux x64 runs with both Node and PostgreSQL limited to two CPUs at 1,787, 1,814
+and 1,841 ms p95. Every performance run completed 150 requests at 50 concurrent
+without `P2028`.
+
+Clean parity used Node 22.23.2/pnpm 11.8.0 and fresh generated artifacts. Passed:
+frozen install, Prisma generation, audit (four Moderate, zero High/Critical),
+format, lint, typecheck, unit (API 83, workforce 86, UI 26, frontend-core 15,
+Admin 2), OpenAI mock smoke, current and `origin/staging` destructive migration
+checks, all five upgrade harnesses, previous-staging-to-current migration/status,
+integration 88/88, security 14/14, performance 2/2 (final p95 2,207 ms), storage
+reconciliation, deterministic OpenAPI check, production build, PWA compatibility
+(140188-byte main gzip), mocked Playwright 310/310, full-stack 5/5, Compose config,
+Actionlint, ShellCheck, Hadolint, inference syntax/topology, bootstrap validation,
+deployment validators, Linux real-`flock` deployment harness, Gitleaks 8.24.3,
+and `git diff --check`.
+
+The production Compose images built with `--pull`; migrate/bootstrap, readiness,
+routing/CSP/auth boundaries, non-root/private-database-port and database/media
+persistence checks passed. A local Trivy 0.70.0 scan was stopped at the user's
+direction when its vulnerability database download stalled in Docker Desktop;
+the unchanged scanner policy remains mandatory in hosted CI. An initial full-stack
+run after the focused integration left an extra audit page and missed an older
+seeded event; a clean database reset and exact integration-to-full-stack workflow
+rerun passed 5/5, confirming local fixture pollution rather than a product defect.
+
+Runtime cleanup completed: both Compose stacks, test servers and temporary Linux,
+migration, artifact and production directories were removed or moved to Trash;
+no task-started CARE container or listener remains. Commit/push, PR creation, and
+hosted monitoring are pending; merge and staging deployment are not authorized.
+
+## Previous session reference
+
 ## Inbox card PIC alignment and hero audience polish — 9 September 2026
 
 Implemented on `feat/pic-voice-polish` (fresh from `staging` at `f861e0dd`) three

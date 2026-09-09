@@ -131,3 +131,23 @@ The browser uses a stable semantic query key and one refresh coordinator, sharin
 Section Head organization aggregates now include authorized organization totals beyond personal assignments, while preview/detail remain restricted. Selection privacy is enforced by preventing explicit peer filters; this is not a claim of differential privacy or prevention of inference from authorized overview counts. No schema migration or historical data rewrite is required. Existing legacy response shapes remain available.
 
 Validation covers two-basis 12 → 17 → 12 PostgreSQL/browser roundtrips, sibling/descendant rejection on all readers, global Division Head visibility, exact extra PIC mappings, Section Head overview/detail separation, missing organization, and a real concurrent database insertion between summary and dimension reads. Date tests cover Jakarta boundaries, year rollover, leap days and invalid calendar dates. Browser checks include navigation, shared refresh timestamps, late responses, partial failure and responsive accessibility. The performance gate remains p95 below three seconds at 50,000 Voices and 50 concurrent requests. Exact execution results, visual baseline status and remaining delivery checks are recorded in the session handoff.
+
+## Transaction acquisition stabilization — 9 September 2026
+
+The `staging` run at `95ca2b50` failed the unchanged organization-dashboard load
+test with Prisma `P2028`: one interactive transaction could not acquire a
+connection within Prisma's default 2,000 ms. The preceding six hosted runs passed
+at 1,763–2,055 ms p95, placing the framework cutoff inside the endpoint's existing
+3,000 ms p95 budget. The merge contained no dashboard backend change, and all
+other hosted jobs passed.
+
+The repeatable-read transaction now declares a 5,000 ms acquisition limit and
+the existing 5,000 ms execution limit explicitly. This allows requests near the
+performance budget to queue for a connection instead of failing before latency
+can be measured. The 3,000 ms p95 assertion remains authoritative: no retry,
+connection-pool expansion, concurrency reduction, SQL/API/schema change, or
+threshold relaxation is introduced. The concurrent-insert integration test locks
+the transaction options and continues to prove that all dimensions share one
+snapshot. Constrained Linux x64 validation with Node and PostgreSQL limited to two
+CPUs completed three consecutive 150-request/50-concurrent runs without `P2028`
+at 1,787–1,841 ms p95.
