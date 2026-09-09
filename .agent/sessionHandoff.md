@@ -1,5 +1,39 @@
 # CARE Session Handoff
 
+## Dependency audit correction — 9 September 2026
+
+PR #39 hosted run `34299072437` failed only the `quality` job at
+`pnpm security:audit`: five High advisories published 8–9 September 2026 —
+`sharp` 0.35.3 (direct, patched 0.35.4), `js-yaml` 4.3.1 via
+`eslint>@eslint/eslintrc` (patched 4.3.2), and `multer` 2.2.0 via
+`@nestjs/platform-express` exact pin (all three advisories patched in 2.3.0).
+Fixed by advancing the API `sharp` pin and adding scoped workspace overrides
+`js-yaml@^4.1.0: 4.3.2` and `multer@^2.0.0: 2.3.0` in `pnpm-workspace.yaml`;
+no scanner exceptions. ADR-0045 records the decision.
+
+Re-validation on the corrected tree (Node 22.23.2 / pnpm 11.8.0, clean
+artifacts, frozen install): Prisma generation, format, lint, typecheck, unit
+(API 83 / UI 26 / frontend-core 15 / workforce 83 / Admin 2), destructive
+migration check, `openapi:check` byte-stable, production build, PWA
+compatibility (main gzip 139998 bytes), Compose config, integration 88/88,
+security 14/14, performance 2/2, fullstack 5/5, browser suite 310/310
+(including fullstack media paths exercising sharp 0.35.4), Gitleaks directory
+scan clean, `git diff --check` clean. `pnpm security:audit` now reports 0 High
+(4 moderate remain, below the gate).
+
+Docker PostgreSQL was stopped with `pnpm db:down` after validation; no other
+task-started processes remain. No deploy script, workflow, or Dockerfile input
+changed, so deployment/container parity was not triggered (PR #38 precedent);
+the hosted container job rebuilds with the corrected lockfile.
+
+## Delivery status — 9 September 2026
+
+PR #39 (`feat/new-voice-timeline` → `staging`, commit `5e4c58cc`) was opened at
+explicit user authorization, without re-running local checks and without hosted
+monitoring. The clean tree matched the validation recorded below; no
+`.github/`, `deploy/`, or `inference/` input changed, so deployment/container
+parity was not triggered. Hosted CI results are intentionally not monitored.
+
 ## Monitored Voice lifecycle — 9 September 2026
 
 Implemented Terbuka → Dimonitor → Diproses → Selesai under ADR-0044. Explicit
