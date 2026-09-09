@@ -153,7 +153,7 @@ describe('Voice timeline and messages cursor pagination', () => {
   });
 
   it('pages messages newest-first with order=desc and honors limit', async () => {
-    const voice = await seedVoice(VoiceStatus.IN_VERIFICATION);
+    const voice = await seedVoice(VoiceStatus.IN_PROGRESS);
     await seedMessages(voice.id, 6);
     const first = await voices.messages(reporter, voice.id, { limit: '4', order: 'desc' });
     expect(first.items.map((message) => message.text)).toEqual([

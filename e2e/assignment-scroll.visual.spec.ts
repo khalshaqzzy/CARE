@@ -29,7 +29,7 @@ for (const width of [360, 768, 1440]) {
       })),
     });
     await page.goto('/voices/voice-1');
-    await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+    await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('textbox', { name: 'Cari penanggung' })).toBeVisible();
     await expect(dialog).toHaveScreenshot(`assignment-list-${width}-${visualPlatform}.png`, {

@@ -9833,6 +9833,165 @@
         ]
       }
     },
+    "/api/v1/voices/{id}/monitor": {
+      "post": {
+        "operationId": "VoicesController_monitor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedMutationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voices/{id}/ask": {
       "post": {
         "operationId": "VoicesController_ask",
@@ -10144,7 +10303,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedMutationRequest"
+                "$ref": "#/components/schemas/VoiceTextMutationRequest"
               }
             }
           }
@@ -15117,7 +15276,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15346,7 +15505,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15571,7 +15730,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15777,7 +15936,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15991,7 +16150,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16217,7 +16376,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -17082,7 +17241,7 @@
                 "type": "string",
                 "enum": [
                   "OPEN",
-                  "IN_VERIFICATION",
+                  "MONITORED",
                   "IN_PROGRESS",
                   "CLOSED"
                 ],
@@ -17294,7 +17453,7 @@
             "type": "object",
             "required": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ],
@@ -17303,7 +17462,7 @@
               "OPEN": {
                 "type": "integer"
               },
-              "IN_VERIFICATION": {
+              "MONITORED": {
                 "type": "integer"
               },
               "IN_PROGRESS": {
@@ -17909,7 +18068,7 @@
             "type": "object",
             "required": [
               "open",
-              "inVerification",
+              "monitored",
               "inProgress",
               "closed",
               "critical"
@@ -17919,7 +18078,7 @@
               "open": {
                 "type": "integer"
               },
-              "inVerification": {
+              "monitored": {
                 "type": "integer"
               },
               "inProgress": {
@@ -18947,7 +19106,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19137,7 +19296,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19164,7 +19323,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]

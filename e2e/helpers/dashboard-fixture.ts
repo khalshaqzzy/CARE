@@ -155,7 +155,7 @@ export function dashboardFixture(
     total,
     status: old?.status ?? [
       { label: 'OPEN', value: total - 6 },
-      { label: 'IN_VERIFICATION', value: 0 },
+      { label: 'MONITORED', value: 0 },
       { label: 'IN_PROGRESS', value: 3 },
       { label: 'CLOSED', value: 3 },
     ],

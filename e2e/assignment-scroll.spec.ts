@@ -23,7 +23,7 @@ async function openAssignment(page: Page, count = 30) {
     })),
   });
   await page.goto('/voices/voice-1');
-  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+  await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Tugaskan Penanggung' })).toBeVisible();
 }
 
@@ -87,7 +87,7 @@ test('candidate search, no-match state, keyboard selection and focus return', as
     (await new AxeBuilder({ page }).include('.assignment-dialog').analyze()).violations,
   ).toEqual([]);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Tugaskan', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Assign PIC', exact: true })).toBeFocused();
 });
 
 test('candidate fetch failure offers retry instead of an empty list', async ({ page }) => {
@@ -106,7 +106,7 @@ test('candidate fetch failure offers retry instead of an empty list', async ({ p
         }),
   );
   await page.reload();
-  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+  await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
   await expect(page.getByText('Kandidat gagal dimuat')).toBeVisible();
   failed = false;
   await page.getByRole('button', { name: 'Coba lagi', exact: true }).click();

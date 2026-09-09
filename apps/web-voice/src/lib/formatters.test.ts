@@ -31,7 +31,7 @@ describe('workforce label maps', () => {
     expect(Object.keys(STATUS_LABELS).sort()).toEqual([
       'CLOSED',
       'IN_PROGRESS',
-      'IN_VERIFICATION',
+      'MONITORED',
       'OPEN',
     ]);
   });
@@ -124,10 +124,10 @@ describe('closure review status display', () => {
   });
 
   it('shows a rejected cycle as reopened during re-verification', () => {
-    expect(voiceStatusDisplay('IN_VERIFICATION', 'REJECTED')).toBe('Dibuka Kembali');
+    expect(voiceStatusDisplay('IN_PROGRESS', 'REJECTED')).toBe('Diproses');
     // A rejected review only colors the re-verification phase, never a plain
     // verification or the accepted closure.
-    expect(voiceStatusDisplay('IN_VERIFICATION', null)).toBe('Verifikasi');
+    expect(voiceStatusDisplay('MONITORED', null)).toBe('Dimonitor');
     expect(voiceStatusDisplay('IN_PROGRESS', 'REJECTED')).toBe('Diproses');
   });
 

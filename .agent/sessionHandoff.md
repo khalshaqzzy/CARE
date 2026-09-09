@@ -1,5 +1,114 @@
 # CARE Session Handoff
 
+## Dependency audit correction — 9 September 2026
+
+PR #39 hosted run `34299072437` failed only the `quality` job at
+`pnpm security:audit`: five High advisories published 8–9 September 2026 —
+`sharp` 0.35.3 (direct, patched 0.35.4), `js-yaml` 4.3.1 via
+`eslint>@eslint/eslintrc` (patched 4.3.2), and `multer` 2.2.0 via
+`@nestjs/platform-express` exact pin (all three advisories patched in 2.3.0).
+Fixed by advancing the API `sharp` pin and adding scoped workspace overrides
+`js-yaml@^4.1.0: 4.3.2` and `multer@^2.0.0: 2.3.0` in `pnpm-workspace.yaml`;
+no scanner exceptions. ADR-0045 records the decision.
+
+Re-validation on the corrected tree (Node 22.23.2 / pnpm 11.8.0, clean
+artifacts, frozen install): Prisma generation, format, lint, typecheck, unit
+(API 83 / UI 26 / frontend-core 15 / workforce 83 / Admin 2), destructive
+migration check, `openapi:check` byte-stable, production build, PWA
+compatibility (main gzip 139998 bytes), Compose config, integration 88/88,
+security 14/14, performance 2/2, fullstack 5/5, browser suite 310/310
+(including fullstack media paths exercising sharp 0.35.4), Gitleaks directory
+scan clean, `git diff --check` clean. `pnpm security:audit` now reports 0 High
+(4 moderate remain, below the gate).
+
+Docker PostgreSQL was stopped with `pnpm db:down` after validation; no other
+task-started processes remain. No deploy script, workflow, or Dockerfile input
+changed, so deployment/container parity was not triggered (PR #38 precedent);
+the hosted container job rebuilds with the corrected lockfile.
+
+## Delivery status — 9 September 2026
+
+PR #39 (`feat/new-voice-timeline` → `staging`, commit `5e4c58cc`) was opened at
+explicit user authorization, without re-running local checks and without hosted
+monitoring. The clean tree matched the validation recorded below; no
+`.github/`, `deploy/`, or `inference/` input changed, so deployment/container
+parity was not triggered. Hosted CI results are intentionally not monitored.
+
+## Monitored Voice lifecycle — 9 September 2026
+
+Implemented Terbuka → Dimonitor → Diproses → Selesai under ADR-0044. Explicit
+monitoring acknowledges the reporter without chat or assignment. Assignment from
+Terbuka performs the acknowledgement once; later assignment/reassign remains
+Dimonitor. Only the assigned PIC starts processing; unassigned route owner/Union
+Head can start with a required opening message and becomes the effective handler.
+Reopen returns to Diproses with a separate Dibuka kembali badge and audited active
+route-owner fallback. If both handlers are inactive, rating/reopen rolls back.
+
+Changed areas: Prisma enum/forward migration; action/transition policies and locked,
+idempotent lifecycle/message operations; controller/OpenAPI/generated client;
+workforce progress/action sheet/status cards/dashboard/cache; Admin status contract;
+fixtures, migration harness, unit/integration/browser/fullstack/visual tests;
+PRD, implementation phases, release checklist and ADR-0044.
+
+Local validation completed (Node 22.23.2 / pnpm 11.8.0):
+
+- Frozen install, Prisma/client generation, typecheck, lint and production build passed.
+- Unit suites: API 83, UI 26, frontend-core 15, workforce 83, Admin 2 passed.
+- Fresh Docker PostgreSQL migration chain (11 migrations) passed. All upgrade
+  harnesses passed, including seven lifecycle cases with preserved messages,
+  attachments, events, closure/rating data and timestamps; no fabricated notices.
+- Integration: 88/88 passed. Security: 14/14. Performance: 2/2, dashboard p95
+  963 ms for 150 requests / 50 concurrent after aligning seeded conversations/handlers; reconciliation dry-run all zero.
+- Full browser suite: 310/310 passed (182 functional/PWA/push/legacy WebKit and
+  128 visual), including retry with
+  identical key and audited reassign endpoint. Fullstack: 5/5 passed, including
+  real monitor → opening PIC message → close → reporter reopen.
+- PWA compatibility passed (main gzip 139998 bytes). Directory Gitleaks v8.24.3:
+  no leaks. Destructive migration check and format check passed.
+- Darwin and Linux x64 visual verification: 128/128 each, twice without snapshot
+  updates. Canonical Linux baselines copied back and hash-verified. Representative
+  mobile progress, reopen and form PNGs inspected; processing footer uses the
+  bounded Dialog footer layout.
+
+Docker PostgreSQL has been stopped with `pnpm db:down`. The isolated Linux visual
+container exited successfully and its temporary checkout was removed after copying
+canonical baselines. No task-started application servers remain.
+
+### Reproducible commands
+
+Local checks used `pnpm install --frozen-lockfile`, `pnpm db:generate`,
+`pnpm openapi:generate` (SHA-256 comparison against the intentional working-tree
+contracts), `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, `NODE_ENV=production
+pnpm build`, `pnpm format:check`, `pnpm pwa:compat-check`,
+`pnpm migrations:destructive-check`, `pnpm test:migration:upgrade`, and
+`node scripts/test-lifecycle-migration-upgrade.mjs`.
+
+Database setup: `pnpm db:up && pnpm db:wait && pnpm db:test:reset && pnpm
+db:test:migrate`. Integration/security/performance/reconciliation used
+`NODE_ENV=test`, `DATABASE_URL=postgresql://care:care_local@localhost:54329/care_test`,
+`RELEASE_SHA=ci`, `OUTBOX_ENABLED=false`, the repository CI session/CSRF/auth-throttle
+secrets and a 32-character `d` cursor secret. Commands: `pnpm test:integration`,
+`pnpm test:security`, `pnpm seed:performance`, `pnpm test:performance`,
+`pnpm maintenance:reconcile`. Fullstack adds `FULLSTACK_E2E=1` and runs
+`pnpm exec playwright test --project=fullstack`.
+
+Browser verification: `pnpm exec playwright test --workers=3` and
+`pnpm exec playwright test --project=visual --workers=3`. Linux uses the existing
+`care-visual-check:x64` image with explicit `--platform linux/amd64`, Node 22.23.2,
+pnpm 11.8.0 and Playwright 1.62.1, isolated `/tmp/care-lifecycle-linux`, frozen
+install/Prisma/production build, then `pnpm exec playwright test --project=visual
+--workers=3 --timeout=60000` twice without updates after baseline generation.
+Only affected baseline families were regenerated; no thresholds were loosened.
+
+Directory scanner: `docker run --rm -v "$PWD:/repo" -w /repo
+zricethezav/gitleaks:v8.24.3 dir /repo --config=/repo/.gitleaks.toml --redact`.
+`pnpm security:audit` failed as documented above; `git diff --check` passed.
+Local logs are under `/tmp/care-lifecycle-*.log`. No deployment/container-image
+parity or hosted gate is claimed; complete pre-commit parity is still required
+before a future authorized commit.
+
+## Previous session reference
+
 | Attribute | Current status                                                                                 |
 | --------- | ---------------------------------------------------------------------------------------------- |
 | Date      | 8 September 2026                                                                               |

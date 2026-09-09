@@ -35,7 +35,7 @@ function statusIcon(status: string): React.ReactNode {
 /** Chip key that folds the review state in so CSS can tint it distinctly. */
 function statusChipKey(status: string, reviewState?: string | null): string {
   if (status === 'CLOSED' && reviewState === 'PENDING') return 'REVIEW_PENDING';
-  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'REOPENED';
+  if (status === 'IN_PROGRESS' && reviewState === 'REJECTED') return 'REOPENED';
   return status;
 }
 
@@ -60,7 +60,7 @@ export function InboxVoiceCard({
   showPic?: boolean;
 }) {
   const handlerName = voice.currentHandlerName ?? null;
-  const unassigned = voice.status === 'OPEN' && !handlerName;
+  const unassigned = ['OPEN', 'MONITORED'].includes(voice.status) && !handlerName;
   const pic = handlerName ? `PIC: ${handlerName}` : null;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const category = voice.category
@@ -116,6 +116,9 @@ export function InboxVoiceCard({
             >
               {statusIcon(voice.status)}
               {voiceStatusDisplay(voice.status, voice.closureReviewState)}
+              {voice.status === 'IN_PROGRESS' && voice.closureReviewState === 'REJECTED' ? (
+                <span className="voice-reopened">Dibuka kembali</span>
+              ) : null}
             </span>
             <span className="inbox-card__time">
               <Clock3 size={12} aria-hidden="true" />

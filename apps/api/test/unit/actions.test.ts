@@ -24,22 +24,22 @@ function voice(overrides: Partial<ActionableVoice> = {}): ActionableVoice {
 }
 
 describe('computeAvailableActions', () => {
-  it('gives a route owner ask/proceed on OPEN General', () => {
+  it('gives a route owner monitor on OPEN General', () => {
     const result = computeAvailableActions(actor(['MANAGER'], 'owner'), voice());
-    expect(result).toContain('ASK');
-    expect(result).toContain('PROCEED');
+    expect(result).toContain('MONITOR');
+    expect(result).not.toContain('PROCEED');
     expect(result).not.toContain('MESSAGE');
     expect(result).toContain('ASSIGN');
     expect(result).toContain('HANDOVER');
   });
 
-  it('offers reassign only in IN_VERIFICATION for a managing route owner', () => {
+  it('offers reassign only in MONITORED for a managing route owner', () => {
     const result = computeAvailableActions(
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'IN_VERIFICATION' as VoiceStatus }),
+      voice({ status: 'MONITORED' as VoiceStatus, currentHandlerId: 'handler' }),
     );
     expect(result).toContain('REASSIGN');
-    expect(result).toContain('PROCEED');
+    expect(result).not.toContain('PROCEED');
     expect(result).not.toContain('ASSIGN');
     expect(result).not.toContain('HANDOVER');
   });
@@ -71,7 +71,7 @@ describe('computeAvailableActions', () => {
     [
       'Manager after verification',
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'IN_VERIFICATION' as VoiceStatus }),
+      voice({ status: 'MONITORED' as VoiceStatus }),
     ],
     [
       'Manager while in progress',
@@ -104,9 +104,9 @@ describe('computeAvailableActions', () => {
     expect(open).not.toContain('MESSAGE');
     const verification = computeAvailableActions(
       replyer,
-      voice({ reporterId: 'reporter', status: 'IN_VERIFICATION' as VoiceStatus }),
+      voice({ reporterId: 'reporter', status: 'MONITORED' as VoiceStatus }),
     );
-    expect(verification).toContain('MESSAGE');
+    expect(verification).not.toContain('MESSAGE');
   });
 
   it('stops offering rate once the closure cycle has a rating', () => {
@@ -130,7 +130,7 @@ describe('computeAvailableActions', () => {
       }),
     );
     expect(result).toContain('ASSIGN');
-    expect(result).toContain('ASK');
+    expect(result).toContain('MONITOR');
   });
 
   it('does not expose assign control to a Section Head', () => {
@@ -141,7 +141,7 @@ describe('computeAvailableActions', () => {
         currentHandlerId: 'handler',
       }),
     );
-    expect(result).toContain('ASK');
+    expect(result).toContain('MONITOR');
     expect(result).not.toContain('ASSIGN');
   });
 

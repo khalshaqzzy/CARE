@@ -188,7 +188,7 @@ const voiceDetail = (voice: MockVoice): VoiceDetail => ({
   availableActions: voice.availableActions,
   conversationState:
     voice.conversationState ??
-    (voice.status === 'OPEN'
+    (['OPEN', 'MONITORED'].includes(voice.status)
       ? 'UNAVAILABLE'
       : voice.availableActions.includes('MESSAGE')
         ? 'ACTIVE'
@@ -271,7 +271,7 @@ export function unionPrivateVoiceDetail(
     availableActions: voice.availableActions,
     conversationState:
       voice.conversationState ??
-      (voice.status === 'OPEN'
+      (['OPEN', 'MONITORED'].includes(voice.status)
         ? 'UNAVAILABLE'
         : voice.availableActions.includes('MESSAGE')
           ? 'ACTIVE'
@@ -333,7 +333,7 @@ const overviewFixture = (): AdminOverview => ({
     action: 'set_default_pic',
     createdAt: '2026-08-01T00:00:00.000Z',
   },
-  voices: { open: 2, inVerification: 1, inProgress: 1, closed: 5, critical: 1 },
+  voices: { open: 2, monitored: 1, inProgress: 1, closed: 5, critical: 1 },
   failedAudits: 0,
 });
 
@@ -1012,7 +1012,7 @@ function detail(voice: MockVoice) {
     availableActions: voice.availableActions,
     conversationState:
       voice.conversationState ??
-      (voice.status === 'OPEN'
+      (['OPEN', 'MONITORED'].includes(voice.status)
         ? 'UNAVAILABLE'
         : voice.availableActions.includes('MESSAGE')
           ? 'ACTIVE'
@@ -1065,8 +1065,8 @@ const notificationPageFixture = (): unknown => ({
     {
       id: 'note-4',
       type: 'CLOSED',
-      title: 'Verifikasi selesai',
-      body: 'Verifikasi pada sebuah Voice telah selesai.',
+      title: 'Voice sedang dimonitor',
+      body: 'Voice telah diterima dan sedang dimonitor.',
       deepLink: null,
       createdAt: '2026-08-03T02:10:00.000Z',
       readAt: '2026-08-03T03:00:00.000Z',
@@ -1154,7 +1154,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
           total: voice ? 1 : 0,
           counts: {
             OPEN: 0,
-            IN_VERIFICATION: 0,
+            MONITORED: 0,
             IN_PROGRESS: voice?.status === 'IN_PROGRESS' ? 1 : 0,
             CLOSED: voice?.status === 'CLOSED' ? 1 : 0,
           },
@@ -1384,7 +1384,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         cycle.reviewResolvedAt = new Date().toISOString();
         if (body.reopen) {
           cycle.reopenedAt = new Date().toISOString();
-          voice.status = 'IN_VERIFICATION';
+          voice.status = 'IN_PROGRESS';
           voice.availableActions = ['MESSAGE'];
         } else {
           voice.availableActions = [];
@@ -1399,14 +1399,47 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     }
     if (
       method === 'POST' &&
-      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|ask|proceed|close)$/.test(
+      /\/api\/v1\/voices\/[^/]+\/(?:assignments|assignments\/reassign|monitor|proceed|close)$/.test(
         path,
       )
     ) {
+      const body = route.request().postDataJSON() as { text?: string; handlerAccountId?: string };
+      if (voice) {
+        voice.status = path.endsWith('/close')
+          ? 'CLOSED'
+          : path.endsWith('/proceed')
+            ? 'IN_PROGRESS'
+            : 'MONITORED';
+        voice.conversationState =
+          voice.status === 'MONITORED'
+            ? 'UNAVAILABLE'
+            : voice.status === 'CLOSED'
+              ? 'READ_ONLY'
+              : 'ACTIVE';
+        voice.availableActions =
+          voice.status === 'MONITORED'
+            ? ['PROCEED', body.handlerAccountId ? 'REASSIGN' : 'ASSIGN']
+            : voice.status === 'IN_PROGRESS'
+              ? ['MESSAGE', 'CLOSE']
+              : [];
+        if (body.text && path.endsWith('/proceed')) {
+          sentThreadMessages[voice.id] = [
+            {
+              id: 'process-first',
+              text: body.text,
+              createdAt: new Date().toISOString(),
+              senderId: session.account.id,
+              senderAccountKind: session.account.accountKind,
+              sender: { kind: session.account.accountKind },
+              attachments: [],
+            },
+          ];
+        }
+      }
       return satisfy(200, {
         id: voice?.id ?? 'voice-1',
         displayId: voice?.displayId ?? 'CARE-202608-000001',
-        status: 'IN_PROGRESS',
+        status: voice?.status ?? 'MONITORED',
         version: 4,
       });
     }

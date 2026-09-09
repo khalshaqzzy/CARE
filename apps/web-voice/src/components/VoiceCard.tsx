@@ -14,9 +14,9 @@ import {
 
 function statusTone(status: string, reviewState?: string | null): string {
   if (status === 'CLOSED' && reviewState === 'PENDING') return 'warning';
-  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'warning';
+  if (status === 'IN_PROGRESS' && reviewState === 'REJECTED') return 'warning';
   return (
-    { OPEN: 'info', IN_VERIFICATION: 'warning', IN_PROGRESS: 'brand', CLOSED: 'success' }[status] ??
+    { OPEN: 'info', MONITORED: 'warning', IN_PROGRESS: 'brand', CLOSED: 'success' }[status] ??
     'neutral'
   );
 }
@@ -72,6 +72,9 @@ export function VoiceCard({
           {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility}
         </span>
       </div>
+      {voice.status === 'IN_PROGRESS' && voice.closureReviewState === 'REJECTED' ? (
+        <span className="voice-reopened">Dibuka kembali</span>
+      ) : null}
       <h3 className="voice-card__title">{voice.title}</h3>
       <div className="voice-card__panel">
         <ValueRow

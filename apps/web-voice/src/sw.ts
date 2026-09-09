@@ -15,7 +15,10 @@ precacheAndRoute(self.__WB_MANIFEST);
 // so Private Voice titles/content never land in offline storage. Everything
 // else stays network-only. This route must be registered before the generic
 // `/api/` NetworkOnly catch-all below so it is matched first.
-const DASHBOARD_CACHE = 'care-user-dashboard';
+const DASHBOARD_CACHE = 'care-user-dashboard-lifecycle-v2';
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.delete('care-user-dashboard'));
+});
 registerRoute(
   ({ url }) => url.pathname === '/api/v1/dashboard/member',
   async ({ request }) => {

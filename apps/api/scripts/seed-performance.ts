@@ -127,6 +127,9 @@ async function main() {
             severity: Object.values(Severity)[n % 4]!,
             status: Object.values(VoiceStatus)[n % 4]!,
             routeOwnerId: managerId,
+            currentHandlerId: ['IN_PROGRESS', 'CLOSED'].includes(Object.values(VoiceStatus)[n % 4]!)
+              ? managerId
+              : null,
             handlingOrganizationUnitId: units[n % units.length]!.id,
             handlingDirectorateSnapshot: units[n % units.length]!.directorate,
             handlingDivisionSnapshot: units[n % units.length]!.division,
@@ -140,6 +143,9 @@ async function main() {
         }),
         skipDuplicates: true,
       });
+    await prisma.$executeRaw`INSERT INTO "Conversation" ("id", "voiceId", "createdAt")
+      SELECT gen_random_uuid(), "id", "updatedAt" FROM "Voice"
+      WHERE "status" IN ('IN_PROGRESS', 'CLOSED') ON CONFLICT ("voiceId") DO NOTHING`;
     process.stdout.write(
       `Performance fixture contains ${voiceCount} requested Voices and ${accountCount} accounts\n`,
     );

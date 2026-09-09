@@ -59,7 +59,7 @@ test('workforce shell visual', async ({ page }) => {
       contentType: 'application/json',
       body: JSON.stringify({
         total: 0,
-        counts: { OPEN: 0, IN_VERIFICATION: 0, IN_PROGRESS: 0, CLOSED: 0 },
+        counts: { OPEN: 0, MONITORED: 0, IN_PROGRESS: 0, CLOSED: 0 },
         recent: [],
         draft: null,
         generatedAt: '2026-08-01T10:00:00.000Z',

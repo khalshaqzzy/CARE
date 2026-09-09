@@ -18,6 +18,7 @@ import { useAuth } from '@care/frontend-core';
 import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
+import { VoiceProgress } from '../../components/VoiceProgress';
 import { VoiceHero } from '../../components/VoiceHero';
 import { HandoverHistoryList } from '../../components/HandoverHistoryList';
 import {
@@ -89,6 +90,7 @@ export function VoiceDetailPage() {
   return (
     <Stack gap="lg">
       <VoiceHero voice={voice} variant="full" onBack={back} />
+      <VoiceProgress status={voice.status} />
 
       <ReporterCard voice={voice} />
 

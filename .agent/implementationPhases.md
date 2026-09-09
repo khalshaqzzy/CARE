@@ -994,3 +994,15 @@ Implementation complete locally on `feat/pic-dashboard`; local parity is complet
 ### Dashboard CI performance correction — 7 September 2026
 
 The initial hosted quality job failed at dashboard p95 4,518 ms. SQL aggregation now avoids full-row temporary materialization and combines summary queries. The same constrained Linux workload improved from 4,464 to 2,460 ms without changing the 3,000 ms target. Bucket consistency is covered by an additional PostgreSQL integration test. Local parity is complete (integration 75, security 14, browser 282, full-stack 4, constrained Linux performance and production container/security gates passed). Corrective delivery remains within Phase 13; hosted acceptance is not inferred.
+
+## Monitored Voice lifecycle — 9 September 2026
+
+Implementation and local acceptance verification complete within current Phase 13;
+no new competing current phase is created. ADR-0044 replaces verification-first
+handling with Terbuka → Dimonitor → Diproses → Selesai. Monitor acknowledgement,
+assignment-before-processing, mandatory PIC opening message, direct processing
+reopen, legacy migration and responsive detail progress are implemented.
+Fresh/upgrade PostgreSQL, concurrency/privacy tests, generated contracts, fullstack
+and repeated Darwin/Linux x64 visual checks passed. The unchanged dependency
+lockfile has five High audit findings, so the complete release gate is not green.
+Actual checks are recorded in sessionHandoff.md. Hosted acceptance remains open.
