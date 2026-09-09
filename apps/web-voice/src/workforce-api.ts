@@ -282,14 +282,14 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
-    ask: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
+    monitor: (id: string, body: components['schemas']['VersionedMutationRequest'], key: string) =>
       dataOrThrow(
-        client.POST('/api/v1/voices/{id}/ask', {
+        client.POST('/api/v1/voices/{id}/monitor', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },
           body,
         }),
       ),
-    proceed: (id: string, body: components['schemas']['VersionedMutationRequest'], key: string) =>
+    proceed: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
       dataOrThrow(
         client.POST('/api/v1/voices/{id}/proceed', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },

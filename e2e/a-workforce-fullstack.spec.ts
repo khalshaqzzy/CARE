@@ -160,3 +160,96 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
     page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
   ).toBeVisible();
 });
+
+test('real lifecycle: monitor, process with opening note, close and reporter reopen', async ({
+  browser,
+}) => {
+  test.setTimeout(90_000);
+  const db = new PrismaClient();
+  const managerContext = await browser.newContext();
+  const reporterContext = await browser.newContext();
+  const managerPage = await managerContext.newPage();
+  const reporterPage = await reporterContext.newPage();
+  let voiceId: string | undefined;
+  try {
+    const original = await db.voice.findUniqueOrThrow({
+      where: { displayId: 'CARE-202608-900001' },
+    });
+    const created = await db.voice.create({
+      data: {
+        ...original,
+        id: crypto.randomUUID(),
+        displayId: 'CARE-202609-919999',
+        title: 'Lifecycle fullstack',
+        status: 'OPEN',
+        version: 1,
+        currentHandlerId: null,
+      },
+    });
+    voiceId = created.id;
+    const login = async (
+      page: import('@playwright/test').Page,
+      username: string,
+      password: string,
+    ) => {
+      await page.goto(`${ORIGIN}/login`);
+      await page.getByLabel('Username').fill(username);
+      await page.getByRole('textbox', { name: 'Password' }).fill(password);
+      await page.getByRole('button', { name: 'Masuk' }).click();
+      await page.waitForURL((url) => url.pathname !== '/login');
+      if (await page.getByRole('button', { name: 'Lain kali' }).isVisible())
+        await page.getByRole('button', { name: 'Lain kali' }).click();
+      await expect(page.getByRole('banner').getByRole('button', { name: 'Keluar' })).toBeVisible();
+    };
+    await login(managerPage, '000003', '000003');
+    await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
+    await managerPage.getByRole('button', { name: 'Monitor Voice' }).click();
+    await expect(managerPage.locator('[aria-current="step"]')).toHaveText('Dimonitor');
+    expect(
+      await db.notification.count({
+        where: { voiceId, recipientId: original.reporterId, title: 'Voice Anda sedang dimonitor' },
+      }),
+    ).toBe(1);
+    await managerPage.getByRole('button', { name: 'Proses Voice', exact: true }).click();
+    await managerPage
+      .getByRole('textbox', { name: 'Keterangan penanganan' })
+      .fill('PIC memeriksa kondisi langsung di lokasi.');
+    await managerPage.getByRole('button', { name: 'Mulai proses & buka chat' }).click();
+    await expect(managerPage).toHaveURL(new RegExp(`/voices/${voiceId}/chat$`));
+    await expect(managerPage.getByText('PIC memeriksa kondisi langsung di lokasi.')).toBeVisible();
+    expect(await db.message.count({ where: { conversation: { voiceId } } })).toBe(1);
+    await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
+    await managerPage.getByRole('button', { name: 'Selesaikan Voice' }).click();
+    await managerPage
+      .getByRole('textbox', { name: 'Catatan penyelesaian' })
+      .fill('Pemeriksaan dan perbaikan selesai.');
+    await managerPage.getByRole('dialog').getByRole('button', { name: 'Tutup Voice' }).click();
+    await expect(managerPage.locator('[aria-current="step"]')).toHaveText('Selesai');
+    await login(reporterPage, USERNAME, NEW_PASSWORD);
+    await reporterPage.goto(`${ORIGIN}/voices/${voiceId}`);
+    await reporterPage.getByRole('radio', { name: '2/5', exact: true }).click();
+    await reporterPage
+      .getByRole('textbox', { name: 'Tulis umpan balik' })
+      .fill('Masih perlu pemeriksaan tambahan.');
+    await reporterPage.getByRole('button', { name: 'Buka kembali', exact: true }).click();
+    await expect(reporterPage.locator('[aria-current="step"]')).toHaveText('Diproses');
+    await expect(reporterPage.locator('.voice-reopened').first()).toHaveText('Dibuka kembali');
+    expect((await db.voice.findUniqueOrThrow({ where: { id: voiceId } })).status).toBe(
+      'IN_PROGRESS',
+    );
+    expect(await db.message.count({ where: { conversation: { voiceId } } })).toBe(1);
+  } finally {
+    await managerContext.close();
+    await reporterContext.close();
+    if (voiceId) {
+      await db.rating.deleteMany({ where: { closureCycle: { voiceId } } });
+      await db.closureCycle.deleteMany({ where: { voiceId } });
+      await db.message.deleteMany({ where: { conversation: { voiceId } } });
+      await db.conversation.deleteMany({ where: { voiceId } });
+      await db.notification.deleteMany({ where: { voiceId } });
+      await db.voiceEvent.deleteMany({ where: { voiceId } });
+      await db.voice.delete({ where: { id: voiceId } });
+    }
+    await db.$disconnect();
+  }
+});

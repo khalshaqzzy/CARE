@@ -207,7 +207,7 @@ test('closure needs a note but no photo', async ({ page }) => {
     },
   });
   await page.goto('/voices/voice-1');
-  await page.getByRole('button', { name: 'Tutup', exact: true }).click();
+  await page.getByRole('button', { name: 'Selesaikan Voice', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Tutup Voice' })).toBeDisabled();
   await dialog

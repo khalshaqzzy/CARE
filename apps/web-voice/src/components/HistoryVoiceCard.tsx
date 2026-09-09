@@ -14,13 +14,13 @@ function statusTone(
   reviewState?: string | null,
 ): 'info' | 'brand' | 'success' | 'warning' | 'neutral' {
   if (status === 'CLOSED' && reviewState === 'PENDING') return 'warning';
-  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'warning';
+  if (status === 'IN_PROGRESS' && reviewState === 'REJECTED') return 'warning';
   if (status === 'CLOSED') return 'success';
   return (
     (
       {
         OPEN: 'warning',
-        IN_VERIFICATION: 'info',
+        MONITORED: 'info',
         IN_PROGRESS: 'brand',
       } as const
     )[status] ?? 'neutral'
@@ -58,6 +58,9 @@ export function HistoryVoiceCard({ voice, onOpen }: { voice: VoiceListItem; onOp
           <span className="history-card__divider" aria-hidden="true" />
           <DotLabel tone={statusTone(voice.status, voice.closureReviewState)}>
             {voiceStatusDisplay(voice.status, voice.closureReviewState)}
+            {voice.status === 'IN_PROGRESS' && voice.closureReviewState === 'REJECTED' ? (
+              <span className="voice-reopened">Dibuka kembali</span>
+            ) : null}
           </DotLabel>
         </span>
         <span className="history-card__time">Diperbarui {formatRelative(voice.updatedAt)}</span>

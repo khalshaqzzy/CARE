@@ -695,7 +695,7 @@ export class VoicesService {
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
       and.push({
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION, VoiceStatus.IN_PROGRESS] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED, VoiceStatus.IN_PROGRESS] },
       });
     else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.visibility) and.push({ visibility: query.visibility });
@@ -775,11 +775,14 @@ export class VoicesService {
     // The flag is deliberately ignored for every other actor so existing inbox
     // semantics (Manager route inbox, Section Head assigned inbox) never change.
     if (query.unassigned === 'true' && actor.capabilities.includes('UNION_HEAD'))
-      and.push({ currentHandlerId: null });
+      and.push({
+        currentHandlerId: null,
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED] },
+      });
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
       and.push({
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION, VoiceStatus.IN_PROGRESS] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED, VoiceStatus.IN_PROGRESS] },
       });
     else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.severity) and.push({ severity: query.severity as Severity });
@@ -920,6 +923,22 @@ export class VoicesService {
     if (!key || key.length > 100)
       throw badRequest('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key is required');
     const data = parse(assignmentSchema, input);
+    await this.actionVoice(actor, id);
+    const replay = await this.checkIdempotency(
+      actor,
+      `${reassign ? 'reassign' : 'assign'}:${id}`,
+      key,
+      canonicalHash(data),
+    );
+    if (replay.replayed)
+      return replay.response as {
+        id: string;
+        displayId: string;
+        status: VoiceStatus;
+        version: number;
+        currentHandlerId: string | null;
+        handlerType: HandlerType;
+      };
     const voice = await this.actionVoice(actor, id);
     // Only a route-owning Manager (General) or the Union Head (Private) may
     // assign/reassign; a Section Head handler must not be able to assign.
@@ -984,8 +1003,8 @@ export class VoicesService {
           id,
           data.expectedVersion ?? voice.version,
         );
-        if (current.status === VoiceStatus.IN_PROGRESS || current.status === VoiceStatus.CLOSED)
-          throw invalidTransition('Assignment is only allowed before IN_PROGRESS');
+        if (!this.actionSet(actor, current).includes(reassign ? 'REASSIGN' : 'ASSIGN'))
+          throw invalidTransition('Assignment is not available for this Voice');
         if (reassign && !current.currentHandlerId)
           throw invalidTransition('Voice has no active assignment');
         await tx.voiceAssignment.updateMany({
@@ -1003,7 +1022,7 @@ export class VoicesService {
               ? { handlingSectionSnapshot: candidate.employee?.memberships[0]?.section || null }
               : {}),
             handlerType,
-            status: VoiceStatus.IN_VERIFICATION,
+            status: VoiceStatus.MONITORED,
             version: { increment: 1 },
           },
         });
@@ -1016,6 +1035,25 @@ export class VoicesService {
             payload: { assignmentId: assignment.id, handlerType, reason: data.reason ?? null },
           },
         });
+        if (current.status === VoiceStatus.OPEN) {
+          await tx.voiceEvent.create({
+            data: {
+              voiceId: id,
+              actorId: actor.accountId,
+              ...this.policy.actorSnapshot(actor),
+              type: VoiceEventType.MONITORED,
+              payload: { via: 'ASSIGNMENT' },
+            },
+          });
+          await this.notify(
+            tx,
+            current.reporterId,
+            id,
+            NotificationType.STATUS_CHANGED,
+            'Voice Anda sedang dimonitor',
+            'Voice Anda telah diterima dan sedang dimonitor oleh tim penanggung jawab.',
+          );
+        }
         await this.notify(
           tx,
           candidate.id,
@@ -1105,7 +1143,7 @@ export class VoicesService {
       by: ['currentHandlerId'],
       where: {
         currentHandlerId: { in: candidates.map((candidate) => candidate.id) },
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.IN_VERIFICATION, VoiceStatus.IN_PROGRESS] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED, VoiceStatus.IN_PROGRESS] },
       },
       _count: { _all: true },
     });
@@ -1364,26 +1402,41 @@ export class VoicesService {
       nextCursor: hasNext && rows.length ? encodeCursor(rows[rows.length - 1]!.id) : null,
     };
   }
-  async ask(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(textSchema, input);
+  async ask(actor: AuthActor, id: string, _input: unknown, _key: string) {
+    void _input;
+    void _key;
+    await this.actionVoice(actor, id);
+    throw conflict(
+      'CLIENT_UPDATE_REQUIRED',
+      'Perbarui aplikasi untuk menggunakan alur Monitor dan Proses Voice.',
+    );
+  }
+  async monitor(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(z.object({ version: z.number().int().positive() }).strict(), input);
     await this.actionVoice(actor, id);
     return this.idempotentMutation(
       actor,
-      `ask:${id}`,
+      `monitor:${id}`,
       key,
       canonicalHash(data),
       200,
       async (tx) => {
         const current = await this.lockedActionVoice(tx, actor, id, data.version);
-        const target = transitionTarget(current.status, 'ASK');
-        if (!target) throw invalidTransition('Voice cannot transition from its current state');
-        await this.createMessageWithin(tx, actor, id, data.text, []);
-        return this.transitionStatus(tx, actor, id, target, VoiceEventType.ASKED_REPORTER, {});
+        if (!this.actionSet(actor, current).includes('MONITOR'))
+          throw invalidTransition('Voice cannot be monitored');
+        return this.transitionStatus(
+          tx,
+          actor,
+          id,
+          VoiceStatus.MONITORED,
+          VoiceEventType.MONITORED,
+          {},
+        );
       },
     );
   }
   async proceed(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(z.object({ version: z.number().int().positive() }).strict(), input);
+    const data = parse(textSchema, input);
     await this.actionVoice(actor, id);
     return this.idempotentMutation(
       actor,
@@ -1393,9 +1446,29 @@ export class VoicesService {
       200,
       async (tx) => {
         const current = await this.lockedActionVoice(tx, actor, id, data.version);
-        const target = transitionTarget(current.status, 'PROCEED');
-        if (!target) throw invalidTransition('Voice cannot proceed from its current state');
-        return this.transitionStatus(tx, actor, id, target, VoiceEventType.PROCEEDED, {});
+        if (!this.actionSet(actor, current).includes('PROCEED'))
+          throw invalidTransition('Hanya PIC aktif yang dapat memulai proses dari Dimonitor');
+        if (!current.currentHandlerId) {
+          await tx.voice.update({
+            where: { id },
+            data: {
+              currentHandlerId: actor.accountId,
+              handlerType:
+                current.visibility === VoiceVisibility.PRIVATE
+                  ? HandlerType.UNION_HEAD
+                  : HandlerType.MANAGER,
+            },
+          });
+        }
+        const message = await this.createMessageWithin(tx, actor, id, data.text, [], false);
+        return this.transitionStatus(
+          tx,
+          actor,
+          id,
+          VoiceStatus.IN_PROGRESS,
+          VoiceEventType.PROCEEDED,
+          { messageId: message.id },
+        );
       },
     );
   }
@@ -1451,7 +1524,9 @@ export class VoicesService {
   async conversations(actor: AuthActor) {
     const scope = await this.policy.detailScope(actor);
     return this.prisma.conversation.findMany({
-      where: { voice: scope },
+      where: {
+        voice: { AND: [scope, { status: { in: [VoiceStatus.IN_PROGRESS, VoiceStatus.CLOSED] } }] },
+      },
       include: {
         voice: { select: this.listSelect() },
         messages: {
@@ -1475,11 +1550,11 @@ export class VoicesService {
       throw badRequest('MESSAGE_EMPTY', 'Message or attachment is required');
     const voice = await this.authorizedVoice(actor, id);
     if (voice.reporterId !== actor.accountId) await this.actionVoice(actor, id);
-    if (this.conversationState(actor, voice) !== 'ACTIVE')
-      throw invalidTransition('Conversation is not active for this Voice');
     const requestHash = canonicalHash({ text, fileSizes: files.map((file) => file.size) });
     const prior = await this.checkIdempotency<unknown>(actor, `message:${id}`, key, requestHash);
     if (prior.replayed) return prior.response as never;
+    if (this.conversationState(actor, voice) !== 'ACTIVE')
+      throw invalidTransition('Conversation is not active for this Voice');
     const attachmentIds: string[] = [];
     for (const file of files) {
       const attachment = await this.media.process(file, actor.accountId, AttachmentPurpose.CHAT, {
@@ -1487,9 +1562,16 @@ export class VoicesService {
       });
       attachmentIds.push(attachment.id);
     }
-    return this.idempotentMutation(actor, `message:${id}`, key, requestHash, 201, (tx) =>
-      this.createMessageWithin(tx, actor, id, text ?? '', attachmentIds),
-    );
+    return this.idempotentMutation(actor, `message:${id}`, key, requestHash, 201, async (tx) => {
+      await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const current = await tx.voice.findUniqueOrThrow({
+        where: { id },
+        include: { conversation: true },
+      });
+      if (this.conversationState(actor, current) !== 'ACTIVE')
+        throw invalidTransition('Conversation is not active for this Voice');
+      return this.createMessageWithin(tx, actor, id, text ?? '', attachmentIds);
+    });
   }
   async stageEvidence(actor: AuthActor, id: string, file: Express.Multer.File) {
     await this.actionVoice(actor, id);
@@ -1499,7 +1581,7 @@ export class VoicesService {
   }
   async close(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(closeSchema, input);
-    const voice = await this.actionVoice(actor, id);
+    await this.actionVoice(actor, id);
     return this.idempotentMutation(
       actor,
       `close:${id}`,
@@ -1507,6 +1589,7 @@ export class VoicesService {
       canonicalHash(data),
       201,
       async (tx) => {
+        const voice = await this.lockedActionVoice(tx, actor, id, data.version);
         if (
           voice.version !== data.version ||
           transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
@@ -1584,6 +1667,7 @@ export class VoicesService {
       canonicalHash(data),
       201,
       async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
         const voice = await tx.voice.findFirst({
           where: { id, reporterId: actor.accountId, status: VoiceStatus.CLOSED },
           include: {
@@ -1630,7 +1714,21 @@ export class VoicesService {
                 ? HandlerType.UNION_HEAD
                 : HandlerType.MANAGER;
           }
+          if (
+            (await tx.userAccount.count({
+              where: { id: handlerId, status: AccountStatus.ACTIVE },
+            })) !== 1
+          )
+            throw conflict(
+              'REOPEN_HANDLER_UNAVAILABLE',
+              'PIC dan pemilik route tidak aktif. Hubungi Admin untuk memperbaiki penanggung jawab.',
+            );
           recipientId = handlerId;
+          await tx.conversation.upsert({
+            where: { voiceId: id },
+            create: { voiceId: id },
+            update: {},
+          });
           await tx.closureCycle.update({
             where: { id: cycle.id },
             data: {
@@ -1642,7 +1740,7 @@ export class VoicesService {
           await tx.voice.update({
             where: { id },
             data: {
-              status: VoiceStatus.IN_VERIFICATION,
+              status: VoiceStatus.IN_PROGRESS,
               version: { increment: 1 },
               currentHandlerId: handlerId,
               handlerType,
@@ -1666,7 +1764,17 @@ export class VoicesService {
             actorId: actor.accountId,
             ...this.policy.actorSnapshot(actor),
             type: data.reopen ? VoiceEventType.REOPENED : VoiceEventType.RATED,
-            payload: { score: data.score },
+            payload: {
+              score: data.score,
+              ...(data.reopen
+                ? {
+                    previousHandlerId: voice.currentHandlerId,
+                    handlerId: recipientId,
+                    fallbackToRouteOwner:
+                      recipientId !== (voice.currentHandlerId ?? voice.routeOwnerId),
+                  }
+                : {}),
+            },
           },
         });
         await this.notify(
@@ -1714,7 +1822,7 @@ export class VoicesService {
         visibility: VoiceVisibility.GENERAL,
         reporterDirectorateSnapshot: actor.directorate ?? '__none__',
         reporterDivisionSnapshot: actor.division ?? '__none__',
-        status: VoiceStatus.OPEN,
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED] },
         currentHandlerId: null,
       },
     });
@@ -1735,7 +1843,11 @@ export class VoicesService {
       this.aggregate(where, false, filter),
       isUnionHead
         ? this.prisma.voice.count({
-            where: { visibility: VoiceVisibility.PRIVATE, currentHandlerId: null },
+            where: {
+              visibility: VoiceVisibility.PRIVATE,
+              currentHandlerId: null,
+              status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED] },
+            },
           })
         : Promise.resolve(undefined),
     ]);
@@ -1776,7 +1888,7 @@ export class VoicesService {
         AND: [
           context.where,
           await this.policy.detailScope(actor),
-          { status: { in: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS'] } },
+          { status: { in: ['OPEN', 'MONITORED', 'IN_PROGRESS'] } },
         ],
       },
       orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
@@ -1824,7 +1936,7 @@ export class VoicesService {
     ]);
     const counts: Record<VoiceStatus, number> = {
       OPEN: 0,
-      IN_VERIFICATION: 0,
+      MONITORED: 0,
       IN_PROGRESS: 0,
       CLOSED: 0,
     };
@@ -2094,6 +2206,19 @@ export class VoicesService {
     const prior = await this.checkIdempotency<T>(actor, scope, key, requestHash);
     if (prior.replayed) return prior.response as T;
     return this.prisma.$transaction(async (tx) => {
+      const lockKey = `${actor.accountId}:${scope}:${key}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text`;
+      const existing = await tx.idempotencyRecord.findUnique({
+        where: { accountId_scope_key: { accountId: actor.accountId, scope, key } },
+      });
+      if (existing) {
+        if (existing.requestHash !== requestHash)
+          throw conflict(
+            'IDEMPOTENCY_CONFLICT',
+            'Idempotency key was reused with a different request',
+          );
+        return existing.response as T;
+      }
       const result = await run(tx);
       try {
         await tx.idempotencyRecord.create({
@@ -2149,7 +2274,12 @@ export class VoicesService {
       voice.reporterId,
       id,
       NotificationType.STATUS_CHANGED,
-      'Status Voice diperbarui',
+      status === VoiceStatus.MONITORED
+        ? 'Voice Anda sedang dimonitor'
+        : 'Voice Anda mulai diproses',
+      status === VoiceStatus.MONITORED
+        ? 'Voice Anda telah diterima dan sedang dimonitor oleh tim penanggung jawab.'
+        : 'Buka percakapan untuk melihat keterangan penanganan.',
     );
     return {
       id: voice.id,
@@ -2166,6 +2296,7 @@ export class VoicesService {
     id: string,
     text: string,
     attachmentIds: string[],
+    notifyRecipient = true,
   ) {
     const conversation = await tx.conversation.upsert({
       where: { voiceId: id },
@@ -2202,7 +2333,7 @@ export class VoicesService {
       voice && actor.accountId === voice.reporterId
         ? (voice.currentHandlerId ?? voice.routeOwnerId)
         : voice?.reporterId;
-    if (recipientId)
+    if (recipientId && notifyRecipient)
       await this.notify(tx, recipientId, id, NotificationType.MESSAGE, 'Pesan Voice baru');
     return message;
   }
@@ -2676,7 +2807,7 @@ export class VoicesService {
         (actor.capabilities.includes('UNION_HEAD') ||
           voice.currentHandlerId === actor.accountId)) ||
       actor.accountStatus === AccountStatus.LEGACY_HANDLER;
-    if (!allowed) throw forbiddenAsNotFound();
+    if (!allowed || voice.reporterId === actor.accountId) throw forbiddenAsNotFound();
     return voice;
   }
   private async lockedActionVoice(
@@ -2700,7 +2831,7 @@ export class VoicesService {
         (actor.capabilities.includes('UNION_HEAD') ||
           voice.currentHandlerId === actor.accountId)) ||
       actor.accountStatus === AccountStatus.LEGACY_HANDLER;
-    if (!allowed) throw forbiddenAsNotFound();
+    if (!allowed || voice.reporterId === actor.accountId) throw forbiddenAsNotFound();
     return voice;
   }
   private actionSet(
@@ -2737,9 +2868,12 @@ export class VoicesService {
       closureCycles?: Array<{ reopenedAt: Date | null; rating?: { score: number } | null }>;
     },
   ): 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY' {
-    if (voice.status === VoiceStatus.OPEN) return 'UNAVAILABLE';
-    const hasConversation = Boolean(voice.conversation);
-    if (voice.status !== VoiceStatus.IN_VERIFICATION && !hasConversation) return 'UNAVAILABLE';
+    if (
+      voice.status === VoiceStatus.OPEN ||
+      voice.status === VoiceStatus.MONITORED ||
+      !voice.conversation
+    )
+      return 'UNAVAILABLE';
     const actions = this.actionSet(actor, voice);
     return actions.includes('MESSAGE') ? 'ACTIVE' : 'READ_ONLY';
   }

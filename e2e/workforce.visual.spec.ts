@@ -14,7 +14,7 @@ const voice = {
   displayId: 'CARE-202608-000001',
   audience: 'REPORTER_SELF',
   visibility: 'GENERAL' as const,
-  status: 'IN_VERIFICATION',
+  status: 'IN_PROGRESS',
   area: 'KARAWANG_1',
   title: 'Pencahayaan area produksi kurang',
   detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi.',
@@ -38,7 +38,7 @@ const managerDashboard = {
   total: 42,
   status: [
     { label: 'OPEN', value: 18 },
-    { label: 'IN_VERIFICATION', value: 7 },
+    { label: 'MONITORED', value: 7 },
     { label: 'IN_PROGRESS', value: 9 },
     { label: 'CLOSED', value: 8 },
   ],
@@ -119,7 +119,7 @@ const workItemList = {
       id: 'voice-3',
       displayId: 'CARE-202608-000011',
       audience: 'GENERAL_RESPONDER',
-      status: 'IN_VERIFICATION',
+      status: 'IN_PROGRESS',
       severity: 'MEDIUM',
       area: 'SUNTER_1',
       title: 'Peralatan kerja perlu pemeriksaan',
@@ -135,7 +135,7 @@ const privateDashboard = {
   total: 12,
   status: [
     { label: 'OPEN', value: 5 },
-    { label: 'IN_VERIFICATION', value: 4 },
+    { label: 'MONITORED', value: 4 },
     { label: 'IN_PROGRESS', value: 3 },
   ],
   severity: [
@@ -173,7 +173,7 @@ const privateItemList = {
       displayId: 'CARE-202608-000013',
       audience: 'UNION_ANONYMOUS',
       visibility: 'PRIVATE',
-      status: 'IN_VERIFICATION',
+      status: 'IN_PROGRESS',
       severity: 'HIGH',
       area: 'SUNTER_1',
       title: 'Keluhan terkait kondisi kerja',
@@ -194,7 +194,7 @@ test('workforce history visual at 360', async ({ page }) => {
       items: [
         baseVoiceItem({
           ...voice,
-          status: 'IN_VERIFICATION',
+          status: 'IN_PROGRESS',
           severity: 'HIGH',
           updatedAt: '2026-08-03T10:00:00.000Z',
         }),
@@ -203,7 +203,7 @@ test('workforce history visual at 360', async ({ page }) => {
           displayId: 'CARE-202608-000010',
           audience: 'REPORTER_SELF',
           visibility: 'PRIVATE',
-          status: 'IN_VERIFICATION',
+          status: 'IN_PROGRESS',
           area: 'SUNTER_1',
           title: 'Kebocoran pipa di area utility',
           detail: 'Dedaunan mengendon di saluran.',
@@ -245,7 +245,10 @@ test('workforce history visual at 360', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/history');
   await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-history-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-history-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce notifications visual at 360', async ({ page }) => {
@@ -255,7 +258,7 @@ test('workforce notifications visual at 360', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/notifications');
   await expect(page.getByRole('heading', { name: 'Pusat notifikasi' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-notifications-360.png', {
+  await expect(page).toHaveScreenshot(`workforce-notifications-360-${visualPlatform}.png`, {
     animations: 'disabled',
     threshold: 0.25,
     maxDiffPixelRatio: 0.06,
@@ -293,7 +296,7 @@ test('workforce Voice Member workspace visual at 1440', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Voice Member' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-voice-member-1440.png', {
+  await expect(page).toHaveScreenshot(`workforce-voice-member-1440-${visualPlatform}.png`, {
     animations: 'disabled',
     threshold: 0.25,
     maxDiffPixelRatio: 0.06,
@@ -320,7 +323,7 @@ test('workforce active conversation visual at 360', async ({ page }) => {
     session: managerSession,
     voice: {
       ...voice,
-      availableActions: ['ASK', 'MESSAGE', 'PROCEED'],
+      availableActions: ['MESSAGE', 'CLOSE'],
       conversationState: 'ACTIVE',
     },
   });
@@ -329,7 +332,10 @@ test('workforce active conversation visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot('workforce-conversation-active-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-conversation-active-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 // Baselines for the redesigned Voice detail (screens 13–14): an active voice
@@ -341,7 +347,7 @@ test('workforce detail active visual at 360', async ({ page }) => {
   await mockWorkforceApi(page, {
     voice: {
       ...voice,
-      status: 'IN_VERIFICATION',
+      status: 'IN_PROGRESS',
       conversationState: 'ACTIVE',
       attachments: [
         { id: 'att-1', mimeType: 'image/png' },
@@ -354,7 +360,10 @@ test('workforce detail active visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot('workforce-detail-active-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-detail-active-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce detail closed rating visual at 360', async ({ page }) => {
@@ -396,7 +405,10 @@ test('workforce detail closed rating visual at 360', async ({ page }) => {
     element.scrollIntoView();
   });
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot('workforce-detail-closed-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-detail-closed-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 // The auto-accepted variant: the review window expired unrated, so the rating
@@ -437,11 +449,14 @@ test('workforce detail closed auto-accepted visual at 360', async ({ page }) => 
     element.scrollIntoView();
   });
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot('workforce-detail-closed-auto-accepted-360.png', {
-    animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
-  });
+  await expect(page).toHaveScreenshot(
+    `workforce-detail-closed-auto-accepted-360-${visualPlatform}.png`,
+    {
+      animations: 'disabled',
+      threshold: 0.25,
+      maxDiffPixelRatio: 0.06,
+    },
+  );
 });
 
 // Baseline for the in-page attachment viewer (lightbox): opened from the
@@ -453,7 +468,7 @@ test('workforce lightbox visual at 360', async ({ page }) => {
   await mockWorkforceApi(page, {
     voice: {
       ...voice,
-      status: 'IN_VERIFICATION',
+      status: 'IN_PROGRESS',
       conversationState: 'ACTIVE',
       attachments: [
         { id: 'att-1', mimeType: 'image/png' },
@@ -469,7 +484,10 @@ test('workforce lightbox visual at 360', async ({ page }) => {
   await page.getByRole('button', { name: 'Lihat gambar 1 dari 3' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(450);
-  await expect(page).toHaveScreenshot('workforce-lightbox-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-lightbox-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce union private inbox visual at 1440', async ({ page }) => {
@@ -495,7 +513,7 @@ test('workforce union private inbox visual at 1440', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-union-private-1440.png', {
+  await expect(page).toHaveScreenshot(`workforce-union-private-1440-${visualPlatform}.png`, {
     animations: 'disabled',
     threshold: 0.25,
     // Font rasterization differs between macOS (CoreText) and Linux CI
@@ -520,7 +538,10 @@ test('workforce manager home visual at 360', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-manager-home-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-manager-home-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce Voice Member inbox visual at 360', async ({ page }) => {
@@ -536,7 +557,10 @@ test('workforce Voice Member inbox visual at 360', async ({ page }) => {
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Voice Member' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-voice-member-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-voice-member-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce leadership home visual at 360', async ({ page }) => {
@@ -552,7 +576,10 @@ test('workforce leadership home visual at 360', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Leadership · Read-only')).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-leadership-home-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-leadership-home-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce union home visual at 360', async ({ page }) => {
@@ -580,7 +607,10 @@ test('workforce union home visual at 360', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-union-home-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-union-home-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce union private inbox visual at 360', async ({ page }) => {
@@ -607,7 +637,10 @@ test('workforce union private inbox visual at 360', async ({ page }) => {
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-union-private-inbox-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-union-private-inbox-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce union general overview visual at 360', async ({ page }) => {
@@ -633,7 +666,10 @@ test('workforce union general overview visual at 360', async ({ page }) => {
   await page.goto('/general');
   await expect(page.getByRole('heading', { name: 'Tinjauan General' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-union-general-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-union-general-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce union identified detail visual at 360', async ({ page }) => {
@@ -646,12 +682,12 @@ test('workforce union identified detail visual at 360', async ({ page }) => {
       displayId: 'CARE-202608-000013',
       audience: 'UNION_IDENTIFIED',
       visibility: 'PRIVATE',
-      status: 'IN_VERIFICATION',
+      status: 'IN_PROGRESS',
       area: 'SUNTER_1',
       title: 'Keluhan terkait kondisi kerja',
       detail:
         'Suasana kerja di Gedung B sangat panas pada siang hari karena AC tidak berfungsi optimal.',
-      availableActions: ['ASK', 'PROCEED', 'MESSAGE'],
+      availableActions: ['CLOSE', 'MESSAGE'],
       identified: true,
     }),
   });
@@ -681,10 +717,13 @@ test('workforce close sheet visual at 360', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/voices/voice-1');
   await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
-  await page.getByRole('button', { name: 'Tutup', exact: true }).click();
+  await page.getByRole('button', { name: 'Selesaikan Voice', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(450);
-  await expect(page).toHaveScreenshot('workforce-close-sheet-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-close-sheet-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 test('workforce assign sheet visual at 360', async ({ page }) => {
@@ -711,10 +750,13 @@ test('workforce assign sheet visual at 360', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Tekanan kerja dan perlakuan tidak adil' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+  await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(450);
-  await expect(page).toHaveScreenshot('workforce-assign-sheet-360.png', screenshotOptions);
+  await expect(page).toHaveScreenshot(
+    `workforce-assign-sheet-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
 });
 
 // Baselines for the redesigned auth and Create Voice surfaces (ADR-0022).
@@ -1036,7 +1078,7 @@ for (const viewport of [
         displayId: 'CARE-202609-000007',
         status: 'OPEN',
         title: 'Bahaya kebakaran',
-        availableActions: ['ASK', 'ASSIGN', 'HANDOVER', 'PROCEED'],
+        availableActions: ['ASSIGN', 'HANDOVER', 'PROCEED'],
       },
       handoverOptions: {
         current: {

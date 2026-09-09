@@ -165,7 +165,7 @@ describe('Closure review window and auto-acceptance', () => {
     expect(cycle.reopenedAt).not.toBeNull();
 
     const reopened = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
-    expect(reopened.status).toBe(VoiceStatus.IN_VERIFICATION);
+    expect(reopened.status).toBe(VoiceStatus.IN_PROGRESS);
 
     // The rejected cycle no longer accepts a rating at all.
     await expect(
@@ -294,16 +294,10 @@ describe('Closure review window and auto-acceptance', () => {
       where: { id: voice.id },
       select: { version: true },
     });
-    const proceeded = await voices.proceed(
-      manager,
-      voice.id,
-      { version: reopened.version },
-      'cr-proceed-6',
-    );
     await voices.close(
       manager,
       voice.id,
-      { note: 'attempt two', version: proceeded.version },
+      { note: 'attempt two', version: reopened.version },
       'cr-close-6b',
     );
 

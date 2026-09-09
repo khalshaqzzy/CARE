@@ -85,3 +85,14 @@ This section is operational evidence only. It is not an automated test, deployme
 - [ ] Phase status was updated only from completed evidence.
 - [ ] Phase 13 may be marked `done` only after automatic deployment, hosted verification, critical journeys, persistence, ordering, and rollback rehearsal all pass.
 - [ ] Delivery Complete Gate remains open until production readiness and all PRD release criteria pass.
+
+## Monitored lifecycle coordinated release
+
+- [ ] Back up database and record pre-migration status/message/event/closure counts.
+- [ ] Stop old API workers and disable mutations during the maintenance window.
+- [ ] Apply `20260909100000_monitored_voice_lifecycle`; record affected count and verify no new notifications/messages were fabricated.
+- [ ] Deploy matching API, workforce and Admin artifacts; old backend is incompatible with renamed enum.
+- [ ] Verify OPEN → MONITORED → IN_PROGRESS with opening message, assignment and reopen on acceptance accounts.
+- [ ] Verify workforce update prompt, replaced aggregate cache, old `/ask` rejection, and no stale-client mutation bypass.
+- [ ] Confirm reporter acknowledgement/push outbox and assignment recipients without exposing Private identity.
+- [ ] Prefer forward correction; rollback requires coordinated application and database recovery, never old API against migrated schema.

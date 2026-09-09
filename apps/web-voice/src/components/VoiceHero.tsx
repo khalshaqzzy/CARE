@@ -100,6 +100,9 @@ export function VoiceHero({
         </div>
 
         <div className="voice-hero__card">
+          {voice.status === 'IN_PROGRESS' && reviewState === 'REJECTED' ? (
+            <span className="voice-reopened">Dibuka kembali</span>
+          ) : null}
           {closed ? (
             <>
               <div className="voice-hero__closedhead">

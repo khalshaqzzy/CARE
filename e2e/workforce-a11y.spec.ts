@@ -90,7 +90,7 @@ test.describe('workforce accessibility and responsive surface', () => {
             displayId: 'CARE-202608-000001',
             audience: 'REPORTER_SELF',
             visibility: 'PRIVATE',
-            status: 'IN_VERIFICATION',
+            status: 'IN_PROGRESS',
             area: 'KARAWANG_1',
             title: 'Keluhan fasilitas toilet',
             detail: 'Toilet lantai 2 tidak berfungsi sejak pagi.',
@@ -156,11 +156,11 @@ test.describe('workforce accessibility and responsive surface', () => {
           displayId: 'CARE-202608-000001',
           audience: 'GENERAL_RESPONDER',
           visibility: 'GENERAL',
-          status: 'IN_VERIFICATION',
+          status: 'IN_PROGRESS',
           area: 'KARAWANG_1',
           title: 'Pencahayaan area produksi kurang',
           detail: 'Lampu di stasiun 3 redup.',
-          availableActions: ['ASK', 'PROCEED'],
+          availableActions: ['PROCEED'],
         },
       },
     });
@@ -180,11 +180,11 @@ test.describe('workforce accessibility and responsive surface', () => {
           displayId: 'CARE-202608-000001',
           audience: 'GENERAL_RESPONDER',
           visibility: 'GENERAL',
-          status: 'IN_VERIFICATION',
+          status: 'IN_PROGRESS',
           area: 'KARAWANG_1',
           title: 'Pencahayaan area produksi kurang',
           detail: 'Lampu di stasiun 3 redup.',
-          availableActions: ['ASK', 'PROCEED'],
+          availableActions: ['PROCEED'],
         },
       },
     });
@@ -240,7 +240,7 @@ test.describe('workforce accessibility and responsive surface', () => {
               title: 'Laporan papan nama rusak',
               detail: 'Papan nama area shift 3 tergantung satu baut saja.',
               availableActions: session.capabilities.includes('UNION_HEAD')
-                ? ['ASK', 'PROCEED', 'ASSIGN', 'MESSAGE']
+                ? ['PROCEED', 'ASSIGN', 'MESSAGE']
                 : [],
             },
           },

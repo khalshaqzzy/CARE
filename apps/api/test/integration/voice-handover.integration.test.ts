@@ -371,7 +371,7 @@ describe('Manager Voice handover', () => {
         { targetCategoryId: categoryBId, detail: 'Concurrent handover', expectedVersion: 1 },
         'handover-race',
       ),
-      voices.proceed(managerA, competing.id, { version: 1 }, 'proceed-race'),
+      voices.monitor(managerA, competing.id, { version: 1 }, 'monitor-race'),
     ]);
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);

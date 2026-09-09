@@ -15,7 +15,7 @@ export const SEVERITY_LABELS: Record<string, string> = {
 
 export const STATUS_LABELS: Record<string, string> = {
   OPEN: 'Terbuka',
-  IN_VERIFICATION: 'Verifikasi',
+  MONITORED: 'Dimonitor',
   IN_PROGRESS: 'Diproses',
   CLOSED: 'Selesai',
 };
@@ -43,12 +43,12 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
 };
 
 export const ACTION_LABELS: Record<string, string> = {
-  ASK: 'Tanya Reporter',
-  PROCEED: 'Proses',
-  ASSIGN: 'Tugaskan',
-  REASSIGN: 'Alihkan',
+  MONITOR: 'Monitor Voice',
+  PROCEED: 'Proses Voice',
+  ASSIGN: 'Assign PIC',
+  REASSIGN: 'Ganti PIC',
   HANDOVER: 'Handover',
-  CLOSE: 'Tutup',
+  CLOSE: 'Selesaikan Voice',
   MESSAGE: 'Kirim Pesan',
   RATE: 'Beri Rating',
   REOPEN: 'Buka Kembali',
@@ -56,6 +56,7 @@ export const ACTION_LABELS: Record<string, string> = {
 
 export const VOICE_ACTION_LABELS: Record<string, string> = {
   SUBMITTED: 'Diajukan',
+  MONITORED: 'Dimonitor',
   ASKED_REPORTER: 'Menanyakan Reporter',
   MESSAGE_SENT: 'Pesan Terkirim',
   ASSIGNED: 'Ditugaskan',
@@ -78,8 +79,8 @@ export const CLOSURE_REVIEW_LABELS: Record<ClosureReviewState, string> = {
 
 /**
  * Status label that folds the closure review state into the four voice
- * statuses: a closed voice shows its review outcome, and a reopened voice
- * (latest cycle rejected) shows "Dibuka Kembali" instead of "Verifikasi".
+ * statuses: a closed voice shows its review outcome. Reopened voices retain
+ * Diproses as their primary status and display a separate contextual badge.
  */
 export function voiceStatusDisplay(status: string, closureReviewState?: string | null): string {
   if (status === 'CLOSED') {
@@ -87,7 +88,6 @@ export function voiceStatusDisplay(status: string, closureReviewState?: string |
       return CLOSURE_REVIEW_LABELS[closureReviewState];
     return STATUS_LABELS.CLOSED ?? 'Selesai';
   }
-  if (status === 'IN_VERIFICATION' && closureReviewState === 'REJECTED') return 'Dibuka Kembali';
   return STATUS_LABELS[status] ?? status;
 }
 
