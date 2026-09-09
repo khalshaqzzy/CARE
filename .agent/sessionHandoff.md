@@ -1,5 +1,29 @@
 # CARE Session Handoff
 
+## Caddy gRPC Trivy remediation — 9 September 2026
+
+Current branch is `staging` at merge `442e998a`. Hosted run `34322429686`
+passed `quality`, migrations, deployment scripts, secrets, dependency review and
+CodeQL; only the production-container job failed. Trivy 0.70.0 reported
+`CVE-2026-84445` High in the Caddy binary's embedded
+`google.golang.org/grpc v1.83.1`, with `v1.83.2` listed as the patched release.
+The release gate therefore failed and staging deployment was not started.
+
+`deploy/caddy/Dockerfile` now pins `google.golang.org/grpc v1.83.2` and its
+required `golang.org/x/net v0.58.0`. The scanner policy and `.trivyignore` are
+unchanged. The production Caddy image rebuilt from pinned bases, the binary
+reports Caddy `v2.11.4`, gRPC `v1.83.2`, and x/net `v0.58.0`, and its Caddyfile
+validates. Trivy 0.70.0 reports zero High/Critical findings for both the
+distroless Debian runtime and embedded Go binary.
+
+Additional affected validation passed: frozen pnpm install, format, lint,
+typecheck, runtime/deployment validation, security-exception validation, remote
+Compose config, Hadolint, and `git diff --check`. The macOS deployment harness
+again reported its documented lack of real `flock`, while all other harness
+checks passed; Linux hosted CI remains authoritative for contention. The live
+provider smoke used its documented manual fallback. User authorized a direct
+commit and push to `staging`; the replacement hosted run must be monitored.
+
 ## Organization dashboard CI transaction stabilization — 9 September 2026
 
 Current branch: `fix/dashboard-transaction-acquisition`, created from `staging`
