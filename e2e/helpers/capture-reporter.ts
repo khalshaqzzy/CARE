@@ -76,7 +76,7 @@ export default class CaptureReporter implements Reporter {
       await persistLocalGallery(
         directory,
         resolve('e2e/captures/local'),
-        this.tests.length === 128,
+        this.tests.length === 161,
       );
     }
   }

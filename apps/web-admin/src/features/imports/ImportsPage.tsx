@@ -43,6 +43,7 @@ type ChangeRow = {
   positionChanged?: boolean;
   organizationChanged?: boolean;
   nameChanged?: boolean;
+  birthDateChanged?: boolean;
 };
 
 function changeDetail(row: ChangeRow) {
@@ -50,6 +51,7 @@ function changeDetail(row: ChangeRow) {
   if (row.positionChanged) parts.push('posisi');
   if (row.organizationChanged) parts.push('organisasi');
   if (row.nameChanged) parts.push('nama');
+  if (row.birthDateChanged) parts.push('tanggal lahir');
   return parts.length ? parts.join(' • ') : '—';
 }
 
@@ -238,7 +240,9 @@ export function ImportsPage() {
           </h2>
           <p className="admin-card__subtitle">
             Unggah file .xlsx (sheet “MFG + QD”) atau .csv UTF-8, maksimal 10 MB. Header wajib:
-            Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section.
+            Noreg, Nama, Posisi (struktural), Birth Date (opsional), Directorat, Division,
+            Department, Section. Tanggal lahir teks menggunakan YYYY-MM-DD; tanggal Excel juga
+            didukung.
           </p>
           <FileUpload
             label="Unggah file organisasi"
@@ -300,6 +304,22 @@ export function ImportsPage() {
                   <dt>Total baris</dt>
                   <dd>{data.summary.rowCount.toLocaleString('id-ID')}</dd>
                 </div>
+                {data.summary.birthDates ? (
+                  <>
+                    <div>
+                      <dt>Tanggal lahir tersedia</dt>
+                      <dd>{data.summary.birthDates.available.toLocaleString('id-ID')}</dd>
+                    </div>
+                    <div>
+                      <dt>Tanggal lahir kosong</dt>
+                      <dd>{data.summary.birthDates.missing.toLocaleString('id-ID')}</dd>
+                    </div>
+                    <div>
+                      <dt>Usia di luar 15–80 tahun</dt>
+                      <dd>{data.summary.birthDates.ageAnomalies.toLocaleString('id-ID')}</dd>
+                    </div>
+                  </>
+                ) : null}
                 <div>
                   <dt>Checksum</dt>
                   <dd className="admin-id">{data.checksum.slice(0, 12)}…</dd>

@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import {
+  mockRecovery,
+  enterIdentifier,
+  chooseBirthDate,
+  assertContained,
+} from './helpers/auth-recovery';
 import { memberSession, mockWorkforceApi, PNG_MEDIA_SAMPLE } from './helpers/mock-api';
 
 const voice = {
@@ -164,7 +170,8 @@ test('iOS 11.3 renders the forced-password gate instead of a blank root', async 
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
-  await expect(page.getByLabel('Password saat ini')).toBeVisible();
+  await expect(page.getByLabel('Password saat ini')).toHaveCount(0);
+  await expect(page.getByLabel(/^Password baru/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Simpan password' })).toBeVisible();
 });
 
@@ -190,4 +197,20 @@ test('assignment sheet scrolls many candidates on legacy WebKit', async ({ page 
   await expect(
     dialog.locator('.care-dialog__footer').getByRole('button', { name: 'Tugaskan' }),
   ).toBeInViewport();
+});
+
+test('legacy WebKit opens password and birth-date recovery controls', async ({ page }) => {
+  await emulateLegacyApis(page);
+  const identifier = await mockRecovery(page);
+  await page.goto('/login');
+  await enterIdentifier(page, identifier);
+  await expect(page.getByRole('textbox', { name: 'Password', exact: true })).toBeFocused();
+  await page.getByRole('link', { name: 'Lupa Password?' }).click();
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await chooseBirthDate(page);
+  await assertContained(page);
+  await page.getByRole('button', { name: 'Reset password', exact: true }).click();
+  await expect(
+    page.getByText('Password anda sudah direset, silahkan login kembali.'),
+  ).toBeVisible();
 });

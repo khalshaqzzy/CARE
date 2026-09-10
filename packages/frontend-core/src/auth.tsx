@@ -23,6 +23,8 @@ type AuthContextValue = {
   error: FrontendError | null;
   transport: CareTransport;
   login: (username: string, password: string) => Promise<Session>;
+  startLogin: CareTransport['startLogin'];
+  clearAfterReset: () => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<Session | null>;
   deferPasswordChange: () => Promise<Session>;
@@ -85,6 +87,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [purge, queryClient, transport],
   );
 
+  const startLogin = useCallback(
+    async (noReg: string) => {
+      const result = await transport.startLogin(noReg);
+      if (result.next === 'CHANGE_PASSWORD') {
+        await purge();
+        queryClient.setQueryData(sessionQueryKey, result.session);
+        channelRef.current?.postMessage({ type: 'session-changed' });
+      }
+      return result;
+    },
+    [purge, queryClient, transport],
+  );
+
+  const clearAfterReset = useCallback(async () => {
+    transport.resetSecurityContext();
+    await clearLocalSession();
+    channelRef.current?.postMessage({ type: 'logout' });
+  }, [clearLocalSession, transport]);
+
   const logout = useCallback(async () => {
     const localCleanup = clearLocalSession();
     try {
@@ -115,11 +136,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error: sessionError instanceof FrontendError ? sessionError : null,
       transport,
       login,
+      startLogin,
+      clearAfterReset,
       logout,
       refresh,
       deferPasswordChange,
     }),
-    [deferPasswordChange, isLoading, login, logout, refresh, sessionData, sessionError, transport],
+    [
+      clearAfterReset,
+      deferPasswordChange,
+      isLoading,
+      login,
+      startLogin,
+      logout,
+      refresh,
+      sessionData,
+      sessionError,
+      transport,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

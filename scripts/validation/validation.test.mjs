@@ -134,8 +134,8 @@ test('actual CI browser partitions cover every test exactly once', { timeout: 12
   partitions.push(...inventory(browserProjects.fullstack, { FULLSTACK_E2E: '1' }));
   assert.equal(new Set(partitions).size, partitions.length, 'duplicate test in CI partitions');
   assert.deepEqual(partitions.sort(), all.sort(), 'missing CI test');
-  assert.equal(all.length, 315);
-  assert.equal(all.filter((name) => name.startsWith('visual:')).length, 128);
+  assert.equal(all.length, 361);
+  assert.equal(all.filter((name) => name.startsWith('visual:')).length, 161);
 });
 
 test('a successful visual test without a capture makes the real reporter fail', async () => {

@@ -1,5 +1,28 @@
 # CARE Session Handoff
 
+## Registration-first authentication and DOB recovery — 10 September 2026
+
+Current branch: `feat/vokasi-and-login-forget`. Implementation includes shared No. Reg-first workforce/Union login, restricted default-workforce entry, optional current password only for verified default sessions, DOB reset, nullable Employee birthDate migration, seven/eight-column imports, Admin preview summaries, OpenAPI/client/auth cache, and new functional/fullstack/native-capture scenarios. ADR-0048 records decisions and accepted identity-verification tradeoffs. Phase 13 remains the only in-progress phase.
+
+The source workbook was parsed read-only with the production parser: 7,418 unique rows, 7,018 birth dates, 400 TM members. Commit, push and a pull request from this feature branch to staging are authorized by the delivery follow-up. Operational import and deployment remain outside this task. Real PII remains outside Git.
+
+Validation completed locally using the pinned Node 22.23.2 and pnpm 11.8.0. `pnpm verify:local --plan` selected static, build, integration, organization, performance, migrations, fullstack, browser, legacy and capture. The broad invocation passed static/build, 90 integration tests, 14 security tests, 5 organization tests, 2 performance tests, migration checks and 6 fullstack tests. Its browser run passed 183 tests but found mobile grid recentering and an Axe check during reveal opacity; both were corrected without weakening assertions. Relevant checks were then rerun through shared jobs rather than repeating unrelated successful database suites.
+
+Final evidence:
+
+- `pnpm verify:ci static`: formatting/lint, unit suites, eight validation-orchestration tests, mocked provider contract and diff check passed. Final CSS/doc-only polish also passed focused formatting/diff checks.
+- `pnpm verify:ci build`: current OpenAPI, typecheck, production bundles and legacy PWA artifact gate passed after final UI edits.
+- Focused real PostgreSQL auth/import tests: 9/9, including reset racing with login/change, sibling-session revocation, DOB preservation/clearing and default/Union/TM boundaries.
+- Fullstack rerun: 6/6, including the new real-API reset → login → password-change journey. Final subsequent CSS-only DOB control sizing was covered by browser/legacy/capture checks.
+- Auth browser suite: 11/11 at 360/390/768/1440; Axe, keyboard, reduced motion, stable card position, unavailable/reset-error states, pending and offline handling passed. Other unchanged browser scenarios retain the 183-pass broad-run evidence.
+- Legacy WebKit: 6/6 after final CSS, including DOB recovery.
+- Native capture: 161/161 scenarios, 164 PNGs in the gallery, including 33 new auth references. Final recovery sizing/back-link polish regenerated the 18 affected recovery scenarios successfully. Representative mobile, tablet and desktop login/reset/default-password images were inspected; mobile date values now display completely.
+- Production parser read-only source check: 7,418 rows, all unique, 7,018 dates and 400 TM identifiers. Tests/captures use synthetic data only.
+
+Initial static failures were unused/test helper typing and the outdated browser inventory count; the CI completeness check now expects 361 tests/161 visual scenarios, and the capture reporter recognizes the expanded full set. An old initial-login capture assertion was updated from Masuk to Lanjutkan. No thresholds or behavioral checks were removed. Logs are `/tmp/care-vokasi-validation-3.log` and `/tmp/care-auth-*.log`.
+
+No hosted release gates, deployment or operational data import ran. The additive migration and workbook import still need application in the destination environment through normal deployment and preview/confirm. Agent-started Docker test stacks and browser/API servers were stopped; no process needs to remain running. Delivery follow-up authorizes commit/push and a PR to staging. Directory Gitleaks passed before commit; the commit scan and hosted PR checks follow during delivery.
+
 ## CI environment isolation correction — 10 September 2026
 
 Run 34436499848 at 50d4f56c passed every application/API/browser/capture/report,

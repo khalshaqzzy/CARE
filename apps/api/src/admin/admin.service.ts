@@ -536,6 +536,7 @@ export class AdminService {
         };
       },
       work: async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "UserAccount" WHERE "id" = ${id}::uuid FOR UPDATE`;
         const account = await tx.userAccount.findUnique({
           where: { id },
           include: { employee: { select: { noReg: true } } },

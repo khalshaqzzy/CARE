@@ -282,15 +282,17 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 
 - Username karyawan adalah `no_reg` dan unik.
 - Password awal sama dengan `no_reg`.
-- Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**
+- Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**, field **No. Reg**, helper **“Masukkan No. Reg atau username Anda.”**, dan tombol **Lanjutkan**. Form menerima identifier teks, termasuk TM dan username Union.
+- `POST /auth/login/start` memeriksa account kind, status, account flag, dan hash credential. Workforce aktif dengan credential default langsung mendapat sesi terbatas; workforce berpassword pribadi dan seluruh Union mendapat `PASSWORD_REQUIRED` tanpa sesi, lalu form Password dan **Lupa Password?** diperluas ke bawah.
+- Workforce default dapat mengganti password tanpa Password saat ini. Backend memverifikasi ulang status account dan sesi; sesi biasa serta Union tetap wajib menyertakan password saat ini. Tidak ada jalur atau opsi login Union terpisah.
 - Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`. Akun `WORKFORCE` dapat memilih **Lain kali** untuk membuka hanya sesi aktif; `UserAccount.passwordChangeRequired` tetap `true`, sehingga sesi baru kembali restricted sampai password benar-benar diganti. Sebelum change atau defer, hanya endpoint session, CSRF, logout, change password, dan workforce defer password yang dapat diakses.
 - Password baru memiliki panjang 6–128 karakter, tidak memiliki syarat simbol/huruf/angka, dan tidak boleh sama dengan username atau password sementara.
-- Helper form menggunakan copy **“Password minimal 6 karakter dan tidak boleh sama dengan username dan password sebelumnya”**. Alert kegagalan tetap berada di halaman dan membedakan konfirmasi yang tidak sama, password saat ini yang tidak sesuai, reuse, rate limit/offline, dan kegagalan umum tanpa menampilkan pesan backend mentah.
+- Helper workforce menggunakan copy **“Password minimal 6 karakter dan tidak boleh sama dengan No. Reg dan password sebelumnya”**; Union/Admin tetap memakai istilah username. Alert kegagalan tetap berada di halaman dan membedakan konfirmasi yang tidak sama, password saat ini yang tidak sesuai, reuse, rate limit/offline, dan kegagalan umum tanpa menampilkan pesan backend mentah.
 - Password disimpan dengan Argon2id; plaintext tidak pernah disimpan atau dicatat.
 
 ### 8.2 Union Login
 
-- Username ditentukan CARE Admin dan harus unik.
+- Username ditentukan CARE Admin dan harus unik; dimasukkan pada field No. Reg di halaman login bersama. Union selalu melewati tahap Password sebelum sesi dibuat.
 - Password awal sama dengan username dan wajib diganti saat login pertama.
 - Setiap Union account adalah account individual; credential dan session tidak dibagi.
 - Penggantian password hanya mencabut session lain milik account tersebut.
@@ -307,7 +309,11 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 8.4 Reset dan Deaktivasi
 
-- Hanya CARE Admin yang dapat reset password.
+- CARE Admin tetap dapat reset workforce/Union. Reset mandiri tambahan hanya untuk workforce aktif non-TM dengan Birth Date tersedia, melalui verifikasi No. Reg dan tanggal lahir pada `/forgot-password`.
+- TM dan Union tidak dapat reset mandiri; UI menampilkan **“Reset Password belum tersedia untuk akun Anda.”** tanpa pemilih DOB maupun tombol reset. Pembatasan TM ditegakkan server walaupun DOB kemudian tersedia.
+- Recovery memakai endpoint eligibility dan reset terpisah; reset selalu memeriksa ulang eligibility dan kecocokan DOB. Tidak ada nama atau tanggal lahir aktual pada respons publik.
+- Reset mandiri mengembalikan credential default normalized, mencabut seluruh sesi/push, mencatat audit tersanitasi, dan tidak membuat sesi. UI kembali ke login dengan pesan **“Password anda sudah direset, silahkan login kembali.”**, mempertahankan No. Reg di state memori, dan memerlukan klik Lanjutkan kembali.
+- Endpoint publik auth memakai origin validation, no-store, serta throttle IP/account; reset dibatasi 5 percobaan per akun dan 30 per IP per 15 menit. Credential mutation/session creation memakai account row lock. DOB bukan faktor kepemilikan; risiko akses No. Reg saja dan recovery berbasis data pribadi dicatat di ADR-0048.
 - Reset karyawan/Manager/Section Head menetapkan password sementara ke `no_reg`; reset Union menetapkan ke username.
 - Reset mencabut seluruh session dan mewajibkan change password berikutnya.
 - Deaktivasi mencabut session dan memblokir login baru.
@@ -328,7 +334,7 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 9.1 Authoritative Organization File Contract
 
-Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format memakai tujuh header persis dengan urutan berikut:
+Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format menerima tujuh header legacy berikut, atau delapan header dengan `Birth Date` tepat setelah `Posisi (struktural)`:
 
 ```text
 Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
@@ -337,12 +343,13 @@ Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
 Aturan:
 
 - satu row merepresentasikan satu workforce account; `Noreg` diperlakukan sebagai text agar leading zero terjaga;
-- seluruh field wajib ada; kolom kedelapan, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak;
-- XLSX mewajibkan seluruh cell data berupa plain string atau blank; numeric/formula/date/rich-value ditolak. CSV mengikuti RFC-style quoting, menerima UTF-8 BOM, dan seluruh nilai diperlakukan sebagai text;
+- Header wajib sesuai salah satu format yang didukung; kolom tambahan lainnya, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak. Section kosong tetap didukung; tidak dibuat Section sintetis.
+- XLSX memakai plain string atau blank, kecuali Birth Date yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. DOB teks wajib `YYYY-MM-DD`, valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. Format tujuh kolom mempertahankan DOB existing; format delapan kolom memperbarui DOB termasuk blank menjadi null.
 - `Noreg` unik setelah trim; password existing tidak berubah akibat import;
 - organization unit memakai key komposit `Directorat + Division + Department`;
 - posisi mentah disimpan, tetapi hanya `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability;
 - nilai `Department = 14` tidak dianggap route General yang sah; user tersebut hanya dapat submit Private sampai source data berubah;
+- Workbook September yang diperiksa berisi 7.418 anggota unik: 7.018 numerik dengan DOB dan 400 TM tanpa DOB/Section, semuanya tetap memakai role existing. Tanggal sumber tidak dikoreksi otomatis; preview menghitung tersedia/kosong/anomali usia di luar 15–80 tahun tanpa menampilkan DOB aktual. Perubahan DOB dihitung sebagai update.
 - workbook Agustus baseline berisi 7.018 row, 38 Department Head, 250 Section Head, 4 Division Head, 8 Deputy/acting Division Head, 1 Director, dan 188 row dengan `Department = 14`;
 - terdapat 12 department bernama tanpa Department Head dan membutuhkan default PIC mapping sebelum General Voice department tersebut dapat disubmit.
 
@@ -913,7 +920,7 @@ tidak mempunyai Voice Saya.
 
 | Entity                  | Tanggung jawab utama                                                             |
 | ----------------------- | -------------------------------------------------------------------------------- |
-| Employee                | no.reg, nama, structural position raw, active state                              |
+| Employee                | no.reg, nama, nullable birth date, structural position raw, active state         |
 | OrganizationSnapshot    | effective-dated Directorat/Division/Department/Section row per import            |
 | OrganizationUnit        | composite Directorat+Division+Department identity                                |
 | UserAccount             | username, password hash, account kind, password-change/legacy state              |
@@ -1703,7 +1710,7 @@ Minimum journeys:
 
 ### 34.1 Identity, Organization, dan Provisioning
 
-- [ ] Satu upload `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; preview/confirm/history/audit tidak menyimpan raw production PII di Git.
+- [ ] Satu upload `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header legacy atau delapan header dengan Birth Date; XLSX memakai sheet `MFG + QD`; preview/confirm/history/audit tidak menyimpan raw production PII di Git.
 - [ ] Preview memperlihatkan create/update/deactivate, perubahan posisi/unit, route gap, mapping PIC invalid, dan Union account gap; confirm berlaku atomik.
 - [ ] Leading-zero no.reg dipertahankan dan monthly snapshot menonaktifkan account yang hilang serta mencabut session-nya.
 - [ ] Capability diturunkan dari posisi struktural dan route assignment tanpa menghilangkan capability Member.
@@ -1819,7 +1826,7 @@ Adoption, average verification time, average closure time, reopen rate, rating d
 - native iOS/Android app;
 - offline draft/mutation queue/background sync;
 - PDF, Office, video, audio, GIF, HEIC, atau arbitrary document attachment;
-- self-service password reset, email/OTP;
+- email/OTP recovery; reset mandiri berbasis DOB sudah termasuk scope sesuai §8.4;
 - SSO/SAML/OIDC, MFA, SCIM;
 - AI analysis terhadap foto/chat/identity;
 - AI auto-response atau automatic closure;
@@ -1895,7 +1902,7 @@ V1 siap production bila:
 
 - Workforce PWA dan Admin React app adalah dua frontend/deployment terpisah dengan satu backend dan generated OpenAPI client bersama.
 - Lima area tetap.
-- Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
+- Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header legacy atau delapan header dengan Birth Date; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
 - Workforce master diimpor melalui Admin UI dan tidak disimpan di Git; tiga akun Union dikelola Admin di luar workbook.
 - First login/reset memakai username/no.reg sebagai temporary password dan wajib change.
 - Akun `WORKFORCE` boleh menunda change password untuk sesi aktif melalui **Lain kali**; account flag dan sesi lain tidak berubah, sehingga prompt kembali pada login berikutnya. Union dan CARE Admin tidak dapat menunda.
