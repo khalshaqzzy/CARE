@@ -1,3 +1,4 @@
+import { capture } from './helpers/capture';
 import { expect, test } from '@playwright/test';
 import { mockWorkforceApi, memberSession, unionSession, baseVoiceItem } from './helpers/mock-api';
 import { dashboardFixture } from './helpers/dashboard-fixture';
@@ -95,9 +96,9 @@ for (const width of [360, 768, 1440])
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
         .toBe(true);
-      await expect(page).toHaveScreenshot(
-        `dashboard-${scenario.id}-${width}-${visualPlatform}.png`,
-        { fullPage: true, animations: 'disabled', maxDiffPixelRatio: 0.01 },
-      );
+      await capture(page, `dashboard-${scenario.id}-${width}-${visualPlatform}.png`, {
+        fullPage: true,
+        animations: 'disabled',
+      });
     });
   }

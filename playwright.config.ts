@@ -12,11 +12,12 @@ export default defineConfig({
   fullyParallel: true,
   // The gated fullstack project mutates one shared disposable database across
   // several spec files; a single worker guarantees deterministic ordering.
-  workers: isFullStack ? 1 : undefined,
+  workers: isFullStack ? 1 : process.env.CI ? 2 : undefined,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
-  snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}{ext}',
+  reporter: process.env.CI
+    ? [['github'], ['blob'], ['./e2e/helpers/capture-reporter.ts']]
+    : [['list'], ['./e2e/helpers/capture-reporter.ts']],
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',

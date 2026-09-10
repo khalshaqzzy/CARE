@@ -25,7 +25,7 @@
     "test:performance": "pnpm --filter @care/api test:performance",
     "test": "pnpm test:unit",
     "openapi:generate": "pnpm --filter @care/api openapi:generate && pnpm --filter @care/contracts generate",
-    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- apps/api/openapi.json packages/contracts/src/generated.ts",
+    "openapi:check": "node scripts/validation/generated-contract.mjs",
     "db:up": "docker compose up -d postgres",
     "db:wait": "node scripts/db-wait.mjs",
     "db:verify": "docker compose exec -T postgres psql -U care -d care -c 'SELECT version();' -c 'SELECT extname FROM pg_extension WHERE extname = $$vector$$;'",
@@ -50,7 +50,13 @@
     "local:up": "bash deploy/scripts/local-stack.sh up",
     "local:down": "bash deploy/scripts/local-stack.sh down",
     "local:status": "bash deploy/scripts/local-stack.sh status",
-    "local:logs": "bash deploy/scripts/local-stack.sh logs"
+    "local:logs": "bash deploy/scripts/local-stack.sh logs",
+    "verify:local": "node scripts/validation/run.mjs local",
+    "verify:full": "node scripts/validation/run.mjs full",
+    "verify:ci": "node scripts/validation/run.mjs ci",
+    "verify:repro": "node scripts/validation/run.mjs repro",
+    "visual:capture": "node scripts/validation/run.mjs ci capture",
+    "test:validation": "node --test scripts/validation/*.test.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

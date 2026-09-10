@@ -1,13 +1,13 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                              |
-| Last updated           | 9 September 2026 (Caddy gRPC Trivy remediation)                                                                                                                                                                                                                          |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                     |
-| Current implementation | The production Caddy binary pins patched gRPC v1.83.2 and required x/net v0.58.0 after hosted Trivy detected CVE-2026-84445 in v1.83.1; local rebuild, binary inspection, Caddy validation, and Trivy High/Critical scanning pass. Hosted staging acceptance is pending. |
-| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                         |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                            |
+| Atribut                | Nilai                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                              |
+| Last updated           | 10 September 2026 (shared validation and native capture)                                                                                                                                                 |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                     |
+| Current implementation | Shared local/CI validation and parallel application jobs implemented locally; native capture references tracked, CI galleries stored as artifacts. Hosted verification of this refactor remains pending. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                         |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                            |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
@@ -1018,3 +1018,18 @@ Fresh/upgrade PostgreSQL, concurrency/privacy tests, generated contracts, fullst
 and repeated Darwin/Linux x64 visual checks passed. The unchanged dependency
 lockfile has five High audit findings, so the complete release gate is not green.
 Actual checks are recorded in sessionHandoff.md. Hosted acceptance remains open.
+
+## Shared validation and native capture — 10 September 2026
+
+Implemented locally under accepted ADR-0047: scoped native validation with shared
+CI task definitions; isolated CI application jobs and browser/capture shards;
+verified build artifacts; merged report/gallery artifacts; fail-closed release gate.
+Native capture references remain tracked with readable filenames in
+`e2e/captures/local/`; CI Linux images remain Actions artifacts. Pixel comparison
+and repeated Darwin/Linux baseline validation are retired; all existing non-pixel
+assertions are retained. Rules §4.2 and PRD §31.2 now use this contract.
+
+Phase 13 remains `in_progress`; no commit/push or new hosted delivery is claimed.
+Native application suites and orchestration contracts pass; exact results and
+remaining hosted verification are in sessionHandoff.md. Further cache/container,
+browser-image and deployment optimizations remain deferred.

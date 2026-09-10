@@ -77,3 +77,10 @@ counts, inactive-handler fallback and closure races. Browser tests cover respons
 progress, required form, navigation and accessibility. Darwin and Linux x64 screenshot
 baselines are verified separately. Actual command results are recorded in the session
 handoff. Hosted release acceptance is separate from local implementation validation.
+
+## Visual validation amendment — 10 September 2026
+
+ADR-0047 supersedes platform baseline generation and repeated no-update comparison
+requirements in this record. Native screenshots and CI gallery artifacts are used
+for inspection; existing functional, accessibility and layout assertions remain
+required. Historical validation results above are retained as evidence of those runs.

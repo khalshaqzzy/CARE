@@ -3,7 +3,20 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', '**/generated.ts'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/generated.ts',
+      '**/playwright-report/**',
+      '**/test-results/**',
+      '**/visual-output/**',
+      '**/blob-report/**',
+      '**/all-blob-reports/**',
+      '**/all-captures/**',
+    ],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

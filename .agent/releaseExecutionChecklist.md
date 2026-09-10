@@ -96,3 +96,17 @@ This section is operational evidence only. It is not an automated test, deployme
 - [ ] Verify workforce update prompt, replaced aggregate cache, old `/ask` rejection, and no stale-client mutation bypass.
 - [ ] Confirm reporter acknowledgement/push outbox and assignment recipients without exposing Private identity.
 - [ ] Prefer forward correction; rollback requires coordinated application and database recovery, never old API against migrated schema.
+
+## Validation execution contract — ADR-0047
+
+Local validation uses scoped native `verify:local`, with `verify:full` optional for
+broad application changes. Full local replay of unchanged container/security/hosted
+gates is no longer mandatory before every commit. Record scoped evidence honestly;
+only the exact candidate's hosted Release candidate gate authorizes automated
+staging delivery. Every existing hosted test/security category remains required,
+except pixel comparisons intentionally replaced with capture inspection artifacts.
+Inspect relevant native captures once; CI gallery/report artifacts are retained for
+30 days. No Linux x64 local baseline generation or repeated screenshot comparisons.
+Build artifacts consumed by browser/fullstack must match source SHA and content.
+The gate rejects failed, cancelled or skipped jobs. Deployment behavior, locks,
+rollback, scanner thresholds and manual-only Web Push canary remain unchanged.

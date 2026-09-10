@@ -1,3 +1,4 @@
+import { capture } from './helpers/capture';
 import { visualPlatform } from './helpers/visual-platform';
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -245,10 +246,7 @@ test('workforce history visual at 360', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/history');
   await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
-  await expect(page).toHaveScreenshot(
-    `workforce-history-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-history-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce notifications visual at 360', async ({ page }) => {
@@ -258,10 +256,8 @@ test('workforce notifications visual at 360', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/notifications');
   await expect(page.getByRole('heading', { name: 'Pusat notifikasi' })).toBeVisible();
-  await expect(page).toHaveScreenshot(`workforce-notifications-360-${visualPlatform}.png`, {
+  await capture(page, `workforce-notifications-360-${visualPlatform}.png`, {
     animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
   });
 });
 
@@ -277,10 +273,8 @@ test('workforce manager dashboard visual at 1440', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-manager-dashboard-1440.png', {
+  await capture(page, 'workforce-manager-dashboard-1440.png', {
     animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
   });
 });
 
@@ -296,10 +290,8 @@ test('workforce Voice Member workspace visual at 1440', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Voice Member' })).toBeVisible();
-  await expect(page).toHaveScreenshot(`workforce-voice-member-1440-${visualPlatform}.png`, {
+  await capture(page, `workforce-voice-member-1440-${visualPlatform}.png`, {
     animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
   });
 });
 
@@ -309,10 +301,8 @@ test('workforce account visual at 360', async ({ page }) => {
   await mockWorkforceApi(page, {});
   await page.goto('/account');
   await expect(page.getByRole('heading', { name: 'Pengaturan akun' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-account-360.png', {
+  await capture(page, 'workforce-account-360.png', {
     animations: 'disabled',
-    threshold: 0.25,
-    maxDiffPixelRatio: 0.06,
   });
 });
 
@@ -332,10 +322,7 @@ test('workforce active conversation visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot(
-    `workforce-conversation-active-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-conversation-active-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 // Baselines for the redesigned Voice detail (screens 13–14): an active voice
@@ -360,10 +347,7 @@ test('workforce detail active visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: voice.title })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot(
-    `workforce-detail-active-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-detail-active-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce detail closed rating visual at 360', async ({ page }) => {
@@ -405,10 +389,7 @@ test('workforce detail closed rating visual at 360', async ({ page }) => {
     element.scrollIntoView();
   });
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot(
-    `workforce-detail-closed-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-detail-closed-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 // The auto-accepted variant: the review window expired unrated, so the rating
@@ -449,14 +430,9 @@ test('workforce detail closed auto-accepted visual at 360', async ({ page }) => 
     element.scrollIntoView();
   });
   await page.waitForTimeout(100);
-  await expect(page).toHaveScreenshot(
-    `workforce-detail-closed-auto-accepted-360-${visualPlatform}.png`,
-    {
-      animations: 'disabled',
-      threshold: 0.25,
-      maxDiffPixelRatio: 0.06,
-    },
-  );
+  await capture(page, `workforce-detail-closed-auto-accepted-360-${visualPlatform}.png`, {
+    animations: 'disabled',
+  });
 });
 
 // Baseline for the in-page attachment viewer (lightbox): opened from the
@@ -484,10 +460,7 @@ test('workforce lightbox visual at 360', async ({ page }) => {
   await page.getByRole('button', { name: 'Lihat gambar 1 dari 3' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(450);
-  await expect(page).toHaveScreenshot(
-    `workforce-lightbox-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-lightbox-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce union private inbox visual at 1440', async ({ page }) => {
@@ -513,12 +486,10 @@ test('workforce union private inbox visual at 1440', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
-  await expect(page).toHaveScreenshot(`workforce-union-private-1440-${visualPlatform}.png`, {
+  await capture(page, `workforce-union-private-1440-${visualPlatform}.png`, {
     animations: 'disabled',
-    threshold: 0.25,
     // Font rasterization differs between macOS (CoreText) and Linux CI
     // (FreeType); the same tolerance rationale as the other baselines.
-    maxDiffPixelRatio: 0.06,
   });
 });
 
@@ -538,10 +509,7 @@ test('workforce manager home visual at 360', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-manager-home-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-manager-home-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce Voice Member inbox visual at 360', async ({ page }) => {
@@ -557,10 +525,7 @@ test('workforce Voice Member inbox visual at 360', async ({ page }) => {
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Voice Member' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-voice-member-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-voice-member-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce leadership home visual at 360', async ({ page }) => {
@@ -576,10 +541,7 @@ test('workforce leadership home visual at 360', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Leadership · Read-only')).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-leadership-home-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-leadership-home-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce union home visual at 360', async ({ page }) => {
@@ -607,10 +569,7 @@ test('workforce union home visual at 360', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-union-home-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-union-home-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce union private inbox visual at 360', async ({ page }) => {
@@ -637,10 +596,7 @@ test('workforce union private inbox visual at 360', async ({ page }) => {
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-union-private-inbox-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-union-private-inbox-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce union general overview visual at 360', async ({ page }) => {
@@ -666,10 +622,7 @@ test('workforce union general overview visual at 360', async ({ page }) => {
   await page.goto('/general');
   await expect(page.getByRole('heading', { name: 'Tinjauan General' })).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-union-general-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-union-general-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce union identified detail visual at 360', async ({ page }) => {
@@ -696,10 +649,7 @@ test('workforce union identified detail visual at 360', async ({ page }) => {
   // The name renders in both the hero chip and the reporter card.
   await expect(page.getByText('Sari Wulandari').first()).toBeVisible();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot(
-    `workforce-union-identified-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-union-identified-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce close sheet visual at 360', async ({ page }) => {
@@ -720,10 +670,7 @@ test('workforce close sheet visual at 360', async ({ page }) => {
   await page.getByRole('button', { name: 'Selesaikan Voice', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(450);
-  await expect(page).toHaveScreenshot(
-    `workforce-close-sheet-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-close-sheet-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 test('workforce assign sheet visual at 360', async ({ page }) => {
@@ -753,10 +700,7 @@ test('workforce assign sheet visual at 360', async ({ page }) => {
   await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(450);
-  await expect(page).toHaveScreenshot(
-    `workforce-assign-sheet-360-${visualPlatform}.png`,
-    screenshotOptions,
-  );
+  await capture(page, `workforce-assign-sheet-360-${visualPlatform}.png`, screenshotOptions);
 });
 
 // Baselines for the redesigned auth and Create Voice surfaces (ADR-0022).
@@ -765,10 +709,8 @@ test('workforce assign sheet visual at 360', async ({ page }) => {
 
 const screenshotOptions = {
   animations: 'disabled',
-  threshold: 0.25,
   // Font rasterization differs between macOS (CoreText) and Linux CI
   // (FreeType); the same tolerance rationale as the other baselines.
-  maxDiffPixelRatio: 0.06,
 } as const;
 
 const fallbackClassification = {
@@ -817,7 +759,7 @@ test('workforce login visual at 360', async ({ page }) => {
   await mockWorkforceApi(page, { unauthenticated: true });
   await page.goto('/login');
   await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-login-360.png', screenshotOptions);
+  await capture(page, 'workforce-login-360.png', screenshotOptions);
 });
 
 test('workforce password change visual at 360', async ({ page }) => {
@@ -828,7 +770,7 @@ test('workforce password change visual at 360', async ({ page }) => {
   });
   await page.goto('/change-password');
   await expect(page.getByRole('button', { name: 'Simpan password' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-password-change-360.png', screenshotOptions);
+  await capture(page, 'workforce-password-change-360.png', screenshotOptions);
 });
 
 test('workforce password deferral action visual at 360', async ({ page }) => {
@@ -839,7 +781,7 @@ test('workforce password deferral action visual at 360', async ({ page }) => {
   });
   await page.goto('/change-password');
   await page.getByRole('button', { name: 'Lain kali' }).scrollIntoViewIfNeeded();
-  await expect(page).toHaveScreenshot('workforce-password-defer-360.png', screenshotOptions);
+  await capture(page, 'workforce-password-defer-360.png', screenshotOptions);
 });
 
 test('workforce create voice type visual at 360', async ({ page }) => {
@@ -848,7 +790,7 @@ test('workforce create voice type visual at 360', async ({ page }) => {
   await mockWorkforceApi(page, {});
   await page.goto('/voices/new');
   await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-create-type-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-type-360.png', screenshotOptions);
 });
 
 test('workforce create area sheet visual at 360', async ({ page }) => {
@@ -856,7 +798,7 @@ test('workforce create area sheet visual at 360', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockWorkforceApi(page, {});
   await openGeneralAreaSheet(page);
-  await expect(page).toHaveScreenshot('workforce-create-area-sheet-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-area-sheet-360.png', screenshotOptions);
 });
 
 test('workforce create general form visual at 360', async ({ page }) => {
@@ -872,7 +814,7 @@ test('workforce create general form visual at 360', async ({ page }) => {
     detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi kerja.',
   });
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-create-general-form-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-general-form-360.png', screenshotOptions);
 });
 
 test('workforce create empty location visual at 360', async ({ page }) => {
@@ -883,7 +825,7 @@ test('workforce create empty location visual at 360', async ({ page }) => {
   await page.getByRole('radio', { name: 'Karawang 1' }).click();
   await page.waitForTimeout(450);
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-create-empty-location-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-empty-location-360.png', screenshotOptions);
 });
 
 test('workforce create composer visual at 360', async ({ page }) => {
@@ -894,7 +836,7 @@ test('workforce create composer visual at 360', async ({ page }) => {
   await page.getByRole('radio', { name: 'Karawang 1' }).click();
   await page.waitForTimeout(450);
   await page.getByRole('region', { name: 'Isi Voice' }).scrollIntoViewIfNeeded();
-  await expect(page).toHaveScreenshot('workforce-create-composer-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-composer-360.png', screenshotOptions);
 });
 
 test('workforce create processing visual at 360', async ({ page }) => {
@@ -943,7 +885,7 @@ test('workforce create processing visual at 360', async ({ page }) => {
   await expect(page.getByText('Menganalisis Voice Anda')).toBeVisible();
   await page.waitForTimeout(300);
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-create-processing-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-processing-360.png', screenshotOptions);
 });
 
 test('workforce create fallback visual at 360', async ({ page }) => {
@@ -965,7 +907,7 @@ test('workforce create fallback visual at 360', async ({ page }) => {
   await page.getByRole('radio', { name: /Safety/ }).click();
   await page.getByRole('radio', { name: /^High/ }).click();
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-create-fallback-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-fallback-360.png', screenshotOptions);
 });
 
 test('workforce create review general visual at 360', async ({ page }) => {
@@ -985,7 +927,7 @@ test('workforce create review general visual at 360', async ({ page }) => {
     timeout: 15000,
   });
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-create-review-general-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-review-general-360.png', screenshotOptions);
 });
 
 test('workforce create private form visual at 360', async ({ page }) => {
@@ -1007,7 +949,7 @@ test('workforce create private form visual at 360', async ({ page }) => {
     detail: 'Sandaran kursi patah dan berisiko menyebabkan ketidaknyamanan.',
   });
   await page.getByRole('radio', { name: /Sembunyikan identitas/ }).click();
-  await expect(page).toHaveScreenshot('workforce-create-private-form-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-private-form-360.png', screenshotOptions);
 });
 
 test('workforce create review private visual at 360', async ({ page }) => {
@@ -1040,7 +982,7 @@ test('workforce create review private visual at 360', async ({ page }) => {
     timeout: 15000,
   });
   await scrollToTop(page);
-  await expect(page).toHaveScreenshot('workforce-create-review-private-360.png', screenshotOptions);
+  await capture(page, 'workforce-create-review-private-360.png', screenshotOptions);
 });
 
 for (const viewport of [
@@ -1056,7 +998,7 @@ for (const viewport of [
     await page.getByRole('button', { name: 'Kirim Voice' }).click();
     await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
     await page.mouse.move(0, 0);
-    await expect(page).toHaveScreenshot(`workforce-submit-success-${viewport.width}.png`, {
+    await capture(page, `workforce-submit-success-${viewport.width}.png`, {
       ...screenshotOptions,
       fullPage: true,
     });
@@ -1128,11 +1070,9 @@ for (const viewport of [
     await page
       .getByRole('textbox', { name: /Detail handover/ })
       .fill('Mohon lanjutkan verifikasi kondisi pada department reporter.');
-    await expect(page).toHaveScreenshot(`workforce-handover-${viewport.width}.png`, {
+    await capture(page, `workforce-handover-${viewport.width}.png`, {
       fullPage: true,
       animations: 'disabled',
-      threshold: 0.25,
-      maxDiffPixelRatio: 0.06,
     });
   });
 }

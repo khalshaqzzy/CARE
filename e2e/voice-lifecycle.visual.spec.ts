@@ -1,3 +1,4 @@
+import { capture } from './helpers/capture';
 import { expect, test } from '@playwright/test';
 import { memberSession, mockWorkforceApi } from './helpers/mock-api';
 import { visualPlatform } from './helpers/visual-platform';
@@ -58,10 +59,10 @@ for (const width of [360, 768, 1440]) {
             'Tim maintenance akan memeriksa sambungan listrik dan mengganti lampu yang bermasalah pada shift pagi.',
           );
       }
-      await expect(page).toHaveScreenshot(
-        `lifecycle-${state.toLowerCase()}-${width}-${visualPlatform}.png`,
-        { animations: 'disabled', fullPage: true },
-      );
+      await capture(page, `lifecycle-${state.toLowerCase()}-${width}-${visualPlatform}.png`, {
+        animations: 'disabled',
+        fullPage: true,
+      });
     });
   }
 }

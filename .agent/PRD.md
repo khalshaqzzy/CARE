@@ -1552,7 +1552,11 @@ Repository rule menetapkan commit default hanya ke `staging` kecuali branch lain
 - actionlint, ShellCheck, Hadolint, `bash -n`;
 - `git diff --check`.
 
-Exact commands dan pinned versions wajib direkonsiliasi dengan `.github/workflows/*` ketika workflow dibuat/diubah. `.agent/rules.md` adalah minimum local parity contract.
+Exact commands dan pinned versions wajib direkonsiliasi dengan `.github/workflows/*` ketika workflow dibuat/diubah. ADR-0047 dan `.agent/rules.md` menetapkan shared validation contract: local checks
+bersifat scoped dan native, sedangkan exact-SHA hosted release gate tetap lengkap.
+Screenshot merupakan capture untuk inspeksi manusia dan Actions artifact, bukan
+perbandingan piksel lintas platform. Assertion perilaku, aksesibilitas dan layout
+tetap menjadi gate.
 
 ### 31.3 Release Mechanics
 

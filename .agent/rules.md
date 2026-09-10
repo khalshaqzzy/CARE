@@ -71,130 +71,110 @@ origins through Caddy, and preserves its Docker-managed PostgreSQL volume across
 `local:down`. Do not source `.env.local` in shell code or connect frontend code
 directly to its database.
 
-## 4.2 Mandatory Local GitHub Actions Parity Checks
+## 4.2 Shared Local Validation and Hosted Release Gates
 
-Before creating any commit, future agents must inspect every workflow under `.github/workflows/`
-that is triggered by the target branch and run its relevant checks locally. A previous successful
-local command is not evidence when generated files or build output from an earlier run may still
-exist.
+ADR-0047 replaces unconditional full GitHub Actions replay before every commit.
+The current task definitions live in `scripts/validation/run.mjs`; CI and local
+commands must call those definitions instead of maintaining duplicate checklists.
+A scoped local pass is development evidence, not proof that every hosted gate ran.
+The exact candidate SHA's `Release candidate gate` remains authoritative for release.
 
-Required behavior:
+### Normal development
 
-- use the repository-pinned Node.js and pnpm versions;
-- run `pnpm install --frozen-lockfile`;
-- begin from a clean-artifact state or a temporary clean Git worktree so ignored generated output
-  cannot hide a missing generation/build dependency;
-- execute the workflow commands in the same order and with the same required environment variables
-  as GitHub Actions;
-- run database checks against the Docker-managed disposable test database and always stop the
-  Compose stack afterward;
-- run the same secret scanner used by CI. When the GitHub Action supplies Gitleaks, run the matching
-  Gitleaks version locally, preferably through a pinned Docker image;
-- never silence a scanner broadly. A false-positive exception must identify the exact finding,
-  explain why it is safe, and preserve scanning for the rest of the file/repository;
-- the exact ignored root `.env` and the ignored root `.env.local` (the local
-  full-stack runner secret store, mode `0600`) may be excluded from directory
-  scanning because they are local runtime secret stores generated mode `0600`;
-  `.env.example`, nested files, imports, and all other repository paths remain scanned;
-- record the exact commands and results in `.agent/sessionHandoff.md`;
-- do not commit while any local CI-equivalent check is failing.
+- Use the pinned Node 22.23.2 and pnpm 11.8.0. Run `pnpm install --frozen-lockfile`
+  on initial setup or when package manifests, lockfile or toolchain changes.
+- Run `pnpm verify:local --plan` to inspect the conservative selection, then
+  `pnpm verify:local`. Optional `--base=<ref>` includes committed changes since the
+  merge base, plus staged, unstaged and untracked changes. With no base, selection
+  covers the current working-tree changes; this is not evidence for earlier commits.
+- Unknown/shared/configuration changes expand scope. Documentation-only work runs
+  formatting and diff checks. Frontend changes include browser, legacy WebKit,
+  capture and fullstack; backend/shared changes expand to application validation.
+- Run the relevant commands once against final relevant inputs. After changes,
+  rerun affected checks only. Already completed unchanged checks need not be repeated
+  just to follow a second checklist. The runner deduplicates prerequisites within
+  one invocation; it does not cache successful test results across invocations.
+- `pnpm verify:full` is optional complete native application validation for broad
+  changes. It is not a local recreation of CodeQL, runtime-image scanning or hosted
+  deployment. Do not run it routinely after `verify:local` already covered the work.
+- `pnpm verify:ci <job>` runs an individual shared job. Job names: `static`, `build`,
+  `integration`, `organization`, `performance`, `migrations`, `browser`, `legacy`,
+  `capture`, `fullstack`. Browser arguments such as `--shard=1/2` are forwarded.
+- `pnpm verify:repro <job>` requires an already provisioned Linux shell with pinned
+  tools, browser/psql dependencies and an isolated test database as applicable.
+  Linux reproduction is reserved for relevant platform behavior or actual CI failures;
+  do not create an emulated x64 environment for routine macOS visual inspection.
+- Local broad runs start the Docker PostgreSQL test stack, reset `care_test` between
+  database suites and stop the stack in cleanup. They refuse to take over an existing
+  developer PostgreSQL. Never point validation at a development/production database.
+- Individual database jobs need the safe test environment used by `ci.yml`, including
+  `NODE_ENV=test`, disposable `DATABASE_URL`, session/CSRF/auth/cursor test values,
+  `RELEASE_SHA=ci` and `OUTBOX_ENABLED=false`. Do not print runtime secrets.
 
-The current baseline is:
+### Visual inspection
 
-```text
-pnpm install --frozen-lockfile
-pnpm db:generate
-pnpm audit --audit-level high
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test:unit
-pnpm migrations:destructive-check
-pnpm openapi:check
-pnpm build
-pnpm pwa:compat-check
-pnpm exec playwright install --with-deps chromium webkit
-pnpm test:frontend:e2e
-docker compose config --quiet
-pnpm db:up
-pnpm db:wait
-pnpm db:verify
-pnpm db:test:reset
-pnpm db:test:migrate
-NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
-  SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
-  AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
-  OUTBOX_ENABLED=false pnpm test:integration
-NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
-  SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
-  AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
-  OUTBOX_ENABLED=false pnpm test:security
-NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm seed:performance
-NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm test:performance
-NODE_ENV=test DATABASE_URL=<disposable-test-url> <same-safe-test-config> pnpm maintenance:reconcile
-FULLSTACK_E2E=1 NODE_ENV=test DATABASE_URL=<disposable-test-url> RELEASE_SHA=ci \
-  SESSION_HASH_SECRET=<safe-test-value> SESSION_CSRF_SECRET=<safe-test-value> \
-  AUTH_THROTTLE_SECRET=<safe-test-value> CURSOR_SIGNING_SECRET=<safe-test-value> \
-  OUTBOX_ENABLED=false pnpm exec playwright test --project=fullstack
-# The gated fullstack project seeds the Admin e2e baseline automatically via its
-# Playwright globalSetup (`pnpm --filter @care/api seed:admin:e2e`), so no
-# explicit seeding step is required before that command.
-docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.24.3 \
-  dir /repo --config=/repo/.gitleaks.toml --redact --verbose
-git diff --check
-pnpm db:down
-```
+- `pnpm visual:capture` captures all visual scenarios using the current native
+  browser. To limit scope, append a spec path or `--grep=<scenario>`.
+- Capture consumes a verified current application build. Run `pnpm verify:ci build`
+  after relevant source changes; a stale/missing build manifest is an error.
+- Inspect relevant PNGs and the offline HTML gallery in tracked `e2e/captures/local/`.
+  Successful native captures update these repository references automatically;
+  partial runs preserve unaffected scenarios. `visual-output/` remains ignored
+  temporary output. CI never updates the tracked native references.
+  Generate once after final relevant UI changes. No baseline comparison, Linux x64
+  local generation, delete-first baseline ritual, or repeated no-update runs remain.
+- Keep every non-pixel interaction/assertion, accessibility, keyboard, overflow,
+  responsive, PWA and legacy WebKit check. Pixel regression detection is intentionally
+  retired; screenshots are human review evidence and cannot prove behavior alone.
+- CI captures Linux images and uploads gallery/manifests/merged reports as Actions
+  artifacts with 30-day retention. No generated screenshot commits are permitted.
+- Default `test:frontend:e2e` already includes capture scenarios. Never follow it
+  with a redundant full capture run unless screenshots or relevant source changed.
 
-Production containerization and staging deployment are active. The baseline above is extended by
-the following required checks:
+### Before commit and after push
 
-```text
-pnpm migrations:destructive-check <staging-base-sha>
-pnpm deployment:validate
-pnpm test:deployment
-pnpm security:exceptions:check
-pnpm security:audit
-docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
-docker run --rm -v "$PWD:/repo" -w /repo koalaman/shellcheck-alpine:v0.11.0@sha256:9955be09ea7f0dbf7ae942ac1f2094355bb30d96fffba0ec09f5432207544002 shellcheck deploy/scripts/*.sh deploy/tests/*.sh
-for file in apps/api/Dockerfile apps/web-voice/Dockerfile apps/web-admin/Dockerfile deploy/postgres/Dockerfile deploy/caddy/Dockerfile inference/Dockerfile; do docker run --rm -i hadolint/hadolint:v2.14.0-alpine@sha256:7aba693c1442eb31c0b015c129697cb3b6cb7da589d85c7562f9deb435a6657c < "$file"; done
-INFERENCE_API_KEY=ci-validation-key-not-a-secret docker compose -f inference/docker-compose.yml config --quiet
-python3 -m py_compile inference/scripts/live_smoke.py
-find deploy -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-docker run --rm -v "$PWD:/repo:ro" ubuntu:22.04@sha256:0e0a0fc6d18feda9db1590da249ac93e8d5abfea8f4c3c0c849ce512b5ef8982 bash /repo/deploy/scripts/bootstrap-vm.sh --check staging care-deploy "<valid-test-public-key>" 22
-fresh and previous-SHA-to-current `prisma migrate deploy` plus `prisma migrate status`
-the exact production Compose build/start/routing/non-root/persistence sequence from `.github/workflows/ci.yml`
-Trivy filesystem plus API, workforce, Admin, PostgreSQL, and Caddy runtime images at HIGH,CRITICAL
-```
-
-The deployment-script harness must run on Linux before commit so real `flock` contention is tested;
-a macOS run that reports `flock` unavailable is supplemental only. Trivy must use the committed
-exact ignore file, and every ignore entry must have a rationale and future expiry in
-`.agent/securityExceptions.json`.
-
-The real Web Push canary is implemented but explicitly excluded from automated tests, CI,
-deployment smoke, and the automatic staging gate. It may only be invoked manually against the
-enrolled staging subscription according to `.agent/deploymentGuide.md`. The live DeepSeek Chat Completions
-classification/location operation remains part of automatic staging deployment.
-
-The directory-mode Gitleaks command is the mandatory pre-commit scan because it includes
-uncommitted files. After committing and before pushing, also mirror the current GitHub Action
-commit scan:
+- Inspect changed workflow/task definitions and run relevant shared/focused checks.
+  Workflow changes require Actionlint and validation orchestration tests. Deployment
+  or Docker changes require the relevant validators and platform checks; unchanged
+  runtime-image builds/scans do not have to be repeated locally.
+- Do not commit while a relevant local check is failing. Record selected commands,
+  results, intentionally unrun hosted-only gates and limitations in sessionHandoff.md.
+- Run directory Gitleaks before committing, including uncommitted files:
 
 ```text
 docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.24.3 \
-  detect --source=/repo --config=/repo/.gitleaks.toml --redact --verbose --log-opts=-1
+  dir /repo --config=/repo/.gitleaks.toml --redact
 ```
 
-If `.github/workflows/` changes, this list must be reconciled in the same change rather than assumed
-to remain complete.
+- Never silence a scanner broadly. Exceptions must identify the exact finding,
+  rationale and expiry. Only ignored root `.env` and mode-0600 `.env.local` are
+  excluded local secret stores; `.env.example` and other repository files remain scanned.
+- After an authorized commit and before push, mirror the commit scan with the same
+  image using `detect --source=/repo --config=/repo/.gitleaks.toml --redact --log-opts=-1`.
+- After an authorized push, inspect `gh run list --branch <branch>` and
+  `gh run view <id> --json jobs` / `--log-failed`. Do not report delivery successful
+  until all required hosted jobs pass. Reproduce failures specifically; avoid
+  repeating unrelated unchanged validation.
 
-After pushing:
+### Hosted contract
 
-1. inspect the new run with `gh run list --branch <branch>`;
-2. use `gh run view <run-id> --json jobs` and `gh run view <run-id> --log-failed`;
-3. do not report the delivery as successful until all required jobs are green;
-4. if a job fails, reproduce it locally, fix the root cause, rerun all affected local checks, then
-   commit and push the correction.
+Every current push/PR trigger retains full application/security/deployment coverage:
+static/unit/provider contract, build/typecheck/OpenAPI/PWA, browser/capture shards,
+legacy WebKit, isolated integration/import/performance/fullstack jobs, data-upgrade
+harnesses, fresh and previous-SHA migration, deployment-script tests, CodeQL,
+Gitleaks, dependency review/audit and production containers/Trivy. All child results
+must succeed; failure, cancellation or unexpected skip cannot pass the release gate.
+No path-based CI skips or threshold changes are authorized by this policy.
+
+Performance thresholds are measured on the hosted runner with its isolated database;
+a fast native Mac result cannot guarantee equivalent timing. Real Linux flock,
+native runtime images and current vulnerability feeds remain hosted obligations.
+Keep Trivy policy and expiring exact exceptions intact. Real Web Push canary remains
+manual-only. Provider smoke retains its existing advisory deployment policy.
+
+Do not cancel an in-flight deployment to save CI time. Only obsolete PR validation
+is automatically cancelled. Preserve deploy freshness checks, locks and rollback.
+Future workflow changes must update this contract and ADR-0047 together.
 
 ## 5. When To Update `.agent`
 
