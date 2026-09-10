@@ -245,7 +245,7 @@
 }
 .auth-form {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 .auth-submit {
   width: 100%;
@@ -6083,31 +6083,33 @@
   opacity: 0;
   overflow: hidden;
   transition:
-    height 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 180ms ease;
+    height 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms ease;
 }
 .auth-reveal__content {
   display: grid;
-  gap: var(--space-4);
-  padding: 3px;
+  gap: var(--space-2);
 }
 .auth-step-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-2);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
 }
 .auth-step-heading button {
-  min-height: 44px;
+  min-height: 2.25rem;
+  padding-block: 0;
+  font-size: var(--font-size-sm);
   color: var(--color-brand, #0866ff);
 }
 .auth-forgot {
   justify-self: end;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 2.25rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-brand, #0866ff);
   text-decoration: none;
@@ -6148,7 +6150,7 @@
 }
 .auth-date-fields {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-2);
 }
 .auth-date-fields select {
@@ -6169,7 +6171,7 @@
 }
 @media (max-width: 479px) {
   .auth-date-fields {
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     row-gap: var(--space-4);
   }
   .auth-date-fields > :last-child {

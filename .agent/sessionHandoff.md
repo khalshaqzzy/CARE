@@ -1,5 +1,29 @@
 # CARE Session Handoff
 
+## Authentication identifier editing and recovery refinement — 10 September 2026
+
+Current branch: `staging`. Resolved the reported defect where tapping **Ubah No. Reg** on the workforce login (and the recovery page) focused the No. Reg field but the software keyboard never appeared on iOS/Safari. The handler focused the input synchronously while React had not yet committed `readOnly={false}`, so Safari saw a read-only field and suppressed the keyboard and did not re-evaluate after the attribute was removed. Both handlers (`apps/web-voice/src/App.tsx`, `apps/web-voice/src/features/auth/ForgotPasswordPage.tsx`) now import `flushSync` from `react-dom` and commit the stage collapse before focusing, keeping the field's `readOnly` lock otherwise intact. ADR-0049 records the decision.
+
+The same task applied the product-owner presentation decisions:
+
+- Removed the step-heading captions beside **Ubah No. Reg** ("Password akun" on login; "Verifikasi akun" and "Ketersediaan reset" on recovery); the control is now right-aligned.
+- Made **Ubah No. Reg** and **Lupa Password?** compact (36 px, smaller type) and tightened the expanded stage's internal and surrounding gaps. This is an explicitly approved lower-than-44 px exception, now recorded in PRD §22.2; §8.1 documents the editable-and-focused identifier behaviour.
+- Doubled the shared reveal animation for a smoother feel: height 480 ms, opacity 360 ms, settle 520 ms (`AuthReveal.tsx`); reduced motion stays instant.
+- Balanced the birth-date columns so the "Tanggal" label no longer clips and the month control is shorter: equal day/month/year fractions on the 3-column layout and equal day/month on the sub-480 px layout.
+
+Changed files: `apps/web-voice/src/App.tsx`, `apps/web-voice/src/features/auth/ForgotPasswordPage.tsx`, `apps/web-voice/src/features/auth/AuthReveal.tsx`, `apps/web-voice/src/styles.css`, `e2e/auth-recovery.spec.ts`, `scripts/validation/validation.test.mjs` (inventory 361→362), all 33 tracked auth captures plus `e2e/captures/local/index.html` and `manifest.json`, `docs/adr/0049-authentication-identifier-editing-and-recovery-refinement.md`, `.agent/PRD.md`, `.agent/implementationPhases.md`, and this handoff.
+
+Validation completed locally with the pinned Node 22.23.2 / pnpm 11.8.0:
+
+- `pnpm verify:ci build`: OpenAPI check, typecheck, production bundles and the PWA compatibility artifact gate passed (main gzip 142443 bytes).
+- Focused `e2e/auth-recovery.spec.ts` (chromium): 12/12, including the new regression that asserts the identifier is editable after both **Ubah No. Reg** controls, that the removed captions are absent, and that the day column is at least as wide as the month column.
+- `pnpm verify:ci browser`: 189/189 (Chromium, PWA, push). `pnpm verify:ci legacy`: 6/6 (legacy WebKit, including recovery controls).
+- `pnpm verify:ci fullstack`: 6/6 on a fresh Docker `care_test` database, including the real reset → login → password-change journey.
+- `pnpm verify:ci static`: format, lint, unit suites, validation orchestration (9 tests, inventory now 362), mocked provider smoke and `git diff --check` passed.
+- `pnpm visual:capture e2e/auth-recovery.visual.spec.ts`: 33/33 auth references regenerated (all auth states shifted because the `.auth-form` gap changed). Representative 360/768/1440 login-password, reset-date, and reset-tm images were inspected: no captions, right-aligned control, "Tanggal" no longer clipped, equal date columns.
+
+The Docker test PostgreSQL stack was stopped with `pnpm db:down`; no application server, preview server, or test process remains. No hosted run, deployment, or operational data import was performed. Delivery (commit/push/PR) requires explicit authorization.
+
 ## Hosted capture merge correction — 10 September 2026
 
 PR #42 run 34442936372 at 61134fd8 passed all application, API, browser/capture shards, fullstack, migration, production container and security jobs. Browser report merging alone failed because merge-captures.mjs retained the old expected count 128 while 161 scenarios were produced; the release gate correctly rejected that report failure.

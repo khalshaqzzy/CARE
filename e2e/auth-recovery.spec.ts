@@ -40,6 +40,33 @@ for (const width of [360, 390, 768, 1440]) {
     await assertContained(page);
   });
 }
+test('Ubah No. Reg restores editing and the date row keeps Tanggal visible', async ({ page }) => {
+  await mockRecovery(page);
+  await page.goto('/login');
+  await enterIdentifier(page, '00123456');
+  // The removed step heading must not reappear next to the control.
+  await expect(page.getByText('Password akun', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ubah No. Reg' }).click();
+  await expect(page.getByLabel('No. Reg')).toBeEditable();
+  await expect(page.getByLabel('No. Reg')).toBeFocused();
+  await page.getByLabel('No. Reg').fill('00999999');
+  await expect(page.getByLabel('No. Reg')).toHaveValue('00999999');
+
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await page.getByRole('link', { name: 'Lupa Password?' }).click();
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await expect(page.getByText('Verifikasi akun', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Ketersediaan reset', { exact: true })).toHaveCount(0);
+  await chooseBirthDate(page);
+  // Tanggal must be at least as wide as Bulan so its label never clips.
+  const dayBox = (await page.getByLabel('Tanggal', { exact: true }).boundingBox())!;
+  const monthBox = (await page.getByLabel('Bulan', { exact: true }).boundingBox())!;
+  expect(dayBox.width).toBeGreaterThanOrEqual(monthBox.width - 1);
+  await page.getByRole('button', { name: 'Ubah No. Reg' }).click();
+  await expect(page.getByLabel('No. Reg')).toBeEditable();
+  await expect(page.getByLabel('No. Reg')).toBeFocused();
+});
+
 for (const options of [{ tm: true }, { union: true }]) {
   test(`unavailable recovery ${options.tm ? 'TM' : 'Union'}`, async ({ page }) => {
     const identifier = await mockRecovery(page, options);

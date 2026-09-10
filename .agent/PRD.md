@@ -283,7 +283,7 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 - Username karyawan adalah `no_reg` dan unik.
 - Password awal sama dengan `no_reg`.
 - Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**, field **No. Reg**, helper **“Masukkan No. Reg atau username Anda.”**, dan tombol **Lanjutkan**. Form menerima identifier teks, termasuk TM dan username Union.
-- `POST /auth/login/start` memeriksa account kind, status, account flag, dan hash credential. Workforce aktif dengan credential default langsung mendapat sesi terbatas; workforce berpassword pribadi dan seluruh Union mendapat `PASSWORD_REQUIRED` tanpa sesi, lalu form Password dan **Lupa Password?** diperluas ke bawah.
+- `POST /auth/login/start` memeriksa account kind, status, account flag, dan hash credential. Workforce aktif dengan credential default langsung mendapat sesi terbatas; workforce berpassword pribadi dan seluruh Union mendapat `PASSWORD_REQUIRED` tanpa sesi, lalu form Password dan **Lupa Password?** diperluas ke bawah. Selama tahap Password aktif, field No. Reg terkunci; kontrol **Ubah No. Reg** mengembalikannya ke kondisi dapat diedit dan memfokuskannya dalam gesture yang sama sehingga keyboard perangkat tetap muncul.
 - Workforce default dapat mengganti password tanpa Password saat ini. Backend memverifikasi ulang status account dan sesi; sesi biasa serta Union tetap wajib menyertakan password saat ini. Tidak ada jalur atau opsi login Union terpisah.
 - Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`. Akun `WORKFORCE` dapat memilih **Lain kali** untuk membuka hanya sesi aktif; `UserAccount.passwordChangeRequired` tetap `true`, sehingga sesi baru kembali restricted sampai password benar-benar diganti. Sebelum change atau defer, hanya endpoint session, CSRF, logout, change password, dan workforce defer password yang dapat diakses.
 - Password baru memiliki panjang 6–128 karakter, tidak memiliki syarat simbol/huruf/angka, dan tidak boleh sama dengan username atau password sementara.
@@ -1106,7 +1106,12 @@ Penggunaan optional identity field tunggal untuk semua role tidak diterima karen
 - primary action tetap terlihat dan tidak terpotong oleh browser/PWA safe area;
 - mobile dialog kompleks menggunakan full-screen sheet;
 - table desktop memiliki mobile card representation;
-- minimum touch target 44×44 px.
+- minimum touch target 44×44 px, dengan satu pengecualian yang disetujui
+  produk: kontrol teks sekunder pada halaman autentikasi workforce
+  (**Ubah No. Reg** dan **Lupa Password?**) dirender lebih ringkas di bawah
+  44 px untuk memadatkan langkah login/recovery. Kontrol tersebut tetap
+  memiliki label programatik, area klik, dan focus-visible; pengecualian
+  tidak berlaku bagi kontrol utama maupun elemen lain.
 
 ### 22.3 Accessibility
 

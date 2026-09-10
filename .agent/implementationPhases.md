@@ -3,7 +3,7 @@
 | Atribut                | Nilai                                                                                                                                                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                              |
-| Last updated           | 10 September 2026 (shared validation and native capture)                                                                                                                                                 |
+| Last updated           | 10 September 2026 (authentication identifier editing and recovery refinement)                                                                                                                            |
 | Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                     |
 | Current implementation | Shared local/CI validation and parallel application jobs implemented locally; native capture references tracked, CI galleries stored as artifacts. Hosted verification of this refactor remains pending. |
 | Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                         |
@@ -12,6 +12,14 @@
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
+
+## Authentication identifier editing and recovery refinement — 10 September 2026
+
+Phase 13 remains `in_progress`; no second phase is opened. ADR-0049 resolves the Safari/iOS defect where **Ubah No. Reg** focused the identifier while it was still read-only and therefore did not raise the keyboard. Both the login and recovery handlers now commit their state through `flushSync` before focusing, so the field is editable inside the same user gesture.
+
+The same change records the product-owner presentation decisions: the "Password akun", "Verifikasi akun", and "Ketersediaan reset" captions are removed and **Ubah No. Reg** is right-aligned; **Ubah No. Reg** and **Lupa Password?** render compactly at 36 px, an explicitly approved lower-than-44 px exception now documented in PRD §22.2; the shared reveal animation doubles to 480 ms height / 360 ms opacity with a 520 ms settle; and the birth-date day/month/year columns share equal fractions (including the sub-480 px layout) so the "Tanggal" label no longer clips. Display-layer plus interaction-ordering only; no schema, serializer, or OpenAPI change (`openapi:check` byte-stable).
+
+The CI browser inventory now expects 362 tests.
 
 ## Hosted capture inventory correction — 10 September 2026
 

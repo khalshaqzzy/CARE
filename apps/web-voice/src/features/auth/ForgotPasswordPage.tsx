@@ -2,6 +2,7 @@ import { useAuth } from '@care/frontend-core';
 import { Alert, Button, Card, Input, NativeSelect, Stack } from '@care/ui';
 import { ArrowLeft, ArrowRight, CalendarDays, LockKeyhole, Shield, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthReveal } from './AuthReveal';
 import { authFailureMessage } from './messages';
@@ -76,11 +77,15 @@ export function ForgotPasswordPage() {
   }
   function editIdentifier() {
     version.current += 1;
-    setEligible(null);
-    setDay('');
-    setMonth('');
-    setYear('');
-    setError('');
+    // Commit the reset before focusing so the identifier is editable when the
+    // focus lands; iOS/Safari will not raise the keyboard on a read-only field.
+    flushSync(() => {
+      setEligible(null);
+      setDay('');
+      setMonth('');
+      setYear('');
+      setError('');
+    });
     identifierRef.current?.focus();
   }
   return (
@@ -129,7 +134,6 @@ export function ForgotPasswordPage() {
             />
             {eligible !== null ? (
               <div className="auth-step-heading">
-                <span>{eligible ? 'Verifikasi akun' : 'Ketersediaan reset'}</span>
                 <Button type="button" variant="ghost" disabled={pending} onClick={editIdentifier}>
                   Ubah No. Reg
                 </Button>

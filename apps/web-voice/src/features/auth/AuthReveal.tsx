@@ -18,7 +18,7 @@ export function AuthReveal({ open, children }: { open: boolean; children: ReactN
             .querySelector<HTMLInputElement | HTMLSelectElement>('input, select')
             ?.focus({ preventScroll: true });
         },
-        reduced ? 0 : 260,
+        reduced ? 0 : 520,
       );
     });
     return () => {

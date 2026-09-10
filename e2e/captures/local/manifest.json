@@ -1,5 +1,5 @@
 {
-  "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+  "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
   "dirty": true,
   "platform": "darwin-arm64",
   "browser": "chromium",
@@ -307,7 +307,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -328,7 +328,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -349,7 +349,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -370,7 +370,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -382,7 +382,7 @@
           "file": "auth-login-password-360.png",
           "name": "auth-login-password-360.png",
           "width": 360,
-          "height": 947
+          "height": 901
         }
       ],
       "metadata": [
@@ -391,7 +391,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -412,7 +412,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -433,7 +433,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -445,7 +445,7 @@
           "file": "auth-login-union-360.png",
           "name": "auth-login-union-360.png",
           "width": 360,
-          "height": 947
+          "height": 901
         }
       ],
       "metadata": [
@@ -454,7 +454,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -475,7 +475,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -496,7 +496,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -517,7 +517,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -538,7 +538,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -559,7 +559,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -580,7 +580,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -601,7 +601,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -622,7 +622,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -634,7 +634,7 @@
           "file": "auth-reset-date-360.png",
           "name": "auth-reset-date-360.png",
           "width": 360,
-          "height": 1034
+          "height": 1008
         }
       ],
       "metadata": [
@@ -643,7 +643,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -655,7 +655,7 @@
           "file": "auth-reset-date-768.png",
           "name": "auth-reset-date-768.png",
           "width": 768,
-          "height": 1023
+          "height": 997
         }
       ],
       "metadata": [
@@ -664,7 +664,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -685,7 +685,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -697,7 +697,7 @@
           "file": "auth-reset-error-360.png",
           "name": "auth-reset-error-360.png",
           "width": 360,
-          "height": 1195
+          "height": 1169
         }
       ],
       "metadata": [
@@ -706,7 +706,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -718,7 +718,7 @@
           "file": "auth-reset-error-768.png",
           "name": "auth-reset-error-768.png",
           "width": 768,
-          "height": 1135
+          "height": 1109
         }
       ],
       "metadata": [
@@ -727,7 +727,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -748,7 +748,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -769,7 +769,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -790,7 +790,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -811,7 +811,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -832,7 +832,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -853,7 +853,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -874,7 +874,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -895,7 +895,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -916,7 +916,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -937,7 +937,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -958,7 +958,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {
@@ -979,7 +979,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
       "platform": "darwin-arm64"
     },
     {

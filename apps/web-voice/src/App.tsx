@@ -35,6 +35,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { AuthReveal } from './features/auth/AuthReveal';
@@ -251,16 +252,20 @@ function LoginPage() {
             />
             <AuthReveal open={expanded}>
               <div className="auth-step-heading">
-                <span>Password akun</span>
                 <Button
                   type="button"
                   variant="ghost"
                   disabled={pending}
                   onClick={() => {
                     requestVersion.current += 1;
-                    setExpanded(false);
-                    setPassword('');
-                    setError('');
+                    // Commit the collapse before focusing so the field is no
+                    // longer read-only; iOS/Safari only raises the keyboard
+                    // when an editable input is focused inside the gesture.
+                    flushSync(() => {
+                      setExpanded(false);
+                      setPassword('');
+                      setError('');
+                    });
                     inputRef.current?.focus();
                   }}
                 >
