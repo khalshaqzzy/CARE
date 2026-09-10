@@ -1033,3 +1033,12 @@ Phase 13 remains `in_progress`; no commit/push or new hosted delivery is claimed
 Native application suites and orchestration contracts pass; exact results and
 remaining hosted verification are in sessionHandoff.md. Further cache/container,
 browser-image and deployment optimizations remain deferred.
+
+### CI environment boundary correction — 10 September 2026
+
+The first split-workflow run passed application, API, browser/capture and report
+jobs. Container release validation failed because global test RELEASE_SHA overrode
+the Compose fixture. Test environment is now limited to application jobs, with a
+regression contract and verified fixture image tags. Phase 13 remains in progress;
+replacement hosted verification is not inferred and monitoring is excluded for
+this corrective delivery.

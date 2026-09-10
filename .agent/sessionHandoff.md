@@ -1,5 +1,28 @@
 # CARE Session Handoff
 
+## CI environment isolation correction — 10 September 2026
+
+Run 34436499848 at 50d4f56c passed every application/API/browser/capture/report,
+migration, static and security job that ran. Production containers failed the first
+release.json identity assertion: workflow-global RELEASE_SHA=ci overrode the
+zero-SHA fixture in the Compose env file. The first jq comparison returned false.
+This was environment leakage introduced by the validation split, not an app or
+screenshot failure. Later container checks/scans did not run after that failure.
+
+Test environment variables now exist only on quality, build, API matrix, browser
+matrix and fullstack jobs. Production containers retain their fixture environment;
+other security/deployment jobs no longer inherit test credentials or NODE_ENV.
+A regression contract verifies that test variables cannot become workflow-global
+or override container fixtures. Compose resolution confirms all three app images
+use the expected zero-SHA tag. Eight orchestration tests, lint, formatting,
+Actionlint and diff checks pass. Existing hosted application evidence is reused;
+no unrelated application or visual suites are repeated locally.
+
+Corrective commit/push follows the existing delivery authorization. Do not monitor
+the replacement hosted run after pushing, per the delivery instruction. No runtime
+stack was started for this correction; Compose config and ephemeral scanner/linter
+containers only. ADR-0047 records the environment-boundary requirement.
+
 ## Shared validation and native capture implementation — 10 September 2026
 
 Implemented locally on `staging`, starting at `fb55191c6e3358d2a8fc60c1499069bf1560b8d6`.

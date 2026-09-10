@@ -15,18 +15,17 @@ concurrency:
   group: care-ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  NODE_ENV: test
-  DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_test
-  RELEASE_SHA: ci
-  SESSION_HASH_SECRET: ci-session-hash-secret-32-characters
-  SESSION_CSRF_SECRET: ci-session-csrf-secret-32-characters
-  AUTH_THROTTLE_SECRET: ci-auth-throttle-secret-32-characters
-  CURSOR_SIGNING_SECRET: dddddddddddddddddddddddddddddddd
-  OUTBOX_ENABLED: 'false'
-
 jobs:
   quality:
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_test
+      RELEASE_SHA: ci
+      SESSION_HASH_SECRET: ci-session-hash-secret-32-characters
+      SESSION_CSRF_SECRET: ci-session-csrf-secret-32-characters
+      AUTH_THROTTLE_SECRET: ci-auth-throttle-secret-32-characters
+      CURSOR_SIGNING_SECRET: dddddddddddddddddddddddddddddddd
+      OUTBOX_ENABLED: 'false'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -35,6 +34,15 @@ jobs:
       - run: pnpm verify:ci static
 
   build:
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_test
+      RELEASE_SHA: ci
+      SESSION_HASH_SECRET: ci-session-hash-secret-32-characters
+      SESSION_CSRF_SECRET: ci-session-csrf-secret-32-characters
+      AUTH_THROTTLE_SECRET: ci-auth-throttle-secret-32-characters
+      CURSOR_SIGNING_SECRET: dddddddddddddddddddddddddddddddd
+      OUTBOX_ENABLED: 'false'
     name: Application build and contracts
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -55,6 +63,15 @@ jobs:
           retention-days: 1
 
   api-tests:
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_test
+      RELEASE_SHA: ci
+      SESSION_HASH_SECRET: ci-session-hash-secret-32-characters
+      SESSION_CSRF_SECRET: ci-session-csrf-secret-32-characters
+      AUTH_THROTTLE_SECRET: ci-auth-throttle-secret-32-characters
+      CURSOR_SIGNING_SECRET: dddddddddddddddddddddddddddddddd
+      OUTBOX_ENABLED: 'false'
     name: API (${{ matrix.suite }})
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -83,6 +100,15 @@ jobs:
         run: docker compose config --quiet
 
   browser:
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_test
+      RELEASE_SHA: ci
+      SESSION_HASH_SECRET: ci-session-hash-secret-32-characters
+      SESSION_CSRF_SECRET: ci-session-csrf-secret-32-characters
+      AUTH_THROTTLE_SECRET: ci-auth-throttle-secret-32-characters
+      CURSOR_SIGNING_SECRET: dddddddddddddddddddddddddddddddd
+      OUTBOX_ENABLED: 'false'
     name: Browser (${{ matrix.suite }} ${{ matrix.shard }})
     needs: build
     runs-on: ubuntu-22.04
@@ -120,6 +146,15 @@ jobs:
           retention-days: 30
 
   fullstack:
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://care:care_ci@localhost:5432/care_test
+      RELEASE_SHA: ci
+      SESSION_HASH_SECRET: ci-session-hash-secret-32-characters
+      SESSION_CSRF_SECRET: ci-session-csrf-secret-32-characters
+      AUTH_THROTTLE_SECRET: ci-auth-throttle-secret-32-characters
+      CURSOR_SIGNING_SECRET: dddddddddddddddddddddddddddddddd
+      OUTBOX_ENABLED: 'false'
     name: Fullstack journeys
     needs: build
     runs-on: ubuntu-22.04

@@ -215,3 +215,19 @@ test('generated contracts compare with working inputs and detect generation drif
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('application test environment cannot override production Compose fixtures', () => {
+  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
+  assert.doesNotMatch(
+    workflow.split('\njobs:')[0],
+    /^env:/m,
+    'test variables must not be workflow-global',
+  );
+  for (const name of ['quality', 'build', 'api-tests', 'browser', 'fullstack']) {
+    const body = workflow.split(`\n  ${name}:\n`)[1]?.split(/\n {2}[a-z][a-z-]*:\n/)[0];
+    assert.ok(body, `missing job ${name}`);
+    assert.match(body, / {6}RELEASE_SHA: ci/);
+  }
+  const containers = workflow.split('\n  containers:\n')[1].split(/\n {2}[a-z][a-z-]*:\n/)[0];
+  assert.doesNotMatch(containers, / {6}(RELEASE_SHA|DATABASE_URL|NODE_ENV):/);
+});

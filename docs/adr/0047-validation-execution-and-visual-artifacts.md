@@ -321,3 +321,13 @@ unchanged. Validation evidence and runtime cleanup are recorded in sessionHandof
 - [GitHub workflow artifacts](https://docs.github.com/en/actions/tutorials/store-and-share-data): build/report transfer and retention.
 - [Docker cache management in Actions](https://docs.docker.com/build/ci/github-actions/cache/): persistent BuildKit caches.
 - [GitHub token behavior](https://docs.github.com/en/actions/concepts/security/github_token): workflow-generated pushes do not act like ordinary developer pushes.
+
+## CI environment isolation correction — 10 September 2026
+
+The first hosted split run passed all application and capture jobs but failed the
+container release-identity check. Workflow-global `RELEASE_SHA=ci` took precedence
+over the production Compose fixture's zero SHA. Application test environment is
+therefore scoped exclusively to the five application job definitions. No test
+DATABASE_URL, NODE_ENV or signing values are inherited by container/deployment jobs.
+The zero-SHA fixture and production assertions remain unchanged. Regression tests
+check the boundary; Compose resolution and Actionlint verify the corrected graph.
