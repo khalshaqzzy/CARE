@@ -275,7 +275,7 @@ test.describe('workforce accessibility and responsive surface', () => {
     expect(await axe(page)).toEqual([]);
     await page.evaluate(() => document.body.focus());
     await page.keyboard.press('Tab');
-    await expect(page.getByRole('textbox', { name: 'Username' })).toBeFocused();
+    await expect(page.getByRole('textbox', { name: 'No. Reg' })).toBeFocused();
   });
 
   test('password deferral stays accessible and contained across viewports', async ({ page }) => {

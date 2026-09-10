@@ -42,7 +42,15 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
                   : { type: 'string' },
           });
-      if (method !== 'get' && path !== '/api/v1/auth/login') {
+      if (
+        method !== 'get' &&
+        ![
+          '/api/v1/auth/login',
+          '/api/v1/auth/login/start',
+          '/api/v1/auth/password-reset/eligibility',
+          '/api/v1/auth/password-reset',
+        ].includes(path)
+      ) {
         addHeader(operation, 'X-CSRF-Token', true, 'Session-bound CSRF token');
       }
       if (
@@ -329,6 +337,9 @@ function successSchema(operationId: string) {
     AdminCategoriesController_status: 'GeneralVoiceCategoryAdmin',
     AuthController_changePassword: 'SuccessResponse',
     AuthController_deferPasswordChange: 'SessionResponse',
+    AuthController_startLogin: 'LoginStartResponse',
+    AuthController_resetEligibility: 'ResetEligibilityResponse',
+    AuthController_resetPassword: 'SuccessResponse',
     AuthController_logout: 'SuccessResponse',
     ImportsController_changes: 'OrganizationChangeList',
     ImportsController_confirm: 'ImportQueuedResponse',
@@ -933,7 +944,7 @@ const schemas: Record<string, any> = {
   },
   ChangePasswordRequest: {
     type: 'object',
-    required: ['currentPassword', 'newPassword'],
+    required: ['newPassword'],
     additionalProperties: false,
     properties: {
       currentPassword: { type: 'string', format: 'password' },
@@ -1088,6 +1099,31 @@ const schemas: Record<string, any> = {
     properties: { releaseSha: { type: 'string' }, service: { type: 'string', enum: ['care-api'] } },
   },
   CsrfToken: { type: 'object', required: ['token'], properties: { token: { type: 'string' } } },
+  LoginStartResponse: {
+    oneOf: [
+      {
+        type: 'object',
+        required: ['next'],
+        additionalProperties: false,
+        properties: { next: { type: 'string', enum: ['PASSWORD_REQUIRED'] } },
+      },
+      {
+        type: 'object',
+        required: ['next', 'session'],
+        additionalProperties: false,
+        properties: {
+          next: { type: 'string', enum: ['CHANGE_PASSWORD'] },
+          session: { $ref: '#/components/schemas/LoginResponse' },
+        },
+      },
+    ],
+  },
+  ResetEligibilityResponse: {
+    type: 'object',
+    required: ['eligible'],
+    additionalProperties: false,
+    properties: { eligible: { type: 'boolean' } },
+  },
   LoginResponse: sessionBaseSchema,
   SessionResponse: {
     ...sessionBaseSchema,
@@ -1548,6 +1584,16 @@ const schemas: Record<string, any> = {
     ],
     additionalProperties: false,
     properties: {
+      birthDates: {
+        type: 'object',
+        required: ['available', 'missing', 'ageAnomalies'],
+        additionalProperties: false,
+        properties: {
+          available: { type: 'integer' },
+          missing: { type: 'integer' },
+          ageAnomalies: { type: 'integer' },
+        },
+      },
       rowCount: { type: 'integer' },
       unitCount: { type: 'integer' },
       create: { type: 'integer' },
@@ -1991,6 +2037,7 @@ const schemas: Record<string, any> = {
       positionChanged: { type: 'boolean' },
       organizationChanged: { type: 'boolean' },
       nameChanged: { type: 'boolean' },
+      birthDateChanged: { type: 'boolean' },
     },
   },
   ImportQueuedResponse: {

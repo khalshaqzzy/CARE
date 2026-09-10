@@ -6071,3 +6071,121 @@
     padding: 24px;
   }
 }
+
+/* Auth stages grow downward without recentering the card or hidden focus targets. */
+.auth-layout--login,
+.auth-layout--recovery {
+  align-items: start;
+  align-content: start;
+}
+.auth-reveal {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    height 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+.auth-reveal__content {
+  display: grid;
+  gap: var(--space-4);
+  padding: 3px;
+}
+.auth-step-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+.auth-step-heading button {
+  min-height: 44px;
+  color: var(--color-brand, #0866ff);
+}
+.auth-forgot {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--color-brand, #0866ff);
+  text-decoration: none;
+}
+.auth-forgot:hover {
+  text-decoration: underline;
+}
+.auth-forgot:focus-visible,
+.auth-text-link:focus-visible {
+  outline: 3px solid #0866ff;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.auth-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  text-decoration: none;
+  margin-bottom: var(--space-3);
+}
+.auth-birth-date {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.auth-birth-date legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+.auth-birth-date p {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-4);
+}
+.auth-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+.auth-date-fields select {
+  padding-left: 0.625rem;
+  padding-right: 1.5rem;
+  min-width: 0;
+  min-height: 48px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-reveal {
+    transition: none;
+  }
+}
+
+.auth-text-link {
+  padding: 0 0.875rem;
+  border-radius: 0.875rem;
+}
+@media (max-width: 479px) {
+  .auth-date-fields {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
+    row-gap: var(--space-4);
+  }
+  .auth-date-fields > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .auth-layout--recovery {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+    max-width: 48rem;
+    margin-inline: auto;
+  }
+  .auth-layout--recovery .auth-brand,
+  .auth-layout--recovery .auth-card {
+    width: 100%;
+    max-width: none;
+  }
+}

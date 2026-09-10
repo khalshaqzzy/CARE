@@ -13,6 +13,16 @@ Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase bo
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
 
+## Hosted capture inventory correction — 10 September 2026
+
+Phase 13 remains `in_progress`. PR #42 hosted application/security/container checks passed, but the report merger expected the retired 128-scenario inventory instead of 161. The merger, reporter and inventory regression now share one count definition; a real CLI regression rejects incomplete evidence. Local tooling validation passed; replacement hosted acceptance is pending.
+
+## Registration-first authentication and DOB import — 10 September 2026
+
+Implementation work under the existing Phase 13 `in_progress` boundary; no second phase is opened. ADR-0048 defines one workforce/Union login page, default-workforce entry and session-scoped defer, DOB recovery excluding TM/Union, and compatible seven/eight-column authoritative imports. Code, synthetic coverage, local validation and native capture review are complete. The gallery contains 161 scenarios/164 PNGs, including 33 new auth references; final scoped browser, legacy and recovery captures passed. Operational workbook import, deployment and hosted acceptance remain separate.
+
+Acceptance includes calendar-only migration/import preservation, credential concurrency and revocation, shared Union password entry, responsive/reduced-motion/legacy accessibility, real-API recovery and native auth captures. The source workbook was parsed read-only: 7,418 unique rows, 7,018 DOB values and 400 TM members. No source PII was committed.
+
 ## Organization dashboard transaction acquisition stabilization — 9 September 2026
 
 The `staging` push at `95ca2b50` failed only the organization-dashboard performance test when Prisma's default 2-second interactive-transaction acquisition limit expired under the intended 50-concurrent workload. The preceding six hosted runs measured 1,763–2,055 ms p95, confirming that the framework's acquisition cutoff overlapped the unchanged 3,000 ms product performance budget. The dashboard transaction now explicitly uses 5,000 ms `maxWait` and 5,000 ms `timeout` with the existing REPEATABLE READ isolation. SQL, connection-pool sizing, concurrency, API/schema output, retries, and the p95 threshold are unchanged.

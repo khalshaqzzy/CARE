@@ -8,7 +8,6 @@ const { PrismaClient } = createRequire(resolve('apps/api/package.json'))('@prism
 
 const ORIGIN = 'http://127.0.0.1:4173';
 const USERNAME = '000128';
-const PASSWORD = '000128';
 const NEW_PASSWORD = 'care-member-e2e-123';
 const enabled = process.env.FULLSTACK_E2E === '1';
 
@@ -28,12 +27,8 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await expect(page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' })).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByLabel('Username').fill(USERNAME);
-  // Role + name — getByLabel('Password') would also match the PasswordInput
-  // visibility toggle ("Tampilkan password"), and the label text is
-  // "Password *" because of the required marker.
-  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.getByLabel('No. Reg').fill(USERNAME);
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
 
   // A workforce account can defer for this session, but the account-level
   // requirement survives and is enforced again after the next login.
@@ -46,11 +41,9 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await expect(
     page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
   ).toBeVisible();
-  await page.getByLabel('Username').fill(USERNAME);
-  await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.getByLabel('No. Reg').fill(USERNAME);
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
-  await page.getByLabel('Password saat ini').fill(USERNAME);
   // The required new-password field's accessible name is "Password baru *"; anchor
   // the regex at the start so it does not also match "Konfirmasi password baru".
   await page.getByLabel(/^Password baru/).fill(NEW_PASSWORD);
@@ -76,9 +69,8 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
 test('manager dashboard uses real hierarchy metadata and scoped aggregates', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto(`${ORIGIN}/login`);
-  await page.getByLabel('Username').fill('000003');
-  await page.getByRole('textbox', { name: 'Password' }).fill('000003');
-  await page.getByRole('button', { name: 'Masuk' }).click();
+  await page.getByLabel('No. Reg').fill('000003');
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
   await page.getByRole('button', { name: 'Lain kali' }).click();
   await expect(page.locator('.dashboard-org-summary')).toContainText('Department A');
   await expect(
@@ -193,9 +185,19 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
       password: string,
     ) => {
       await page.goto(`${ORIGIN}/login`);
-      await page.getByLabel('Username').fill(username);
-      await page.getByRole('textbox', { name: 'Password' }).fill(password);
-      await page.getByRole('button', { name: 'Masuk' }).click();
+      await page.getByLabel('No. Reg').fill(username);
+      await page.getByRole('button', { name: 'Lanjutkan' }).click();
+      await expect
+        .poll(
+          async () =>
+            new URL(page.url()).pathname !== '/login' ||
+            (await page.getByRole('textbox', { name: 'Password', exact: true }).isVisible()),
+        )
+        .toBe(true);
+      if (new URL(page.url()).pathname === '/login') {
+        await page.getByRole('textbox', { name: 'Password', exact: true }).fill(password);
+        await page.getByRole('button', { name: 'Masuk' }).click();
+      }
       await page.waitForURL((url) => url.pathname !== '/login');
       if (await page.getByRole('button', { name: 'Lain kali' }).isVisible())
         await page.getByRole('button', { name: 'Lain kali' }).click();

@@ -758,7 +758,7 @@ test('workforce login visual at 360', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockWorkforceApi(page, { unauthenticated: true });
   await page.goto('/login');
-  await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Lanjutkan' })).toBeVisible();
   await capture(page, 'workforce-login-360.png', screenshotOptions);
 });
 
