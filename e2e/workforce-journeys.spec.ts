@@ -18,11 +18,11 @@ const generalVoice = {
   displayId: 'CARE-202608-000001',
   audience: 'GENERAL_RESPONDER',
   visibility: 'GENERAL' as const,
-  status: 'IN_VERIFICATION',
+  status: 'IN_PROGRESS',
   area: 'KARAWANG_1',
   title: 'Pencahayaan area produksi kurang',
   detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi.',
-  availableActions: ['ASK', 'MESSAGE', 'PROCEED'],
+  availableActions: ['MESSAGE', 'CLOSE'],
 };
 
 test.describe('workforce journeys (mocked contract)', () => {
@@ -198,7 +198,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('button', { name: /Percakapan/ })).toBeVisible();
     await expect(page.getByText('Buka Chat')).toBeVisible();
     await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Selesaikan Voice' })).toBeVisible();
   });
 
   test('conversation opens as a dedicated chat page and sends a reply', async ({ page }) => {
@@ -394,8 +394,9 @@ test.describe('workforce journeys (mocked contract)', () => {
     // Localized status labels on the private list chips, never raw enums.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
     await expect(page.getByText('Diproses').first()).toBeVisible();
-    // PIC label comes from the consent-safe handler display name.
-    await expect(page.getByText('PIC: Union Officer 1')).toBeVisible();
+    // PIC label comes from the consent-safe handler display name, clipped to
+    // the first two words for the tight top-row chip.
+    await expect(page.getByText('PIC: Union Officer…')).toBeVisible();
     // Private operational list with the shared voice card.
     await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
     // Union never sees reporter self surfaces.
@@ -431,7 +432,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/work-items');
     await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
     await expect(
-      page.getByText('Seluruh Private Voice melalui Union Head, diurutkan berdasarkan severity.'),
+      page.getByText('Seluruh Private Voice melalui Komite, diurutkan berdasarkan severity.'),
     ).toBeVisible();
     await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
 
@@ -472,7 +473,7 @@ test.describe('workforce journeys (mocked contract)', () => {
         area: 'KARAWANG_2',
         title: 'Laporan papan nama rusak',
         detail: 'Papan nama area shift 3 tergantung satu baut saja.',
-        availableActions: ['ASK', 'PROCEED', 'ASSIGN', 'MESSAGE'],
+        availableActions: ['PROCEED', 'ASSIGN', 'MESSAGE'],
         identified: false,
         alias: 'Reporter Biru 47',
       }),
@@ -487,7 +488,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     // Localized status in the meta grid.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+    await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(page.getByText('Pilih Union Officer untuk menangani Voice ini.')).toBeVisible();
@@ -508,11 +509,11 @@ test.describe('workforce journeys (mocked contract)', () => {
         displayId: 'CARE-202608-000003',
         audience: 'UNION_IDENTIFIED',
         visibility: 'PRIVATE',
-        status: 'IN_VERIFICATION',
+        status: 'IN_PROGRESS',
         area: 'SUNTER_1',
         title: 'Permintaan penggantian kursi istirahat',
         detail: 'Kursi area istirahat shift 2 rusak pada sandaran.',
-        availableActions: ['ASK', 'PROCEED', 'REASSIGN', 'MESSAGE'],
+        availableActions: ['CLOSE', 'MESSAGE'],
         identified: true,
       }),
     });
@@ -522,7 +523,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('000129')).toBeVisible();
     await expect(page.getByText('Identitas ditampilkan atas persetujuan pelapor')).toBeVisible();
     // Verifikasi status terlokalisasi.
-    await expect(page.getByText('Verifikasi').first()).toBeVisible();
+    await expect(page.getByText('Diproses').first()).toBeVisible();
   });
 
   test('member status card stays within the mobile viewport', async ({ page }) => {

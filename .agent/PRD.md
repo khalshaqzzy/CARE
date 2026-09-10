@@ -78,7 +78,7 @@ Menyediakan kanal member voice yang aman, responsif, transparan, dan dapat diper
 - Menyediakan Private Voice yang ditangani Union dengan consent tampil/sembunyikan identitas.
 - Merutekan General Voice kepada Manager yang tepat secara deterministik.
 - Menggunakan AI untuk rekomendasi kategori/severity dan advisory location review dengan fallback manual yang aman.
-- Menyediakan lifecycle Open, In Verification, In Progress, Closed, serta reopen yang traceable.
+- Menyediakan lifecycle Open, Dimonitor, In Progress, Closed, serta reopen yang traceable.
 - Menyediakan room chat dengan lampiran gambar untuk verifikasi.
 - Menurunkan Manager/Department Head dan Section Head dari workbook authoritative serta memungkinkan Manager mendelegasikan Voice kepada kandidat Section Head yang sah.
 - Mewajibkan bukti dan catatan ketika Voice ditutup.
@@ -282,15 +282,17 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 
 - Username karyawan adalah `no_reg` dan unik.
 - Password awal sama dengan `no_reg`.
-- Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**
+- Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**, field **No. Reg**, helper **“Masukkan No. Reg atau username Anda.”**, dan tombol **Lanjutkan**. Form menerima identifier teks, termasuk TM dan username Union.
+- `POST /auth/login/start` memeriksa account kind, status, account flag, dan hash credential. Workforce aktif dengan credential default langsung mendapat sesi terbatas; workforce berpassword pribadi dan seluruh Union mendapat `PASSWORD_REQUIRED` tanpa sesi, lalu form Password dan **Lupa Password?** diperluas ke bawah. Selama tahap Password aktif, field No. Reg terkunci; kontrol **Ubah No. Reg** mengembalikannya ke kondisi dapat diedit dan memfokuskannya dalam gesture yang sama sehingga keyboard perangkat tetap muncul.
+- Workforce default dapat mengganti password tanpa Password saat ini. Backend memverifikasi ulang status account dan sesi; sesi biasa serta Union tetap wajib menyertakan password saat ini. Tidak ada jalur atau opsi login Union terpisah.
 - Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`. Akun `WORKFORCE` dapat memilih **Lain kali** untuk membuka hanya sesi aktif; `UserAccount.passwordChangeRequired` tetap `true`, sehingga sesi baru kembali restricted sampai password benar-benar diganti. Sebelum change atau defer, hanya endpoint session, CSRF, logout, change password, dan workforce defer password yang dapat diakses.
 - Password baru memiliki panjang 6–128 karakter, tidak memiliki syarat simbol/huruf/angka, dan tidak boleh sama dengan username atau password sementara.
-- Helper form menggunakan copy **“Password minimal 6 karakter dan tidak boleh sama dengan username dan password sebelumnya”**. Alert kegagalan tetap berada di halaman dan membedakan konfirmasi yang tidak sama, password saat ini yang tidak sesuai, reuse, rate limit/offline, dan kegagalan umum tanpa menampilkan pesan backend mentah.
+- Helper workforce menggunakan copy **“Password minimal 6 karakter dan tidak boleh sama dengan No. Reg dan password sebelumnya”**; Union/Admin tetap memakai istilah username. Alert kegagalan tetap berada di halaman dan membedakan konfirmasi yang tidak sama, password saat ini yang tidak sesuai, reuse, rate limit/offline, dan kegagalan umum tanpa menampilkan pesan backend mentah.
 - Password disimpan dengan Argon2id; plaintext tidak pernah disimpan atau dicatat.
 
 ### 8.2 Union Login
 
-- Username ditentukan CARE Admin dan harus unik.
+- Username ditentukan CARE Admin dan harus unik; dimasukkan pada field No. Reg di halaman login bersama. Union selalu melewati tahap Password sebelum sesi dibuat.
 - Password awal sama dengan username dan wajib diganti saat login pertama.
 - Setiap Union account adalah account individual; credential dan session tidak dibagi.
 - Penggantian password hanya mencabut session lain milik account tersebut.
@@ -307,7 +309,11 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 8.4 Reset dan Deaktivasi
 
-- Hanya CARE Admin yang dapat reset password.
+- CARE Admin tetap dapat reset workforce/Union. Reset mandiri tambahan hanya untuk workforce aktif non-TM dengan Birth Date tersedia, melalui verifikasi No. Reg dan tanggal lahir pada `/forgot-password`.
+- TM dan Union tidak dapat reset mandiri; UI menampilkan **“Reset Password belum tersedia untuk akun Anda.”** tanpa pemilih DOB maupun tombol reset. Pembatasan TM ditegakkan server walaupun DOB kemudian tersedia.
+- Recovery memakai endpoint eligibility dan reset terpisah; reset selalu memeriksa ulang eligibility dan kecocokan DOB. Tidak ada nama atau tanggal lahir aktual pada respons publik.
+- Reset mandiri mengembalikan credential default normalized, mencabut seluruh sesi/push, mencatat audit tersanitasi, dan tidak membuat sesi. UI kembali ke login dengan pesan **“Password anda sudah direset, silahkan login kembali.”**, mempertahankan No. Reg di state memori, dan memerlukan klik Lanjutkan kembali.
+- Endpoint publik auth memakai origin validation, no-store, serta throttle IP/account; reset dibatasi 5 percobaan per akun dan 30 per IP per 15 menit. Credential mutation/session creation memakai account row lock. DOB bukan faktor kepemilikan; risiko akses No. Reg saja dan recovery berbasis data pribadi dicatat di ADR-0048.
 - Reset karyawan/Manager/Section Head menetapkan password sementara ke `no_reg`; reset Union menetapkan ke username.
 - Reset mencabut seluruh session dan mewajibkan change password berikutnya.
 - Deaktivasi mencabut session dan memblokir login baru.
@@ -328,7 +334,7 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 9.1 Authoritative Organization File Contract
 
-Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format memakai tujuh header persis dengan urutan berikut:
+Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format menerima tujuh header legacy berikut, atau delapan header dengan `Birth Date` tepat setelah `Posisi (struktural)`:
 
 ```text
 Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
@@ -337,12 +343,13 @@ Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
 Aturan:
 
 - satu row merepresentasikan satu workforce account; `Noreg` diperlakukan sebagai text agar leading zero terjaga;
-- seluruh field wajib ada; kolom kedelapan, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak;
-- XLSX mewajibkan seluruh cell data berupa plain string atau blank; numeric/formula/date/rich-value ditolak. CSV mengikuti RFC-style quoting, menerima UTF-8 BOM, dan seluruh nilai diperlakukan sebagai text;
+- Header wajib sesuai salah satu format yang didukung; kolom tambahan lainnya, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak. Section kosong tetap didukung; tidak dibuat Section sintetis.
+- XLSX memakai plain string atau blank, kecuali Birth Date yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. DOB teks wajib `YYYY-MM-DD`, valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. Format tujuh kolom mempertahankan DOB existing; format delapan kolom memperbarui DOB termasuk blank menjadi null.
 - `Noreg` unik setelah trim; password existing tidak berubah akibat import;
 - organization unit memakai key komposit `Directorat + Division + Department`;
 - posisi mentah disimpan, tetapi hanya `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability;
 - nilai `Department = 14` tidak dianggap route General yang sah; user tersebut hanya dapat submit Private sampai source data berubah;
+- Workbook September yang diperiksa berisi 7.418 anggota unik: 7.018 numerik dengan DOB dan 400 TM tanpa DOB/Section, semuanya tetap memakai role existing. Tanggal sumber tidak dikoreksi otomatis; preview menghitung tersedia/kosong/anomali usia di luar 15–80 tahun tanpa menampilkan DOB aktual. Perubahan DOB dihitung sebagai update.
 - workbook Agustus baseline berisi 7.018 row, 38 Department Head, 250 Section Head, 4 Division Head, 8 Deputy/acting Division Head, 1 Director, dan 188 row dengan `Department = 14`;
 - terdapat 12 department bernama tanpa Department Head dan membutuhkan default PIC mapping sebelum General Voice department tersebut dapat disubmit.
 
@@ -462,11 +469,18 @@ Detail Lokasi memakai placeholder **“Contoh: Welding 2, Toilet Selatan”** da
 
 Private Voice juga memiliki checkbox kesediaan komunikasi pribadi di bawah pilihan identitas:
 **“Untuk menghindari fitnah, jika diperlukan saya bersedia diajak komunikasi lebih lanjut secara pribadi oleh Team CARE dengan tetap menjaga kerahasiaan identitas saya.”**
-Checkbox awalnya tidak dicentang. Draft dapat disimpan/dianalisis tanpa persetujuan, tetapi submit wajib memiliki `privateContactConsent=true`.
+Checkbox awalnya tidak dicentang. Sejak 8 September 2026, analisis Private
+wajib menyelesaikan seluruh checklist privasi terlebih dahulu: pilihan
+`Tampilkan nama` dan checkbox kesediaan komunikasi harus terisi sebelum tombol
+**Simpan & Analisis** aktif (helper eksplisit menyebut kekurangannya). Submit
+tetap wajib memiliki `privateContactConsent=true`.
 Consent ini terpisah dari `showReporterIdentity` dan tidak memberi akses identitas tambahan kepada Union. Peralihan ke General menghapus kedua pilihan Private.
 Voice menyimpan snapshot immutable consent, waktu pencatatan server saat submit, dan versi pernyataan `v1`; Voice historis tetap `null`, tanpa backfill persetujuan.
 
-Lampiran foto bersifat opsional. Form buat/edit Voice menampilkan helper abu-abu **“Foto harap mengikuti aturan ATSG ya teman-teman.”**
+Lampiran foto bersifat opsional. Form buat/edit Voice menampilkan satu blok
+guidance di bawah picker (tidak di samping thumbnail) dengan dua baris bergaya
+identik berikon `(i)`: pertama **“JPG, PNG, atau WebP · maksimum 10 MB per
+file.”**, kedua **“Foto harap mengikuti aturan ATSG ya teman-teman.”**
 
 Batas lampiran:
 
@@ -486,7 +500,9 @@ Pada detail dan percakapan, audience General responder melihat nama snapshot pel
 Preview menampilkan:
 
 - Area;
-- Department/route tujuan (`Union Head`, `PIC Global`, Department Head, atau default PIC);
+- Department/route tujuan (`Komite` untuk Private — label aman yang tidak
+  membocorkan akun Union, sejak 8 September 2026; sebelumnya `Union Head`,
+  `PIC Global`, Department Head, atau default PIC);
 - Detail Lokasi;
 - Judul;
 - Detail Voice;
@@ -662,79 +678,54 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 ## 15. Voice Lifecycle
 
-### 15.1 Status
+### 15.1 Status dan progress
 
-`VoiceStatus` memiliki tepat empat nilai:
+Voice memiliki tepat empat status: `OPEN` (Terbuka), `MONITORED` (Dimonitor),
+`IN_PROGRESS` (Diproses), `CLOSED` (Selesai). `REOPENED` adalah event dan badge
+kontekstual, bukan status kelima. Detail menampilkan progress empat langkah.
 
-- `OPEN`;
-- `IN_VERIFICATION`;
-- `IN_PROGRESS`;
-- `CLOSED`.
+### 15.2 Transition matrix
 
-`REOPENED` adalah event, bukan status kelima.
+| Dari      | Action                          | Actor                                                       | Ke        | Efek                                                                   |
+| --------- | ------------------------------- | ----------------------------------------------------------- | --------- | ---------------------------------------------------------------------- |
+| Draft     | Submit                          | Reporter                                                    | Terbuka   | Route owner dan timeline dibuat                                        |
+| Terbuka   | Monitor                         | Responder yang berhak                                       | Dimonitor | Notifikasi acknowledgement reporter; tanpa chat/assignment             |
+| Terbuka   | Assign PIC                      | Route Manager / Union Head                                  | Dimonitor | Assignment + event monitor; notifikasi reporter dan PIC                |
+| Dimonitor | Assign/reassign                 | Route Manager / Union Head                                  | Dimonitor | Histori assignment dipertahankan; monitor tidak dinotifikasi ulang     |
+| Dimonitor | Proses + keterangan             | Current handler; route owner/Union Head jika belum assigned | Diproses  | PIC efektif ditetapkan; keterangan menjadi pesan pertama; chat terbuka |
+| Diproses  | Close                           | Route owner/current handler sesuai scope                    | Selesai   | Closure cycle dan review window existing                               |
+| Selesai   | Rating 1–2 + reopen tepat waktu | Reporter                                                    | Diproses  | Chat yang sama aktif; badge Dibuka kembali                             |
 
-### 15.2 Transition Matrix
+### 15.3 Transition rules
 
-| Dari            | Action            | Actor                                  | Ke              | Efek                                           |
-| --------------- | ----------------- | -------------------------------------- | --------------- | ---------------------------------------------- |
-| Draft           | Submit            | Reporter                               | Open            | Route owner dan timeline dibuat                |
-| Open            | Ask Reporter      | Route owner/current authorized handler | In Verification | Conversation aktif; actor menjadi handler      |
-| Open            | Assign handler    | Manager atau Union Head                | In Verification | Section Head/Union Officer menjadi handler     |
-| Open            | Proceed           | Route owner/current authorized handler | In Progress     | Actor menjadi handler                          |
-| In Verification | Ask/continue chat | Route owner/current handler            | In Verification | Status tetap; message/event ditambah           |
-| In Verification | Proceed           | Route owner/current handler            | In Progress     | Handler dikonfirmasi                           |
-| In Verification | Reassign          | Manager atau Union Head                | In Verification | Scoped handler diganti                         |
-| In Progress     | Close             | Route owner/current handler            | Closed          | Closure cycle selesai; review window dibuka    |
-| Closed          | Rate 1–2 + Reopen | Reporter                               | In Verification | PIC terakhir dipertahankan; cycle baru dimulai |
-
-Status Voice tetap empat nilai; hasil review penutupan (`PENDING`/`ACCEPTED`/`REJECTED`)
-adalah state pada `ClosureCycle` yang ditampilkan sebagai label turunan, bukan status
-kelima (§17.4).
-
-### 15.3 Transition Rules
-
-- Assign/reassign Section Head atau Union Officer hanya boleh sebelum `IN_PROGRESS`.
-- Section Head hanya dapat proceed/close Voice yang sedang ditugaskan kepadanya.
-- Route Manager dapat close General Voice meski handler aktif adalah Section Head.
-- Union Head dapat bertindak pada seluruh Private; Union Officer hanya pada assigned Private. Seluruh Union account read-only pada General.
-- Close hanya valid dari `IN_PROGRESS`; Voice harus melalui action Proceed terlebih dahulu.
-- Reporter reply tidak mengubah status.
-- Tidak ada cancel, withdraw, reject, delete, atau skip langsung Open → Closed tanpa catatan+bukti.
-- Double/stale action menghasilkan conflict dan tidak menggandakan event.
-- Setiap mutation memakai expected version atau idempotency key.
+- Membaca detail tidak mengubah status; Monitor hanya melalui mutation eksplisit.
+- Tidak ada direct Terbuka → Diproses. Proses wajib text 1–4.000 karakter setelah trim.
+- Setelah assignment, hanya PIC aktif yang memulai Proses; route owner tidak mengambil alih secara implisit.
+- Assign/reassign hanya pada Terbuka/Dimonitor. Handover tetap hanya General Terbuka tanpa assignment.
+- Route Manager tetap dapat close General Voice yang sedang ditangani Section Head; hak close/chat lainnya tidak berubah.
+- Reporter tidak dapat menjalankan responder action atas Voice miliknya sendiri.
+- Version, row lock dan idempotency melindungi perubahan; retry tidak menggandakan event/pesan/notifikasi.
 
 ### 15.4 PIC Display
 
-- Open menampilkan route tujuan; Private menampilkan `Union Head` tanpa membocorkan operator/session.
-- In Verification dan In Progress menampilkan current handler/PIC.
-- Reporter Private Voice melihat label `Union` atau current Union handler display label yang aman, bukan session/operator metadata.
-- Closed menampilkan closure actor dan PIC terakhir yang relevan.
+- Sebelum assignment, tampilkan route tujuan; Dimonitor tidak mengambil assignment secara otomatis.
+- Setelah assignment/proses, General menampilkan PIC efektif.
+- Private tetap memakai `Komite` pada destination/PIC; identitas anonim dan consent tetap server-enforced.
+- Closed mempertahankan closure actor dan PIC terakhir. Reopen mempertahankan PIC aktif atau fallback ke route owner aktif dengan audit.
 
----
+## 16. Conversation dan Keterangan Penanganan
 
-## 16. Conversation dan Tanya Reporter
-
-- `OPEN` tidak memiliki room chat, tidak menampilkan panel chat, dan endpoint
-  message menolak baca/kirim.
-- Action **Tanya User** membuat message/conversation, mengubah status Open menjadi
-  In Verification, lalu membuka dan memfokuskan room chat.
-- Assign mengubah status menjadi In Verification dan membuka empty room secara
-  logis; record conversation baru dibuat saat message pertama melalui upsert.
-- Direct Proceed dari Open ke In Progress tidak membuat conversation. In Progress
-  hanya mempertahankan chat jika conversation sudah pernah dibuat.
-- Detail Voice mengekspos `conversationState`: `UNAVAILABLE`, `ACTIVE`, atau
-  `READ_ONLY`; backend read/send message wajib menegakkan state yang sama.
+- Terbuka/Dimonitor tidak membuka chat; baca/kirim melalui API juga ditolak.
+- Proses menyimpan keterangan pertama, conversation, PIC, status, event, dan satu notifikasi reporter dalam transaksi yang sama.
+- UI langsung membuka `/voices/:id/chat` setelah detail terbaru tersedia. Keterangan adalah pesan PIC, bukan pesan sistem.
 - Satu Voice memiliki maksimum satu conversation berkelanjutan lintas closure cycle.
-- Text message memiliki panjang 1–4.000 karakter.
-- Satu message dapat memiliki maksimum lima gambar, masing-masing maksimum 10 MB.
-- Empty message tanpa text dan attachment ditolak.
-- Message tidak dapat diedit atau dihapus pada v1.
-- Chat Closed bersifat read-only; reopen mengaktifkannya kembali.
-- Reporter, route owner, current handler, leadership reader, Union reader, dan CARE Admin hanya memperoleh access sesuai overview/detail/action policy terpisah.
-- Untuk Private `Tampilkan nama = Tidak`, reporter ditampilkan sebagai alias per-Voice yang tidak dapat dikorelasikan. Untuk `Ya`, Union response memuat nama, no.reg, division, dan department dari immutable submission snapshot.
-- CARE Admin Private response memuat profil reporter lengkap untuk support/audit tetapi seluruh lifecycle action tetap ditolak.
-- Setiap message menyimpan sender account, capability/position snapshot, timestamp UTC, dan attachment; serializer memakai audience-specific response tanpa optional identity leakage.
-- Message baru membuat notification kepada pihak lawan yang relevan.
+- Diproses mendukung chat; Selesai read-only; reopen kembali mengaktifkan chat yang sama tanpa keterangan awal baru.
+- Text 1–4.000 karakter; pesan dapat memuat maksimum lima gambar, maksimum 10 MB/file. Empty message tanpa text/attachment ditolak. Pesan tidak diedit/dihapus.
+- `conversationState` tetap `UNAVAILABLE` / `ACTIVE` / `READ_ONLY`, ditegakkan sesuai object policy pada baca/kirim.
+- Pengiriman pesan dan closure memakai lock Voice yang sama sehingga pesan tidak lolos setelah penutupan.
+- Sender snapshot, alias Private, consent, read-only leadership/Admin, dan privacy notifikasi tetap berlaku.
+- Endpoint `/ask` lama menolak dengan `CLIENT_UPDATE_REQUIRED`; event `ASKED_REPORTER` historis tetap dapat dibaca.
+- Migrasi legacy: Verifikasi dengan pesan (termasuk attachment-only) atau histori reopen menjadi Diproses; sisanya Dimonitor. Diproses lama tanpa room mendapat room kosong tanpa pesan fiktif. Histori dan timestamp asli tetap utuh.
 
 ---
 
@@ -773,8 +764,8 @@ Closure yang sudah tersimpan tidak dapat diedit. Kesalahan diperbaiki melalui re
 
 - Opsi reopen hanya tersedia untuk rating 1–2.
 - Rating dan pilihan reopen dikirim dalam satu mutation atomik; pilihan tidak reopen mempertahankan Closed.
-- Reopen mengubah status menjadi In Verification dan mempertahankan route owner serta PIC terakhir.
-- Jika PIC terakhir telah inactive, reopen ditolak dengan remediation Admin sampai ownership diperbaiki; record Closed/rating tetap aman.
+- Reopen mengubah status menjadi Diproses dan mempertahankan route owner serta PIC terakhir yang aktif.
+- Jika PIC terakhir inactive, reopen dialihkan ke route owner aktif dengan audit. Jika keduanya inactive, seluruh operasi ditolak dengan `REOPEN_HANDLER_UNAVAILABLE` tanpa rating parsial.
 - Reopen menambahkan event `REOPENED`, menyertakan feedback sebagai alasan, dan memulai Closure Cycle berikutnya.
 - Reopen dapat berulang tanpa limit numerik; seluruh cycle tetap immutable.
 
@@ -789,8 +780,7 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
 - **Rating 3–5** (feedback opsional) menyelesaikan cycle menjadi `ACCEPTED`
   secara final; opsi reopen tidak pernah ditawarkan.
 - **Rating 1–2** wajib feedback; reopen bersifat atomik dengan rating (§17.3):
-  - Reopen ditolak (`REJECTED`, `reopenedAt` terisi, Voice kembali In
-    Verification, cycle baru dimulai pada close berikutnya) — hanya jika
+  - Reopen ditolak (`REJECTED`, `reopenedAt` terisi, Voice kembali Diproses, cycle baru dimulai pada close berikutnya) — hanya jika
     `now <= reviewDeadline`.
   - Tanpa reopen, cycle menjadi `ACCEPTED` secara final; reopen belakangan
     tidak mungkin (reopen tidak pernah ditawarkan sebagai action terpisah).
@@ -808,7 +798,7 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
   lag worker), bukan dari review state tersimpan.
 - Status Voice yang tampil adalah label turunan: Closed+PENDING →
   "Menunggu Penilaian", Closed+ACCEPTED → "Diterima",
-  In Verification dengan cycle terakhir REJECTED → "Dibuka Kembali".
+  Diproses dengan cycle terakhir REJECTED tetap "Diproses", disertai badge "Dibuka kembali".
 - Member Home menampilkan card perhatian "Menunggu penilaian Anda" dengan
   jumlah Voice milik reporter yang cycle-nya masih `PENDING`.
 
@@ -819,7 +809,7 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
 ### 18.1 Member Home
 
 - primary actions **Buat Voice** dan **Riwayat**;
-- empat count Voice milik reporter: Open, In Verification, In Progress, Closed;
+- empat count Voice milik reporter: Open, Dimonitor, In Progress, Closed;
 - recent Voice list dengan ID, judul, severity, status, dan waktu update.
 
 ### 18.2 Manager Dashboard
@@ -827,7 +817,7 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
 - aggregate-only General Voice pada division Manager: total, status, severity, category, trend, dan breakdown department;
 - default rentang 30 hari, dengan preset 90 hari, tahun berjalan, semua waktu,
   custom date, serta filter area, category, severity, dan status berbasis URL;
-- KPI total, aktif, In Verification, In Progress, Closed, dan Critical;
+- KPI total, aktif, Dimonitor, In Progress, Closed, dan Critical;
 - operational inbox terpisah untuk General Voice yang berada pada department route, default route, atau global route miliknya;
 - recent/high-priority operational items;
 - assignment Section Head summary sesuai candidate scope;
@@ -902,8 +892,8 @@ tidak mempunyai Voice Saya.
 
 - Voice baru kepada Manager/PIC global/Union Head;
 - assignment/reassignment kepada Section Head atau Union Officer;
-- ask reporter/message baru;
-- status menjadi In Verification/In Progress;
+- message baru;
+- status menjadi Dimonitor/In Progress;
 - closure kepada reporter;
 - rating/reopen kepada PIC;
 - auto-accept closure kepada reporter dan PIC penutup (`CLOSURE_AUTO_ACCEPTED`);
@@ -930,7 +920,7 @@ tidak mempunyai Voice Saya.
 
 | Entity                  | Tanggung jawab utama                                                             |
 | ----------------------- | -------------------------------------------------------------------------------- |
-| Employee                | no.reg, nama, structural position raw, active state                              |
+| Employee                | no.reg, nama, nullable birth date, structural position raw, active state         |
 | OrganizationSnapshot    | effective-dated Directorat/Division/Department/Section row per import            |
 | OrganizationUnit        | composite Directorat+Division+Department identity                                |
 | UserAccount             | username, password hash, account kind, password-change/legacy state              |
@@ -976,7 +966,7 @@ type GeneralVoiceCategoryStatus = 'ACTIVE' | 'ARCHIVED';
 type GeneralVoiceCategoryRouteMode = 'FIXED_DEPARTMENT' | 'RELATED_REPORTER_DEPARTMENT';
 type GeneralVoiceCategoryKey = string; // immutable, server-managed stable key
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-type VoiceStatus = 'OPEN' | 'IN_VERIFICATION' | 'IN_PROGRESS' | 'CLOSED';
+type VoiceStatus = 'OPEN' | 'MONITORED' | 'IN_PROGRESS' | 'CLOSED';
 type HandlerType = 'MANAGER' | 'SECTION_HEAD' | 'UNION_HEAD' | 'UNION_OFFICER';
 type ClassificationSource = 'AI' | 'MANUAL_FALLBACK';
 type LocationCompleteness = 'COMPLETE' | 'INCOMPLETE' | 'UNKNOWN';
@@ -1116,7 +1106,12 @@ Penggunaan optional identity field tunggal untuk semua role tidak diterima karen
 - primary action tetap terlihat dan tidak terpotong oleh browser/PWA safe area;
 - mobile dialog kompleks menggunakan full-screen sheet;
 - table desktop memiliki mobile card representation;
-- minimum touch target 44×44 px.
+- minimum touch target 44×44 px, dengan satu pengecualian yang disetujui
+  produk: kontrol teks sekunder pada halaman autentikasi workforce
+  (**Ubah No. Reg** dan **Lupa Password?**) dirender lebih ringkas di bawah
+  44 px untuk memadatkan langkah login/recovery. Kontrol tersebut tetap
+  memiliki label programatik, area klik, dan focus-visible; pengecualian
+  tidak berlaku bagi kontrol utama maupun elemen lain.
 
 ### 22.3 Accessibility
 
@@ -1569,7 +1564,11 @@ Repository rule menetapkan commit default hanya ke `staging` kecuali branch lain
 - actionlint, ShellCheck, Hadolint, `bash -n`;
 - `git diff --check`.
 
-Exact commands dan pinned versions wajib direkonsiliasi dengan `.github/workflows/*` ketika workflow dibuat/diubah. `.agent/rules.md` adalah minimum local parity contract.
+Exact commands dan pinned versions wajib direkonsiliasi dengan `.github/workflows/*` ketika workflow dibuat/diubah. ADR-0047 dan `.agent/rules.md` menetapkan shared validation contract: local checks
+bersifat scoped dan native, sedangkan exact-SHA hosted release gate tetap lengkap.
+Screenshot merupakan capture untuk inspeksi manusia dan Actions artifact, bukan
+perbandingan piksel lintas platform. Assertion perilaku, aksesibilitas dan layout
+tetap menjadi gate.
 
 ### 31.3 Release Mechanics
 
@@ -1716,7 +1715,7 @@ Minimum journeys:
 
 ### 34.1 Identity, Organization, dan Provisioning
 
-- [ ] Satu upload `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; preview/confirm/history/audit tidak menyimpan raw production PII di Git.
+- [ ] Satu upload `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header legacy atau delapan header dengan Birth Date; XLSX memakai sheet `MFG + QD`; preview/confirm/history/audit tidak menyimpan raw production PII di Git.
 - [ ] Preview memperlihatkan create/update/deactivate, perubahan posisi/unit, route gap, mapping PIC invalid, dan Union account gap; confirm berlaku atomik.
 - [ ] Leading-zero no.reg dipertahankan dan monthly snapshot menonaktifkan account yang hilang serta mencabut session-nya.
 - [ ] Capability diturunkan dari posisi struktural dan route assignment tanpa menghilangkan capability Member.
@@ -1756,27 +1755,27 @@ Minimum journeys:
 
 ### 34.4 Lifecycle, Chat, dan Assignment
 
-- [ ] Status hanya Open/In Verification/In Progress/Closed.
-- [ ] Ask, proceed, assign, reassign, close, dan reopen mengikuti transition matrix.
-- [ ] In Verification/In Progress menampilkan PIC/current handler sesuai privacy.
+- [ ] Status hanya Open/Dimonitor/In Progress/Closed.
+- [ ] Monitor, proceed dengan keterangan wajib, assign, reassign, close, dan reopen mengikuti transition matrix.
+- [ ] Dimonitor/In Progress menampilkan PIC/current handler sesuai privacy.
 - [ ] Reassign hanya sebelum In Progress.
 - [ ] Union Head menjadi route owner semua Private dan hanya Head dapat assign/reassign Union 1/2 sebelum In Progress.
 - [ ] Union Officer hanya melihat/menangani Private yang ditugaskan; Manager atau active handler dapat close General dan Head/assigned Officer dapat close Private sesuai object scope.
-- [ ] Close dari Open/In Verification ditolak; hanya In Progress yang dapat ditutup.
+- [ ] Close dari Open/Dimonitor ditolak; hanya In Progress yang dapat ditutup.
 - [ ] Chat immutable dengan image attachment dan notification.
 - [ ] Timeline actor/timestamp/event lengkap dan append-only.
 
 ### 34.5 Closure, Rating, dan Reopen
 
-- [ ] Close ditolak tanpa note dan minimal satu processed evidence photo.
+- [ ] Close ditolak tanpa note; foto opsional maksimum lima processed evidence photo.
 - [ ] Closure history immutable.
 - [ ] Rating 1–2 wajib feedback dan dapat reopen.
 - [ ] Rating 3–5 comment opsional dan tidak menawarkan reopen.
-- [ ] Reopen kembali In Verification pada PIC terakhir dan membuat cycle baru.
+- [ ] Reopen kembali Diproses pada PIC aktif terakhir dan membuat cycle baru.
 - [ ] Multiple cycle tidak menimpa closure/rating sebelumnya.
 - [x] Close membuka jendela review 2 hari: cycle `PENDING` dengan `reviewDeadline` dan label "Menunggu Penilaian" beserta countdown pada detail reporter.
 - [x] Rating ≥3, rating ≤2 tanpa reopen, atau lewatnya jendela tanpa rating menyelesaikan cycle `ACCEPTED`; rating pada cycle yang sudah ber-rating ditolak (tanpa double-rate).
-- [x] Rating ≤2 + reopen dalam jendela menandai cycle `REJECTED`, mengembalikan Voice ke In Verification ("Dibuka Kembali"), dan close berikutnya memulai cycle `PENDING` baru.
+- [x] Rating ≤2 + reopen dalam jendela menandai cycle `REJECTED`, mengembalikan Voice ke Diproses dengan badge "Dibuka kembali", dan close berikutnya memulai cycle `PENDING` baru.
 - [x] Worker auto-accept mengubah cycle expired menjadi `ACCEPTED`, menambah event `AUTO_ACCEPTED` system-generated, dan menotifikasi reporter serta PIC penutup; tick idempoten.
 - [x] Setelah auto-accept, rating terlambat masih dapat dikirim sebagai masukan tanpa opsi reopen dan tanpa mengubah `reviewResolvedAt`; reopen ditolak dengan `REOPEN_NOT_ALLOWED`.
 - [x] Member Home menampilkan card "Menunggu penilaian Anda" dengan jumlah dan akses langsung ke Voice yang menunggu rating.
@@ -1832,7 +1831,7 @@ Adoption, average verification time, average closure time, reopen rate, rating d
 - native iOS/Android app;
 - offline draft/mutation queue/background sync;
 - PDF, Office, video, audio, GIF, HEIC, atau arbitrary document attachment;
-- self-service password reset, email/OTP;
+- email/OTP recovery; reset mandiri berbasis DOB sudah termasuk scope sesuai §8.4;
 - SSO/SAML/OIDC, MFA, SCIM;
 - AI analysis terhadap foto/chat/identity;
 - AI auto-response atau automatic closure;
@@ -1908,7 +1907,7 @@ V1 siap production bila:
 
 - Workforce PWA dan Admin React app adalah dua frontend/deployment terpisah dengan satu backend dan generated OpenAPI client bersama.
 - Lima area tetap.
-- Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header persis; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
+- Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header legacy atau delapan header dengan Birth Date; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
 - Workforce master diimpor melalui Admin UI dan tidak disimpan di Git; tiga akun Union dikelola Admin di luar workbook.
 - First login/reset memakai username/no.reg sebagai temporary password dan wajib change.
 - Akun `WORKFORCE` boleh menunda change password untuk sesi aktif melalui **Lain kali**; account flag dan sesi lain tidak berubah, sehingga prompt kembali pada login berikutnya. Union dan CARE Admin tidak dapat menunda.
@@ -1924,11 +1923,11 @@ V1 siap production bila:
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
-- Empat status saja; reopen adalah event menuju In Verification dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
+- Empat status saja; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
 - Handover hanya untuk current route-owning Manager pada General Voice `OPEN` yang belum ditugaskan; dapat berulang, tidak mengubah status, dan memindahkan operational category + route owner tanpa mengubah immutable submission classification.
 - Detail tiap handover hanya dapat dibaca PIC sumber dan PIC tujuan transfer tersebut; CARE Admin, reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
-- Manager atau current handler dapat close dari In Progress; closure note dan foto wajib.
+- Manager atau current handler dapat close dari In Progress; closure note wajib dan foto opsional.
 - Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
 - Gambar saja; media authorized dan sanitized.
@@ -1956,7 +1955,7 @@ tidak dibedakan, istilah tersebut berarti **current operational category**.
   `routeOwnerId` terkini dapat memulai handover.
 - Voice wajib `GENERAL`, `OPEN`, dan `currentHandlerId=null`. Handover tidak
   tersedia untuk reporter, Section Head, Union Head/Officer, leadership,
-  CARE Admin, previous PIC, Private Voice, atau status `IN_VERIFICATION`,
+  CARE Admin, previous PIC, Private Voice, atau status `MONITORED`,
   `IN_PROGRESS`, dan `CLOSED`.
 - Transfer mempertahankan `status=OPEN`, `handlerType=MANAGER`, dan
   `currentHandlerId=null`; Voice version bertambah satu. Voice dapat berpindah
@@ -2093,7 +2092,7 @@ membership yang berlaku pada assignment; data yang tidak terbukti tetap unknown.
 Tren menghitung waktu submit, bukan waktu assignment atau handover, dengan
 bucket harian/mingguan/bulanan dan pembanding periode berdurasi sama.
 
-KPI Total mengikuti filter, Aktif menjumlah Open/In Verification/In Progress,
+KPI Total mengikuti filter, Aktif menjumlah Open/Dimonitor/In Progress,
 dan Kritis berasal dari severity. Angka yang dilindungi ditampilkan sebagai tidak
 tersedia, bukan nol. Cohort lintas detail scope di bawah lima tidak mengembalikan
 angka metrik/pembanding. Dimensi yang memiliki bucket kecil dilindungi keseluruhan
@@ -2108,6 +2107,73 @@ berdasarkan severity lalu waktu submit, selalu diiriskan dengan detail scope.
 
 Kontrak lama tanpa parameter organisasi tetap tersedia bagi consumer existing.
 Kontrak baru ditandai basis eksplisit dan menyediakan metadata ter-scope, bucket
-organisasi, state privacy, kelengkapan projection, serta timestamp. Baseline visual
+organisasi, kelengkapan projection, serta timestamp. Baseline visual
 mencakup persona, basis, level, filter, state dan viewport 360/768/1440; verifikasi
 harus meliputi PostgreSQL integration, privacy, accessibility dan full-stack.
+
+### 18.8.1 Amandemen Threshold Privasi Dashboard — 7 September 2026
+
+Berdasarkan keputusan product owner, agregat dashboard organisasi
+(`/api/v1/dashboard/general|private` dengan parameter organisasi) **tidak lagi
+menerapkan threshold privasi cohort kecil**. Seluruh dimensi (status, tren,
+severity, kategori, organisasi/area) selalu mengembalikan angka sebenarnya selama
+filter tervalidasi; kartu "dilindungi" per dimensi dihapus. Field respons
+`protected`, `suppressedDimensions`, dan `suppression` dihapus dari kontrak
+`DashboardView`, `total` selalu numerik, dan `previousTotal` dihitung langsung
+dari periode pembanding. Detail-scope, permission matrix, dan larangan
+`suppressedValue`/`suppressedBuckets` pada kontrak monitoring lama tidak berubah.
+
+Bucket organisasi yang tidak teridentifikasi (section belum ditugaskan, section
+belum teridentifikasi, organisasi tidak teridentifikasi, PIC Union sebelumnya)
+digabung menjadi satu baris per jenis dengan identifier stabil, sehingga
+pergantian cakupan/level tidak pernah menampilkan baris duplikat berlabel sama.
+Baris severity dengan nilai 0 tidak dirender. Catatan helper pada kartu tren dan
+inbox dihapus dari UI.
+
+### 18.8.2 Konsistensi Cakupan dan Pemilihan Unit — 7 September 2026
+
+Amandemen ini menggantikan aturan default/filter dashboard organisasi pada §18.3 dan §18.8 yang bertentangan. Berlaku identik untuk basis HANDLING dan REPORTER; permission detail, inbox penugasan, dan riwayat legacy tidak diperluas.
+
+| Peran                     | Default                                  | Overview lebih luas                             | Unit spesifik yang boleh dipilih                    |
+| ------------------------- | ---------------------------------------- | ----------------------------------------------- | --------------------------------------------------- |
+| Section Head              | Section sendiri                          | Seluruh section dalam department sendiri        | Section sendiri                                     |
+| Department Head           | Department sendiri, bucket section       | Seluruh department dalam division sendiri       | Department sendiri dan section di dalamnya          |
+| Default PIC               | Department mapping utama, bucket section | Seluruh department dalam division mapping utama | Department mapping resmi dan section di dalamnya    |
+| Division/Deputy/Pjt. Head | Division sendiri, bucket department      | Global seluruh division, lintas direktorat      | Division sendiri dan department/section di dalamnya |
+
+Overview yang berizin tetap menampilkan bucket unit saudara, tetapi bukan izin memilih unit tersebut secara spesifik. Pemilihan unit saudara atau descendant-nya melalui metadata, agregat, maupun preview wajib ditolak server. Identifier organisasi tetap komposit; label duplikat tidak memberikan akses lintas unit. Mapping tambahan Default PIC hanya memberi pemilihan department tepat tersebut, bukan seluruh division asing. Akun multi-capability mengikuti kewenangan tertinggi. Director, Union, Admin dan Member mempertahankan kontraknya.
+
+Dashboard organisasi Section Head menghitung snapshot section sesuai basis, termasuk Voice di section yang tidak ditugaskan pribadi kepadanya. Preview tetap diiriskan dengan object policy. Organisasi wajib yang tidak tersedia menghasilkan keadaan tidak tersedia, bukan fallback global.
+
+`scopeMode` opsional (`OWN`, `PARENT`, `GLOBAL`) memisahkan cakupan dari pengelompokan `level`. Metadata/respons mengembalikan mode efektif dan mode yang diizinkan. Request lama tanpa mode diinterpretasikan dari peran dan level, dengan validasi unit yang sama. Pergantian mode/level menghapus pilihan organisasi lama dan memulihkan default jabatan/mapping; filter basis/periode/area/kategori/severity/status dipertahankan. Reload dan riwayat browser mengikuti URL. Pada data sumber dan filter yang sama, Section → Department → Section wajib memulihkan semua metrik awal, misalnya 12 → 17 → 12.
+
+Satu respons agregat memakai satu snapshot transaksi PostgreSQL REPEATABLE READ. Total wajib sama dengan jumlah masing-masing dimensi status, severity, kategori, organisasi, area dan tren. Kalender memakai Asia/Jakarta, periode relatif memperbarui batas akhir pada polling, dan agregat/preview dalam satu siklus memakai batas tanggal yang sama. Kegagalan preview tidak menghilangkan agregat yang berhasil. Respons filter lama tidak boleh menggantikan konteks aktif. Ketentuan tanpa small-cohort suppression pada §18.8.1 tetap berlaku.
+
+### 18.8.3 Amandemen Presentasi Responder Dashboard — 8 September 2026
+
+Berlaku untuk seluruh hero organization dashboard (`DashboardHome`) pada semua
+persona responder/leadership/Union:
+
+- Judul ringkasan dan accessible name-nya adalah **“Ringkasan Voice”** untuk
+  tab General maupun Private. Tab basis reporter berlabel **“Pelaporan”**.
+- Hero tidak menampilkan avatar inisial, tombol **Buat Voice**, badge persona
+  **“Operasional Responder”**, maupun baris metadata konteks (label scope,
+  deskripsi basis organisasi, dan timestamp **Diperbarui**). Chip read-only
+  (`General · Read-only` / `Leadership · Read-only`) untuk Union/leadership
+  dipertahankan.
+- Penanda offline/stale tetap disediakan oleh Alert offline pada body
+  dashboard; penghapusan baris metadata tidak menghapus kewajiban §22.4.
+- Akses Buat Voice tetap tersedia melalui bottom navigation, quick actions,
+  dan CTA section personal.
+- Verifikasi scope pada test memakai ringkasan selector organisasi
+  (`.dashboard-org-summary`, sumber `scopeLabel` yang sama) dan state
+  `aria-pressed` tab basis — bukan baris metadata yang dihapus.
+
+### Amandemen lifecycle — 9 September 2026
+
+§15–17 dan ADR-0044 menggantikan referensi Verifikasi, Tanya Reporter, direct Proceed,
+serta assignment membuka chat pada amandemen historis di bawah/di atas. Semua status
+filter, dashboard, Admin dan API memakai MONITORED; Admin summary memakai monitored.
+Progress CLOSED tetap Selesai dengan substatus review existing. Dibuka kembali tampil
+sebagai badge tambahan hanya saat cycle terbaru REJECTED dan Voice IN_PROGRESS.
+Rilis memerlukan maintenance window dan API/workforce/Admin satu versi.

@@ -1,3 +1,4 @@
+import { capture } from './helpers/capture';
 import { expect, test } from '@playwright/test';
 import { mockAdminApi, type MockVoice } from './helpers/mock-api';
 
@@ -82,11 +83,9 @@ for (const p of pages) {
     await page.goto(`http://127.0.0.1:4174${p.path === '/' ? '' : p.path}`);
     await expect(page.getByRole('heading', { name: p.heading })).toBeVisible();
     await expect(page.getByText(p.anchor).first()).toBeVisible();
-    await expect(page).toHaveScreenshot(p.baseline, {
+    await capture(page, p.baseline, {
       animations: 'disabled',
-      threshold: 0.25,
       // Same font-rasterization tolerance as the existing admin-shell baseline.
-      maxDiffPixelRatio: 0.06,
     });
   });
 }

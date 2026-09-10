@@ -14,6 +14,7 @@ import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatDate,
+  PRIVATE_ROUTE_LABEL,
   SEVERITY_LABELS,
   VISIBILITY_LABELS,
   voiceStatusDisplay,
@@ -25,7 +26,9 @@ import type { VoiceDetail } from '../workforce-api';
  * Shared voice header for the detail and conversation surfaces (screens 13/20
  * of the member redesign): a full-bleed cobalt band with the back control,
  * CARE lockup, and live status pill, and an overlapping white card carrying
- * the title, context chips, area/PIC split, and location detail. `compact`
+ * the title, context chips, area/PIC split, and location detail. Responder
+ * and leadership views lead the chips with `Area:` and split the grid into
+ * PIC | Pelapor, while the reporter's own view keeps Area | PIC. `compact`
  * renders the conversation variant of the chip strip. Union audiences keep
  * the consent-first presentation inside the card.
  */
@@ -43,13 +46,26 @@ export function VoiceHero({
     voice.audience === 'UNION_ANONYMOUS' || voice.audience === 'UNION_IDENTIFIED';
   const alias = voice.audience === 'UNION_ANONYMOUS' ? voice.anonymousReporter.alias : null;
   const reporterName = voice.audience === 'UNION_IDENTIFIED' ? voice.reporter.name : null;
-  const pic = voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—';
+  // Private destinations always present as the committee label so Union
+  // account names never leak through route/handler metadata.
+  const pic =
+    voice.visibility === 'PRIVATE'
+      ? PRIVATE_ROUTE_LABEL
+      : (voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—');
   const personLabel =
     voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'UNION_IDENTIFIED'
       ? `Pelapor: ${voice.reporter.name}`
       : voice.audience === 'UNION_ANONYMOUS'
         ? `Alias: ${voice.anonymousReporter.alias}`
         : `PIC: ${pic}`;
+  // Responder and leadership detail leads with the handling PIC and keeps
+  // the reporter identity in the second grid cell; the reporter's own view
+  // keeps the area/PIC split.
+  const responderAudience =
+    voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'LEADERSHIP_GENERAL_READ_ONLY';
+  const responderReporterName = responderAudience
+    ? ((voice.reporter as { name?: string }).name ?? '')
+    : null;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const categoryName = voice.category
     ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
@@ -94,6 +110,9 @@ export function VoiceHero({
         </div>
 
         <div className="voice-hero__card">
+          {voice.status === 'IN_PROGRESS' && reviewState === 'REJECTED' ? (
+            <span className="voice-reopened">Dibuka kembali</span>
+          ) : null}
           {closed ? (
             <>
               <div className="voice-hero__closedhead">
@@ -253,6 +272,12 @@ export function VoiceHero({
                     {categoryName}
                   </span>
                 ) : null}
+                {variant === 'full' && responderAudience ? (
+                  <span className="voice-hero__chip">
+                    <MapPin size={15} aria-hidden="true" />
+                    {`Area: ${area}`}
+                  </span>
+                ) : null}
                 {variant === 'compact' ? (
                   <span className="voice-hero__chip">
                     <UserRound size={15} aria-hidden="true" />
@@ -269,14 +294,29 @@ export function VoiceHero({
               {variant === 'full' ? (
                 <>
                   <div className="voice-hero__grid">
-                    <span>
-                      <MapPin size={17} aria-hidden="true" />
-                      {area}
-                    </span>
-                    <span>
-                      <UserRound size={17} aria-hidden="true" />
-                      {personLabel}
-                    </span>
+                    {responderAudience ? (
+                      <>
+                        <span>
+                          <UserRound size={17} aria-hidden="true" />
+                          {`PIC: ${pic}`}
+                        </span>
+                        <span>
+                          <UserRound size={17} aria-hidden="true" />
+                          {`Pelapor: ${responderReporterName}`}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          <MapPin size={17} aria-hidden="true" />
+                          {area}
+                        </span>
+                        <span>
+                          <UserRound size={17} aria-hidden="true" />
+                          {personLabel}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <p className="voice-hero__location">
                     <Building2 size={17} aria-hidden="true" />

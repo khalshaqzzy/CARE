@@ -62,10 +62,15 @@ export function GeneralBrowsePage() {
   const range = (searchParams.get('range') ?? '30d') as DashboardRange;
   const customFrom = searchParams.get('dashFrom') ?? undefined;
   const customTo = searchParams.get('dashTo') ?? undefined;
-  const dates = useMemo(
-    () => dashboardDates(range, customFrom, customTo),
-    [range, customFrom, customTo],
-  );
+  const dateState = useMemo(() => {
+    try {
+      return { dates: dashboardDates(range, customFrom, customTo), valid: true };
+    } catch {
+      return { dates: {}, valid: false };
+    }
+  }, [range, customFrom, customTo]);
+
+  const dates = dateState.dates;
 
   const chart = useQuery({
     queryKey: voiceQuery(
@@ -88,7 +93,7 @@ export function GeneralBrowsePage() {
         ...(area ? { area } : {}),
         ...(category ? { category: category as never } : {}),
       }),
-    enabled: !!session,
+    enabled: !!session && dateState.valid,
     refetchInterval: 3000,
   });
 
@@ -117,7 +122,7 @@ export function GeneralBrowsePage() {
         ...(category ? { category: category as never } : {}),
         ...(nav.cursor ? { cursor: nav.cursor } : {}),
       }),
-    enabled: !!session,
+    enabled: !!session && dateState.valid,
     refetchInterval: 3000,
   });
 
@@ -130,12 +135,17 @@ export function GeneralBrowsePage() {
     setSearchParams(params);
   };
 
-  const items = list.data?.items ?? [];
+  const items = dateState.valid ? (list.data?.items ?? []) : [];
   const nextCursor = list.data?.nextCursor ?? null;
-  const data = chart.data;
+  const data = dateState.valid ? chart.data : undefined;
 
   return (
     <Stack gap="lg">
+      {!dateState.valid ? (
+        <Alert tone="warning" title="Periksa rentang tanggal">
+          Pilih tanggal awal dan akhir yang valid.
+        </Alert>
+      ) : null}
       <HeroBand
         eyebrow="General Voice"
         title="Tinjauan General"

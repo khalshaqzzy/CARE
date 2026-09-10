@@ -609,6 +609,422 @@
         ]
       }
     },
+    "/api/v1/auth/login/start": {
+      "post": {
+        "operationId": "AuthController_startLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "noReg"
+                ],
+                "properties": {
+                  "noReg": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStartResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset/eligibility": {
+      "post": {
+        "operationId": "AuthController_resetEligibility",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "noReg"
+                ],
+                "properties": {
+                  "noReg": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset": {
+      "post": {
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "noReg",
+                  "birthDate"
+                ],
+                "properties": {
+                  "noReg": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "birthDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
     "/api/v1/auth/logout": {
       "post": {
         "operationId": "AuthController_logout",
@@ -1006,7 +1422,6 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "currentPassword",
                   "newPassword"
                 ],
                 "properties": {
@@ -9833,6 +10248,165 @@
         ]
       }
     },
+    "/api/v1/voices/{id}/monitor": {
+      "post": {
+        "operationId": "VoicesController_monitor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionedMutationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voices/{id}/ask": {
       "post": {
         "operationId": "VoicesController_ask",
@@ -10144,7 +10718,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VersionedMutationRequest"
+                "$ref": "#/components/schemas/VoiceTextMutationRequest"
               }
             }
           }
@@ -11060,6 +11634,14 @@
         "operationId": "VoicesController_dashboardGeneral",
         "parameters": [
           {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "basis",
             "in": "query",
             "required": false,
@@ -11301,6 +11883,14 @@
       "get": {
         "operationId": "VoicesController_dashboardPrivate",
         "parameters": [
+          {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "basis",
             "in": "query",
@@ -11666,6 +12256,14 @@
         "operationId": "VoicesController_dashboardMetadata",
         "parameters": [
           {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "basis",
             "in": "query",
             "required": false,
@@ -11900,6 +12498,14 @@
       "get": {
         "operationId": "VoicesController_dashboardPreview",
         "parameters": [
+          {
+            "name": "scopeMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "basis",
             "in": "query",
@@ -14231,7 +14837,6 @@
       "ChangePasswordRequest": {
         "type": "object",
         "required": [
-          "currentPassword",
           "newPassword"
         ],
         "additionalProperties": false,
@@ -14584,6 +15189,56 @@
         "properties": {
           "token": {
             "type": "string"
+          }
+        }
+      },
+      "LoginStartResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "next"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "next": {
+                "type": "string",
+                "enum": [
+                  "PASSWORD_REQUIRED"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "next",
+              "session"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "next": {
+                "type": "string",
+                "enum": [
+                  "CHANGE_PASSWORD"
+                ]
+              },
+              "session": {
+                "$ref": "#/components/schemas/LoginResponse"
+              }
+            }
+          }
+        ]
+      },
+      "ResetEligibilityResponse": {
+        "type": "object",
+        "required": [
+          "eligible"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "eligible": {
+            "type": "boolean"
           }
         }
       },
@@ -15085,7 +15740,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15314,7 +15969,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15539,7 +16194,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15745,7 +16400,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15959,7 +16614,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16185,7 +16840,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16372,6 +17027,8 @@
       "DashboardMetadata": {
         "type": "object",
         "required": [
+          "scopeMode",
+          "allowedScopeModes",
           "basis",
           "visibility",
           "level",
@@ -16384,6 +17041,25 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "scopeMode": {
+            "type": "string",
+            "enum": [
+              "OWN",
+              "PARENT",
+              "GLOBAL"
+            ]
+          },
+          "allowedScopeModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "OWN",
+                "PARENT",
+                "GLOBAL"
+              ]
+            }
+          },
           "basis": {
             "type": "string",
             "enum": [
@@ -16585,6 +17261,8 @@
       "DashboardView": {
         "type": "object",
         "required": [
+          "scopeMode",
+          "allowedScopeModes",
           "basis",
           "visibility",
           "level",
@@ -16602,15 +17280,31 @@
           "area",
           "previousTotal",
           "trendGrain",
-          "protected",
-          "suppressedDimensions",
-          "suppression",
           "handlingUnresolved",
           "filters",
           "generatedAt"
         ],
         "additionalProperties": false,
         "properties": {
+          "scopeMode": {
+            "type": "string",
+            "enum": [
+              "OWN",
+              "PARENT",
+              "GLOBAL"
+            ]
+          },
+          "allowedScopeModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "OWN",
+                "PARENT",
+                "GLOBAL"
+              ]
+            }
+          },
           "basis": {
             "type": "string",
             "enum": [
@@ -16736,8 +17430,7 @@
             "type": "string"
           },
           "total": {
-            "type": "integer",
-            "nullable": true
+            "type": "integer"
           },
           "status": {
             "type": "array",
@@ -16889,30 +17582,6 @@
           "pendingAssignment": {
             "type": "integer"
           },
-          "protected": {
-            "type": "boolean"
-          },
-          "suppressedDimensions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "suppression": {
-            "type": "object",
-            "required": [
-              "enabled",
-              "threshold"
-            ],
-            "properties": {
-              "enabled": {
-                "type": "boolean"
-              },
-              "threshold": {
-                "type": "integer"
-              }
-            }
-          },
           "handlingUnresolved": {
             "type": "integer",
             "nullable": true
@@ -17036,7 +17705,7 @@
                 "type": "string",
                 "enum": [
                   "OPEN",
-                  "IN_VERIFICATION",
+                  "MONITORED",
                   "IN_PROGRESS",
                   "CLOSED"
                 ],
@@ -17248,7 +17917,7 @@
             "type": "object",
             "required": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ],
@@ -17257,7 +17926,7 @@
               "OPEN": {
                 "type": "integer"
               },
-              "IN_VERIFICATION": {
+              "MONITORED": {
                 "type": "integer"
               },
               "IN_PROGRESS": {
@@ -17397,6 +18066,26 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "birthDates": {
+            "type": "object",
+            "required": [
+              "available",
+              "missing",
+              "ageAnomalies"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "available": {
+                "type": "integer"
+              },
+              "missing": {
+                "type": "integer"
+              },
+              "ageAnomalies": {
+                "type": "integer"
+              }
+            }
+          },
           "rowCount": {
             "type": "integer"
           },
@@ -17863,7 +18552,7 @@
             "type": "object",
             "required": [
               "open",
-              "inVerification",
+              "monitored",
               "inProgress",
               "closed",
               "critical"
@@ -17873,7 +18562,7 @@
               "open": {
                 "type": "integer"
               },
-              "inVerification": {
+              "monitored": {
                 "type": "integer"
               },
               "inProgress": {
@@ -18433,6 +19122,9 @@
           },
           "nameChanged": {
             "type": "boolean"
+          },
+          "birthDateChanged": {
+            "type": "boolean"
           }
         }
       },
@@ -18901,7 +19593,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19091,7 +19783,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19118,7 +19810,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "IN_VERIFICATION",
+              "MONITORED",
               "IN_PROGRESS",
               "CLOSED"
             ]

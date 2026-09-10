@@ -11,7 +11,7 @@ import type { DistributionSlice, DonutSegment } from './dashboard-math';
 
 const STATUS_BUCKETS = [
   { label: 'OPEN', value: 18 },
-  { label: 'IN_VERIFICATION', value: 7 },
+  { label: 'MONITORED', value: 7 },
   { label: 'IN_PROGRESS', value: 9 },
   { label: 'CLOSED', value: 8 },
 ];
@@ -39,7 +39,7 @@ describe('dashboard-math', () => {
     const distribution: DistributionSlice[] = statusDistribution(STATUS_BUCKETS);
     expect(distribution.map((slice) => slice.label)).toEqual([
       'OPEN',
-      'IN_VERIFICATION',
+      'MONITORED',
       'IN_PROGRESS',
       'CLOSED',
     ]);

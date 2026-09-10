@@ -3,7 +3,7 @@ import { ClipboardList } from 'lucide-react';
 import type { MemberDashboard } from '../workforce-api';
 import { STATUS_LABELS } from '../lib/formatters';
 
-const ORDER = ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] as const;
+const ORDER = ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'] as const;
 const SEGMENTS = 24;
 
 export function StatusSummary({
@@ -14,8 +14,7 @@ export function StatusSummary({
   cached?: boolean;
 }) {
   if (!dashboard) return null;
-  const active =
-    dashboard.counts.OPEN + dashboard.counts.IN_VERIFICATION + dashboard.counts.IN_PROGRESS;
+  const active = dashboard.counts.OPEN + dashboard.counts.MONITORED + dashboard.counts.IN_PROGRESS;
   const total = Math.max(dashboard.total, 1);
   const pct = Math.round((active / total) * 100);
   const filled = Math.round((pct / 100) * SEGMENTS);

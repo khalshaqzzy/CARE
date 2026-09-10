@@ -15,6 +15,7 @@ import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatRelative,
+  shortenPersonName,
   SEVERITY_LABELS,
   voiceStatusDisplay,
 } from '../lib/formatters';
@@ -35,16 +36,17 @@ function statusIcon(status: string): React.ReactNode {
 /** Chip key that folds the review state in so CSS can tint it distinctly. */
 function statusChipKey(status: string, reviewState?: string | null): string {
   if (status === 'CLOSED' && reviewState === 'PENDING') return 'REVIEW_PENDING';
-  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'REOPENED';
+  if (status === 'IN_PROGRESS' && reviewState === 'REJECTED') return 'REOPENED';
   return status;
 }
 
 /**
  * Severity-first operational queue card (screens 18/21/22): a colored edge
- * bar by severity, icon-labelled severity, title + chevron, area • category
- * meta, and a footer of status chip, relative time, and a PIC/unassigned
- * chip. `identity` swaps the severity headline for the consented Union alias
- * tile and moves severity into a tinted chip. The whole card is one button,
+ * bar by severity, icon-labelled severity aligned with a right-aligned
+ * PIC/unassigned chip, title + chevron, area • category meta, and a footer
+ * of status chip and relative time. `identity` swaps the severity headline
+ * for the consented Union alias tile and moves severity into a tinted chip,
+ * keeping the PIC chip in the footer. The whole card is one button,
  * mirroring the history card pattern.
  */
 export function InboxVoiceCard({
@@ -60,8 +62,12 @@ export function InboxVoiceCard({
   showPic?: boolean;
 }) {
   const handlerName = voice.currentHandlerName ?? null;
-  const unassigned = voice.status === 'OPEN' && !handlerName;
-  const pic = handlerName ? `PIC: ${handlerName}` : null;
+  const unassigned = ['OPEN', 'MONITORED'].includes(voice.status) && !handlerName;
+  const pic = handlerName ? `PIC: ${shortenPersonName(handlerName)}` : null;
+  // Identity (Union private) cards already fill the top row with the alias
+  // tile and severity chip, so their PIC chip stays in the footer; plain
+  // cards align the PIC chip with the severity headline at the top right.
+  const picInTopRow = !identity;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const category = voice.category
     ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
@@ -93,10 +99,21 @@ export function InboxVoiceCard({
                 </span>
               </>
             ) : (
-              <span className="inbox-card__severity">
-                {SEVERITY_ICONS[voice.severity]}
-                {SEVERITY_LABELS[voice.severity] ?? voice.severity}
-              </span>
+              <>
+                <span className="inbox-card__severity">
+                  {SEVERITY_ICONS[voice.severity]}
+                  {SEVERITY_LABELS[voice.severity] ?? voice.severity}
+                </span>
+                {showPic && pic ? (
+                  <span className="inbox-card__pic">
+                    <UserRound size={12} aria-hidden="true" />
+                    <span className="inbox-card__pic-name">{pic}</span>
+                  </span>
+                ) : null}
+                {showPic && unassigned ? (
+                  <span className="inbox-card__pic inbox-card__pic--open">Belum ditugaskan</span>
+                ) : null}
+              </>
             )}
           </span>
           <span className="inbox-card__title">{voice.title}</span>
@@ -116,20 +133,27 @@ export function InboxVoiceCard({
             >
               {statusIcon(voice.status)}
               {voiceStatusDisplay(voice.status, voice.closureReviewState)}
+              {voice.status === 'IN_PROGRESS' && voice.closureReviewState === 'REJECTED' ? (
+                <span className="voice-reopened">Dibuka kembali</span>
+              ) : null}
             </span>
             <span className="inbox-card__time">
               <Clock3 size={12} aria-hidden="true" />
               {formatRelative(voice.updatedAt)}
             </span>
-            {showPic && pic ? (
-              <span className="inbox-card__pic">
-                <UserRound size={12} aria-hidden="true" />
-                {pic}
-              </span>
-            ) : null}
-            {showPic && unassigned ? (
-              <span className="inbox-card__pic inbox-card__pic--open">Belum ditugaskan</span>
-            ) : null}
+            {picInTopRow ? null : (
+              <>
+                {showPic && pic ? (
+                  <span className="inbox-card__pic">
+                    <UserRound size={12} aria-hidden="true" />
+                    <span className="inbox-card__pic-name">{pic}</span>
+                  </span>
+                ) : null}
+                {showPic && unassigned ? (
+                  <span className="inbox-card__pic inbox-card__pic--open">Belum ditugaskan</span>
+                ) : null}
+              </>
+            )}
           </span>
         </span>
         <ChevronRight size={20} className="inbox-card__chevron" aria-hidden="true" />

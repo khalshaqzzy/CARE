@@ -31,7 +31,7 @@ test('renders a paginated voice detail with timeline and conversation', async ({
   // The Timeline row is collapsed by default; expand it to reveal the events.
   await page.getByRole('button', { name: /Timeline/ }).click();
   await expect(page.getByRole('listitem').first()).toBeVisible();
-  await expect(page.getByText('Percakapan')).toBeVisible();
+  await expect(page.getByText('Percakapan', { exact: true })).toBeVisible();
   // The room itself lives on the dedicated chat page.
   await page.getByRole('button', { name: /Percakapan/ }).click();
   await expect(page).toHaveURL(/\/voices\/voice-1\/chat$/);
@@ -46,7 +46,7 @@ test('surfaces responder actions for an IN_PROGRESS voice', async ({ page }) => 
   await page.goto(`/voices/${voice.id}`);
   // availableActions includes CLOSE, so the Tindakan action row shows it.
   await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tutup', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Selesaikan Voice', exact: true })).toBeVisible();
 });
 
 // Closure review window (PRD §17.5): a closed voice sits PENDING for two days
@@ -107,7 +107,7 @@ test('shows the review window, then a low rating with reopen reopens the voice',
   await reopenAction.click();
   // The detail refetches: the cycle is rejected and the voice reopens into
   // verification, displayed as "Dibuka Kembali" rather than "Verifikasi".
-  await expect(page.getByText('Dibuka Kembali').first()).toBeVisible();
+  await expect(page.getByText('Dibuka kembali').first()).toBeVisible();
   await expect(page.getByText('Ditolak · dibuka kembali')).toBeVisible();
 });
 

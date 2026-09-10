@@ -3,7 +3,7 @@ import { Building2, ClipboardList, FileText, Heart, Leaf, ShieldCheck, Wrench } 
 /** Status flag tones used by dots and pills on light surfaces. */
 export const STATUS_FLAG_TONES: Record<string, string> = {
   OPEN: 'open',
-  IN_VERIFICATION: 'verification',
+  MONITORED: 'monitored',
   IN_PROGRESS: 'progress',
   CLOSED: 'closed',
 };
@@ -15,8 +15,8 @@ export const STATUS_FLAG_TONES: Record<string, string> = {
  */
 export function statusFlagTone(status: string, reviewState?: string | null): string {
   if (status === 'CLOSED') return reviewState === 'PENDING' ? 'review-pending' : 'closed';
-  if (status === 'IN_VERIFICATION' && reviewState === 'REJECTED') return 'reopened';
-  return STATUS_FLAG_TONES[status] ?? 'verification';
+  if (status === 'IN_PROGRESS' && reviewState === 'REJECTED') return 'reopened';
+  return STATUS_FLAG_TONES[status] ?? 'monitored';
 }
 
 /** Severity flag tones used by dots on light surfaces. */

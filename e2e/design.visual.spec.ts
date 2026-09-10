@@ -1,3 +1,4 @@
+import { capture } from './helpers/capture';
 import { expect, test } from '@playwright/test';
 import { mockAdminApi } from './helpers/mock-api';
 
@@ -13,14 +14,12 @@ for (const viewport of [
     await expect(
       page.getByRole('heading', { name: 'CARE interface, dari token hingga workflow.' }),
     ).toBeVisible();
-    await expect(page).toHaveScreenshot(`design-overview-${viewport.width}.png`, {
+    await capture(page, `design-overview-${viewport.width}.png`, {
       fullPage: false,
       animations: 'disabled',
-      threshold: 0.25,
       // Dense-typography full-page captures accumulate font rasterization drift
       // between CoreText (macOS) and FreeType (ubuntu CI); measured drift is
       // stable at ~0.04 on Linux and ~0 locally, so allow up to 0.06 here.
-      maxDiffPixelRatio: 0.06,
     });
   });
 }
@@ -59,7 +58,7 @@ test('workforce shell visual', async ({ page }) => {
       contentType: 'application/json',
       body: JSON.stringify({
         total: 0,
-        counts: { OPEN: 0, IN_VERIFICATION: 0, IN_PROGRESS: 0, CLOSED: 0 },
+        counts: { OPEN: 0, MONITORED: 0, IN_PROGRESS: 0, CLOSED: 0 },
         recent: [],
         draft: null,
         generatedAt: '2026-08-01T10:00:00.000Z',
@@ -70,14 +69,12 @@ test('workforce shell visual', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-08-01T10:00:00Z'));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
-  await expect(page).toHaveScreenshot('workforce-shell-360.png', {
+  await capture(page, 'workforce-shell-360.png', {
     animations: 'disabled',
-    threshold: 0.25,
     // Dense-typography captures accumulate font rasterization drift between
     // CoreText (macOS, where baselines are authored) and FreeType (ubuntu CI);
     // measured drift is stable at ~0.04 on Linux and ~0 locally, matching the
     // documented design-overview tolerance above.
-    maxDiffPixelRatio: 0.06,
   });
 });
 
@@ -93,13 +90,11 @@ test('Admin shell visual', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Overview operasional' })).toBeVisible();
   // Wait until the overview data (operational summary card) has rendered before capturing.
   await expect(page.getByText('Ringkasan operasional', { exact: true })).toBeVisible();
-  await expect(page).toHaveScreenshot('admin-shell-1440.png', {
+  await capture(page, 'admin-shell-1440.png', {
     animations: 'disabled',
-    threshold: 0.25,
     // Dense admin typography accumulates font rasterization drift between
     // CoreText (macOS, where baselines are authored) and FreeType (ubuntu CI);
     // measured drift is stable at ~0.04 on Linux and ~0 locally, matching the
     // documented design-overview/workforce-shell tolerance above.
-    maxDiffPixelRatio: 0.06,
   });
 });

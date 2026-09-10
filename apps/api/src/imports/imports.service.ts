@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { canonicalHash, randomToken, sha256 } from '../common/crypto';
 import { decodeCursor, encodeCursor } from '../common/cursor';
 import { badRequest, conflict, forbiddenAsNotFound } from '../common/errors';
+import { parseBirthDate } from '../common/birth-date';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 import { CategoriesService } from '../categories/categories.service';
@@ -35,7 +36,13 @@ export const ORGANIZATION_HEADERS = [
   'Department',
   'Section',
 ] as const;
+export const ORGANIZATION_BIRTH_DATE_HEADERS = [
+  ...ORGANIZATION_HEADERS.slice(0, 3),
+  'Birth Date',
+  ...ORGANIZATION_HEADERS.slice(3),
+] as const;
 type ImportRow = {
+  birthDate?: string | null;
   noReg: string;
   name: string;
   structuralPosition: string;
@@ -118,6 +125,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       positionChanged?: boolean;
       organizationChanged?: boolean;
       nameChanged?: boolean;
+      birthDateChanged?: boolean;
     }> = rows.map((row) => {
       const previous = current.get(row.noReg);
       if (!previous) return { noReg: row.noReg, type: 'CREATE' as const };
@@ -125,15 +133,19 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         normalize(previous.structuralPosition) !== normalize(row.structuralPosition);
       const organizationChanged = unitKey(previous.organizationUnit) !== unitKey(row);
       const nameChanged = normalize(previous.employeeName) !== normalize(row.name);
+      const birthDateChanged =
+        row.birthDate !== undefined &&
+        row.birthDate !== (previous.employee.birthDate?.toISOString().slice(0, 10) ?? null);
       return {
         noReg: row.noReg,
         type:
-          positionChanged || organizationChanged || nameChanged
+          positionChanged || organizationChanged || nameChanged || birthDateChanged
             ? ('UPDATE' as const)
             : ('UNCHANGED' as const),
         positionChanged,
         organizationChanged,
         nameChanged,
+        birthDateChanged,
       };
     });
     for (const noReg of current.keys())
@@ -165,6 +177,24 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         .map((route) => unitKey(route.organizationUnit!)),
     );
     const summary = {
+      birthDates: (() => {
+        const dates = rows.map((row) =>
+          row.birthDate === undefined
+            ? (current.get(row.noReg)?.employee.birthDate?.toISOString().slice(0, 10) ?? null)
+            : row.birthDate,
+        );
+        const today = new Date().toISOString().slice(0, 10);
+        const year = Number(today.slice(0, 4));
+        return {
+          available: dates.filter(Boolean).length,
+          missing: dates.filter((date) => !date).length,
+          ageAnomalies: dates.filter(
+            (date) =>
+              date &&
+              (date > `${year - 15}${today.slice(4)}` || date < `${year - 80}${today.slice(4)}`),
+          ).length,
+        };
+      })(),
       rowCount: rows.length,
       unitCount: units.size,
       create: changes.filter((change) => change.type === 'CREATE').length,
@@ -750,12 +780,12 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         for (let offset = 0; offset < rows.length; offset += 500) {
           const chunk = rows.slice(offset, offset + 500);
           await tx.$executeRaw(
-            Prisma.sql`INSERT INTO "Employee" ("id", "noReg", "name", "active", "createdAt", "updatedAt") VALUES ${Prisma.join(
+            Prisma.sql`INSERT INTO "Employee" ("id", "noReg", "name", "birthDate", "active", "createdAt", "updatedAt") VALUES ${Prisma.join(
               chunk.map(
                 (row) =>
-                  Prisma.sql`(${employeeIds.get(row.noReg)}::uuid, ${row.noReg}, ${row.name}, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                  Prisma.sql`(${employeeIds.get(row.noReg)}::uuid, ${row.noReg}, ${row.name}, ${row.birthDate ?? null}::date, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
               ),
-            )} ON CONFLICT ("noReg") DO UPDATE SET "name" = EXCLUDED."name", "active" = true, "updatedAt" = CURRENT_TIMESTAMP`,
+            )} ON CONFLICT ("noReg") DO UPDATE SET "name" = EXCLUDED."name", "birthDate" = CASE WHEN ${rows[0]?.birthDate !== undefined} THEN EXCLUDED."birthDate" ELSE "Employee"."birthDate" END, "active" = true, "updatedAt" = CURRENT_TIMESTAMP`,
           );
           await tx.$executeRaw(
             Prisma.sql`INSERT INTO "UserAccount" ("id", "employeeId", "username", "displayName", "passwordHash", "accountKind", "status", "passwordChangeRequired", "createdAt", "updatedAt") VALUES ${Prisma.join(
@@ -1003,33 +1033,53 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     }
     const sheet = workbook.getWorksheet('MFG + QD');
     if (!sheet) throw badRequest('XLSX_SHEET_INVALID', 'Sheet MFG + QD is required');
-    const headers = ORGANIZATION_HEADERS.map(
-      (_, index) => sheet.getRow(1).getCell(index + 1).value,
+    const headerRow = sheet.getRow(1);
+    const headers = Array.from(
+      { length: headerRow.cellCount },
+      (_, i) => headerRow.getCell(i + 1).value,
     );
-    if (
-      !headers.every((value, index) => value === ORGANIZATION_HEADERS[index]) ||
-      sheet.getRow(1).cellCount > ORGANIZATION_HEADERS.length
-    )
-      throw badRequest(
-        'XLSX_HEADERS_INVALID',
-        'The seven workbook headers and their order must match exactly',
-      );
+    const hasBirthDate = this.validateHeaders(headers, 'XLSX');
     if (sheet.actualRowCount - 1 > 10_000)
       throw badRequest('XLSX_ROW_LIMIT', 'Workbook exceeds 10,000 data rows');
     const values: string[][] = [];
-    for (let rowNumber = 2; rowNumber <= sheet.actualRowCount; rowNumber += 1) {
-      const cells = ORGANIZATION_HEADERS.map(
-        (_, index) => sheet.getRow(rowNumber).getCell(index + 1).value,
-      );
+    const sourceRows: number[] = [];
+    for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
+      const source = sheet.getRow(rowNumber);
+      if (source.cellCount > headers.length)
+        throw badRequest('XLSX_COLUMN_COUNT_INVALID', `Row ${rowNumber} has extra columns`);
+      const cells = headers.map((_, index) => source.getCell(index + 1).value);
       if (cells.every((value) => value === null || value === '')) continue;
-      if (!cells.every((value) => value === null || value === '' || typeof value === 'string'))
-        throw badRequest(
-          'XLSX_CELL_TYPE_INVALID',
-          `Row ${rowNumber} must contain only plain string or blank cells`,
-        );
-      values.push(cells.map((value) => (typeof value === 'string' ? value : '')));
+      values.push(
+        cells.map((value, index) => {
+          if (value === null || value === '') return '';
+          if (hasBirthDate && index === 3 && value instanceof Date) {
+            if (!Number.isFinite(value.getTime()))
+              throw badRequest('XLSX_BIRTH_DATE_INVALID', `Invalid birth date at row ${rowNumber}`);
+            return value.toISOString().slice(0, 10);
+          }
+          if (typeof value !== 'string')
+            throw badRequest(
+              'XLSX_CELL_TYPE_INVALID',
+              `Row ${rowNumber} must contain plain strings, blanks, or a Birth Date date cell`,
+            );
+          return value;
+        }),
+      );
+      sourceRows.push(rowNumber);
     }
-    return this.buildRows(values, 'XLSX');
+    return this.buildRows(values, 'XLSX', hasBirthDate, sourceRows);
+  }
+
+  private validateHeaders(headers: unknown[], source: 'XLSX' | 'CSV') {
+    const match = (expected: readonly string[]) =>
+      headers.length === expected.length &&
+      headers.every((value, index) => value === expected[index]);
+    if (match(ORGANIZATION_BIRTH_DATE_HEADERS)) return true;
+    if (match(ORGANIZATION_HEADERS)) return false;
+    throw badRequest(
+      `${source}_HEADERS_INVALID`,
+      'Use the seven organization headers, optionally with Birth Date after Posisi (struktural)',
+    );
   }
 
   private parseCsv(buffer: Buffer): ImportRow[] {
@@ -1044,36 +1094,44 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         max_record_size: 100_000,
       }) as string[][];
     } catch {
-      throw badRequest('CSV_INVALID', 'CSV must be valid UTF-8 with exactly seven columns');
+      throw badRequest('CSV_INVALID', 'CSV must be valid UTF-8 with consistent columns');
     }
     const headers = records.shift() ?? [];
-    if (
-      headers.length !== ORGANIZATION_HEADERS.length ||
-      !headers.every((value, index) => value === ORGANIZATION_HEADERS[index])
-    )
-      throw badRequest(
-        'CSV_HEADERS_INVALID',
-        'The seven CSV headers and their order must match exactly',
-      );
-    return this.buildRows(records, 'CSV');
+    return this.buildRows(records, 'CSV', this.validateHeaders(headers, 'CSV'));
   }
 
-  private buildRows(values: string[][], source: 'XLSX' | 'CSV'): ImportRow[] {
+  private buildRows(
+    values: string[][],
+    source: 'XLSX' | 'CSV',
+    hasBirthDate: boolean,
+    sourceRows?: number[],
+  ): ImportRow[] {
     if (values.length > 10_000)
       throw badRequest(`${source}_ROW_LIMIT`, 'Organization file exceeds 10,000 data rows');
     const rows: ImportRow[] = [];
     const seen = new Set<string>();
     for (let index = 0; index < values.length; index += 1) {
-      const rowNumber = index + 2;
+      const rowNumber = sourceRows?.[index] ?? index + 2;
       const cells = values[index]!;
-      if (cells.length !== ORGANIZATION_HEADERS.length)
+      if (cells.length !== (hasBirthDate ? 8 : 7))
         throw badRequest(
           `${source}_COLUMN_COUNT_INVALID`,
-          `Row ${rowNumber} must have seven columns`,
+          `Row ${rowNumber} has an invalid column count`,
         );
       if (cells.every((value) => value === '')) continue;
+      const normalized = cells.map(normalize);
+      let birthDate: string | null | undefined;
+      if (hasBirthDate) {
+        const rawDate = normalized.splice(3, 1)[0]!;
+        birthDate = rawDate === '' ? null : parseBirthDate(rawDate);
+        if (rawDate && !birthDate)
+          throw badRequest(
+            `${source}_BIRTH_DATE_INVALID`,
+            `Invalid birth date at row ${rowNumber}; use YYYY-MM-DD`,
+          );
+      }
       const [noReg, name, structuralPosition, directorate, division, rawDepartment, section] =
-        cells.map(normalize);
+        normalized;
       const department = rawDepartment || '14';
       if (!noReg || !name || !structuralPosition || !directorate)
         throw badRequest(`${source}_REQUIRED_VALUE`, `Row ${rowNumber} is incomplete`);
@@ -1089,6 +1147,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         division,
         department,
         section,
+        ...(hasBirthDate ? { birthDate } : {}),
         sourceRow: rowNumber,
       });
     }

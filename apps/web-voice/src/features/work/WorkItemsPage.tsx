@@ -25,6 +25,7 @@ import {
   CATEGORY_LABELS,
   formatRelative,
   formatDate,
+  PRIVATE_ROUTE_LABEL,
   STATUS_LABELS,
   SEVERITY_LABELS,
 } from '../../lib/formatters';
@@ -34,7 +35,7 @@ import { useCursorPagination } from '../../lib/useCursorPagination';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import type { HandoverHistoryItem } from '../../workforce-api';
 
-const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED']);
+const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED']);
 
 export function WorkItemsPage() {
   const { session } = useAuth();
@@ -61,9 +62,7 @@ export function WorkItemsPage() {
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
   const handoverMode = isManager && rawView === 'HANDOVERS';
   const view = handoverMode ? 'HANDOVERS' : STATUS_VIEWS.has(rawView) ? rawView : 'ACTIVE';
-  const status = ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'].includes(view)
-    ? view
-    : undefined;
+  const status = ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'].includes(view) ? view : undefined;
   const statusGroup = status || handoverMode ? undefined : (view as 'ACTIVE' | 'CLOSED' | 'ALL');
   const severity = searchParams.get('severity') ?? undefined;
   const area = searchParams.get('area') ?? undefined;
@@ -247,8 +246,8 @@ export function WorkItemsPage() {
                       ? {
                           key: 'verifikasi',
                           icon: <ScrollText />,
-                          value: bucketValue(aggregate.data.status, 'IN_VERIFICATION'),
-                          label: 'Verifikasi',
+                          value: bucketValue(aggregate.data.status, 'MONITORED'),
+                          label: 'Dimonitor',
                           tone: 'brand',
                         }
                       : {
@@ -510,7 +509,7 @@ function introFor({
       description: unassignedOnly
         ? 'Private Voice yang masih menunggu penugasan Union Officer.'
         : isUnionHead
-          ? 'Seluruh Private Voice melalui Union Head, diurutkan berdasarkan severity.'
+          ? `Seluruh Private Voice melalui ${PRIVATE_ROUTE_LABEL}, diurutkan berdasarkan severity.`
           : 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
     };
   if (isLeadership)

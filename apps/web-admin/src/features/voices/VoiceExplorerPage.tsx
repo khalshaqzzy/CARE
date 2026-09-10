@@ -19,8 +19,15 @@ function severityTone(severity: string): 'danger' | 'warning' | 'success' {
       : 'success';
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  OPEN: 'Terbuka',
+  MONITORED: 'Dimonitor',
+  IN_PROGRESS: 'Diproses',
+  CLOSED: 'Selesai',
+};
+
 function voiceStatusTone(status: string): 'warning' | 'info' | 'success' | 'neutral' {
-  if (status === 'OPEN' || status === 'IN_VERIFICATION') return 'warning';
+  if (status === 'OPEN' || status === 'MONITORED') return 'warning';
   if (status === 'IN_PROGRESS') return 'info';
   if (status === 'CLOSED') return 'success';
   return 'neutral';
@@ -180,9 +187,9 @@ export function VoiceExplorerPage() {
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'OPEN', label: 'OPEN' },
-                { value: 'IN_VERIFICATION', label: 'In Verification' },
-                { value: 'IN_PROGRESS', label: 'In Progress' },
-                { value: 'CLOSED', label: 'Closed' },
+                { value: 'MONITORED', label: 'Dimonitor' },
+                { value: 'IN_PROGRESS', label: 'Diproses' },
+                { value: 'CLOSED', label: 'Selesai' },
               ]}
             />
             <Select
@@ -326,7 +333,10 @@ export function VoiceExplorerPage() {
                 header: 'Status',
                 cell: (r: VoiceItem) => (
                   <span className="admin-pill" data-tone={voiceStatusTone(r.status)}>
-                    {r.status}
+                    {STATUS_LABELS[r.status] ?? r.status}
+                    {r.status === 'IN_PROGRESS' && r.closureReviewState === 'REJECTED'
+                      ? ' · Dibuka kembali'
+                      : ''}
                   </span>
                 ),
               },
@@ -414,7 +424,11 @@ export function VoiceExplorerPage() {
                 <dt>Status</dt>
                 <dd>
                   <span className="admin-pill" data-tone={voiceStatusTone(detail.data.status)}>
-                    {detail.data.status}
+                    {STATUS_LABELS[detail.data.status] ?? detail.data.status}
+                    {detail.data.status === 'IN_PROGRESS' &&
+                    detail.data.closureCycles?.at(-1)?.reviewState === 'REJECTED'
+                      ? ' · Dibuka kembali'
+                      : ''}
                   </span>
                 </dd>
               </div>

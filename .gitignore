@@ -26,3 +26,10 @@ __pycache__/
 
 # ZCode client local state
 .zcode/
+
+/visual-output/
+/blob-report/
+/.validation-build.json
+
+/all-captures/
+/all-blob-reports/

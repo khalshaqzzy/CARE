@@ -34,8 +34,12 @@ import {
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { flushSync } from 'react-dom';
+import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
+import { AuthReveal } from './features/auth/AuthReveal';
+import { authFailureMessage } from './features/auth/messages';
 import authHeroAsset from './assets/auth-hero-asset.png';
 import { registerCareServiceWorker } from './register-sw.js';
 import { getBrowserCapabilities } from './lib/browser-capabilities';
@@ -73,6 +77,7 @@ export function App() {
       <ServiceWorkerUpdatePrompt />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route
           path="*"
@@ -154,9 +159,20 @@ function RouteLoader() {
 }
 
 function LoginPage() {
-  const { login, logout, session } = useAuth();
+  const { login, startLogin, logout, session } = useAuth();
+  const location = useLocation();
+  const initial = location.state as { noReg?: string; resetSuccess?: boolean } | null;
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(initial?.noReg ?? '');
+  const [expanded, setExpanded] = useState(false);
+  const requestVersion = useRef(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(
+    () => () => {
+      requestVersion.current += 1;
+    },
+    [],
+  );
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
@@ -168,7 +184,15 @@ function LoginPage() {
     event.preventDefault();
     setPending(true);
     setError('');
+    const version = ++requestVersion.current;
     try {
+      if (!expanded) {
+        const result = await startLogin(username);
+        if (version !== requestVersion.current) return;
+        if (result.next === 'CHANGE_PASSWORD') void navigate('/change-password', { replace: true });
+        else setExpanded(true);
+        return;
+      }
       const result = await login(username, password);
       if (!admitsAccount(result, 'voice')) {
         await logout();
@@ -177,13 +201,13 @@ function LoginPage() {
       }
       void navigate(result.passwordChangeRequired ? '/change-password' : '/', { replace: true });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Login gagal.');
+      if (version === requestVersion.current) setError(authFailureMessage(cause, 'login'));
     } finally {
       setPending(false);
     }
   }
   return (
-    <main className="auth-layout">
+    <main className="auth-layout auth-layout--login">
       <section className="auth-brand auth-brand--media">
         <div className="auth-brand__lockup">
           <div className="brand-mark">C</div>
@@ -200,6 +224,11 @@ function LoginPage() {
             <h2>Silahkan login sesuai petunjuk.</h2>
             <p>Login untuk melanjutkan ke CARE</p>
           </div>
+          {initial?.resetSuccess ? (
+            <Alert tone="success" title="Password berhasil direset">
+              Password anda sudah direset, silahkan login kembali.
+            </Alert>
+          ) : null}
           {error ? (
             <Alert tone="danger" title="Tidak dapat masuk">
               {error}
@@ -207,26 +236,58 @@ function LoginPage() {
           ) : null}
           <form onSubmit={submit} className="auth-form">
             <Input
-              label="Username"
+              label="No. Reg"
               autoComplete="username"
               leading={<UserRound size={18} />}
-              placeholder="Contoh: 00111111"
-              helperText="Gunakan 8 digit NoReg Anda."
+              placeholder="Masukkan No. Reg Anda"
+              helperText="Masukkan No. Reg atau username Anda."
+              ref={inputRef}
+              readOnly={expanded || pending}
+              maxLength={64}
+              autoCapitalize="none"
+              spellCheck={false}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
             />
-            <PasswordInput
-              label="Password"
-              autoComplete="current-password"
-              leading={<Lock size={18} />}
-              placeholder="Password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
+            <AuthReveal open={expanded}>
+              <div className="auth-step-heading">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => {
+                    requestVersion.current += 1;
+                    // Commit the collapse before focusing so the field is no
+                    // longer read-only; iOS/Safari only raises the keyboard
+                    // when an editable input is focused inside the gesture.
+                    flushSync(() => {
+                      setExpanded(false);
+                      setPassword('');
+                      setError('');
+                    });
+                    inputRef.current?.focus();
+                  }}
+                >
+                  Ubah No. Reg
+                </Button>
+              </div>
+              <PasswordInput
+                disabled={pending}
+                label="Password"
+                autoComplete="current-password"
+                leading={<Lock size={18} />}
+                placeholder="Password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+              <Link className="auth-forgot" to="/forgot-password" state={{ noReg: username }}>
+                Lupa Password?
+              </Link>
+            </AuthReveal>
             <Button type="submit" className="auth-submit" loading={pending}>
-              Masuk
+              {expanded ? 'Masuk' : 'Lanjutkan'}
               <ArrowRight size={18} aria-hidden="true" />
             </Button>
           </form>
@@ -295,7 +356,7 @@ function ChangePasswordPage() {
     setPendingAction('password');
     setError(null);
     try {
-      await transport.changePassword(currentPassword, newPassword);
+      await transport.changePassword(canDefer ? undefined : currentPassword, newPassword);
       await refresh();
       void navigate('/', { replace: true });
     } catch (cause) {
@@ -339,7 +400,7 @@ function ChangePasswordPage() {
           <div>
             <Button
               variant="ghost"
-              className="auth-back"
+              className={`auth-back${session.passwordChangeRequired ? ' auth-back--login' : ''}`}
               disabled={pending}
               onClick={() => void back()}
             >
@@ -350,7 +411,8 @@ function ChangePasswordPage() {
               {session.passwordChangeRequired ? 'Ganti password sementara' : 'Ganti password'}
             </h2>
             <p>
-              Password minimal 6 karakter dan tidak boleh sama dengan username dan password
+              Password minimal 6 karakter dan tidak boleh sama dengan{' '}
+              {session.account.accountKind === 'WORKFORCE' ? 'No. Reg' : 'username'} dan password
               sebelumnya
             </p>
           </div>
@@ -360,14 +422,16 @@ function ChangePasswordPage() {
             </Alert>
           ) : null}
           <form onSubmit={submit} className="auth-form">
-            <PasswordInput
-              label="Password saat ini"
-              autoComplete="current-password"
-              leading={<Lock size={18} />}
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              required
-            />
+            {!canDefer ? (
+              <PasswordInput
+                label="Password saat ini"
+                autoComplete="current-password"
+                leading={<Lock size={18} />}
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                required
+              />
+            ) : null}
             <PasswordInput
               label="Password baru"
               autoComplete="new-password"

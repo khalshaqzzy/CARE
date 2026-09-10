@@ -17,6 +17,11 @@ const selected = {
   properties: { directorate: string, division: string, department: string, section: string },
 };
 const metadata = {
+  scopeMode: { type: 'string', enum: ['OWN', 'PARENT', 'GLOBAL'] },
+  allowedScopeModes: {
+    type: 'array',
+    items: { type: 'string', enum: ['OWN', 'PARENT', 'GLOBAL'] },
+  },
   basis: { type: 'string', enum: ['HANDLING', 'REPORTER'] },
   visibility: { type: 'string', enum: ['GENERAL', 'PRIVATE'] },
   level: { type: 'string', enum: ['division', 'department', 'section'] },
@@ -45,6 +50,7 @@ const buckets = {
   },
 };
 export const dashboardParameters = [
+  'scopeMode',
   'basis',
   'visibility',
   'level',
@@ -80,9 +86,6 @@ export const dashboardSchemas = {
       'area',
       'previousTotal',
       'trendGrain',
-      'protected',
-      'suppressedDimensions',
-      'suppression',
       'handlingUnresolved',
       'filters',
       'generatedAt',
@@ -91,7 +94,7 @@ export const dashboardSchemas = {
     properties: {
       ...metadata,
       organization: buckets,
-      total: { type: 'integer', nullable: true },
+      total: { type: 'integer' },
       status: buckets,
       severity: buckets,
       category: buckets,
@@ -100,13 +103,6 @@ export const dashboardSchemas = {
       previousTotal: { type: 'integer', nullable: true },
       trendGrain: { type: 'string', enum: ['day', 'week', 'month'] },
       pendingAssignment: { type: 'integer' },
-      protected: { type: 'boolean' },
-      suppressedDimensions: { type: 'array', items: string },
-      suppression: {
-        type: 'object',
-        required: ['enabled', 'threshold'],
-        properties: { enabled: { type: 'boolean' }, threshold: { type: 'integer' } },
-      },
       handlingUnresolved: { type: 'integer', nullable: true },
       filters: { type: 'object', additionalProperties: string },
       generatedAt: { type: 'string', format: 'date-time' },

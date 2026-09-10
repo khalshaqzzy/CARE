@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import {
+  mockRecovery,
+  enterIdentifier,
+  chooseBirthDate,
+  assertContained,
+} from './helpers/auth-recovery';
 import { memberSession, mockWorkforceApi, PNG_MEDIA_SAMPLE } from './helpers/mock-api';
 
 const voice = {
@@ -6,11 +12,11 @@ const voice = {
   displayId: 'CARE-202608-000011',
   audience: 'GENERAL_RESPONDER',
   visibility: 'GENERAL' as const,
-  status: 'IN_VERIFICATION',
+  status: 'IN_PROGRESS',
   area: 'KARAWANG_1',
   title: 'Legacy Safari tetap dapat bekerja',
   detail: 'Journey online harus tersedia tanpa service worker dan Web Push.',
-  availableActions: ['ASK', 'MESSAGE', 'PROCEED'],
+  availableActions: ['MESSAGE', 'CLOSE'],
 };
 
 async function emulateLegacyApis(page: import('@playwright/test').Page) {
@@ -94,8 +100,8 @@ test('iOS 11.3 keeps responder detail and online actions available', async ({ pa
     page.getByRole('heading', { name: 'Legacy Safari tetap dapat bekerja' }),
   ).toBeVisible();
   await expect(page.getByRole('group', { name: 'Tindakan' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tanya Reporter' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Proses' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Selesaikan Voice' })).toBeVisible();
+
   // The conversation room lives on the dedicated chat page.
   await page.getByRole('button', { name: /Percakapan/ }).click();
   await expect(page).toHaveURL(/\/voices\/voice-legacy\/chat$/);
@@ -108,12 +114,6 @@ test('iOS 11.3 keeps responder detail and online actions available', async ({ pa
   });
   await page.getByRole('button', { name: 'Kirim pesan' }).click();
   await expect.poll(() => mutations.some((path) => path.endsWith('/messages'))).toBe(true);
-
-  await page.goto('/voices/voice-legacy');
-  await page.getByRole('button', { name: 'Proses' }).first().click();
-  await expect(page.getByRole('dialog', { name: 'Proses Voice' })).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Proses' }).click();
-  await expect.poll(() => mutations.some((path) => path.endsWith('/proceed'))).toBe(true);
 });
 
 test('lightbox reveals and contains the image on the WebKit engine', async ({ page }) => {
@@ -170,7 +170,8 @@ test('iOS 11.3 renders the forced-password gate instead of a blank root', async 
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
-  await expect(page.getByLabel('Password saat ini')).toBeVisible();
+  await expect(page.getByLabel('Password saat ini')).toHaveCount(0);
+  await expect(page.getByLabel(/^Password baru/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Simpan password' })).toBeVisible();
 });
 
@@ -187,7 +188,7 @@ test('assignment sheet scrolls many candidates on legacy WebKit', async ({ page 
     })),
   });
   await page.goto(`/voices/${voice.id}`);
-  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+  await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('radio', { name: /Section Head 24/ }).click();
   expect(await dialog.locator('.care-dialog__body').evaluate((el) => el.scrollTop)).toBeGreaterThan(
@@ -196,4 +197,20 @@ test('assignment sheet scrolls many candidates on legacy WebKit', async ({ page 
   await expect(
     dialog.locator('.care-dialog__footer').getByRole('button', { name: 'Tugaskan' }),
   ).toBeInViewport();
+});
+
+test('legacy WebKit opens password and birth-date recovery controls', async ({ page }) => {
+  await emulateLegacyApis(page);
+  const identifier = await mockRecovery(page);
+  await page.goto('/login');
+  await enterIdentifier(page, identifier);
+  await expect(page.getByRole('textbox', { name: 'Password', exact: true })).toBeFocused();
+  await page.getByRole('link', { name: 'Lupa Password?' }).click();
+  await page.getByRole('button', { name: 'Lanjutkan' }).click();
+  await chooseBirthDate(page);
+  await assertContained(page);
+  await page.getByRole('button', { name: 'Reset password', exact: true }).click();
+  await expect(
+    page.getByText('Password anda sudah direset, silahkan login kembali.'),
+  ).toBeVisible();
 });

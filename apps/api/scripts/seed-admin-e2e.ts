@@ -173,6 +173,10 @@ async function main() {
       },
     });
 
+    await prisma.conversation.createMany({
+      data: [{ voiceId: generalVoice.id }, { voiceId: privateVoice.id }],
+    });
+
     // A minimal append-only timeline so the member smoke can render a timeline
     // for the seeded voices instead of an empty/hidden section.
     await prisma.voiceEvent.createMany({

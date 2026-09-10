@@ -167,51 +167,220 @@ describe('Voice lifecycle backend completion', () => {
     ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
   });
 
-  it('keeps chat absent for OPEN and for a direct OPEN to IN_PROGRESS transition', async () => {
-    const voice = await createVoice({ status: VoiceStatus.OPEN });
-    const openDetail = await voices.detail(manager, voice.id);
-    expect(openDetail.conversationState).toBe('UNAVAILABLE');
-    expect(openDetail.availableActions).not.toContain('MESSAGE');
-    await expect(voices.messages(manager, voice.id, {})).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-    });
-
-    const progressed = await voices.proceed(manager, voice.id, { version: 1 }, 'proceed-no-chat');
-    expect(progressed.status).toBe(VoiceStatus.IN_PROGRESS);
-    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
-    const progressedDetail = await voices.detail(manager, voice.id);
-    expect(progressedDetail.conversationState).toBe('UNAVAILABLE');
+  it('requires monitor and a note before opening the conversation; replays concurrent actions', async () => {
+    const voice = await createVoice();
+    expect((await voices.detail(manager, voice.id)).conversationState).toBe('UNAVAILABLE');
+    expect(await prisma.notification.count({ where: { voiceId: voice.id } })).toBe(0);
     await expect(
-      voices.addMessage(manager, voice.id, { text: 'should fail' }, [], 'message-no-chat'),
+      voices.ask(manager, voice.id, { text: 'old', version: 1 }, 'old-ask'),
+    ).rejects.toMatchObject({ code: 'CLIENT_UPDATE_REQUIRED' });
+    await expect(
+      voices.proceed(manager, voice.id, { text: 'Tindak lanjut', version: 1 }, 'skip-monitor'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    const monitored = await Promise.all([
+      voices.monitor(manager, voice.id, { version: 1 }, 'monitor-replay'),
+      voices.monitor(manager, voice.id, { version: 1 }, 'monitor-replay'),
+    ]);
+    expect(monitored[0]).toEqual(monitored[1]);
+    expect(monitored[0].status).toBe('MONITORED');
+    expect((await voices.detail(reporter, voice.id)).conversationState).toBe('UNAVAILABLE');
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: reporter.accountId },
+      }),
+    ).toBe(1);
+    await expect(
+      voices.proceed(manager, voice.id, { text: '   ', version: 2 }, 'blank'),
+    ).rejects.toBeDefined();
+    const processed = await Promise.all([
+      voices.proceed(
+        manager,
+        voice.id,
+        { text: '  Memeriksa lokasi  ', version: 2 },
+        'process-replay',
+      ),
+      voices.proceed(
+        manager,
+        voice.id,
+        { text: '  Memeriksa lokasi  ', version: 2 },
+        'process-replay',
+      ),
+    ]);
+    expect(processed[0]).toEqual(processed[1]);
+    expect(processed[0]).toMatchObject({
+      status: 'IN_PROGRESS',
+      currentHandlerId: manager.accountId,
+      version: 3,
+    });
+    expect((await voices.messages(reporter, voice.id, {})).items).toHaveLength(1);
+    expect((await voices.messages(reporter, voice.id, {})).items[0]?.text).toBe('Memeriksa lokasi');
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: reporter.accountId },
+      }),
+    ).toBe(2);
+    await expect(
+      voices.proceed(manager, voice.id, { text: 'different', version: 2 }, 'process-replay'),
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+  });
+
+  it('assignment monitors without chat and only the assigned PIC can start processing', async () => {
+    const voice = await createVoice();
+    const body = { handlerAccountId: sectionHead.accountId, expectedVersion: 1 };
+    const assigned = await voices.assign(manager, voice.id, body, 'assign-chat-room');
+    expect(await voices.assign(manager, voice.id, body, 'assign-chat-room')).toEqual(assigned);
+    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
+    expect((await voices.detail(sectionHead, voice.id)).conversationState).toBe('UNAVAILABLE');
+    await expect(
+      voices.proceed(manager, voice.id, { text: 'take over', version: 2 }, 'owner-denied'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await expect(
+      voices.addMessage(sectionHead, voice.id, { text: 'too soon' }, [], 'message-soon'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await voices.proceed(
+      sectionHead,
+      voice.id,
+      { text: 'Memeriksa lokasi', version: 2 },
+      'assigned-process',
+    );
+    expect((await voices.detail(reporter, voice.id)).conversationState).toBe('ACTIVE');
+    expect((await voices.messages(reporter, voice.id, {})).items).toHaveLength(1);
+    expect(await prisma.voiceEvent.count({ where: { voiceId: voice.id, type: 'MONITORED' } })).toBe(
+      1,
+    );
+  });
+
+  it('allows assignment and reassign after monitoring without duplicate reporter acknowledgement', async () => {
+    const voice = await createVoice();
+    await voices.monitor(manager, voice.id, { version: 1 }, 'later-monitor');
+    const assigned = await voices.assign(
+      manager,
+      voice.id,
+      { handlerAccountId: sectionHead.accountId, expectedVersion: 2 },
+      'later-assign',
+    );
+    expect(assigned.status).toBe('MONITORED');
+    const reassigned = await voices.reassign(
+      manager,
+      voice.id,
+      { handlerAccountId: sectionHead.accountId, expectedVersion: 3 },
+      'later-reassign',
+    );
+    expect(reassigned.version).toBe(4);
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: reporter.accountId },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.voiceAssignment.count({ where: { voiceId: voice.id, endedAt: null } }),
+    ).toBe(1);
+    expect(await prisma.voiceAssignment.count({ where: { voiceId: voice.id } })).toBe(2);
+    await voices.proceed(
+      sectionHead,
+      voice.id,
+      { version: 4, text: 'Pemeriksaan dimulai' },
+      'later-process',
+    );
+    await expect(
+      voices.reassign(
+        manager,
+        voice.id,
+        { handlerAccountId: sectionHead.accountId, expectedVersion: 5 },
+        'late-reassign',
+      ),
     ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
   });
 
-  it('opens an empty active room on assignment and creates records on the first message', async () => {
-    const voice = await createVoice({ status: VoiceStatus.OPEN });
+  it('Private assignment acknowledges anonymously and reserves processing for the officer', async () => {
+    const voice = await createVoice({
+      visibility: VoiceVisibility.PRIVATE,
+      routeOwnerId: unionHead.accountId,
+      handlerType: HandlerType.UNION_HEAD,
+      showReporterIdentity: false,
+    });
     await voices.assign(
+      unionHead,
+      voice.id,
+      { handlerAccountId: officer.accountId, expectedVersion: 1 },
+      'private-assign',
+    );
+    await expect(
+      voices.proceed(unionHead, voice.id, { version: 2, text: 'takeover' }, 'private-owner'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await voices.proceed(
+      officer,
+      voice.id,
+      { version: 2, text: 'Komite menindaklanjuti laporan' },
+      'private-process',
+    );
+    await voices.addMessage(reporter, voice.id, { text: 'Terima kasih' }, [], 'private-reply');
+    const messages = await voices.messages(officer, voice.id, {});
+    expect(messages.items[1]?.sender).toMatchObject({ kind: 'ANONYMOUS_REPORTER' });
+    expect(messages.items[1]?.senderId).toBeUndefined();
+  });
+
+  it('serializes closure against message writes and never accepts a post-closure message', async () => {
+    const voice = await createVoice({ status: VoiceStatus.MONITORED });
+    const processed = await voices.proceed(
       manager,
       voice.id,
-      { handlerAccountId: sectionHead.accountId, expectedVersion: 1 },
-      'assign-chat-room',
+      { version: 1, text: 'Pemeriksaan dimulai' },
+      'race-process',
     );
+    await Promise.allSettled([
+      voices.close(
+        manager,
+        voice.id,
+        { version: processed.version, note: 'Selesai' },
+        'race-close',
+      ),
+      voices.addMessage(reporter, voice.id, { text: 'Concurrent reply' }, [], 'race-reply'),
+    ]);
+    const closure = await prisma.closureCycle.findFirstOrThrow({ where: { voiceId: voice.id } });
+    const messages = await prisma.message.findMany({
+      where: { conversation: { voiceId: voice.id } },
+    });
+    expect(messages.every((message) => message.createdAt <= closure.closedAt)).toBe(true);
+    await expect(
+      voices.addMessage(reporter, voice.id, { text: 'Late' }, [], 'race-late'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+  });
 
-    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(0);
-    const projected = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
-    expect(projected.handlingSectionSnapshot).toBe(sectionHead.section);
-    const assignedDetail = await voices.detail(sectionHead, voice.id);
-    expect(assignedDetail.conversationState).toBe('ACTIVE');
-    expect(assignedDetail.availableActions).toContain('MESSAGE');
-    expect(await voices.messages(sectionHead, voice.id, {})).toMatchObject({ items: [] });
-
-    await voices.addMessage(
-      sectionHead,
+  it('rolls back reopen and rating when neither last PIC nor route owner is active', async () => {
+    const voice = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: manager.accountId,
+    });
+    const closed = await voices.close(
+      manager,
       voice.id,
-      { text: 'Mohon lengkapi lokasi.' },
-      [],
-      'message-first',
+      { version: 1, note: 'Selesai' },
+      'inactive-close',
     );
-    expect(await prisma.conversation.count({ where: { voiceId: voice.id } })).toBe(1);
-    expect((await voices.messages(reporter, voice.id, {})).items).toHaveLength(1);
+    await prisma.userAccount.update({
+      where: { id: manager.accountId },
+      data: { status: 'INACTIVE' },
+    });
+    try {
+      await expect(
+        voices.rate(
+          reporter,
+          voice.id,
+          { score: 1, feedback: 'Masih bermasalah', reopen: true },
+          'inactive-reopen',
+        ),
+      ).rejects.toMatchObject({ code: 'REOPEN_HANDLER_UNAVAILABLE' });
+      expect(await prisma.rating.count({ where: { closureCycleId: closed.id } })).toBe(0);
+      expect((await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).status).toBe(
+        'CLOSED',
+      );
+    } finally {
+      await prisma.userAccount.update({
+        where: { id: manager.accountId },
+        data: { status: 'ACTIVE' },
+      });
+    }
   });
 
   it.each([0, 1, 5])(
@@ -239,20 +408,15 @@ describe('Voice lifecycle backend completion', () => {
     },
   );
 
-  it('preserves an asked conversation through IN_PROGRESS and makes it read-only when CLOSED', async () => {
+  it('preserves a processing conversation through IN_PROGRESS and makes it read-only when CLOSED', async () => {
     const voice = await createVoice({ status: VoiceStatus.OPEN });
-    const asked = await voices.ask(
-      manager,
-      voice.id,
-      { text: 'Bisa beri detail tambahan?', version: 1 },
-      'ask-chat-lifecycle',
-    );
-    expect((await voices.detail(reporter, voice.id)).conversationState).toBe('ACTIVE');
+    const asked = await voices.monitor(manager, voice.id, { version: 1 }, 'ask-chat-lifecycle');
+    expect((await voices.detail(reporter, voice.id)).conversationState).toBe('UNAVAILABLE');
 
     const progressed = await voices.proceed(
       manager,
       voice.id,
-      { version: asked.version },
+      { text: 'Memeriksa lokasi', version: asked.version },
       'proceed-chat-lifecycle',
     );
     expect((await voices.detail(manager, voice.id)).conversationState).toBe('ACTIVE');
@@ -293,16 +457,16 @@ describe('Voice lifecycle backend completion', () => {
       expect.objectContaining({ id: officer.accountId, slot: UnionSlot.OFFICER_1 }),
     ]);
     // Workload subtitle: the candidate has no active voice yet, then gains one.
-    expect(privateCandidates[0]).toMatchObject({ activeCount: 0 });
+    const previousCount = privateCandidates[0]!.activeCount;
     await createVoice({
-      status: VoiceStatus.IN_VERIFICATION,
+      status: VoiceStatus.MONITORED,
       visibility: VoiceVisibility.PRIVATE,
       routeOwnerId: unionHead.accountId,
       handlerType: HandlerType.UNION_HEAD,
       currentHandlerId: officer.accountId,
     });
     const reloaded = await voices.assignmentCandidates(unionHead, privateVoice.id);
-    expect(reloaded[0]).toMatchObject({ id: officer.accountId, activeCount: 1 });
+    expect(reloaded[0]).toMatchObject({ id: officer.accountId, activeCount: previousCount + 1 });
   });
 
   it('links staged closure evidence to the closure cycle with a 1-5 cap', async () => {
@@ -407,7 +571,7 @@ describe('Voice lifecycle backend completion', () => {
       'rate-k4',
     );
     const reopened = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
-    expect(reopened.status).toBe(VoiceStatus.IN_VERIFICATION);
+    expect(reopened.status).toBe(VoiceStatus.IN_PROGRESS);
     expect(reopened.currentHandlerId).toBe(manager.accountId);
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
     expect(reopened.handlingSectionSnapshot).toBeNull();

@@ -1,15 +1,6 @@
 import { Alert, Button, ChoiceCardGroup, Dialog, Input, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowLeftRight,
-  Check,
-  ImagePlus,
-  Lock,
-  MessagesSquare,
-  Play,
-  Send,
-  UserRound,
-} from 'lucide-react';
+import { ArrowLeftRight, Check, ImagePlus, Lock, Eye, Play, Send, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ACTION_LABELS } from '../lib/formatters';
@@ -17,7 +8,7 @@ import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
 
-type Action = 'ask' | 'proceed' | 'close' | 'rate' | 'assign' | 'reassign' | 'none';
+type Action = 'proceed' | 'close' | 'rate' | 'assign' | 'reassign' | 'none';
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const api = useApi();
@@ -28,43 +19,77 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const [active, setActive] = useState<Action>('none');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [processText, setProcessText] = useState('');
 
-  const askKey = useMutationKey('ask');
+  const monitorKey = useMutationKey('monitor');
   const proceedKey = useMutationKey('proceed');
   const closeKey = useMutationKey('close');
   const assignKey = useMutationKey('assign');
+  const monitorVersion = useRef<number | null>(null);
+  const processRequest = useRef<{ text: string; version: number } | null>(null);
+  const assignmentRequest = useRef<{ signature: string; expectedVersion: number } | null>(null);
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', detail.id) });
-    void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'dashboard') });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId) });
+
+  const refreshOnConflict = (cause: unknown) => {
+    if (
+      typeof cause === 'object' &&
+      cause &&
+      'code' in cause &&
+      cause.code === 'VERSION_CONFLICT'
+    ) {
+      monitorVersion.current = null;
+      processRequest.current = null;
+      assignmentRequest.current = null;
+      monitorKey.reset();
+      proceedKey.reset();
+      assignKey.reset();
+      void invalidate();
+    }
+    setError(cause instanceof Error ? cause.message : 'Perubahan belum tersimpan. Coba lagi.');
   };
 
-  const ask = useMutation({
-    mutationFn: async (text: string) =>
-      api.ask(detail.id, { text, version: detail.version }, askKey.key()),
-    // PRD §16: asking opens and focuses the verification room.
-    onSuccess: () => {
-      invalidate();
-      void navigate(`/voices/${detail.id}/chat`);
+  const monitor = useMutation({
+    mutationFn: () =>
+      api.monitor(
+        detail.id,
+        { version: (monitorVersion.current ??= detail.version) },
+        monitorKey.key(),
+      ),
+    onSuccess: async () => {
+      monitorKey.reset();
+      monitorVersion.current = null;
+      setError(null);
+      await invalidate();
+      setNotice('Voice sedang dimonitor. Pelapor telah diberi tahu.');
     },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: askKey.reset,
+    onError: refreshOnConflict,
   });
   const proceed = useMutation({
-    mutationFn: () => api.proceed(detail.id, { version: detail.version }, proceedKey.key()),
-    onSuccess: () => {
-      invalidate();
-      setNotice('Voice dipindahkan ke In Progress.');
-      setActive('none');
+    mutationFn: (text: string) => {
+      processRequest.current ??= { text, version: detail.version };
+      return api.proceed(detail.id, processRequest.current, proceedKey.key());
     },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: proceedKey.reset,
+    onSuccess: async () => {
+      proceedKey.reset();
+      processRequest.current = null;
+      setError(null);
+      await invalidate();
+      await queryClient.fetchQuery({
+        queryKey: voiceQuery(sessionId, 'voice', detail.id),
+        queryFn: () => api.voiceDetail(detail.id),
+        staleTime: 0,
+      });
+      setActive('none');
+      void navigate(`/voices/${detail.id}/chat`);
+    },
+    onError: refreshOnConflict,
   });
   const close = useMutation({
     mutationFn: (body: { note: string; version: number }) =>
       api.close(detail.id, body, closeKey.key()),
     onSuccess: () => {
-      invalidate();
+      void invalidate();
       setNotice('Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.');
       setActive('none');
     },
@@ -72,23 +97,37 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     onSettled: closeKey.reset,
   });
   const assign = useMutation({
-    mutationFn: (body: { handlerAccountId: string; reason?: string }) =>
-      api.assign(detail.id, { ...body, expectedVersion: detail.version }, assignKey.key()),
+    mutationFn: (body: { handlerAccountId: string; reason?: string }) => {
+      const signature = JSON.stringify({ action: active, ...body });
+      if (assignmentRequest.current?.signature !== signature) {
+        assignmentRequest.current = { signature, expectedVersion: detail.version };
+        assignKey.reset();
+      }
+      return (active === 'reassign' ? api.reassign : api.assign)(
+        detail.id,
+        { ...body, expectedVersion: assignmentRequest.current.expectedVersion },
+        assignKey.key(),
+      );
+    },
     onSuccess: () => {
-      invalidate();
-      setNotice('Penanggung jawab diperbarui dan percakapan verifikasi tersedia.');
+      void invalidate();
+      assignKey.reset();
+      assignmentRequest.current = null;
+      setNotice('PIC diperbarui. Voice sedang dimonitor; percakapan dibuka saat proses dimulai.');
       setActive('none');
     },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: assignKey.reset,
+    onError: refreshOnConflict,
   });
 
   if (!actions.length) return null;
 
   return (
     <>
+      {detail.status === 'MONITORED' && detail.currentHandler && !actions.includes('PROCEED') ? (
+        <p className="action-panel__waiting">Menunggu PIC memulai penanganan.</p>
+      ) : null}
       <div className="action-panel" role="group" aria-label="Tindakan">
-        {actions.some((action) => ['ASSIGN', 'REASSIGN', 'ASK'].includes(action)) ? (
+        {actions.some((action) => ['ASSIGN', 'REASSIGN'].includes(action)) ? (
           <div
             className="action-row action-row--secondary"
             role="group"
@@ -106,15 +145,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
                 {ACTION_LABELS.REASSIGN}
               </Button>
             ) : null}
-            {actions.includes('ASK') ? (
-              <Button variant="secondary" onClick={() => setActive('ask')}>
-                <MessagesSquare size={18} aria-hidden="true" />
-                {ACTION_LABELS.ASK}
-              </Button>
-            ) : null}
           </div>
         ) : null}
-        {actions.some((action) => ['HANDOVER', 'PROCEED', 'CLOSE'].includes(action)) ? (
+        {actions.some((action) => ['MONITOR', 'HANDOVER', 'PROCEED', 'CLOSE'].includes(action)) ? (
           <div className="action-row action-row--primary" role="group" aria-label="Keputusan Voice">
             {actions.includes('HANDOVER') ? (
               <Button
@@ -125,8 +158,29 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
                 {ACTION_LABELS.HANDOVER}
               </Button>
             ) : null}
+            {actions.includes('MONITOR') ? (
+              <Button
+                variant="primary"
+                loading={monitor.isPending}
+                disabled={monitor.isPending}
+                onClick={() => monitor.mutate()}
+              >
+                <Eye size={18} aria-hidden="true" /> Monitor Voice
+              </Button>
+            ) : null}
             {actions.includes('PROCEED') ? (
-              <Button variant="primary" onClick={() => setActive('proceed')}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setError(null);
+                  setProcessText('');
+                  processRequest.current = null;
+                  proceedKey.reset();
+                  setProcessText('');
+                  processRequest.current = null;
+                  setActive('proceed');
+                }}
+              >
                 <Play size={18} aria-hidden="true" />
                 {ACTION_LABELS.PROCEED}
               </Button>
@@ -140,7 +194,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           </div>
         ) : null}
       </div>
-      {error ? (
+      {error && active !== 'proceed' ? (
         <Alert tone="danger" title="Periksa kembali">
           {error}
         </Alert>
@@ -150,19 +204,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           {notice}
         </Alert>
       ) : null}
-
-      <Dialog
-        open={active === 'ask'}
-        onOpenChange={(open) => setActive(open ? 'ask' : 'none')}
-        title="Tanya Reporter"
-        description="Kirim pertanyaan verifikasi. Status akan berpindah ke In Verification."
-      >
-        <AskDialog
-          onCancel={() => setActive('none')}
-          onSend={(text) => ask.mutate(text)}
-          loading={ask.isPending}
-        />
-      </Dialog>
 
       <AssignDialog
         open={active === 'assign' || active === 'reassign'}
@@ -182,15 +223,52 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
 
       <Dialog
         open={active === 'proceed'}
-        onOpenChange={(open) => setActive(open ? 'proceed' : 'none')}
-        title="Proses Voice"
-        description="Konfirmasi Anda menangani Voice ini dan memindahkannya ke In Progress."
+        onOpenChange={(open) => {
+          if (!proceed.isPending) setActive(open ? 'proceed' : 'none');
+        }}
+        mobileSheet
+        className="assignment-dialog process-dialog"
+        title="Mulai proses Voice"
+        description="Keterangan ini akan dikirim sebagai pesan pertama kepada pelapor."
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={proceed.isPending} onClick={() => setActive('none')}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={proceed.isPending}
+              disabled={!processText.trim() || proceed.isPending}
+              onClick={() => proceed.mutate(processText.trim())}
+            >
+              Mulai proses &amp; buka chat
+            </Button>
+          </div>
+        }
       >
-        <ProceedDialog
-          onCancel={() => setActive('none')}
-          onConfirm={() => proceed.mutate()}
-          loading={proceed.isPending}
-        />
+        <Stack gap="md">
+          {error ? (
+            <Alert tone="danger" title="Proses belum tersimpan">
+              {error}
+            </Alert>
+          ) : null}
+          <Textarea
+            label="Keterangan penanganan"
+            placeholder="Jelaskan tindak lanjut yang akan dilakukan"
+            value={processText}
+            onChange={(event) => {
+              setProcessText(event.target.value);
+              processRequest.current = null;
+              proceedKey.reset();
+              setError(null);
+            }}
+            rows={5}
+            maxLength={4000}
+            counter={`${processText.length}/4000`}
+            required
+            disabled={proceed.isPending}
+          />
+        </Stack>
       </Dialog>
 
       <Dialog
@@ -291,6 +369,11 @@ function AssignDialog({
       }
     >
       <Stack gap="md">
+        {detail.status === 'OPEN' ? (
+          <p className="dialog-copy">
+            Penugasan mengubah status menjadi Dimonitor dan memberi tahu pelapor.
+          </p>
+        ) : null}
         {error ? (
           <Alert tone="danger" title="Penugasan belum tersimpan">
             {error}
@@ -359,69 +442,6 @@ function AssignDialog({
         />
       </Stack>
     </Dialog>
-  );
-}
-
-function AskDialog({
-  onCancel,
-  onSend,
-  loading,
-}: {
-  onCancel: () => void;
-  onSend: (text: string) => void;
-  loading: boolean;
-}) {
-  const [text, setText] = useState('');
-  return (
-    <Stack gap="md">
-      <Textarea
-        label="Pesan pertanyaan"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        rows={4}
-        maxLength={4000}
-        required
-      />
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onCancel}>
-          Batal
-        </Button>
-        <Button
-          variant="primary"
-          loading={loading}
-          disabled={!text.trim()}
-          onClick={() => onSend(text)}
-        >
-          Kirim
-        </Button>
-      </div>
-    </Stack>
-  );
-}
-
-function ProceedDialog({
-  onCancel,
-  onConfirm,
-  loading,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-  loading: boolean;
-}) {
-  return (
-    <Stack gap="md">
-      <p className="dialog-copy">
-        Voice akan berpindah ke In Progress dan Anda menjadi penanggung jawab aktif.
-      </p>
-      <div className="dialog-actions">
-        <Button variant="ghost" onClick={onCancel}>
-          Batal
-        </Button>
-        <Button variant="primary" loading={loading} onClick={onConfirm}>
-          Proses
-        </Button>
-      </div>
-    </Stack>
   );
 }
 

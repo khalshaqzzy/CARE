@@ -42,3 +42,10 @@ New Private submissions have durable consent evidence without expanding Union id
 Strict screenshot baselines are stored separately for Darwin and Linux because CoreText and FreeType rasterization differ. Linux baselines are generated and checked in Ubuntu 22.04 with the pinned Node and Playwright versions; Darwin images are verified separately. Screenshot thresholds remain unchanged. Both environments must be verified when these UI baselines change; a local macOS pass alone does not establish CI visual parity.
 
 Linux screenshot names also include CPU architecture (`linux-x64` or `linux-arm64`). Explicit amd64 reproduction matched hosted CI pixel differences; an ARM64 Linux pass does not establish x64 parity. `visual-platform.ts` centralizes this distinction without changing tolerances.
+
+## Visual validation amendment — 10 September 2026
+
+ADR-0047 supersedes platform baseline generation and repeated no-update comparison
+requirements in this record. Native screenshots and CI gallery artifacts are used
+for inspection; existing functional, accessibility and layout assertions remain
+required. Historical validation results above are retained as evidence of those runs.

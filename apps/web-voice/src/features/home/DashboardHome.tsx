@@ -1,5 +1,5 @@
 import { Alert, Button, Card, Dialog, EmptyState, Input, Select, Skeleton } from '@care/ui';
-import { useAuth } from '@care/frontend-core';
+import { FrontendError, useAuth } from '@care/frontend-core';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
@@ -18,7 +18,7 @@ import {
   RotateCcw,
   UserRound,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardChartCard } from '../../components/DashboardChartCard';
 import { DonutChart, DonutLegend } from '../../components/DonutChart';
@@ -26,7 +26,7 @@ import { FilterPillRow } from '../../components/FilterPills';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { TrendCard } from '../../components/TrendCard';
 import { activeCount, bucketValue } from '../../lib/dashboard-math';
-import { dashboardDates, type DashboardRange } from '../../lib/dashboard-range';
+import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
 import { AREA_LABELS, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
@@ -48,6 +48,7 @@ const rangeOptions = [
 ];
 const filterNames = [
   'basis',
+  'scopeMode',
   'level',
   ...orgLevels,
   'handler',
@@ -59,6 +60,14 @@ const filterNames = [
   'dashFrom',
   'dashTo',
 ];
+
+// Promise.allSettled is absent on the supported legacy WebKit tier.
+function settled<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> {
+  return promise.then(
+    (value) => ({ status: 'fulfilled', value }),
+    (reason) => ({ status: 'rejected', reason }),
+  );
+}
 
 export function DashboardHome() {
   const { session } = useAuth();
@@ -82,18 +91,15 @@ export function DashboardHome() {
     (range === 'custom' &&
       (!from ||
         !to ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
+        !isDashboardDate(from) ||
+        !isDashboardDate(to) ||
         from > to ||
         !Number.isFinite(Date.parse(from)) ||
         !Number.isFinite(Date.parse(to))));
-  const dates = useMemo(
-    () => (invalidDates ? {} : dashboardDates(range, from, to)),
-    [range, from, to, invalidDates],
-  );
   const query = {
     basis: isPrivate ? 'HANDLING' : (read('basis') ?? 'HANDLING'),
     visibility: isPrivate ? 'PRIVATE' : 'GENERAL',
+    scopeMode: read('scopeMode'),
     level: read('level'),
     directorate: read('directorate'),
     division: read('division'),
@@ -104,7 +110,6 @@ export function DashboardHome() {
     category: isPrivate ? undefined : read('dashCategory'),
     severity: read('dashSeverity'),
     status: read('dashStatus'),
-    ...dates,
   };
   const metadataQuery = {
     ...query,
@@ -119,24 +124,62 @@ export function DashboardHome() {
   };
   const metadata = useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'metadata', metadataQuery),
-    queryFn: () => api.dashboardMetadata(metadataQuery),
+    queryFn: ({ signal }) => api.dashboardMetadata(metadataQuery, signal),
     enabled: online,
     staleTime: 30000,
   });
-  const dashboard = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'view', query),
-    queryFn: () => api.dashboardView(query),
-    enabled: online && !invalidDates,
+  // One refresh owns the date bounds and waits for both independent results.
+  // A stable semantic key prevents time-driven cache churn; changed filters
+  // get a different key, so delayed responses cannot replace the current view.
+  const refresh = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'snapshot', query, range, from, to),
+    queryFn: async ({ signal }) => {
+      const dates = dashboardDates(range, from, to);
+      const request = { ...query, ...dates };
+      const [view, inbox] = await Promise.all([
+        settled(api.dashboardView(request, signal)),
+        settled(api.dashboardPreview(request, signal)),
+      ]);
+      return { view, inbox, dates };
+    },
+    enabled: online && !invalidDates && sessionId !== 'anon',
     refetchInterval: online ? 3000 : false,
   });
-  const preview = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'preview', query),
-    queryFn: () => api.dashboardPreview(query),
-    enabled: online && !invalidDates,
-    refetchInterval: online ? 3000 : false,
-  });
+  const dashboard = {
+    data: refresh.data?.view.status === 'fulfilled' ? refresh.data.view.value : undefined,
+    isError: refresh.isError || refresh.data?.view.status === 'rejected',
+    refetch: () => refresh.refetch({ cancelRefetch: false }),
+  };
+  const preview = {
+    data: refresh.data?.inbox.status === 'fulfilled' ? refresh.data.inbox.value : undefined,
+    isError: refresh.isError || refresh.data?.inbox.status === 'rejected',
+    isPending: refresh.isPending,
+    refetch: () => refresh.refetch({ cancelRefetch: false }),
+  };
+  const viewError =
+    refresh.data?.view.status === 'rejected' ? refresh.data.view.reason : refresh.error;
+  const organizationUnavailable =
+    viewError instanceof FrontendError && viewError.code === 'DASHBOARD_ORGANIZATION_UNAVAILABLE';
   const data = !invalidDates && !dashboard.isError ? dashboard.data : undefined;
   const meta = metadata.data;
+  const selectionSignature = JSON.stringify(data?.selected);
+  const metadataSignature = JSON.stringify(meta?.selected);
+  const metadataMatches = Boolean(
+    meta &&
+    data &&
+    meta.basis === data.basis &&
+    meta.visibility === data.visibility &&
+    meta.level === data.level &&
+    meta.scopeMode === data.scopeMode &&
+    selectionSignature === metadataSignature,
+  );
+  const refetchMetadata = metadata.refetch;
+  useEffect(() => {
+    // A master import can change the default unit while this page is polling.
+    // Refresh selector options before allowing interaction with that new scope.
+    if (online && data && meta && !metadataMatches && !metadata.isFetching && !metadata.isError)
+      void refetchMetadata();
+  }, [online, data, meta, metadataMatches, metadata.isFetching, metadata.isError, refetchMetadata]);
   const set = (values: Record<string, string | undefined>) => {
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(values)) {
@@ -157,17 +200,36 @@ export function DashboardHome() {
     orgLevels.forEach((key, n) => {
       changes[key] = n < i ? meta?.selected[key] : n === i ? value || undefined : undefined;
     });
+    const ownSelection = sectionOnly
+      ? changes.section
+      : caps.includes('DIVISION_LEADERSHIP')
+        ? changes.division
+        : changes.department;
+    if (ownSelection && !union && !caps.includes('DIRECTOR')) {
+      changes.scopeMode = 'OWN';
+      changes.level = caps.includes('DIVISION_LEADERSHIP') ? 'department' : 'section';
+    }
     set(changes);
   };
   const pickLevel = (level: string) => {
-    const keep = level === 'section' ? 3 : level === 'department' ? 2 : 0;
-    set({
-      level,
-      ...Object.fromEntries(orgLevels.map((l, i) => [l, i < keep ? meta?.selected[l] : undefined])),
-    });
+    const scopeMode =
+      caps.includes('DIRECTOR') || union
+        ? 'GLOBAL'
+        : caps.includes('DIVISION_LEADERSHIP')
+          ? level === 'division'
+            ? 'GLOBAL'
+            : 'OWN'
+          : level === 'department'
+            ? 'PARENT'
+            : 'OWN';
+    set({ ...clearOrg, scopeMode, level });
   };
+  const sectionOnly =
+    !union &&
+    !caps.includes('DIRECTOR') &&
+    !caps.includes('DIVISION_LEADERSHIP') &&
+    !caps.includes('MANAGER');
   const scope = data?.scopeLabel ?? meta?.scopeLabel;
-  const title = isPrivate ? 'Private Voice' : 'General Voice';
   const readonly =
     !isPrivate && (union || caps.includes('DIVISION_LEADERSHIP') || caps.includes('DIRECTOR'));
   const name = session?.account.displayName ?? '';
@@ -185,12 +247,11 @@ export function DashboardHome() {
         : hour < 18
           ? 'Selamat sore'
           : 'Selamat malam';
-  const suppressed = (dimension: string) =>
-    data?.protected || data?.suppressedDimensions.includes(dimension);
   const listUrl = () => {
     const p = new URLSearchParams();
+    const listQuery = { ...query, ...refresh.data?.dates };
     for (const key of ['area', 'category', 'severity', 'status', 'from', 'to', 'handler'] as const)
-      if (query[key]) p.set(key, query[key]!);
+      if (listQuery[key]) p.set(key, listQuery[key]!);
     if (!query.status) p.set('statusGroup', 'ACTIVE');
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
@@ -199,7 +260,6 @@ export function DashboardHome() {
       <section className="member-hero organization-home__hero">
         <div className="member-hero__top">
           <div className="member-hero__identity">
-            <span className="member-hero__avatar">{name.trim().charAt(0).toUpperCase()}</span>
             <div className="member-hero__who">
               <p className="member-hero__greeting">{greeting},</p>
               <h1 className="member-hero__name">{name}</h1>
@@ -207,17 +267,6 @@ export function DashboardHome() {
             </div>
           </div>
           <div className="member-hero__actions">
-            {!union ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="member-hero__orb"
-                aria-label="Buat Voice"
-                onClick={() => void navigate('/voices/new')}
-              >
-                <Plus size={20} />
-              </Button>
-            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -229,15 +278,11 @@ export function DashboardHome() {
             </Button>
           </div>
         </div>
-        <span className="member-hero__context">
-          {readonly ? (
-            <>
-              <Lock size={12} /> {union ? 'General' : 'Leadership'} · Read-only
-            </>
-          ) : (
-            'Operasional Responder'
-          )}
-        </span>
+        {readonly ? (
+          <span className="member-hero__context">
+            <Lock size={12} /> {union ? 'General' : 'Leadership'} · Read-only
+          </span>
+        ) : null}
         {union ? (
           <div className="dashboard-tabs dashboard-tabs--hero" aria-label="Jenis dashboard">
             {['private', 'general'].map((tab) => (
@@ -256,19 +301,15 @@ export function DashboardHome() {
             ))}
           </div>
         ) : null}
-        <div className="dashboard-summary" aria-label={`Ringkasan ${title}`}>
-          <h2>Ringkasan {title}</h2>
+        <div className="dashboard-summary" aria-label="Ringkasan Voice">
+          <h2>Ringkasan Voice</h2>
           {data ? (
             <div className="dashboard-summary__grid">
               <Metric label="Total" value={data.total} icon={<Layers3 />} />
-              <Metric
-                label="Aktif"
-                value={suppressed('status') ? null : activeCount(data.status)}
-                icon={<Activity />}
-              />
+              <Metric label="Aktif" value={activeCount(data.status)} icon={<Activity />} />
               <Metric
                 label="Kritis"
-                value={suppressed('severity') ? null : bucketValue(data.severity, 'CRITICAL')}
+                value={bucketValue(data.severity, 'CRITICAL')}
                 icon={<AlertTriangle />}
                 danger
               />
@@ -292,13 +333,15 @@ export function DashboardHome() {
               <div className="dashboard-tabs" aria-label="Basis organisasi">
                 {[
                   { id: 'HANDLING', label: 'Penanganan' },
-                  { id: 'REPORTER', label: 'Pelapor' },
+                  { id: 'REPORTER', label: 'Pelaporan' },
                 ].map((b) => (
                   <button
                     type="button"
                     key={b.id}
                     aria-pressed={query.basis === b.id}
-                    onClick={() => set({ ...clearOrg, basis: b.id, level: undefined })}
+                    onClick={() =>
+                      set({ ...clearOrg, basis: b.id, level: undefined, scopeMode: undefined })
+                    }
                   >
                     {b.label}
                   </button>
@@ -334,9 +377,10 @@ export function DashboardHome() {
                   .map((l) => (
                     <Select
                       key={l}
+                      disabled={metadata.isFetching || metadata.isError || !metadataMatches}
                       label={orgLabels[l]}
                       placeholder={`Semua ${orgLabels[l].toLowerCase()}`}
-                      value={meta?.selected[l] ?? ''}
+                      value={data?.selected[l] ?? meta?.selected[l] ?? ''}
                       onValueChange={(v) => pickOrg(l, v)}
                       options={[
                         { value: '', label: `Semua ${orgLabels[l].toLowerCase()}` },
@@ -360,9 +404,10 @@ export function DashboardHome() {
                     .map((l) => (
                       <Select
                         key={l}
+                        disabled={metadata.isFetching || metadata.isError || !metadataMatches}
                         label={orgLabels[l]}
                         placeholder={`Semua ${orgLabels[l].toLowerCase()}`}
-                        value={meta?.selected[l] ?? ''}
+                        value={data?.selected[l] ?? meta?.selected[l] ?? ''}
                         onValueChange={(v) => pickOrg(l, v)}
                         options={[
                           { value: '', label: `Semua ${orgLabels[l].toLowerCase()}` },
@@ -489,30 +534,16 @@ export function DashboardHome() {
           </Alert>
         ) : dashboard.isError ? (
           <Alert tone="danger" title="Dashboard gagal dimuat">
-            Coba muat ulang atau reset filter.
+            {organizationUnavailable
+              ? 'Organisasi akun belum lengkap. Hubungi Admin untuk memperbarui data organisasi.'
+              : 'Coba muat ulang atau reset filter.'}
             <Button onClick={() => void dashboard.refetch()}>Coba lagi</Button>
           </Alert>
         ) : !data ? (
           <Skeleton label="Memuat dashboard organisasi" />
         ) : (
           <>
-            <div className="dashboard-context">
-              <span>
-                {scope} ·{' '}
-                {query.basis === 'HANDLING' ? 'Organisasi penanganan' : 'Organisasi pelapor'}
-              </span>
-              <span>
-                Diperbarui{' '}
-                {new Date(data.generatedAt).toLocaleTimeString('id-ID', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-                {!online ? ' · usang' : ''}
-              </span>
-            </div>
-            {data.protected ? (
-              <Protected title="Ringkasan dilindungi" />
-            ) : data.total === 0 ? (
+            {data.total === 0 ? (
               <Card>
                 <EmptyState
                   icon={<Inbox size={26} />}
@@ -527,44 +558,30 @@ export function DashboardHome() {
               </Card>
             ) : null}
             <div className="dashboard-visual-grid">
-              {suppressed('status') ? (
-                <Protected title="Distribusi status" />
-              ) : (
-                <Card className="distribution-card dashboard-donut">
-                  <h2>Distribusi status</h2>
-                  <div className="donut-card__grid">
-                    <DonutChart buckets={data.status} />
-                    <DonutLegend buckets={data.status} />
-                  </div>
-                </Card>
-              )}
-              {suppressed('trend') ? (
-                <Protected title="Tren Voice" />
-              ) : (
-                <TrendCard
-                  title={`Tren ${range === '30d' ? '30 hari' : range === '90d' ? '90 hari' : range === 'year' ? 'tahun berjalan' : range === 'custom' ? 'periode terpilih' : 'seluruh periode'}`}
-                  buckets={data.trend}
-                  total={data.total ?? undefined}
-                  previousTotal={data.previousTotal ?? undefined}
-                />
-              )}
-              {suppressed('severity') ? (
-                <Protected title="Voice menurut severity" />
-              ) : (
-                <DashboardChartCard
-                  title="Voice menurut severity"
-                  buckets={['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((label) => ({
+              <Card className="distribution-card dashboard-donut">
+                <h2>Distribusi status</h2>
+                <div className="donut-card__grid">
+                  <DonutChart buckets={data.status} />
+                  <DonutLegend buckets={data.status} />
+                </div>
+              </Card>
+              <TrendCard
+                title={`Tren ${range === '30d' ? '30 hari' : range === '90d' ? '90 hari' : range === 'year' ? 'tahun berjalan' : range === 'custom' ? 'periode terpilih' : 'seluruh periode'}`}
+                buckets={data.trend}
+                total={data.total ?? undefined}
+                previousTotal={data.previousTotal ?? undefined}
+              />
+              <DashboardChartCard
+                title="Voice menurut severity"
+                buckets={['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+                  .map((label) => ({
                     label,
                     value: bucketValue(data.severity, label),
-                  }))}
-                />
-              )}
+                  }))
+                  .filter((bucket) => bucket.value > 0)}
+              />
               {!isPrivate ? (
-                suppressed('category') ? (
-                  <Protected title="Voice menurut kategori" />
-                ) : (
-                  <DashboardChartCard title="Voice menurut kategori" buckets={data.category} />
-                )
+                <DashboardChartCard title="Voice menurut kategori" buckets={data.category} />
               ) : null}
             </div>
             <Card className="dashboard-organization" padding="none">
@@ -572,38 +589,43 @@ export function DashboardHome() {
                 <h2>{isPrivate ? 'Cakupan penanganan' : 'Cakupan organisasi'}</h2>
                 {!isPrivate && meta ? (
                   <div className="dashboard-tabs" aria-label="Level cakupan">
-                    {meta.allowedLevels.map((l) => (
-                      <button
-                        type="button"
-                        key={l}
-                        aria-pressed={data.level === l}
-                        onClick={() => pickLevel(l)}
-                      >
-                        {orgLabels[l]}
-                      </button>
-                    ))}
+                    {sectionOnly
+                      ? meta.allowedScopeModes.map((mode) => (
+                          <button
+                            type="button"
+                            key={mode}
+                            aria-pressed={data.scopeMode === mode}
+                            onClick={() => set({ ...clearOrg, scopeMode: mode, level: 'section' })}
+                          >
+                            {mode === 'OWN' ? 'Section saya' : 'Seluruh section di department'}
+                          </button>
+                        ))
+                      : meta.allowedLevels.map((l) => (
+                          <button
+                            type="button"
+                            key={l}
+                            aria-pressed={data.level === l}
+                            onClick={() => pickLevel(l)}
+                          >
+                            {orgLabels[l]}
+                          </button>
+                        ))}
                   </div>
                 ) : null}
               </div>
-              {suppressed('organization') ? (
-                <Protected title="Kelompok organisasi dilindungi" />
-              ) : (
-                <DashboardChartCard
-                  title={
-                    isPrivate
-                      ? 'Penanggung jawab'
-                      : `Voice per ${orgLabels[data.level].toLowerCase()}`
-                  }
-                  buckets={data.organization}
-                />
-              )}
+              <DashboardChartCard
+                title={
+                  isPrivate
+                    ? 'Penanggung jawab'
+                    : `Voice per ${orgLabels[data.level].toLowerCase()}`
+                }
+                buckets={data.organization}
+              />
               <p className="dashboard-privacy">
                 <Lock size={14} />
-                {data.suppression.enabled
-                  ? 'Kelompok kecil dilindungi untuk menjaga privasi.'
-                  : isPrivate
-                    ? 'Identitas pelapor tidak ditampilkan dalam ringkasan.'
-                    : 'Akses detail Voice mengikuti kewenangan Anda.'}
+                {isPrivate
+                  ? 'Identitas pelapor tidak ditampilkan dalam ringkasan.'
+                  : 'Akses detail Voice mengikuti kewenangan Anda.'}
               </p>
               {data.handlingUnresolved ? (
                 <p className="chart-card__caption">
@@ -625,18 +647,6 @@ export function DashboardHome() {
                 <ArrowUp size={16} /> Lihat satu level lebih luas
               </Button>
             ) : null}
-            <p className="dashboard-trend-note">
-              Tren menghitung Voice yang disubmit
-              {data.trendGrain === 'week'
-                ? ' per minggu'
-                : data.trendGrain === 'month'
-                  ? ' per bulan'
-                  : ' per hari'}
-              .{' '}
-              {query.basis === 'HANDLING'
-                ? 'Organisasi mengikuti penanggung jawab terakhir.'
-                : 'Organisasi mengikuti snapshot pelapor saat submit.'}
-            </p>
           </>
         )}
         {isPrivate && unionHead && data?.pendingAssignment !== undefined ? (
@@ -660,9 +670,6 @@ export function DashboardHome() {
               Lihat semua
             </Button>
           </div>
-          <p className="dashboard-inbox__note">
-            Hanya Voice yang boleh Anda buka. Jumlahnya dapat berbeda dari ringkasan organisasi.
-          </p>
           {preview.isError ? (
             <Alert tone="danger" title="Inbox gagal dimuat">
               <Button onClick={() => void preview.refetch()}>Coba lagi</Button>
@@ -730,25 +737,15 @@ function Metric({
   danger,
 }: {
   label: string;
-  value: number | null;
+  value: number;
   icon: ReactNode;
   danger?: boolean;
 }) {
   return (
     <div className="dashboard-summary__metric" data-danger={danger || undefined}>
       <span aria-hidden="true">{icon}</span>
-      <strong>{value ?? '—'}</strong>
+      <strong>{value}</strong>
       <span>{label}</span>
-      {value === null ? <small>Dilindungi</small> : null}
     </div>
-  );
-}
-function Protected({ title }: { title: string }) {
-  return (
-    <Card className="dashboard-protected">
-      <h2>{title}</h2>
-      <Lock size={24} aria-hidden="true" />
-      <p>Data kelompok kecil dilindungi. Pilih cakupan yang lebih luas untuk melihat ringkasan.</p>
-    </Card>
   );
 }

@@ -181,6 +181,14 @@ export class VoicesController {
   ) {
     return this.voices.myHandovers(a, q ?? {});
   }
+  @Post('voices/:id/monitor') monitor(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.monitor(a, id, b, key);
+  }
   @Post('voices/:id/ask') ask(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
@@ -251,6 +259,7 @@ export class VoicesController {
   ) {
     return q &&
       [
+        'scopeMode',
         'basis',
         'visibility',
         'level',
@@ -269,6 +278,7 @@ export class VoicesController {
   ) {
     return q &&
       [
+        'scopeMode',
         'basis',
         'visibility',
         'level',

@@ -80,26 +80,35 @@ export function createWorkforceApi(transport: CareTransport) {
   return {
     generalVoiceCategories: () =>
       dataOrThrow<GeneralVoiceCategory[]>(client.GET('/api/v1/general-voice-categories')),
-    dashboardMetadata: (query: QueryInput<DashboardQuery> = {}) =>
+    dashboardMetadata: (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) =>
       dataOrThrow<DashboardMetadata>(
-        client.GET('/api/v1/dashboard/metadata', { params: { query: compactQuery(query) } }),
+        client.GET('/api/v1/dashboard/metadata', {
+          params: { query: compactQuery(query) },
+          signal: signal ?? null,
+        }),
       ),
-    dashboardView: async (query: QueryInput<DashboardQuery> = {}) => {
+    dashboardView: async (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) => {
       const result = await dataOrThrow(
         client.GET(
           query.visibility === 'PRIVATE'
             ? '/api/v1/dashboard/private'
             : '/api/v1/dashboard/general',
-          { params: { query: compactQuery({ ...query, basis: query.basis ?? 'HANDLING' }) } },
+          {
+            params: { query: compactQuery({ ...query, basis: query.basis ?? 'HANDLING' }) },
+            signal: signal ?? null,
+          },
         ),
       );
       if (!('basis' in result))
         throw new Error('Dashboard response requires organization metadata');
       return result;
     },
-    dashboardPreview: (query: QueryInput<DashboardQuery> = {}) =>
+    dashboardPreview: (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) =>
       dataOrThrow<VoiceList>(
-        client.GET('/api/v1/dashboard/preview', { params: { query: compactQuery(query) } }),
+        client.GET('/api/v1/dashboard/preview', {
+          params: { query: compactQuery(query) },
+          signal: signal ?? null,
+        }),
       ),
     dashboardMember: () => dataOrThrow<MemberDashboard>(client.GET('/api/v1/dashboard/member')),
     dashboardGeneral: async (query: QueryInput<DashboardQuery> = {}) => {
@@ -273,14 +282,14 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
-    ask: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
+    monitor: (id: string, body: components['schemas']['VersionedMutationRequest'], key: string) =>
       dataOrThrow(
-        client.POST('/api/v1/voices/{id}/ask', {
+        client.POST('/api/v1/voices/{id}/monitor', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },
           body,
         }),
       ),
-    proceed: (id: string, body: components['schemas']['VersionedMutationRequest'], key: string) =>
+    proceed: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
       dataOrThrow(
         client.POST('/api/v1/voices/{id}/proceed', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },

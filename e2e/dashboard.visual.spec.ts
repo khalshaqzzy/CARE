@@ -1,3 +1,4 @@
+import { capture } from './helpers/capture';
 import { expect, test } from '@playwright/test';
 import { mockWorkforceApi, memberSession, unionSession, baseVoiceItem } from './helpers/mock-api';
 import { dashboardFixture } from './helpers/dashboard-fixture';
@@ -26,10 +27,10 @@ const cases = [
   { id: 'reporter', caps: ['MEMBER', 'MANAGER'], query: 'basis=REPORTER' },
   { id: 'filters', caps: ['MEMBER', 'MANAGER'], query: 'dashSeverity=HIGH&dashCategory=SAFETY' },
   { id: 'long-labels', caps: ['MEMBER', 'MANAGER'] },
+  { id: 'unknown-section', caps: ['MEMBER', 'MANAGER'] },
   { id: 'empty', caps: ['MEMBER', 'MANAGER'] },
   { id: 'loading', caps: ['MEMBER', 'MANAGER'] },
   { id: 'error', caps: ['MEMBER', 'MANAGER'] },
-  { id: 'protected', caps: ['MEMBER', 'MANAGER'] },
 ];
 for (const width of [360, 768, 1440])
   for (const scenario of cases) {
@@ -73,30 +74,21 @@ for (const width of [360, 768, 1440])
           view.trend = [];
           view.previousTotal = 0;
         }
-        if (scenario.id === 'protected') {
-          view.total = null;
-          view.protected = true;
-          view.status = [];
-          view.severity = [];
-          view.category = [];
-          view.organization = [];
-          view.trend = [];
-          view.previousTotal = null;
-        }
         if (scenario.id === 'long-labels')
           view.organization[0]!.label =
             'Manufacturing Engineering & Production Preparation — Assembly Equipment Development';
         return route.fulfill({ json: view });
       });
       await page.goto(`/?${scenario.query ?? ''}`);
-      await expect(
-        page.getByRole('heading', { name: /Ringkasan (General|Private) Voice/ }),
-      ).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
       if (scenario.id === 'error')
         await expect(page.getByText('Dashboard gagal dimuat')).toBeVisible();
       else if (scenario.id === 'loading')
         await expect(page.getByLabel('Memuat dashboard organisasi')).toBeVisible();
-      else await expect(page.locator('.dashboard-context')).toBeVisible();
+      else
+        await expect(
+          page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }),
+        ).toBeVisible();
       if (scenario.id === 'filters') {
         await page.getByRole('button', { name: 'Filter lainnya, 2 aktif' }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
@@ -104,9 +96,9 @@ for (const width of [360, 768, 1440])
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
         .toBe(true);
-      await expect(page).toHaveScreenshot(
-        `dashboard-${scenario.id}-${width}-${visualPlatform}.png`,
-        { fullPage: true, animations: 'disabled', maxDiffPixelRatio: 0.01 },
-      );
+      await capture(page, `dashboard-${scenario.id}-${width}-${visualPlatform}.png`, {
+        fullPage: true,
+        animations: 'disabled',
+      });
     });
   }

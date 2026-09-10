@@ -78,7 +78,7 @@ enum Severity {
 
 enum VoiceStatus {
   OPEN
-  IN_VERIFICATION
+  MONITORED
   IN_PROGRESS
   CLOSED
 }
@@ -152,6 +152,7 @@ enum VoiceEventType {
   SUBMITTED
   HANDOVER_COMPLETED
   ASKED_REPORTER
+  MONITORED
   MESSAGE_SENT
   ASSIGNED
   REASSIGNED
@@ -185,6 +186,7 @@ enum NotificationType {
 model Employee {
   id          String                   @id @default(uuid()) @db.Uuid
   noReg       String                   @unique @db.VarChar(64)
+  birthDate   DateTime?                 @db.Date
   name        String                   @db.VarChar(200)
   active      Boolean                  @default(true)
   createdAt   DateTime                 @default(now())

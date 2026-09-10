@@ -30,19 +30,22 @@ test('legacy private draft requires consent, persists edits and submits', async 
   await page.goto('/drafts/draft-1/edit');
   await expect(page.getByRole('checkbox', { name: consent })).not.toBeChecked();
   await expect(page.getByText('Foto harap mengikuti aturan ATSG ya teman-teman.')).toBeVisible();
+  await expect(page.getByText('JPG, PNG, atau WebP · maksimum 10 MB per file.')).toBeVisible();
+  // The privacy checklist gates analysis: contact consent is still missing.
+  const analyze = page.getByRole('button', { name: 'Simpan & Analisis' });
+  await expect(analyze).toBeDisabled();
+  await expect(page.getByText(/Centang persetujuan pada bagian Identitas/)).toBeVisible();
   await page.getByRole('textbox', { name: /Judul Voice/ }).fill('Judul setelah perubahan');
-  await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
-  await expect(page.getByRole('button', { name: 'Kirim Voice' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Kembali', exact: true }).click();
   await page.getByRole('checkbox', { name: consent }).check();
+  await expect(analyze).toBeEnabled();
   const request = page.waitForRequest(
     (r) => r.method() === 'PATCH' && r.url().endsWith('/drafts/draft-1'),
   );
-  await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+  await analyze.click();
   expect((await request).postDataJSON()).toMatchObject({
     title: 'Judul setelah perubahan',
     privateContactConsent: true,
-    expectedVersion: 2,
+    expectedVersion: 1,
   });
   await expect(page.getByRole('button', { name: 'Kirim Voice' })).toBeEnabled();
   await page.getByRole('button', { name: 'Kirim Voice' }).click();
@@ -54,6 +57,25 @@ test('direct preview of legacy private draft cannot bypass consent', async ({ pa
   await page.goto('/drafts/draft-1/preview');
   await expect(page.getByRole('button', { name: 'Kirim Voice' })).toBeDisabled();
   await expect(page.getByText('Persetujuan komunikasi pribadi diperlukan')).toBeVisible();
+  // Private destinations always present as the committee label.
+  await expect(
+    page.locator('.review-summary__row').filter({ hasText: 'Rute tujuan' }),
+  ).toContainText('Komite');
+});
+
+test('private analysis stays gated until the full privacy checklist is complete', async ({
+  page,
+}) => {
+  await mockWorkforceApi(page, { draft: { ...draft, showReporterIdentity: null } });
+  await page.goto('/drafts/draft-1/edit');
+  const analyze = page.getByRole('button', { name: 'Simpan & Analisis' });
+  await expect(analyze).toBeDisabled();
+  await expect(page.getByText(/Centang persetujuan pada bagian Identitas/)).toBeVisible();
+  await page.getByRole('radio', { name: /Sembunyikan identitas/ }).click();
+  await expect(analyze).toBeDisabled();
+  await page.getByRole('checkbox', { name: consent }).check();
+  await expect(analyze).toBeEnabled();
+  await expect(page.getByText(/Centang persetujuan pada bagian Identitas/)).toHaveCount(0);
 });
 
 test('changing visibility clears the contact checkbox', async ({ page }) => {
@@ -185,7 +207,7 @@ test('closure needs a note but no photo', async ({ page }) => {
     },
   });
   await page.goto('/voices/voice-1');
-  await page.getByRole('button', { name: 'Tutup', exact: true }).click();
+  await page.getByRole('button', { name: 'Selesaikan Voice', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Tutup Voice' })).toBeDisabled();
   await dialog

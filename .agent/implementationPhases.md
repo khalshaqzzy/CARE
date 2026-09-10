@@ -1,17 +1,63 @@
 # CARE v1.1 Implementation Phases
 
-| Atribut                | Nilai                                                                                                                                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                                                                                                    |
-| Last updated           | 6 September 2026 (password deferral/Voice polish and stable Alpine container remediation; ADR-0040/0041)                                                                                                                                                                       |
-| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                                                                                           |
-| Current implementation | Workforce-only, session-scoped password deferral plus the approved login/Create Voice copy and polished responsive states are implemented locally. Persistent password policy and Union/Admin gates remain unchanged. Existing Phase 13 hosted acceptance status is unchanged. |
-| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                                                                                               |
-| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                                                                                                  |
+| Atribut                | Nilai                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                              |
+| Last updated           | 10 September 2026 (authentication identifier editing and recovery refinement)                                                                                                                            |
+| Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                     |
+| Current implementation | Shared local/CI validation and parallel application jobs implemented locally; native capture references tracked, CI galleries stored as artifacts. Hosted verification of this refactor remains pending. |
+| Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                         |
+| Delivery strategy      | Backend remediation/re-freeze → two-app frontend → production containerization and deployment                                                                                                            |
 
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
+
+## Authentication identifier editing and recovery refinement — 10 September 2026
+
+Phase 13 remains `in_progress`; no second phase is opened. ADR-0049 resolves the Safari/iOS defect where **Ubah No. Reg** focused the identifier while it was still read-only and therefore did not raise the keyboard. Both the login and recovery handlers now commit their state through `flushSync` before focusing, so the field is editable inside the same user gesture.
+
+The same change records the product-owner presentation decisions: the "Password akun", "Verifikasi akun", and "Ketersediaan reset" captions are removed and **Ubah No. Reg** is right-aligned; **Ubah No. Reg** and **Lupa Password?** render compactly at 36 px, an explicitly approved lower-than-44 px exception now documented in PRD §22.2; the shared reveal animation doubles to 480 ms height / 360 ms opacity with a 520 ms settle; and the birth-date day/month/year columns share equal fractions (including the sub-480 px layout) so the "Tanggal" label no longer clips. Display-layer plus interaction-ordering only; no schema, serializer, or OpenAPI change (`openapi:check` byte-stable).
+
+The CI browser inventory now expects 362 tests.
+
+## Hosted capture inventory correction — 10 September 2026
+
+Phase 13 remains `in_progress`. PR #42 hosted application/security/container checks passed, but the report merger expected the retired 128-scenario inventory instead of 161. The merger, reporter and inventory regression now share one count definition; a real CLI regression rejects incomplete evidence. Local tooling validation passed; replacement hosted acceptance is pending.
+
+## Registration-first authentication and DOB import — 10 September 2026
+
+Implementation work under the existing Phase 13 `in_progress` boundary; no second phase is opened. ADR-0048 defines one workforce/Union login page, default-workforce entry and session-scoped defer, DOB recovery excluding TM/Union, and compatible seven/eight-column authoritative imports. Code, synthetic coverage, local validation and native capture review are complete. The gallery contains 161 scenarios/164 PNGs, including 33 new auth references; final scoped browser, legacy and recovery captures passed. Operational workbook import, deployment and hosted acceptance remain separate.
+
+Acceptance includes calendar-only migration/import preservation, credential concurrency and revocation, shared Union password entry, responsive/reduced-motion/legacy accessibility, real-API recovery and native auth captures. The source workbook was parsed read-only: 7,418 unique rows, 7,018 DOB values and 400 TM members. No source PII was committed.
+
+## Organization dashboard transaction acquisition stabilization — 9 September 2026
+
+The `staging` push at `95ca2b50` failed only the organization-dashboard performance test when Prisma's default 2-second interactive-transaction acquisition limit expired under the intended 50-concurrent workload. The preceding six hosted runs measured 1,763–2,055 ms p95, confirming that the framework's acquisition cutoff overlapped the unchanged 3,000 ms product performance budget. The dashboard transaction now explicitly uses 5,000 ms `maxWait` and 5,000 ms `timeout` with the existing REPEATABLE READ isolation. SQL, connection-pool sizing, concurrency, API/schema output, retries, and the p95 threshold are unchanged.
+
+Focused snapshot integration passed 22/22. Three ordinary local performance runs passed at 319–337 ms p95, and three isolated Linux x64 runs with both Node and PostgreSQL limited to two CPUs passed at 1,787–1,841 ms p95 over 150 requests/50 concurrent without `P2028`. Clean quality parity passed with integration 88/88, security 14/14, final performance p95 2,207 ms, browser 310/310 and full-stack 5/5; migration, deployment, production Compose, routing/non-root/persistence, Gitleaks and workflow/Dockerfile lint gates also passed. At user direction, a stalled Docker Desktop Trivy database download was deferred to the mandatory hosted scanner job. Hosted run `34320722503` then passed performance at 1,574 ms p95 and every independent gate, but exposed a full-stack audit test's dependence on the first unfiltered ten-row page. The test now uses its existing action filter and passes 5/5 locally; a replacement hosted run remains required. Phase 13 remains the only `in_progress` phase.
+
+## Inbox card PIC alignment and hero audience polish — 9 September 2026
+
+Implemented on `feat/pic-voice-polish` per product-owner direction (ADR-0046): the shared inbox voice card aligns the PIC/"Belum ditugaskan" chip with the severity label on the top row (footer chip retained only for Union identity cards), person names clip to the first two words plus an ellipsis via a unit-tested `shortenPersonName` helper and CSS ellipsis; the responder and leadership detail hero gains an `Area:` chip beside the category chip and a `PIC: … | Pelapor: …` grid (reporter, compact conversation, closed, and Union surfaces unchanged); and the reporter's own detail no longer shows the "Klasifikasi" and "Klasifikasi awal" rows while responder/leadership audiences keep them. Display-layer only: no schema, serializer, or OpenAPI change (`openapi:check` byte-stable).
+
+Local parity passed: frozen install, format, lint, typecheck, unit (API 83, UI 26, frontend-core 15, Admin 2, workforce 86), `openapi:check`, destructive migration check against `origin/staging`, production build, PWA compatibility (main gzip 140186 bytes), integration 88/88 and security 14/14 on Docker PostgreSQL, mocked browser suite 310/310 twice (Chromium, visual, PWA, push, legacy WebKit), fullstack 4/4, Gitleaks directory scan (no leaks), and `git diff --check`. Affected visual baselines were regenerated and verified twice without updates on darwin and canonical Linux x64 (Docker `--platform linux/amd64`, Node 22.23.2, pnpm 11.8.0, Playwright 1.62.1), with Linux arm64 maintained for the detail identity family; the handover visual fixture now represents the `GENERAL_RESPONDER` audience. Deployment/container checks were not rerun because no deploy, workflow, or Dockerfile input changed. Phase 13 remains the only `in_progress` phase; hosted acceptance is unchanged.
+
+## Responder dashboard and create-flow UI polish — 8 September 2026
+
+Implemented on `feat/ui-tuning-8-sep` per product-owner direction (ADR-0043, PRD §18.8.3 and §12.1/§12.2/§15.4 amendments): Private Voice destinations always render as "Komite" via a shared `PRIVATE_ROUTE_LABEL` (create/preview route rows, detail hero PIC, Union work-items copy); Private analysis is gated on the full privacy checklist with a disabled "Simpan & Analisis" and `aria-live` helper; the photo guidance renders as one identically-styled `(i)` block below the picker (format row above the ATSG row); "Kembali ke login" is bold cobalt on the forced-password screen; the dashboard basis tab reads "Pelaporan", the summary reads "Ringkasan Voice", and the hero drops the avatar, Buat Voice orb, "Operasional Responder" badge, and metadata context line while keeping the read-only chip. Display-layer only: no schema, serializer, or OpenAPI change (`openapi:check` byte-stable).
+
+Local parity passed: frozen install from clean artifacts, audit (3 moderate, 0 High/Critical), format, lint, typecheck, unit (API 82, frontend-core 15, Admin 2, workforce 83), destructive migration check against `origin/staging`, integration 84, security 14, performance p95 317 ms at 50k Voices, reconciliation dry-run, production build, PWA compatibility (main gzip 139392 bytes), mocked browser suite 292/292 (Chromium, PWA, push, legacy iOS), fullstack 4/4 on Docker PostgreSQL, Compose config, Gitleaks directory scan (no leaks), and `git diff --check`. Visual baselines regenerated for all 17 dashboard scenarios and the affected create/consent/password/union/home surfaces at 360/768/1440 on darwin and canonical Linux x64 (Docker `--platform linux/amd64`, Node 22.23.2, pnpm 11.8.0, Playwright 1.62.1), verified twice without updates on both platforms. Deployment/container checks were not rerun because no deploy, workflow, or Dockerfile input changed. Phase 13 remains the only `in_progress` phase; hosted acceptance is unchanged.
+
+## Dashboard scope consistency — 7 September 2026
+
+Implemented on `fix/pic-dashboard-data`: explicit OWN/PARENT/GLOBAL scope modes; atomic URL reset on scope changes; own-unit defaults; selectable-unit restrictions distinct from overview buckets; Section Head organization totals; global Division Head aggregates retained; exact additional Default PIC mappings; repeatable-read aggregate snapshots; Jakarta date bounds and coordinated polling. No schema migration. PRD §18.8.2 and ADR-0042 supersede older selection and Section Head aggregate rules.
+
+PostgreSQL integration (84 tests), security (14), unit suites, typecheck/lint/build, browser roundtrips and performance have passed locally. Fresh pre-commit parity passed with full-stack (4 tests), browser (291 tests), production containers and security scans; dashboard performance p95 was 324 ms. Delivery is authorized to `staging` without hosted CI monitoring; canonical visual verification passed on darwin and Linux x64; current exact evidence is maintained in sessionHandoff.md. Phase 13 remains the only `in_progress` phase and hosted acceptance is unchanged.
+
+## Organization dashboard visibility corrections — 7 September 2026
+
+Implemented locally on `feat/pic-dashboard-improvements-oc` per product-owner decision: the organization dashboard aggregate no longer withholds dimensions for cross-detail cohorts below five; `protected`/`suppressedDimensions`/`suppression` were removed from the `DashboardView` contract and `total` is always numeric. Unknown organization buckets merge into one stable row per meaning, fixing duplicated "Belum ditugaskan ke section" rows that accumulated across level switches via duplicate React keys. Zero-count severity rows are hidden and three helper captions were removed. ADR-0042 records the amendment and PRD §18.8.1 captures the product decision. Phase 13 remains `in_progress`; no hosted delivery is claimed.
 
 ## Workforce password deferral and Voice copy polish — 6 September 2026
 
@@ -978,3 +1024,39 @@ Implementation complete locally on `feat/pic-dashboard`; local parity is complet
 ### Dashboard CI performance correction — 7 September 2026
 
 The initial hosted quality job failed at dashboard p95 4,518 ms. SQL aggregation now avoids full-row temporary materialization and combines summary queries. The same constrained Linux workload improved from 4,464 to 2,460 ms without changing the 3,000 ms target. Bucket consistency is covered by an additional PostgreSQL integration test. Local parity is complete (integration 75, security 14, browser 282, full-stack 4, constrained Linux performance and production container/security gates passed). Corrective delivery remains within Phase 13; hosted acceptance is not inferred.
+
+## Monitored Voice lifecycle — 9 September 2026
+
+Implementation and local acceptance verification complete within current Phase 13;
+no new competing current phase is created. ADR-0044 replaces verification-first
+handling with Terbuka → Dimonitor → Diproses → Selesai. Monitor acknowledgement,
+assignment-before-processing, mandatory PIC opening message, direct processing
+reopen, legacy migration and responsive detail progress are implemented.
+Fresh/upgrade PostgreSQL, concurrency/privacy tests, generated contracts, fullstack
+and repeated Darwin/Linux x64 visual checks passed. The unchanged dependency
+lockfile has five High audit findings, so the complete release gate is not green.
+Actual checks are recorded in sessionHandoff.md. Hosted acceptance remains open.
+
+## Shared validation and native capture — 10 September 2026
+
+Implemented locally under accepted ADR-0047: scoped native validation with shared
+CI task definitions; isolated CI application jobs and browser/capture shards;
+verified build artifacts; merged report/gallery artifacts; fail-closed release gate.
+Native capture references remain tracked with readable filenames in
+`e2e/captures/local/`; CI Linux images remain Actions artifacts. Pixel comparison
+and repeated Darwin/Linux baseline validation are retired; all existing non-pixel
+assertions are retained. Rules §4.2 and PRD §31.2 now use this contract.
+
+Phase 13 remains `in_progress`; no commit/push or new hosted delivery is claimed.
+Native application suites and orchestration contracts pass; exact results and
+remaining hosted verification are in sessionHandoff.md. Further cache/container,
+browser-image and deployment optimizations remain deferred.
+
+### CI environment boundary correction — 10 September 2026
+
+The first split-workflow run passed application, API, browser/capture and report
+jobs. Container release validation failed because global test RELEASE_SHA overrode
+the Compose fixture. Test environment is now limited to application jobs, with a
+regression contract and verified fixture image tags. Phase 13 remains in progress;
+replacement hosted verification is not inferred and monitoring is excluded for
+this corrective delivery.

@@ -141,11 +141,12 @@ describe('CARE domain contracts', () => {
     expect(JSON.stringify(result)).not.toContain('OPENAI_API_KEY');
   });
   it.each([
-    [VoiceStatus.OPEN, 'ASK', VoiceStatus.IN_VERIFICATION],
-    [VoiceStatus.OPEN, 'PROCEED', VoiceStatus.IN_PROGRESS],
-    [VoiceStatus.IN_VERIFICATION, 'REASSIGN', VoiceStatus.IN_VERIFICATION],
+    [VoiceStatus.OPEN, 'MONITOR', VoiceStatus.MONITORED],
+    [VoiceStatus.OPEN, 'PROCEED', null],
+    [VoiceStatus.MONITORED, 'PROCEED', VoiceStatus.IN_PROGRESS],
+    [VoiceStatus.MONITORED, 'REASSIGN', VoiceStatus.MONITORED],
     [VoiceStatus.IN_PROGRESS, 'CLOSE', VoiceStatus.CLOSED],
-    [VoiceStatus.CLOSED, 'REOPEN', VoiceStatus.IN_VERIFICATION],
+    [VoiceStatus.CLOSED, 'REOPEN', VoiceStatus.IN_PROGRESS],
     [VoiceStatus.OPEN, 'CLOSE', null],
   ] as const)('enforces transition %s + %s', (status, action, target) => {
     expect(transitionTarget(status, action)).toBe(target);

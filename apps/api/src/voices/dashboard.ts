@@ -1,7 +1,6 @@
 import { Area, Prisma, Severity, VoiceStatus } from '@prisma/client';
 import { z } from 'zod';
 import type { AuthActor } from '../auth/auth.types';
-import type { PolicyService } from '../auth/policy.service';
 import { badRequest, forbiddenAsNotFound } from '../common/errors';
 import type { PrismaService } from '../prisma.service';
 
@@ -10,6 +9,7 @@ export const dashboardQuerySchema = z
     basis: z.enum(['HANDLING', 'REPORTER']).default('HANDLING'),
     visibility: z.enum(['GENERAL', 'PRIVATE']).default('GENERAL'),
     level: z.enum(['division', 'department', 'section']).optional(),
+    scopeMode: z.enum(['OWN', 'PARENT', 'GLOBAL']).optional(),
     directorate: z.string().max(1600).optional(),
     division: z.string().max(1600).optional(),
     department: z.string().max(1600).optional(),
@@ -109,10 +109,7 @@ export function dashboardSql(where: Prisma.VoiceWhereInput): Prisma.Sql {
 }
 
 export class OrganizationDashboard {
-  constructor(
-    private readonly db: PrismaService,
-    private readonly policy: PolicyService,
-  ) {}
+  constructor(private readonly db: PrismaService | Prisma.TransactionClient) {}
 
   async context(actor: AuthActor, input: DashboardQuery = {}) {
     const q = parse(input);
@@ -148,50 +145,84 @@ export class OrganizationDashboard {
     const col = fields(q.basis);
     const forPath = (p: string[]): Prisma.VoiceWhereInput =>
       Object.fromEntries(p.map((v, i) => [col[i]!, v]));
-    let scope: Prisma.VoiceWhereInput;
-    if (q.visibility === 'PRIVATE')
-      scope = caps.includes('UNION_HEAD') ? {} : { currentHandlerId: actor.accountId };
-    else if (global || leader) scope = {};
-    else if (manager)
-      scope = {
-        OR: [
-          ...(defaultUnit ? [forPath(unitParts(defaultUnit).slice(0, 2))] : []),
-          ...mapped.map((u) => forPath(unitParts(u))),
-          { routeOwnerId: actor.accountId },
-        ],
-      };
-    else
-      scope = {
-        OR: [
-          { currentHandlerId: actor.accountId },
-          { legacyAccess: { some: { accountId: actor.accountId, effectiveTo: null } } },
-        ],
-      };
-    const allowedUnits =
-      global || leader
-        ? units
-        : manager
-          ? units.filter(
-              (u) =>
-                (defaultUnit &&
-                  u.directorate === defaultUnit.directorate &&
-                  u.division === defaultUnit.division) ||
-                mapped.some((m) => m.id === u.id),
-            )
-          : units.filter((u) => u.id === own?.id);
-    const defaultLevel = global ? 'division' : leader ? 'department' : 'section';
+    const sectionOnly = !global && !leader && !manager;
+    const privateView = q.visibility === 'PRIVATE';
+    const allowedScopeModes = privateView
+      ? ['OWN']
+      : global
+        ? ['GLOBAL']
+        : leader
+          ? ['OWN', 'GLOBAL']
+          : ['OWN', 'PARENT'];
+    const scopeMode =
+      q.scopeMode ??
+      (privateView
+        ? 'OWN'
+        : global
+          ? 'GLOBAL'
+          : leader && q.level === 'division'
+            ? 'GLOBAL'
+            : manager && q.level === 'department'
+              ? 'PARENT'
+              : 'OWN');
+    if (!allowedScopeModes.includes(scopeMode)) throw forbiddenAsNotFound();
+    if (!global && (!defaultUnit || (sectionOnly && !actor.section)))
+      throw badRequest(
+        'DASHBOARD_ORGANIZATION_UNAVAILABLE',
+        'Organisasi akun belum lengkap untuk menampilkan dashboard',
+      );
+    const defaultLevel =
+      privateView || sectionOnly
+        ? 'section'
+        : global
+          ? 'division'
+          : leader
+            ? scopeMode === 'GLOBAL'
+              ? 'division'
+              : 'department'
+            : scopeMode === 'PARENT'
+              ? 'department'
+              : 'section';
     const allowedLevels =
-      q.visibility === 'PRIVATE'
+      privateView || sectionOnly
         ? ['section']
         : global
           ? ['division', 'department', 'section']
           : leader
             ? ['department', 'division', 'section']
-            : manager
-              ? ['section', 'department']
-              : ['section'];
-    const level = q.level ?? (q.visibility === 'PRIVATE' ? 'section' : defaultLevel);
-    if (!allowedLevels.includes(level)) throw forbiddenAsNotFound();
+            : ['section', 'department'];
+    const level = q.level ?? defaultLevel;
+    if (
+      !allowedLevels.includes(level) ||
+      (!global && level !== defaultLevel && !(leader && scopeMode === 'OWN' && level === 'section'))
+    )
+      throw forbiddenAsNotFound();
+    const deptHead = actor.structuralPosition?.trim().toLowerCase() === 'department head';
+    // Selectable units are deliberately narrower than overview buckets.
+    const allowedUnits = global
+      ? units
+      : leader
+        ? units.filter((u) => u.directorate === own!.directorate && u.division === own!.division)
+        : manager
+          ? units.filter(
+              (u) => u.id === defaultUnit!.id || (!deptHead && mapped.some((m) => m.id === u.id)),
+            )
+          : units.filter((u) => u.id === own!.id);
+    let scope: Prisma.VoiceWhereInput;
+    if (privateView)
+      scope = caps.includes('UNION_HEAD') ? {} : { currentHandlerId: actor.accountId };
+    else if (global || (leader && scopeMode === 'GLOBAL')) scope = {};
+    else if (leader) scope = forPath(unitParts(defaultUnit!).slice(0, 2));
+    else if (manager)
+      scope =
+        scopeMode === 'PARENT'
+          ? forPath(unitParts(defaultUnit!).slice(0, 2))
+          : { OR: allowedUnits.map((u) => forPath(unitParts(u))) };
+    else
+      scope = forPath([
+        ...unitParts(defaultUnit!),
+        ...(scopeMode === 'OWN' ? [actor.section!] : []),
+      ]);
     const selections: Partial<Record<Level, string>> = {};
     for (const l of levels)
       if (q[l]) {
@@ -206,11 +237,41 @@ export class OrganizationDashboard {
           selections[parent] = value;
         }
       }
-    const hasOrg = levels.some((l) => selections[l]);
-    if (!hasOrg && q.visibility === 'GENERAL' && !global && defaultUnit && (manager || leader)) {
-      const n = level === 'section' ? 3 : level === 'department' ? 2 : 0;
-      for (let i = 0; i < n; i++)
-        selections[levels[i]!] = organizationKey(unitParts(defaultUnit).slice(0, i + 1));
+    // Implicit ancestors must not turn an OWN request into a broader overview.
+    if (!privateView && !global && !(leader && scopeMode === 'GLOBAL')) {
+      const depth = sectionOnly
+        ? scopeMode === 'OWN'
+          ? 4
+          : 3
+        : leader || scopeMode === 'PARENT'
+          ? 2
+          : 3;
+      // A Default PIC may navigate the cascading selectors to another exact
+      // mapped unit. Resolve the missing department inside those ancestors,
+      // never broaden an OWN request to all departments in that division.
+      const matchesAncestors = (unit: Unit) =>
+        unitParts(unit).every(
+          (_, i) =>
+            !selections[levels[i]!] ||
+            selections[levels[i]!] === organizationKey(unitParts(unit).slice(0, i + 1)),
+        );
+      const anchorUnit =
+        manager && scopeMode === 'OWN' && !selections.department
+          ? matchesAncestors(defaultUnit!)
+            ? defaultUnit
+            : allowedUnits.find(matchesAncestors)
+          : defaultUnit;
+      if (!anchorUnit) throw forbiddenAsNotFound();
+      const path = [...unitParts(anchorUnit), ...(sectionOnly ? [actor.section!] : [])];
+      const anchor = levels[depth - 1]!;
+      if (!selections[anchor]) {
+        for (let i = 0; i < depth; i++) {
+          const value = organizationKey(path.slice(0, i + 1));
+          if (selections[levels[i]!] && selections[levels[i]!] !== value)
+            throw forbiddenAsNotFound();
+          selections[levels[i]!] = value;
+        }
+      }
     }
     // Metadata is based on authorized master/snapshot labels, never detail rows or reporter identities.
     const options: Record<Level, OrgOption[]> = {
@@ -241,7 +302,7 @@ export class OrganizationDashboard {
         orderBy: { section: 'asc' },
       });
       options.section = memberships
-        .filter((m) => m.section)
+        .filter((m) => m.section && (!sectionOnly || m.section === actor.section))
         .map((m) => ({
           id: organizationKey([...path, m.section]),
           label: m.section,
@@ -313,6 +374,8 @@ export class OrganizationDashboard {
       col,
       level,
       metadata: {
+        scopeMode,
+        allowedScopeModes,
         basis: q.basis,
         visibility: q.visibility,
         level,
@@ -335,8 +398,8 @@ export class OrganizationDashboard {
                 ? parts(selections.department).at(-1)!
                 : selections.division
                   ? parts(selections.division).at(-1)!
-                  : !global && !leader && !manager
-                    ? 'Penugasan Anda'
+                  : selections.directorate
+                    ? parts(selections.directorate).at(-1)!
                     : 'Seluruh organisasi',
       },
     };
@@ -347,26 +410,30 @@ export class OrganizationDashboard {
   }
 
   async aggregate(actor: AuthActor, input: DashboardQuery) {
+    if (!('$transaction' in this.db)) return this.aggregateSnapshot(actor, input);
+    return this.db.$transaction(
+      (tx) => new OrganizationDashboard(tx).aggregateSnapshot(actor, input),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+        maxWait: 5_000,
+        timeout: 5_000,
+      },
+    );
+  }
+
+  private async aggregateSnapshot(actor: AuthActor, input: DashboardQuery) {
     const c = await this.context(actor, input);
     const { q, where, col, level } = c;
     const sql = dashboardSql(where);
-    const [summaries, inaccessible] = await Promise.all([
-      this.db.$queryRaw<
+    const summary = (
+      await this.db.$queryRaw<
         Array<{ total: bigint; first: Date | null; last: Date | null; missing: bigint }>
       >(Prisma.sql`
         SELECT count(*) AS total, min(v."submittedAt") AS first, max(v."submittedAt") AS last,
           count(*) FILTER (WHERE v."handlingOrganizationSource" = 'UNKNOWN') AS missing
-        FROM "Voice" v WHERE ${sql}`),
-      c.global || q.visibility === 'PRIVATE'
-        ? 0
-        : this.db.voice.count({
-            where: { AND: [where, { NOT: await this.policy.detailScope(actor) }] },
-          }),
-    ]);
-    const summary = summaries[0]!;
+        FROM "Voice" v WHERE ${sql}`)
+    )[0]!;
     const total = Number(summary.total);
-    const protectedCohort = inaccessible > 0 && total < 5;
-    const protect = inaccessible > 0;
     const orgN = levels.indexOf(level) + 1;
     const groupExpr =
       q.visibility === 'PRIVATE'
@@ -380,11 +447,9 @@ export class OrganizationDashboard {
                   : column(name),
               ),
           )})::text`;
-    const metrics = protectedCohort
-      ? []
-      : await this.db.$queryRaw<
-          Array<{ kind: string; label: string | null; value: bigint }>
-        >(Prisma.sql`
+    const metrics = await this.db.$queryRaw<
+      Array<{ kind: string; label: string | null; value: bigint }>
+    >(Prisma.sql`
       SELECT
         CASE
           WHEN GROUPING(v.status) = 0 THEN 'status'
@@ -403,63 +468,60 @@ export class OrganizationDashboard {
         (${groupExpr}), (v.area)
       )`);
     const get = (kind: string): DashboardBucket[] =>
-      count(metrics.filter((m) => m.kind === kind)).map((m) => ({
-        label: m.label ?? 'NONE',
-        value: m.value,
-      }));
-    const suppressedKinds: string[] = [];
-    const safe = (kind: string, buckets: DashboardBucket[]) => {
-      // Hiding the whole dimension also prevents total-minus-visible-buckets reconstruction.
-      if (protect && buckets.some((b) => b.value > 0 && b.value < 5)) {
-        suppressedKinds.push(kind);
-        return [];
-      }
-      return buckets;
-    };
+      count(metrics.filter((m) => m.kind === kind))
+        .map((m) => ({
+          label: m.label ?? 'NONE',
+          value: m.value,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     const names = new Map(c.metadata.categories.map((cat) => [cat.id, cat.label]));
-    const category = safe(
-      'category',
-      get('category').map((b) => ({
-        ...b,
-        key: b.label,
-        name: names.get(b.label) ?? 'Tanpa kategori',
-        label: names.get(b.label) ?? 'Tanpa kategori',
-      })),
+    const category = get('category').map((b) => ({
+      ...b,
+      key: b.label,
+      name: names.get(b.label) ?? 'Tanpa kategori',
+      label: names.get(b.label) ?? 'Tanpa kategori',
+      id: b.label,
+    }));
+    // Unknown organization rows (one per department or former handler) share the
+    // same user-facing meaning, so they merge into single buckets with stable
+    // identifiers; duplicate labels would otherwise collide as React keys and
+    // appear to accumulate across scope switches.
+    const merged = new Map<string, DashboardBucket>();
+    const push = (id: string, label: string, value: number) => {
+      const existing = merged.get(id);
+      merged.set(id, { id, label, value: (existing?.value ?? 0) + value });
+    };
+    for (const b of get('organization')) {
+      if (q.visibility === 'PRIVATE') {
+        if (b.label === 'NONE') push('unassigned', 'Belum didelegasikan', b.value);
+        else {
+          const handler = c.metadata.handlers.find((h) => h.id === b.label);
+          if (handler) push(handler.id, handler.label, b.value);
+          else push('previous-union', 'Union sebelumnya', b.value);
+        }
+        continue;
+      }
+      const p = JSON.parse(b.label) as (string | null)[];
+      const last = p.at(-1);
+      if (last === '__UNKNOWN_SECTION__')
+        push('section-unknown', 'Section belum teridentifikasi', b.value);
+      else if (last && p.every((v): v is string => typeof v === 'string'))
+        push(organizationKey(p as string[]), last, b.value);
+      else if (level === 'section' && p[2]) {
+        if (q.basis === 'HANDLING')
+          push('section-unassigned', 'Belum ditugaskan ke section', b.value);
+        else push('section-unknown', 'Section belum teridentifikasi', b.value);
+      } else push('organization-unknown', 'Organisasi belum teridentifikasi', b.value);
+    }
+    const organization = [...merged.values()].sort(
+      (a, b) => b.value - a.value || a.label.localeCompare(b.label),
     );
-    const organization = safe(
-      'organization',
-      get('organization').map((b) => {
-        if (q.visibility === 'PRIVATE')
-          return {
-            ...b,
-            id: b.label,
-            label:
-              b.label === 'NONE'
-                ? 'Belum didelegasikan'
-                : (c.metadata.handlers.find((h) => h.id === b.label)?.label ?? 'Union sebelumnya'),
-          };
-        const p = JSON.parse(b.label) as (string | null)[];
-        return {
-          ...b,
-          id: p.every((v) => v !== null && v !== '__UNKNOWN_SECTION__')
-            ? organizationKey(p as string[])
-            : undefined,
-          label:
-            (p.at(-1) === '__UNKNOWN_SECTION__' ? 'Section belum teridentifikasi' : p.at(-1)) ||
-            (level === 'section' && p[2]
-              ? q.basis === 'HANDLING'
-                ? 'Belum ditugaskan ke section'
-                : 'Section belum teridentifikasi'
-              : 'Organisasi belum teridentifikasi'),
-        };
-      }),
-    ).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
     const from = q.from ? new Date(q.from) : summary.first;
     const to = q.to ? new Date(q.to) : summary.last;
     const days = from && to ? (to.getTime() - from.getTime()) / 86400000 : 0;
     const grain = days > 730 ? 'month' : days > 100 ? 'week' : 'day';
-    const trend =
-      protectedCohort || !from || !to
+    const trend: DashboardBucket[] =
+      !from || !to
         ? []
         : count(
             await this.db.$queryRaw<Array<{ label: string; value: bigint }>>(Prisma.sql`
@@ -469,46 +531,35 @@ export class OrganizationDashboard {
       LEFT JOIN counts c ON c.day = d.day ORDER BY d.day`),
           );
     let previousTotal: number | null = null;
-    if (!protectedCohort && q.from && q.to) {
-      const end = new Date(q.from),
-        duration = new Date(q.to).getTime() - end.getTime() + 1;
-      const previousWhere = {
-        AND: [c.undated, { submittedAt: { gte: new Date(end.getTime() - duration), lt: end } }],
-      };
-      const previous = await this.db.voice.count({ where: previousWhere });
-      const previousOutside =
-        !c.global && q.visibility === 'GENERAL' && previous > 0 && previous < 5
-          ? await this.db.voice.count({
-              where: { AND: [previousWhere, { NOT: await this.policy.detailScope(actor) }] },
-            })
-          : 0;
-      previousTotal = previousOutside > 0 ? null : previous;
+    if (q.from && q.to) {
+      const end = new Date(q.from);
+      const duration = new Date(q.to).getTime() - end.getTime() + 1;
+      previousTotal = await this.db.voice.count({
+        where: {
+          AND: [c.undated, { submittedAt: { gte: new Date(end.getTime() - duration), lt: end } }],
+        },
+      });
     }
     const missing =
-      q.visibility === 'GENERAL' && q.basis === 'HANDLING' && !protectedCohort && !protect
-        ? Number(summary.missing)
-        : null;
+      q.visibility === 'GENERAL' && q.basis === 'HANDLING' ? Number(summary.missing) : null;
     const pendingAssignment =
       q.visibility === 'PRIVATE' && actor.capabilities.includes('UNION_HEAD')
         ? await this.db.voice.count({ where: { visibility: 'PRIVATE', currentHandlerId: null } })
         : undefined;
     return {
       ...c.metadata,
-      total: protectedCohort ? null : total,
-      status: safe('status', get('status')),
-      severity: safe('severity', get('severity')),
+      total,
+      status: get('status'),
+      severity: get('severity'),
       category,
       organization,
-      trend: safe('trend', trend),
-      area: safe('area', get('area')),
+      trend,
+      area: get('area'),
       previousTotal,
       trendGrain: grain,
       pendingAssignment,
-      protected: protectedCohort,
-      suppressedDimensions: suppressedKinds,
-      suppression: { enabled: protect, threshold: 5 },
       handlingUnresolved: missing,
-      filters: { ...q, ...c.metadata.selected, level },
+      filters: { ...q, ...c.metadata.selected, level, scopeMode: c.metadata.scopeMode },
       generatedAt: new Date().toISOString(),
     };
   }

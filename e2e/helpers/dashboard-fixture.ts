@@ -31,15 +31,51 @@ export function dashboardFixture(
     id: orgKey(...path),
     parentId: path.length > 1 ? orgKey(...path.slice(0, -1)) : null,
   });
+  const sectionOnly = !global && !leader && !caps.includes('MANAGER');
+  const scopeMode = (url.searchParams.get('scopeMode') ??
+    (isPrivate
+      ? 'OWN'
+      : global || (leader && level === 'division')
+        ? 'GLOBAL'
+        : !leader && !sectionOnly && level === 'department'
+          ? 'PARENT'
+          : 'OWN')) as Metadata['scopeMode'];
+  const explicit = Object.fromEntries(
+    ['directorate', 'division', 'department', 'section']
+      .filter((l) => url.searchParams.has(l))
+      .map((l) => [l, url.searchParams.get(l)!]),
+  );
+  for (const id of Object.values(explicit)) {
+    const parts = JSON.parse(Buffer.from(id, 'base64url').toString()) as string[];
+    parts.forEach(
+      (_, i) =>
+        (explicit[['directorate', 'division', 'department', 'section'][i]!] = orgKey(
+          ...parts.slice(0, i + 1),
+        )),
+    );
+  }
   const defaultSelected =
-    !global && !isPrivate
+    !global && !isPrivate && scopeMode !== 'GLOBAL'
       ? {
           directorate: orgKey(directorate),
-          ...(level !== 'division' ? { division: orgKey(directorate, division) } : {}),
-          ...(level === 'section' ? { department: orgKey(directorate, division, department) } : {}),
+          division: orgKey(directorate, division),
+          ...(!leader && (scopeMode === 'OWN' || sectionOnly)
+            ? { department: orgKey(directorate, division, department) }
+            : {}),
+          ...(sectionOnly && scopeMode === 'OWN'
+            ? { section: orgKey(directorate, division, department, 'Assembly 1') }
+            : {}),
         }
       : {};
   const metadata: Metadata = {
+    scopeMode,
+    allowedScopeModes: isPrivate
+      ? ['OWN']
+      : global
+        ? ['GLOBAL']
+        : leader
+          ? ['OWN', 'GLOBAL']
+          : ['OWN', 'PARENT'],
     basis: (url.searchParams.get('basis') ?? 'HANDLING') as Metadata['basis'],
     visibility: isPrivate ? 'PRIVATE' : 'GENERAL',
     level,
@@ -58,24 +94,22 @@ export function dashboardFixture(
           division: [option(division, [directorate, division])],
           department: [
             option(department, [directorate, division, department]),
-            option('Manufacturing Engineering', [
-              directorate,
-              division,
-              'Manufacturing Engineering',
-            ]),
+            ...(global || leader
+              ? [
+                  option('Manufacturing Engineering', [
+                    directorate,
+                    division,
+                    'Manufacturing Engineering',
+                  ]),
+                ]
+              : []),
           ],
-          section: ['Assembly 1', 'Welding', 'Painting', 'Logistics', 'Quality'].map((s) =>
-            option(s, [directorate, division, department, s]),
-          ),
+          section: (sectionOnly
+            ? ['Assembly 1']
+            : ['Assembly 1', 'Welding', 'Painting', 'Logistics', 'Quality']
+          ).map((s) => option(s, [directorate, division, department, s])),
         },
-    selected: {
-      ...defaultSelected,
-      ...Object.fromEntries(
-        ['directorate', 'division', 'department', 'section']
-          .filter((l) => url.searchParams.has(l))
-          .map((l) => [l, url.searchParams.get(l)!]),
-      ),
-    },
+    selected: { ...defaultSelected, ...explicit },
     handlers: caps.includes('UNION_OFFICER')
       ? [{ id: session.account.id, label: 'Union 1' }]
       : [
@@ -93,32 +127,43 @@ export function dashboardFixture(
           ['WORK_DIFFICULTY', 'Kesulitan Kerja'],
           ['WELFARE', 'Kesejahteraan'],
         ].map(([id, label]) => ({ id: id!, label: label! })),
-    scopeLabel: isPrivate
-      ? caps.includes('UNION_HEAD')
-        ? 'Seluruh Private Voice'
-        : 'Penugasan Anda'
-      : level === 'division'
-        ? 'Seluruh organisasi'
-        : level === 'department'
-          ? division
-          : department,
+    scopeLabel: '',
   };
+  metadata.scopeLabel = isPrivate
+    ? caps.includes('UNION_HEAD')
+      ? 'Seluruh Private Voice'
+      : 'Penugasan Anda'
+    : Object.values(metadata.selected).length
+      ? (
+          JSON.parse(
+            Buffer.from(Object.values(metadata.selected).at(-1)!, 'base64url').toString(),
+          ) as string[]
+        ).at(-1)!
+      : 'Seluruh organisasi';
   const old = legacy as Legacy | undefined;
-  const total = old?.total ?? 42;
+  const total =
+    old?.total ??
+    (scopeMode === 'GLOBAL'
+      ? 21
+      : scopeMode === 'PARENT' && !sectionOnly
+        ? 17
+        : sectionOnly && scopeMode === 'OWN'
+          ? 8
+          : 12);
   const view: View = {
     ...metadata,
     total,
     status: old?.status ?? [
-      { label: 'OPEN', value: 18 },
-      { label: 'IN_VERIFICATION', value: 7 },
-      { label: 'IN_PROGRESS', value: 9 },
-      { label: 'CLOSED', value: 8 },
+      { label: 'OPEN', value: total - 6 },
+      { label: 'MONITORED', value: 0 },
+      { label: 'IN_PROGRESS', value: 3 },
+      { label: 'CLOSED', value: 3 },
     ],
     severity: old?.severity ?? [
       { label: 'CRITICAL', value: 3 },
-      { label: 'HIGH', value: 11 },
-      { label: 'MEDIUM', value: 18 },
-      { label: 'LOW', value: 10 },
+      { label: 'HIGH', value: 3 },
+      { label: 'MEDIUM', value: total - 8 },
+      { label: 'LOW', value: 2 },
     ],
     category:
       old?.category ??
@@ -126,32 +171,64 @@ export function dashboardFixture(
         key: c.id,
         name: c.label,
         label: c.label,
-        value: [12, 7, 8, 5, 6, 4][i]!,
+        value: i === 0 ? total - 5 : i === 1 ? 3 : i === 2 ? 2 : 0,
       })),
     trend: Array.from({ length: 30 }, (_, i) => ({
       label: `2026-08-${String(i + 1).padStart(2, '0')}`,
-      value: i < 6 ? 0 : i < 12 ? 1 : 2,
+      value: i === 25 ? total - 4 : i === 26 ? 4 : 0,
     })),
     organization: isPrivate
       ? [{ id: 'union-1', label: 'Union 1', value: total }]
-      : (level === 'section'
-          ? ['Assembly 1', 'Welding', 'Painting', 'Logistics', 'Quality']
-          : level === 'department'
-            ? ['Production Control', 'Manufacturing Engineering', 'Quality Assurance']
-            : ['Production Division', 'Corporate Planning', 'Quality Division']
-        ).map((label, i) => ({ id: `bucket-${i}`, label, value: [12, 9, 8, 7, 6][i]! })),
-    area: old?.area ?? [],
+      : level === 'section'
+        ? [{ id: 'section-unassigned', label: 'Belum ditugaskan ke section', value: total }]
+        : level === 'department'
+          ? [
+              {
+                id: orgKey(directorate, division, department),
+                label: department,
+                value: scopeMode === 'PARENT' ? 12 : total,
+              },
+              ...(scopeMode === 'PARENT'
+                ? [
+                    {
+                      id: orgKey(directorate, division, 'Manufacturing Engineering'),
+                      label: 'Manufacturing Engineering',
+                      value: total - 12,
+                    },
+                  ]
+                : []),
+            ]
+          : [
+              { id: orgKey(directorate, division), label: division, value: 17 },
+              { id: orgKey('Other', 'Other Division'), label: 'Other Division', value: total - 17 },
+            ],
+    area: old?.area ?? [{ label: 'SUNTER_1', value: total }],
     previousTotal: old?.previousTotal ?? 39,
     trendGrain: 'day',
     ...(isPrivate && caps.includes('UNION_HEAD')
       ? { pendingAssignment: old?.pendingAssignment ?? 3 }
       : {}),
-    protected: false,
-    suppressedDimensions: [],
-    suppression: { enabled: !global && !isPrivate, threshold: 5 },
     handlingUnresolved: 0,
     filters: Object.fromEntries(url.searchParams),
     generatedAt: '2026-08-30T03:00:00Z',
   };
+  if (sectionOnly && !isPrivate) {
+    view.organization = [
+      {
+        id: orgKey(directorate, division, department, 'Assembly 1'),
+        label: 'Assembly 1',
+        value: scopeMode === 'OWN' ? total : 8,
+      },
+      ...(scopeMode === 'PARENT'
+        ? [
+            {
+              id: orgKey(directorate, division, department, 'Welding'),
+              label: 'Welding',
+              value: total - 8,
+            },
+          ]
+        : []),
+    ];
+  }
   return { metadata, view };
 }

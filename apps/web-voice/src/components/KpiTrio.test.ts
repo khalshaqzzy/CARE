@@ -5,7 +5,7 @@ describe('General dashboard KPI', () => {
     const items = generalKpiItems(
       [
         { label: 'OPEN', value: 18 },
-        { label: 'IN_VERIFICATION', value: 7 },
+        { label: 'MONITORED', value: 7 },
         { label: 'IN_PROGRESS', value: 9 },
         { label: 'CLOSED', value: 8 },
       ],

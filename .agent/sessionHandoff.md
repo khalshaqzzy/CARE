@@ -1,13 +1,512 @@
 # CARE Session Handoff
 
-| Attribute           | Current status                                                    |
-| ------------------- | ----------------------------------------------------------------- |
-| Date                | 7 September 2026                                                  |
-| Objective           | Deliver organization dashboards for PIC, management and Union     |
-| Branch              | `feat/pic-dashboard`; commit, push and PR to `staging` authorized |
-| Phase               | Phase 13 `in_progress`; hosted acceptance remains open            |
-| Latest ADR          | ADR-0042                                                          |
-| Delivery constraint | Do not monitor hosted checks after creating the PR                |
+## Authentication identifier editing and recovery refinement — 10 September 2026
+
+Current branch: `staging`. Resolved the reported defect where tapping **Ubah No. Reg** on the workforce login (and the recovery page) focused the No. Reg field but the software keyboard never appeared on iOS/Safari. The handler focused the input synchronously while React had not yet committed `readOnly={false}`, so Safari saw a read-only field and suppressed the keyboard and did not re-evaluate after the attribute was removed. Both handlers (`apps/web-voice/src/App.tsx`, `apps/web-voice/src/features/auth/ForgotPasswordPage.tsx`) now import `flushSync` from `react-dom` and commit the stage collapse before focusing, keeping the field's `readOnly` lock otherwise intact. ADR-0049 records the decision.
+
+The same task applied the product-owner presentation decisions:
+
+- Removed the step-heading captions beside **Ubah No. Reg** ("Password akun" on login; "Verifikasi akun" and "Ketersediaan reset" on recovery); the control is now right-aligned.
+- Made **Ubah No. Reg** and **Lupa Password?** compact (36 px, smaller type) and tightened the expanded stage's internal and surrounding gaps. This is an explicitly approved lower-than-44 px exception, now recorded in PRD §22.2; §8.1 documents the editable-and-focused identifier behaviour.
+- Doubled the shared reveal animation for a smoother feel: height 480 ms, opacity 360 ms, settle 520 ms (`AuthReveal.tsx`); reduced motion stays instant.
+- Balanced the birth-date columns so the "Tanggal" label no longer clips and the month control is shorter: equal day/month/year fractions on the 3-column layout and equal day/month on the sub-480 px layout.
+
+Changed files: `apps/web-voice/src/App.tsx`, `apps/web-voice/src/features/auth/ForgotPasswordPage.tsx`, `apps/web-voice/src/features/auth/AuthReveal.tsx`, `apps/web-voice/src/styles.css`, `e2e/auth-recovery.spec.ts`, `scripts/validation/validation.test.mjs` (inventory 361→362), all 33 tracked auth captures plus `e2e/captures/local/index.html` and `manifest.json`, `docs/adr/0049-authentication-identifier-editing-and-recovery-refinement.md`, `.agent/PRD.md`, `.agent/implementationPhases.md`, and this handoff.
+
+Validation completed locally with the pinned Node 22.23.2 / pnpm 11.8.0:
+
+- `pnpm verify:ci build`: OpenAPI check, typecheck, production bundles and the PWA compatibility artifact gate passed (main gzip 142443 bytes).
+- Focused `e2e/auth-recovery.spec.ts` (chromium): 12/12, including the new regression that asserts the identifier is editable after both **Ubah No. Reg** controls, that the removed captions are absent, and that the day column is at least as wide as the month column.
+- `pnpm verify:ci browser`: 189/189 (Chromium, PWA, push). `pnpm verify:ci legacy`: 6/6 (legacy WebKit, including recovery controls).
+- `pnpm verify:ci fullstack`: 6/6 on a fresh Docker `care_test` database, including the real reset → login → password-change journey.
+- `pnpm verify:ci static`: format, lint, unit suites, validation orchestration (9 tests, inventory now 362), mocked provider smoke and `git diff --check` passed.
+- `pnpm visual:capture e2e/auth-recovery.visual.spec.ts`: 33/33 auth references regenerated (all auth states shifted because the `.auth-form` gap changed). Representative 360/768/1440 login-password, reset-date, and reset-tm images were inspected: no captions, right-aligned control, "Tanggal" no longer clipped, equal date columns.
+
+The Docker test PostgreSQL stack was stopped with `pnpm db:down`; no application server, preview server, or test process remains. No hosted run, deployment, or operational data import was performed. Delivery (commit/push/PR) requires explicit authorization.
+
+## Hosted capture merge correction — 10 September 2026
+
+PR #42 run 34442936372 at 61134fd8 passed all application, API, browser/capture shards, fullstack, migration, production container and security jobs. Browser report merging alone failed because merge-captures.mjs retained the old expected count 128 while 161 scenarios were produced; the release gate correctly rejected that report failure.
+
+The expected count now lives in scripts/validation/capture-contract.mjs and is consumed by the hosted merger, native reporter and actual Playwright inventory test. A new regression invokes the real merge CLI with complete and incomplete synthetic inventories, preserving strict missing/duplicate/stale evidence rejection. Nine validation tests and focused lint/diff checks pass. The two real hosted capture artifacts from run 34442936372 were downloaded and merged successfully with the corrected CLI: 161 scenarios/164 images. No application behavior or images changed, so successful hosted application evidence is retained without an unrelated local rerun.
+
+Commit/push to the existing feature branch and PR are authorized. The replacement hosted run must pass before reporting CI fixed. No application server or database was started for this correction. ADR-0047 records the shared count contract.
+
+## Registration-first authentication and DOB recovery — 10 September 2026
+
+Current branch: `feat/vokasi-and-login-forget`. Implementation includes shared No. Reg-first workforce/Union login, restricted default-workforce entry, optional current password only for verified default sessions, DOB reset, nullable Employee birthDate migration, seven/eight-column imports, Admin preview summaries, OpenAPI/client/auth cache, and new functional/fullstack/native-capture scenarios. ADR-0048 records decisions and accepted identity-verification tradeoffs. Phase 13 remains the only in-progress phase.
+
+The source workbook was parsed read-only with the production parser: 7,418 unique rows, 7,018 birth dates, 400 TM members. Commit, push and a pull request from this feature branch to staging are authorized by the delivery follow-up. Operational import and deployment remain outside this task. Real PII remains outside Git.
+
+Validation completed locally using the pinned Node 22.23.2 and pnpm 11.8.0. `pnpm verify:local --plan` selected static, build, integration, organization, performance, migrations, fullstack, browser, legacy and capture. The broad invocation passed static/build, 90 integration tests, 14 security tests, 5 organization tests, 2 performance tests, migration checks and 6 fullstack tests. Its browser run passed 183 tests but found mobile grid recentering and an Axe check during reveal opacity; both were corrected without weakening assertions. Relevant checks were then rerun through shared jobs rather than repeating unrelated successful database suites.
+
+Final evidence:
+
+- `pnpm verify:ci static`: formatting/lint, unit suites, eight validation-orchestration tests, mocked provider contract and diff check passed. Final CSS/doc-only polish also passed focused formatting/diff checks.
+- `pnpm verify:ci build`: current OpenAPI, typecheck, production bundles and legacy PWA artifact gate passed after final UI edits.
+- Focused real PostgreSQL auth/import tests: 9/9, including reset racing with login/change, sibling-session revocation, DOB preservation/clearing and default/Union/TM boundaries.
+- Fullstack rerun: 6/6, including the new real-API reset → login → password-change journey. Final subsequent CSS-only DOB control sizing was covered by browser/legacy/capture checks.
+- Auth browser suite: 11/11 at 360/390/768/1440; Axe, keyboard, reduced motion, stable card position, unavailable/reset-error states, pending and offline handling passed. Other unchanged browser scenarios retain the 183-pass broad-run evidence.
+- Legacy WebKit: 6/6 after final CSS, including DOB recovery.
+- Native capture: 161/161 scenarios, 164 PNGs in the gallery, including 33 new auth references. Final recovery sizing/back-link polish regenerated the 18 affected recovery scenarios successfully. Representative mobile, tablet and desktop login/reset/default-password images were inspected; mobile date values now display completely.
+- Production parser read-only source check: 7,418 rows, all unique, 7,018 dates and 400 TM identifiers. Tests/captures use synthetic data only.
+
+Initial static failures were unused/test helper typing and the outdated browser inventory count; the CI completeness check now expects 361 tests/161 visual scenarios, and the capture reporter recognizes the expanded full set. An old initial-login capture assertion was updated from Masuk to Lanjutkan. No thresholds or behavioral checks were removed. Logs are `/tmp/care-vokasi-validation-3.log` and `/tmp/care-auth-*.log`.
+
+No hosted release gates, deployment or operational data import ran. The additive migration and workbook import still need application in the destination environment through normal deployment and preview/confirm. Agent-started Docker test stacks and browser/API servers were stopped; no process needs to remain running. Delivery follow-up authorizes commit/push and a PR to staging. Directory Gitleaks passed before commit; the commit scan and hosted PR checks follow during delivery.
+
+## CI environment isolation correction — 10 September 2026
+
+Run 34436499848 at 50d4f56c passed every application/API/browser/capture/report,
+migration, static and security job that ran. Production containers failed the first
+release.json identity assertion: workflow-global RELEASE_SHA=ci overrode the
+zero-SHA fixture in the Compose env file. The first jq comparison returned false.
+This was environment leakage introduced by the validation split, not an app or
+screenshot failure. Later container checks/scans did not run after that failure.
+
+Test environment variables now exist only on quality, build, API matrix, browser
+matrix and fullstack jobs. Production containers retain their fixture environment;
+other security/deployment jobs no longer inherit test credentials or NODE_ENV.
+A regression contract verifies that test variables cannot become workflow-global
+or override container fixtures. Compose resolution confirms all three app images
+use the expected zero-SHA tag. Eight orchestration tests, lint, formatting,
+Actionlint and diff checks pass. Existing hosted application evidence is reused;
+no unrelated application or visual suites are repeated locally.
+
+Corrective commit/push follows the existing delivery authorization. Do not monitor
+the replacement hosted run after pushing, per the delivery instruction. No runtime
+stack was started for this correction; Compose config and ephemeral scanner/linter
+containers only. ADR-0047 records the environment-boundary requirement.
+
+## Shared validation and native capture implementation — 10 September 2026
+
+Implemented locally on `staging`, starting at `fb55191c6e3358d2a8fc60c1499069bf1560b8d6`.
+Commit and push to `staging` are now explicitly authorized. Hosted runs must not
+be monitored for this delivery, per instruction. Earlier hosted run 34323788233 passed
+staging delivery; it does not validate this uncommitted workflow refactor. Phase 13
+remains the only `in_progress` phase. ADR-0047 is accepted for the scope below.
+
+Implemented:
+
+- Shared `verify:local`, `verify:full`, `verify:ci`, `verify:repro` and `visual:capture`
+  commands. Conservative local scope includes working changes and optional
+  `--base=<ref>`; task prerequisites are deduplicated within the invocation.
+- Full local CI replay before every commit is replaced in rules §4.2 by relevant
+  native checks and exact-SHA hosted release authority. No persistent test-result
+  cache, Linux container generation or automatic install is hidden in the runner.
+- CI separates static quality, contract/typecheck/build, isolated API matrix
+  (integration, organization import, performance, migrations), two functional
+  browser shards, two capture shards, legacy WebKit and isolated fullstack.
+  All results plus merged reports are required by the stable release gate.
+- Application build artifact records SHA/source content/output checksums and is
+  verified before browser/fullstack use. Frontend typechecking occurs once before
+  Vite bundling; API scripts/tests typechecking remains separate from runtime emit.
+- OpenAPI drift compares generated bytes with the current checked-in/working inputs,
+  so an intentional uncommitted regenerated contract can pass locally while stale
+  committed contracts still fail CI. Exact duplicate dependency audit is removed.
+- Capture replaces pixel comparison while retaining all original non-pixel
+  assertions. Native references ARE tracked in `e2e/captures/local/`, with readable
+  scenario/viewport filenames and offline `index.html`. Current macOS capture:
+  128 scenarios / 131 PNGs. Partial updates preserve unaffected scenarios.
+  Intermediate `visual-output/` is ignored. CI writes only Actions artifacts and
+  stores merged HTML/gallery/manifest evidence for 30 days; no screenshot bot commits.
+- Old multi-platform baseline directories were removed. Existing PNG renders were
+  reused when fixing metadata/names; no redundant rerender was needed.
+- Obsolete PR validation is cancellable; staging deployment cannot be auto-cancelled.
+  Existing container/Trivy, deployment, migration-release and security obligations
+  remain. Cache layers, browser-ready images, scan parallelism and deployment/image
+  promotion optimizations are deferred.
+
+Changed files: ci.yml and setup composite action; package scripts; validation
+orchestrator/checks/tests; capture helper/reporter and seven visual specs; native
+reference gallery; rules, PRD §31.2, release checklist, phases and ADRs.
+
+Validation evidence (logs `/tmp/care-validation-*.log`):
+
+- Frozen installation and repository-pinned Node 22.23.2/pnpm 11.8.0 verified.
+- Build/typecheck/OpenAPI/PWA passed; main gzip 140188 bytes. Static unit suites
+  passed (212 application unit tests), mocked provider contract passed. Initial
+  static invocation correctly failed on one unformatted new script; it was fixed
+  and the final shared static job passed.
+- Functional shards: 89 + 88 passed; legacy WebKit 5 passed. Capture shards:
+  64 + 64 passed; merged 128 scenarios / 131 images, representative assignment
+  and process-form PNGs inspected. No pixel baseline checks were run.
+- Isolated-suite invocations: ordinary integration 83 + organization import 5;
+  security 14; performance 2 (native p95 348 ms at 150 requests/50 concurrent);
+  reconciliation all zero. Fresh migrations and all five data-upgrade harnesses
+  passed. Fullstack 5 passed using CI reporter mode; blob-to-HTML merge passed.
+- Orchestrator contracts cover real browser matrix union/no duplicates, failure and
+  skip rejection, missing capture rejection by the real reporter, artifact SHA/output
+  tampering, gallery duplicate/stale/path errors, partial native updates and generated
+  contract drift (7/7 tooling tests). Actionlint passed for the final job graph.
+- Final Gitleaks directory scan passed without scanner exceptions. An initial scan
+  mistook API-path/checksum pairs in the ignored build manifest for API keys;
+  serializing path and SHA-256 as separate fields resolved the false positives.
+  Build manifest seal/verification and tamper tests were rerun successfully.
+- Final format/lint/static/build checks and `git diff --check` passed.
+- Hosted execution/upload/download and wall-time improvement remain unverified
+  until an authorized push. No new production-container build or deployment was
+  needed for this scope; their existing CI gates are retained unchanged.
+
+Docker test PostgreSQL was stopped with `pnpm db:down`. No task-started application
+server or container remains running; ports 3000, 4173 and 4174 were checked.
+Native repository references and the ignored intermediate gallery are retained for
+inspection. Delivery: commit/push is authorized after clean directory and commit Gitleaks
+scans. Do not monitor hosted runs for this delivery. Hosted timing remains unverified;
+do not claim the projected 4–6-minute CI target as a measured result.
+
+## Caddy gRPC Trivy remediation — 9 September 2026
+
+Current branch is `staging` at merge `442e998a`. Hosted run `34322429686`
+passed `quality`, migrations, deployment scripts, secrets, dependency review and
+CodeQL; only the production-container job failed. Trivy 0.70.0 reported
+`CVE-2026-84445` High in the Caddy binary's embedded
+`google.golang.org/grpc v1.83.1`, with `v1.83.2` listed as the patched release.
+The release gate therefore failed and staging deployment was not started.
+
+`deploy/caddy/Dockerfile` now pins `google.golang.org/grpc v1.83.2` and its
+required `golang.org/x/net v0.58.0`. The scanner policy and `.trivyignore` are
+unchanged. The production Caddy image rebuilt from pinned bases, the binary
+reports Caddy `v2.11.4`, gRPC `v1.83.2`, and x/net `v0.58.0`, and its Caddyfile
+validates. Trivy 0.70.0 reports zero High/Critical findings for both the
+distroless Debian runtime and embedded Go binary.
+
+Additional affected validation passed: frozen pnpm install, format, lint,
+typecheck, runtime/deployment validation, security-exception validation, remote
+Compose config, Hadolint, and `git diff --check`. The macOS deployment harness
+again reported its documented lack of real `flock`, while all other harness
+checks passed; Linux hosted CI remains authoritative for contention. The live
+provider smoke used its documented manual fallback. User authorized a direct
+commit and push to `staging`; the replacement hosted run must be monitored.
+
+## Organization dashboard CI transaction stabilization — 9 September 2026
+
+Current branch: `fix/dashboard-transaction-acquisition`, created from `staging`
+at failed push `95ca2b50`. Run `34315592488` passed migration, deployment,
+container/Trivy, secrets, dependency-security and CodeQL jobs; only `quality`
+failed at `pnpm test:performance`, and the release gate/deploy consequently did
+not run. The failing organization request raised Prisma `P2028` after 2,074 ms:
+the default interactive-transaction `maxWait` is 2,000 ms, below the unchanged
+3,000 ms p95 budget. Six immediately preceding hosted runs passed at 1,763–2,055
+ms p95, so this was an acquisition-boundary failure rather than a SQL or feature
+regression.
+
+`OrganizationDashboard.aggregate` now keeps REPEATABLE READ and explicitly sets
+`maxWait: 5_000` and `timeout: 5_000`. No retry, query, pool, concurrency,
+threshold, schema, or API/OpenAPI behavior changed. The concurrent-insert
+snapshot integration test also asserts the exact transaction policy.
+
+Focused validation passed on Docker PostgreSQL: organization integration 22/22;
+three local seeded performance runs at 319, 337 and 330 ms p95; and three clean
+Linux x64 runs with both Node and PostgreSQL limited to two CPUs at 1,787, 1,814
+and 1,841 ms p95. Every performance run completed 150 requests at 50 concurrent
+without `P2028`.
+
+Clean parity used Node 22.23.2/pnpm 11.8.0 and fresh generated artifacts. Passed:
+frozen install, Prisma generation, audit (four Moderate, zero High/Critical),
+format, lint, typecheck, unit (API 83, workforce 86, UI 26, frontend-core 15,
+Admin 2), OpenAI mock smoke, current and `origin/staging` destructive migration
+checks, all five upgrade harnesses, previous-staging-to-current migration/status,
+integration 88/88, security 14/14, performance 2/2 (final p95 2,207 ms), storage
+reconciliation, deterministic OpenAPI check, production build, PWA compatibility
+(140188-byte main gzip), mocked Playwright 310/310, full-stack 5/5, Compose config,
+Actionlint, ShellCheck, Hadolint, inference syntax/topology, bootstrap validation,
+deployment validators, Linux real-`flock` deployment harness, Gitleaks 8.24.3,
+and `git diff --check`.
+
+The production Compose images built with `--pull`; migrate/bootstrap, readiness,
+routing/CSP/auth boundaries, non-root/private-database-port and database/media
+persistence checks passed. A local Trivy 0.70.0 scan was stopped at the user's
+direction when its vulnerability database download stalled in Docker Desktop;
+the unchanged scanner policy remains mandatory in hosted CI. An initial full-stack
+run after the focused integration generated enough audit events to push an older
+event onto the next unfiltered page; a clean database reset passed 5/5.
+
+Hosted PR run `34320722503` passed the dashboard performance gate at 1,574 ms p95
+(150 requests/50 concurrent) without `P2028`, plus every migration, container,
+Trivy, secret, dependency, CodeQL and deployment-script gate. `quality` later
+failed only because the full-stack Admin journey expected
+`VOICE_PRIVATE_DETAIL_READ` on the first unfiltered audit page after earlier
+journeys had legitimately generated more than its ten-row page size. The test now
+asserts that event through its existing `action` filter, retaining real API/UI
+wiring coverage without depending on total audit volume; focused full-stack
+validation passes 5/5. A new hosted run is required.
+
+Runtime cleanup completed: both Compose stacks, test servers and temporary Linux,
+migration, artifact and production directories were removed or moved to Trash;
+no task-started CARE container or listener remained before the focused hosted-fix
+validation. PR #41 targets `staging`; hosted checks are being monitored. Merge and
+staging deployment are not authorized.
+
+## Previous session reference
+
+## Inbox card PIC alignment and hero audience polish — 9 September 2026
+
+Implemented on `feat/pic-voice-polish` (fresh from `staging` at `f861e0dd`) three
+product-owner display corrections with no API/schema change (`openapi:check`
+byte-stable); ADR-0046 records the decisions:
+
+1. `InboxVoiceCard`: the PIC/"Belum ditugaskan" chip moved from the footer to
+   the severity row, right-aligned with severity on plain cards; Union identity
+   cards keep the footer chip. PIC names clip to the first two words plus `…`
+   (`shortenPersonName` in `lib/formatters.ts`, CSS `max-width` + ellipsis on
+   `.inbox-card__pic-name`; footer `margin-left: auto` scoped to
+   `.inbox-card__foot .inbox-card__pic`).
+2. `VoiceHero` for `GENERAL_RESPONDER` and `LEADERSHIP_GENERAL_READ_ONLY`:
+   full-variant chips gain `Area: <area>` after the category chip and the grid
+   becomes `PIC: <pic>` | `Pelapor: <reporter>`. Reporter, compact
+   conversation, closed pills, and Union branches are untouched.
+   `HandoverPage` inherits the new layout; its visual fixture was updated to
+   `audience: 'GENERAL_RESPONDER'` for truthful coverage.
+3. `VoiceDetailPage`: the "Klasifikasi" and "Klasifikasi awal" rows are hidden
+   for `REPORTER_SELF`; other audiences keep them.
+
+Changed files: workforce `components/InboxVoiceCard.tsx`, `components/VoiceHero.tsx`,
+`features/voice/VoiceDetailPage.tsx`, `lib/formatters.ts`,
+`lib/formatters.test.ts`, `styles.css`; specs `voice-consent.spec.ts`,
+`voice-consent.visual.spec.ts`, `workforce-journeys.spec.ts` (asserts the
+clipped `PIC: Union Officer…` chip), `workforce.visual.spec.ts`.
+
+### Local validation commands and results
+
+Node 22.23.2 / pnpm 11.8.0. Docker PostgreSQL `care_test` at 54329 with the
+CI-safe environment (NODE_ENV=test, RELEASE_SHA=ci, OUTBOX_ENABLED=false,
+CI session/CSRF/throttle secrets, 32-character `d` cursor secret). Passed:
+frozen install, `db:generate`, `format:check` (two files needed Prettier), lint
+(one `restrict-template-expressions` error in `VoiceHero.tsx` fixed with a
+typed reporter-name extraction), typecheck, `test:unit` (API 83, UI 26,
+frontend-core 15, Admin 2, workforce 86 — three new `shortenPersonName` cases),
+`openapi:check` byte-stable, `NODE_ENV=production pnpm build`,
+`pnpm pwa:compat-check` (main gzip 140186 bytes),
+`pnpm migrations:destructive-check origin/staging`, integration 88/88, security
+14/14, `FULLSTACK_E2E=1` fullstack 4/4, Gitleaks 8.24.3 directory scan (no
+leaks), and `git diff --check`.
+
+Visual baselines: affected families only were deleted and regenerated with
+`--update-snapshots`, inspected, then verified twice without updates —
+dashboard inbox previews (16 scenarios × 360/768/1440),
+`detail-identity-{GENERAL-RESPONDER,REPORTER-SELF}-360` (darwin, linux-x64,
+linux-arm64 — arm64 via a native ARM64 container after a clean install),
+`workforce-voice-member-{1440,360}`, `workforce-manager-home-360`,
+`workforce-detail-{active,closed,closed-auto-accepted}-360`, and
+`workforce-handover-{360,768,1440}`. Linux x64 regeneration ran in
+`care-visual-check:x64` with `--platform linux/amd64` (clean reinstall needed
+after the arm64 run swapped native binaries), verified three times without
+updates. `workforce-leadership-home-360`, `workforce-union-home-360`, the
+lifecycle family, and `dashboard-loading` were verified byte-identical and
+left untouched. Caveat: several legacy workforce visual assertions allow
+`maxDiffPixelRatio: 0.06`, so the moved chip passed under stale baselines;
+those families were regenerated deliberately rather than trusting the
+allowance. Docker PostgreSQL was stopped with `pnpm db:down`, the temporary
+worktree under `/tmp/care-pic-polish-linux` was removed, and no task-started
+servers or containers remain.
+
+Delivery status: local parity complete; no commit, push, or PR has been made —
+commit/PR to `staging` requires explicit user authorization. No deploy,
+workflow, or Dockerfile input changed, so deployment/container parity was not
+triggered.
+
+## Dependency audit correction — 9 September 2026
+
+PR #39 hosted run `34299072437` failed only the `quality` job at
+`pnpm security:audit`: five High advisories published 8–9 September 2026 —
+`sharp` 0.35.3 (direct, patched 0.35.4), `js-yaml` 4.3.1 via
+`eslint>@eslint/eslintrc` (patched 4.3.2), and `multer` 2.2.0 via
+`@nestjs/platform-express` exact pin (all three advisories patched in 2.3.0).
+Fixed by advancing the API `sharp` pin and adding scoped workspace overrides
+`js-yaml@^4.1.0: 4.3.2` and `multer@^2.0.0: 2.3.0` in `pnpm-workspace.yaml`;
+no scanner exceptions. ADR-0045 records the decision.
+
+Re-validation on the corrected tree (Node 22.23.2 / pnpm 11.8.0, clean
+artifacts, frozen install): Prisma generation, format, lint, typecheck, unit
+(API 83 / UI 26 / frontend-core 15 / workforce 83 / Admin 2), destructive
+migration check, `openapi:check` byte-stable, production build, PWA
+compatibility (main gzip 139998 bytes), Compose config, integration 88/88,
+security 14/14, performance 2/2, fullstack 5/5, browser suite 310/310
+(including fullstack media paths exercising sharp 0.35.4), Gitleaks directory
+scan clean, `git diff --check` clean. `pnpm security:audit` now reports 0 High
+(4 moderate remain, below the gate).
+
+Docker PostgreSQL was stopped with `pnpm db:down` after validation; no other
+task-started processes remain. No deploy script, workflow, or Dockerfile input
+changed, so deployment/container parity was not triggered (PR #38 precedent);
+the hosted container job rebuilds with the corrected lockfile.
+
+## Delivery status — 9 September 2026
+
+PR #39 (`feat/new-voice-timeline` → `staging`, commit `5e4c58cc`) was opened at
+explicit user authorization, without re-running local checks and without hosted
+monitoring. The clean tree matched the validation recorded below; no
+`.github/`, `deploy/`, or `inference/` input changed, so deployment/container
+parity was not triggered. Hosted CI results are intentionally not monitored.
+
+## Monitored Voice lifecycle — 9 September 2026
+
+Implemented Terbuka → Dimonitor → Diproses → Selesai under ADR-0044. Explicit
+monitoring acknowledges the reporter without chat or assignment. Assignment from
+Terbuka performs the acknowledgement once; later assignment/reassign remains
+Dimonitor. Only the assigned PIC starts processing; unassigned route owner/Union
+Head can start with a required opening message and becomes the effective handler.
+Reopen returns to Diproses with a separate Dibuka kembali badge and audited active
+route-owner fallback. If both handlers are inactive, rating/reopen rolls back.
+
+Changed areas: Prisma enum/forward migration; action/transition policies and locked,
+idempotent lifecycle/message operations; controller/OpenAPI/generated client;
+workforce progress/action sheet/status cards/dashboard/cache; Admin status contract;
+fixtures, migration harness, unit/integration/browser/fullstack/visual tests;
+PRD, implementation phases, release checklist and ADR-0044.
+
+Local validation completed (Node 22.23.2 / pnpm 11.8.0):
+
+- Frozen install, Prisma/client generation, typecheck, lint and production build passed.
+- Unit suites: API 83, UI 26, frontend-core 15, workforce 83, Admin 2 passed.
+- Fresh Docker PostgreSQL migration chain (11 migrations) passed. All upgrade
+  harnesses passed, including seven lifecycle cases with preserved messages,
+  attachments, events, closure/rating data and timestamps; no fabricated notices.
+- Integration: 88/88 passed. Security: 14/14. Performance: 2/2, dashboard p95
+  963 ms for 150 requests / 50 concurrent after aligning seeded conversations/handlers; reconciliation dry-run all zero.
+- Full browser suite: 310/310 passed (182 functional/PWA/push/legacy WebKit and
+  128 visual), including retry with
+  identical key and audited reassign endpoint. Fullstack: 5/5 passed, including
+  real monitor → opening PIC message → close → reporter reopen.
+- PWA compatibility passed (main gzip 139998 bytes). Directory Gitleaks v8.24.3:
+  no leaks. Destructive migration check and format check passed.
+- Darwin and Linux x64 visual verification: 128/128 each, twice without snapshot
+  updates. Canonical Linux baselines copied back and hash-verified. Representative
+  mobile progress, reopen and form PNGs inspected; processing footer uses the
+  bounded Dialog footer layout.
+
+Docker PostgreSQL has been stopped with `pnpm db:down`. The isolated Linux visual
+container exited successfully and its temporary checkout was removed after copying
+canonical baselines. No task-started application servers remain.
+
+### Reproducible commands
+
+Local checks used `pnpm install --frozen-lockfile`, `pnpm db:generate`,
+`pnpm openapi:generate` (SHA-256 comparison against the intentional working-tree
+contracts), `pnpm typecheck`, `pnpm lint`, `pnpm test:unit`, `NODE_ENV=production
+pnpm build`, `pnpm format:check`, `pnpm pwa:compat-check`,
+`pnpm migrations:destructive-check`, `pnpm test:migration:upgrade`, and
+`node scripts/test-lifecycle-migration-upgrade.mjs`.
+
+Database setup: `pnpm db:up && pnpm db:wait && pnpm db:test:reset && pnpm
+db:test:migrate`. Integration/security/performance/reconciliation used
+`NODE_ENV=test`, `DATABASE_URL=postgresql://care:care_local@localhost:54329/care_test`,
+`RELEASE_SHA=ci`, `OUTBOX_ENABLED=false`, the repository CI session/CSRF/auth-throttle
+secrets and a 32-character `d` cursor secret. Commands: `pnpm test:integration`,
+`pnpm test:security`, `pnpm seed:performance`, `pnpm test:performance`,
+`pnpm maintenance:reconcile`. Fullstack adds `FULLSTACK_E2E=1` and runs
+`pnpm exec playwright test --project=fullstack`.
+
+Browser verification: `pnpm exec playwright test --workers=3` and
+`pnpm exec playwright test --project=visual --workers=3`. Linux uses the existing
+`care-visual-check:x64` image with explicit `--platform linux/amd64`, Node 22.23.2,
+pnpm 11.8.0 and Playwright 1.62.1, isolated `/tmp/care-lifecycle-linux`, frozen
+install/Prisma/production build, then `pnpm exec playwright test --project=visual
+--workers=3 --timeout=60000` twice without updates after baseline generation.
+Only affected baseline families were regenerated; no thresholds were loosened.
+
+Directory scanner: `docker run --rm -v "$PWD:/repo" -w /repo
+zricethezav/gitleaks:v8.24.3 dir /repo --config=/repo/.gitleaks.toml --redact`.
+`pnpm security:audit` failed as documented above; `git diff --check` passed.
+Local logs are under `/tmp/care-lifecycle-*.log`. No deployment/container-image
+parity or hosted gate is claimed; complete pre-commit parity is still required
+before a future authorized commit.
+
+## Previous session reference
+
+| Attribute | Current status                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| Date      | 8 September 2026                                                                               |
+| Objective | Responder dashboard and create-flow UI polish (seven product-owner corrections)                |
+| Branch    | `feat/ui-tuning-8-sep` (fresh from `staging`)                                                  |
+| Phase     | Phase 13 `in_progress`; hosted acceptance remains open                                         |
+| Decision  | ADR-0043; PRD §18.8.3 and §12.1/§12.2/§15.4 amendments                                         |
+| Delivery  | Local parity complete; commit/push/PR not yet performed — awaiting explicit user authorization |
+
+## UI polish batch — 8 September 2026
+
+Implemented seven display-layer corrections with no API/schema change (`openapi:check` byte-stable):
+
+1. Photo guidance unified into one `(i)` block below the picker: `JPG, PNG, atau WebP · maksimum 10 MB per file.` above `Foto harap mengikuti aturan ATSG ya teman-teman.`, identical styling (`media-input__guidance`/`media-input__hint`; `media-input__note` and `atsg-photo-guidance` CSS removed, element id preserved for `aria-describedby`).
+2. Private "Simpan & Analisis" is disabled until identity choice AND contact consent are set (`privacyComplete` in `CreateVoicePage`), with an `aria-live` hint; `useDraftWizard.saveAndProcess` keeps click-time consent validation.
+3. Private destinations render as `Komite` via `PRIVATE_ROUTE_LABEL` (formatters.ts): create route row, preview route row, `VoiceHero` PIC line, and the Union Head work-items description.
+4. Forced-password "Kembali ke login" uses bold cobalt `auth-back--login`; ordinary "Kembali" stays ghost.
+5. Dashboard basis tab `Pelaporan`; summary heading/name `Ringkasan Voice` for both tabs.
+6. Dashboard hero: avatar, Buat Voice orb, `Operasional Responder` badge, and the `dashboard-context` metadata line removed; read-only chip retained; `dashboard-context` CSS removed. Offline staleness remains covered by the body Alert.
+7. Scope verification in e2e moved to `.dashboard-org-summary` (same `scopeLabel` source) and basis-tab `aria-pressed`; `MemberHomePage` legacy blocks in `HomePage.tsx` are unreachable and untouched.
+
+Key files: `apps/web-voice/src/features/home/DashboardHome.tsx`, `features/create/CreateVoicePage.tsx`, `features/create/useDraftWizard.ts`, `features/create/DraftPreviewPage.tsx`, `components/VoiceHero.tsx`, `features/work/WorkItemsPage.tsx`, `lib/formatters.ts`, `App.tsx`, `styles.css`; specs `dashboard.spec.ts`, `dashboard.visual.spec.ts`, `voice-consent.spec.ts`, `voice-consent.visual.spec.ts`, `workforce.visual.spec.ts`, `workforce-journeys.spec.ts`, `a-workforce-fullstack.spec.ts`.
+
+### Local validation commands and results
+
+Node 22.23.2 / pnpm 11.8.0; Docker PostgreSQL `care_test` at 54329; CI-safe test env as documented below. Passed: clean-artifact frozen install (six `dist` removed), `db:generate`, `security:audit` (3 moderate, 0 High/Critical), `format:check`, `lint`, `typecheck`, `test:unit` (API 82, frontend-core 15, Admin 2, workforce 83), `migrations:destructive-check origin/staging`, `openapi:check` (byte-stable), `test:integration` (84), `test:security` (14), `seed:performance` + `test:performance` (organization dashboard p95 **317 ms**, 150 requests / 50 concurrent, 50,000 Voices), `maintenance:reconcile` dry-run (all zero), `NODE_ENV=production pnpm build`, `pnpm pwa:compat-check` (main gzip 139392 bytes), mocked Playwright suite **292 passed** (Chromium, PWA, push, legacy iOS; +1 new privacy-gating test), `FULLSTACK_E2E=1 … --project=fullstack` **4 passed**, `docker compose config --quiet`, Gitleaks 8.24.3 directory scan (no leaks), `git diff --check`.
+
+Visual baselines: deleted affected PNGs only, regenerated with `--update-snapshots`, inspected representative images (manager/union home 360, dashboard default-pic 1440, union-head 360, password change 360, private-consent-false 360), then verified twice without updates on **darwin** (116/116) and canonical **Linux x64** (Docker `--platform linux/amd64`, image `care-visual-check:x64`, Node 22.23.2, pnpm 11.8.0, Playwright 1.62.1, one worker, 60-second deadline; 116/116 twice). Regenerated sets: all 17 dashboard scenarios × 3 widths × 2 platforms, `workforce-manager-home-360`, `workforce-leadership-home-360`, `workforce-union-home-360`, `workforce-manager-dashboard-1440`, `workforce-union-private-1440`, `workforce-union-private-inbox-360`, `workforce-password-change-360`, `workforce-password-defer-360`, `workforce-create-private-form-360`, `workforce-create-composer-360`, `workforce-create-general-form-360`, `workforce-create-empty-location-360`, `workforce-create-review-private-360`, `private-consent-{false,true}-360`, `private-legacy-preview-360` (per platform where suffixed). Deployment/container parity was not rerun: no deploy script, workflow, or Dockerfile input changed in this diff.
+
+Runtime cleanup completed: `pnpm db:down` stopped the Docker PostgreSQL stack; the x64 visual container and the temporary repo copy under `/private/var/folders/.../T/opencode/care-visual-x64` were removed; no preview/test servers remain. Commit/push and PR to `staging` require explicit user authorization per the standing delivery process; hosted CI monitoring preference remains no-monitoring unless stated otherwise.
+
+## Previous session reference
+
+## Dashboard scope consistency — current session
+
+Implemented explicit OWN/PARENT/GLOBAL scope resolution, permitted selection options separate from overview buckets, Section Head own/department aggregation, Department Head own/division, Default PIC exact mappings, and Division Head own/global. Switching scope clears organization URL state; non-organization filters remain. API validation rejects peer units and their descendants. Aggregate reads share a REPEATABLE READ transaction. Browser refresh shares Jakarta date bounds for view/preview, advances relative ranges, cancels abandoned requests and separates failures. Stable category ids and deterministic bucket ordering preserve rendering integrity.
+
+Key changes: organization dashboard resolver/controller/OpenAPI/generated client; workforce DashboardHome, date utilities and API abort signals; integration/performance/browser/full-stack fixtures and tests. Source screenshots in untracked `tmp/` are preserved and are not delivery artifacts.
+
+Validation (Node 22.23.2, pnpm 11.8.0; Docker PostgreSQL care_test at port 54329):
+
+- `pnpm db:up`, `pnpm db:wait`, `pnpm db:test:reset`, `pnpm db:test:migrate`: passed, all ten existing migrations; no new migration.
+- `pnpm test:unit`: API 82, UI 26, frontend-core 15, Admin 2, workforce 83 passed (208 total).
+- `pnpm test:integration`: final rerun 84 passed; focused organization suite 22 passed, including both-basis 12 → 17 → 12, sibling/descendant denial, mapped-PIC ancestor navigation, own/parent/global policies and concurrent insert snapshot consistency.
+- `pnpm test:security`: final rerun 14 passed.
+- `NODE_ENV=test DATABASE_URL=<Docker care_test> pnpm seed:performance`, `pnpm test:performance`: two passed; mixed Manager/Director/Division Head global workload p95 333 ms, 150 requests / 50 concurrent, 50,000 Voices.
+- `pnpm openapi:generate`: passed; SHA-256 before/after a second generation matched for OpenAPI and generated client. `pnpm typecheck`, `pnpm lint`, full build and subsequent affected-app builds passed.
+- `pnpm pwa:compat-check`: latest passed (main gzip 139322 bytes). Relative calendar validation also protects the legacy General browse from issuing broad requests for invalid dates.
+- `pnpm test:frontend:e2e --workers=2`: 289 passed, including existing Chromium, WebKit legacy, PWA, push and visual suites. After final date guard and fixture adjustments, dashboard browser/visual rerun passed 62 tests; after adding metadata freshness coverage, current focused Chromium dashboard suite passed 12 tests.
+- `FULLSTACK_E2E=1 NODE_ENV=test DATABASE_URL=<Docker care_test> RELEASE_SHA=ci SESSION_HASH_SECRET=ci-session-hash-secret-32-characters SESSION_CSRF_SECRET=ci-session-csrf-secret-32-characters AUTH_THROTTLE_SECRET=ci-auth-throttle-secret-32-characters CURSOR_SIGNING_SECRET=dddddddddddddddddddddddddddddddd OUTBOX_ENABLED=false pnpm exec playwright test --project=fullstack`: final rerun 4 passed. The manager journey creates and cleans 16 extra Voices and verifies 12 → 17 → 12 for both bases, reload and history against the actual API/database.
+- Darwin dashboard visual baselines regenerated for 17 scenarios at 360/768/1440 and verified without updates. Representative Section Head mobile, Department Head overview desktop and Division Head global tablet images were inspected. Section Head fixture now represents an actual named section rather than an impossible unassigned bucket in OWN scope.
+- Linux x64: pinned Node/pnpm and frozen install, Prisma generation and build passed in Ubuntu-based `care-visual-check:x64`. Focused browser suite 11 passed and final Section Head visuals 3 passed without updates. Full canonical visual baselines regenerated 51/51, then verified 51/51 without updates (one worker, 60-second test deadline for x64 emulation).
+
+Initial test corrections: the Section Head assignment-only expectation was updated for the accepted organization cohort; browser comparison now uses innerText consistently. The CommonJS full-stack runner required an absolute package resolver instead of import.meta. Two Linux visual captures timed out while an emulated container was paused for a local dependency-cache snapshot; the canonical rerun uses one worker and a 60-second test deadline, retaining the original 1% pixel tolerance and screenshot assertion timeout. No API permission or performance threshold was relaxed.
+
+The selectors also detect a changed server-selected organization during live polling, refresh metadata, and disable stale choices until the metadata matches. A browser regression simulates a master update while the page remains open.
+
+Current dashboard suite also passed 12/12 on WebKit using a temporary config with the Desktop Safari device and the same test file. Representative final Linux baseline images were inspected. Runtime cleanup completed: `pnpm db:down` stopped the session-started PostgreSQL stack, all task visual containers exited, and the temporary `care-dashboard-visual-runtime:scope-fix` image was removed. No task-started app/test servers remain on ports 3000/4173/4174. Implementation validation was followed by the complete pre-commit parity below. Logs for this session are in `/tmp/care-dashboard-*.log` and are not repository deliverables.
+
+## Delivery validation — 7 September 2026
+
+User authorized commit/push on `fix/pic-dashboard-data` and a PR to `staging`, explicitly without hosted CI monitoring. Inspected all three workflows; rehearsal is manual and reusable deployment is not invoked by this PR. No merge or hosted deployment is authorized or claimed.
+
+Fresh pre-commit parity used Node 22.23.2 / pnpm 11.8.0, removed the six workspace `dist` directories before frozen installation, and used Docker PostgreSQL `care_test` at port 54329. Safe CI environment: `NODE_ENV=test`, `RELEASE_SHA=ci`, `OUTBOX_ENABLED=false`, CI session/CSRF/throttle secrets and the 32-character `d` cursor secret documented above. Candidate tracked changes were staged before `openapi:check`; original untracked `tmp/` screenshots remain excluded.
+
+Passed in workflow order: `pnpm install --frozen-lockfile`, `pnpm db:generate`, `pnpm security:audit` (3 moderate, zero High/Critical), `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` (208), `pnpm test:openai:smoke`, `pnpm migrations:destructive-check origin/staging`, `pnpm --filter @care/api prisma:migrate:deploy`, `env -u DATABASE_URL pnpm test:migration:upgrade` (four harnesses, Docker psql), `pnpm test:integration` (84), `pnpm test:security` (14), `pnpm seed:performance`, `pnpm test:performance` (2; p95 **324 ms**, 150 requests / 50 concurrent), `pnpm maintenance:reconcile`, `pnpm openapi:check`, `NODE_ENV=production pnpm build`, `pnpm pwa:compat-check` (139322 bytes main gzip), `pnpm exec playwright install --with-deps chromium webkit`, `pnpm exec playwright test --workers=2` (**291 passed**, no snapshot updates), `FULLSTACK_E2E=1 pnpm exec playwright test --project=fullstack` (**4 passed**), `docker compose config --quiet`, and `git diff --check`.
+
+Also passed: previous `origin/staging` Prisma schema deploy followed by candidate deploy/status on separate Docker `care_release_upgrade`; `pnpm deployment:validate`; `pnpm security:exceptions:check`; pinned Actionlint 1.7.7, ShellCheck 0.11.0 and Hadolint 2.14.0 over the exact workflow paths; inference Compose config and Python syntax; Ubuntu bootstrap `--check`; `bash deploy/tests/deployment-scripts.sh` in Linux Docker with real `flock` (including the intentional provider-failure scenario). Production Compose `build --pull`, migrate/bootstrap, startup/readiness, release/routing/CSP/auth boundaries, non-root/private database port and persistence checks passed for all five services. Trivy 0.70.0 filesystem and all five freshly built runtime images passed at HIGH/CRITICAL using the committed exact exception file. Gitleaks 8.24.3 directory scan passed with zero leaks.
+
+Commands and output are preserved locally in `/tmp/care-delivery-{quality,deployment,harness,migration,containers,trivy,gitleaks}.log`; runner scripts are `/tmp/care-ci-{quality,quality-rest,deployment-checks,containers,scans}.sh`. No scanner exceptions or test thresholds were changed. `pnpm db:down` and production Compose shutdown completed; no task containers or listeners on 3000/4173/4174 remain. Hosted CI/CodeQL/dependency-review results are not claimed and will not be monitored per user instruction.
+
+## Previous session reference
+
+## Organization dashboard corrections — 7 September 2026
+
+Product decisions (confirmed with the product owner): organization dashboard aggregates return real numbers with **no small-cohort privacy threshold**, and unassigned/unidentified organization rows render as **one** row per meaning. Implementation:
+
+- `apps/api/src/voices/dashboard.ts`: removed the `inaccessible` detail-scope count, `protectedCohort`, per-dimension `safe()` withholding, `suppressedDimensions`/`suppression` response fields and the `previousOutside` gate; `previousTotal` is computed directly; unknown organization buckets merge by stable ids (`section-unassigned`, `section-unknown`, `organization-unknown`, Private `unassigned`/`previous-union`) with summed values. `OrganizationDashboard` no longer depends on `PolicyService`.
+- `apps/api/scripts/dashboard-openapi.ts`: `DashboardView` drops `protected`/`suppressedDimensions`/`suppression`, `total` is a non-nullable integer; generated OpenAPI/client regenerated and byte-stable (deterministic regeneration verified by SHA-256 before/after).
+- `apps/web-voice`: `DashboardHome.tsx` removes all protected/suppressed branches and the `Protected` component, filters zero-value severity rows, removes the `dashboard-trend-note` and `dashboard-inbox__note` paragraphs; `TrendCard.tsx` renders no caption for `previousTotal === 0` (the "Belum ada Voice pada periode sebelumnya" text is gone; the "+n% vs periode sebelumnya" badge remains); `styles.css` drops `dashboard-protected`, `dashboard-trend-note`, `dashboard-inbox__note` rules. The legacy monitoring homepage and General browse suppression (separate contracts) are untouched.
+
+The reported "Belum ditugaskan ke section" pile-up was duplicate-labeled per-department unknown buckets colliding as React list keys; the backend merge plus stable ids removes it. Regression coverage: integration tests `returns small cross-detail cohorts as real numbers without suppression` and `merges unknown organization rows into one bucket across departments and switches`; e2e `repeated level switches keep one unassigned row, filter zero severity, and drop helper texts`.
+
+### Local validation commands and results
+
+Pinned Node 22.23.2 / pnpm 11.8.0. CI-equivalent secrets used `ci-*-32-characters` values; Docker test DB `care_test` on port 54329. Passed: frozen install, `db:generate`, `security:audit` (3 moderate, 0 High/Critical), `format:check`, `lint`, `typecheck`, `test:unit` (API 82, workforce 82, Admin 2, UI 26, frontend-core 15), `test:openai:smoke`, `migrations:destructive-check` (current + `origin/staging`), all four migration-upgrade harnesses, `test:integration` 75/75, `test:security` 14/14, `seed:performance`, `test:performance` (organization dashboard p95 **327 ms** / 150 requests / 50 concurrency — improved by removing the detail-scope count), `maintenance:reconcile` dry-run (all zero), deterministic OpenAPI regeneration, `NODE_ENV=production pnpm build`, `pwa:compat-check` (main gzip 138489 bytes), Playwright Chromium/WebKit install.
+
+Playwright: full mocked suite **283 passed** (282 existing + 1 new) with 2 workers; visual baselines regenerated for all 17 dashboard scenarios at 360/768/1440 on **darwin** and canonical **Linux x64** (Docker `--platform linux/amd64`, Ubuntu 22.04.5, Node 22.23.2, Playwright 1.62.1 — installed inside `mcr.microsoft.com/playwright:v1.62.1-jammy`), verified twice without updates; representative PNGs inspected (single unassigned row, no helper texts, severity/category/trend visible). The `protected` scenario and its six PNGs were replaced by `unknown-section`. `FULLSTACK_E2E=1` fullstack 4/4.
+
+Deployment parity: Compose config, Actionlint 1.7.7, ShellCheck 0.11.0 (digest-pinned), Hadolint 2.14.0, inference Compose/Python syntax, Ubuntu bootstrap `--check` contract, `deployment:validate`, `security:exceptions:check`, Gitleaks 8.24.3 directory scan (no leaks), `git diff --check`. Linux x64 deployment harness (Docker ubuntu 22.04 + docker CLI/compose plugin + host socket) passed with real `flock`. x64 production Compose build (`--pull`), migrate/bootstrap, release/routing/CSP/auth-boundary/non-root/private-port/persistence checks passed; Trivy 0.70.0 filesystem (with committed `.trivyignore`) and all five runtime images at HIGH/CRITICAL: zero findings. Production-like stack was shut down with `compose down -v` and `/tmp/care-staging` removed; the development Docker database was stopped with `pnpm db:down`. No application, preview or test servers remain. Hosted checks are not monitored per instruction.
+
+### Previous session reference
 
 ## CI performance correction — 7 September 2026
 

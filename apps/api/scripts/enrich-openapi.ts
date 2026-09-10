@@ -42,7 +42,15 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
                   : { type: 'string' },
           });
-      if (method !== 'get' && path !== '/api/v1/auth/login') {
+      if (
+        method !== 'get' &&
+        ![
+          '/api/v1/auth/login',
+          '/api/v1/auth/login/start',
+          '/api/v1/auth/password-reset/eligibility',
+          '/api/v1/auth/password-reset',
+        ].includes(path)
+      ) {
         addHeader(operation, 'X-CSRF-Token', true, 'Session-bound CSRF token');
       }
       if (
@@ -329,6 +337,9 @@ function successSchema(operationId: string) {
     AdminCategoriesController_status: 'GeneralVoiceCategoryAdmin',
     AuthController_changePassword: 'SuccessResponse',
     AuthController_deferPasswordChange: 'SessionResponse',
+    AuthController_startLogin: 'LoginStartResponse',
+    AuthController_resetEligibility: 'ResetEligibilityResponse',
+    AuthController_resetPassword: 'SuccessResponse',
     AuthController_logout: 'SuccessResponse',
     ImportsController_changes: 'OrganizationChangeList',
     ImportsController_confirm: 'ImportQueuedResponse',
@@ -344,6 +355,7 @@ function successSchema(operationId: string) {
     NotificationsController_unsubscribe: 'SuccessResponse',
     VoicesController_addDraftAttachment: 'AttachmentResponse',
     VoicesController_ask: 'VoiceMutationResponse',
+    VoicesController_monitor: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
     VoicesController_monitoringOptions: 'MonitoringOptions',
@@ -398,7 +410,8 @@ function requestSchema(operationId: string) {
     AuthController_changePassword: 'ChangePasswordRequest',
     NotificationsController_subscribe: 'PushSubscriptionRequest',
     VoicesController_ask: 'VoiceTextMutationRequest',
-    VoicesController_proceed: 'VersionedMutationRequest',
+    VoicesController_monitor: 'VersionedMutationRequest',
+    VoicesController_proceed: 'VoiceTextMutationRequest',
     VoicesController_close: 'CloseVoiceRequest',
     VoicesController_rate: 'RatingRequest',
   };
@@ -446,7 +459,7 @@ const baseVoiceProperties = {
     },
   },
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-  status: { type: 'string', enum: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'] },
+  status: { type: 'string', enum: ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
   submittedAt: { type: 'string', format: 'date-time' },
   updatedAt: { type: 'string', format: 'date-time' },
@@ -931,7 +944,7 @@ const schemas: Record<string, any> = {
   },
   ChangePasswordRequest: {
     type: 'object',
-    required: ['currentPassword', 'newPassword'],
+    required: ['newPassword'],
     additionalProperties: false,
     properties: {
       currentPassword: { type: 'string', format: 'password' },
@@ -1086,6 +1099,31 @@ const schemas: Record<string, any> = {
     properties: { releaseSha: { type: 'string' }, service: { type: 'string', enum: ['care-api'] } },
   },
   CsrfToken: { type: 'object', required: ['token'], properties: { token: { type: 'string' } } },
+  LoginStartResponse: {
+    oneOf: [
+      {
+        type: 'object',
+        required: ['next'],
+        additionalProperties: false,
+        properties: { next: { type: 'string', enum: ['PASSWORD_REQUIRED'] } },
+      },
+      {
+        type: 'object',
+        required: ['next', 'session'],
+        additionalProperties: false,
+        properties: {
+          next: { type: 'string', enum: ['CHANGE_PASSWORD'] },
+          session: { $ref: '#/components/schemas/LoginResponse' },
+        },
+      },
+    ],
+  },
+  ResetEligibilityResponse: {
+    type: 'object',
+    required: ['eligible'],
+    additionalProperties: false,
+    properties: { eligible: { type: 'boolean' } },
+  },
   LoginResponse: sessionBaseSchema,
   SessionResponse: {
     ...sessionBaseSchema,
@@ -1471,11 +1509,11 @@ const schemas: Record<string, any> = {
       total: { type: 'integer' },
       counts: {
         type: 'object',
-        required: ['OPEN', 'IN_VERIFICATION', 'IN_PROGRESS', 'CLOSED'],
+        required: ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'],
         additionalProperties: false,
         properties: {
           OPEN: { type: 'integer' },
-          IN_VERIFICATION: { type: 'integer' },
+          MONITORED: { type: 'integer' },
           IN_PROGRESS: { type: 'integer' },
           CLOSED: { type: 'integer' },
         },
@@ -1546,6 +1584,16 @@ const schemas: Record<string, any> = {
     ],
     additionalProperties: false,
     properties: {
+      birthDates: {
+        type: 'object',
+        required: ['available', 'missing', 'ageAnomalies'],
+        additionalProperties: false,
+        properties: {
+          available: { type: 'integer' },
+          missing: { type: 'integer' },
+          ageAnomalies: { type: 'integer' },
+        },
+      },
       rowCount: { type: 'integer' },
       unitCount: { type: 'integer' },
       create: { type: 'integer' },
@@ -1756,11 +1804,11 @@ const schemas: Record<string, any> = {
       },
       voices: {
         type: 'object',
-        required: ['open', 'inVerification', 'inProgress', 'closed', 'critical'],
+        required: ['open', 'monitored', 'inProgress', 'closed', 'critical'],
         additionalProperties: false,
         properties: {
           open: { type: 'integer' },
-          inVerification: { type: 'integer' },
+          monitored: { type: 'integer' },
           inProgress: { type: 'integer' },
           closed: { type: 'integer' },
           critical: { type: 'integer' },
@@ -1989,6 +2037,7 @@ const schemas: Record<string, any> = {
       positionChanged: { type: 'boolean' },
       organizationChanged: { type: 'boolean' },
       nameChanged: { type: 'boolean' },
+      birthDateChanged: { type: 'boolean' },
     },
   },
   ImportQueuedResponse: {

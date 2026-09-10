@@ -1,0 +1,3422 @@
+{
+  "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+  "dirty": true,
+  "platform": "darwin-arm64",
+  "browser": "chromium",
+  "run": "local",
+  "attempt": "1",
+  "shard": null,
+  "scenarios": [
+    {
+      "id": "c39f5140d4e852f789ae-1d1bba9dbbba92f07b03",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-account-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-account-1440.png",
+          "name": "admin-account-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-account-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-31a53034ccb0a6dcfa9c",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-accounts-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-accounts-1440.png",
+          "name": "admin-accounts-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-accounts-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-c6d37c4011122d516556",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-audit-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-audit-1440.png",
+          "name": "admin-audit-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-audit-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-1d9bc205b43b27e59be6",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-imports-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-imports-1440.png",
+          "name": "admin-imports-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-imports-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-15115f0919d7f319b288",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-overview-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-overview-1440.png",
+          "name": "admin-overview-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-overview-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-6037926a7f34b270f6d3",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-remediation-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-remediation-1440.png",
+          "name": "admin-remediation-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-remediation-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-3d230a75d9ea184ad1d0",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-system-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-system-1440.png",
+          "name": "admin-system-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-system-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-95ba811265a23b70ec2f",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-union-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-union-1440.png",
+          "name": "admin-union-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-union-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-68aff22d3ff76316ef75",
+      "title": " › visual › admin-pages.visual.spec.ts › admin admin-voices-1440.png visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-voices-1440.png",
+          "name": "admin-voices-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-voices-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c6486b3e9fa92ce5dfe1-c9bba931b30efa78e999",
+      "title": " › visual › assignment-scroll.visual.spec.ts › assignment many candidates at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "assignment-list-1440-darwin.png",
+          "name": "assignment-list-1440-darwin.png",
+          "width": 576,
+          "height": 768
+        },
+        {
+          "file": "assignment-selected-1440-darwin.png",
+          "name": "assignment-selected-1440-darwin.png",
+          "width": 576,
+          "height": 768
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:assignment-list-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        },
+        {
+          "name": "capture-meta:assignment-selected-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c6486b3e9fa92ce5dfe1-730b20c39a9120260d5e",
+      "title": " › visual › assignment-scroll.visual.spec.ts › assignment many candidates at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "assignment-list-360-darwin.png",
+          "name": "assignment-list-360-darwin.png",
+          "width": 360,
+          "height": 768
+        },
+        {
+          "file": "assignment-selected-360-darwin.png",
+          "name": "assignment-selected-360-darwin.png",
+          "width": 360,
+          "height": 768
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:assignment-list-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        },
+        {
+          "name": "capture-meta:assignment-selected-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c6486b3e9fa92ce5dfe1-b85a266813856642f673",
+      "title": " › visual › assignment-scroll.visual.spec.ts › assignment many candidates at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "assignment-list-768-darwin.png",
+          "name": "assignment-list-768-darwin.png",
+          "width": 576,
+          "height": 768
+        },
+        {
+          "file": "assignment-selected-768-darwin.png",
+          "name": "assignment-selected-768-darwin.png",
+          "width": 576,
+          "height": 768
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:assignment-list-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        },
+        {
+          "name": "capture-meta:assignment-selected-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-be92da0e23c4af2a226b",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-initial 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-initial-1440.png",
+          "name": "auth-login-initial-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-initial-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-15600bc1cf6475258e74",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-initial 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-initial-360.png",
+          "name": "auth-login-initial-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-initial-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-d10c4e058b6f6940d1bd",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-initial 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-initial-768.png",
+          "name": "auth-login-initial-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-initial-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-83cb82deac9a953abaec",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-password 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-password-1440.png",
+          "name": "auth-login-password-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-password-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-efcdeaad2b68a1564c60",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-password 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-password-360.png",
+          "name": "auth-login-password-360.png",
+          "width": 360,
+          "height": 901
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-password-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-3daac15a9eab21865600",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-password 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-password-768.png",
+          "name": "auth-login-password-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-password-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-553c01059dd5efd42d80",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-union 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-union-1440.png",
+          "name": "auth-login-union-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-union-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-049c150a42c4e3b546ff",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-union 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-union-360.png",
+          "name": "auth-login-union-360.png",
+          "width": 360,
+          "height": 901
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-union-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-d2ebdebac9ce7ab062fe",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth login-union 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-login-union-768.png",
+          "name": "auth-login-union-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-login-union-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-e04cdb1c969ff67b837a",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth password-default 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-password-default-1440.png",
+          "name": "auth-password-default-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-password-default-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-065e258d8246e97eb0dc",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth password-default 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-password-default-360.png",
+          "name": "auth-password-default-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-password-default-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-f9e79f1d2920edc17db0",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth password-default 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-password-default-768.png",
+          "name": "auth-password-default-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-password-default-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-79e14591960cfbc7bbb2",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth password-union 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-password-union-1440.png",
+          "name": "auth-password-union-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-password-union-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-989b4afe09ac2921a04d",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth password-union 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-password-union-360.png",
+          "name": "auth-password-union-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-password-union-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-371a307e6defa94e5f09",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth password-union 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-password-union-768.png",
+          "name": "auth-password-union-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-password-union-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-78ed9e8a9b1b424e000d",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-date 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-date-1440.png",
+          "name": "auth-reset-date-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-date-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-70695e91033a9fa98587",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-date 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-date-360.png",
+          "name": "auth-reset-date-360.png",
+          "width": 360,
+          "height": 1008
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-date-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-2d2ce05d89cdc563649c",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-date 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-date-768.png",
+          "name": "auth-reset-date-768.png",
+          "width": 768,
+          "height": 997
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-date-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-54d88b6d0f970ada2191",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-error 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-error-1440.png",
+          "name": "auth-reset-error-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-error-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-abdf705382ba1ad862e6",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-error 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-error-360.png",
+          "name": "auth-reset-error-360.png",
+          "width": 360,
+          "height": 1169
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-error-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-d61affd09a677ab3c82d",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-error 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-error-768.png",
+          "name": "auth-reset-error-768.png",
+          "width": 768,
+          "height": 1109
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-error-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-ce506f27ccece124b648",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-initial 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-initial-1440.png",
+          "name": "auth-reset-initial-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-initial-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-b836d9f30d30698557e4",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-initial 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-initial-360.png",
+          "name": "auth-reset-initial-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-initial-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-2f010b280723b4d0d60e",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-initial 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-initial-768.png",
+          "name": "auth-reset-initial-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-initial-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-6bdbbc61e7a76590fa3b",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-success 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-success-1440.png",
+          "name": "auth-reset-success-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-success-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-8879b6b5db4cf9e5cb36",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-success 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-success-360.png",
+          "name": "auth-reset-success-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-success-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-f23c0cad5f4a69c13a5c",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-success 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-success-768.png",
+          "name": "auth-reset-success-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-success-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-c00ef0e49a06549d0c3f",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-tm 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-tm-1440.png",
+          "name": "auth-reset-tm-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-tm-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-e54735d7e30f55c25ef0",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-tm 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-tm-360.png",
+          "name": "auth-reset-tm-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-tm-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-dec095d45a5f45612a24",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-tm 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-tm-768.png",
+          "name": "auth-reset-tm-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-tm-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-6c45ec8934c2e1441ed0",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-union 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-union-1440.png",
+          "name": "auth-reset-union-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-union-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-083c6af06f95a9a4df3d",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-union 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-union-360.png",
+          "name": "auth-reset-union-360.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-union-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "6dc67271f12518fe8c30-6adff33b6dd48594a978",
+      "title": " › visual › auth-recovery.visual.spec.ts › auth reset-union 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "auth-reset-union-768.png",
+          "name": "auth-reset-union-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:auth-reset-union-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "46ab937116608b9ba968d5e558bb580b3e6b7b81",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-a7e5cde20d7072e41f92",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard default-pic 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-default-pic-1440-darwin.png",
+          "name": "dashboard-default-pic-1440-darwin.png",
+          "width": 1440,
+          "height": 2671
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-default-pic-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-b6a610fdcf745a0f4dae",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard default-pic 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-default-pic-360-darwin.png",
+          "name": "dashboard-default-pic-360-darwin.png",
+          "width": 360,
+          "height": 3205
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-default-pic-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-b61377ee11ada379240e",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard default-pic 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-default-pic-768-darwin.png",
+          "name": "dashboard-default-pic-768-darwin.png",
+          "width": 768,
+          "height": 2642
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-default-pic-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-30a7a6a7e289b463a9f9",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard department 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-department-1440-darwin.png",
+          "name": "dashboard-department-1440-darwin.png",
+          "width": 1440,
+          "height": 2671
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-department-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-052fec376411ba454252",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard department 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-department-360-darwin.png",
+          "name": "dashboard-department-360-darwin.png",
+          "width": 360,
+          "height": 3205
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-department-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-68a89b6d873f22ea210c",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard department 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-department-768-darwin.png",
+          "name": "dashboard-department-768-darwin.png",
+          "width": 768,
+          "height": 2642
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-department-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-14cfc0f3f2976886efbe",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard department-up 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-department-up-1440-darwin.png",
+          "name": "dashboard-department-up-1440-darwin.png",
+          "width": 1440,
+          "height": 2644
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-department-up-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-827ec4512c379b381be3",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard department-up 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-department-up-360-darwin.png",
+          "name": "dashboard-department-up-360-darwin.png",
+          "width": 360,
+          "height": 3176
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-department-up-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-903131b428799ee00434",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard department-up 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-department-up-768-darwin.png",
+          "name": "dashboard-department-up-768-darwin.png",
+          "width": 768,
+          "height": 2615
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-department-up-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-f341a7c36b103357d0b6",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard director 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-director-1440-darwin.png",
+          "name": "dashboard-director-1440-darwin.png",
+          "width": 1440,
+          "height": 2717
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-director-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-cbf858b0ccad20e9fcd7",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard director 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-director-360-darwin.png",
+          "name": "dashboard-director-360-darwin.png",
+          "width": 360,
+          "height": 3248
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-director-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-7633b089c36047f3946b",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard director 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-director-768-darwin.png",
+          "name": "dashboard-director-768-darwin.png",
+          "width": 768,
+          "height": 2688
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-director-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-c27a8ec03a1df29625db",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard division 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-division-1440-darwin.png",
+          "name": "dashboard-division-1440-darwin.png",
+          "width": 1440,
+          "height": 2744
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-division-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-1e88d9e6560261db7b43",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard division 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-division-360-darwin.png",
+          "name": "dashboard-division-360-darwin.png",
+          "width": 360,
+          "height": 3257
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-division-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-6bbe326f16f2731330e4",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard division 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-division-768-darwin.png",
+          "name": "dashboard-division-768-darwin.png",
+          "width": 768,
+          "height": 2715
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-division-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-4c1ea66418aae50431f2",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard division-global 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-division-global-1440-darwin.png",
+          "name": "dashboard-division-global-1440-darwin.png",
+          "width": 1440,
+          "height": 2717
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-division-global-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-e577960b443ea4221358",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard division-global 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-division-global-360-darwin.png",
+          "name": "dashboard-division-global-360-darwin.png",
+          "width": 360,
+          "height": 3248
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-division-global-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-63087beffc5c8c3c4a93",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard division-global 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-division-global-768-darwin.png",
+          "name": "dashboard-division-global-768-darwin.png",
+          "width": 768,
+          "height": 2688
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-division-global-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-edd7b0459b128920bcbb",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard empty 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-empty-1440-darwin.png",
+          "name": "dashboard-empty-1440-darwin.png",
+          "width": 1440,
+          "height": 2713
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-empty-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-ef575437cbde4ad25173",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard empty 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-empty-360-darwin.png",
+          "name": "dashboard-empty-360-darwin.png",
+          "width": 360,
+          "height": 2837
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-empty-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-14f2f1ccba1616e50837",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard empty 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-empty-768-darwin.png",
+          "name": "dashboard-empty-768-darwin.png",
+          "width": 768,
+          "height": 2688
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-empty-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-7f5aff60d7652890703e",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard error 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-error-1440-darwin.png",
+          "name": "dashboard-error-1440-darwin.png",
+          "width": 1440,
+          "height": 1819
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-error-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-5368149a55f3c13bafe3",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard error 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-error-360-darwin.png",
+          "name": "dashboard-error-360-darwin.png",
+          "width": 360,
+          "height": 1760
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-error-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-37a23eb907527fed8c28",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard error 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-error-768-darwin.png",
+          "name": "dashboard-error-768-darwin.png",
+          "width": 768,
+          "height": 1798
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-error-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-93893ff21709a5786a00",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard filters 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-filters-1440-darwin.png",
+          "name": "dashboard-filters-1440-darwin.png",
+          "width": 1440,
+          "height": 2671
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-filters-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-3da311c13885dd6c277e",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard filters 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-filters-360-darwin.png",
+          "name": "dashboard-filters-360-darwin.png",
+          "width": 360,
+          "height": 3205
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-filters-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-d6db061d0915e7debb54",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard filters 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-filters-768-darwin.png",
+          "name": "dashboard-filters-768-darwin.png",
+          "width": 768,
+          "height": 2642
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-filters-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-b50296fe2b28ebb307d6",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard loading 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-loading-1440-darwin.png",
+          "name": "dashboard-loading-1440-darwin.png",
+          "width": 1440,
+          "height": 1623
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-loading-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-df164358f8e83d7d5b81",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard loading 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-loading-360-darwin.png",
+          "name": "dashboard-loading-360-darwin.png",
+          "width": 360,
+          "height": 1539
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-loading-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-afb5b6b8be46f2adb6eb",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard loading 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-loading-768-darwin.png",
+          "name": "dashboard-loading-768-darwin.png",
+          "width": 768,
+          "height": 1602
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-loading-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-ba61cc421cf499062441",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard long-labels 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-long-labels-1440-darwin.png",
+          "name": "dashboard-long-labels-1440-darwin.png",
+          "width": 1440,
+          "height": 2690
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-long-labels-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-6c11f5c4e7f80beaabf0",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard long-labels 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-long-labels-360-darwin.png",
+          "name": "dashboard-long-labels-360-darwin.png",
+          "width": 360,
+          "height": 3285
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-long-labels-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-bca6a28eb4860d71402d",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard long-labels 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-long-labels-768-darwin.png",
+          "name": "dashboard-long-labels-768-darwin.png",
+          "width": 768,
+          "height": 2681
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-long-labels-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-80c768ef76da05d90c22",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard reporter 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-reporter-1440-darwin.png",
+          "name": "dashboard-reporter-1440-darwin.png",
+          "width": 1440,
+          "height": 2671
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-reporter-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-61cf57d06a43e78e56a1",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard reporter 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-reporter-360-darwin.png",
+          "name": "dashboard-reporter-360-darwin.png",
+          "width": 360,
+          "height": 3205
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-reporter-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-03ab89c483b658d64e28",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard reporter 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-reporter-768-darwin.png",
+          "name": "dashboard-reporter-768-darwin.png",
+          "width": 768,
+          "height": 2642
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-reporter-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-148efc772c563addd193",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard section 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-section-1440-darwin.png",
+          "name": "dashboard-section-1440-darwin.png",
+          "width": 1440,
+          "height": 2624
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-section-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-5800ab1de702d4841dec",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard section 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-section-360-darwin.png",
+          "name": "dashboard-section-360-darwin.png",
+          "width": 360,
+          "height": 3078
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-section-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-8984fea628db29a3fdeb",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard section 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-section-768-darwin.png",
+          "name": "dashboard-section-768-darwin.png",
+          "width": 768,
+          "height": 2595
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-section-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-05dacba09f7ea35d71b2",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-general 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-general-1440-darwin.png",
+          "name": "dashboard-union-general-1440-darwin.png",
+          "width": 1440,
+          "height": 2133
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-general-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-ade8d5065e6ac62022b7",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-general 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-general-360-darwin.png",
+          "name": "dashboard-union-general-360-darwin.png",
+          "width": 360,
+          "height": 2649
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-general-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-c079f06aa3848bc6fe77",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-general 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-general-768-darwin.png",
+          "name": "dashboard-union-general-768-darwin.png",
+          "width": 768,
+          "height": 2104
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-general-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-848c7ab5e5bac999e8b7",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-head 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-head-1440-darwin.png",
+          "name": "dashboard-union-head-1440-darwin.png",
+          "width": 1440,
+          "height": 2008
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-head-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-3a8393a356845a8f4fb7",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-head 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-head-360-darwin.png",
+          "name": "dashboard-union-head-360-darwin.png",
+          "width": 360,
+          "height": 2273
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-head-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-d385d7d376117524c616",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-head 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-head-768-darwin.png",
+          "name": "dashboard-union-head-768-darwin.png",
+          "width": 768,
+          "height": 1979
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-head-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-bd7a975b363bb26d488d",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-officer 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-officer-1440-darwin.png",
+          "name": "dashboard-union-officer-1440-darwin.png",
+          "width": 1440,
+          "height": 1815
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-officer-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-59063d3c57b82f9f080c",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-officer 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-officer-360-darwin.png",
+          "name": "dashboard-union-officer-360-darwin.png",
+          "width": 360,
+          "height": 2068
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-officer-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-365b580ce9ef8b239677",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard union-officer 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-union-officer-768-darwin.png",
+          "name": "dashboard-union-officer-768-darwin.png",
+          "width": 768,
+          "height": 1786
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-union-officer-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-87c5d9cb0604e137e54b",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard unknown-section 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-unknown-section-1440-darwin.png",
+          "name": "dashboard-unknown-section-1440-darwin.png",
+          "width": 1440,
+          "height": 2671
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-unknown-section-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-ba69826dd62e942399d7",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard unknown-section 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-unknown-section-360-darwin.png",
+          "name": "dashboard-unknown-section-360-darwin.png",
+          "width": 360,
+          "height": 3205
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-unknown-section-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "1aba1fdc35889bbb3a07-96a94c6f623cf5cf6ca4",
+      "title": " › visual › dashboard.visual.spec.ts › dashboard unknown-section 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "dashboard-unknown-section-768-darwin.png",
+          "name": "dashboard-unknown-section-768-darwin.png",
+          "width": 768,
+          "height": 2642
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:dashboard-unknown-section-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "094a18fbe5ce12a3c2ca-421eeb4f095ecb847221",
+      "title": " › visual › design.visual.spec.ts › Admin shell visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-shell-1440.png",
+          "name": "admin-shell-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-shell-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "094a18fbe5ce12a3c2ca-ac65fa151cc4f0b42cc0",
+      "title": " › visual › design.visual.spec.ts › design overview visual 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "design-overview-1440.png",
+          "name": "design-overview-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:design-overview-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "094a18fbe5ce12a3c2ca-8bbe928cda0ac69d8ab5",
+      "title": " › visual › design.visual.spec.ts › design overview visual 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "design-overview-360.png",
+          "name": "design-overview-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:design-overview-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "094a18fbe5ce12a3c2ca-6b4aabc45c49717d0439",
+      "title": " › visual › design.visual.spec.ts › design overview visual 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "design-overview-768.png",
+          "name": "design-overview-768.png",
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:design-overview-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "094a18fbe5ce12a3c2ca-8639ac72fb578bbfae9c",
+      "title": " › visual › design.visual.spec.ts › workforce shell visual",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-shell-360.png",
+          "name": "workforce-shell-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-shell-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-de807b4c152d95264d8d",
+      "title": " › visual › voice-consent.visual.spec.ts › detail identity GENERAL_RESPONDER",
+      "status": "passed",
+      "images": [
+        {
+          "file": "detail-identity-GENERAL_RESPONDER-360-darwin.png",
+          "name": "detail-identity-GENERAL_RESPONDER-360-darwin.png",
+          "width": 360,
+          "height": 1152
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:detail-identity-GENERAL_RESPONDER-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-58c50d63cc65bd363150",
+      "title": " › visual › voice-consent.visual.spec.ts › detail identity REPORTER_SELF",
+      "status": "passed",
+      "images": [
+        {
+          "file": "detail-identity-REPORTER_SELF-360-darwin.png",
+          "name": "detail-identity-REPORTER_SELF-360-darwin.png",
+          "width": 360,
+          "height": 1031
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:detail-identity-REPORTER_SELF-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-05be1ec8ee9e1811db6d",
+      "title": " › visual › voice-consent.visual.spec.ts › legacy preview missing consent",
+      "status": "passed",
+      "images": [
+        {
+          "file": "private-legacy-preview-360-darwin.png",
+          "name": "private-legacy-preview-360-darwin.png",
+          "width": 360,
+          "height": 1210
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:private-legacy-preview-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-bb59e5c78fb8bfcf6ec2",
+      "title": " › visual › voice-consent.visual.spec.ts › long confirmation visual 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "review-long-1440-darwin.png",
+          "name": "review-long-1440-darwin.png",
+          "width": 1440,
+          "height": 901
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:review-long-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-fdd942494ceee68ecd1c",
+      "title": " › visual › voice-consent.visual.spec.ts › long confirmation visual 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "review-long-360-darwin.png",
+          "name": "review-long-360-darwin.png",
+          "width": 360,
+          "height": 1054
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:review-long-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-99c500edb23cbd5757dd",
+      "title": " › visual › voice-consent.visual.spec.ts › long confirmation visual 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "review-long-768-darwin.png",
+          "name": "review-long-768-darwin.png",
+          "width": 768,
+          "height": 906
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:review-long-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-75e2d735318037431526",
+      "title": " › visual › voice-consent.visual.spec.ts › normal password change",
+      "status": "passed",
+      "images": [
+        {
+          "file": "password-normal-360-darwin.png",
+          "name": "password-normal-360-darwin.png",
+          "width": 360,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:password-normal-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-19d118414ac3b073585f",
+      "title": " › visual › voice-consent.visual.spec.ts › private form consent false",
+      "status": "passed",
+      "images": [
+        {
+          "file": "private-consent-false-360-darwin.png",
+          "name": "private-consent-false-360-darwin.png",
+          "width": 360,
+          "height": 2122
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:private-consent-false-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "7fc8d5d353b2fa7d2d15-e9365f0eb78ddb2c11ca",
+      "title": " › visual › voice-consent.visual.spec.ts › private form consent true",
+      "status": "passed",
+      "images": [
+        {
+          "file": "private-consent-true-360-darwin.png",
+          "name": "private-consent-true-360-darwin.png",
+          "width": 360,
+          "height": 2033
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:private-consent-true-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-164ce625cbf738a68c33",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle MONITORED at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-monitored-1440-darwin.png",
+          "name": "lifecycle-monitored-1440-darwin.png",
+          "width": 1440,
+          "height": 1138
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-monitored-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-d368cfbd4f2e0209a946",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle MONITORED at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-monitored-360-darwin.png",
+          "name": "lifecycle-monitored-360-darwin.png",
+          "width": 360,
+          "height": 1271
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-monitored-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-f4785f85f5217cf18553",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle MONITORED at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-monitored-768-darwin.png",
+          "name": "lifecycle-monitored-768-darwin.png",
+          "width": 768,
+          "height": 1194
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-monitored-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-12a01ac5a1fd37addc25",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle OPEN at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-open-1440-darwin.png",
+          "name": "lifecycle-open-1440-darwin.png",
+          "width": 1440,
+          "height": 1138
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-open-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-da5bb358d15509fcecd3",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle OPEN at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-open-360-darwin.png",
+          "name": "lifecycle-open-360-darwin.png",
+          "width": 360,
+          "height": 1252
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-open-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-435b26801973b1d6db1d",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle OPEN at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-open-768-darwin.png",
+          "name": "lifecycle-open-768-darwin.png",
+          "width": 768,
+          "height": 1194
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-open-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-814547d268b4d08c0e5d",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle PROCESS_FORM at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-process_form-1440-darwin.png",
+          "name": "lifecycle-process_form-1440-darwin.png",
+          "width": 1440,
+          "height": 1138
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-process_form-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-8ae7a9051d25c3200583",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle PROCESS_FORM at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-process_form-360-darwin.png",
+          "name": "lifecycle-process_form-360-darwin.png",
+          "width": 360,
+          "height": 1271
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-process_form-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-2a14b0a64c0188f9cd3e",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle PROCESS_FORM at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-process_form-768-darwin.png",
+          "name": "lifecycle-process_form-768-darwin.png",
+          "width": 768,
+          "height": 1194
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-process_form-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-c78543290558b90a0e53",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle REOPENED at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-reopened-1440-darwin.png",
+          "name": "lifecycle-reopened-1440-darwin.png",
+          "width": 1440,
+          "height": 1502
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-reopened-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-edcdf8c0c374d6263808",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle REOPENED at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-reopened-360-darwin.png",
+          "name": "lifecycle-reopened-360-darwin.png",
+          "width": 360,
+          "height": 1679
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-reopened-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "e5b6ab4581830b51e92e-ba53356da1d951be48a2",
+      "title": " › visual › voice-lifecycle.visual.spec.ts › lifecycle REOPENED at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "lifecycle-reopened-768-darwin.png",
+          "name": "lifecycle-reopened-768-darwin.png",
+          "width": 768,
+          "height": 1558
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:lifecycle-reopened-768-darwin.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-de43d925bfc3b2554f74",
+      "title": " › visual › workforce.visual.spec.ts › workforce account visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-account-360.png",
+          "name": "workforce-account-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-account-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-d61637a7df81aa195571",
+      "title": " › visual › workforce.visual.spec.ts › workforce active conversation visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-conversation-active-360-darwin.png",
+          "name": "workforce-conversation-active-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-conversation-active-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-b9e1788e475449fd801f",
+      "title": " › visual › workforce.visual.spec.ts › workforce assign sheet visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-assign-sheet-360-darwin.png",
+          "name": "workforce-assign-sheet-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-assign-sheet-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-4f8b4b6d27a351a9ce72",
+      "title": " › visual › workforce.visual.spec.ts › workforce close sheet visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-close-sheet-360-darwin.png",
+          "name": "workforce-close-sheet-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-close-sheet-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-22143aa04ed01d3d3ebe",
+      "title": " › visual › workforce.visual.spec.ts › workforce create area sheet visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-area-sheet-360.png",
+          "name": "workforce-create-area-sheet-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-area-sheet-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-be6ec08570f7db0458b5",
+      "title": " › visual › workforce.visual.spec.ts › workforce create composer visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-composer-360.png",
+          "name": "workforce-create-composer-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-composer-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-8a7a5a2bac47db346434",
+      "title": " › visual › workforce.visual.spec.ts › workforce create empty location visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-empty-location-360.png",
+          "name": "workforce-create-empty-location-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-empty-location-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-890c6dc846e62ac98517",
+      "title": " › visual › workforce.visual.spec.ts › workforce create fallback visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-fallback-360.png",
+          "name": "workforce-create-fallback-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-fallback-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-20ebd49b39ac5c114941",
+      "title": " › visual › workforce.visual.spec.ts › workforce create general form visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-general-form-360.png",
+          "name": "workforce-create-general-form-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-general-form-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-0a189b7fb5af009f3f9f",
+      "title": " › visual › workforce.visual.spec.ts › workforce create private form visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-private-form-360.png",
+          "name": "workforce-create-private-form-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-private-form-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-215d5b0309e3aedf1233",
+      "title": " › visual › workforce.visual.spec.ts › workforce create processing visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-processing-360.png",
+          "name": "workforce-create-processing-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-processing-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-bec37eab593a4bbbdb5d",
+      "title": " › visual › workforce.visual.spec.ts › workforce create review general visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-review-general-360.png",
+          "name": "workforce-create-review-general-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-review-general-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-4d4dd93c7ec490c7cada",
+      "title": " › visual › workforce.visual.spec.ts › workforce create review private visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-review-private-360.png",
+          "name": "workforce-create-review-private-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-review-private-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-de940cc136d8aa7dd908",
+      "title": " › visual › workforce.visual.spec.ts › workforce create voice type visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-create-type-360.png",
+          "name": "workforce-create-type-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-create-type-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-58d638aa52d62a43d4e6",
+      "title": " › visual › workforce.visual.spec.ts › workforce detail active visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-detail-active-360-darwin.png",
+          "name": "workforce-detail-active-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-detail-active-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-0e91f907094d5f02e476",
+      "title": " › visual › workforce.visual.spec.ts › workforce detail closed auto-accepted visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-detail-closed-auto-accepted-360-darwin.png",
+          "name": "workforce-detail-closed-auto-accepted-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-detail-closed-auto-accepted-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-f17315bdaff78d944c30",
+      "title": " › visual › workforce.visual.spec.ts › workforce detail closed rating visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-detail-closed-360-darwin.png",
+          "name": "workforce-detail-closed-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-detail-closed-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-189a175698ddb6be5f91",
+      "title": " › visual › workforce.visual.spec.ts › workforce handover selection visual at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-handover-1440.png",
+          "name": "workforce-handover-1440.png",
+          "width": 1440,
+          "height": 1406
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-handover-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-56bb4256c2a88a60827b",
+      "title": " › visual › workforce.visual.spec.ts › workforce handover selection visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-handover-360.png",
+          "name": "workforce-handover-360.png",
+          "width": 360,
+          "height": 2136
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-handover-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-c573fa3bafc6683384ef",
+      "title": " › visual › workforce.visual.spec.ts › workforce handover selection visual at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-handover-768.png",
+          "name": "workforce-handover-768.png",
+          "width": 768,
+          "height": 1957
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-handover-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-87a9d730eceb8cbea79c",
+      "title": " › visual › workforce.visual.spec.ts › workforce history visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-history-360-darwin.png",
+          "name": "workforce-history-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-history-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-b90073dc61292fda4141",
+      "title": " › visual › workforce.visual.spec.ts › workforce leadership home visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-leadership-home-360-darwin.png",
+          "name": "workforce-leadership-home-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-leadership-home-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-d5ba25726d45ad76c7f0",
+      "title": " › visual › workforce.visual.spec.ts › workforce lightbox visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-lightbox-360-darwin.png",
+          "name": "workforce-lightbox-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-lightbox-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-9508068b6891b9209a0f",
+      "title": " › visual › workforce.visual.spec.ts › workforce login visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-login-360.png",
+          "name": "workforce-login-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-login-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-f4fe8bd9e52ce03fbf85",
+      "title": " › visual › workforce.visual.spec.ts › workforce manager dashboard visual at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-manager-dashboard-1440.png",
+          "name": "workforce-manager-dashboard-1440.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-manager-dashboard-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-19955395446baf93676d",
+      "title": " › visual › workforce.visual.spec.ts › workforce manager home visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-manager-home-360-darwin.png",
+          "name": "workforce-manager-home-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-manager-home-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-5a0ae1de2b4b86275903",
+      "title": " › visual › workforce.visual.spec.ts › workforce notifications visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-notifications-360-darwin.png",
+          "name": "workforce-notifications-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-notifications-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-66314225c1f4f4469a33",
+      "title": " › visual › workforce.visual.spec.ts › workforce password change visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-password-change-360.png",
+          "name": "workforce-password-change-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-password-change-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-dbc0141caaa938df0274",
+      "title": " › visual › workforce.visual.spec.ts › workforce password deferral action visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-password-defer-360.png",
+          "name": "workforce-password-defer-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-password-defer-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-927573a3875e140b38e0",
+      "title": " › visual › workforce.visual.spec.ts › workforce submit success visual at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-submit-success-1440.png",
+          "name": "workforce-submit-success-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-submit-success-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-d1e51ff00a493bfffcae",
+      "title": " › visual › workforce.visual.spec.ts › workforce submit success visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-submit-success-360.png",
+          "name": "workforce-submit-success-360.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-submit-success-360.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-c5efe7af3f3e1bccf04c",
+      "title": " › visual › workforce.visual.spec.ts › workforce submit success visual at 768",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-submit-success-768.png",
+          "name": "workforce-submit-success-768.png",
+          "width": 768,
+          "height": 945
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-submit-success-768.png",
+          "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-c828162143270b98cf95",
+      "title": " › visual › workforce.visual.spec.ts › workforce union general overview visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-union-general-360-darwin.png",
+          "name": "workforce-union-general-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-union-general-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-7153292de2bcb55da758",
+      "title": " › visual › workforce.visual.spec.ts › workforce union home visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-union-home-360-darwin.png",
+          "name": "workforce-union-home-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-union-home-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-064fd1d8a5b0c0d0ab28",
+      "title": " › visual › workforce.visual.spec.ts › workforce union identified detail visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-union-identified-360-darwin.png",
+          "name": "workforce-union-identified-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-union-identified-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-2d6fe4ccef6b5a51a22f",
+      "title": " › visual › workforce.visual.spec.ts › workforce union private inbox visual at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-union-private-1440-darwin.png",
+          "name": "workforce-union-private-1440-darwin.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-union-private-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-2d6da58fda7c2268e2af",
+      "title": " › visual › workforce.visual.spec.ts › workforce union private inbox visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-union-private-inbox-360-darwin.png",
+          "name": "workforce-union-private-inbox-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-union-private-inbox-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-8a7c9350544b3de3eb32",
+      "title": " › visual › workforce.visual.spec.ts › workforce Voice Member inbox visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-voice-member-360-darwin.png",
+          "name": "workforce-voice-member-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-voice-member-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-f25564940f23e321f5b7",
+      "title": " › visual › workforce.visual.spec.ts › workforce Voice Member workspace visual at 1440",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-voice-member-1440-darwin.png",
+          "name": "workforce-voice-member-1440-darwin.png",
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-voice-member-1440-darwin.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "a9fbe3960be09b11d5ee2c63ba0f695796c9631b",
+      "platform": "darwin-arm64"
+    }
+  ]
+}

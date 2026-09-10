@@ -4,7 +4,12 @@ import { normalizeApiError, offlineError } from './errors.js';
 type SessionResponse = components['schemas']['SessionResponse'];
 type LoginResponse = components['schemas']['LoginResponse'];
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const PUBLIC_MUTATIONS = new Set(['/api/v1/auth/login']);
+const PUBLIC_MUTATIONS = new Set([
+  '/api/v1/auth/login',
+  '/api/v1/auth/login/start',
+  '/api/v1/auth/password-reset/eligibility',
+  '/api/v1/auth/password-reset',
+]);
 
 export type AuthInvalidationHandler = () => void;
 
@@ -70,6 +75,35 @@ export function createCareTransport({
       csrfToken = null;
       return data;
     },
+    async startLogin(noReg: string): Promise<components['schemas']['LoginStartResponse']> {
+      const { data, error, response } = await client.POST('/api/v1/auth/login/start', {
+        body: { noReg },
+      });
+      if (!data) throw normalizeApiError(error, response.status);
+      if (data.next === 'CHANGE_PASSWORD') csrfToken = null;
+      return data;
+    },
+    async resetEligibility(
+      noReg: string,
+    ): Promise<components['schemas']['ResetEligibilityResponse']> {
+      const { data, error, response } = await client.POST(
+        '/api/v1/auth/password-reset/eligibility',
+        { body: { noReg } },
+      );
+      if (!data) throw normalizeApiError(error, response.status);
+      return data;
+    },
+    async resetPassword(
+      noReg: string,
+      birthDate: string,
+    ): Promise<components['schemas']['SuccessResponse']> {
+      const { data, error, response } = await client.POST('/api/v1/auth/password-reset', {
+        body: { noReg, birthDate },
+      });
+      if (!data) throw normalizeApiError(error, response.status);
+      csrfToken = null;
+      return data;
+    },
     async logout() {
       const { data, error, response } = await client.POST('/api/v1/auth/logout', {
         params: { header: { 'X-CSRF-Token': '' } },
@@ -78,10 +112,10 @@ export function createCareTransport({
       csrfToken = null;
       return data;
     },
-    async changePassword(currentPassword: string, newPassword: string) {
+    async changePassword(currentPassword: string | undefined, newPassword: string) {
       const { data, error, response } = await client.POST('/api/v1/auth/change-password', {
         params: { header: { 'X-CSRF-Token': '' } },
-        body: { currentPassword, newPassword },
+        body: { ...(currentPassword === undefined ? {} : { currentPassword }), newPassword },
       });
       if (!data) throw normalizeApiError(error, response.status);
       return data;

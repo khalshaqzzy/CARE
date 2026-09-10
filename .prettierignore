@@ -5,3 +5,13 @@ pnpm-lock.yaml
 apps/api/openapi.json
 packages/contracts/src/generated.ts
 .zcode
+
+/visual-output/
+/blob-report/
+/.validation-build.json
+
+/all-captures/
+/all-blob-reports/
+
+# Generated native inspection gallery; updated by the capture reporter.
+/e2e/captures/
