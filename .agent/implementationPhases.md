@@ -13,6 +13,10 @@ Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase bo
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
 
+## Hosted capture inventory correction — 10 September 2026
+
+Phase 13 remains `in_progress`. PR #42 hosted application/security/container checks passed, but the report merger expected the retired 128-scenario inventory instead of 161. The merger, reporter and inventory regression now share one count definition; a real CLI regression rejects incomplete evidence. Local tooling validation passed; replacement hosted acceptance is pending.
+
 ## Registration-first authentication and DOB import — 10 September 2026
 
 Implementation work under the existing Phase 13 `in_progress` boundary; no second phase is opened. ADR-0048 defines one workforce/Union login page, default-workforce entry and session-scoped defer, DOB recovery excluding TM/Union, and compatible seven/eight-column authoritative imports. Code, synthetic coverage, local validation and native capture review are complete. The gallery contains 161 scenarios/164 PNGs, including 33 new auth references; final scoped browser, legacy and recovery captures passed. Operational workbook import, deployment and hosted acceptance remain separate.

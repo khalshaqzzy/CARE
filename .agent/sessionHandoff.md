@@ -1,5 +1,13 @@
 # CARE Session Handoff
 
+## Hosted capture merge correction — 10 September 2026
+
+PR #42 run 34442936372 at 61134fd8 passed all application, API, browser/capture shards, fullstack, migration, production container and security jobs. Browser report merging alone failed because merge-captures.mjs retained the old expected count 128 while 161 scenarios were produced; the release gate correctly rejected that report failure.
+
+The expected count now lives in scripts/validation/capture-contract.mjs and is consumed by the hosted merger, native reporter and actual Playwright inventory test. A new regression invokes the real merge CLI with complete and incomplete synthetic inventories, preserving strict missing/duplicate/stale evidence rejection. Nine validation tests and focused lint/diff checks pass. The two real hosted capture artifacts from run 34442936372 were downloaded and merged successfully with the corrected CLI: 161 scenarios/164 images. No application behavior or images changed, so successful hosted application evidence is retained without an unrelated local rerun.
+
+Commit/push to the existing feature branch and PR are authorized. The replacement hosted run must pass before reporting CI fixed. No application server or database was started for this correction. ADR-0047 records the shared count contract.
+
 ## Registration-first authentication and DOB recovery — 10 September 2026
 
 Current branch: `feat/vokasi-and-login-forget`. Implementation includes shared No. Reg-first workforce/Union login, restricted default-workforce entry, optional current password only for verified default sessions, DOB reset, nullable Employee birthDate migration, seven/eight-column imports, Admin preview summaries, OpenAPI/client/auth cache, and new functional/fullstack/native-capture scenarios. ADR-0048 records decisions and accepted identity-verification tradeoffs. Phase 13 remains the only in-progress phase.

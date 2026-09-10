@@ -9,6 +9,7 @@ import type {
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { rm } from 'node:fs/promises';
+import { expectedCaptureScenarios } from '../../scripts/validation/capture-contract.mjs';
 import {
   copyCapture,
   writeGallery,
@@ -76,7 +77,7 @@ export default class CaptureReporter implements Reporter {
       await persistLocalGallery(
         directory,
         resolve('e2e/captures/local'),
-        this.tests.length === 161,
+        this.tests.length === expectedCaptureScenarios,
       );
     }
   }

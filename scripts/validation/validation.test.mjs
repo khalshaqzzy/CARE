@@ -1,3 +1,4 @@
+import { expectedCaptureScenarios } from './capture-contract.mjs';
 import { verifyGenerated } from './generated-contract.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -135,7 +136,7 @@ test('actual CI browser partitions cover every test exactly once', { timeout: 12
   assert.equal(new Set(partitions).size, partitions.length, 'duplicate test in CI partitions');
   assert.deepEqual(partitions.sort(), all.sort(), 'missing CI test');
   assert.equal(all.length, 361);
-  assert.equal(all.filter((name) => name.startsWith('visual:')).length, 161);
+  assert.equal(all.filter((name) => name.startsWith('visual:')).length, expectedCaptureScenarios);
 });
 
 test('a successful visual test without a capture makes the real reporter fail', async () => {
@@ -230,4 +231,45 @@ test('application test environment cannot override production Compose fixtures',
   }
   const containers = workflow.split('\n  containers:\n')[1].split(/\n {2}[a-z][a-z-]*:\n/)[0];
   assert.doesNotMatch(containers, / {6}(RELEASE_SHA|DATABASE_URL|NODE_ENV):/);
+});
+
+test('hosted merge command enforces the shared complete capture inventory', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'care-merge-contract-'));
+  try {
+    const input = join(root, 'shards');
+    const shard = join(input, 'capture-1');
+    await mkdir(shard, { recursive: true });
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
+      'base64',
+    );
+    await writeFile(join(shard, 'one.png'), png);
+    const scenarios = Array.from({ length: expectedCaptureScenarios }, (_, i) => ({
+      id: `scenario-${i}`,
+      title: `Scenario ${i}`,
+      status: 'passed',
+      images: [{ file: 'one.png', name: `scenario-${i}.png` }],
+    }));
+    const manifest = { sha: 'synthetic-sha', scenarios };
+    await writeFile(join(shard, 'manifest.json'), JSON.stringify(manifest));
+    const run = () =>
+      spawnSync(
+        process.execPath,
+        ['scripts/validation/merge-captures.mjs', input, join(root, 'out')],
+        { encoding: 'utf8' },
+      );
+    const complete = run();
+    assert.equal(complete.status, 0, complete.stderr);
+    assert.equal(
+      JSON.parse(await readFile(join(root, 'out', 'manifest.json'), 'utf8')).scenarios.length,
+      expectedCaptureScenarios,
+    );
+    scenarios.pop();
+    await writeFile(join(shard, 'manifest.json'), JSON.stringify(manifest));
+    const incomplete = run();
+    assert.notEqual(incomplete.status, 0);
+    assert.match(incomplete.stderr, /Capture coverage mismatch/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

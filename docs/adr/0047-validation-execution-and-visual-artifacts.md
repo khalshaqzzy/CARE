@@ -331,3 +331,15 @@ therefore scoped exclusively to the five application job definitions. No test
 DATABASE_URL, NODE_ENV or signing values are inherited by container/deployment jobs.
 The zero-SHA fixture and production assertions remain unchanged. Regression tests
 check the boundary; Compose resolution and Actionlint verify the corrected graph.
+
+## Shared capture inventory contract — 10 September 2026
+
+Adding auth scenarios expanded the visual inventory from 128 to 161. The native
+reporter and inventory test were updated, but the hosted merge entrypoint retained
+128 and rejected otherwise successful shard artifacts. The expected count is now
+exported from `scripts/validation/capture-contract.mjs` and consumed by all three
+locations. The actual Playwright inventory regression requires the shared count to
+match discovered visual tests; an additional regression executes the real merge
+CLI against complete and incomplete inventories. Strict completeness, duplicate,
+SHA and image validation remain intact. The correction changes report validation
+only and does not require regenerating screenshots or rerunning application code.
