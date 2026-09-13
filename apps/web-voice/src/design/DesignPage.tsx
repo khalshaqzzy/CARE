@@ -449,7 +449,7 @@ export default function DesignPage() {
                       value: 'GENERAL',
                       label: 'General Voice',
                       description:
-                        'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
+                        'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasiakan',
                     },
                     {
                       value: 'PRIVATE',
@@ -507,7 +507,7 @@ export default function DesignPage() {
                     value: 'GENERAL',
                     label: 'General Voice',
                     description:
-                      'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
+                      'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasiakan',
                     icon: <UsersRound size={16} />,
                   },
                   {
@@ -538,7 +538,7 @@ export default function DesignPage() {
                     value: 'GENERAL',
                     label: 'General Voice',
                     description:
-                      'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
+                      'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasiakan',
                     icon: <Briefcase size={16} />,
                   },
                   {
@@ -790,7 +790,7 @@ export default function DesignPage() {
             >
               <Stack>
                 <strong>PIC Global</strong>
-                <span>Safety · Environment · Facility</span>
+                <span>Safety · Lingkungan · Fasilitas</span>
               </Stack>
             </Popover>
             <Menu

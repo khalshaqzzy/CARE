@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import {
   AREA_LABELS,
-  CATEGORY_LABELS,
+  formatCategoryName,
   formatDate,
   PRIVATE_ROUTE_LABEL,
   SEVERITY_LABELS,
@@ -68,7 +68,7 @@ export function VoiceHero({
     : null;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const categoryName = voice.category
-    ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
+    ? formatCategoryName(voice.category, voice.categoryNameSnapshot)
     : null;
   const CategoryIcon = categoryIcon(voice.category);
   const cycles = (voice.closureCycles ?? []) as {

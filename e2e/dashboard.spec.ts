@@ -11,6 +11,8 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
 }) => {
   await mockWorkforceApi(page, { session: manager });
   await page.goto('/');
+  await expect(page.getByText('Lingkungan', { exact: true })).toBeVisible();
+  await expect(page.getByText('Environment', { exact: true })).toHaveCount(0);
   await expect(
     page.locator('.dashboard-summary__metric').filter({ hasText: 'Kritis' }).locator('strong'),
   ).toHaveText('3');

@@ -3,7 +3,7 @@
 | Atribut                | Nilai                                                                                                                                                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                              |
-| Last updated           | 10 September 2026 (authentication identifier editing and recovery refinement)                                                                                                                            |
+| Last updated           | 13 September 2026 (workforce create-flow copy and category presentation)                                                                                                                                 |
 | Product contract       | `.agent/PRD.md` v1.1                                                                                                                                                                                     |
 | Current implementation | Shared local/CI validation and parallel application jobs implemented locally; native capture references tracked, CI galleries stored as artifacts. Hosted verification of this refactor remains pending. |
 | Current phase          | Phase 13 `in_progress`: local ADR-0029 parity is complete; hosted PR checks, exact-SHA acceptance, and rollback rehearsal remain                                                                         |
@@ -12,6 +12,22 @@
 Dokumen ini mengatur urutan implementasi CARE v1.1. Hanya satu phase/subphase boleh berstatus `in_progress`. Sebuah phase tidak boleh dimulai sebelum dependency dan acceptance check phase sebelumnya selesai.
 
 Status yang digunakan: `pending`, `in_progress`, `blocked`, `deferred`, `done`.
+
+## Workforce create-flow copy and category presentation — 13 September 2026
+
+Phase 13 remains `in_progress`; no second phase is opened. ADR-0050 records the
+workforce-only presentation changes: corrected create-flow copy, an in-card AI
+processing stay-on-page callout, revised Manual Fallback Low/High descriptions,
+stable-key display aliases `Lingkungan` and `Perbaikan Fasilitas` across workforce
+surfaces, and generic ready-route preview label `PIC Terkait`. Category catalog,
+Admin names, historical persistence, routing, API/OpenAPI and AI prompt semantics
+remain unchanged.
+
+Local acceptance is complete: the shared runner passed static, build, 365 browser
+inventory cases (192 Chromium/PWA/push in this selected partition), six legacy
+WebKit cases, 161 native capture scenarios, six fullstack cases, 92 integration
+cases, 14 security cases, five organization-routing cases, performance, and all
+migration checks. Hosted PR acceptance remains part of Phase 13.
 
 ## Authentication identifier editing and recovery refinement — 10 September 2026
 

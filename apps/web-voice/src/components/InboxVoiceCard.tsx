@@ -13,7 +13,7 @@ import {
 import type { VoiceListItem } from '../workforce-api';
 import {
   AREA_LABELS,
-  CATEGORY_LABELS,
+  formatCategoryName,
   formatRelative,
   shortenPersonName,
   SEVERITY_LABELS,
@@ -70,7 +70,7 @@ export function InboxVoiceCard({
   const picInTopRow = !identity;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const category = voice.category
-    ? (voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category)
+    ? formatCategoryName(voice.category, voice.categoryNameSnapshot)
     : null;
   return (
     <button

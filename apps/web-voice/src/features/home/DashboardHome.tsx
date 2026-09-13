@@ -27,7 +27,12 @@ import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { TrendCard } from '../../components/TrendCard';
 import { activeCount, bucketValue } from '../../lib/dashboard-math';
 import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
-import { AREA_LABELS, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
+import {
+  AREA_LABELS,
+  formatCategoryName,
+  SEVERITY_LABELS,
+  STATUS_LABELS,
+} from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import { PersonalVoiceSection } from './PersonalVoiceSection';
@@ -471,7 +476,10 @@ export function DashboardHome() {
                       onValueChange: (v: string) => set({ dashCategory: v || undefined }),
                       options: [
                         { value: '', label: 'Semua kategori' },
-                        ...(meta?.categories.map((c) => ({ value: c.id, label: c.label })) ?? []),
+                        ...(meta?.categories.map((c) => ({
+                          value: c.id,
+                          label: formatCategoryName(c.id, c.label) ?? c.label,
+                        })) ?? []),
                       ],
                     },
                   ]
@@ -581,7 +589,11 @@ export function DashboardHome() {
                   .filter((bucket) => bucket.value > 0)}
               />
               {!isPrivate ? (
-                <DashboardChartCard title="Voice menurut kategori" buckets={data.category} />
+                <DashboardChartCard
+                  title="Voice menurut kategori"
+                  buckets={data.category}
+                  categoryLabels
+                />
               ) : null}
             </div>
             <Card className="dashboard-organization" padding="none">
