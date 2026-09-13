@@ -453,7 +453,8 @@ Workforce mobile memakai bottom navigation untuk primary journeys dan sidebar/to
 
 Langkah pertama wajib menampilkan dua pilihan eksplisit: **Private Voice** atau **General Voice**. Setelah pilihan dibuat, form menampilkan field berikut.
 
-- General Voice memakai keterangan **“Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan”**.
+- Intro langkah pertama memakai **“Pilih kategori yang tepat untuk suara Anda.”**
+- General Voice memakai keterangan **“Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasiakan”**.
 - Private Voice memakai keterangan **“Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).”**
 
 Field wajib:
@@ -500,9 +501,9 @@ Pada detail dan percakapan, audience General responder melihat nama snapshot pel
 Preview menampilkan:
 
 - Area;
-- Department/route tujuan (`Komite` untuk Private — label aman yang tidak
-  membocorkan akun Union, sejak 8 September 2026; sebelumnya `Union Head`,
-  `PIC Global`, Department Head, atau default PIC);
+- route tujuan (`PIC Terkait` untuk setiap General Voice dengan route siap;
+  `Akan ditentukan` ketika route belum siap; `Komite` untuk Private sebagai
+  label aman yang tidak membocorkan akun Union);
 - Detail Lokasi;
 - Judul;
 - Detail Voice;
@@ -618,6 +619,15 @@ Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emerg
 - Satu retry diperbolehkan untuk transient error dengan timeout default dan maksimum 60 detik per attempt.
 - Timeout, exhausted retry, refusal/incomplete response, invalid JSON/schema, empty response, atau confidence di bawah threshold mengaktifkan Manual Fallback.
 - Manual Fallback General mewajibkan reporter memilih category dan severity; Private hanya memilih severity.
+- Seluruh UI workforce menampilkan `ENVIRONMENT` sebagai **Lingkungan** dan
+  `FACILITY_REPAIR` sebagai **Perbaikan Fasilitas** berdasarkan stable key,
+  termasuk ketika katalog atau historical snapshot masih menyimpan nama Inggris.
+  Admin tetap melihat nama katalog sebenarnya dan custom category tetap memakai
+  nama dinamis dari katalog.
+- Pada Manual Fallback, bantuan Low memakai **“Tidak mendesak, tanpa dampak
+  langsung pada produksi.”** dan High memakai **“Dampak signifikan pada KPI
+  (S,Q,P,C,HR).”** Perubahan ini hanya presentation copy; rubric dan prompt AI
+  §13.4 tidak berubah.
 - Location review failure menghasilkan `UNKNOWN`/degraded state dan tidak memblokir form atau submit.
 - Pilihan manual, alasan fallback, model, dan error class yang aman disimpan dalam classification audit.
 - AI success tidak dapat diedit reporter; reporter harus kembali mengubah isi dan menjalankan klasifikasi ulang.
@@ -1921,6 +1931,11 @@ V1 siap production bila:
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
 - AI memakai official OpenAI JavaScript SDK untuk OpenAI-compatible Chat Completions. DeepSeek `deepseek-v4-flash` dan local `ibm-granite/granite-4.2-3b` didukung; reasoning kosong adalah provider default, sedangkan DeepSeek non-thinking memakai `none` eksplisit. Admin dapat mengaktifkan encrypted runtime override tanpa restart, dengan environment sebagai fallback.
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
+- Alias kategori reporter pada workforce bersifat presentation-only:
+  `ENVIRONMENT` → `Lingkungan` dan `FACILITY_REPAIR` → `Perbaikan Fasilitas`;
+  stable key, katalog Admin, prompt AI, dan snapshot persistence tidak berubah.
+- Preview route yang siap memakai `PIC Terkait` untuk General dan `Komite` untuk
+  Private; label implementasi route tidak ditampilkan kepada reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
 - Empat status saja; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.

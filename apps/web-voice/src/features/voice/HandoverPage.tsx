@@ -18,6 +18,7 @@ import {
   HandoverDestinationCard,
 } from '../../components/HandoverDestinationCard';
 import { VoiceHero } from '../../components/VoiceHero';
+import { formatCategoryName } from '../../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../../lib/query';
 import type { HandoverOption } from '../../workforce-api';
 
@@ -152,7 +153,10 @@ export function HandoverPage() {
           <span>
             <small>Kategori</small>
             <strong>
-              {options.data.current.category.name ?? options.data.current.category.key ?? '—'}
+              {formatCategoryName(
+                options.data.current.category.key,
+                options.data.current.category.name,
+              ) ?? '—'}
             </strong>
           </span>
           <span>
@@ -322,7 +326,7 @@ function DestinationSummary({ option }: { option: HandoverOption }) {
   return (
     <div className="handover-summary">
       <span className="handover-summary__label">Tujuan terpilih</span>
-      <strong>{option.category.name ?? option.category.key}</strong>
+      <strong>{formatCategoryName(option.category.key, option.category.name)}</strong>
       <span>
         <Building2 size={15} aria-hidden="true" /> {option.department?.department}
       </span>

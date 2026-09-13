@@ -22,7 +22,7 @@ import { StatusDistribution } from '../../components/StatusDistribution';
 import { TrendCard } from '../../components/TrendCard';
 import {
   AREA_LABELS,
-  CATEGORY_LABELS,
+  formatCategoryName,
   formatRelative,
   SEVERITY_LABELS,
   STATUS_LABELS,
@@ -323,7 +323,7 @@ function categoryRows(data: DashboardAggregate, onPick: (value: string) => void)
       label:
         bucket.label === 'NONE'
           ? 'Tanpa kategori'
-          : (CATEGORY_LABELS[bucket.label] ?? bucket.label),
+          : (formatCategoryName(bucket.label) ?? bucket.label),
       tone: 'brand' as const,
       value: bucket.value,
       onClick: bucket.label === 'NONE' ? undefined : () => onPick(bucket.label),

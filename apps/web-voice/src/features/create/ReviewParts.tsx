@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { MediaGallery } from '../../components/MediaGallery';
-import { CATEGORY_LABELS, SEVERITY_LABELS } from '../../lib/formatters';
+import { formatCategoryName, SEVERITY_LABELS } from '../../lib/formatters';
 import type { Attachment } from '../../workforce-api';
 
 type Visibility = 'GENERAL' | 'PRIVATE';
@@ -103,7 +103,7 @@ export function ReviewSummary({
           <SummaryRow
             icon={<Layers size={16} />}
             label="Kategori"
-            value={categoryName ?? CATEGORY_LABELS[category] ?? category}
+            value={formatCategoryName(category, categoryName) ?? category}
           />
         ) : null}
         <SummaryRow icon={<Send size={16} />} label="Rute tujuan" value={routeLabel} />

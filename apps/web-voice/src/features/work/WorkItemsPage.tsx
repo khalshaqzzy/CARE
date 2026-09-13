@@ -23,6 +23,7 @@ import { Pager } from '../../components/Pager';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
+  formatCategoryName,
   formatRelative,
   formatDate,
   PRIVATE_ROUTE_LABEL,
@@ -478,9 +479,9 @@ function MyHandoverCard({ item, onOpen }: { item: HandoverHistoryItem; onOpen: (
       </span>
       <span className="my-handover-card__direction">
         <em>{item.direction === 'SENT' ? 'Dikirim' : 'Diterima'}</em>
-        <span>{source.category.name ?? source.category.key}</span>
+        <span>{formatCategoryName(source.category.key, source.category.name)}</span>
         <ArrowRight size={15} aria-hidden="true" />
-        <span>{destination.category.name ?? destination.category.key}</span>
+        <span>{formatCategoryName(destination.category.key, destination.category.name)}</span>
       </span>
       <span className="my-handover-card__department">
         <Building2 size={15} aria-hidden="true" />

@@ -476,7 +476,11 @@ function MemberHomePage() {
                 </Card>
                 <div className="dashboard-chart-grid">
                   <DashboardChartCard title="Severity" buckets={generalData.severity} />
-                  <DashboardChartCard title="Kategori" buckets={generalData.category} />
+                  <DashboardChartCard
+                    title="Kategori"
+                    buckets={generalData.category}
+                    categoryLabels
+                  />
                 </div>
                 <TrendCard
                   title={trendTitle}

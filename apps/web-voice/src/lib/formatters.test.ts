@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
+  formatCategoryName,
   formatDate,
   formatDateTime,
   formatNotificationTime,
@@ -46,6 +47,15 @@ describe('workforce label maps', () => {
       'WELFARE',
       'WORK_DIFFICULTY',
     ]);
+  });
+
+  it('uses approved workforce aliases without changing dynamic category behavior', () => {
+    expect(formatCategoryName('ENVIRONMENT', 'Environment')).toBe('Lingkungan');
+    expect(formatCategoryName('FACILITY_REPAIR', 'Facility Repair')).toBe('Perbaikan Fasilitas');
+    expect(formatCategoryName('SAFETY', 'Keselamatan')).toBe('Keselamatan');
+    expect(formatCategoryName('CUSTOM_CATEGORY', 'Kategori Khusus')).toBe('Kategori Khusus');
+    expect(formatCategoryName('ENVIRONMENT')).toBe('Lingkungan');
+    expect(formatCategoryName(null, null)).toBeNull();
   });
 
   it('distinguishes visibility labels', () => {

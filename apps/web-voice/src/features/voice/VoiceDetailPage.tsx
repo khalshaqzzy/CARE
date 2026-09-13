@@ -22,8 +22,8 @@ import { VoiceProgress } from '../../components/VoiceProgress';
 import { VoiceHero } from '../../components/VoiceHero';
 import { HandoverHistoryList } from '../../components/HandoverHistoryList';
 import {
-  CATEGORY_LABELS,
   CLOSURE_REVIEW_LABELS,
+  formatCategoryName,
   formatDate,
   formatDateTime,
   formatRemaining,
@@ -134,7 +134,7 @@ export function VoiceDetailPage() {
               <CategoryIcon size={17} aria-hidden="true" />
               <span className="voice-meta-list__label">Kategori</span>
               <strong>
-                {voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category}
+                {formatCategoryName(voice.category, voice.categoryNameSnapshot) ?? voice.category}
               </strong>
             </li>
           ) : null}
@@ -145,9 +145,10 @@ export function VoiceDetailPage() {
               <Info size={17} aria-hidden="true" />
               <span className="voice-meta-list__label">Klasifikasi awal</span>
               <strong>
-                {voice.classificationCategory.name ??
-                  CATEGORY_LABELS[voice.classificationCategory.key] ??
-                  voice.classificationCategory.key}
+                {formatCategoryName(
+                  voice.classificationCategory.key,
+                  voice.classificationCategory.name,
+                ) ?? voice.classificationCategory.key}
               </strong>
             </li>
           ) : null}

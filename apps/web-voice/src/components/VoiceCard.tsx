@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import type { VoiceListItem } from '../workforce-api';
 import {
   AREA_LABELS,
-  CATEGORY_LABELS,
+  formatCategoryName,
   formatRelative,
   severityRank,
   SEVERITY_LABELS,
@@ -99,7 +99,7 @@ export function VoiceCard({
           <ValueRow
             icon={<Layers size={15} aria-hidden="true" />}
             label="Kategori:"
-            value={voice.categoryNameSnapshot ?? CATEGORY_LABELS[voice.category] ?? voice.category}
+            value={formatCategoryName(voice.category, voice.categoryNameSnapshot) ?? voice.category}
             tone="info"
           />
         ) : null}

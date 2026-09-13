@@ -18,7 +18,7 @@ const voice = {
   availableActions: ['ASSIGN', 'MONITOR', 'HANDOVER'],
 };
 const option = {
-  category: { id: 'category-target', key: 'WORK_DIFFICULTY', name: 'Kesulitan Kerja' },
+  category: { id: 'category-target', key: 'ENVIRONMENT', name: 'Environment' },
   routeMode: 'RELATED_REPORTER_DEPARTMENT',
   department: {
     id: 'department-target',
@@ -76,7 +76,7 @@ test.describe('Manager handover', () => {
 
     const submit = page.getByRole('button', { name: /Lanjutkan Handover/ });
     await expect(submit).toBeDisabled();
-    const target = page.getByRole('radio', { name: /Kesulitan Kerja/ });
+    const target = page.getByRole('radio', { name: /Lingkungan/ });
     await target.focus();
     await page.keyboard.press('Space');
     await page
@@ -110,10 +110,17 @@ test.describe('Manager handover', () => {
       handoverError: { status: 409, code: 'VERSION_CONFLICT' },
     });
     await page.goto('/voices/voice-1/handover');
-    await page.getByRole('textbox', { name: 'Cari tujuan handover' }).fill('Yudo');
-    await expect(page.getByRole('radio', { name: /Kesulitan Kerja/ })).toBeVisible();
+    const search = page.getByRole('textbox', { name: 'Cari tujuan handover' });
+    await search.fill('Lingkungan');
+    await expect(page.getByRole('radio', { name: /Lingkungan/ })).toBeVisible();
+    await search.fill('Environment');
+    await expect(page.getByRole('radio', { name: /Lingkungan/ })).toBeVisible();
+    await search.fill('ENVIRONMENT');
+    await expect(page.getByRole('radio', { name: /Lingkungan/ })).toBeVisible();
+    await search.fill('Yudo');
+    await expect(page.getByRole('radio', { name: /Lingkungan/ })).toBeVisible();
     await expect(page.getByText('Fasilitas Umum')).not.toBeVisible();
-    await page.getByRole('radio', { name: /Kesulitan Kerja/ }).click();
+    await page.getByRole('radio', { name: /Lingkungan/ }).click();
     const note = page.getByRole('textbox', { name: /Detail handover/ });
     await note.fill('Catatan harus tetap ada setelah konflik.');
     await page.getByRole('button', { name: /Lanjutkan Handover/ }).click();

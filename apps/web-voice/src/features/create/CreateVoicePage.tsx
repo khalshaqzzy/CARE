@@ -36,7 +36,13 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DotMatrixOrb } from '../../components/DotMatrixOrb';
-import { AREA_LABELS, mediaUrl, PRIVATE_ROUTE_LABEL } from '../../lib/formatters';
+import {
+  AREA_LABELS,
+  formatCategoryName,
+  GENERAL_ROUTE_LABEL,
+  mediaUrl,
+  PRIVATE_ROUTE_LABEL,
+} from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import type { Attachment } from '../../workforce-api';
 import {
@@ -70,7 +76,7 @@ const SEVERITY_OPTIONS: { value: Severity; label: string; description: string }[
   {
     value: 'LOW',
     label: 'Low',
-    description: 'Tidak mendesak, tanpa dampak langsung pada operasi.',
+    description: 'Tidak mendesak, tanpa dampak langsung pada produksi.',
   },
   {
     value: 'MEDIUM',
@@ -80,7 +86,7 @@ const SEVERITY_OPTIONS: { value: Severity; label: string; description: string }[
   {
     value: 'HIGH',
     label: 'High',
-    description: 'Dampak signifikan pada safety, quality, atau people.',
+    description: 'Dampak signifikan pada KPI (S,Q,P,C,HR).',
   },
   {
     value: 'CRITICAL',
@@ -174,7 +180,7 @@ function VisibilityStep({ wizard }: { wizard: Wizard }) {
         <header className="page-intro">
           <p className="care-eyebrow">Langkah 1 dari 5</p>
           <h1>Mulai Voice baru</h1>
-          <p>Pilih jalur yang tepat untuk suara Anda.</p>
+          <p>Pilih kategori yang tepat untuk suara Anda.</p>
         </header>
         {onError ? (
           <Alert tone="danger" title="Periksa kembali">
@@ -193,7 +199,7 @@ function VisibilityStep({ wizard }: { wizard: Wizard }) {
             {
               value: 'GENERAL',
               label: 'General Voice',
-              description: 'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan',
+              description: 'Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasiakan',
               icon: <Briefcase size={20} />,
             },
             {
@@ -608,6 +614,7 @@ function ProcessingStep({ wizard }: { wizard: Wizard }) {
         <DotMatrixOrb progress={done / 3} animating={done < 3} />
         <h1>Menganalisis Voice Anda</h1>
         <p>CARE sedang memahami laporan dan memeriksa lokasi.</p>
+        <p className="processing-card__hint">Mohon tetap di halaman ini</p>
         <ol className="processing-card__stages">
           <ProcessingStage
             icon={<FileText size={17} />}
@@ -642,7 +649,6 @@ function ProcessingStep({ wizard }: { wizard: Wizard }) {
           />
         </ol>
       </section>
-      <p className="processing-card__hint">Mohon tetap di halaman ini</p>
       {wizard.error ? (
         <Alert tone="danger" title="Gagal menganalisis">
           {wizard.error}
@@ -715,7 +721,7 @@ function FallbackStep({ wizard }: { wizard: Wizard }) {
               onValueChange={(value) => setCategory(value as Category)}
               options={wizard.categories.map((opt) => ({
                 value: opt.key,
-                label: opt.name,
+                label: formatCategoryName(opt.key, opt.name) ?? opt.name,
                 icon: CATEGORY_ICONS[opt.key] ?? <Tags size={20} />,
               }))}
             />
@@ -810,7 +816,9 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           severity={severity}
           category={isPrivate ? null : category}
           categoryName={preview.data?.categoryNameSnapshot}
-          routeLabel={isPrivate ? PRIVATE_ROUTE_LABEL : routeLabel}
+          routeLabel={
+            isPrivate ? PRIVATE_ROUTE_LABEL : readiness?.ready ? GENERAL_ROUTE_LABEL : routeLabel
+          }
           showIdentity={form.showReporterIdentity}
           fallbackCode={
             source === 'MANUAL_FALLBACK' && classification && 'fallbackCode' in classification

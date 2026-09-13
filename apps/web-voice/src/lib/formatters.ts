@@ -22,12 +22,31 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const CATEGORY_LABELS: Record<string, string> = {
   SAFETY: 'Safety',
-  ENVIRONMENT: 'Environment',
+  ENVIRONMENT: 'Lingkungan',
   FACILITY: 'Fasilitas Umum',
-  FACILITY_REPAIR: 'Facility Repair',
+  FACILITY_REPAIR: 'Perbaikan Fasilitas',
   WORK_DIFFICULTY: 'Fasilitas Kerja / Kesulitan Kerja',
   WELFARE: 'Kesejahteraan',
 };
+
+const WORKFORCE_CATEGORY_OVERRIDES: Record<string, string> = {
+  ENVIRONMENT: 'Lingkungan',
+  FACILITY_REPAIR: 'Perbaikan Fasilitas',
+};
+
+/**
+ * Reporter-facing category label. The two approved workforce aliases win over
+ * catalog and historical snapshot names, while every other category continues
+ * to respect its dynamic catalog name.
+ */
+export function formatCategoryName(
+  categoryKey?: string | null,
+  sourceName?: string | null,
+): string | null {
+  if (categoryKey && WORKFORCE_CATEGORY_OVERRIDES[categoryKey])
+    return WORKFORCE_CATEGORY_OVERRIDES[categoryKey];
+  return sourceName ?? (categoryKey ? (CATEGORY_LABELS[categoryKey] ?? categoryKey) : null);
+}
 
 export const VISIBILITY_LABELS: Record<string, string> = {
   GENERAL: 'General',
@@ -36,6 +55,9 @@ export const VISIBILITY_LABELS: Record<string, string> = {
 
 /** Safe Private Voice destination label: never exposes Union account names. */
 export const PRIVATE_ROUTE_LABEL = 'Komite';
+
+/** Generic ready-route label used only on reporter-facing General previews. */
+export const GENERAL_ROUTE_LABEL = 'PIC Terkait';
 
 export const CLASSIFICATION_LABELS: Record<string, string> = {
   AI: 'AI',

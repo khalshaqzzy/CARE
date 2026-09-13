@@ -63,6 +63,44 @@ test('direct preview of legacy private draft cannot bypass consent', async ({ pa
   ).toContainText('Komite');
 });
 
+for (const routeTarget of ['Department Head', 'Default PIC']) {
+  test(`General preview presents ready ${routeTarget} as PIC Terkait`, async ({ page }) => {
+    await mockWorkforceApi(page, {
+      draftPreview: {
+        ...draft,
+        visibility: 'GENERAL',
+        classification: { ...draft.classification, category: 'SAFETY' },
+        routeReadiness: { ready: true, targetLabel: routeTarget },
+        routeTarget,
+      },
+    });
+    await page.goto('/drafts/draft-1/preview');
+    const route = page.locator('.review-summary__row').filter({ hasText: 'Rute tujuan' });
+    await expect(route).toContainText('PIC Terkait');
+    await expect(route).not.toContainText(routeTarget);
+  });
+}
+
+test('General preview preserves unresolved route state', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    draftPreview: {
+      ...draft,
+      visibility: 'GENERAL',
+      classification: { ...draft.classification, category: 'SAFETY' },
+      routeReadiness: {
+        ready: false,
+        reason: 'GENERAL_ROUTE_UNAVAILABLE',
+        remediationCode: 'GENERAL_ROUTE_UNAVAILABLE',
+      },
+      routeTarget: null,
+    },
+  });
+  await page.goto('/drafts/draft-1/preview');
+  await expect(
+    page.locator('.review-summary__row').filter({ hasText: 'Rute tujuan' }),
+  ).toContainText('Akan ditentukan');
+});
+
 test('private analysis stays gated until the full privacy checklist is complete', async ({
   page,
 }) => {
@@ -180,6 +218,9 @@ for (const width of [360, 390, 768, 1440]) {
     });
     await page.goto('/drafts/draft-1/preview');
     await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
+    await expect(
+      page.locator('.review-summary__row').filter({ hasText: 'Rute tujuan' }),
+    ).toContainText('PIC Terkait');
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);

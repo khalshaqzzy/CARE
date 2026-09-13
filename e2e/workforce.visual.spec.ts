@@ -883,6 +883,9 @@ test('workforce create processing visual at 360', async ({ page }) => {
   });
   await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
   await expect(page.getByText('Menganalisis Voice Anda')).toBeVisible();
+  const processingCard = page.locator('.processing-card');
+  await expect(processingCard.getByText('Mohon tetap di halaman ini')).toBeVisible();
+  await expect(page.locator('.processing-card__hint')).toHaveCount(1);
   await page.waitForTimeout(300);
   await scrollToTop(page);
   await capture(page, 'workforce-create-processing-360.png', screenshotOptions);
@@ -904,6 +907,12 @@ test('workforce create fallback visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Klasifikasi manual' })).toBeVisible({
     timeout: 15000,
   });
+  await expect(page.getByRole('radio', { name: /Lingkungan/ })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Perbaikan Fasilitas/ })).toBeVisible();
+  await expect(
+    page.getByText('Tidak mendesak, tanpa dampak langsung pada produksi.'),
+  ).toBeVisible();
+  await expect(page.getByText('Dampak signifikan pada KPI (S,Q,P,C,HR).')).toBeVisible();
   await page.getByRole('radio', { name: /Safety/ }).click();
   await page.getByRole('radio', { name: /^High/ }).click();
   await scrollToTop(page);
@@ -926,6 +935,9 @@ test('workforce create review general visual at 360', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible({
     timeout: 15000,
   });
+  await expect(
+    page.locator('.review-summary__row').filter({ hasText: 'Rute tujuan' }),
+  ).toContainText('PIC Terkait');
   await scrollToTop(page);
   await capture(page, 'workforce-create-review-general-360.png', screenshotOptions);
 });

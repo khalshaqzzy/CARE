@@ -1,6 +1,6 @@
 import { Card } from '@care/ui';
 import { ArrowRight, Building2, LockKeyhole, MapPinned } from 'lucide-react';
-import { formatDate } from '../lib/formatters';
+import { formatCategoryName, formatDate } from '../lib/formatters';
 import type { HandoverHistoryItem } from '../workforce-api';
 
 export function HandoverHistoryList({ items }: { items: HandoverHistoryItem[] }) {
@@ -40,7 +40,7 @@ function RouteSide({
 }) {
   return (
     <div className="handover-record__side">
-      <strong>{value.category.name ?? value.category.key ?? 'Kategori'}</strong>
+      <strong>{formatCategoryName(value.category.key, value.category.name) ?? 'Kategori'}</strong>
       <span>
         <Building2 size={14} aria-hidden="true" /> {value.department.department ?? '—'}
       </span>

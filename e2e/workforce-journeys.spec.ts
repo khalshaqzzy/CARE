@@ -62,9 +62,11 @@ test.describe('workforce journeys (mocked contract)', () => {
     await mockWorkforceApi(page, {});
     await page.goto('/voices/new');
     await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+    await expect(page.getByText('Pilih kategori yang tepat untuk suara Anda.')).toBeVisible();
     await expect(
-      page.getByText('Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasikan'),
+      page.getByText('Voice berkaitan dengan hal umum, bukan sesuatu yang perlu dirahasiakan'),
     ).toBeVisible();
+    await expect(page.getByText('Pilih jalur yang tepat untuk suara Anda.')).toHaveCount(0);
     await expect(
       page.getByText('Hal pribadi/sensitif/berhubungan dengan orang lain (Anonim).'),
     ).toBeVisible();

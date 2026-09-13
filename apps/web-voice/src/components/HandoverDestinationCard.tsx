@@ -1,4 +1,5 @@
 import { Building2, Check, CircleAlert, MapPinned, UserRound } from 'lucide-react';
+import { formatCategoryName } from '../lib/formatters';
 import { categoryIcon } from '../lib/voice-visuals';
 import type { HandoverOption } from '../workforce-api';
 
@@ -8,6 +9,7 @@ export function filterHandoverOptions(options: HandoverOption[], search: string)
   return options.filter((option) =>
     [
       option.category.name,
+      formatCategoryName(option.category.key, option.category.name),
       option.category.key,
       option.department?.department,
       option.department?.division,
@@ -50,7 +52,9 @@ export function HandoverDestinationCard({
       </span>
       <span className="handover-destination__body">
         <span className="handover-destination__heading">
-          <strong>{option.category.name ?? option.category.key ?? 'Kategori'}</strong>
+          <strong>
+            {formatCategoryName(option.category.key, option.category.name) ?? 'Kategori'}
+          </strong>
           {selected ? (
             <span className="handover-destination__check" aria-hidden="true">
               <Check size={15} strokeWidth={3} />

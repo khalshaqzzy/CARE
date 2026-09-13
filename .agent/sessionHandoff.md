@@ -1,5 +1,22 @@
 # CARE Session Handoff
 
+## Workforce create-flow and category presentation — 13 September 2026
+
+Current branch: `feat/ui-revisions`, based on `origin/staging` at `588bac2b`. The six annotated requirements in `/Users/khalfanishaquille/Downloads/CARE Tracking.xlsx` were implemented as workforce frontend presentation changes only. The source workbook was inspected read-only and was not modified.
+
+The create flow now says **Pilih kategori yang tepat untuk suara Anda.**, uses the corrected **dirahasiakan** spelling, and keeps **Mohon tetap di halaman ini** inside the blue AI-processing live region as a responsive contrast callout. Manual Fallback uses the approved Low and High descriptions. A centralized stable-key formatter presents `ENVIRONMENT` as **Lingkungan** and `FACILITY_REPAIR` as **Perbaikan Fasilitas** throughout workforce create, preview, cards/inbox, detail/hero, dashboard/filter/chart, General browse, and handover current/destination/history surfaces. Other standard and custom categories retain their API/catalog names, and handover search accepts the Indonesian alias, original catalog name, or stable key. Ready General draft previews now show **PIC Terkait**; unresolved General routes remain **Akan ditentukan**, and Private routes remain **Komite**.
+
+ADR-0050 and the PRD record the workforce-only alias and generic-preview contract. Category catalog data, Admin presentation, stored historical snapshots, category revisions, routing, route targets, API/OpenAPI, generated client, AI prompt, and severity semantics are unchanged. Phase 13 remains the only `in_progress` phase.
+
+Validation completed locally with the pinned Node 22.23.2 / pnpm 11.8.0:
+
+- `pnpm verify:local --plan` selected static, build, browser, legacy, capture, fullstack, integration, organization, performance, and migrations.
+- `pnpm verify:local` passed every selected job: format/lint, all unit suites (API 88, UI 26, frontend-core 15, Admin 2, workforce 87), nine validation-orchestration tests, provider smoke, OpenAPI byte-stability, typecheck, production builds, PWA compatibility (main gzip 141226 bytes), 192 Chromium/PWA/push tests, six legacy WebKit tests, 161 native visual scenarios, six fullstack tests, 92 integration tests, 14 security tests, five organization-routing tests, two performance tests (organization dashboard p95 330 ms), reconciliation, and all migration-upgrade checks.
+- Browser inventory was intentionally updated from 362 to 365 for the three added General preview cases. No behavioral assertion or threshold was removed.
+- The final native gallery was generated once after the UI stabilized. Create type, processing, Manual Fallback, General review, representative dashboard, and handover images were inspected: approved copy and aliases are readable, the processing callout remains inside the card, and mobile CTA/safe-area layout is intact.
+
+The validation runner stopped and removed its PostgreSQL container/network; no application, preview, database, or test process remains. Commit, push, and a PR to `staging` are explicitly authorized, followed by CI checks at 900-second intervals until all required checks are green. Merge and deployment are not authorized.
+
 ## Authentication identifier editing and recovery refinement — 10 September 2026
 
 Current branch: `staging`. Resolved the reported defect where tapping **Ubah No. Reg** on the workforce login (and the recovery page) focused the No. Reg field but the software keyboard never appeared on iOS/Safari. The handler focused the input synchronously while React had not yet committed `readOnly={false}`, so Safari saw a read-only field and suppressed the keyboard and did not re-evaluate after the attribute was removed. Both handlers (`apps/web-voice/src/App.tsx`, `apps/web-voice/src/features/auth/ForgotPasswordPage.tsx`) now import `flushSync` from `react-dom` and commit the stage collapse before focusing, keeping the field's `readOnly` lock otherwise intact. ADR-0049 records the decision.
