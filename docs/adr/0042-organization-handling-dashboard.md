@@ -151,3 +151,25 @@ the transaction options and continues to prove that all dimensions share one
 snapshot. Constrained Linux x64 validation with Node and PostgreSQL limited to two
 CPUs completed three consecutive 150-request/50-concurrent runs without `P2028`
 at 1,787–1,841 ms p95.
+
+## Performance samples and actionable controls — 14 September 2026
+
+### Context and decision
+
+The dashboard lacked elapsed-time and feedback aggregates. Selectors were rendered whenever unit options existed, even when an ancestor was fixed. Clearing a Department selection while retaining OWN caused the resolver to reapply its default, making “all departments” ineffective.
+
+Three compact cards are added after the filters. Response uses the first MONITORED event, completion uses each closed cycle from submit or the preceding reopen, and feedback includes every rating. Samples are selected through the existing filtered Voice cohort, including current status and submit-date bounds. A cycle or rating need not occur within those bounds. Missing or negative durations are excluded without historical inference; zero duration is valid. Empty averages are nullable with explicit zero sample counts.
+
+DashboardView gains a performance object with averageResponseSeconds, responseSampleCount, averageCompletionSeconds, completionSampleCount, averageFeedbackScore and feedbackSampleCount. Metadata and view gain organizationControls containing visibility, authorized options and query targets that replace organization state. Existing endpoints and opaque unit identifiers are reused. Legacy aggregate contracts remain unchanged.
+
+### Implementation and rationale
+
+SQL aggregates each sample relation separately in the existing REPEATABLE READ transaction, avoiding event/cycle/rating join multiplication. Existing indexes and lifecycle records are sufficient; no backfill or migration is introduced. Client aggregation and synthetic historical timestamps were rejected because they would distort weighting or fabricate evidence.
+
+Controls explicitly transition OWN/PARENT/GLOBAL where permitted. Fixed ancestors are hidden; “all” remains selectable when its scope differs from a single permitted unit. Default PIC exact mappings, multi-capability precedence, sibling-selection denial and Private isolation remain server enforced. One renderer supplies desktop and mobile controls. Manual unit preferences persist independently through polling and filter changes, and accessible descriptions explain the sample definitions.
+
+The default/reset timeframe is all time. Relative options retain their date semantics with shorter 30 hari and 90 hari labels. Cards use the existing visual system and proportional star icons without a new chart dependency or unsupported performance thresholds.
+
+### Consequences, validation and follow-up
+
+Every rating/closed cycle is weighted equally; Voices with more cycles contribute more completion and feedback samples. Handling attribution follows the current stored handling projection, not a reconstructed historical handler. All-time is potentially more expensive, so the existing 50k-Voice, 50-concurrent, p95 <3-second gate is retained and its seed includes lifecycle/rating rows. Tests cover deterministic averages, nulls, scope roundtrips, stale metadata and response cancellation, keyboard/Axe and native responsive captures. Final validation evidence is recorded in the session handoff. Hosted release validation remains a separate obligation.

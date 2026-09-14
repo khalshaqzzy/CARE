@@ -1,5 +1,13 @@
 # CARE v1.1 Implementation Phases
 
+## Dashboard performance and actionable organization filters — 14 September 2026
+
+Implemented dashboard response time (first MONITORED event per Voice), completion time (each completed closure cycle, starting at submit or the previous cycle’s reopen), and performance (all ratings, including reopen feedback). All samples follow the selected Voice cohort and its submit-date range, current status, organization basis and Private handler scope. Missing/negative durations are excluded; zero is valid. Empty averages are null with zero sample counts. Aggregate SQL keeps response, completion and rating samples independent within the existing REPEATABLE READ transaction; no schema migration or history backfill is required.
+
+Server-provided organizationControls describe visible selectors and atomic query targets. Department Head “Semua department” selects PARENT rather than being silently reset to OWN. Fixed ancestors are hidden, exact Default PIC mappings and existing peer-unit restrictions remain enforced. The same renderer serves desktop and mobile. KPI cards use independent hours/days toggles, proportional stars, sample counts and accessible definition dialogs. Default range and reset now use Semua waktu; relative options read 30 hari and 90 hari.
+
+Validation completed through shared local jobs and affected reruns: unit/static/build, 94 integration cases plus final focused dashboard 25/25, security 14/14, organization routing 5/5, performance p95 1,036 ms, migrations, browser 193/193 with focused dashboard 13/13, legacy 6/6, fullstack 6/6 and native capture 161/161. Final commands, results and limitations are recorded in sessionHandoff.md. Commit/push on `feat/dashboard-improvements` and a PR to `staging` are now authorized without hosted CI monitoring. No merge or deployment is included. Existing release-phase status is unchanged.
+
 | Atribut                | Nilai                                                                                                                                                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status roadmap         | Phase 0–12.5 done; Admin web premium redesign implemented locally (ADR-0034); Phase 13 staging delivery and hosted acceptance in progress; Phase 14 pending                                              |

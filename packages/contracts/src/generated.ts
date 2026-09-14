@@ -2123,6 +2123,18 @@ export interface components {
             contentHash: string;
         } | null;
         DashboardMetadata: {
+            organizationControls: {
+                /** @enum {string} */
+                name: "directorate" | "division" | "department" | "section";
+                visible: boolean;
+                options: {
+                    value: string;
+                    label: string;
+                    query: {
+                        [key: string]: string;
+                    };
+                }[];
+            }[];
             /** @enum {string} */
             scopeMode: "OWN" | "PARENT" | "GLOBAL";
             allowedScopeModes: ("OWN" | "PARENT" | "GLOBAL")[];
@@ -2174,6 +2186,18 @@ export interface components {
             scopeLabel: string;
         };
         DashboardView: {
+            organizationControls: {
+                /** @enum {string} */
+                name: "directorate" | "division" | "department" | "section";
+                visible: boolean;
+                options: {
+                    value: string;
+                    label: string;
+                    query: {
+                        [key: string]: string;
+                    };
+                }[];
+            }[];
             /** @enum {string} */
             scopeMode: "OWN" | "PARENT" | "GLOBAL";
             allowedScopeModes: ("OWN" | "PARENT" | "GLOBAL")[];
@@ -2208,6 +2232,14 @@ export interface components {
                 parentId?: string | null;
             }[];
             scopeLabel: string;
+            performance: {
+                averageResponseSeconds: number | null;
+                responseSampleCount: number;
+                averageCompletionSeconds: number | null;
+                completionSampleCount: number;
+                averageFeedbackScore: number | null;
+                feedbackSampleCount: number;
+            };
             total: number;
             status: {
                 id?: string;

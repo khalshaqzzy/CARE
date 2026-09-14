@@ -179,7 +179,7 @@ test('relative range refresh shares timestamps between aggregate and preview', a
       bounds[kind]!.push(url.searchParams.get('to')!);
   });
   await mockWorkforceApi(page, { session: manager });
-  await page.goto('/');
+  await page.goto('/?range=30d');
   await expect(
     page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }),
   ).toBeVisible();
@@ -275,6 +275,26 @@ test('refreshes selector metadata when a master update changes the default depar
         { id, label: 'New Department', parentId: orgKey('Production', 'Production Division') },
       ];
       fixture.metadata.organization.section = [];
+      fixture.metadata.organizationControls = fixture.metadata.organizationControls.map(
+        (control) =>
+          control.name === 'department'
+            ? {
+                ...control,
+                options: control.options.map((option) =>
+                  option.value
+                    ? {
+                        value: id,
+                        label: 'New Department',
+                        query: { scopeMode: 'OWN', level: 'section', department: id },
+                      }
+                    : option,
+                ),
+              }
+            : control.name === 'section'
+              ? { ...control, visible: false }
+              : control,
+      );
+      fixture.view.organizationControls = fixture.metadata.organizationControls;
       fixture.view.selected = { ...fixture.metadata.selected };
       fixture.view.scopeLabel = 'New Department';
     }
@@ -292,4 +312,58 @@ test('refreshes selector metadata when a master update changes the default depar
   await expect(page.getByRole('combobox', { name: 'Department', exact: true })).toContainText(
     'New Department',
   );
+});
+
+test('compact performance cards follow server scope targets and use all time by default', async ({
+  page,
+}) => {
+  await mockWorkforceApi(page, { session: manager });
+  await page.goto('/');
+  await expect(page.getByRole('combobox', { name: 'Rentang', exact: true })).toContainText(
+    'Semua waktu',
+  );
+  await expect(page.getByRole('combobox', { name: 'Direktorat', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Division', exact: true })).toHaveCount(0);
+  const performance = page.getByRole('region', { name: 'Performa penanganan' });
+  await expect(performance).toContainText('4.00');
+  await expect(performance).toContainText('7.00');
+  await expect(performance).toContainText('3.50');
+  await page.getByRole('button', { name: 'Ubah satuan Average Response Time ke days' }).click();
+  await expect(performance).toContainText('0.17');
+  await expect(
+    page.getByRole('button', { name: 'Ubah satuan Average Completion Time ke days' }),
+  ).toBeVisible();
+  await page.getByRole('combobox', { name: 'Department', exact: true }).click();
+  await page.getByRole('option', { name: 'Semua department', exact: true }).click();
+  await expect(page).toHaveURL(/scopeMode=PARENT/);
+  await expect(page.getByRole('combobox', { name: 'Department', exact: true })).toContainText(
+    'Semua department',
+  );
+  await page.getByRole('combobox', { name: 'Department', exact: true }).click();
+  await page.getByRole('option', { name: 'Production Control', exact: true }).click();
+  await expect(page).toHaveURL(/scopeMode=OWN/);
+  await expect(performance).toContainText('0.17');
+  await page.getByRole('button', { name: 'Tentang Average Completion Time' }).click();
+  await expect(page.getByRole('dialog')).toContainText('per siklus');
+  await page.getByRole('button', { name: 'Mengerti' }).click();
+  await page.getByRole('combobox', { name: 'Rentang', exact: true }).click();
+  await expect(page.getByRole('option', { name: '30 hari', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: '90 hari', exact: true })).toBeVisible();
+  await page.getByRole('option', { name: '30 hari', exact: true }).click();
+  await expect(page).toHaveURL(/range=30d/);
+  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Rentang', exact: true })).toContainText(
+    'Semua waktu',
+  );
+  for (const width of [360, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(performance).toContainText('0.17');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    expect(
+      (await new AxeBuilder({ page }).include('.dashboard-performance').analyze()).violations,
+    ).toEqual([]);
+  }
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

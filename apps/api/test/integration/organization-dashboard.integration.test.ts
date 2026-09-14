@@ -128,9 +128,185 @@ describe('Organization dashboard scope, privacy and filtering', () => {
     officer = await union('OFFICER_1');
   });
   beforeEach(async () => {
+    await db.rating.deleteMany();
+    await db.closureCycle.deleteMany();
+    await db.voiceEvent.deleteMany();
     await db.voice.deleteMany();
   });
   afterAll(() => db.$disconnect());
+  it('averages independent response, completion-cycle and feedback samples within the filtered cohort', async () => {
+    const first = await seed({ status: 'IN_PROGRESS' });
+    const second = await seed({ status: 'MONITORED' });
+    await seed(); // Missing historical timestamps never become zero samples.
+    const at = (hours: number) => new Date(first.submittedAt.getTime() + hours * 3600000);
+    for (const [voiceId, hours] of [
+      [first.id, 2],
+      [first.id, 8],
+      [second.id, 6],
+    ] as const)
+      await db.voiceEvent.create({
+        data: {
+          voiceId,
+          type: 'MONITORED',
+          actorId: manager.accountId,
+          actorAccountKind: 'WORKFORCE',
+          actorCapabilities: ['MANAGER'],
+          payload: { via: 'ASSIGNMENT' },
+          occurredAt: at(hours),
+        },
+      });
+    for (const [cycleNumber, closed, reopened, score] of [
+      [1, 10, 12, 2],
+      [2, 16, 18, 5],
+    ] as const) {
+      const cycle = await db.closureCycle.create({
+        data: {
+          voiceId: first.id,
+          actorId: manager.accountId,
+          cycleNumber,
+          note: 'Fixture',
+          closedAt: at(closed),
+          reopenedAt: at(reopened),
+        },
+      });
+      await db.rating.create({
+        data: { closureCycleId: cycle.id, reporterId: reporter.accountId, score, reopen: true },
+      });
+    }
+    const result = await dashboard.aggregate(manager, common);
+    expect(result.performance).toEqual({
+      averageResponseSeconds: 14400,
+      responseSampleCount: 2,
+      averageCompletionSeconds: 25200,
+      completionSampleCount: 2,
+      averageFeedbackScore: 3.5,
+      feedbackSampleCount: 2,
+    });
+    const monitored = await dashboard.aggregate(manager, { ...common, status: 'MONITORED' });
+    expect(monitored.performance).toEqual({
+      averageResponseSeconds: 21600,
+      responseSampleCount: 1,
+      averageCompletionSeconds: null,
+      completionSampleCount: 0,
+      averageFeedbackScore: null,
+      feedbackSampleCount: 0,
+    });
+    expect(
+      (await dashboard.aggregate(manager, { ...common, basis: 'REPORTER' })).performance
+        .responseSampleCount,
+    ).toBe(0);
+  });
+  it('excludes invalid history, retains zero durations and includes later activity for a submit-date cohort', async () => {
+    const valid = await seed({ visibility: 'PRIVATE', currentHandlerId: officer.accountId });
+    const invalid = await seed({ visibility: 'PRIVATE', currentHandlerId: officer.accountId });
+    const unassigned = await seed({ visibility: 'PRIVATE' });
+    const at = (hours: number) => new Date(valid.submittedAt.getTime() + hours * 3600000);
+    for (const [voiceId, hours] of [
+      [valid.id, 0],
+      [invalid.id, -1],
+      [unassigned.id, 2],
+    ] as const)
+      await db.voiceEvent.create({
+        data: {
+          voiceId,
+          type: 'MONITORED',
+          actorId: manager.accountId,
+          actorAccountKind: 'WORKFORCE',
+          actorCapabilities: ['MANAGER'],
+          payload: {},
+          occurredAt: at(hours),
+        },
+      });
+    await db.closureCycle.create({
+      data: {
+        voiceId: invalid.id,
+        actorId: manager.accountId,
+        cycleNumber: 1,
+        note: 'Invalid timestamp',
+        closedAt: at(-1),
+      },
+    });
+    await db.closureCycle.create({
+      data: {
+        voiceId: invalid.id,
+        actorId: manager.accountId,
+        cycleNumber: 2,
+        note: 'Missing reopen',
+        closedAt: at(3),
+      },
+    });
+    await db.closureCycle.create({
+      data: {
+        voiceId: valid.id,
+        actorId: manager.accountId,
+        cycleNumber: 1,
+        note: 'Zero duration',
+        closedAt: at(0),
+        reopenedAt: at(1),
+      },
+    });
+    const later = await db.closureCycle.create({
+      data: {
+        voiceId: valid.id,
+        actorId: manager.accountId,
+        cycleNumber: 2,
+        note: 'Later activity',
+        closedAt: at(49),
+      },
+    });
+    await db.rating.create({
+      data: {
+        closureCycleId: later.id,
+        reporterId: reporter.accountId,
+        score: 2,
+        reopen: true,
+        createdAt: at(50),
+      },
+    });
+    const input = {
+      basis: 'HANDLING' as const,
+      visibility: 'PRIVATE' as const,
+      from: valid.submittedAt.toISOString(),
+      to: valid.submittedAt.toISOString(),
+    };
+    const own = await dashboard.aggregate(officer, input);
+    expect(own.performance).toEqual({
+      averageResponseSeconds: 0,
+      responseSampleCount: 1,
+      averageCompletionSeconds: 86400,
+      completionSampleCount: 2,
+      averageFeedbackScore: 2,
+      feedbackSampleCount: 1,
+    });
+    expect(own.organizationControls).toEqual([]);
+    expect((await dashboard.aggregate(head, input)).performance.responseSampleCount).toBe(2);
+    expect(
+      (await dashboard.aggregate(head, { ...input, handler: officer.accountId })).performance,
+    ).toEqual(own.performance);
+    expect((await dashboard.aggregate(manager, common)).performance.responseSampleCount).toBe(0);
+  });
+  it('exposes actionable organization controls and restores own scope through server targets', async () => {
+    await seed();
+    await seed({ handlingDepartmentSnapshot: b.department, handlingOrganizationUnitId: b.id });
+    for (const basis of ['HANDLING', 'REPORTER'] as const) {
+      const own = await dashboard.aggregate(manager, { ...common, basis });
+      expect(own.organizationControls.filter((c) => c.visible).map((c) => c.name)).toEqual([
+        'department',
+        'section',
+      ]);
+      const department = own.organizationControls.find((c) => c.name === 'department')!;
+      const all = department.options.find((o) => o.value === '')!;
+      expect(all.query).toEqual({ scopeMode: 'PARENT', level: 'department' });
+      const broader = await dashboard.aggregate(manager, { ...common, basis, ...all.query });
+      expect(broader.scopeMode).toBe('PARENT');
+      const target = broader.organizationControls
+        .find((c) => c.name === 'department')!
+        .options.find((o) => o.value === own.selected.department)!;
+      const restored = await dashboard.aggregate(manager, { ...common, basis, ...target.query });
+      expect(restored.total).toBe(own.total);
+      expect(restored.performance).toEqual(own.performance);
+    }
+  });
   it('counts incoming cross-division work by handling and switches to reporter snapshots', async () => {
     await seed();
     const handling = await dashboard.aggregate(manager, common);

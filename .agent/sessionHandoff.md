@@ -1,5 +1,30 @@
 # CARE Session Handoff
 
+## Dashboard PR delivery — 14 September 2026
+
+Delivery is authorized on `feat/dashboard-improvements`, with a pull request to `staging` and explicitly no hosted CI monitoring. The branch starts at the fetched staging HEAD `d544f6fe`; no unrelated commits are included. Existing task validation evidence below remains applicable; no application changes were made during delivery preparation. Directory Gitleaks v8.24.3 found no leaks. The committed candidate must pass the same image’s last-commit scan before push. Native reviewed references are included under ADR-0047; CI-generated screenshots are not committed. No merge or deployment is authorized or claimed.
+
+## Dashboard performance, organization controls and all-time default — 14 September 2026
+
+Implemented the accepted dashboard changes for General HANDLING/REPORTER and Union Private. Response is submit to first MONITORED event per Voice; completion averages each closed cycle (submit or previous reopen to closed); performance averages all ratings including reopen feedback. All samples follow the selected Voice cohort, current status and submit-date range. Missing/negative durations are excluded, zero remains valid, and no samples produce nullable averages with zero counts. Three compact responsive cards provide independent hours/days toggles, sample counts, proportional stars and keyboard/tap-accessible definitions. Manual unit choices survive filter refreshes.
+
+Organization metadata/view now include server-authored controls and atomic query targets. Fixed ancestors are hidden, Department Head “Semua department” enters PARENT, returning to the department enters OWN, and existing sibling-unit restrictions/exact Default PIC mappings are preserved. Private responses contain no organization control options. One selector renderer serves desktop and mobile, with explicit “Semua” placeholders and descriptor freshness checks. Default/reset range is **Semua waktu**; relative options read **30 hari** and **90 hari**. The all-time visual fixture now correctly has no previous-period comparison.
+
+Changed areas: API dashboard SQL and metadata resolver; OpenAPI/generated contracts; workforce DashboardHome, new DashboardPerformance and scoped CSS; lifecycle performance seed; integration/unit/browser fixtures and tests; native gallery; PRD/roadmap/ADR-0042. No database migration or lifecycle mutation change. No commit, push or deployment performed. Existing release phase remains unchanged.
+
+Validation evidence (Node 22.23.2 / pnpm 11.8.0; disposable Docker PostgreSQL):
+
+- `pnpm verify:local --plan` selected static, build, integration, organization, performance, migrations, fullstack, browser, legacy and capture.
+- The broad local invocation passed static/build, 94 integration cases, 14 security cases, five organization-routing cases, performance and every migration-upgrade harness. A new browser test required updating the explicit inventory from 365 to 366. The broad run stopped at fullstack while an intermediate rebuild had removed dist; the rebuild also caught an exactOptionalPropertyTypes prop issue, which was corrected. Subsequent affected shared jobs passed; the broad invocation is not claimed as a single uninterrupted pass.
+- Final shared static job passed formatting/lint, unit suites (API 88, UI 26, frontend-core 15, workforce 88, Admin 2), all nine validation-orchestration tests, provider mock smoke and diff checks. Subsequent small changes received scoped checks.
+- Shared build jobs passed OpenAPI stability, typecheck, production builds and PWA compatibility after final relevant changes.
+- Performance passed p95 **1,036 ms**, 150 requests / 50 concurrent, on at least 50,000 Voices with MONITORED events, repeated closure cycles and ratings. Existing 3,000 ms threshold and transaction settings were retained; reconciliation passed.
+- After adding zero/negative/missing-history and Private-cohort coverage, focused organization-dashboard integration passed **25/25**. After excluding all Private control options, focused integration and security **14/14** passed again. Real fullstack passed **6/6** after the final functional changes.
+- Shared browser job passed **193/193** (Chromium/PWA/push). Focused dashboard passed **13/13** after refinements, including all-time/reset labels, unit persistence, scope targets, metadata changes, and Axe/overflow at 360/390/768/1440. Legacy WebKit passed **6/6**.
+- Native capture passed **161/161**; final affected dashboard/workforce captures were regenerated after presentation refinements. Desktop department, mobile department/Union and tablet empty-state images were inspected. Unrelated auth-reset and submit-success PNG changes from the broad capture were restored. Gallery: `e2e/captures/local/index.html`.
+
+Hosted CI, Linux runner performance and physical-device acceptance were not run or claimed. Docker test stacks were shut down by cleanup traps; Playwright preview/API servers were stopped after each completed invocation. Next action: review the implementation and native gallery; delivery requires separate authorization.
+
 ## Workforce create-flow and category presentation — 13 September 2026
 
 Current branch: `feat/ui-revisions`, based on `origin/staging` at `588bac2b`. The six annotated requirements in `/Users/khalfanishaquille/Downloads/CARE Tracking.xlsx` were implemented as workforce frontend presentation changes only. The source workbook was inspected read-only and was not modified.

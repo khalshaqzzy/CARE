@@ -16,7 +16,51 @@ const selected = {
   type: 'object',
   properties: { directorate: string, division: string, department: string, section: string },
 };
+const organizationControls = {
+  type: 'array',
+  items: {
+    type: 'object',
+    required: ['name', 'visible', 'options'],
+    properties: {
+      name: { type: 'string', enum: ['directorate', 'division', 'department', 'section'] },
+      visible: { type: 'boolean' },
+      options: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['value', 'label', 'query'],
+          properties: {
+            value: string,
+            label: string,
+            query: { type: 'object', additionalProperties: string },
+          },
+        },
+      },
+    },
+  },
+};
+const performance = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'averageResponseSeconds',
+    'responseSampleCount',
+    'averageCompletionSeconds',
+    'completionSampleCount',
+    'averageFeedbackScore',
+    'feedbackSampleCount',
+  ],
+  properties: {
+    averageResponseSeconds: { type: 'number', nullable: true },
+    responseSampleCount: { type: 'integer', minimum: 0 },
+    averageCompletionSeconds: { type: 'number', nullable: true },
+    completionSampleCount: { type: 'integer', minimum: 0 },
+    averageFeedbackScore: { type: 'number', nullable: true },
+    feedbackSampleCount: { type: 'integer', minimum: 0 },
+  },
+};
 const metadata = {
+  organizationControls,
   scopeMode: { type: 'string', enum: ['OWN', 'PARENT', 'GLOBAL'] },
   allowedScopeModes: {
     type: 'array',
@@ -78,6 +122,7 @@ export const dashboardSchemas = {
     required: [
       ...Object.keys(metadata).filter((k) => k !== 'organization'),
       'total',
+      'performance',
       'status',
       'severity',
       'category',
@@ -94,6 +139,7 @@ export const dashboardSchemas = {
     properties: {
       ...metadata,
       organization: buckets,
+      performance,
       total: { type: 'integer' },
       status: buckets,
       severity: buckets,

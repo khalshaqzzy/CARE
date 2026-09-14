@@ -17027,6 +17027,7 @@
       "DashboardMetadata": {
         "type": "object",
         "required": [
+          "organizationControls",
           "scopeMode",
           "allowedScopeModes",
           "basis",
@@ -17041,6 +17042,56 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "organizationControls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "visible",
+                "options"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "enum": [
+                    "directorate",
+                    "division",
+                    "department",
+                    "section"
+                  ]
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "value",
+                      "label",
+                      "query"
+                    ],
+                    "properties": {
+                      "value": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "query": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "scopeMode": {
             "type": "string",
             "enum": [
@@ -17261,6 +17312,7 @@
       "DashboardView": {
         "type": "object",
         "required": [
+          "organizationControls",
           "scopeMode",
           "allowedScopeModes",
           "basis",
@@ -17272,6 +17324,7 @@
           "categories",
           "scopeLabel",
           "total",
+          "performance",
           "status",
           "severity",
           "category",
@@ -17286,6 +17339,56 @@
         ],
         "additionalProperties": false,
         "properties": {
+          "organizationControls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "visible",
+                "options"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "enum": [
+                    "directorate",
+                    "division",
+                    "department",
+                    "section"
+                  ]
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "value",
+                      "label",
+                      "query"
+                    ],
+                    "properties": {
+                      "value": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "query": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "scopeMode": {
             "type": "string",
             "enum": [
@@ -17428,6 +17531,44 @@
           },
           "scopeLabel": {
             "type": "string"
+          },
+          "performance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "averageResponseSeconds",
+              "responseSampleCount",
+              "averageCompletionSeconds",
+              "completionSampleCount",
+              "averageFeedbackScore",
+              "feedbackSampleCount"
+            ],
+            "properties": {
+              "averageResponseSeconds": {
+                "type": "number",
+                "nullable": true
+              },
+              "responseSampleCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "averageCompletionSeconds": {
+                "type": "number",
+                "nullable": true
+              },
+              "completionSampleCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "averageFeedbackScore": {
+                "type": "number",
+                "nullable": true
+              },
+              "feedbackSampleCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
           },
           "total": {
             "type": "integer"

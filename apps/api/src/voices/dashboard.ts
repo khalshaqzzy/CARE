@@ -366,6 +366,58 @@ export class OrganizationDashboard {
             orderBy: { key: 'asc' },
           })
         : [];
+    // Targets replace organization state atomically; they never grant additional scope.
+    const organizationControls = levels.map((name, index) => {
+      const boundary =
+        !global &&
+        (leader ? name === 'division' : manager ? name === 'department' : name === 'section');
+      const ancestor = !global && (leader ? index < 1 : manager ? index < 2 : index < 3);
+      const canClear = !ancestor;
+      const target = (value?: string) => {
+        const query: Record<string, string> = { scopeMode, level };
+        levels.slice(0, index).forEach((parent) => {
+          if (selections[parent]) query[parent] = selections[parent]!;
+        });
+        if (value) query[name] = value;
+        if (boundary) {
+          levels.forEach((key) => delete query[key]);
+          query.scopeMode = value ? 'OWN' : leader ? 'GLOBAL' : 'PARENT';
+          query.level = leader
+            ? value
+              ? 'department'
+              : 'division'
+            : manager
+              ? value
+                ? 'section'
+                : 'department'
+              : 'section';
+          if (value) query[name] = value;
+        } else if (value && !global && manager) {
+          query.scopeMode = 'OWN';
+          query.level = 'section';
+        } else if (value && !global && leader) {
+          query.scopeMode = 'OWN';
+          query.level = 'department';
+        }
+        return query;
+      };
+      const labels = {
+        directorate: 'direktorat',
+        division: 'division',
+        department: 'department',
+        section: 'section',
+      };
+      return {
+        name,
+        visible:
+          !privateView &&
+          (boundary || (options[name].length > 0 && (canClear || options[name].length > 1))),
+        options: [
+          ...(canClear ? [{ value: '', label: `Semua ${labels[name]}`, query: target() }] : []),
+          ...options[name].map((o) => ({ value: o.id, label: o.label, query: target(o.id) })),
+        ],
+      };
+    });
     return {
       q,
       where,
@@ -375,6 +427,7 @@ export class OrganizationDashboard {
       level,
       metadata: {
         scopeMode,
+        organizationControls: privateView ? [] : organizationControls,
         allowedScopeModes,
         basis: q.basis,
         visibility: q.visibility,
@@ -433,6 +486,51 @@ export class OrganizationDashboard {
           count(*) FILTER (WHERE v."handlingOrganizationSource" = 'UNKNOWN') AS missing
         FROM "Voice" v WHERE ${sql}`)
     )[0]!;
+    // Keep each sample relation independent: joining events, cycles and ratings
+    // directly would multiply observations for voices with repeated closures.
+    const performanceRow = (
+      await this.db.$queryRaw<
+        Array<{
+          averageResponseSeconds: number | null;
+          responseSampleCount: bigint;
+          averageCompletionSeconds: number | null;
+          completionSampleCount: bigint;
+          averageFeedbackScore: number | null;
+          feedbackSampleCount: bigint;
+        }>
+      >(Prisma.sql`
+      WITH cohort AS MATERIALIZED (SELECT v.id, v."submittedAt" FROM "Voice" v WHERE ${sql}),
+      responses AS (
+        SELECT EXTRACT(EPOCH FROM (min(e."occurredAt") - v."submittedAt")) AS seconds
+        FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type = 'MONITORED'
+        GROUP BY v.id, v."submittedAt"
+      ), cycles AS (
+        SELECT c."closedAt", CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
+          WHEN lag(c."cycleNumber") OVER w = c."cycleNumber" - 1
+          THEN lag(c."reopenedAt") OVER w END AS started
+        FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
+        WINDOW w AS (PARTITION BY c."voiceId" ORDER BY c."cycleNumber")
+      ), completions AS (
+        SELECT EXTRACT(EPOCH FROM ("closedAt" - started)) AS seconds FROM cycles
+      ), feedback AS (
+        SELECT r.score FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
+        JOIN "Rating" r ON r."closureCycleId" = c.id
+      )
+      SELECT
+        (SELECT avg(seconds)::float8 FROM responses WHERE seconds >= 0) AS "averageResponseSeconds",
+        (SELECT count(*) FROM responses WHERE seconds >= 0) AS "responseSampleCount",
+        (SELECT avg(seconds)::float8 FROM completions WHERE seconds >= 0) AS "averageCompletionSeconds",
+        (SELECT count(*) FROM completions WHERE seconds >= 0) AS "completionSampleCount",
+        (SELECT avg(score)::float8 FROM feedback) AS "averageFeedbackScore",
+        (SELECT count(*) FROM feedback) AS "feedbackSampleCount"
+    `)
+    )[0]!;
+    const performance = {
+      ...performanceRow,
+      responseSampleCount: Number(performanceRow.responseSampleCount),
+      completionSampleCount: Number(performanceRow.completionSampleCount),
+      feedbackSampleCount: Number(performanceRow.feedbackSampleCount),
+    };
     const total = Number(summary.total);
     const orgN = levels.indexOf(level) + 1;
     const groupExpr =
@@ -549,6 +647,7 @@ export class OrganizationDashboard {
     return {
       ...c.metadata,
       total,
+      performance,
       status: get('status'),
       severity: get('severity'),
       category,

@@ -69,6 +69,7 @@ export function dashboardFixture(
       : {};
   const metadata: Metadata = {
     scopeMode,
+    organizationControls: [],
     allowedScopeModes: isPrivate
       ? ['OWN']
       : global
@@ -129,6 +130,60 @@ export function dashboardFixture(
         ].map(([id, label]) => ({ id: id!, label: label! })),
     scopeLabel: '',
   };
+  const levels = ['directorate', 'division', 'department', 'section'] as const;
+  metadata.organizationControls = levels.map((name, index) => {
+    const boundary =
+      !global &&
+      (leader ? name === 'division' : sectionOnly ? name === 'section' : name === 'department');
+    const ancestor = !global && index < (leader ? 1 : sectionOnly ? 3 : 2);
+    const target = (value?: string) => {
+      const query: Record<string, string> = { scopeMode, level };
+      levels.slice(0, index).forEach((parent) => {
+        if (metadata.selected[parent]) query[parent] = metadata.selected[parent]!;
+      });
+      if (value) query[name] = value;
+      if (boundary) {
+        levels.forEach((key) => delete query[key]);
+        query.scopeMode = value ? 'OWN' : leader ? 'GLOBAL' : 'PARENT';
+        query.level = leader
+          ? value
+            ? 'department'
+            : 'division'
+          : sectionOnly
+            ? 'section'
+            : value
+              ? 'section'
+              : 'department';
+        if (value) query[name] = value;
+      }
+      return query;
+    };
+    return {
+      name,
+      visible:
+        !isPrivate &&
+        (boundary ||
+          (metadata.organization[name].length > 0 &&
+            (!ancestor || metadata.organization[name].length > 1))),
+      options: [
+        ...(!ancestor
+          ? [
+              {
+                value: '',
+                label: `Semua ${name === 'directorate' ? 'direktorat' : name}`,
+                query: target(),
+              },
+            ]
+          : []),
+        ...metadata.organization[name].map((o) => ({
+          value: o.id,
+          label: o.label,
+          query: target(o.id),
+        })),
+      ],
+    };
+  });
+  if (isPrivate) metadata.organizationControls = [];
   metadata.scopeLabel = isPrivate
     ? caps.includes('UNION_HEAD')
       ? 'Seluruh Private Voice'
@@ -153,6 +208,14 @@ export function dashboardFixture(
   const view: View = {
     ...metadata,
     total,
+    performance: {
+      averageResponseSeconds: total ? 14400 : null,
+      responseSampleCount: total ? 2 : 0,
+      averageCompletionSeconds: total ? 25200 : null,
+      completionSampleCount: total ? 2 : 0,
+      averageFeedbackScore: total ? 3.5 : null,
+      feedbackSampleCount: total ? 2 : 0,
+    },
     status: old?.status ?? [
       { label: 'OPEN', value: total - 6 },
       { label: 'MONITORED', value: 0 },
@@ -203,7 +266,10 @@ export function dashboardFixture(
               { id: orgKey('Other', 'Other Division'), label: 'Other Division', value: total - 17 },
             ],
     area: old?.area ?? [{ label: 'SUNTER_1', value: total }],
-    previousTotal: old?.previousTotal ?? 39,
+    previousTotal:
+      url.searchParams.has('from') && url.searchParams.has('to')
+        ? (old?.previousTotal ?? 39)
+        : null,
     trendGrain: 'day',
     ...(isPrivate && caps.includes('UNION_HEAD')
       ? { pendingAssignment: old?.pendingAssignment ?? 3 }
