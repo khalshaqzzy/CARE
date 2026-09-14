@@ -1,5 +1,13 @@
 # CARE Session Handoff
 
+## Fix PR #45 hosted dashboard performance — 14 September 2026
+
+The user requested inspection and repair of failing CI, superseding the earlier no-monitor instruction for this repair. Run 34795987639 failed only API performance (4,734 ms p95 > 3,000 ms); Release candidate gate failed as a consequence. Other application/security/container/browser jobs passed.
+
+Root cause: enum-to-text predicates hid planner statistics (global cohort estimated 250 vs actual 50,000), compounded by repeated sample materialization/scans and 25,000 rating index lookups. The fix keeps enum columns typed with parameterized enum values, aggregates response average/count together, and uses existing unique constraints to join exact predecessor cycles and optional ratings without multiplying samples. Completion and feedback use independent aggregate predicates, preserving unrated closures and rated cycles with incomplete timestamps. No API/schema/UI/permission or performance-test threshold changes.
+
+Changed: dashboard SQL, SQL contract tests, organization-dashboard integration regression, ADR-0042, roadmap and this handoff. Local EXPLAIN global KPI: 69.95 → 41.16 ms and 79,187 → 4,472 shared-buffer hits; scoped KPI: 21.18 → 12.54 ms and 90,278 → 3,790 hits. Initial full endpoint performance rerun: 515 ms p95 on the same 50k-Voice / 50-concurrent fixture. Shared final static/build checks passed, including OpenAPI stability, typecheck, unit tests, validation orchestration and PWA compatibility. Integration passed 96/96 plus security 14/14. Shared performance and reconciliation passed with the full fixture. Hosted acceptance will be checked after pushing the fix; no merge/deployment is authorized.
+
 ## Dashboard PR delivery — 14 September 2026
 
 Delivery is authorized on `feat/dashboard-improvements`, with a pull request to `staging` and explicitly no hosted CI monitoring. The branch starts at the fetched staging HEAD `d544f6fe`; no unrelated commits are included. Existing task validation evidence below remains applicable; no application changes were made during delivery preparation. Directory Gitleaks v8.24.3 found no leaks. The committed candidate must pass the same image’s last-commit scan before push. Native reviewed references are included under ADR-0047; CI-generated screenshots are not committed. No merge or deployment is authorized or claimed.

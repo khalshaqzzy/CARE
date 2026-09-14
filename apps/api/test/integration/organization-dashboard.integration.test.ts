@@ -285,6 +285,53 @@ describe('Organization dashboard scope, privacy and filtering', () => {
     ).toEqual(own.performance);
     expect((await dashboard.aggregate(manager, common)).performance.responseSampleCount).toBe(0);
   });
+
+  it('counts unrated completions and ratings with incomplete cycle history independently', async () => {
+    const voice = await seed();
+    const other = await seed();
+    const at = (hours: number) => new Date(voice.submittedAt.getTime() + hours * 3600000);
+    await db.closureCycle.create({
+      data: {
+        voiceId: voice.id,
+        cycleNumber: 1,
+        actorId: manager.accountId,
+        note: 'Unrated',
+        closedAt: at(10),
+        reopenedAt: at(12),
+      },
+    });
+    const gap = await db.closureCycle.create({
+      data: {
+        voiceId: voice.id,
+        cycleNumber: 3,
+        actorId: manager.accountId,
+        note: 'Missing preceding cycle',
+        closedAt: at(20),
+      },
+    });
+    // A matching cycle number on another Voice must never supply its timestamp.
+    await db.closureCycle.create({
+      data: {
+        voiceId: other.id,
+        cycleNumber: 2,
+        actorId: manager.accountId,
+        note: 'Other Voice',
+        closedAt: at(14),
+        reopenedAt: at(16),
+      },
+    });
+    await db.rating.create({
+      data: { closureCycleId: gap.id, reporterId: reporter.accountId, score: 2 },
+    });
+    expect((await dashboard.aggregate(manager, common)).performance).toEqual({
+      averageResponseSeconds: null,
+      responseSampleCount: 0,
+      averageCompletionSeconds: 36000,
+      completionSampleCount: 1,
+      averageFeedbackScore: 2,
+      feedbackSampleCount: 1,
+    });
+  });
   it('exposes actionable organization controls and restores own scope through server targets', async () => {
     await seed();
     await seed({ handlingDepartmentSnapshot: b.department, handlingOrganizationUnitId: b.id });

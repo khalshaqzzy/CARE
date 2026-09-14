@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Dashboard KPI hosted-performance correction — 14 September 2026
+
+PR #45's hosted performance gate measured 4,734 ms p95 against the unchanged 3,000 ms target. Scalar enum predicates now preserve PostgreSQL statistics; response average/count share one aggregate, and exact predecessor/optional rating joins remove repeated closure scans and window sorting. Sample semantics, authorization, fixture size, concurrency and transaction settings remain unchanged. Local EXPLAIN global KPI time improved from 69.95 to 41.16 ms; the initial endpoint benchmark passed at 515 ms p95. Focused regression coverage and shared integration/static/build/performance validation accompany this fix. Current release phase remains unchanged; exact delivery and hosted evidence are maintained in sessionHandoff.md and ADR-0042.
+
 ## Dashboard performance and actionable organization filters — 14 September 2026
 
 Implemented dashboard response time (first MONITORED event per Voice), completion time (each completed closure cycle, starting at submit or the previous cycle’s reopen), and performance (all ratings, including reopen feedback). All samples follow the selected Voice cohort and its submit-date range, current status, organization basis and Private handler scope. Missing/negative durations are excluded; zero is valid. Empty averages are null with zero sample counts. Aggregate SQL keeps response, completion and rating samples independent within the existing REPEATABLE READ transaction; no schema migration or history backfill is required.

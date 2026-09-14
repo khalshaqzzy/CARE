@@ -103,7 +103,22 @@ export function dashboardSql(where: Prisma.VoiceWhereInput): Prisma.Sql {
           ? Prisma.sql`${column(key)}::text IN (${Prisma.join(values)})`
           : Prisma.sql`FALSE`,
       );
-    } else result.push(Prisma.sql`${column(key)}::text = ${String(value)}`);
+    } else {
+      // Preserve enum statistics: casting the indexed column to text makes
+      // PostgreSQL estimate even a global cohort at 0.5% of its actual size.
+      const enumTypes: Record<string, string> = {
+        visibility: 'VoiceVisibility',
+        status: 'VoiceStatus',
+        severity: 'Severity',
+        area: 'Area',
+      };
+      const enumType = enumTypes[key];
+      result.push(
+        enumType
+          ? Prisma.sql`${column(key)} = ${String(value)}::${Prisma.raw('"' + enumType + '"')}`
+          : Prisma.sql`${column(key)}::text = ${String(value)}`,
+      );
+    }
   }
   return result.length ? Prisma.join(result, ' AND ') : Prisma.sql`TRUE`;
 }
@@ -486,8 +501,9 @@ export class OrganizationDashboard {
           count(*) FILTER (WHERE v."handlingOrganizationSource" = 'UNKNOWN') AS missing
         FROM "Voice" v WHERE ${sql}`)
     )[0]!;
-    // Keep each sample relation independent: joining events, cycles and ratings
-    // directly would multiply observations for voices with repeated closures.
+    // Aggregate response samples separately. The closure predecessor and rating
+    // joins are at most one-to-one under their unique constraints, so unrated
+    // closures and ratings with incomplete timestamps keep independent counts.
     const performanceRow = (
       await this.db.$queryRaw<
         Array<{
@@ -505,24 +521,23 @@ export class OrganizationDashboard {
         FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type = 'MONITORED'
         GROUP BY v.id, v."submittedAt"
       ), cycles AS (
-        SELECT c."closedAt", CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
-          WHEN lag(c."cycleNumber") OVER w = c."cycleNumber" - 1
-          THEN lag(c."reopenedAt") OVER w END AS started
+        SELECT c.id, c."closedAt", CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
+          ELSE previous."reopenedAt" END AS started
         FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
-        WINDOW w AS (PARTITION BY c."voiceId" ORDER BY c."cycleNumber")
-      ), completions AS (
-        SELECT EXTRACT(EPOCH FROM ("closedAt" - started)) AS seconds FROM cycles
-      ), feedback AS (
-        SELECT r.score FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
-        JOIN "Rating" r ON r."closureCycleId" = c.id
+        LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
+          AND previous."cycleNumber" = c."cycleNumber" - 1
       )
-      SELECT
-        (SELECT avg(seconds)::float8 FROM responses WHERE seconds >= 0) AS "averageResponseSeconds",
-        (SELECT count(*) FROM responses WHERE seconds >= 0) AS "responseSampleCount",
-        (SELECT avg(seconds)::float8 FROM completions WHERE seconds >= 0) AS "averageCompletionSeconds",
-        (SELECT count(*) FROM completions WHERE seconds >= 0) AS "completionSampleCount",
-        (SELECT avg(score)::float8 FROM feedback) AS "averageFeedbackScore",
-        (SELECT count(*) FROM feedback) AS "feedbackSampleCount"
+      SELECT response.*, completion.* FROM (
+        SELECT avg(seconds)::float8 AS "averageResponseSeconds", count(*) AS "responseSampleCount"
+        FROM responses WHERE seconds >= 0
+      ) response CROSS JOIN (
+        SELECT
+          avg(EXTRACT(EPOCH FROM (c."closedAt" - c.started)))
+            FILTER (WHERE c."closedAt" >= c.started)::float8 AS "averageCompletionSeconds",
+          count(*) FILTER (WHERE c."closedAt" >= c.started) AS "completionSampleCount",
+          avg(r.score)::float8 AS "averageFeedbackScore", count(r.score) AS "feedbackSampleCount"
+        FROM cycles c LEFT JOIN "Rating" r ON r."closureCycleId" = c.id
+      ) completion
     `)
     )[0]!;
     const performance = {

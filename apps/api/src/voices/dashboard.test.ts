@@ -24,4 +24,17 @@ describe('Dashboard query contract', () => {
     expect(sql.text).not.toContain(payload);
     expect(sql.values).toContain(payload);
   });
+  it('keeps enum predicates typed and values parameterized for planner statistics', () => {
+    const sql = dashboardSql({
+      visibility: 'GENERAL',
+      status: 'CLOSED',
+      severity: 'HIGH',
+      area: 'SUNTER_1',
+    });
+    expect(sql.text).toContain('v."visibility" = $1::"VoiceVisibility"');
+    expect(sql.text).toContain('v."status" = $2::"VoiceStatus"');
+    expect(sql.text).toContain('v."severity" = $3::"Severity"');
+    expect(sql.text).toContain('v."area" = $4::"Area"');
+    expect(sql.values).toEqual(['GENERAL', 'CLOSED', 'HIGH', 'SUNTER_1']);
+  });
 });
