@@ -159,6 +159,10 @@ async function main() {
     await prisma.$executeRaw`INSERT INTO "Conversation" ("id", "voiceId", "createdAt")
       SELECT gen_random_uuid(), "id", "updatedAt" FROM "Voice"
       WHERE "status" IN ('IN_PROGRESS', 'CLOSED') ON CONFLICT ("voiceId") DO NOTHING`;
+    // A fresh CI database has no distribution statistics immediately after this
+    // bulk load. Do not race the asynchronous autoanalyze worker during timing.
+    // This collects planner statistics; it does not run or cache dashboard queries.
+    await prisma.$executeRaw`ANALYZE "Voice", "VoiceEvent", "ClosureCycle", "Rating"`;
     process.stdout.write(
       `Performance fixture contains ${voiceCount} requested Voices and ${accountCount} accounts\n`,
     );

@@ -493,20 +493,16 @@ export class OrganizationDashboard {
     const c = await this.context(actor, input);
     const { q, where, col, level } = c;
     const sql = dashboardSql(where);
-    const summary = (
-      await this.db.$queryRaw<
-        Array<{ total: bigint; first: Date | null; last: Date | null; missing: bigint }>
-      >(Prisma.sql`
-        SELECT count(*) AS total, min(v."submittedAt") AS first, max(v."submittedAt") AS last,
-          count(*) FILTER (WHERE v."handlingOrganizationSource" = 'UNKNOWN') AS missing
-        FROM "Voice" v WHERE ${sql}`)
-    )[0]!;
     // Aggregate response samples separately. The closure predecessor and rating
     // joins are at most one-to-one under their unique constraints, so unrated
     // closures and ratings with incomplete timestamps keep independent counts.
     const performanceRow = (
       await this.db.$queryRaw<
         Array<{
+          total: bigint;
+          first: Date | null;
+          last: Date | null;
+          missing: bigint;
           averageResponseSeconds: number | null;
           responseSampleCount: bigint;
           averageCompletionSeconds: number | null;
@@ -515,9 +511,9 @@ export class OrganizationDashboard {
           feedbackSampleCount: bigint;
         }>
       >(Prisma.sql`
-      WITH cohort AS MATERIALIZED (SELECT v.id, v."submittedAt" FROM "Voice" v WHERE ${sql}),
+      WITH cohort AS MATERIALIZED (SELECT v.id, v."submittedAt", v."handlingOrganizationSource" FROM "Voice" v WHERE ${sql}),
       responses AS (
-        SELECT EXTRACT(EPOCH FROM (min(e."occurredAt") - v."submittedAt")) AS seconds
+        SELECT min(e."occurredAt") AS monitored, v."submittedAt" AS submitted
         FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type = 'MONITORED'
         GROUP BY v.id, v."submittedAt"
       ), cycles AS (
@@ -527,39 +523,50 @@ export class OrganizationDashboard {
         LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
           AND previous."cycleNumber" = c."cycleNumber" - 1
       )
-      SELECT response.*, completion.* FROM (
-        SELECT avg(seconds)::float8 AS "averageResponseSeconds", count(*) AS "responseSampleCount"
-        FROM responses WHERE seconds >= 0
+      SELECT summary.*, response.*, completion.* FROM (
+        SELECT count(*) AS total, min("submittedAt") AS first, max("submittedAt") AS last,
+          count(*) FILTER (WHERE "handlingOrganizationSource" = 'UNKNOWN') AS missing FROM cohort
+      ) summary CROSS JOIN (
+        SELECT EXTRACT(EPOCH FROM sum(monitored - submitted))::float8 / NULLIF(count(*), 0) AS "averageResponseSeconds", count(*) AS "responseSampleCount"
+        FROM responses WHERE monitored >= submitted
       ) response CROSS JOIN (
         SELECT
-          avg(EXTRACT(EPOCH FROM (c."closedAt" - c.started)))
-            FILTER (WHERE c."closedAt" >= c.started)::float8 AS "averageCompletionSeconds",
+          EXTRACT(EPOCH FROM (sum(c."closedAt" - c.started)
+            FILTER (WHERE c."closedAt" >= c.started)))::float8 /
+            NULLIF(count(*) FILTER (WHERE c."closedAt" >= c.started), 0) AS "averageCompletionSeconds",
           count(*) FILTER (WHERE c."closedAt" >= c.started) AS "completionSampleCount",
           avg(r.score)::float8 AS "averageFeedbackScore", count(r.score) AS "feedbackSampleCount"
         FROM cycles c LEFT JOIN "Rating" r ON r."closureCycleId" = c.id
       ) completion
     `)
     )[0]!;
+    const summary = performanceRow;
     const performance = {
-      ...performanceRow,
+      averageResponseSeconds: performanceRow.averageResponseSeconds,
+      averageCompletionSeconds: performanceRow.averageCompletionSeconds,
+      averageFeedbackScore: performanceRow.averageFeedbackScore,
       responseSampleCount: Number(performanceRow.responseSampleCount),
       completionSampleCount: Number(performanceRow.completionSampleCount),
       feedbackSampleCount: Number(performanceRow.feedbackSampleCount),
     };
     const total = Number(summary.total);
     const orgN = levels.indexOf(level) + 1;
+    // Group native scalar keys first; serialize one label per resulting bucket,
+    // rather than allocating and hashing a JSON string for every Voice.
+    const orgColumns =
+      q.visibility === 'PRIVATE'
+        ? [Prisma.sql`v."currentHandlerId"`]
+        : col
+            .slice(0, orgN)
+            .map((name, i) =>
+              i === 3 && q.basis === 'HANDLING'
+                ? Prisma.sql`COALESCE(v."handlingSectionSnapshot", CASE WHEN v."handlerType" = 'SECTION_HEAD' THEN '__UNKNOWN_SECTION__' END)`
+                : column(name),
+            );
     const groupExpr =
       q.visibility === 'PRIVATE'
         ? Prisma.sql`v."currentHandlerId"::text`
-        : Prisma.sql`jsonb_build_array(${Prisma.join(
-            col
-              .slice(0, orgN)
-              .map((name, i) =>
-                i === 3 && q.basis === 'HANDLING'
-                  ? Prisma.sql`COALESCE(v."handlingSectionSnapshot", CASE WHEN v."handlerType" = 'SECTION_HEAD' THEN '__UNKNOWN_SECTION__' END)`
-                  : column(name),
-              ),
-          )})::text`;
+        : Prisma.sql`jsonb_build_array(${Prisma.join(orgColumns)})::text`;
     const metrics = await this.db.$queryRaw<
       Array<{ kind: string; label: string | null; value: bigint }>
     >(Prisma.sql`
@@ -568,17 +575,22 @@ export class OrganizationDashboard {
           WHEN GROUPING(v.status) = 0 THEN 'status'
           WHEN GROUPING(v.severity) = 0 THEN 'severity'
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN 'category'
-          WHEN GROUPING(${groupExpr}) = 0 THEN 'organization'
+          WHEN GROUPING(${orgColumns[0]!}) = 0 THEN 'organization'
           ELSE 'area'
         END AS kind,
-        COALESCE(v.status::text, v.severity::text,
-          COALESCE(v."currentCategoryKey", v."categoryKey"), ${groupExpr}, v.area::text) AS label,
+        CASE
+          WHEN GROUPING(v.status) = 0 THEN v.status::text
+          WHEN GROUPING(v.severity) = 0 THEN v.severity::text
+          WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN COALESCE(v."currentCategoryKey", v."categoryKey")
+          WHEN GROUPING(${orgColumns[0]!}) = 0 THEN ${groupExpr}
+          ELSE v.area::text
+        END AS label,
         count(*) AS value
       FROM "Voice" v WHERE ${sql}
       GROUP BY GROUPING SETS (
         (v.status), (v.severity),
         (COALESCE(v."currentCategoryKey", v."categoryKey")),
-        (${groupExpr}), (v.area)
+        (${Prisma.join(orgColumns)}), (v.area)
       )`);
     const get = (kind: string): DashboardBucket[] =>
       count(metrics.filter((m) => m.kind === kind))

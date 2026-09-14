@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Fresh-database dashboard performance correction — 14 September 2026
+
+The first correction still failed hosted performance at 3,996 ms. Fresh x64 PostgreSQL reproduced 3,602 ms with missing bulk-load statistics; ANALYZE alone reduced the same dataset/code to 2,965 ms. Seed now explicitly analyzes the four KPI relations, and the benchmark validates/logs statistics outside timing. Application SQL also reuses the KPI cohort for summary, groups scalar organization keys before JSON serialization, and converts summed intervals once while preserving fractional means. Final two-CPU x64 reproduction passed at 2,464 ms p95. No fixture/threshold/concurrency/pool/isolation change; the release phase is unchanged. See ADR-0042 and sessionHandoff.md for final shared and hosted evidence.
+
 ## Dashboard KPI hosted-performance correction — 14 September 2026
 
 PR #45's hosted performance gate measured 4,734 ms p95 against the unchanged 3,000 ms target. Scalar enum predicates now preserve PostgreSQL statistics; response average/count share one aggregate, and exact predecessor/optional rating joins remove repeated closure scans and window sorting. Sample semantics, authorization, fixture size, concurrency and transaction settings remain unchanged. Local EXPLAIN global KPI time improved from 69.95 to 41.16 ms; the initial endpoint benchmark passed at 515 ms p95. Focused regression coverage and shared integration/static/build/performance validation accompany this fix. Current release phase remains unchanged; exact delivery and hosted evidence are maintained in sessionHandoff.md and ADR-0042.

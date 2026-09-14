@@ -332,6 +332,43 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       feedbackSampleCount: 1,
     });
   });
+  it('preserves fractional-second means and keeps summary fields out of the KPI contract', async () => {
+    for (const milliseconds of [1, 0, 0]) {
+      const voice = await seed({ status: 'CLOSED' });
+      const occurredAt = new Date(voice.submittedAt.getTime() + milliseconds);
+      await db.voiceEvent.create({
+        data: {
+          voiceId: voice.id,
+          type: 'MONITORED',
+          actorId: manager.accountId,
+          actorAccountKind: 'WORKFORCE',
+          actorCapabilities: ['MANAGER'],
+          payload: {},
+          occurredAt,
+        },
+      });
+      await db.closureCycle.create({
+        data: {
+          voiceId: voice.id,
+          actorId: manager.accountId,
+          cycleNumber: 1,
+          note: 'Fractional sample',
+          closedAt: occurredAt,
+        },
+      });
+    }
+    const result = await dashboard.aggregate(manager, common);
+    expect(result.total).toBe(3);
+    expect(result.performance).toEqual({
+      averageResponseSeconds: 0.001 / 3,
+      responseSampleCount: 3,
+      averageCompletionSeconds: 0.001 / 3,
+      completionSampleCount: 3,
+      averageFeedbackScore: null,
+      feedbackSampleCount: 0,
+    });
+    expect(() => JSON.stringify(result)).not.toThrow();
+  });
   it('exposes actionable organization controls and restores own scope through server targets', async () => {
     await seed();
     await seed({ handlingDepartmentSnapshot: b.department, handlingOrganizationUnitId: b.id });

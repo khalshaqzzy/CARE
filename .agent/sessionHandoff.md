@@ -1,5 +1,17 @@
 # CARE Session Handoff
 
+## Fresh-database KPI benchmark and aggregation — 14 September 2026
+
+Run 34796799314 still failed performance at 3,996 ms p95 after the first SQL refinement; every other required job passed. The earlier 607 ms native result did not reproduce a newly loaded x64 CI database and was insufficient acceptance evidence.
+
+An isolated Linux x64 reproduction used Node 22.23.2, pnpm 11.8.0 and the exact PostgreSQL 16 image digest from CI, with application and database restricted to the same two CPUs. On a freshly created database, the previously pushed code failed at 3,602 ms p95. EXPLAIN estimated 14 global Voice rows versus 50,000 actual rows, and one scoped row versus 12,500, because bulk seed had not collected statistics. The response plan sorted 37,500 samples and the closure path made 25,000 predecessor and rating probes. Autoanalyze timing differed between runs/tables. Explicit ANALYZE on the same data and code reduced p95 to 2,965 ms. This isolates missing statistics as a remaining cause, not merely hardware speed.
+
+The performance seed now explicitly analyzes Voice, VoiceEvent, ClosureCycle and Rating after bulk insertion, before timing. The benchmark asserts that these tables have statistics and logs estimated row counts, architecture and CPU availability. The 50,000-Voice fixture, 150 requests, 50 concurrency, threshold and all measured requests are unchanged. No dashboard warm-up query, retry, query cache, test skip, production planner setting or pool-size change is introduced. PostgreSQL recommends collecting statistics after bulk load: https://www.postgresql.org/docs/16/populate.html#POPULATE-ANALYZE.
+
+Application queries also do less work: total/date bounds/unresolved count reuse the narrow KPI cohort instead of scanning Voice again; organization dimensions group native columns before serializing bucket labels; duration sums use PostgreSQL intervals with a single seconds conversion and division after aggregation. This preserves sub-microsecond means rather than truncating with AVG(interval). Empty denominators remain null, unrated completions and invalid-history feedback remain independent, and the existing repeatable-read snapshot is retained. A new integration test verifies 1 ms / 3 sample precision and the exact six-field KPI contract.
+
+The final x64 SQL measured 2,464 ms p95 with the default Prisma pool; the original fresh-database failure was 3,602 ms. These are an emulated x64 reproduction, not a claim of hosted parity. An additional five-connection diagnostic was exploratory only and is not used as acceptance evidence or shipped configuration. Final shared static/build checks passed (unit suites, lint/format, orchestration/provider smoke, OpenAPI stability, typecheck and PWA compatibility). Integration passed 97/97, security 14/14, fullstack 6/6, and native performance/reconciliation passed at 446 ms p95. Directory Gitleaks found no leaks. The x64 reproduction containers were removed; Docker/Playwright session runtimes are stopped before delivery. Hosted validation will be checked on the pushed candidate. No UI, API contract, schema migration, authorization, merge or deployment change is included.
+
 ## Fix PR #45 hosted dashboard performance — 14 September 2026
 
 The user requested inspection and repair of failing CI, superseding the earlier no-monitor instruction for this repair. Run 34795987639 failed only API performance (4,734 ms p95 > 3,000 ms); Release candidate gate failed as a consequence. Other application/security/container/browser jobs passed.
