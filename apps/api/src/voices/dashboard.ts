@@ -103,7 +103,22 @@ export function dashboardSql(where: Prisma.VoiceWhereInput): Prisma.Sql {
           ? Prisma.sql`${column(key)}::text IN (${Prisma.join(values)})`
           : Prisma.sql`FALSE`,
       );
-    } else result.push(Prisma.sql`${column(key)}::text = ${String(value)}`);
+    } else {
+      // Preserve enum statistics: casting the indexed column to text makes
+      // PostgreSQL estimate even a global cohort at 0.5% of its actual size.
+      const enumTypes: Record<string, string> = {
+        visibility: 'VoiceVisibility',
+        status: 'VoiceStatus',
+        severity: 'Severity',
+        area: 'Area',
+      };
+      const enumType = enumTypes[key];
+      result.push(
+        enumType
+          ? Prisma.sql`${column(key)} = ${String(value)}::${Prisma.raw('"' + enumType + '"')}`
+          : Prisma.sql`${column(key)}::text = ${String(value)}`,
+      );
+    }
   }
   return result.length ? Prisma.join(result, ' AND ') : Prisma.sql`TRUE`;
 }
@@ -366,6 +381,58 @@ export class OrganizationDashboard {
             orderBy: { key: 'asc' },
           })
         : [];
+    // Targets replace organization state atomically; they never grant additional scope.
+    const organizationControls = levels.map((name, index) => {
+      const boundary =
+        !global &&
+        (leader ? name === 'division' : manager ? name === 'department' : name === 'section');
+      const ancestor = !global && (leader ? index < 1 : manager ? index < 2 : index < 3);
+      const canClear = !ancestor;
+      const target = (value?: string) => {
+        const query: Record<string, string> = { scopeMode, level };
+        levels.slice(0, index).forEach((parent) => {
+          if (selections[parent]) query[parent] = selections[parent]!;
+        });
+        if (value) query[name] = value;
+        if (boundary) {
+          levels.forEach((key) => delete query[key]);
+          query.scopeMode = value ? 'OWN' : leader ? 'GLOBAL' : 'PARENT';
+          query.level = leader
+            ? value
+              ? 'department'
+              : 'division'
+            : manager
+              ? value
+                ? 'section'
+                : 'department'
+              : 'section';
+          if (value) query[name] = value;
+        } else if (value && !global && manager) {
+          query.scopeMode = 'OWN';
+          query.level = 'section';
+        } else if (value && !global && leader) {
+          query.scopeMode = 'OWN';
+          query.level = 'department';
+        }
+        return query;
+      };
+      const labels = {
+        directorate: 'direktorat',
+        division: 'division',
+        department: 'department',
+        section: 'section',
+      };
+      return {
+        name,
+        visible:
+          !privateView &&
+          (boundary || (options[name].length > 0 && (canClear || options[name].length > 1))),
+        options: [
+          ...(canClear ? [{ value: '', label: `Semua ${labels[name]}`, query: target() }] : []),
+          ...options[name].map((o) => ({ value: o.id, label: o.label, query: target(o.id) })),
+        ],
+      };
+    });
     return {
       q,
       where,
@@ -375,6 +442,7 @@ export class OrganizationDashboard {
       level,
       metadata: {
         scopeMode,
+        organizationControls: privateView ? [] : organizationControls,
         allowedScopeModes,
         basis: q.basis,
         visibility: q.visibility,
@@ -425,28 +493,80 @@ export class OrganizationDashboard {
     const c = await this.context(actor, input);
     const { q, where, col, level } = c;
     const sql = dashboardSql(where);
-    const summary = (
+    // Aggregate response samples separately. The closure predecessor and rating
+    // joins are at most one-to-one under their unique constraints, so unrated
+    // closures and ratings with incomplete timestamps keep independent counts.
+    const performanceRow = (
       await this.db.$queryRaw<
-        Array<{ total: bigint; first: Date | null; last: Date | null; missing: bigint }>
+        Array<{
+          total: bigint;
+          first: Date | null;
+          last: Date | null;
+          missing: bigint;
+          averageResponseSeconds: number | null;
+          responseSampleCount: bigint;
+          averageCompletionSeconds: number | null;
+          completionSampleCount: bigint;
+          averageFeedbackScore: number | null;
+          feedbackSampleCount: bigint;
+        }>
       >(Prisma.sql`
-        SELECT count(*) AS total, min(v."submittedAt") AS first, max(v."submittedAt") AS last,
-          count(*) FILTER (WHERE v."handlingOrganizationSource" = 'UNKNOWN') AS missing
-        FROM "Voice" v WHERE ${sql}`)
+      WITH cohort AS MATERIALIZED (SELECT v.id, v."submittedAt", v."handlingOrganizationSource" FROM "Voice" v WHERE ${sql}),
+      responses AS (
+        SELECT min(e."occurredAt") AS monitored, v."submittedAt" AS submitted
+        FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type = 'MONITORED'
+        GROUP BY v.id, v."submittedAt"
+      ), cycles AS (
+        SELECT c.id, c."closedAt", CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
+          ELSE previous."reopenedAt" END AS started
+        FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
+        LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
+          AND previous."cycleNumber" = c."cycleNumber" - 1
+      )
+      SELECT summary.*, response.*, completion.* FROM (
+        SELECT count(*) AS total, min("submittedAt") AS first, max("submittedAt") AS last,
+          count(*) FILTER (WHERE "handlingOrganizationSource" = 'UNKNOWN') AS missing FROM cohort
+      ) summary CROSS JOIN (
+        SELECT EXTRACT(EPOCH FROM sum(monitored - submitted))::float8 / NULLIF(count(*), 0) AS "averageResponseSeconds", count(*) AS "responseSampleCount"
+        FROM responses WHERE monitored >= submitted
+      ) response CROSS JOIN (
+        SELECT
+          EXTRACT(EPOCH FROM (sum(c."closedAt" - c.started)
+            FILTER (WHERE c."closedAt" >= c.started)))::float8 /
+            NULLIF(count(*) FILTER (WHERE c."closedAt" >= c.started), 0) AS "averageCompletionSeconds",
+          count(*) FILTER (WHERE c."closedAt" >= c.started) AS "completionSampleCount",
+          avg(r.score)::float8 AS "averageFeedbackScore", count(r.score) AS "feedbackSampleCount"
+        FROM cycles c LEFT JOIN "Rating" r ON r."closureCycleId" = c.id
+      ) completion
+    `)
     )[0]!;
+    const summary = performanceRow;
+    const performance = {
+      averageResponseSeconds: performanceRow.averageResponseSeconds,
+      averageCompletionSeconds: performanceRow.averageCompletionSeconds,
+      averageFeedbackScore: performanceRow.averageFeedbackScore,
+      responseSampleCount: Number(performanceRow.responseSampleCount),
+      completionSampleCount: Number(performanceRow.completionSampleCount),
+      feedbackSampleCount: Number(performanceRow.feedbackSampleCount),
+    };
     const total = Number(summary.total);
     const orgN = levels.indexOf(level) + 1;
+    // Group native scalar keys first; serialize one label per resulting bucket,
+    // rather than allocating and hashing a JSON string for every Voice.
+    const orgColumns =
+      q.visibility === 'PRIVATE'
+        ? [Prisma.sql`v."currentHandlerId"`]
+        : col
+            .slice(0, orgN)
+            .map((name, i) =>
+              i === 3 && q.basis === 'HANDLING'
+                ? Prisma.sql`COALESCE(v."handlingSectionSnapshot", CASE WHEN v."handlerType" = 'SECTION_HEAD' THEN '__UNKNOWN_SECTION__' END)`
+                : column(name),
+            );
     const groupExpr =
       q.visibility === 'PRIVATE'
         ? Prisma.sql`v."currentHandlerId"::text`
-        : Prisma.sql`jsonb_build_array(${Prisma.join(
-            col
-              .slice(0, orgN)
-              .map((name, i) =>
-                i === 3 && q.basis === 'HANDLING'
-                  ? Prisma.sql`COALESCE(v."handlingSectionSnapshot", CASE WHEN v."handlerType" = 'SECTION_HEAD' THEN '__UNKNOWN_SECTION__' END)`
-                  : column(name),
-              ),
-          )})::text`;
+        : Prisma.sql`jsonb_build_array(${Prisma.join(orgColumns)})::text`;
     const metrics = await this.db.$queryRaw<
       Array<{ kind: string; label: string | null; value: bigint }>
     >(Prisma.sql`
@@ -455,17 +575,22 @@ export class OrganizationDashboard {
           WHEN GROUPING(v.status) = 0 THEN 'status'
           WHEN GROUPING(v.severity) = 0 THEN 'severity'
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN 'category'
-          WHEN GROUPING(${groupExpr}) = 0 THEN 'organization'
+          WHEN GROUPING(${orgColumns[0]!}) = 0 THEN 'organization'
           ELSE 'area'
         END AS kind,
-        COALESCE(v.status::text, v.severity::text,
-          COALESCE(v."currentCategoryKey", v."categoryKey"), ${groupExpr}, v.area::text) AS label,
+        CASE
+          WHEN GROUPING(v.status) = 0 THEN v.status::text
+          WHEN GROUPING(v.severity) = 0 THEN v.severity::text
+          WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN COALESCE(v."currentCategoryKey", v."categoryKey")
+          WHEN GROUPING(${orgColumns[0]!}) = 0 THEN ${groupExpr}
+          ELSE v.area::text
+        END AS label,
         count(*) AS value
       FROM "Voice" v WHERE ${sql}
       GROUP BY GROUPING SETS (
         (v.status), (v.severity),
         (COALESCE(v."currentCategoryKey", v."categoryKey")),
-        (${groupExpr}), (v.area)
+        (${Prisma.join(orgColumns)}), (v.area)
       )`);
     const get = (kind: string): DashboardBucket[] =>
       count(metrics.filter((m) => m.kind === kind))
@@ -549,6 +674,7 @@ export class OrganizationDashboard {
     return {
       ...c.metadata,
       total,
+      performance,
       status: get('status'),
       severity: get('severity'),
       category,

@@ -66,6 +66,14 @@ for (const width of [360, 768, 1440])
           });
         const { view } = dashboardFixture(session, url);
         if (scenario.id === 'empty') {
+          view.performance = {
+            averageResponseSeconds: null,
+            responseSampleCount: 0,
+            averageCompletionSeconds: null,
+            completionSampleCount: 0,
+            averageFeedbackScore: null,
+            feedbackSampleCount: 0,
+          };
           view.total = 0;
           view.status = [];
           view.severity = [];

@@ -151,3 +151,45 @@ the transaction options and continues to prove that all dimensions share one
 snapshot. Constrained Linux x64 validation with Node and PostgreSQL limited to two
 CPUs completed three consecutive 150-request/50-concurrent runs without `P2028`
 at 1,787–1,841 ms p95.
+
+## Performance samples and actionable controls — 14 September 2026
+
+### Context and decision
+
+The dashboard lacked elapsed-time and feedback aggregates. Selectors were rendered whenever unit options existed, even when an ancestor was fixed. Clearing a Department selection while retaining OWN caused the resolver to reapply its default, making “all departments” ineffective.
+
+Three compact cards are added after the filters. Response uses the first MONITORED event, completion uses each closed cycle from submit or the preceding reopen, and feedback includes every rating. Samples are selected through the existing filtered Voice cohort, including current status and submit-date bounds. A cycle or rating need not occur within those bounds. Missing or negative durations are excluded without historical inference; zero duration is valid. Empty averages are nullable with explicit zero sample counts.
+
+DashboardView gains a performance object with averageResponseSeconds, responseSampleCount, averageCompletionSeconds, completionSampleCount, averageFeedbackScore and feedbackSampleCount. Metadata and view gain organizationControls containing visibility, authorized options and query targets that replace organization state. Existing endpoints and opaque unit identifiers are reused. Legacy aggregate contracts remain unchanged.
+
+### Implementation and rationale
+
+SQL aggregates each sample relation separately in the existing REPEATABLE READ transaction, avoiding event/cycle/rating join multiplication. Existing indexes and lifecycle records are sufficient; no backfill or migration is introduced. Client aggregation and synthetic historical timestamps were rejected because they would distort weighting or fabricate evidence.
+
+Controls explicitly transition OWN/PARENT/GLOBAL where permitted. Fixed ancestors are hidden; “all” remains selectable when its scope differs from a single permitted unit. Default PIC exact mappings, multi-capability precedence, sibling-selection denial and Private isolation remain server enforced. One renderer supplies desktop and mobile controls. Manual unit preferences persist independently through polling and filter changes, and accessible descriptions explain the sample definitions.
+
+The default/reset timeframe is all time. Relative options retain their date semantics with shorter 30 hari and 90 hari labels. Cards use the existing visual system and proportional star icons without a new chart dependency or unsupported performance thresholds.
+
+### Consequences, validation and follow-up
+
+Every rating/closed cycle is weighted equally; Voices with more cycles contribute more completion and feedback samples. Handling attribution follows the current stored handling projection, not a reconstructed historical handler. All-time is potentially more expensive, so the existing 50k-Voice, 50-concurrent, p95 <3-second gate is retained and its seed includes lifecycle/rating rows. Tests cover deterministic averages, nulls, scope roundtrips, stale metadata and response cancellation, keyboard/Axe and native responsive captures. Final validation evidence is recorded in the session handoff. Hosted release validation remains a separate obligation.
+
+## KPI query planner refinement — 14 September 2026
+
+The first hosted KPI run measured 4,734 ms p95 at the unchanged 50-concurrent load. All other application jobs passed. EXPLAIN ANALYZE on the same 50k-Voice fixture identified two avoidable costs: enum columns cast to text hid PostgreSQL statistics (50,000 actual global rows estimated as 250), and separately materialized average/count subqueries repeatedly scanned response, closure and feedback samples. The global feedback plan performed 25,000 rating index probes; the scoped plan probed event/closure indexes for every Voice despite an empty matching lifecycle cohort.
+
+Scalar enum predicates now cast the bound value to the known PostgreSQL enum type, preserving column statistics and indexes. Enum type names come only from a fixed server-owned mapping; all filter values remain parameterized. Response average/count are computed together. Closure cycles join their exact predecessor through the existing unique (voiceId, cycleNumber) constraint, replacing window sorting. A one-to-one optional Rating join allows completion and feedback aggregates to share a scan while retaining independent inclusion predicates. Unrated closures remain completion samples; ratings with missing/invalid completion timestamps remain feedback samples. A missing predecessor never borrows an earlier cycle or another Voice's timestamp.
+
+On local Docker PostgreSQL, the global KPI EXPLAIN execution fell from 69.95 to 41.16 ms and shared-buffer hits from 79,187 to 4,472; the scoped KPI fell from 21.18 to 12.54 ms and hits from 90,278 to 3,790. The first full endpoint benchmark after refinement measured 515 ms p95. These local results support the optimization but do not establish hosted-runner acceptance. Validation evidence and the subsequent hosted run are recorded in the handoff.
+
+No cache, index/migration, lifecycle semantics, sample weighting, fixture reduction, connection-pool adjustment, transaction isolation/timeout change or relaxed performance threshold is introduced. Tests preserve SQL parameterization, typed enum predicates, unrated completions, incomplete cycle histories, cross-Voice isolation and all existing role/filter aggregates.
+
+## Fresh bulk-load statistics and complete scan reduction — 14 September 2026
+
+The next hosted run remained above budget at 3,996 ms. The prior native measurements were not sufficient evidence for freshly seeded x64 PostgreSQL. On an isolated Linux x64 environment using the CI PostgreSQL digest and the same two-CPU affinity for Node and PostgreSQL, the pushed implementation reproduced a 3,602 ms p95 failure. Its fresh global cohort was estimated at 14 rows rather than 50,000, and the scoped cohort at one rather than 12,500. Newly bulk-loaded tables had no statistics; autoanalyze had not consistently visited each relation. ANALYZE alone on the unchanged dataset/code reduced p95 to 2,965 ms.
+
+Performance seed now collects statistics for Voice, VoiceEvent, ClosureCycle and Rating after loading. The benchmark verifies their availability and emits row estimates/CPU/architecture diagnostics before starting its timer. This makes fixture preparation deterministic with respect to planner statistics instead of depending on asynchronous autoanalyze. No queries are warmed, observations discarded, data removed or threshold relaxed. This follows PostgreSQL's bulk-loading recommendation: [Run ANALYZE Afterwards](https://www.postgresql.org/docs/16/populate.html#POPULATE-ANALYZE). Normal application writes continue using PostgreSQL's existing automatic statistics maintenance; this fixture correction does not reconfigure production.
+
+Further application scan reduction combines total/date/unresolved summary with the narrow KPI cohort, aggregates native organization columns before constructing labels, and sums native duration intervals before converting/dividing once. The final division preserves fractional-second means, including a one-millisecond total across three samples. A CASE using GROUPING identifies the dimension explicitly so nullable category/organization keys cannot leak labels into another dimension. Existing unknown-bucket normalization, filtered scope, null-average behavior and snapshot consistency remain covered by integration tests.
+
+Final x64 reproduction measured 2,464 ms p95. CPU-limited ARM and a five-connection x64 experiment were diagnostic only; no pool tuning is shipped. No cache, materialized database projection, index/migration, memory setting, sample-weighting change or permission expansion is needed. Hosted acceptance is recorded separately in the session handoff.

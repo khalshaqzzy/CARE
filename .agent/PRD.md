@@ -2192,3 +2192,15 @@ filter, dashboard, Admin dan API memakai MONITORED; Admin summary memakai monito
 Progress CLOSED tetap Selesai dengan substatus review existing. Dibuka kembali tampil
 sebagai badge tambahan hanya saat cycle terbaru REJECTED dan Voice IN_PROGRESS.
 Rilis memerlukan maintenance window dan API/workforce/Admin satu versi.
+
+### Dashboard KPI dan filter organisasi — 14 September 2026
+
+Dashboard responder, leadership, General Penanganan/Pelaporan dan Union Private menampilkan Average Response Time, Average Completion Time dan Performance. Response merupakan rata-rata submit → event MONITORED pertama per Voice, termasuk assignment otomatis. Completion menghitung setiap siklus selesai: submit → closed pertama, lalu reopenedAt siklus sebelumnya → closed berikutnya. Performance memakai seluruh Rating.score, termasuk rating pemicu reopen. Reopen langsung ke In Progress tidak membuat sampel response baru.
+
+Seluruh KPI mengikuti cohort Voice yang sama dengan filter aktif, termasuk status saat ini dan periode submit (Asia/Jakarta). Semua siklus/rating cohort ikut dihitung meskipun terjadi di luar periode submit terpilih. Durasi memakai elapsed calendar time; waktu antara closed dan reopen tidak masuk siklus berikutnya. Timestamp tidak terbukti dan durasi negatif dikecualikan; durasi nol valid. Tidak ada sampel menghasilkan null/—, bukan nol. API menyediakan rata-rata dalam detik serta jumlah sampel Voice/siklus/rating.
+
+Kartu compact ditempatkan sesudah filter sebelum grafik: tiga kolom pada >=768 px, dua kartu durasi dan satu kartu rating selebar baris pada mobile. Durasi memakai dua desimal, otomatis hours hingga 24 jam dan days jika lebih dari 24 jam; toggle tiap kartu independen dan bertahan selama halaman terbuka. Performance menampilkan lima bintang proporsional dan angka dua desimal dari 5, tanpa penilaian SLA. Definisi dan jumlah sampel tersedia secara aksesibel.
+
+Metadata/view menyediakan organizationControls berupa visibility, opsi sah dan target query atomik. Filter ancestor terkunci disembunyikan; opsi Semua yang mengubah cakupan tetap tersedia walaupun hanya satu unit spesifik boleh dipilih. Dept Head dapat department sendiri ↔ seluruh department division dengan OWN/PARENT, tanpa izin memilih peer department atau descendant-nya. Section Head dan Division leadership mempertahankan transisi cakupan existing. Default PIC tetap dapat navigasi exact mapping lintas organisasi. Private tidak memiliki filter organisasi pelapor. Semua selector memakai descriptor server yang sama di desktop/mobile; query ilegal tetap ditolak server.
+
+Default rentang dan Reset adalah **Semua waktu**, menggantikan default 30 hari sebelumnya. Label relatif adalah **30 hari** dan **90 hari**. Parameter URL eksplisit untuk periode tetap dihormati. Kontrak legacy dashboard, izin detail/inbox dan lifecycle tetap berlaku.

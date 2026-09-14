@@ -6197,3 +6197,138 @@
     max-width: none;
   }
 }
+
+/* Compact operational KPI cards share the existing workforce surface palette. */
+.dashboard-performance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.dashboard-performance__card {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e6edf7;
+}
+.dashboard-performance__rating {
+  grid-column: 1 / -1;
+}
+.dashboard-performance__top,
+.dashboard-performance__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.dashboard-performance__top {
+  height: 36px;
+}
+.dashboard-performance__icon {
+  color: #0965ff;
+}
+.dashboard-performance__rating .dashboard-performance__icon {
+  color: #ad7100;
+}
+.dashboard-performance button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: #50617b;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.dashboard-performance button:hover {
+  background: #eef4ff;
+}
+.dashboard-performance button:focus-visible {
+  outline: 2px solid #0965ff;
+  outline-offset: 2px;
+}
+.dashboard-performance__unit {
+  font-size: 11px;
+  font-weight: 650;
+}
+.dashboard-performance__card h2 {
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #50617b;
+  font-weight: 600;
+}
+.dashboard-performance__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-performance__value > span {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #50617b;
+}
+.dashboard-performance__foot {
+  min-height: 44px;
+}
+.dashboard-performance__foot small {
+  font-size: 11px;
+  color: #50617b;
+}
+.dashboard-performance__stars {
+  display: flex;
+  gap: 2px;
+}
+.dashboard-performance__stars > span {
+  position: relative;
+  display: flex;
+  color: #adb8c8;
+}
+.dashboard-performance__stars > span > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  color: #ad7100;
+}
+.dashboard-performance__stars svg {
+  max-width: none;
+}
+.dashboard-org-summary--static {
+  cursor: default;
+}
+
+@media (min-width: 768px) {
+  .dashboard-performance {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dashboard-performance__card {
+    padding: 14px 16px;
+  }
+  .dashboard-performance__rating {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-org-selects {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+.dashboard-org-summary--static {
+  display: flex;
+}
+.dashboard-performance__card h2 {
+  min-height: 35px;
+}
+.dashboard-performance__card .care-skeleton {
+  min-height: 82px;
+}

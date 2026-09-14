@@ -143,9 +143,26 @@ async function main() {
         }),
         skipDuplicates: true,
       });
+    await prisma.$executeRaw`INSERT INTO "VoiceEvent" (id, "voiceId", type, "actorId", "actorAccountKind", "actorCapabilities", payload, "occurredAt")
+      SELECT gen_random_uuid(), v.id, 'MONITORED', v."routeOwnerId", 'WORKFORCE', '["MANAGER"]'::jsonb, '{}'::jsonb, v."submittedAt" + interval '2 hours'
+      FROM "Voice" v WHERE v."displayId" LIKE 'CARE-209901-%' AND v.status <> 'OPEN'
+        AND NOT EXISTS (SELECT 1 FROM "VoiceEvent" e WHERE e."voiceId" = v.id AND e.type = 'MONITORED')`;
+    await prisma.$executeRaw`INSERT INTO "ClosureCycle" (id, "voiceId", "cycleNumber", "actorId", note, "closedAt", "reopenedAt", "reviewState")
+      SELECT gen_random_uuid(), v.id, n, v."routeOwnerId", 'Synthetic cycle', v."submittedAt" + n * interval '10 hours',
+        CASE WHEN n = 1 THEN v."submittedAt" + interval '12 hours' END, 'ACCEPTED'::"ClosureReviewState"
+      FROM "Voice" v CROSS JOIN generate_series(1, 2) n WHERE v."displayId" LIKE 'CARE-209901-%' AND v.status = 'CLOSED'
+      ON CONFLICT ("voiceId", "cycleNumber") DO NOTHING`;
+    await prisma.$executeRaw`INSERT INTO "Rating" (id, "closureCycleId", "reporterId", score, reopen, "createdAt")
+      SELECT gen_random_uuid(), c.id, v."reporterId", CASE WHEN c."cycleNumber" = 1 THEN 2 ELSE 5 END, c."cycleNumber" = 1, c."closedAt" + interval '1 hour'
+      FROM "ClosureCycle" c JOIN "Voice" v ON v.id = c."voiceId" WHERE v."displayId" LIKE 'CARE-209901-%'
+      ON CONFLICT ("closureCycleId") DO NOTHING`;
     await prisma.$executeRaw`INSERT INTO "Conversation" ("id", "voiceId", "createdAt")
       SELECT gen_random_uuid(), "id", "updatedAt" FROM "Voice"
       WHERE "status" IN ('IN_PROGRESS', 'CLOSED') ON CONFLICT ("voiceId") DO NOTHING`;
+    // A fresh CI database has no distribution statistics immediately after this
+    // bulk load. Do not race the asynchronous autoanalyze worker during timing.
+    // This collects planner statistics; it does not run or cache dashboard queries.
+    await prisma.$executeRaw`ANALYZE "Voice", "VoiceEvent", "ClosureCycle", "Rating"`;
     process.stdout.write(
       `Performance fixture contains ${voiceCount} requested Voices and ${accountCount} accounts\n`,
     );

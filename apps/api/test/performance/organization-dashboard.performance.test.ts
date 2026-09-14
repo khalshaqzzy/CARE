@@ -1,3 +1,4 @@
+import { availableParallelism, cpus } from 'node:os';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, expect, it } from 'vitest';
 import { PolicyService } from '../../src/auth/policy.service';
@@ -13,6 +14,18 @@ it('serves the full organization aggregate at p95 under three seconds on 50k voi
     id: crypto.randomUUID(),
     passwordRestricted: false,
   });
+  const statistics = await db.$queryRaw<Array<{ table: string; rows: number }>>`
+    SELECT relname AS "table", reltuples::float8 AS rows FROM pg_class
+    WHERE oid IN ('"Voice"'::regclass, '"VoiceEvent"'::regclass, '"ClosureCycle"'::regclass, '"Rating"'::regclass)
+    ORDER BY relname`;
+  expect(statistics).toHaveLength(4);
+  expect(
+    statistics.every((table) => table.rows >= 0),
+    'Bulk fixture must be analyzed before timing',
+  ).toBe(true);
+  process.stdout.write(
+    `Dashboard benchmark environment: ${JSON.stringify({ platform: process.platform, architecture: process.arch, cpus: cpus().length, availableParallelism: availableParallelism(), statistics })}\n`,
+  );
   const durations: number[] = [];
   for (let round = 0; round < 3; round++)
     await Promise.all(

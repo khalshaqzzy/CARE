@@ -35,6 +35,7 @@ import {
 } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
+import { DashboardPerformance } from './DashboardPerformance';
 import { PersonalVoiceSection } from './PersonalVoiceSection';
 
 const orgLevels = ['directorate', 'division', 'department', 'section'] as const;
@@ -45,8 +46,8 @@ const orgLabels = {
   section: 'Section',
 };
 const rangeOptions = [
-  { value: '30d', label: '30 hari terakhir' },
-  { value: '90d', label: '90 hari terakhir' },
+  { value: '30d', label: '30 hari' },
+  { value: '90d', label: '90 hari' },
   { value: 'year', label: 'Tahun berjalan' },
   { value: 'all', label: 'Semua waktu' },
   { value: 'custom', label: 'Pilih tanggal' },
@@ -88,7 +89,7 @@ export function DashboardHome() {
   const isPrivate = union && params.get('dashboardTab') !== 'general';
   const prefix = isPrivate ? 'private.' : '';
   const read = (key: string) => params.get(`${prefix}${key}`) ?? undefined;
-  const range = (read('range') ?? '30d') as DashboardRange;
+  const range = (read('range') ?? 'all') as DashboardRange;
   const from = read('dashFrom'),
     to = read('dashTo');
   const invalidDates =
@@ -176,7 +177,8 @@ export function DashboardHome() {
     meta.visibility === data.visibility &&
     meta.level === data.level &&
     meta.scopeMode === data.scopeMode &&
-    selectionSignature === metadataSignature,
+    selectionSignature === metadataSignature &&
+    JSON.stringify(meta.organizationControls) === JSON.stringify(data.organizationControls),
   );
   const refetchMetadata = metadata.refetch;
   useEffect(() => {
@@ -199,23 +201,24 @@ export function DashboardHome() {
     for (const key of filterNames) next.delete(`${prefix}${key}`);
     setParams(next);
   };
-  const pickOrg = (level: (typeof orgLevels)[number], value: string) => {
-    const i = orgLevels.indexOf(level);
-    const changes: Record<string, string | undefined> = {};
-    orgLevels.forEach((key, n) => {
-      changes[key] = n < i ? meta?.selected[key] : n === i ? value || undefined : undefined;
-    });
-    const ownSelection = sectionOnly
-      ? changes.section
-      : caps.includes('DIVISION_LEADERSHIP')
-        ? changes.division
-        : changes.department;
-    if (ownSelection && !union && !caps.includes('DIRECTOR')) {
-      changes.scopeMode = 'OWN';
-      changes.level = caps.includes('DIVISION_LEADERSHIP') ? 'department' : 'section';
-    }
-    set(changes);
-  };
+  const controls = meta?.organizationControls.filter((control) => control.visible) ?? [];
+  const organizationSelects = () =>
+    controls.map((control) => (
+      <Select
+        key={control.name}
+        label={orgLabels[control.name]}
+        placeholder={
+          control.options.find((option) => option.value === '')?.label ?? orgLabels[control.name]
+        }
+        disabled={metadata.isFetching || metadata.isError || !metadataMatches}
+        value={data?.selected[control.name] ?? meta?.selected[control.name] ?? ''}
+        onValueChange={(value) => {
+          const option = control.options.find((item) => item.value === value);
+          if (option) set({ ...clearOrg, ...option.query });
+        }}
+        options={control.options.map(({ value, label }) => ({ value, label }))}
+      />
+    ));
   const pickLevel = (level: string) => {
     const scopeMode =
       caps.includes('DIRECTOR') || union
@@ -363,38 +366,28 @@ export function DashboardHome() {
           </div>
           {!isPrivate ? (
             <>
-              <button
-                type="button"
-                className="dashboard-org-summary"
-                aria-label="Filter organisasi"
-                aria-haspopup="dialog"
-                aria-expanded={organizationOpen}
-                onClick={() => setOrganizationOpen(true)}
-              >
-                <Building2 size={18} aria-hidden="true" />
-                <span>{scope}</span>
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
-              <div className="dashboard-org-selects dashboard-org-selects--desktop">
-                <Building2 size={19} aria-hidden="true" />
-                {orgLevels
-                  .filter((l) => (meta?.organization[l].length ?? 0) > 0)
-                  .map((l) => (
-                    <Select
-                      key={l}
-                      disabled={metadata.isFetching || metadata.isError || !metadataMatches}
-                      label={orgLabels[l]}
-                      placeholder={`Semua ${orgLabels[l].toLowerCase()}`}
-                      value={data?.selected[l] ?? meta?.selected[l] ?? ''}
-                      onValueChange={(v) => pickOrg(l, v)}
-                      options={[
-                        { value: '', label: `Semua ${orgLabels[l].toLowerCase()}` },
-                        ...(meta?.organization[l].map((o) => ({ value: o.id, label: o.label })) ??
-                          []),
-                      ]}
-                    />
-                  ))}
-              </div>
+              {controls.length ? (
+                <button
+                  type="button"
+                  className="dashboard-org-summary"
+                  aria-label="Filter organisasi"
+                  aria-haspopup="dialog"
+                  aria-expanded={organizationOpen}
+                  onClick={() => setOrganizationOpen(true)}
+                >
+                  <Building2 size={18} aria-hidden="true" />
+                  <span>{scope}</span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              ) : (
+                <p className="dashboard-org-summary dashboard-org-summary--static">{scope}</p>
+              )}
+              {controls.length > 0 ? (
+                <div className="dashboard-org-selects dashboard-org-selects--desktop">
+                  <Building2 size={19} aria-hidden="true" />
+                  {organizationSelects()}
+                </div>
+              ) : null}
               <Dialog
                 open={organizationOpen}
                 onOpenChange={setOrganizationOpen}
@@ -404,23 +397,7 @@ export function DashboardHome() {
               >
                 <div className="dashboard-org-selects dashboard-org-selects--sheet">
                   <Building2 size={19} aria-hidden="true" />
-                  {orgLevels
-                    .filter((l) => (meta?.organization[l].length ?? 0) > 0)
-                    .map((l) => (
-                      <Select
-                        key={l}
-                        disabled={metadata.isFetching || metadata.isError || !metadataMatches}
-                        label={orgLabels[l]}
-                        placeholder={`Semua ${orgLabels[l].toLowerCase()}`}
-                        value={data?.selected[l] ?? meta?.selected[l] ?? ''}
-                        onValueChange={(v) => pickOrg(l, v)}
-                        options={[
-                          { value: '', label: `Semua ${orgLabels[l].toLowerCase()}` },
-                          ...(meta?.organization[l].map((o) => ({ value: o.id, label: o.label })) ??
-                            []),
-                        ]}
-                      />
-                    ))}
+                  {organizationSelects()}
                 </div>
                 <div className="dialog-actions">
                   <Button onClick={() => setOrganizationOpen(false)}>Selesai</Button>
@@ -431,6 +408,7 @@ export function DashboardHome() {
             <div className="dashboard-private-handler">
               <Select
                 label="PIC Union"
+                placeholder="Semua PIC"
                 value={read('handler') ?? ''}
                 onValueChange={(v) => set({ handler: v || undefined })}
                 options={[
@@ -536,6 +514,9 @@ export function DashboardHome() {
             </Button>
           </Alert>
         ) : null}
+        <div hidden={invalidDates || dashboard.isError}>
+          <DashboardPerformance data={data?.performance} />
+        </div>
         {invalidDates ? (
           <Alert tone="warning" title="Periksa rentang tanggal">
             Pilih tanggal awal dan akhir yang valid.
@@ -548,7 +529,9 @@ export function DashboardHome() {
             <Button onClick={() => void dashboard.refetch()}>Coba lagi</Button>
           </Alert>
         ) : !data ? (
-          <Skeleton label="Memuat dashboard organisasi" />
+          <>
+            <Skeleton label="Memuat dashboard organisasi" />
+          </>
         ) : (
           <>
             {data.total === 0 ? (
