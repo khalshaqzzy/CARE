@@ -50,9 +50,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8
 
-# Ubuntu package revisions are inherited from the digest-pinned CUDA base.
+# Refresh the digest-pinned CUDA base packages before adding the runtime so the
+# resulting image does not retain superseded Ubuntu security revisions.
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
       python3.12-full \
       python3.12-dev \
       python3-pip \
@@ -74,7 +76,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # SGLang 0.5.19 is the first stable release that lists Ling 3.0 Tiny support.
 RUN python3 -m pip config set global.break-system-packages true \
-    && python3 -m pip install "sglang[all]==0.5.19"
+    && python3 -m pip install "sglang[all]==0.5.19" \
+    && python3 -m pip install --upgrade "diffusers>=0.38.0" "pillow>=12.1.1" \
+    && rm -rf /opt/nvidia/nsight-compute
 
 EXPOSE 30000
 CMD ["bash"]
