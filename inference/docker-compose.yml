@@ -4,8 +4,11 @@ name: care-inference
 # manually on dx-2 with `docker compose up -d --build`.
 services:
   inference:
-    image: lmsysorg/sglang:dev-Ling-3.0-tiny@sha256:0e259c844df22da2ba8969ae7a310f64580f554357de519e5f82fd73ff13346c
-    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: inference
+    image: care-inference/sglang:0.5.19-ling3
     gpus: all
     ipc: host
     shm_size: 32g

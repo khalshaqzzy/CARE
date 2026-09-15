@@ -12,7 +12,7 @@ The dedicated `dx-2` host has an RTX 4080 SUPER with 16 GB VRAM and an existing 
 
 ## Decision
 
-An independent `inference/` Docker Compose stack serves `inclusionAI/Ling-3.0-tiny-fp8` through the model-specific SGLang image. SGLang is internal to the Compose network. A Caddy gateway alone publishes `127.0.0.1:30000`, requires one exact Bearer credential for `/v1/*`, and forwards authorized requests without application rate limiting or request-body/access-header logging. The existing Cloudflare Tunnel routes `inference.qd-tmmin.site` to this loopback service. Image/model updates remain manual over SSH, while a host-level systemd unit runs the installed Compose stack after every reboot; Docker container restart policies and a `Restart=always` cloudflared drop-in provide crash recovery. The stack remains excluded from CARE deployment Compose and release workflows.
+An independent `inference/` Docker Compose stack serves `inclusionAI/Ling-3.0-tiny-fp8` through a locally built SGLang 0.5.19 image based on digest-pinned CUDA 13.0.3. SGLang is internal to the Compose network. A Caddy gateway alone publishes `127.0.0.1:30000`, requires one exact Bearer credential for `/v1/*`, and forwards authorized requests without application rate limiting or request-body/access-header logging. The existing Cloudflare Tunnel routes `inference.qd-tmmin.site` to this loopback service. Image/model updates remain manual over SSH, while a host-level systemd unit runs the installed Compose stack after every reboot; Docker container restart policies and a `Restart=always` cloudflared drop-in provide crash recovery. The stack remains excluded from CARE deployment Compose and release workflows.
 
 Ling uses checkpoint-native FP8, tensor parallelism one, static memory fraction 0.8, a 32,768-token context window, explicit reasoning/tool parsers, default CUDA graph and Radix cache behavior, and LPM scheduling. CARE requests cap generation at 8,192 new tokens and use `temperature=1.0`, `top_p=0.95`, and `top_k=20`. Provider-default Ling requests explicitly apply `enable_thinking=true`. Classification/routing and location review are independent provider calls and run concurrently in the member flow.
 
@@ -67,7 +67,7 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - Provider acceptance requires Ling with blank effort, DeepSeek with `none`, and DeepSeek with `high`; the original local environment must be restored after validation.
 - Runtime configuration unit coverage locks the 90,000 ms default and rejects values above the ceiling; deployment and local environment templates use the same default.
 - The staging GitHub environment must use the tunnel base URL, Ling model, matching write-only Bearer credential, blank provider-default reasoning, and an independent 32-byte Base64URL encryption key; secret values remain outside Git and workflow logs.
-- Existing Trivy 0.70.0 scans report zero High/Critical findings for the patched production Caddy and inference gateway binaries/runtimes, including remediation of `CVE-2026-56854` through `golang.org/x/crypto v0.55.0`; the new vendor SGLang image requires its own pre-cutover scan without a general exception.
+- Existing Trivy 0.70.0 scans report zero High/Critical findings for the patched production Caddy and inference gateway binaries/runtimes, including remediation of `CVE-2026-56854` through `golang.org/x/crypto v0.55.0`; the locally built Ling SGLang image requires its own pre-cutover scan without a general exception.
 
 ## Risks
 
@@ -95,9 +95,9 @@ to unrelated clients that call the inference endpoint directly.
 The active local provider is replaced by `inclusionAI/Ling-3.0-tiny-fp8` and
 Granite is no longer served. The independent topology, authenticated loopback
 gateway, Cloudflare tunnel, host cache, TP one, 32,768-token context and static
-memory fraction 0.8 remain. The inference runtime uses the vendor-recommended
-`lmsysorg/sglang:dev-Ling-3.0-tiny` Linux AMD64 image pinned to manifest digest
-`sha256:0e259c844df22da2ba8969ae7a310f64580f554357de519e5f82fd73ff13346c`.
+memory fraction 0.8 remain. The inference runtime builds SGLang 0.5.19 locally
+on the digest-pinned CUDA 13.0.3 development base; `dx-2` reuses its existing
+CUDA/toolchain Docker build cache instead of pulling a prebuilt SGLang image.
 The checkpoint supplies blockwise FP8 quantization; SGLang uses explicit
 `deepseek-r1` reasoning and `glm45` tool parsers, LPM scheduling, default CUDA
 graphs and Radix cache, and no NEXTN speculative decoding.
@@ -111,9 +111,9 @@ increase from 60,000 to 90,000 ms per attempt; the existing one transient retry
 is retained. DeepSeek mapping and exact tool-name/count/schema validation remain
 unchanged.
 
-The prebuilt runtime replaces the custom CUDA/Python SGLang build so model-day
-support and kernels move together. Pinning the platform manifest prevents the
-mutable development tag from changing silently. Operator acceptance requires
+SGLang 0.5.19 is the first stable release that lists Ling 3.0 Tiny support and
+is pinned in the Dockerfile. The CUDA base remains digest-pinned while local
+build caching avoids re-downloading the toolchain. Operator acceptance requires
 image vulnerability scanning, authenticated/unauthenticated boundary checks,
 model identity, classification and location function calls, a representative
 20-Voice run, GPU inspection and public TLS validation. No database migration or

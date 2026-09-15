@@ -19,11 +19,12 @@ starts the already-installed stack automatically after a reboot.
 - Ling uses its checkpoint-native FP8 quantization, explicit `deepseek-r1`
   reasoning and `glm45` tool parsers, and LPM scheduling. NEXTN speculative
   decoding is intentionally disabled because Ling Tiny has no draft layer.
-- The NVIDIA/SGLang container runs as the image-defined root user because the
-  vendor runtime writes caches under `/root`; it has no host port or host
-  filesystem access other than the dedicated Hugging Face cache.
-- The vendor-recommended image is pinned by its Linux AMD64 manifest digest;
-  do not replace it with the mutable `dev-Ling-3.0-tiny` tag alone.
+- The NVIDIA/SGLang container is built locally from the digest-pinned CUDA
+  13.0.3 development base and SGLang 0.5.19. The `dx-2` Docker build cache
+  reuses the CUDA/toolchain layers; no vendor prebuilt SGLang image is used.
+- The inference container runs as root because CUDA tooling and the runtime
+  write caches under `/root`; it has no host port or host filesystem access
+  other than the dedicated Hugging Face cache.
 
 ## First start / update
 

@@ -4,13 +4,13 @@
 
 Phase 13 remains `in_progress`; no second phase is opened. The independent GPU
 stack and CARE provider profile migrate from Granite 4.2 3B to
-`inclusionAI/Ling-3.0-tiny-fp8`. The digest-pinned vendor SGLang image runs the
-checkpoint's native FP8 format with a 32,768-token context, TP one, explicit
-reasoning/tool parsers and provider-default thinking. CARE sends the recommended
-sampling fields, caps generated output at 8,192 tokens, and allows 90,000 ms per
-attempt. DeepSeek compatibility, strict function validation, Manual Fallback,
-database/API shape, category routing and prompt versions remain unchanged. See
-ADR-0028.
+`inclusionAI/Ling-3.0-tiny-fp8`. The locally built SGLang 0.5.19 runtime reuses
+the digest-pinned CUDA 13.0.3 base/cache and runs the checkpoint's native FP8
+format with a 32,768-token context, TP one, explicit reasoning/tool parsers and
+provider-default thinking. CARE sends the recommended sampling fields, caps
+generated output at 8,192 tokens, and allows 90,000 ms per attempt. DeepSeek
+compatibility, strict function validation, Manual Fallback, database/API shape,
+category routing and prompt versions remain unchanged. See ADR-0028.
 
 ## Classification output simplification — 15 September 2026
 
