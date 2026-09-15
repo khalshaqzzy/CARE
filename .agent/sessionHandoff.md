@@ -12,18 +12,34 @@ scheduling. CARE keeps thinking enabled by default, sends the model-recommended
 sampling values, caps output at 8,192 tokens and raises the per-attempt timeout
 default/ceiling to 90 seconds. DeepSeek and strict fail-closed validation remain.
 
-Implementation is in progress on `feat/ling3-tiny-inference`. No database or
-public OpenAPI shape changes are included. The full local validation plan passed:
-format, lint, typecheck, unit, mock-provider smoke, OpenAPI stability, build,
-integration/security/organization/performance suites, five migration upgrades,
-full-stack, browser/PWA/push, legacy and 161 visual captures. Deployment env,
-script, security-exception, Compose, Python compile, ShellCheck, Hadolint and
-diff checks also passed. The initial feature SHA `3402c487` passed all 20 hosted
-PR checks, including its release candidate gate. After the user replaced the
-prebuilt-image approach with a CUDA-cache local build, the follow-up hosted,
-staging and live evidence remains pending. Granite has been stopped on `dx-2`;
-GPU startup is currently blocked by an NVIDIA kernel/userspace mismatch
-(`595.84` versus `595.91.07`) that requires host driver reload or reboot.
+Deployment completed through PRs #47–#49. Staging SHA `1464cd5b` passed every
+hosted gate and deployed successfully; public readiness reports Ling as the
+effective model with blank/default reasoning effort. On `dx-2`, the NVIDIA
+kernel/userspace mismatch was resolved by rebooting into driver `595.91.07`.
+Granite remains stopped and is no longer advertised. The custom image reports
+SGLang 0.5.19, detects the checkpoint as FP8 E4M3, loads 7.96 GB of weights, and
+keeps the inference and authenticated gateway containers healthy. Public TLS
+returns 401 without a Bearer token and `/v1/models` advertises only Ling.
+
+The pre-cutover Trivy scan initially reported 424 High/Critical findings. OS
+security upgrades, removal of unused Nsight Compute, and upgrades to Diffusers
+0.40.0/Pillow 12.3.0 removed every Python and executable finding. The remaining
+171 findings (166 High, five Critical) are all unfixed `linux-libc-dev` header
+metadata; none were suppressed or allowlisted. A classification/location smoke
+returned separate reasoning and exactly one schema-valid tool call for each. A
+20-Voice Indonesian evaluation using the exact app prompt, dynamic category
+context, schema, named tool choice, thinking settings, sampling, 8,192-token cap,
+90-second timeout and concurrency four produced 20/20 HTTP successes, 20/20
+valid tool calls, no free-text output, no incomplete responses and zero
+threshold-0.75 fallbacks. Category matched the review labels 18/20 and severity
+12/20. Median latency was 7.71 seconds and p95 37.07 seconds; median generated
+tokens were 1,189.5 and p95 3,579. Reasoning appeared in all responses and was
+often disproportionately long (median 4,810 characters, maximum 14,764), while
+confidence stayed 0.85–1.0 even on label disagreements. This removes the prior
+format-driven Manual Fallback pattern but exposes overthinking, overconfidence,
+and a systematic tendency to understate severity by one level. No database or
+public OpenAPI shape changed. The temporary live-evaluation files were removed;
+the Ling stack and gateway remain running.
 
 ## Classification output simplification — 15 September 2026
 
