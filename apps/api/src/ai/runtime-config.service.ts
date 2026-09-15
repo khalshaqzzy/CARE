@@ -4,8 +4,8 @@ import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 
 export const AI_CONFIGURATION_ID = 'openai';
-export const GRANITE_MODEL = 'ibm-granite/granite-4.2-3b';
-export const GRANITE_MAX_NEW_TOKENS = 2500;
+export const LING_MODEL = 'inclusionAI/Ling-3.0-tiny-fp8';
+export const LING_MAX_NEW_TOKENS = 8192;
 
 export type ReasoningEffort = '' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export type EffectiveAiConfig = {

@@ -79,7 +79,7 @@ describe('runtime configuration', () => {
     process.env.OPENAI_REASONING_EFFORT = 'extreme';
     expect(() => loadConfig()).toThrow('OPENAI_REASONING_EFFORT');
   });
-  it('defaults the provider attempt timeout to 60 seconds and enforces its ceiling', () => {
+  it('defaults the provider attempt timeout to 90 seconds and enforces its ceiling', () => {
     Object.assign(process.env, {
       NODE_ENV: 'test',
       DATABASE_URL: 'postgresql://care:care_local@localhost:54329/care_test',
@@ -88,10 +88,10 @@ describe('runtime configuration', () => {
       AUTH_THROTTLE_SECRET: 'c'.repeat(32),
       CURSOR_SIGNING_SECRET: 'd'.repeat(32),
     });
-    expect(loadConfig().OPENAI_TIMEOUT_MS).toBe(60_000);
+    expect(loadConfig().OPENAI_TIMEOUT_MS).toBe(90_000);
 
     resetConfigForTests();
-    process.env.OPENAI_TIMEOUT_MS = '60001';
+    process.env.OPENAI_TIMEOUT_MS = '90001';
     expect(() => loadConfig()).toThrow('OPENAI_TIMEOUT_MS');
   });
   it('rejects reuse of a session secret for AI configuration encryption', () => {

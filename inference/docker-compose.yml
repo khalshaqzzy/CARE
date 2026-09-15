@@ -4,11 +4,8 @@ name: care-inference
 # manually on dx-2 with `docker compose up -d --build`.
 services:
   inference:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: inference
-    image: care-inference/sglang:0.5.18-granite42
+    image: lmsysorg/sglang:dev-Ling-3.0-tiny@sha256:0e259c844df22da2ba8969ae7a310f64580f554357de519e5f82fd73ff13346c
+    platform: linux/amd64
     gpus: all
     ipc: host
     shm_size: 32g
@@ -25,17 +22,17 @@ services:
       - -m
       - sglang.launch_server
       - --model-path
-      - ${MODEL_ID:-ibm-granite/granite-4.2-3b}
+      - ${MODEL_ID:-inclusionAI/Ling-3.0-tiny-fp8}
       - --served-model-name
-      - ${SERVED_MODEL_NAME:-ibm-granite/granite-4.2-3b}
+      - ${SERVED_MODEL_NAME:-inclusionAI/Ling-3.0-tiny-fp8}
       - --dtype
       - bfloat16
       - --tp
       - '1'
       - --reasoning-parser
-      - auto
+      - deepseek-r1
       - --tool-call-parser
-      - auto
+      - glm45
       - --host
       - 0.0.0.0
       - --port
@@ -44,6 +41,8 @@ services:
       - ${CONTEXT_LENGTH:-32768}
       - --mem-fraction-static
       - ${MEM_FRACTION_STATIC:-0.8}
+      - --schedule-policy
+      - lpm
     healthcheck:
       test:
         - CMD-SHELL

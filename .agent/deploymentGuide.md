@@ -176,7 +176,7 @@ Tambahkan environment secrets berikut:
 | `CARE_ADMIN_PASSWORD`          | initial password minimum 12 karakter, berbeda dari username    |
 | `OPENAI_API_KEY`               | server-only key untuk provider staging aktif                   |
 | `OPENAI_CONFIG_ENCRYPTION_KEY` | random 32-byte base64url key, distinct from every other secret |
-| `OPENAI_MODEL`                 | saat ini `ibm-granite/granite-4.2-3b`                          |
+| `OPENAI_MODEL`                 | saat ini `inclusionAI/Ling-3.0-tiny-fp8`                       |
 | `OPENAI_BASE_URL`              | saat ini `https://inference.qd-tmmin.site/v1`                  |
 | `VAPID_SUBJECT`                | `mailto:` atau HTTPS contact subject                           |
 | `VAPID_PUBLIC_KEY`             | public key dari CLI CARE                                       |
@@ -190,10 +190,10 @@ Optional environment secret:
 
 Tambahkan environment variables:
 
-| Variable                  | Isi                                                                                                                                                  |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                                                                                          |
-| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; staging Granite saat ini sengaja kosong agar memakai provider default/full thinking |
+| Variable                  | Isi                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `VM_SSH_PORT`             | port SSH; bila kosong workflow memakai `22`                                                                                         |
+| `OPENAI_REASONING_EFFORT` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, atau `max`; staging Ling sengaja kosong agar memakai provider-default thinking |
 
 Secret proteksi yang berbeda fungsi harus memiliki value berbeda. Untuk secret dotenv-safe:
 

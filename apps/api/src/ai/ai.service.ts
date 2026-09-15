@@ -7,9 +7,9 @@ import { sanitizedErrorDetail } from './error-detail';
 import {
   AiRuntimeConfigService,
   type EffectiveAiConfig,
-  GRANITE_MAX_NEW_TOKENS,
+  LING_MAX_NEW_TOKENS,
   environmentAiConfig,
-  GRANITE_MODEL,
+  LING_MODEL,
   type ReasoningEffort,
 } from './runtime-config.service';
 import {
@@ -28,7 +28,8 @@ import {
 
 type ProviderChatCompletionParams = ChatCompletionCreateParamsNonStreaming & {
   thinking?: { type: 'enabled' | 'disabled' };
-  chat_template_kwargs?: { enable_thinking: boolean; low_effort: boolean };
+  chat_template_kwargs?: { enable_thinking: boolean };
+  top_k?: number;
 };
 
 export function deepSeekReasoningConfig(effort: ReasoningEffort): {
@@ -44,18 +45,13 @@ export function deepSeekReasoningConfig(effort: ReasoningEffort): {
 }
 
 export function providerRequestConfig(model: string, effort: ReasoningEffort) {
-  if (model !== GRANITE_MODEL) return deepSeekReasoningConfig(effort);
-  const chatTemplate =
-    effort === 'none'
-      ? { enable_thinking: false, low_effort: false }
-      : effort === 'minimal' || effort === 'low'
-        ? { enable_thinking: true, low_effort: true }
-        : { enable_thinking: true, low_effort: false };
+  if (model !== LING_MODEL) return deepSeekReasoningConfig(effort);
   return {
-    chat_template_kwargs: chatTemplate,
+    chat_template_kwargs: { enable_thinking: effort !== 'none' },
     temperature: 1,
     top_p: 0.95,
-    max_tokens: GRANITE_MAX_NEW_TOKENS,
+    top_k: 20,
+    max_tokens: LING_MAX_NEW_TOKENS,
   };
 }
 

@@ -16,7 +16,7 @@ import {
   forcedToolChoiceConfig,
   providerRequestConfig,
 } from '../../src/ai/ai.service';
-import { GRANITE_MODEL } from '../../src/ai/runtime-config.service';
+import { LING_MODEL } from '../../src/ai/runtime-config.service';
 
 describe('CARE domain contracts', () => {
   it('uses deterministic canonical request hashes', () => {
@@ -106,15 +106,31 @@ describe('CARE domain contracts', () => {
       expect(deepSeekReasoningConfig(effort)).toEqual(expected);
     },
   );
-  it('enables full Granite thinking and provider-specific sampling by default', () => {
-    expect(providerRequestConfig(GRANITE_MODEL, '')).toEqual({
-      chat_template_kwargs: { enable_thinking: true, low_effort: false },
+  it('enables Ling thinking and provider-specific sampling by default', () => {
+    expect(providerRequestConfig(LING_MODEL, '')).toEqual({
+      chat_template_kwargs: { enable_thinking: true },
       temperature: 1,
       top_p: 0.95,
-      max_tokens: 2500,
+      top_k: 20,
+      max_tokens: 8192,
+    });
+    expect(providerRequestConfig(LING_MODEL, 'none')).toMatchObject({
+      chat_template_kwargs: { enable_thinking: false },
     });
   });
-  it('keeps Granite sampling fields out of DeepSeek requests', () => {
+  it.each(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const)(
+    'maps enabled Ling effort %s to thinking without an effort-level field',
+    (effort) => {
+      expect(providerRequestConfig(LING_MODEL, effort)).toEqual({
+        chat_template_kwargs: { enable_thinking: true },
+        temperature: 1,
+        top_p: 0.95,
+        top_k: 20,
+        max_tokens: 8192,
+      });
+    },
+  );
+  it('keeps Ling sampling fields out of DeepSeek requests', () => {
     expect(providerRequestConfig('deepseek-v4-flash', 'high')).toEqual({
       thinking: { type: 'enabled' },
       reasoning_effort: 'high',
@@ -125,7 +141,7 @@ describe('CARE domain contracts', () => {
     expect(forcedToolChoiceConfig('deepseek-v4-flash', 'none', 'classify')).toEqual({
       tool_choice: { type: 'function', function: { name: 'classify' } },
     });
-    expect(forcedToolChoiceConfig(GRANITE_MODEL, '', 'classify')).toEqual({
+    expect(forcedToolChoiceConfig(LING_MODEL, '', 'classify')).toEqual({
       tool_choice: { type: 'function', function: { name: 'classify' } },
     });
   });

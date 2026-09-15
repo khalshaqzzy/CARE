@@ -41,7 +41,7 @@ Run `pnpm setup:local` once to create an ignored root `.env` with generated secr
 | `OPENAI_BASE_URL`              | DeepSeek API root; target is `https://api.deepseek.com`.          | No     |
 | `OPENAI_REASONING_EFFORT`      | Blank = provider default; use `none` for DeepSeek non-thinking.   | No     |
 | `OPENAI_CONFIDENCE_THRESHOLD`  | AI-to-manual-fallback boundary.                                   | No     |
-| `OPENAI_TIMEOUT_MS`            | Per-attempt provider timeout, default/max 60,000 ms.              | No     |
+| `OPENAI_TIMEOUT_MS`            | Per-attempt provider timeout, default/max 90,000 ms.              | No     |
 | `VAPID_SUBJECT`                | Web Push operator contact subject.                                | No     |
 | `VAPID_PUBLIC_KEY`             | Environment-specific public Web Push key.                         | No     |
 | `VAPID_PRIVATE_KEY`            | Environment-specific private Web Push key.                        | Yes    |
@@ -53,7 +53,7 @@ Run `pnpm setup:local` once to create an ignored root `.env` with generated secr
 
 The initial Admin is created idempotently with `CARE_ADMIN_USERNAME`, `CARE_ADMIN_PASSWORD`, and `pnpm bootstrap:admin`. Generate each environment's Web Push credentials with either `pnpm vapid:generate -- --stdout` for a controlled operator terminal or `pnpm vapid:generate -- --output /secure/operator/path`; the CLI refuses to overwrite a file. Place the values directly in the environment secret store.
 
-AI tests never require a real API key. `pnpm test:openai:smoke` starts a local mock `/chat/completions` server. Runtime values come from a single encrypted Admin override when present, otherwise environment; timeout remains env-only. Blank reasoning sends no DeepSeek thinking fields and enables full Granite thinking. `none` sends DeepSeek `thinking.disabled`, while `high` sends `thinking.enabled` plus high effort. DeepSeek thinking rejects named `tool_choice`, so CARE omits that field only in enabled DeepSeek thinking mode while retaining the single-tool request and exact name/count/schema fail-closed validation. The independent Granite operator stack is documented in `inference/README.md` and is not part of CARE deployment Compose.
+AI tests never require a real API key. `pnpm test:openai:smoke` starts a local mock `/chat/completions` server. Runtime values come from a single encrypted Admin override when present, otherwise environment; timeout remains env-only. Blank reasoning sends no DeepSeek thinking fields and enables Ling thinking. Ling uses `chat_template_kwargs.enable_thinking`, recommended sampling, and an 8,192-token request cap; `none` disables its thinking. DeepSeek reasoning mappings remain unchanged. DeepSeek thinking rejects named `tool_choice`, so CARE omits that field only in enabled DeepSeek thinking mode while retaining the single-tool request and exact name/count/schema fail-closed validation. The independent Ling operator stack is documented in `inference/README.md` and is not part of CARE deployment Compose.
 
 ## API behavior
 

@@ -1,5 +1,24 @@
 # CARE Session Handoff
 
+## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
+
+Current objective: replace the active local Granite provider with
+`inclusionAI/Ling-3.0-tiny-fp8` on `dx-2` and coordinate the matching CARE
+provider profile through a feature PR and staging deployment. The inference
+stack now targets the digest-pinned vendor SGLang image, native FP8 checkpoint,
+32,768-token context, TP one, explicit `deepseek-r1`/`glm45` parsers and LPM
+scheduling. CARE keeps thinking enabled by default, sends the model-recommended
+sampling values, caps output at 8,192 tokens and raises the per-attempt timeout
+default/ceiling to 90 seconds. DeepSeek and strict fail-closed validation remain.
+
+Implementation is in progress on `feat/ling3-tiny-inference`. No database or
+public OpenAPI shape changes are included. The full local validation plan passed:
+format, lint, typecheck, unit, mock-provider smoke, OpenAPI stability, build,
+integration/security/organization/performance suites, five migration upgrades,
+full-stack, browser/PWA/push, legacy and 161 visual captures. Deployment env,
+script, security-exception, Compose, Python compile, ShellCheck, Hadolint and
+diff checks also passed. Hosted, staging and live evidence remains pending.
+
 ## Classification output simplification — 15 September 2026
 
 The user requested removal of `rationaleCode` from the LLM prompt and schema so
