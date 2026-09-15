@@ -38,7 +38,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.4');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.5');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -72,11 +72,15 @@ describe('CARE domain contracts', () => {
     );
   });
   it('builds the General tool enum from active stable keys and keeps Private category null', () => {
-    expect(classificationSchema(['CUSTOM_ONE', 'CUSTOM_TWO'], false).properties.category).toEqual({
+    const generalSchema = classificationSchema(['CUSTOM_ONE', 'CUSTOM_TWO'], false);
+    expect(generalSchema.properties.category).toEqual({
       description:
         'Primary GENERAL category, or null when visibility is PRIVATE. Never identifies a route or person.',
       anyOf: [{ type: 'string', enum: ['CUSTOM_ONE', 'CUSTOM_TWO'] }],
     });
+    expect(generalSchema.required).toEqual(['category', 'severity', 'confidence']);
+    expect(generalSchema.properties).not.toHaveProperty('rationaleCode');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).not.toContain('rationaleCode');
     expect(classificationSchema(['CUSTOM_ONE'], true).properties.category.anyOf).toEqual([
       { type: 'null' },
     ]);
@@ -107,7 +111,7 @@ describe('CARE domain contracts', () => {
       chat_template_kwargs: { enable_thinking: true, low_effort: false },
       temperature: 1,
       top_p: 0.95,
-      max_tokens: 4096,
+      max_tokens: 2500,
     });
   });
   it('keeps Granite sampling fields out of DeepSeek requests', () => {

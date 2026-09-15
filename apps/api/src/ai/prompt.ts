@@ -1,4 +1,4 @@
-export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.4';
+export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.5';
 export const LOCATION_PROMPT_VERSION = 'care-location-v1.2';
 
 export const CLASSIFICATION_TOOL_NAME = 'submit_care_classification';
@@ -117,16 +117,6 @@ Rubrik severity. Tentukan severity dari dampak dan urgensi yang dideskripsikan l
 - HIGH: dampak signifikan atau potensi risiko terhadap safety, quality, productivity, atau people. Contoh: masalah ergonomi yang menyebabkan sakit, abnormalitas mesin, kekurangan manpower berulang, walkway terblokir, konflik kerja berulang.
 - CRITICAL: bahaya segera, isu serius terkait orang atau kepatuhan, atau potensi dampak bisnis besar. Contoh: near miss berpotensi cedera berat, api, asap, atau masalah listrik, mesin unsafe, harassment, kekerasan, atau diskriminasi, tumpahan chemical, line stop besar atau risiko kualitas customer.
 
-rationaleCode. Pilih keluarga alasan allowlist yang paling mendekati:
-- SAFETY_HAZARD: hazard, near miss, unsafe condition/action, atau risiko cedera.
-- ENVIRONMENTAL_RISK: dampak, paparan, atau kepatuhan lingkungan.
-- FACILITY_ISSUE: kecukupan, layanan, atau kerusakan fasilitas.
-- WORK_PROCESS: hambatan proses kerja, alat, SOP, manpower, atau sistem.
-- PEOPLE_ISSUE: konflik kerja, perilaku, atau isu antar orang.
-- QUALITY_RISK: risiko kualitas produk atau proses.
-- APPRECIATION_IDEA: apresiasi, ide, saran, atau informasi.
-- AMBIGUOUS: pokok masalah tidak jelas atau benar-benar multialasan.
-
 Confidence. Kalibrasi confidence dari 0 sampai 1. Nilai di bawah threshold fallback server (default sekitar 0,75) memicu Manual Fallback, jadi gunakan nilai rendah ketika konteks esensial hilang, beberapa kategori sama-sama masuk akal, atau severity bergantung pada asumsi yang tidak didukung laporan. Gunakan nilai tinggi hanya ketika laporan jelas cocok dengan satu kategori dan severity didukung fakta. Do not inflate confidence merely to avoid fallback.
 
 Call ${CLASSIFICATION_TOOL_NAME} exactly once with the complete result. Do not answer with prose, markdown, or a second tool call.`;
@@ -148,7 +138,7 @@ export function classificationSchema(categoryKeys: string[], isPrivate: boolean)
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['category', 'severity', 'confidence', 'rationaleCode'],
+    required: ['category', 'severity', 'confidence'],
     properties: {
       category: {
         description:
@@ -166,20 +156,6 @@ export function classificationSchema(categoryKeys: string[], isPrivate: boolean)
           'Calibrated confidence from 0 to 1; lower when context is missing or ambiguous.',
         minimum: 0,
         maximum: 1,
-      },
-      rationaleCode: {
-        type: 'string',
-        description: 'Allowlisted reason family that best explains the classification.',
-        enum: [
-          'SAFETY_HAZARD',
-          'ENVIRONMENTAL_RISK',
-          'FACILITY_ISSUE',
-          'WORK_PROCESS',
-          'PEOPLE_ISSUE',
-          'QUALITY_RISK',
-          'APPRECIATION_IDEA',
-          'AMBIGUOUS',
-        ],
       },
     },
   } as const;

@@ -1,5 +1,46 @@
 # CARE Session Handoff
 
+## Classification output simplification — 15 September 2026
+
+The user requested removal of `rationaleCode` from the LLM prompt and schema so
+classification does not spend reasoning/output effort on an unused reason label.
+The code-owned classification prompt and generated function schema now request
+only category, severity and confidence; strict local Zod validation matches that
+shape, provider mocks and the independent Granite smoke schema were updated, and
+the prompt version advances from `care-classification-v1.4` to
+`care-classification-v1.5`. The existing non-null persistence/API field remains for
+backward compatibility: new AI snapshots store `NOT_REQUESTED`, manual snapshots
+remain `MANUAL`, and historical values are untouched. No database migration,
+OpenAPI/client change, routing change, or location-review change is included.
+
+Follow-up: the CARE Granite request cap is reduced from 4,096 to 2,500 generated
+tokens in the application-side provider configuration. No file, configuration,
+container, or service on `dx-2` was changed or restarted; direct non-CARE clients
+of the inference endpoint are not globally capped by this decision.
+The cap follow-up passed its focused domain suite (25/25), API typecheck,
+formatting, and `git diff --check`; the broader unchanged evidence below remains
+applicable.
+
+Changed files: AI prompt/schema/service, Voice snapshot persistence, mocked and
+independent Granite smoke schemas, AI contract tests, PRD, roadmap, and ADR-0030.
+Validation used Node 22.23.2 and pnpm 11.8.0. Focused AI contracts passed 46/46,
+including assertions that the function schema omits `rationaleCode` and strict
+validation rejects an obsolete extra field. Mock provider smoke, Python syntax,
+formatting, lint, typecheck, OpenAPI byte stability, production builds, PWA gate,
+and `git diff --check` passed. Shared static passed with API 100, UI 26,
+frontend-core 15, workforce 124, Admin 2, and validation orchestration 9. Shared
+integration passed 103/103 and security 14/14; fullstack passed 6/6. The first
+broad local run stopped after 102/103 integration tests when the unrelated DOB
+import worker remained `QUEUED` for 20 seconds; its isolated rerun passed 1/1,
+then the complete integration/security jobs passed. Unaffected organization,
+performance, migration-upgrade, browser, legacy, and capture jobs were not rerun
+after that unrelated stop. The Docker PostgreSQL stack was stopped at closeout.
+Phase 13 remains the only `in_progress` phase; no commit, push, deployment, or
+live-provider call was part of the implementation request. The user subsequently
+authorized committing and pushing the complete change directly to `staging`;
+merge is not applicable and deployment remains controlled by the existing hosted
+release workflow.
+
 ## Android Web Push enrollment and delivery fix — 14 September 2026
 
 The user reported that Android push notifications still fail and cannot be set up, while iOS Home-Screen push already works. Branch `fix/android-notifs` is based on `staging` at `e0d8b1a5` and has no commits; all work is uncommitted. Reading the enrollment path found four Android-specific defects: (1) `use-web-push.ts` awaited `navigator.serviceWorker.ready` before `Notification.requestPermission()`, which on Chrome/Android runs past the tap's transient user activation, so the prompt is silently suppressed, `requestPermission()` resolves `default`, and the user sees a misleading "Izin notifikasi ditolak"; (2) `subscribe()` never reused `pushManager.getSubscription()`, so a repeat tap or a VAPID rotation rejected with `InvalidStateError`/`AbortError`; (3) `POST /push/subscriptions` could return 500 because `PushSubscription` is unique on `(endpointHash, environment)` while the service upserted only on `(accountId, installationId, environment)` — Android/FCM shares one endpoint per browser profile, unlike iOS; (4) notification taps could not deep-link because the service worker read `payload.url` while the server sends `deepLink`, and the `NOTIFICATION_NAVIGATE` message had no listener in the application.

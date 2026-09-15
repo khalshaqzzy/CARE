@@ -56,3 +56,22 @@ The location review prompt and its version remain unchanged.
 
 - Observe AI-source classification quality (category distribution, severity distribution, confidence, fallback rate) on staging after deployment and compare against the previous prompt's baseline before promoting further.
 - Revisit the location prompt in a separate change if location-review fallback rates or question quality warrant it, with the same version-bump discipline.
+
+## Amendment — 15 September 2026
+
+The classification prompt advances to `care-classification-v1.5` and no longer
+defines or requests `rationaleCode`. The function schema and local strict Zod
+validation now accept exactly `category`, `severity`, and `confidence`. This keeps
+the model focused on fields that affect category selection, severity, routing, and
+fallback, and avoids spending generation effort on an additional explanatory
+label that is not used for those decisions.
+
+The existing non-null database column and public snapshot shape are retained to
+avoid a destructive migration and client-contract break. AI snapshots created by
+v1.5 store the code-owned marker `NOT_REQUESTED`; manual snapshots continue to use
+`MANUAL`, and all historical rationale values remain unchanged. The prompt-version
+bump invalidates stale draft classification snapshots through the existing content
+hash/version workflow. Location review behavior and version remain unchanged.
+As a follow-up to the same simplification, CARE's Granite request cap is reduced
+from 4,096 to 2,500 generated tokens in the application service; the inference
+server's context window and runtime configuration remain unchanged.

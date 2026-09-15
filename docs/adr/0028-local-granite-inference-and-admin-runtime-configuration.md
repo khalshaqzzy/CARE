@@ -80,3 +80,12 @@ The existing exact function name/count, JSON parsing, strict Zod validation, bou
 - Keep the independent image/model out of CARE CI builds while retaining syntax, Hadolint, and security scanning for `inference/` source.
 - Record cold start, warm classification/location latency, GPU memory, and tunnel validation in the session handoff and release evidence.
 - Rotate the inference Bearer key and AI configuration encryption key only through an approved secret migration procedure; do not rotate the encryption key before re-encrypting or clearing the stored override.
+
+## Amendment — 15 September 2026
+
+CARE's application-side Granite request cap is reduced from 4,096 to 2,500
+generated tokens. `AiService` continues to send the cap through `max_tokens` on
+each Granite Chat Completions request. The independent SGLang stack, its
+32,768-token context window, Caddy gateway, containers, and `dx-2` runtime
+configuration are unchanged. Consequently this cap applies to CARE requests, not
+to unrelated clients that call the inference endpoint directly.

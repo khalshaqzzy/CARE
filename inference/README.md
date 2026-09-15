@@ -13,8 +13,9 @@ starts the already-installed stack automatically after a reboot.
   `inference.qd-tmmin.site` to the loopback gateway.
 - There is no application rate limiter. Cloudflare's normal network protection
   remains outside this stack.
-- The model context window is 32,768 tokens and CARE caps generated output at
-  4,096 new tokens.
+- The model context window is 32,768 tokens and the CARE application caps its
+  Granite requests at 2,500 new tokens. The inference stack does not enforce a
+  global output cap for other clients.
 - The NVIDIA/SGLang container runs as the image-defined root user because the
   CUDA development image and runtime write caches under `/root`; it has no host
   port or host filesystem access other than the dedicated Hugging Face cache.

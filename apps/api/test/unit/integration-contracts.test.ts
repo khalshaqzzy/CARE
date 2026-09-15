@@ -182,7 +182,6 @@ describe('DeepSeek Chat Completions adapter', () => {
               category: 'ENVIRONMENT',
               severity: 'HIGH',
               confidence: 0.91,
-              rationaleCode: 'ENVIRONMENTAL_RISK',
             };
         response.writeHead(200, {
           'content-type': 'application/json',
@@ -250,6 +249,16 @@ describe('DeepSeek Chat Completions adapter', () => {
         expect(item.body.messages[1].content).toContain('untrusted CARE report data');
         expect(item.body.tools).toHaveLength(1);
         expect(item.body.tools[0].function.strict).toBeUndefined();
+        if (item.body.tools[0].function.name === 'submit_care_classification') {
+          expect(item.body.tools[0].function.parameters.required).toEqual([
+            'category',
+            'severity',
+            'confidence',
+          ]);
+          expect(item.body.tools[0].function.parameters.properties).not.toHaveProperty(
+            'rationaleCode',
+          );
+        }
         expect(item.body.tool_choice).toEqual({
           type: 'function',
           function: { name: item.body.tools[0].function.name },
@@ -281,7 +290,6 @@ describe('DeepSeek Chat Completions adapter', () => {
           category: null,
           severity: 'CRITICAL',
           confidence: 0.95,
-          rationaleCode: 'PEOPLE_ISSUE',
         };
         response.writeHead(200, { 'content-type': 'application/json' });
         response.end(
@@ -398,7 +406,25 @@ describe('DeepSeek Chat Completions adapter', () => {
               category: 'NOT_ALLOWED',
               severity: 'HIGH',
               confidence: 0.9,
-              rationaleCode: 'AMBIGUOUS',
+            }),
+          },
+        },
+      ],
+      'INVALID_SCHEMA',
+    ],
+    [
+      'tool_calls',
+      [
+        {
+          id: 'obsolete-rationale',
+          type: 'function',
+          function: {
+            name: 'submit_care_classification',
+            arguments: JSON.stringify({
+              category: 'SAFETY',
+              severity: 'HIGH',
+              confidence: 0.9,
+              rationaleCode: 'SAFETY_HAZARD',
             }),
           },
         },
@@ -505,7 +531,6 @@ describe('DeepSeek Chat Completions adapter', () => {
                           category: 'FACILITY',
                           severity: 'MEDIUM',
                           confidence: 0.88,
-                          rationaleCode: 'FACILITY_ISSUE',
                         }),
                       },
                     },

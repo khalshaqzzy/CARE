@@ -37,7 +37,6 @@ async function main() {
               category: 'ENVIRONMENT',
               severity: 'MEDIUM',
               confidence: 0.92,
-              rationaleCode: 'ENVIRONMENTAL_RISK',
             };
       response.writeHead(200, {
         'content-type': 'application/json',

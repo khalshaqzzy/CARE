@@ -555,7 +555,8 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 - Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Granite kosong memakai full thinking dengan `enable_thinking=true` dan `low_effort=false`.
 - Authentication menggunakan server-only API key. API key/ciphertext tidak boleh masuk repository, dokumentasi, log, response, audit, readiness, metric, OpenAPI example, atau client bundle.
 - Request memakai dua messages, tepat satu named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Named `tool_choice` dipaksa untuk Granite dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
-- Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.4`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, definisi rationaleCode, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Setiap perubahan konten prompt wajib menaikkan versi prompt.
+- Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.5`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Setiap perubahan konten prompt wajib menaikkan versi prompt.
+- Output LLM classification hanya memuat `category`, `severity`, dan `confidence`; `rationaleCode` tidak diminta dalam prompt maupun function schema agar model tidak menghasilkan klasifikasi alasan tambahan. Kolom snapshot historis tetap dipertahankan untuk kompatibilitas dan snapshot AI baru mengisinya dengan penanda internal `NOT_REQUESTED`.
 
 Structured response minimum:
 
@@ -564,7 +565,6 @@ interface VoiceClassificationResult {
   category: 'SAFETY' | 'ENVIRONMENT' | 'FACILITY' | 'WORK_DIFFICULTY' | null;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   confidence: number; // 0..1
-  rationaleCode: string;
 }
 
 interface LocationReviewResult {
@@ -1703,7 +1703,7 @@ Minimum journeys:
 
 - Tidak ada labeled dataset atau statistical accuracy/recall launch gate untuk v1.
 - Deterministic fixtures mencakup seluruh category termasuk Environment, severity, multi-topic tanpa fixed priority, ambiguous content, informal Indonesian, provider failure/refusal/incomplete, invalid schema, low confidence, Private nullable category, dan location review.
-- Unit/contract tests memverifikasi Chat Completions request shape, non-thinking mapping, forced named functions, prompt version, local schemas, allowlisted rationale code, timeout/retry, malformed function output, location cache/acknowledgment, dan Manual Fallback.
+- Unit/contract tests memverifikasi Chat Completions request shape, non-thinking mapping, forced named functions, prompt version, local schemas tanpa `rationaleCode`, timeout/retry, malformed function output, location cache/acknowledgment, dan Manual Fallback.
 - Live DeepSeek test memakai content Indonesia non-sensitive untuk memverifikasi configured base URL/key/model, `/chat/completions`, classification/location function schemas, timeout behavior, dan output compatibility; smoke ini tidak mengukur statistical accuracy.
 - Backend tetap memilih actual route account secara deterministik dan tidak menerima user/Manager identifier dari AI.
 

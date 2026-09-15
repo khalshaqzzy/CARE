@@ -23,9 +23,8 @@ TOOLS = {
                 },
                 "severity": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
                 "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-                "rationaleCode": {"type": "string"},
             },
-            "required": ["category", "severity", "confidence", "rationaleCode"],
+            "required": ["category", "severity", "confidence"],
         },
     },
     "location": {

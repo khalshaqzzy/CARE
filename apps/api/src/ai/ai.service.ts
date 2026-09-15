@@ -72,16 +72,6 @@ const classificationOutput = z
     category: z.string().max(80).nullable(),
     severity: z.nativeEnum(Severity),
     confidence: z.number().min(0).max(1),
-    rationaleCode: z.enum([
-      'SAFETY_HAZARD',
-      'ENVIRONMENTAL_RISK',
-      'FACILITY_ISSUE',
-      'WORK_PROCESS',
-      'PEOPLE_ISSUE',
-      'QUALITY_RISK',
-      'APPRECIATION_IDEA',
-      'AMBIGUOUS',
-    ]),
   })
   .strict();
 const locationOutput = z

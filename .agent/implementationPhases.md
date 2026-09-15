@@ -1,5 +1,17 @@
 # CARE v1.1 Implementation Phases
 
+## Classification output simplification — 15 September 2026
+
+Phase 13 remains `in_progress`; no second phase is opened. The classification
+prompt and function schema now request only category, severity and confidence.
+`rationaleCode` is removed from LLM instructions and local result validation, and
+the prompt version advances to `care-classification-v1.5`. Existing database/API
+shape is retained for compatibility; new AI snapshots use the internal
+`NOT_REQUESTED` marker. CARE Granite requests are capped at 2,500 generated tokens
+in the application service; the independent inference stack and its 32,768-token
+context window are unchanged. Local validation evidence is recorded in the
+current session handoff and ADR-0030 amendment.
+
 ## Web Push Android enrollment and delivery hardening — 14 September 2026
 
 Phase 13 remains `in_progress`; no second phase is opened. ADR-0051 records the
@@ -368,7 +380,7 @@ Scope:
 - official JavaScript SDK, `chat.completions.create`, `/chat/completions`, forced named function calls, dan local Zod validation;
 - config `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY`, `OPENAI_REASONING_EFFORT`, `OPENAI_TIMEOUT_MS`, `OPENAI_CONFIDENCE_THRESHOLD`, tanpa production default untuk base URL/model/key dan dengan reasoning effort kosong default `none`;
 - minimized payload, bounded timeout/retry, schema validation, sanitized errors, versioned prompts/contracts;
-- classification: nullable category untuk Private, severity, confidence, rationale code; tidak ada fixed category priority;
+- classification: nullable category untuk Private, severity, dan confidence; tidak ada fixed category priority;
 - location review: `COMPLETE | INCOMPLETE | UNKNOWN`, warning, maksimal tiga suggestion questions;
 - debounce/on-blur review, content-hash cache, invalidation, snapshot-bound acknowledgment, advisory warning, dan non-blocking provider failure;
 - Manual Fallback: General memilih category+severity, Private memilih severity saja.
@@ -813,6 +825,10 @@ Implementation state 28 Agustus 2026:
   and the smoke-test `DEFAULT_CATEGORY_CONTEXT` synchronized with the seeded
   catalog definitions and ordered examples. Location prompt remains
   `care-location-v1.2`. See ADR-0030;
+- 15 September 2026 classification output is simplified in
+  `care-classification-v1.5`: rationale-code instructions and the function-schema
+  field are removed; historical persistence remains backward compatible through
+  the internal `NOT_REQUESTED` marker. See ADR-0030;
 - 1 September 2026 local-provider extension is complete without changing this
   phase status: independent `/inference` Compose runs Granite 4.2 3B through
   SGLang on `dx-2`; the existing Cloudflare tunnel publishes
