@@ -57,7 +57,7 @@ openai_reasoning_effort="$(env_value "${RUNTIME_ENV}" OPENAI_REASONING_EFFORT)" 
 vapid_subject="$(require_env_value "${RUNTIME_ENV}" VAPID_SUBJECT)"
 [[ "${vapid_subject}" =~ ^(mailto:|https://) ]] || die "VAPID_SUBJECT must use mailto: or https:."
 endpoint_hosts="$(require_env_value "${RUNTIME_ENV}" PUSH_ENDPOINT_HOSTS)"
-[[ "${endpoint_hosts}" =~ ^([A-Za-z0-9-]+\.)+[A-Za-z0-9-]+(,([A-Za-z0-9-]+\.)+[A-Za-z0-9-]+)*$ ]] || die "PUSH_ENDPOINT_HOSTS must be an exact comma-separated hostname allowlist."
+[[ "${endpoint_hosts}" =~ ^(\*\.)?([A-Za-z0-9-]+\.)+[A-Za-z0-9-]+(,(\*\.)?([A-Za-z0-9-]+\.)+[A-Za-z0-9-]+)*$ ]] || die "PUSH_ENDPOINT_HOSTS must be a comma-separated allowlist of exact hostnames or *.suffix patterns."
 canary_hash="$(env_value "${RUNTIME_ENV}" PUSH_CANARY_ENDPOINT_HASH)" || die "PUSH_CANARY_ENDPOINT_HASH must be present."
 [[ -z "${canary_hash}" || "${canary_hash}" =~ ^[0-9a-f]{64}$ ]] || die "PUSH_CANARY_ENDPOINT_HASH must be empty or a SHA-256 hex value."
 

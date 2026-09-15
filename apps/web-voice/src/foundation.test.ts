@@ -88,12 +88,20 @@ describe('workforce foundation boundaries', () => {
 
   it('keeps the push handler generic and free of Private identity fields', () => {
     const serviceWorker = readFileSync(join(sourceDir, 'sw.ts'), 'utf8');
+    const payloadBuilder = readFileSync(join(sourceDir, 'lib/push-payload.ts'), 'utf8');
     const pushHandler = serviceWorker.slice(
       serviceWorker.indexOf("addEventListener('push'"),
       serviceWorker.indexOf("addEventListener('notificationclick'"),
     );
-    expect(pushHandler).toContain("'Pembaruan CARE'");
-    // Never derive a push payload locally from a Private reporter identity.
-    expect(pushHandler).not.toMatch(/\breporter|noReg|no_reg|displayName|division|department\b/);
+    // The handler delegates payload parsing/option building to the shared,
+    // unit-tested module instead of reading fields inline.
+    expect(pushHandler).toContain('buildNotification(readPushPayload(event.data))');
+    expect(payloadBuilder).toContain("'Pembaruan CARE'");
+    // The backend redacts Private Voice copy before sending; the client must
+    // never derive a push payload locally from a Private reporter identity.
+    for (const source of [pushHandler, payloadBuilder])
+      expect(source).not.toMatch(/\breporter|noReg|no_reg|displayName|division|department\b/);
+    // A notification tap only ever opens a same-origin path.
+    expect(payloadBuilder).toContain('safeDeepLink');
   });
 });

@@ -75,6 +75,7 @@ export function App() {
         </div>
       ) : null}
       <ServiceWorkerUpdatePrompt />
+      <ServiceWorkerNavigation />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -113,6 +114,36 @@ export function App() {
       </Routes>
     </>
   );
+}
+
+/**
+ * Routes to the deep link carried by a tapped push notification. The service
+ * worker focuses the existing window and posts this message; without a
+ * listener the tap only focused the app (or opened the default page) instead
+ * of the Voice the notification was about.
+ */
+function ServiceWorkerNavigation() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    // Legacy browsers can expose the property while unsupporting the feature.
+    const container = navigator.serviceWorker;
+    if (typeof container?.addEventListener !== 'function') return;
+    const onMessage = (event: MessageEvent) => {
+      const payload = event.data as { type?: unknown; url?: unknown } | null;
+      if (payload?.type !== 'NOTIFICATION_NAVIGATE' || typeof payload.url !== 'string') return;
+      let target: URL;
+      try {
+        target = new URL(payload.url, window.location.origin);
+      } catch {
+        return;
+      }
+      if (target.origin !== window.location.origin) return;
+      void navigate(`${target.pathname}${target.search}${target.hash}`);
+    };
+    container.addEventListener('message', onMessage);
+    return () => container.removeEventListener('message', onMessage);
+  }, [navigate]);
+  return null;
 }
 
 function ServiceWorkerUpdatePrompt() {

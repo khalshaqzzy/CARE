@@ -38,7 +38,9 @@ const schema = z.object({
   VAPID_PRIVATE_KEY: optionalSecret,
   PUSH_ENDPOINT_HOSTS: z
     .string()
-    .default('fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com'),
+    .default(
+      'fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com,*.notify.windows.com',
+    ),
   METRICS_TOKEN: optionalSecret,
   OUTBOX_ENABLED: z.enum(['true', 'false']).default('true'),
   PUSH_CANARY_ENDPOINT_HASH: z

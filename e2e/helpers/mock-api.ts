@@ -905,6 +905,7 @@ export type MockApiOptions = {
         installationId: string;
         environment: string;
         lastSuccessAt?: string;
+        endpointHashPrefix?: string;
       }[];
     };
   };

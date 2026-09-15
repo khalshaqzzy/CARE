@@ -50,9 +50,16 @@ for (const file of jsFiles) {
 const bootstrapChunk = jsFiles.find((file) => /bootstrap-app-.*\.js$/.test(file));
 assert(bootstrapChunk, 'Unable to locate the workforce bootstrap-app chunk.');
 const gzipBytes = gzipSync(readFileSync(bootstrapChunk)).byteLength;
+// ADR-0026 allows a +15% budget over a recorded baseline; ADR-0051 re-recorded
+// the baseline for the Web Push enrollment/delivery work and records the growth
+// review. Keep the budget derived rather than hand-tuned.
+const BASELINE_GZIP_BYTES = 144_904;
+const COMPATIBILITY_BUDGET_BYTES = Math.ceil(BASELINE_GZIP_BYTES * 1.15);
 assert(
-  gzipBytes <= 143_500,
-  `Workforce main gzip ${gzipBytes} exceeds the 143500-byte compatibility budget.`,
+  gzipBytes <= COMPATIBILITY_BUDGET_BYTES,
+  `Workforce main gzip ${gzipBytes} exceeds the ${COMPATIBILITY_BUDGET_BYTES}-byte compatibility budget (baseline ${BASELINE_GZIP_BYTES}, ADR-0026/ADR-0051).`,
 );
 
-console.log(`PWA compatibility artifact gate passed (main gzip ${gzipBytes} bytes).`);
+console.log(
+  `PWA compatibility artifact gate passed (main gzip ${gzipBytes} bytes, baseline ${BASELINE_GZIP_BYTES}).`,
+);

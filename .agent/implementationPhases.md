@@ -1,5 +1,38 @@
 # CARE v1.1 Implementation Phases
 
+## Web Push Android enrollment and delivery hardening — 14 September 2026
+
+Phase 13 remains `in_progress`; no second phase is opened. ADR-0051 records the
+workforce PWA Web Push changes: notification permission is requested inside the
+explicit gesture and before any awaited operation so Chrome (including Chrome for
+Android) still holds transient user activation when the prompt is shown; a
+suppressed or dismissed prompt (`default`) is reported separately from a blocked
+permission (`denied`) with platform-specific guidance; an existing browser
+subscription is reused or deliberately replaced when it is bound to a rotated
+VAPID key, with one `InvalidStateError` race reconciliation; the service worker
+reads the server's `deepLink` (accepting the legacy `url` alias), never throws on
+malformed payload bytes, and collapses repeats of one Voice through a per-deep-link
+notification tag; the application routes `NOTIFICATION_NAVIGATE` messages from the
+service worker; the push settings card exposes non-sensitive technical detail for
+per-device diagnosis; the subscription API transfers an endpoint to the enrolling
+account/installation instead of failing the `endpointHash + environment`
+uniqueness constraint, retries one concurrent-insert race, reports an
+`endpointHashPrefix` for rotation detection, and scopes unsubscription to the
+server environment; delivery isolates failures per device, retires a registration
+on 404/410 or at a bounded failure count, and only schedules an outbox retry for
+transient provider failures; and `PUSH_ENDPOINT_HOSTS` accepts `*.suffix` patterns
+with `*.notify.windows.com` included by default so Edge on Android and desktop can
+enroll. The push status contract and the `installationId` request bounds changed;
+no database migration, authorization, lifecycle, or AI change is included.
+
+Local acceptance: static (unit API 99 / workforce 124 / UI 26 / frontend-core 15 /
+Admin 2, validation orchestration 9, provider smoke), build (OpenAPI stability,
+typecheck, production bundles, PWA compatibility gate at main gzip 144,904 bytes
+with the baseline re-recorded under ADR-0026's +15% budget rule), PostgreSQL
+integration 103, security 14, browser 200/200 (187 Chromium, 11 push, 2 PWA),
+legacy WebKit 6, and native capture 161/161. Hosted acceptance remains part of
+Phase 13.
+
 ## Fresh-database dashboard performance correction — 14 September 2026
 
 The first correction still failed hosted performance at 3,996 ms. Fresh x64 PostgreSQL reproduced 3,602 ms with missing bulk-load statistics; ANALYZE alone reduced the same dataset/code to 2,965 ms. Seed now explicitly analyzes the four KPI relations, and the benchmark validates/logs statistics outside timing. Application SQL also reuses the KPI cohort for summary, groups scalar organization keys before JSON serialization, and converts summed intervals once while preserving fractional means. Final two-CPU x64 reproduction passed at 2,464 ms p95. No fixture/threshold/concurrency/pool/isolation change; the release phase is unchanged. See ADR-0042 and sessionHandoff.md for final shared and hosted evidence.
