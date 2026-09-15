@@ -378,6 +378,31 @@ baru dari waktu mulai operasi; visible notification bukan kriterianya. Missing/i
 provider rejection, atau timeout berarti gagal. Respons 404/410 menonaktifkan subscription dan
 memerlukan re-enrollment sebelum retry.
 
+### 12.1 Troubleshooting opt-in pada perangkat Android
+
+Kartu **Notifikasi push** menampilkan guidance spesifik dan bagian **Detail teknis** (permission,
+service worker, host penyedia, status registrasi, kegagalan terakhir). Bacalah bagian tersebut dari
+perangkat yang gagal sebelum mengubah konfigurasi.
+
+1. **Dialog izin tidak muncul atau ditutup.** Prompt Chrome hanya tampil selama tap masih memegang
+   transient user activation. Minta pengguna menekan sakelar sekali lagi dan memilih **Izinkan**.
+2. **Izin diblokir.** Buka ikon gembok pada address bar → Izin → Notifikasi → Setel ulang; bila
+   Chrome tidak menampilkan notifikasi sama sekali, aktifkan notifikasi aplikasi Chrome pada
+   Pengaturan Android → Aplikasi → Chrome → Notifikasi (berlaku pada Android 13+).
+3. **Pendaftaran push gagal di perangkat.** Chrome tidak dapat menghubungi layanan push:
+   pastikan Google Play Services aktif dan CARE tidak dibuka dalam mode incognito; perangkat
+   tanpa layanan Google tidak mendukung Web Push.
+4. **Penyedia push belum diizinkan.** Host endpoint browser harus ada pada `PUSH_ENDPOINT_HOSTS`
+   (exact atau pola `*.suffix`, mis. `*.notify.windows.com` untuk Edge). Tambahkan host bila
+   memang browser tersebut termasuk perangkat UAT, lalu deploy environment.
+5. **Perangkat tampil aktif tetapi tidak ada notifikasi.** Status mengembalikan
+   `endpointHashPrefix`; aplikasi mendaftarkan ulang subscription yang dirotasi secara otomatis
+   saat dibuka. Bila `lastSuccessAt` tidak pernah terisi, periksa outbox dan `/ready`, jalankan
+   canary, dan minta pengguna mengaktifkan ulang push bila rotation terjadi pada platform yang
+   tidak mengekspos `options.applicationServerKey`.
+6. **Rotasi VAPID key.** Subscription lama tidak lagi valid setelah rotasi; setiap device harus
+   re-enroll melalui kartu pengaturan push. Jangan mencetak key pada log atau evidence.
+
 ## 13. Secret Rotation
 
 Rotasi satu concern per waktu dan pertahankan nilai lama sampai replacement tervalidasi:

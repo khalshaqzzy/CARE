@@ -90,3 +90,13 @@ of hosted acceptance.
   security evidence.
 - If the lowered bundle grows more than 15% gzip from its recorded baseline,
   require an explicit performance review or superseding ADR.
+
+## Amendment — 14 September 2026
+
+ADR-0051 re-recorded the workforce bootstrap baseline at 144,904 bytes gzip and
+the artifact gate now derives its budget from that baseline instead of using a
+hand-tuned constant. The change adds 2,461 bytes gzip (+1.7%) over the previous
+build for Web Push enrollment hardening, platform-specific permission guidance,
+the non-sensitive diagnostic detail on the push settings card, and correct
+notification tap routing. No dependency, polyfill, or prohibited syntax was
+added, and the +15% budget is retained rather than widened proportionally.

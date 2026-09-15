@@ -918,9 +918,15 @@ tidak mempunyai Voice Saya.
 ### 19.4 Subscription Lifecycle
 
 - Subscription terikat user, session/device identifier aman, environment, dan endpoint hash.
-- Endpoint host memakai allowlist untuk mencegah SSRF.
-- Logout, account deactivation, permission loss, atau permanent delivery failure mencabut subscription.
-- Multi-device didukung dan duplicate delivery bersifat idempotent.
+- Endpoint host memakai allowlist untuk mencegah SSRF. Allowlist menerima hostname exact dan pola `*.suffix`; default mencakup FCM, Mozilla autopush, Apple, dan `*.notify.windows.com` agar browser Edge desktop maupun Android yang memakai Windows Notification Service tetap dapat mendaftar.
+- Permintaan izin notifikasi dijalankan di dalam gesture eksplisit dan sebelum operasi async lain, sehingga dialog izin Chrome (termasuk Chrome Android) tidak tertekan oleh hilangnya transient activation. Prompt yang ditutup atau tidak muncul (`default`) dibedakan dari izin yang diblokir (`denied`) dan masing-masing memiliki guidance yang dapat ditindaklanjuti.
+- Browser subscription yang ada dipakai ulang bila masih terikat ke VAPID key yang berlaku; subscription yang terikat ke key lama (hasil rotasi) diganti, dan race `InvalidStateError` direkonsiliasi sekali.
+- Satu browser profile memiliki satu push endpoint. Registrasi ulang dari installation id baru atau dari akun lain pada perangkat yang sama memindahkan kepemilikan baris endpoint tersebut, bukan menghasilkan kegagalan; endpoint host yang tidak diizinkan ditolak dengan `PUSH_ENDPOINT_NOT_ALLOWED`.
+- Logout, account deactivation, permission loss, atau permanent delivery failure mencabut subscription. Respons 404/410 menonaktifkan subscription segera; kegagalan non-transient lain menaikkan failure counter dan perangkat dihentikan pada batas kegagalan yang ditetapkan; hanya kegagalan transien/5xx yang menjadwalkan retry outbox.
+- Subscription yang dirotasi browser (misalnya FCM) dideteksi dari endpoint hash prefix pada status dan didaftarkan ulang secara diam-diam saat aplikasi aktif kembali.
+- Multi-device didukung dan duplicate delivery bersifat idempotent. Push dapat terkirim lebih dari sekali pada retry at-least-once; banner untuk satu Voice yang sama memakai `tag` per deep-link sehingga tampil sebagai satu notifikasi.
+- Kartu pengaturan push menyediakan detail teknis non-sensitif (permission, service worker, host penyedia, status registrasi, kegagalan terakhir) untuk diagnosis perangkat tanpa membocorkan endpoint, key, atau identitas.
+- Tap notifikasi menavigasi ke deep-link yang dikirim server (`deepLink`, dengan `url` sebagai alias lama); hanya path same-origin yang diterima, dan aplikasi yang sedang terbuka ikut bernavigasi melalui pesan service worker.
 
 ---
 
@@ -1061,7 +1067,7 @@ Path final dapat disesuaikan selama OpenAPI mempertahankan capability berikut:
 
 - aggregate-only overview dan separately scoped Voice list/detail;
 - notification list/count/read/read-all;
-- push public key, subscribe, unsubscribe, dan installation status.
+- push public key, subscribe, unsubscribe, dan installation status (termasuk endpoint hash prefix untuk deteksi rotasi subscription).
 
 #### Administration dan Operability
 
@@ -1186,9 +1192,10 @@ didukung sesuai capability browser-nya.
 | Unsupported | iOS/iPadOS <11.3 atau runtime core tidak memadai                                                     | Shell kompatibilitas statis dengan retry/guidance; root kosong atau white screen dilarang.                                                                               |
 | Core Online | iOS/iPadOS 11.3–16.3, atau browser lain yang lulus core probe tetapi tidak lulus PWA probe           | Login, read, create, upload, chat, dan lifecycle action berjalan online. Notification Center adalah fallback authoritative; offline cache dan Web Push tidak dijanjikan. |
 | PWA         | Browser yang lulus probe Service Worker, Cache Storage, Request/Response, dan runtime worker minimum | Core Online ditambah install/update, privacy-safe offline summary, offline fallback, dan cache cleanup.                                                                  |
-| PWA + Push  | iOS/iPadOS ≥16.4 dalam Home Screen mode dengan Push API, atau browser non-iOS yang lulus push probe  | Seluruh capability PWA ditambah Web Push opt-in; permission hanya diminta setelah gesture eksplisit.                                                                     |
+| PWA + Push  | iOS/iPadOS ≥16.4 dalam Home Screen mode dengan Push API, atau browser non-iOS yang lulus push probe  | Seluruh capability PWA ditambah Web Push opt-in; permission hanya diminta setelah gesture eksplisit, di dalam gesture yang sama dan sebelum operasi async lain.          |
 
 - Current dan previous major Chrome/Edge desktop dan Android tetap didukung;
+- Provider push browser non-iOS (FCM, Mozilla autopush, Windows Notification Service melalui allowlist `*.notify.windows.com`) diterima selama host endpoint berada pada allowlist environment; kegagalan opt-in menampilkan guidance spesifik platform, dan detail teknis non-sensitif tersedia pada kartu pengaturan push untuk diagnosis perangkat Android;
 - `/design` adalah current-browser-only dan menampilkan guidance tanpa memuat design chunk pada legacy iOS;
 - kegagalan registration/update/cache menurunkan runtime ke Core Online dan tidak boleh menggagalkan render;
 - iOS/iPadOS 11.3 real-device tidak menjadi release acceptance requirement. Dukungan legacy ditegakkan melalui lowered production target, bootstrap/probe unit tests, artifact syntax inspection, dan current-WebKit capability emulation; keterbatasan ini wajib dicatat pada release evidence;

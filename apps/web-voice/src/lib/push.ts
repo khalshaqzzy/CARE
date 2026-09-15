@@ -75,13 +75,162 @@ export function getInstallationId(): string {
 /** Prepare a subscription payload ready to POST to the backend. */
 export function subscriptionPayload(
   endpoint: string,
-  keys: PushSubscriptionKeys,
-): { installationId: string; endpoint: string; keys: PushSubscriptionKeys } {
+  keys: BrowserPushKeys,
+): { installationId: string; endpoint: string; keys: BrowserPushKeys } {
   return { installationId: getInstallationId(), endpoint, keys };
+}
+
+/** Prepare a payload from an existing browser subscription, without resubscribing. */
+export function browserSubscriptionPayload(subscription: BrowserPushSubscription): {
+  installationId: string;
+  endpoint: string;
+  keys: BrowserPushKeys;
+} {
+  return subscriptionPayload(subscription.endpoint, readKeys(subscription));
 }
 
 /** Best-effort read of the browser permission for the current environment. */
 export function permissionState(): NotificationPermission | 'unsupported' {
   if (!isPushSupported()) return 'unsupported';
   return window.Notification?.permission ?? 'unsupported';
+}
+
+export type PushPlatform = 'ios' | 'android' | 'other';
+
+/**
+ * Coarse platform hint for setup guidance copy. Android is detected from the
+ * user agent because the opt-in path differs (Chrome/Android needs the prompt
+ * inside the tap's activation, and its notification permission also lives in
+ * Android system settings for the browser app itself).
+ */
+export function pushPlatform(): PushPlatform {
+  if (typeof navigator === 'undefined') return 'other';
+  if (isIos()) return 'ios';
+  return /android/i.test(navigator.userAgent ?? '') ? 'android' : 'other';
+}
+
+/** Host of the browser's push service endpoint, e.g. `fcm.googleapis.com`. */
+export function pushProviderHost(endpoint: string): string | null {
+  try {
+    return new URL(endpoint).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * First 12 hex characters of the SHA-256 of an endpoint URL, matching the
+ * server's `endpointHashPrefix`. Used to detect a silently rotated browser
+ * subscription without exposing the endpoint itself. `null` when the platform
+ * cannot hash (no WebCrypto).
+ */
+export async function endpointHashPrefix(endpoint: string): Promise<string | null> {
+  // `globalThis` itself may be absent on pre-12.1 WebKit, so probe it safely.
+  const subtle = typeof globalThis !== 'undefined' ? globalThis.crypto?.subtle : undefined;
+  if (!subtle) return null;
+  try {
+    const digest = await subtle.digest('SHA-256', new TextEncoder().encode(endpoint));
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 12);
+  } catch {
+    return null;
+  }
+}
+
+/** Minimal structural view of a browser push subscription used by the opt-in. */
+export type BrowserPushSubscription = {
+  endpoint: string;
+  options?: { applicationServerKey?: ArrayBuffer | ArrayBufferView | null } | null;
+  toJSON(): unknown;
+  unsubscribe(): Promise<boolean>;
+};
+
+export type BrowserPushSubscriptionManager = {
+  getSubscription(): Promise<BrowserPushSubscription | null>;
+  subscribe(options: {
+    userVisibleOnly: boolean;
+    applicationServerKey: Uint8Array<ArrayBuffer>;
+  }): Promise<BrowserPushSubscription>;
+};
+
+export type BrowserPushKeys = { p256dh: string; auth: string };
+
+export class BrowserPushSubscriptionError extends Error {
+  constructor(
+    message: string,
+    public readonly browserErrorName: string,
+  ) {
+    super(message);
+    this.name = 'BrowserPushSubscriptionError';
+  }
+}
+
+/**
+ * Compare a subscription's bound VAPID key with the expected one. Returns
+ * `null` when the platform does not expose `options.applicationServerKey`
+ * (then the caller must keep the existing subscription; rotating VAPID keys
+ * always requires a device re-enrollment there).
+ */
+export function applicationServerKeyMatches(
+  bound: ArrayBuffer | ArrayBufferView | null | undefined,
+  expected: Uint8Array,
+): boolean | null {
+  if (!bound) return null;
+  const bytes =
+    bound instanceof ArrayBuffer
+      ? new Uint8Array(bound)
+      : new Uint8Array(bound.buffer, bound.byteOffset, bound.byteLength);
+  if (bytes.length !== expected.length) return false;
+  for (let index = 0; index < bytes.length; index += 1) {
+    if (bytes[index] !== expected[index]) return false;
+  }
+  return true;
+}
+
+function readKeys(subscription: BrowserPushSubscription): BrowserPushKeys {
+  const json = subscription.toJSON() as { keys?: { p256dh?: unknown; auth?: unknown } } | null;
+  const p256dh = json?.keys?.p256dh;
+  const auth = json?.keys?.auth;
+  if (typeof p256dh !== 'string' || typeof auth !== 'string')
+    throw new BrowserPushSubscriptionError('Subscription keys are missing', 'MissingKeysError');
+  return { p256dh, auth };
+}
+
+/**
+ * Reuse the browser's existing push subscription when it is still bound to the
+ * expected VAPID key, otherwise replace it. Reusing avoids the
+ * `InvalidStateError`/`AbortError` that Chrome (notably on Android) reports
+ * when `subscribe()` is called for an already-subscribed service worker, and
+ * replacing heals a subscription that was created with a rotated VAPID key.
+ */
+export async function ensureBrowserSubscription(
+  manager: BrowserPushSubscriptionManager,
+  applicationServerKey: Uint8Array<ArrayBuffer>,
+): Promise<{ endpoint: string; keys: BrowserPushKeys }> {
+  const subscribeOptions = { userVisibleOnly: true, applicationServerKey } as const;
+  const existing = await manager.getSubscription().catch(() => null);
+  if (existing) {
+    if (
+      applicationServerKeyMatches(existing.options?.applicationServerKey, applicationServerKey) !==
+      false
+    )
+      return { endpoint: existing.endpoint, keys: readKeys(existing) };
+    await existing.unsubscribe().catch(() => false);
+  }
+  try {
+    const created = await manager.subscribe(subscribeOptions);
+    return { endpoint: created.endpoint, keys: readKeys(created) };
+  } catch (error) {
+    // A concurrent subscribe (another tab, or the WebAPK) can win the race and
+    // make this call fail with `InvalidStateError`; reconcile once.
+    const name = error instanceof Error ? error.name : '';
+    if (name !== 'InvalidStateError') throw error;
+    const raced = await manager.getSubscription().catch(() => null);
+    if (!raced) throw error;
+    await raced.unsubscribe().catch(() => false);
+    const created = await manager.subscribe(subscribeOptions);
+    return { endpoint: created.endpoint, keys: readKeys(created) };
+  }
 }

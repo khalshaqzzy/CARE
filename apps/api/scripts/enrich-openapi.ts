@@ -990,7 +990,7 @@ const schemas: Record<string, any> = {
     required: ['installationId', 'endpoint', 'keys'],
     additionalProperties: false,
     properties: {
-      installationId: { type: 'string', minLength: 8, maxLength: 200 },
+      installationId: { type: 'string', minLength: 1, maxLength: 100 },
       endpoint: { type: 'string', format: 'uri' },
       keys: {
         type: 'object',
@@ -2178,6 +2178,11 @@ const schemas: Record<string, any> = {
             installationId: { type: 'string' },
             environment: { type: 'string' },
             lastSuccessAt: { type: 'string', format: 'date-time', nullable: true },
+            endpointHashPrefix: {
+              type: 'string',
+              description:
+                'First 12 hex characters of the SHA-256 of the installed browser endpoint, used to detect a rotated subscription.',
+            },
           },
         },
       },

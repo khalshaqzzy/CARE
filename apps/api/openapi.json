@@ -14936,8 +14936,8 @@
         "properties": {
           "installationId": {
             "type": "string",
-            "minLength": 8,
-            "maxLength": 200
+            "minLength": 1,
+            "maxLength": 100
           },
           "endpoint": {
             "type": "string",
@@ -19596,6 +19596,10 @@
                   "type": "string",
                   "format": "date-time",
                   "nullable": true
+                },
+                "endpointHashPrefix": {
+                  "type": "string",
+                  "description": "First 12 hex characters of the SHA-256 of the installed browser endpoint, used to detect a rotated subscription."
                 }
               }
             }

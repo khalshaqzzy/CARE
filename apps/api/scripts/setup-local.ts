@@ -59,7 +59,7 @@ async function main() {
     'VAPID_SUBJECT=mailto:care-local@example.invalid',
     `VAPID_PUBLIC_KEY=${vapid.publicKey}`,
     `VAPID_PRIVATE_KEY=${vapid.privateKey}`,
-    'PUSH_ENDPOINT_HOSTS=fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com',
+    'PUSH_ENDPOINT_HOSTS=fcm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com,*.notify.windows.com',
     `METRICS_TOKEN=${secret()}`,
     'OUTBOX_ENABLED=true',
     'CARE_ADMIN_USERNAME=care-admin',

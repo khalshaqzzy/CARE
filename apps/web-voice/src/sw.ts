@@ -3,6 +3,7 @@ import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { NetworkOnly } from 'workbox-strategies';
+import { buildNotification, parsePushPayloadText } from './lib/push-payload.js';
 
 declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<never> };
 
@@ -80,16 +81,20 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// A push must always surface a notification (the subscription is
+// `userVisibleOnly`), so unreadable payloads fall back to generic copy instead
+// of letting the event handler throw.
+function readPushPayload(data: PushMessageData | null) {
+  try {
+    return parsePushPayloadText(data ? data.text() : null);
+  } catch {
+    return parsePushPayloadText(null);
+  }
+}
+
 self.addEventListener('push', (event) => {
-  const payload = event.data?.json() as { title?: string; body?: string; url?: string } | undefined;
-  event.waitUntil(
-    self.registration.showNotification(payload?.title ?? 'Pembaruan CARE', {
-      body: payload?.body ?? 'Buka CARE untuk melihat pembaruan terbaru.',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      data: { url: payload?.url ?? '/notifications' },
-    }),
-  );
+  const notification = buildNotification(readPushPayload(event.data));
+  event.waitUntil(self.registration.showNotification(notification.title, notification.options));
 });
 
 self.addEventListener('notificationclick', (event) => {

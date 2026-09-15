@@ -2791,6 +2791,8 @@ export interface components {
                 environment: string;
                 /** Format: date-time */
                 lastSuccessAt?: string | null;
+                /** @description First 12 hex characters of the SHA-256 of the installed browser endpoint, used to detect a rotated subscription. */
+                endpointHashPrefix?: string;
             }[];
         };
         PushSubscriptionResponse: {
