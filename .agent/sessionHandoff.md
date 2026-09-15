@@ -1,5 +1,30 @@
 # CARE Session Handoff
 
+## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
+
+Current objective: replace the active local Granite provider with
+`inclusionAI/Ling-3.0-tiny-fp8` on `dx-2` and coordinate the matching CARE
+provider profile through a feature PR and staging deployment. The inference
+stack now builds SGLang 0.5.19 locally from the digest-pinned CUDA 13.0.3 base,
+reusing the `dx-2` Docker cache. It runs the native FP8 checkpoint with a
+32,768-token context, TP one, explicit `deepseek-r1`/`glm45` parsers and LPM
+scheduling. CARE keeps thinking enabled by default, sends the model-recommended
+sampling values, caps output at 8,192 tokens and raises the per-attempt timeout
+default/ceiling to 90 seconds. DeepSeek and strict fail-closed validation remain.
+
+Implementation is in progress on `feat/ling3-tiny-inference`. No database or
+public OpenAPI shape changes are included. The full local validation plan passed:
+format, lint, typecheck, unit, mock-provider smoke, OpenAPI stability, build,
+integration/security/organization/performance suites, five migration upgrades,
+full-stack, browser/PWA/push, legacy and 161 visual captures. Deployment env,
+script, security-exception, Compose, Python compile, ShellCheck, Hadolint and
+diff checks also passed. The initial feature SHA `3402c487` passed all 20 hosted
+PR checks, including its release candidate gate. After the user replaced the
+prebuilt-image approach with a CUDA-cache local build, the follow-up hosted,
+staging and live evidence remains pending. Granite has been stopped on `dx-2`;
+GPU startup is currently blocked by an NVIDIA kernel/userspace mismatch
+(`595.84` versus `595.91.07`) that requires host driver reload or reboot.
+
 ## Classification output simplification — 15 September 2026
 
 The user requested removal of `rationaleCode` from the LLM prompt and schema so

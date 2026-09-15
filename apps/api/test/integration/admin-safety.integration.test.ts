@@ -123,7 +123,7 @@ describe('Admin safety invariants', () => {
       admin,
       {
         baseUrl: 'https://inference.example.test/v1',
-        model: 'ibm-granite/granite-4.2-3b',
+        model: 'inclusionAI/Ling-3.0-tiny-fp8',
         apiKey,
         reasoningEffort: '',
         confidenceThreshold: 0.7,
@@ -138,7 +138,7 @@ describe('Admin safety invariants', () => {
         admin,
         {
           baseUrl: 'https://inference.example.test/v1',
-          model: 'ibm-granite/granite-4.2-3b',
+          model: 'inclusionAI/Ling-3.0-tiny-fp8',
           apiKey: 'a-different-provider-secret-for-the-same-idempotency-key',
           reasoningEffort: '',
           confidenceThreshold: 0.7,

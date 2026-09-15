@@ -72,9 +72,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Granite 4.2 requires SGLang 0.5.18+ for automatic reasoning/tool parsers.
+# SGLang 0.5.19 is the first stable release that lists Ling 3.0 Tiny support.
 RUN python3 -m pip config set global.break-system-packages true \
-    && python3 -m pip install "sglang[all]==0.5.18"
+    && python3 -m pip install "sglang[all]==0.5.19"
 
 EXPOSE 30000
 CMD ["bash"]

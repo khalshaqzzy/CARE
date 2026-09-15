@@ -548,13 +548,13 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 
 ### 13.1 Model Contract
 
-- Protocol: OpenAI-compatible Chat Completions API, endpoint `/chat/completions`, untuk DeepSeek maupun local Granite.
+- Protocol: OpenAI-compatible Chat Completions API, endpoint `/chat/completions`, untuk DeepSeek maupun local Ling.
 - SDK: official `openai` JavaScript/TypeScript package dengan `chat.completions.create`.
 - Base URL, model, API key, reasoning effort, dan confidence threshold memakai singleton Admin override bila tersedia dan environment sebagai bootstrap/fallback. Perubahan Admin aktif untuk request berikutnya tanpa restart; timeout tetap env-only.
 - Admin override menyimpan API key dengan AES-256-GCM menggunakan `OPENAI_CONFIG_ENCRYPTION_KEY`, optimistic version, actor, dan waktu update. Kegagalan dekripsi fail-closed dan tidak boleh fallback diam-diam ke key environment.
-- Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Granite kosong memakai full thinking dengan `enable_thinking=true` dan `low_effort=false`.
+- Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Ling kosong memakai thinking dengan `enable_thinking=true`, sedangkan `none` mengirim `enable_thinking=false`.
 - Authentication menggunakan server-only API key. API key/ciphertext tidak boleh masuk repository, dokumentasi, log, response, audit, readiness, metric, OpenAPI example, atau client bundle.
-- Request memakai dua messages, tepat satu named function, dan `thinking`/`reasoning_effort` yang dipetakan dari runtime config. Named `tool_choice` dipaksa untuk Granite dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Nilai `none` mengirim `thinking.disabled` tanpa `reasoning_effort`; nilai lain memakai DeepSeek thinking mode. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
+- Request memakai dua messages dan tepat satu named function. Ling memakai `chat_template_kwargs.enable_thinking`, sampling `temperature=1.0`, `top_p=0.95`, `top_k=20`, serta cap 8.192 generated token pada app. Named `tool_choice` dipaksa untuk Ling dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
 - Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.5`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Setiap perubahan konten prompt wajib menaikkan versi prompt.
 - Output LLM classification hanya memuat `category`, `severity`, dan `confidence`; `rationaleCode` tidak diminta dalam prompt maupun function schema agar model tidak menghasilkan klasifikasi alasan tambahan. Kolom snapshot historis tetap dipertahankan untuk kompatibilitas dan snapshot AI baru mengisinya dengan penanda internal `NOT_REQUESTED`.
 
@@ -616,7 +616,7 @@ Severity adalah prioritas penanganan, bukan diagnosis hukum atau pengganti emerg
 ### 13.5 Confidence dan Fallback
 
 - Default confidence threshold adalah `0.75` dan configurable per environment.
-- Satu retry diperbolehkan untuk transient error dengan timeout default dan maksimum 60 detik per attempt.
+- Satu retry diperbolehkan untuk transient error dengan timeout default dan maksimum 90 detik per attempt.
 - Timeout, exhausted retry, refusal/incomplete response, invalid JSON/schema, empty response, atau confidence di bawah threshold mengaktifkan Manual Fallback.
 - Manual Fallback General mewajibkan reporter memilih category dan severity; Private hanya memilih severity.
 - Seluruh UI workforce menampilkan `ENVIRONMENT` sebagai **Lingkungan** dan
@@ -1936,7 +1936,7 @@ V1 siap production bila:
 - Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
 - General bukan public feed.
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
-- AI memakai official OpenAI JavaScript SDK untuk OpenAI-compatible Chat Completions. DeepSeek `deepseek-v4-flash` dan local `ibm-granite/granite-4.2-3b` didukung; reasoning kosong adalah provider default, sedangkan DeepSeek non-thinking memakai `none` eksplisit. Admin dapat mengaktifkan encrypted runtime override tanpa restart, dengan environment sebagai fallback.
+- AI memakai official OpenAI JavaScript SDK untuk OpenAI-compatible Chat Completions. DeepSeek `deepseek-v4-flash` dan local `inclusionAI/Ling-3.0-tiny-fp8` didukung; reasoning kosong adalah provider default, sedangkan DeepSeek non-thinking memakai `none` eksplisit. Admin dapat mengaktifkan encrypted runtime override tanpa restart, dengan environment sebagai fallback.
 - AI high-confidence read-only; failure/low-confidence wajib Manual Fallback reporter.
 - Alias kategori reporter pada workforce bersifat presentation-only:
   `ENVIRONMENT` → `Lingkungan` dan `FACILITY_REPAIR` → `Perbaikan Fasilitas`;

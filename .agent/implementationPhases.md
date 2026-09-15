@@ -1,5 +1,17 @@
 # CARE v1.1 Implementation Phases
 
+## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
+
+Phase 13 remains `in_progress`; no second phase is opened. The independent GPU
+stack and CARE provider profile migrate from Granite 4.2 3B to
+`inclusionAI/Ling-3.0-tiny-fp8`. The locally built SGLang 0.5.19 runtime reuses
+the digest-pinned CUDA 13.0.3 base/cache and runs the checkpoint's native FP8
+format with a 32,768-token context, TP one, explicit reasoning/tool parsers and
+provider-default thinking. CARE sends the recommended sampling fields, caps
+generated output at 8,192 tokens, and allows 90,000 ms per attempt. DeepSeek
+compatibility, strict function validation, Manual Fallback, database/API shape,
+category routing and prompt versions remain unchanged. See ADR-0028.
+
 ## Classification output simplification — 15 September 2026
 
 Phase 13 remains `in_progress`; no second phase is opened. The classification
@@ -7,10 +19,9 @@ prompt and function schema now request only category, severity and confidence.
 `rationaleCode` is removed from LLM instructions and local result validation, and
 the prompt version advances to `care-classification-v1.5`. Existing database/API
 shape is retained for compatibility; new AI snapshots use the internal
-`NOT_REQUESTED` marker. CARE Granite requests are capped at 2,500 generated tokens
-in the application service; the independent inference stack and its 32,768-token
-context window are unchanged. Local validation evidence is recorded in the
-current session handoff and ADR-0030 amendment.
+`NOT_REQUESTED` marker. The superseded Granite cap was 2,500 generated tokens;
+the current Ling provider profile is described above. Local validation evidence
+is recorded in the current session handoff and ADR-0030 amendment.
 
 ## Web Push Android enrollment and delivery hardening — 14 September 2026
 
@@ -811,11 +822,12 @@ Acceptance:
 
 Implementation state 28 Agustus 2026:
 
-- 2 September 2026 inference timeout alignment raises the env-only
-  `OPENAI_TIMEOUT_MS` default and ceiling from 30,000 to 60,000 ms per provider
-  attempt across API validation, local setup, deployment rendering, Compose,
-  and committed environment examples. The existing single transient retry is
-  retained, so two failed attempts can consume approximately 120 seconds. PRD
+- 15 September 2026 Ling migration raises the env-only `OPENAI_TIMEOUT_MS`
+  default and ceiling from 60,000 to 90,000 ms per provider attempt. The
+  historical 2 September alignment raised it from 30,000 to 60,000 ms. API
+  validation, local setup, deployment rendering, Compose, and committed
+  environment examples share the new value. The existing single transient retry
+  is retained, so two failed attempts can consume approximately 180 seconds. PRD
   §13.5 and ADR-0028 now record the same boundary; Phase 13 status is unchanged;
 - 1 September 2026 classification prompt enrichment is locally complete: the
   code-owned classification system prompt advances to `care-classification-v1.4`
@@ -830,7 +842,7 @@ Implementation state 28 Agustus 2026:
   field are removed; historical persistence remains backward compatible through
   the internal `NOT_REQUESTED` marker. See ADR-0030;
 - 1 September 2026 local-provider extension is complete without changing this
-  phase status: independent `/inference` Compose runs Granite 4.2 3B through
+  phase status: independent `/inference` Compose originally ran Granite 4.2 3B through
   SGLang on `dx-2`; the existing Cloudflare tunnel publishes
   `inference.qd-tmmin.site`; CARE supports encrypted, hot-reloaded Admin AI
   configuration with environment fallback; and live Granite plus DeepSeek

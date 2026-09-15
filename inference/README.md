@@ -1,6 +1,6 @@
 # CARE Local Inference
 
-This directory serves `ibm-granite/granite-4.2-3b` with SGLang on the dedicated
+This directory serves `inclusionAI/Ling-3.0-tiny-fp8` with SGLang on the dedicated
 `dx-2` GPU host. It is intentionally independent from CARE release/deployment
 Compose. Updates are operated manually through SSH; the host-level systemd unit
 starts the already-installed stack automatically after a reboot.
@@ -14,11 +14,17 @@ starts the already-installed stack automatically after a reboot.
 - There is no application rate limiter. Cloudflare's normal network protection
   remains outside this stack.
 - The model context window is 32,768 tokens and the CARE application caps its
-  Granite requests at 2,500 new tokens. The inference stack does not enforce a
+  Ling requests at 8,192 new tokens. The inference stack does not enforce a
   global output cap for other clients.
-- The NVIDIA/SGLang container runs as the image-defined root user because the
-  CUDA development image and runtime write caches under `/root`; it has no host
-  port or host filesystem access other than the dedicated Hugging Face cache.
+- Ling uses its checkpoint-native FP8 quantization, explicit `deepseek-r1`
+  reasoning and `glm45` tool parsers, and LPM scheduling. NEXTN speculative
+  decoding is intentionally disabled because Ling Tiny has no draft layer.
+- The NVIDIA/SGLang container is built locally from the digest-pinned CUDA
+  13.0.3 development base and SGLang 0.5.19. The `dx-2` Docker build cache
+  reuses the CUDA/toolchain layers; no vendor prebuilt SGLang image is used.
+- The inference container runs as root because CUDA tooling and the runtime
+  write caches under `/root`; it has no host port or host filesystem access
+  other than the dedicated Hugging Face cache.
 
 ## First start / update
 
@@ -32,7 +38,7 @@ docker compose --env-file .env up -d --build
 docker compose --env-file .env ps
 ```
 
-The first start downloads the model. Later rebuilds reuse `HF_CACHE`.
+The first start downloads the model. Later starts reuse `HF_CACHE`.
 
 ## Boot and crash recovery
 
@@ -77,11 +83,10 @@ python3 scripts/live_smoke.py
 Run the smoke only in a private operator shell; it prints model, latency,
 reasoning presence, and tool-call validity, never the key or reasoning text.
 
-## Stop and rollback
+## Stop
 
 ```sh
 docker compose --env-file .env down
 ```
 
-The model cache is retained. Host-side backups made before an update can be
-restored without changing the Cloudflare tunnel token.
+The model cache is retained when the stack stops.

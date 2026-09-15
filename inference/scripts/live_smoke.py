@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Non-sensitive Granite Chat Completions smoke; never prints credentials or reasoning."""
+"""Non-sensitive Ling Chat Completions smoke; never prints credentials or reasoning."""
 
 import argparse
 import json
@@ -19,7 +19,15 @@ TOOLS = {
             "properties": {
                 "category": {
                     "type": ["string", "null"],
-                    "enum": ["SAFETY", "ENVIRONMENT", "FACILITY", "WORK_DIFFICULTY", None],
+                    "enum": [
+                        "SAFETY",
+                        "ENVIRONMENT",
+                        "FACILITY",
+                        "FACILITY_REPAIR",
+                        "WORK_DIFFICULTY",
+                        "WELFARE",
+                        None,
+                    ],
                 },
                 "severity": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
                 "confidence": {"type": "number", "minimum": 0, "maximum": 1},
@@ -71,8 +79,9 @@ def run_call(base_url, api_key, model, kind):
         "tool_choice": {"type": "function", "function": {"name": tool["name"]}},
         "temperature": 1.0,
         "top_p": 0.95,
-        "max_tokens": 4096,
-        "chat_template_kwargs": {"enable_thinking": True, "low_effort": False},
+        "top_k": 20,
+        "max_tokens": 8192,
+        "chat_template_kwargs": {"enable_thinking": True},
     }
     started = time.monotonic()
     result = request_json(base_url + "/chat/completions", api_key, body)
@@ -92,7 +101,9 @@ def run_call(base_url, api_key, model, kind):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", "http://127.0.0.1:30000/v1"))
-    parser.add_argument("--model", default=os.environ.get("OPENAI_MODEL", "ibm-granite/granite-4.2-3b"))
+    parser.add_argument(
+        "--model", default=os.environ.get("OPENAI_MODEL", "inclusionAI/Ling-3.0-tiny-fp8")
+    )
     args = parser.parse_args()
     api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("INFERENCE_API_KEY")
     if not api_key:
@@ -109,7 +120,7 @@ def main():
     models = request_json(args.base_url + "/models", api_key)
     identifiers = [item.get("id") for item in models.get("data", [])]
     if args.model not in identifiers:
-        raise RuntimeError("configured Granite model is not advertised")
+        raise RuntimeError("configured Ling model is not advertised")
 
     results = [run_call(args.base_url, api_key, args.model, kind) for kind in ("classification", "location")]
     print(json.dumps({"status": "ok", "model": args.model, "results": results}))

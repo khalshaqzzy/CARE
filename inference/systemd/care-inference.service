@@ -1,5 +1,5 @@
 [Unit]
-Description=CARE local Granite inference stack
+Description=CARE local Ling inference stack
 Requires=docker.service
 Wants=network-online.target
 After=docker.service network-online.target
