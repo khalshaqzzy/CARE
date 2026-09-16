@@ -38,7 +38,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.5');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.6');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -70,6 +70,24 @@ describe('CARE domain contracts', () => {
     expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
       'reimbursement biaya berobat tidak masuk dalam penggajian.',
     );
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'SAFETY')?.definition,
+    ).toContain('Jangan memilih Safety hanya karena masalah lain dapat berdampak kepada manusia');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'ENVIRONMENT')?.definition,
+    ).toContain('Tetap pilih Environment ketika paparan menyebabkan pusing');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'FACILITY')?.definition,
+    ).toContain('secara fisik masih berfungsi');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'FACILITY_REPAIR')?.definition,
+    ).toContain('consequence tersebut menentukan severity');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'WORK_DIFFICULTY')?.definition,
+    ).toContain('Dampak produksi akibat kurangnya training tidak otomatis mengubah category');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'WELFARE')?.definition,
+    ).toContain('harassment, discrimination, retaliation');
   });
   it('builds the General tool enum from active stable keys and keeps Private category null', () => {
     const generalSchema = classificationSchema(['CUSTOM_ONE', 'CUSTOM_TWO'], false);

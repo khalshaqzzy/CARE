@@ -555,7 +555,7 @@ Jika route prerequisite tidak tersedia/valid—termasuk General reporter dengan 
 - Reasoning effort kosong berarti provider-native default. `none` wajib eksplisit untuk DeepSeek non-thinking; local Ling kosong memakai thinking dengan `enable_thinking=true`, sedangkan `none` mengirim `enable_thinking=false`.
 - Authentication menggunakan server-only API key. API key/ciphertext tidak boleh masuk repository, dokumentasi, log, response, audit, readiness, metric, OpenAPI example, atau client bundle.
 - Request memakai dua messages dan tepat satu named function. Ling memakai `chat_template_kwargs.enable_thinking`, sampling `temperature=1.0`, `top_p=0.95`, `top_k=20`, serta cap 8.192 generated token pada app. Named `tool_choice` dipaksa untuk Ling dan DeepSeek non-thinking; DeepSeek thinking mengharuskan `tool_choice` dihilangkan sesuai API provider, tetapi response tetap fail-closed kecuali menghasilkan tepat satu call dengan nama yang diharapkan. Standard function arguments wajib melalui JSON parse, exact tool-name/count checks, dan Zod validation lokal.
-- Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.5`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Setiap perubahan konten prompt wajib menaikkan versi prompt.
+- Classification system prompt bersifat code-owned immutable (saat ini `care-classification-v1.6`) dan menanamkan pertahanan prompt-injection, panduan pemilihan satu primary category paling dominan beserta batas antar kategori, rubrik severity §13.4 beserta contoh per level, kalibrasi confidence terhadap threshold fallback, dan kontrak tool call. Definition dan Examples kategori tetap structured context dinamis dari katalog database. Versi `v1.6` hanya memperjelas enam Definition kategori bawaan; system instruction, Examples, severity rubric, confidence, dan schema tidak berubah. Setiap perubahan konten prompt atau structured classification context wajib menaikkan versi prompt.
 - Output LLM classification hanya memuat `category`, `severity`, dan `confidence`; `rationaleCode` tidak diminta dalam prompt maupun function schema agar model tidak menghasilkan klasifikasi alasan tambahan. Kolom snapshot historis tetap dipertahankan untuk kompatibilitas dan snapshot AI baru mengisinya dengan penanda internal `NOT_REQUESTED`.
 
 Structured response minimum:
@@ -591,12 +591,19 @@ Dedicated location review hanya mengirim area dan detail lokasi. Payload dilaran
 
 ### 13.3 Routing Classification
 
-Kategori:
+Enam Definition bawaan memakai domain penanganan utama sebagai batas:
 
-- `SAFETY`: keselamatan kerja, hazard, near miss, unsafe condition, risiko cedera;
-- `ENVIRONMENT`: limbah, emisi, tumpahan, pencemaran, kebisingan lingkungan, penggunaan sumber daya, atau kepatuhan lingkungan;
-- `FACILITY`: gedung, utilitas, penerangan, ventilasi, toilet, akses, fasilitas umum;
-- `WORK_DIFFICULTY`: proses kerja, alat/prosedur, manpower, konflik kerja, dukungan department, atau isu lain yang bukan kategori khusus.
+- `SAFETY`: hazard dan safety control seperti unsafe action, guarding, APD, jalur orang/kendaraan, near miss, emergency access, api, asap, atau electrical sparking aktif; risiko manusia semata tidak memindahkan akar masalah Environment atau Facility Repair ke Safety;
+- `ENVIRONMENT`: sumber paparan atau dampak lingkungan seperti limbah, chemical/oli, tumpahan, emisi, bau, debu, kebisingan, temperatur, ventilasi, udara, air, drainase, dan pencemaran; tetap Environment ketika paparan menyebabkan gejala selama sumber lingkungan adalah masalah utama;
+- `FACILITY`: kapasitas, ketersediaan, kualitas layanan, jadwal, akses, atau aturan fasilitas bersama yang secara fisik masih berfungsi;
+- `FACILITY_REPAIR`: kerusakan atau kegagalan fisik gedung, utility, sanitasi, penerangan, AC, pintu, kunci, atap, lantai, pipa, atau fasilitas bersama yang membutuhkan pekerjaan teknis;
+- `WORK_DIFFICULTY`: hambatan machine/equipment/tools, workstation, material handling, manpower, approval, SOP, workflow, sistem IT, atau sumber daya operasional;
+- `WELFARE`: training/skill/career, benefit/kompensasi/reimbursement, employee support, misconduct, bullying, harassment, discrimination, retaliation, ancaman terkait pelaporan, dan konflik people-related yang serius.
+
+Severity merepresentasikan dampak dan urgensi secara terpisah; dampak HIGH atau
+CRITICAL tidak dengan sendirinya mengganti category akar masalah. Examples tetap
+referensi pendukung dan Definition menjadi batas utama bila sebuah contoh dapat
+dibaca lintas kategori.
 
 Tidak ada urutan priority category tetap. Jika isi mencakup beberapa kategori, AI memilih satu primary category yang paling dominan berdasarkan konteks. Confidence rendah atau ambiguity mengaktifkan Manual Fallback; server tidak membuat priority rule tersembunyi.
 

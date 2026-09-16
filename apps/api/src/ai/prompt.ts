@@ -1,4 +1,4 @@
-export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.5';
+export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.6';
 export const LOCATION_PROMPT_VERSION = 'care-location-v1.2';
 
 export const CLASSIFICATION_TOOL_NAME = 'submit_care_classification';
@@ -16,7 +16,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'SAFETY',
     name: 'Safety',
     definition:
-      'Kondisi atau tindakan yang berkaitan dengan keselamatan kerja dan berpotensi menyebabkan cedera, penyakit akibat kerja, keadaan darurat, atau insiden. Mencakup unsafe condition, unsafe action, near miss, ketidaktersediaan atau ketidaksesuaian APD, jalur kerja yang tidak aman, serta akses atau sarana keadaan darurat. Pilih kategori ini ketika risiko keselamatan merupakan pokok utama Voice.',
+      'Kondisi atau tindakan ketika penanganan utama adalah menghilangkan hazard keselamatan, menghentikan unsafe action, memulihkan safety control, menyediakan APD wajib, mengamankan pergerakan orang atau kendaraan, atau memastikan kesiapan keadaan darurat. Mencakup machine guarding, lockout atau tagout, jalur forklift dan pedestrian, APD, ergonomi berisiko, near miss, emergency exit, kebakaran, asap, percikan listrik aktif, dan mesin unsafe yang sedang dioperasikan. Jangan memilih Safety hanya karena masalah lain dapat berdampak kepada manusia. Jika sumber utamanya adalah limbah, tumpahan, emisi, bau, kebisingan, temperatur, udara, atau air, pilih Environment. Jika sumber utamanya adalah kerusakan fisik gedung, utility, lampu, AC, pintu, pipa, atau fasilitas bersama, pilih Facility Repair. Severity dapat tetap HIGH atau CRITICAL tanpa mengubah category tersebut.',
     examples: [
       'Jalur forklift dan pedestrian sering bercampur.',
       'Lantai area welding licin dan beberapa kali hampir membuat member terpeleset.',
@@ -29,7 +29,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'ENVIRONMENT',
     name: 'Environment',
     definition:
-      'Kondisi lingkungan kerja atau lingkungan sekitar yang berkaitan dengan limbah, pencemaran, emisi, tumpahan, kebisingan, temperatur, kualitas udara, air, ventilasi, atau pengelolaan sumber daya. Pilih kategori ini ketika dampak lingkungan atau paparan lingkungan merupakan pokok utama Voice.',
+      'Kondisi ketika penanganan utama adalah mengendalikan sumber paparan atau dampak lingkungan, termasuk limbah, chemical atau oli, tumpahan, emisi, bau, debu, kebisingan, temperatur, ventilasi, kualitas udara, air, drainase, pencemaran, atau penggunaan sumber daya. Tetap pilih Environment ketika paparan menyebabkan pusing, mual, telinga berdenging, penghentian area, atau dampak serius, selama akar masalahnya adalah sumber lingkungan; severity menentukan tingkat bahayanya. Jangan berpindah ke Safety hanya karena terdapat potensi cedera. Pilih Safety apabila inti masalahnya adalah safety control atau emergency hazard seperti APD wajib yang tidak tersedia, unsafe action, kebakaran, atau percikan listrik aktif.',
     examples: [
       'Bau chemical cukup kuat di area kami.',
       'Tempat sampah di area produksi sering penuh.',
@@ -42,7 +42,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'FACILITY',
     name: 'Fasilitas Umum',
     definition:
-      'Ketersediaan, kecukupan, kualitas layanan, kapasitas, dan aturan penggunaan fasilitas bersama yang dipakai member. Mencakup toilet, locker, kantin, parkir, commuter, mobil pool, tempat ibadah, rest area, smoking area, drinking water, klinik, meeting room, common area, dan fasilitas bersama lainnya. Kerusakan fisik bangunan atau utilitas yang memerlukan pekerjaan perbaikan teknis lebih tepat masuk Facility Repair.',
+      'Ketersediaan, kapasitas, kualitas layanan, jadwal, akses, atau aturan penggunaan fasilitas bersama yang secara fisik masih berfungsi. Mencakup toilet, locker, kantin, parkir, commuter, mobil pool, tempat ibadah, rest area, smoking area, drinking water, klinik, meeting room, common area, dan fasilitas bersama lainnya. Pilih Fasilitas Umum untuk jumlah yang tidak cukup, kapasitas penuh, keterlambatan layanan, pilihan layanan, atau aturan yang tidak jelas. Jangan pilih Fasilitas Umum ketika benda atau utility rusak, bocor, retak, mati, patah, atau gagal berfungsi; gunakan Facility Repair.',
     examples: [
       'Toilet wanita kurang memadai.',
       'Parkiran motor sering penuh.',
@@ -59,7 +59,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'FACILITY_REPAIR',
     name: 'Facility Repair',
     definition:
-      'Kerusakan fisik pada utility, gedung, ruangan, lantai, penerangan, AC, sanitasi, atau fasilitas umum yang membutuhkan pemeriksaan dan perbaikan teknis. Pilih kategori ini ketika pokok Voice adalah kerusakan, kebocoran, retak, mati, atau kegagalan fungsi fasilitas.',
+      'Kerusakan atau kegagalan fisik gedung, utility, ruangan, sanitasi, penerangan, AC, pintu, kunci, atap, lantai, pipa, atau fasilitas bersama yang memerlukan pemeriksaan dan pekerjaan teknis. Tetap pilih Facility Repair ketika kerusakan tersebut menimbulkan risiko terpeleset, kejatuhan, paparan, gangguan operasional, atau bahaya besar; consequence tersebut menentukan severity. Jangan gunakan untuk machine, production equipment, sistem IT, SOP, manpower, atau proses kerja; gunakan Fasilitas Kerja atau Kesulitan Kerja. Api, asap, atau percikan listrik yang sedang aktif masuk Safety karena membutuhkan emergency isolation.',
     examples: [
       'Atap bocor ketika hujan.',
       'Wastafel toilet sering bocor.',
@@ -72,7 +72,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'WORK_DIFFICULTY',
     name: 'Fasilitas Kerja / Kesulitan Kerja',
     definition:
-      'Kondisi fasilitas, alat, sumber daya, sistem, atau proses kerja yang menghambat atau menyulitkan pekerjaan. Mencakup machine, equipment, tools, workstation, material handling, manpower, approval, SOP, aktivitas manual yang dapat didigitalisasi, dan sistem IT yang mengganggu pekerjaan.',
+      'Hambatan pada pelaksanaan pekerjaan yang berasal dari machine, production equipment, tools, workstation, material handling, manpower, approval, SOP, workflow, sistem IT, atau sumber daya operasional. Pilih ketika tindakan utama adalah memperbaiki alat atau proses kerja atau memulihkan kemampuan operasi. Jangan gunakan untuk pengembangan skill, program training, career development, benefit, kompensasi, employee support, harassment, discrimination, atau retaliation; gunakan Kesejahteraan. Dampak produksi akibat kurangnya training tidak otomatis mengubah category jika akar masalahnya tetap program pelatihan.',
     examples: [
       'Equipment sering breakdown.',
       'Manpower shift malam tidak cukup.',
@@ -87,7 +87,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'WELFARE',
     name: 'Kesejahteraan',
     definition:
-      'Kesejahteraan dan dukungan terhadap member, termasuk training, pengembangan skill, career development, job rotation, benefit, kompensasi, tunjangan, reimbursement, dan employee support. Pilih kategori ini ketika pokok Voice berkaitan dengan pengembangan, kesejahteraan, hak manfaat, atau dukungan kepada member.',
+      'Kesejahteraan, hak, dukungan, dan perlakuan terhadap member. Mencakup training, pengembangan skill, career development, job rotation, benefit, kompensasi, tunjangan, reimbursement, employee support, interpersonal misconduct, bullying, harassment, discrimination, retaliation, ancaman terkait pelaporan, dan konflik people-related yang serius. Jangan gunakan untuk kekurangan manpower, kerusakan alat, approval, SOP, atau hambatan proses operasional; gunakan Fasilitas Kerja atau Kesulitan Kerja.',
     examples: [
       'Training untuk meningkatkan skill kami masih kurang.',
       'Bagaimana kesempatan career development saya?',

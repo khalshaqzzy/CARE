@@ -75,3 +75,26 @@ hash/version workflow. Location review behavior and version remain unchanged.
 As a follow-up to the same simplification, CARE's Granite request cap is reduced
 from 4,096 to 2,500 generated tokens in the application service; the inference
 server's context window and runtime configuration remain unchanged.
+
+## Amendment — 16 September 2026
+
+Live Ling evaluation showed recurring category-boundary errors: environmental
+exposure and spills moved to Safety when human consequences were mentioned,
+physical facility failures moved to Safety, and harassment/retaliation lacked an
+explicit category home. The six built-in category Definition values are therefore
+clarified around the primary remediation domain and explicit exclusions. Safety
+no longer wins merely because another root cause can harm a person; Environment
+retains source exposure, Facility is limited to service/capacity/rules while the
+asset still functions, Facility Repair retains physical failures, Work Difficulty
+retains operational process/resource failures, and Welfare explicitly includes
+people-rights misconduct including harassment, discrimination and retaliation.
+
+This is deliberately a Definition-only quality change. The code-owned system
+instruction, ordered Examples, severity rubric, confidence guidance, function
+schema, routing and provider configuration are unchanged. Classification version
+advances to `care-classification-v1.6` so v1.5 draft results are not reused with
+the new structured context. A new data migration closes revision 1 and creates
+revision 2 for the six original categories while copying names and Examples and
+leaving routes/custom categories untouched. It fails closed instead of overwriting
+an unexpected Admin-authored built-in revision. Historical classification links
+remain attached to their immutable earlier revision.

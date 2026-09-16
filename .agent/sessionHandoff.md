@@ -1,5 +1,35 @@
 # CARE Session Handoff
 
+## Built-in classification Definition clarity — 16 September 2026
+
+Branch `feat/classification-definitions-v2` starts from `origin/staging`. Scope is
+restricted to the six built-in category Definition values. Safety/Environment,
+Facility/Facility Repair and Work Difficulty/Welfare now state their primary
+remediation domains and explicit exclusions; Welfare explicitly covers bullying,
+harassment, discrimination and retaliation. System instructions, Examples,
+severity rubric, confidence guidance, schema, routes and provider settings are
+unchanged. Classification version advances to `care-classification-v1.6` solely
+to invalidate v1.5 draft results after the structured context changes.
+
+Migration `20260916090000_category_definition_clarity` preserves revision 1 and
+creates revision 2 for the six original categories, copying names/Examples and
+leaving routes and custom categories untouched. It fails closed when an active
+built-in category is not the expected revision 1, preventing silent overwrite of
+Admin history. Focused API unit tests pass (106 tests across ten files), formatting,
+the destructive-migration check and `git diff --check` pass. After OrbStack was
+started, the complete 13-migration chain applied successfully to a fresh disposable
+`care_test` database. SQL verification confirmed six revision-2 definitions, one
+active revision per built-in category, preserved revision-1 history, byte-equal
+names/Examples, category version 2, and six unchanged active routes.
+
+The complete shared validator then passed all ten selected jobs: static, build,
+integration (103), security (14), organization routing (5), performance (2;
+dashboard p95 444 ms), migrations, fullstack (6), browser/PWA/push (200), legacy
+WebKit (6), and native visual capture (161). Its cleanup stopped and removed the
+disposable PostgreSQL stack. The Markdown report for the 80 synthetic Indonesian
+Voice evaluation is included as supporting evidence; the generated PDF remains a
+local untracked artifact and is excluded from the branch.
+
 ## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
 
 Current objective: replace the active local Granite provider with
