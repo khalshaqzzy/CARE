@@ -38,7 +38,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.6');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.7');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -56,7 +56,16 @@ describe('CARE domain contracts', () => {
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('untrusted report data');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('submit_care_classification');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pilih satu pokok masalah yang paling dominan');
-    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pilih level tertinggi yang didukung fakta');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'pilih level tertinggi yang tetap didukung fakta',
+    );
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'Ketiadaan cedera atau kerusakan yang sudah terjadi tidak boleh menurunkan severity',
+    );
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'pekerjaan berbahaya tetap berjalan tanpa APD wajib',
+    );
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('tumpahan besar mengalir ke drainase');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('threshold fallback server');
     expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
       'Emergency exit di area kami sulit dibuka.',

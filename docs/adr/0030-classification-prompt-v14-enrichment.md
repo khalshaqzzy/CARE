@@ -98,3 +98,31 @@ revision 2 for the six original categories while copying names and Examples and
 leaving routes/custom categories untouched. It fails closed instead of overwriting
 an unexpected Admin-authored built-in revision. Historical classification links
 remain attached to their immutable earlier revision.
+
+## Amendment — Severity calibration to v1.7 — 16 September 2026
+
+The 80-Voice synthetic Indonesian live evaluation showed systematic severity
+under-classification even when Ling returned schema-valid tool calls. Recurring
+errors included active electrical smoke, a severe near miss, a large chemical
+spill reaching drainage, symptomatic exposure, essential-service loss, repeated
+manpower strain, and harassment with threats or retaliation. The terse four-line
+rubric did not explain how to treat an unrealized but credible consequence, scale,
+recurrence, ongoing exposure, or missing facts.
+
+The code-owned system prompt therefore advances to
+`care-classification-v1.7`. Only its severity rubric changes. Severity is assessed
+separately from category using the strongest concrete supported impact, urgency,
+scale, recurrence, and whether exposure or danger remains active. The prompt now
+states that absence of an injury does not downgrade a credible serious near miss,
+while risk keywords alone do not justify escalation. Missing essential facts lower
+confidence rather than automatically producing LOW. LOW, MEDIUM, HIGH, and
+CRITICAL each receive operational boundaries and representative anchors, including
+an explicit distinction between significant prompt action and an active or
+developing emergency.
+
+Category instructions and Definition/Examples, function schema, confidence
+threshold, sampling, output cap, provider settings, routing, and location review
+remain unchanged. No database or public API change is required. Unit tests lock
+the new version and the anti-under-classification anchors; provider quality must be
+measured separately because prompt regression assertions cannot establish model
+accuracy.

@@ -1,17 +1,21 @@
 # CARE v1.1 Implementation Phases
 
-## Built-in classification Definition clarity — 16 September 2026
+## Classification Definition clarity and severity calibration — 16 September 2026
 
 Phase 13 remains `in_progress`; no second phase is opened. The six built-in
 General Voice category Definition values are clarified around the primary
 remediation domain and explicit exclusions for Safety/Environment,
-Facility/Facility Repair, and Work Difficulty/Welfare. The system instruction,
-Examples, severity rubric, confidence behavior, function schema, routing and
-provider configuration are unchanged. A revision-preserving migration creates
+Facility/Facility Repair, and Work Difficulty/Welfare. A revision-preserving migration creates
 revision 2 for the six original categories, retains revision 1 history and
 copies names/Examples unchanged; custom categories and routes are untouched.
-Classification version advances to `care-classification-v1.6` so existing v1.5
-draft results are invalidated. See ADR-0030.
+Classification version first advances to `care-classification-v1.6` for the
+Definition change, then to `care-classification-v1.7` for a severity-only prompt
+follow-up based on the 80-Voice evaluation. The expanded rubric distinguishes
+minor/contained/significant/emergency impact, preserves serious near misses even
+without realized injury, and lowers confidence rather than defaulting missing
+facts to LOW. Category instructions, Examples, confidence behavior, function
+schema, routing, and provider configuration remain unchanged in v1.7. See
+ADR-0030.
 
 ## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
 
