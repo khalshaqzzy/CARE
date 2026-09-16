@@ -1,4 +1,4 @@
-export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.5';
+export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.7';
 export const LOCATION_PROMPT_VERSION = 'care-location-v1.2';
 
 export const CLASSIFICATION_TOOL_NAME = 'submit_care_classification';
@@ -16,7 +16,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'SAFETY',
     name: 'Safety',
     definition:
-      'Kondisi atau tindakan yang berkaitan dengan keselamatan kerja dan berpotensi menyebabkan cedera, penyakit akibat kerja, keadaan darurat, atau insiden. Mencakup unsafe condition, unsafe action, near miss, ketidaktersediaan atau ketidaksesuaian APD, jalur kerja yang tidak aman, serta akses atau sarana keadaan darurat. Pilih kategori ini ketika risiko keselamatan merupakan pokok utama Voice.',
+      'Kondisi atau tindakan ketika penanganan utama adalah menghilangkan hazard keselamatan, menghentikan unsafe action, memulihkan safety control, menyediakan APD wajib, mengamankan pergerakan orang atau kendaraan, atau memastikan kesiapan keadaan darurat. Mencakup machine guarding, lockout atau tagout, jalur forklift dan pedestrian, APD, ergonomi berisiko, near miss, emergency exit, kebakaran, asap, percikan listrik aktif, dan mesin unsafe yang sedang dioperasikan. Jangan memilih Safety hanya karena masalah lain dapat berdampak kepada manusia. Jika sumber utamanya adalah limbah, tumpahan, emisi, bau, kebisingan, temperatur, udara, atau air, pilih Environment. Jika sumber utamanya adalah kerusakan fisik gedung, utility, lampu, AC, pintu, pipa, atau fasilitas bersama, pilih Facility Repair. Severity dapat tetap HIGH atau CRITICAL tanpa mengubah category tersebut.',
     examples: [
       'Jalur forklift dan pedestrian sering bercampur.',
       'Lantai area welding licin dan beberapa kali hampir membuat member terpeleset.',
@@ -29,7 +29,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'ENVIRONMENT',
     name: 'Environment',
     definition:
-      'Kondisi lingkungan kerja atau lingkungan sekitar yang berkaitan dengan limbah, pencemaran, emisi, tumpahan, kebisingan, temperatur, kualitas udara, air, ventilasi, atau pengelolaan sumber daya. Pilih kategori ini ketika dampak lingkungan atau paparan lingkungan merupakan pokok utama Voice.',
+      'Kondisi ketika penanganan utama adalah mengendalikan sumber paparan atau dampak lingkungan, termasuk limbah, chemical atau oli, tumpahan, emisi, bau, debu, kebisingan, temperatur, ventilasi, kualitas udara, air, drainase, pencemaran, atau penggunaan sumber daya. Tetap pilih Environment ketika paparan menyebabkan pusing, mual, telinga berdenging, penghentian area, atau dampak serius, selama akar masalahnya adalah sumber lingkungan; severity menentukan tingkat bahayanya. Jangan berpindah ke Safety hanya karena terdapat potensi cedera. Pilih Safety apabila inti masalahnya adalah safety control atau emergency hazard seperti APD wajib yang tidak tersedia, unsafe action, kebakaran, atau percikan listrik aktif.',
     examples: [
       'Bau chemical cukup kuat di area kami.',
       'Tempat sampah di area produksi sering penuh.',
@@ -42,7 +42,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'FACILITY',
     name: 'Fasilitas Umum',
     definition:
-      'Ketersediaan, kecukupan, kualitas layanan, kapasitas, dan aturan penggunaan fasilitas bersama yang dipakai member. Mencakup toilet, locker, kantin, parkir, commuter, mobil pool, tempat ibadah, rest area, smoking area, drinking water, klinik, meeting room, common area, dan fasilitas bersama lainnya. Kerusakan fisik bangunan atau utilitas yang memerlukan pekerjaan perbaikan teknis lebih tepat masuk Facility Repair.',
+      'Ketersediaan, kapasitas, kualitas layanan, jadwal, akses, atau aturan penggunaan fasilitas bersama yang secara fisik masih berfungsi. Mencakup toilet, locker, kantin, parkir, commuter, mobil pool, tempat ibadah, rest area, smoking area, drinking water, klinik, meeting room, common area, dan fasilitas bersama lainnya. Pilih Fasilitas Umum untuk jumlah yang tidak cukup, kapasitas penuh, keterlambatan layanan, pilihan layanan, atau aturan yang tidak jelas. Jangan pilih Fasilitas Umum ketika benda atau utility rusak, bocor, retak, mati, patah, atau gagal berfungsi; gunakan Facility Repair.',
     examples: [
       'Toilet wanita kurang memadai.',
       'Parkiran motor sering penuh.',
@@ -59,7 +59,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'FACILITY_REPAIR',
     name: 'Facility Repair',
     definition:
-      'Kerusakan fisik pada utility, gedung, ruangan, lantai, penerangan, AC, sanitasi, atau fasilitas umum yang membutuhkan pemeriksaan dan perbaikan teknis. Pilih kategori ini ketika pokok Voice adalah kerusakan, kebocoran, retak, mati, atau kegagalan fungsi fasilitas.',
+      'Kerusakan atau kegagalan fisik gedung, utility, ruangan, sanitasi, penerangan, AC, pintu, kunci, atap, lantai, pipa, atau fasilitas bersama yang memerlukan pemeriksaan dan pekerjaan teknis. Tetap pilih Facility Repair ketika kerusakan tersebut menimbulkan risiko terpeleset, kejatuhan, paparan, gangguan operasional, atau bahaya besar; consequence tersebut menentukan severity. Jangan gunakan untuk machine, production equipment, sistem IT, SOP, manpower, atau proses kerja; gunakan Fasilitas Kerja atau Kesulitan Kerja. Api, asap, atau percikan listrik yang sedang aktif masuk Safety karena membutuhkan emergency isolation.',
     examples: [
       'Atap bocor ketika hujan.',
       'Wastafel toilet sering bocor.',
@@ -72,7 +72,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'WORK_DIFFICULTY',
     name: 'Fasilitas Kerja / Kesulitan Kerja',
     definition:
-      'Kondisi fasilitas, alat, sumber daya, sistem, atau proses kerja yang menghambat atau menyulitkan pekerjaan. Mencakup machine, equipment, tools, workstation, material handling, manpower, approval, SOP, aktivitas manual yang dapat didigitalisasi, dan sistem IT yang mengganggu pekerjaan.',
+      'Hambatan pada pelaksanaan pekerjaan yang berasal dari machine, production equipment, tools, workstation, material handling, manpower, approval, SOP, workflow, sistem IT, atau sumber daya operasional. Pilih ketika tindakan utama adalah memperbaiki alat atau proses kerja atau memulihkan kemampuan operasi. Jangan gunakan untuk pengembangan skill, program training, career development, benefit, kompensasi, employee support, harassment, discrimination, atau retaliation; gunakan Kesejahteraan. Dampak produksi akibat kurangnya training tidak otomatis mengubah category jika akar masalahnya tetap program pelatihan.',
     examples: [
       'Equipment sering breakdown.',
       'Manpower shift malam tidak cukup.',
@@ -87,7 +87,7 @@ export const DEFAULT_CATEGORY_CONTEXT = [
     key: 'WELFARE',
     name: 'Kesejahteraan',
     definition:
-      'Kesejahteraan dan dukungan terhadap member, termasuk training, pengembangan skill, career development, job rotation, benefit, kompensasi, tunjangan, reimbursement, dan employee support. Pilih kategori ini ketika pokok Voice berkaitan dengan pengembangan, kesejahteraan, hak manfaat, atau dukungan kepada member.',
+      'Kesejahteraan, hak, dukungan, dan perlakuan terhadap member. Mencakup training, pengembangan skill, career development, job rotation, benefit, kompensasi, tunjangan, reimbursement, employee support, interpersonal misconduct, bullying, harassment, discrimination, retaliation, ancaman terkait pelaporan, dan konflik people-related yang serius. Jangan gunakan untuk kekurangan manpower, kerusakan alat, approval, SOP, atau hambatan proses operasional; gunakan Fasilitas Kerja atau Kesulitan Kerja.',
     examples: [
       'Training untuk meningkatkan skill kami masih kurang.',
       'Bagaimana kesempatan career development saya?',
@@ -111,11 +111,11 @@ Aturan kategori untuk visibility GENERAL. Pilih tepat satu primary category dari
 - Penghambat proses kerja seperti machine, equipment, tools, workstation, material handling, manpower, approval, SOP, aktivitas manual, atau sistem IT berbeda dari isu kesejahteraan seperti training, skill, career, job rotation, benefit, kompensasi, tunjangan, atau employee support.
 Jika isi Voice menyentuh lebih dari satu kategori, pilih satu pokok masalah yang paling dominan, bukan gabungan beberapa kategori. Jika dua kategori hampir sama kuat, pilih yang paling sesuai untuk penanganan lalu turunkan confidence. Jangan memilih kategori yang tidak ada pada categoryContext atau tool enum. Untuk visibility PRIVATE, category harus null dan classification hanya menentukan severity.
 
-Rubrik severity. Tentukan severity dari dampak dan urgensi yang dideskripsikan laporan, tanpa mengarang fakta, dan pilih level tertinggi yang didukung fakta:
-- LOW: tidak mendesak dan tidak berdampak langsung pada operasi. Contoh: apresiasi, ide perbaikan kecil, informasi atau label yang lebih jelas, kenyamanan minor.
-- MEDIUM: perlu follow-up, tanpa bahaya langsung atau dampak produksi besar. Contoh: alat kecil rusak dengan cadangan tersedia, pencahayaan minor, SOP kurang jelas, keterlambatan kecil yang berulang.
-- HIGH: dampak signifikan atau potensi risiko terhadap safety, quality, productivity, atau people. Contoh: masalah ergonomi yang menyebabkan sakit, abnormalitas mesin, kekurangan manpower berulang, walkway terblokir, konflik kerja berulang.
-- CRITICAL: bahaya segera, isu serius terkait orang atau kepatuhan, atau potensi dampak bisnis besar. Contoh: near miss berpotensi cedera berat, api, asap, atau masalah listrik, mesin unsafe, harassment, kekerasan, atau diskriminasi, tumpahan chemical, line stop besar atau risiko kualitas customer.
+Rubrik severity. Tentukan severity secara terpisah dari category berdasarkan dampak terberat yang secara konkret didukung laporan, urgensi, skala orang atau operasi yang terdampak, keberulangan, dan apakah paparan atau kondisi berbahaya masih berlangsung. Jangan merata-ratakan beberapa dampak. Ketiadaan cedera atau kerusakan yang sudah terjadi tidak boleh menurunkan severity apabila fakta menunjukkan near miss atau kondisi aktif dengan konsekuensi serius yang kredibel. Sebaliknya, jangan menaikkan severity hanya karena kata seperti "risiko", "chemical", "customer", atau "tidak aman" tanpa fakta pendukung. Jika fakta konkret memenuhi level lebih tinggi, jangan turunkan hanya karena konsekuensinya belum terjadi. Jika fakta penting tidak tersedia, pilih level tertinggi yang tetap didukung fakta dan turunkan confidence; jangan otomatis memilih LOW.
+- LOW: apresiasi, usulan, informasi, atau ketidaknyamanan minor tanpa dampak material yang sedang terjadi terhadap safety, people, quality, productivity, lingkungan, atau layanan penting. Contoh: ide label atau warna, variasi menu, retak kosmetik yang stabil, atau perbaikan kenyamanan kecil.
+- MEDIUM: masalah nyata yang perlu follow-up tetapi terbatas atau terkendali; tidak ada bahaya langsung, dampak serius terhadap people, gangguan besar, atau paparan yang memburuk, dan cadangan atau workaround masih memadai bila relevan. Contoh: sebagian lampu mati tetapi area tetap layak dipakai, alat kecil rusak dengan cadangan, SOP kurang jelas, keterlambatan layanan kecil yang berulang, atau fasilitas terbatas yang menimbulkan antrean.
+- HIGH: dampak signifikan atau risiko serius yang kredibel dan membutuhkan penanganan segera, tetapi belum menjadi keadaan darurat aktif atau dampak katastrofik. Pilih HIGH antara lain ketika pekerjaan berbahaya tetap berjalan tanpa APD wajib, paparan menyebabkan gejala, kondisi unsafe berulang, layanan esensial tidak tersedia bagi banyak orang, kerusakan menimbulkan risiko nyata, equipment atau manpower berulang kali mengganggu produksi atau menyebabkan kelelahan, atau hak, benefit, bullying, harassment, diskriminasi, dan konflik people-related menimbulkan dampak serius.
+- CRITICAL: keadaan darurat aktif atau berkembang; potensi langsung kematian, cedera berat atau permanen; kekerasan, paksaan, ancaman, retaliation, harassment atau diskriminasi serius yang membutuhkan eskalasi segera; atau dampak besar yang sedang berlangsung terhadap lingkungan, operasi, compliance, atau customer. Contoh: api atau asap aktif, panel listrik panas atau memercik, near miss yang secara kredibel dapat menyebabkan cedera berat, mesin unsafe sedang digunakan, tumpahan besar mengalir ke drainase, line stop total atau risiko kualitas customer yang segera, serta harassment atau diskriminasi disertai ancaman atau retaliation.
 
 Confidence. Kalibrasi confidence dari 0 sampai 1. Nilai di bawah threshold fallback server (default sekitar 0,75) memicu Manual Fallback, jadi gunakan nilai rendah ketika konteks esensial hilang, beberapa kategori sama-sama masuk akal, atau severity bergantung pada asumsi yang tidak didukung laporan. Gunakan nilai tinggi hanya ketika laporan jelas cocok dengan satu kategori dan severity didukung fakta. Do not inflate confidence merely to avoid fallback.
 

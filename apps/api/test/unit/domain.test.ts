@@ -38,7 +38,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.5');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.7');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -56,7 +56,16 @@ describe('CARE domain contracts', () => {
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('untrusted report data');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('submit_care_classification');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pilih satu pokok masalah yang paling dominan');
-    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pilih level tertinggi yang didukung fakta');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'pilih level tertinggi yang tetap didukung fakta',
+    );
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'Ketiadaan cedera atau kerusakan yang sudah terjadi tidak boleh menurunkan severity',
+    );
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'pekerjaan berbahaya tetap berjalan tanpa APD wajib',
+    );
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('tumpahan besar mengalir ke drainase');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('threshold fallback server');
     expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
       'Emergency exit di area kami sulit dibuka.',
@@ -70,6 +79,24 @@ describe('CARE domain contracts', () => {
     expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
       'reimbursement biaya berobat tidak masuk dalam penggajian.',
     );
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'SAFETY')?.definition,
+    ).toContain('Jangan memilih Safety hanya karena masalah lain dapat berdampak kepada manusia');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'ENVIRONMENT')?.definition,
+    ).toContain('Tetap pilih Environment ketika paparan menyebabkan pusing');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'FACILITY')?.definition,
+    ).toContain('secara fisik masih berfungsi');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'FACILITY_REPAIR')?.definition,
+    ).toContain('consequence tersebut menentukan severity');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'WORK_DIFFICULTY')?.definition,
+    ).toContain('Dampak produksi akibat kurangnya training tidak otomatis mengubah category');
+    expect(
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'WELFARE')?.definition,
+    ).toContain('harassment, discrimination, retaliation');
   });
   it('builds the General tool enum from active stable keys and keeps Private category null', () => {
     const generalSchema = classificationSchema(['CUSTOM_ONE', 'CUSTOM_TWO'], false);

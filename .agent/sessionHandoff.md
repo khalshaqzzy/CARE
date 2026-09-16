@@ -1,5 +1,53 @@
 # CARE Session Handoff
 
+## Classification Definition clarity and severity calibration — 16 September 2026
+
+Branch `feat/classification-definitions-v2` starts from `origin/staging`. The
+initial change is restricted to the six built-in category Definition values. Safety/Environment,
+Facility/Facility Repair and Work Difficulty/Welfare now state their primary
+remediation domains and explicit exclusions; Welfare explicitly covers bullying,
+harassment, discrimination and retaliation. Classification version advances to
+`care-classification-v1.6` to invalidate v1.5 draft results after the structured
+context changes.
+
+A follow-up changes only the code-owned severity rubric and advances the version
+to `care-classification-v1.7`. It evaluates concrete impact, urgency, scale,
+recurrence and ongoing exposure; distinguishes contained issues, significant
+prompt action and active emergencies; preserves credible serious near misses even
+without realized injury; and lowers confidence instead of defaulting incomplete
+facts to LOW. Category instructions, Definitions/Examples, confidence guidance,
+schema, routes, sampling, output cap and provider settings are unchanged by v1.7.
+
+Migration `20260916090000_category_definition_clarity` preserves revision 1 and
+creates revision 2 for the six original categories, copying names/Examples and
+leaving routes and custom categories untouched. It fails closed when an active
+built-in category is not the expected revision 1, preventing silent overwrite of
+Admin history. Focused API unit tests pass (106 tests across ten files), formatting,
+the destructive-migration check and `git diff --check` pass. After OrbStack was
+started, the complete 13-migration chain applied successfully to a fresh disposable
+`care_test` database. SQL verification confirmed six revision-2 definitions, one
+active revision per built-in category, preserved revision-1 history, byte-equal
+names/Examples, category version 2, and six unchanged active routes.
+
+The complete shared validator then passed all ten selected jobs: static, build,
+integration (103), security (14), organization routing (5), performance (2;
+dashboard p95 444 ms), migrations, fullstack (6), browser/PWA/push (200), legacy
+WebKit (6), and native visual capture (161). Its cleanup stopped and removed the
+disposable PostgreSQL stack. The Markdown report for the 80 synthetic Indonesian
+Voice evaluation is included as supporting evidence; the generated PDF remains a
+local untracked artifact and is excluded from the branch.
+
+For the v1.7 severity-only follow-up, the focused API suite and shared static job
+passed with API 106, UI 26, frontend-core 15, workforce 124, Admin 2, validation
+orchestration 9, formatting/lint, provider smoke and diff checks. The shared build
+job passed OpenAPI byte stability, typecheck, production builds and the PWA gate.
+Database-backed integration passed 103/103 and security 14/14 against the full
+13-migration schema. Organization, performance, migration-upgrade, fullstack,
+browser, legacy and capture jobs were not repeated because the prompt-only delta
+does not affect them and they passed immediately before this follow-up. The
+disposable PostgreSQL stack was removed afterward. Hosted PR checks remain
+intentionally unmonitored per user instruction.
+
 ## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
 
 Current objective: replace the active local Granite provider with
