@@ -126,3 +126,13 @@ remain unchanged. No database or public API change is required. Unit tests lock
 the new version and the anti-under-classification anchors; provider quality must be
 measured separately because prompt regression assertions cannot establish model
 accuracy.
+
+The first live v1.7 check replayed five previously misclassified Voices against
+the unchanged Ling server. All five completed with one valid tool call and all
+five categories matched, including the corrected Environment and Welfare boundary
+cases. Severity matched only one oracle: three CRITICAL cases remained HIGH and
+symptomatic exposure remained MEDIUM instead of HIGH. Confidence stayed 0.85–0.90.
+The returned reasoning repeatedly recognized the explicit higher-level anchor and
+then imposed an unstated realized-physical-harm requirement. This evidence shows
+that v1.7 improves routing and some LOW under-ranking but does not by itself solve
+the HIGH–CRITICAL calibration problem.

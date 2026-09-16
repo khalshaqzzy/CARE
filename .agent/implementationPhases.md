@@ -17,6 +17,12 @@ facts to LOW. Category instructions, Examples, confidence behavior, function
 schema, routing, and provider configuration remain unchanged in v1.7. See
 ADR-0030.
 
+Live v1.7 follow-up on five previously misclassified Voices used the unchanged
+`dx-2` inference stack and exact app payload. Protocol reliability stayed 5/5 and
+category matched 5/5, but severity matched only 1/5 with four under-rankings and
+no confidence fallback. This is evaluation evidence, not another prompt or server
+change; the full reasoning is preserved in the dated Markdown report.
+
 ## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
 
 Phase 13 remains `in_progress`; no second phase is opened. The independent GPU

@@ -48,6 +48,20 @@ does not affect them and they passed immediately before this follow-up. The
 disposable PostgreSQL stack was removed afterward. Hosted PR checks remain
 intentionally unmonitored per user instruction.
 
+Five previously misclassified Voices were then replayed against the unchanged
+live `dx-2` Ling stack using the exact v1.7 CARE payload. All five returned one
+schema-valid tool call with no incomplete output. Category accuracy was 5/5,
+correcting solvent exposure from Safety to Environment and harassment/retaliation
+from Safety to Welfare. Severity was only 1/5: electrical smoke, chemical entering
+drainage and harassment with retaliation remained HIGH instead of CRITICAL;
+symptomatic solvent exposure became MEDIUM instead of HIGH; the prolonged missing
+allowance corrected from LOW to HIGH. All confidence values remained 0.85–0.90,
+so none would fall back at 0.75. Median latency was 6.209 seconds and median
+completion/reasoning usage was 1,555/1,514 tokens. The full inputs, outputs and
+returned reasoning are recorded in
+`docs/reports/ling3-v17-five-misclassified-retest-2026-09-16.md`. No inference
+configuration, container or service state changed.
+
 ## Ling 3.0 Tiny FP8 inference migration — 15 September 2026
 
 Current objective: replace the active local Granite provider with
