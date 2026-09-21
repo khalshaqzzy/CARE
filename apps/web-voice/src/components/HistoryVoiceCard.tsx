@@ -20,7 +20,7 @@ function statusTone(
     (
       {
         OPEN: 'warning',
-        MONITORED: 'info',
+        RESPONDED: 'info',
         IN_PROGRESS: 'brand',
       } as const
     )[status] ?? 'neutral'

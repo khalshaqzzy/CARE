@@ -144,9 +144,9 @@ async function main() {
         skipDuplicates: true,
       });
     await prisma.$executeRaw`INSERT INTO "VoiceEvent" (id, "voiceId", type, "actorId", "actorAccountKind", "actorCapabilities", payload, "occurredAt")
-      SELECT gen_random_uuid(), v.id, 'MONITORED', v."routeOwnerId", 'WORKFORCE', '["MANAGER"]'::jsonb, '{}'::jsonb, v."submittedAt" + interval '2 hours'
+      SELECT gen_random_uuid(), v.id, 'RESPONDED', v."routeOwnerId", 'WORKFORCE', '["MANAGER"]'::jsonb, '{}'::jsonb, v."submittedAt" + interval '2 hours'
       FROM "Voice" v WHERE v."displayId" LIKE 'CARE-209901-%' AND v.status <> 'OPEN'
-        AND NOT EXISTS (SELECT 1 FROM "VoiceEvent" e WHERE e."voiceId" = v.id AND e.type = 'MONITORED')`;
+        AND NOT EXISTS (SELECT 1 FROM "VoiceEvent" e WHERE e."voiceId" = v.id AND e.type = 'RESPONDED')`;
     await prisma.$executeRaw`INSERT INTO "ClosureCycle" (id, "voiceId", "cycleNumber", "actorId", note, "closedAt", "reopenedAt", "reviewState")
       SELECT gen_random_uuid(), v.id, n, v."routeOwnerId", 'Synthetic cycle', v."submittedAt" + n * interval '10 hours',
         CASE WHEN n = 1 THEN v."submittedAt" + interval '12 hours' END, 'ACCEPTED'::"ClosureReviewState"

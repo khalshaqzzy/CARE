@@ -191,7 +191,7 @@ describe('Responder and leadership permission matrix', () => {
       voices.assign(
         sectionHead,
         assigned.id,
-        { handlerAccountId: sectionHead.accountId },
+        { handlerAccountId: sectionHead.accountId, text: 'Keterangan penanganan' },
         'assign-sh',
       ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
@@ -211,7 +211,7 @@ describe('Responder and leadership permission matrix', () => {
 
   it('filters monitoring by active group and scoped handler without exposing Private handlers', async () => {
     const active = await seedVoice({
-      status: VoiceStatus.MONITORED,
+      status: VoiceStatus.RESPONDED,
       currentHandlerId: sectionHead.accountId,
       handlerType: HandlerType.SECTION_HEAD,
     });
@@ -221,7 +221,7 @@ describe('Responder and leadership permission matrix', () => {
       routeOwnerId: unionHead.accountId,
       currentHandlerId: officer.accountId,
       handlerType: HandlerType.UNION_OFFICER,
-      status: VoiceStatus.MONITORED,
+      status: VoiceStatus.RESPONDED,
     });
 
     const activeItems = await voices.workItems(manager, { statusGroup: 'ACTIVE' });
@@ -242,7 +242,7 @@ describe('Responder and leadership permission matrix', () => {
 
   it('exposes the PIC display name on work items and null while unassigned', async () => {
     const assigned = await seedVoice({
-      status: VoiceStatus.MONITORED,
+      status: VoiceStatus.RESPONDED,
       currentHandlerId: sectionHead.accountId,
       handlerType: HandlerType.SECTION_HEAD,
     });

@@ -15,6 +15,7 @@ import { CalendarDays, Clock, Info, Map, MessageCircle, Sparkles, UserRound } fr
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
+import { HandlingTargetCard } from '../../components/HandlingTargetCard';
 import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
@@ -94,6 +95,7 @@ export function VoiceDetailPage() {
 
       <ReporterCard voice={voice} />
 
+      <HandlingTargetCard voice={voice} />
       <ActionPanel detail={voice} />
 
       {voice.visibility === 'GENERAL' && voice.audience === 'GENERAL_RESPONDER' ? (

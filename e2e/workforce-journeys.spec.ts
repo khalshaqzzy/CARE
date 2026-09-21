@@ -499,6 +499,10 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(dialog.getByRole('radio', { name: /Union Officer 1/ })).toBeChecked();
     await expect(dialog.getByText('3 Voice aktif')).toBeVisible();
     await dialog.getByRole('button', { name: 'Tugaskan', exact: true }).click();
+    await page
+      .getByRole('textbox', { name: 'Keterangan penanganan' })
+      .fill('Komite akan menindaklanjuti.');
+    await page.getByRole('button', { name: 'Tugaskan & buka chat' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 

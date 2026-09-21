@@ -16,7 +16,7 @@ function statusTone(status: string, reviewState?: string | null): string {
   if (status === 'CLOSED' && reviewState === 'PENDING') return 'warning';
   if (status === 'IN_PROGRESS' && reviewState === 'REJECTED') return 'warning';
   return (
-    { OPEN: 'info', MONITORED: 'warning', IN_PROGRESS: 'brand', CLOSED: 'success' }[status] ??
+    { OPEN: 'info', RESPONDED: 'warning', IN_PROGRESS: 'brand', CLOSED: 'success' }[status] ??
     'neutral'
   );
 }

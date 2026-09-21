@@ -39,6 +39,7 @@ import { CategoriesService } from '../categories/categories.service';
 import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
+import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
 
 const attachmentResponseSelect = Prisma.validator<Prisma.AttachmentSelect>()({
@@ -143,6 +144,7 @@ const submitSchema = z
 const assignmentSchema = z
   .object({
     handlerAccountId: z.string().uuid(),
+    text: z.string().trim().min(1).max(4000).optional(),
     reason: z.string().trim().max(500).optional(),
     expectedVersion: z.number().int().positive().optional(),
   })
@@ -156,6 +158,9 @@ const handoverSchema = z
   .strict();
 const textSchema = z
   .object({ text: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
+  .strict();
+const targetSchema = z
+  .object({ days: z.number().int().min(0).max(365), version: z.number().int().positive() })
   .strict();
 const closeSchema = z
   .object({ note: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
@@ -695,7 +700,7 @@ export class VoicesService {
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
       and.push({
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED, VoiceStatus.IN_PROGRESS] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
       });
     else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.visibility) and.push({ visibility: query.visibility });
@@ -777,12 +782,12 @@ export class VoicesService {
     if (query.unassigned === 'true' && actor.capabilities.includes('UNION_HEAD'))
       and.push({
         currentHandlerId: null,
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] },
       });
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
       and.push({
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED, VoiceStatus.IN_PROGRESS] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
       });
     else if (query.statusGroup === 'CLOSED') and.push({ status: VoiceStatus.CLOSED });
     if (query.severity) and.push({ severity: query.severity as Severity });
@@ -874,6 +879,7 @@ export class VoicesService {
       include: {
         routeOwner: { select: { id: true, displayName: true } },
         currentHandler: { select: { id: true, displayName: true } },
+        handlingTargets: { orderBy: { cycleNumber: 'asc' } },
         classification: true,
         locationReview: true,
         attachments: { select: attachmentResponseSelect },
@@ -1007,6 +1013,8 @@ export class VoicesService {
           throw invalidTransition('Assignment is not available for this Voice');
         if (reassign && !current.currentHandlerId)
           throw invalidTransition('Voice has no active assignment');
+        if (current.status === VoiceStatus.OPEN && !data.text)
+          throw badRequest('HANDLING_NOTE_REQUIRED', 'Keterangan penanganan wajib diisi.');
         await tx.voiceAssignment.updateMany({
           where: { voiceId: id, endedAt: null },
           data: { endedAt: new Date() },
@@ -1022,7 +1030,7 @@ export class VoicesService {
               ? { handlingSectionSnapshot: candidate.employee?.memberships[0]?.section || null }
               : {}),
             handlerType,
-            status: VoiceStatus.MONITORED,
+            status: VoiceStatus.RESPONDED,
             version: { increment: 1 },
           },
         });
@@ -1036,13 +1044,14 @@ export class VoicesService {
           },
         });
         if (current.status === VoiceStatus.OPEN) {
+          const opening = await this.createMessageWithin(tx, actor, id, data.text!, [], false);
           await tx.voiceEvent.create({
             data: {
               voiceId: id,
               actorId: actor.accountId,
               ...this.policy.actorSnapshot(actor),
-              type: VoiceEventType.MONITORED,
-              payload: { via: 'ASSIGNMENT' },
+              type: VoiceEventType.RESPONDED,
+              payload: { via: 'ASSIGNMENT', messageId: opening.id },
             },
           });
           await this.notify(
@@ -1050,8 +1059,8 @@ export class VoicesService {
             current.reporterId,
             id,
             NotificationType.STATUS_CHANGED,
-            'Voice Anda sedang dimonitor',
-            'Voice Anda telah diterima dan sedang dimonitor oleh tim penanggung jawab.',
+            'Voice Anda telah direspons',
+            'Buka percakapan untuk melihat keterangan penanganan.',
           );
         }
         await this.notify(
@@ -1143,7 +1152,7 @@ export class VoicesService {
       by: ['currentHandlerId'],
       where: {
         currentHandlerId: { in: candidates.map((candidate) => candidate.id) },
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED, VoiceStatus.IN_PROGRESS] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
       },
       _count: { _all: true },
     });
@@ -1408,67 +1417,132 @@ export class VoicesService {
     await this.actionVoice(actor, id);
     throw conflict(
       'CLIENT_UPDATE_REQUIRED',
-      'Perbarui aplikasi untuk menggunakan alur Monitor dan Proses Voice.',
+      'Perbarui aplikasi untuk menggunakan alur Respons dan Proses Voice.',
     );
   }
-  async monitor(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(z.object({ version: z.number().int().positive() }).strict(), input);
+  async monitor(actor: AuthActor, id: string, _input: unknown, _key: string) {
+    void _input;
+    void _key;
     await this.actionVoice(actor, id);
-    return this.idempotentMutation(
-      actor,
-      `monitor:${id}`,
-      key,
-      canonicalHash(data),
-      200,
-      async (tx) => {
-        const current = await this.lockedActionVoice(tx, actor, id, data.version);
-        if (!this.actionSet(actor, current).includes('MONITOR'))
-          throw invalidTransition('Voice cannot be monitored');
-        return this.transitionStatus(
-          tx,
-          actor,
-          id,
-          VoiceStatus.MONITORED,
-          VoiceEventType.MONITORED,
-          {},
-        );
-      },
+    throw conflict(
+      'CLIENT_UPDATE_REQUIRED',
+      'Perbarui aplikasi untuk merespons Voice dengan keterangan penanganan.',
     );
   }
-  async proceed(actor: AuthActor, id: string, input: unknown, key: string) {
+  async respond(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(textSchema, input);
     await this.actionVoice(actor, id);
     return this.idempotentMutation(
       actor,
-      `proceed:${id}`,
+      `respond:${id}`,
       key,
       canonicalHash(data),
       200,
       async (tx) => {
         const current = await this.lockedActionVoice(tx, actor, id, data.version);
-        if (!this.actionSet(actor, current).includes('PROCEED'))
-          throw invalidTransition('Hanya PIC aktif yang dapat memulai proses dari Dimonitor');
-        if (!current.currentHandlerId) {
-          await tx.voice.update({
-            where: { id },
-            data: {
-              currentHandlerId: actor.accountId,
-              handlerType:
-                current.visibility === VoiceVisibility.PRIVATE
-                  ? HandlerType.UNION_HEAD
-                  : HandlerType.MANAGER,
-            },
-          });
-        }
+        if (!this.actionSet(actor, current).includes('RESPOND'))
+          throw invalidTransition('Voice tidak dapat direspons');
         const message = await this.createMessageWithin(tx, actor, id, data.text, [], false);
         return this.transitionStatus(
           tx,
           actor,
           id,
-          VoiceStatus.IN_PROGRESS,
-          VoiceEventType.PROCEEDED,
+          VoiceStatus.RESPONDED,
+          VoiceEventType.RESPONDED,
           { messageId: message.id },
         );
+      },
+    );
+  }
+  async proceed(actor: AuthActor, id: string, input: unknown, key: string) {
+    return this.saveHandlingTarget(actor, id, input, key, true);
+  }
+  async setTarget(actor: AuthActor, id: string, input: unknown, key: string) {
+    return this.saveHandlingTarget(actor, id, input, key, false);
+  }
+  private async saveHandlingTarget(
+    actor: AuthActor,
+    id: string,
+    input: unknown,
+    key: string,
+    proceeding: boolean,
+  ) {
+    const data = parse(targetSchema, input);
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `${proceeding ? 'proceed' : 'set-target'}:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const current = await this.lockedActionVoice(tx, actor, id, data.version);
+        if (!this.actionSet(actor, current).includes(proceeding ? 'PROCEED' : 'SET_TARGET'))
+          throw invalidTransition('Hanya PIC aktif yang dapat menetapkan target penanganan.');
+        const setAt = new Date();
+        const target = await tx.voiceHandlingTarget.create({
+          data: {
+            voiceId: id,
+            cycleNumber: current.handlingCycleNumber,
+            days: data.days,
+            setById: actor.accountId,
+            setAt,
+            dueAt: handlingDueAt(setAt, data.days),
+          },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: {
+            status: VoiceStatus.IN_PROGRESS,
+            version: { increment: 1 },
+            ...(!current.currentHandlerId
+              ? {
+                  currentHandlerId: actor.accountId,
+                  handlerType:
+                    current.visibility === VoiceVisibility.PRIVATE
+                      ? HandlerType.UNION_HEAD
+                      : HandlerType.MANAGER,
+                }
+              : {}),
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: proceeding ? VoiceEventType.PROCEEDED : VoiceEventType.TARGET_SET,
+            payload: {
+              targetId: target.id,
+              days: data.days,
+              dueAt: target.dueAt.toISOString(),
+              cycleNumber: target.cycleNumber,
+            },
+          },
+        });
+        for (const recipient of new Set([current.reporterId, current.routeOwnerId]))
+          await this.notify(
+            tx,
+            recipient,
+            id,
+            NotificationType.TARGET_SET,
+            proceeding ? 'Voice mulai diproses' : 'Target penyelesaian ditetapkan',
+            `Target penyelesaian: ${formatHandlingDueAt(target.dueAt)}.`,
+          );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+          handlingTarget: {
+            ...target,
+            setAt: target.setAt.toISOString(),
+            dueAt: target.dueAt.toISOString(),
+            overdueNotifiedAt: target.overdueNotifiedAt?.toISOString() ?? null,
+          },
+        };
       },
     );
   }
@@ -1498,6 +1572,8 @@ export class VoicesService {
         createdAt: true,
         senderId: true,
         senderAccountKind: true,
+        senderNameSnapshot: true,
+        sender: { select: { displayName: true } },
         attachments: { select: attachmentResponseSelect },
       },
     });
@@ -1509,14 +1585,24 @@ export class VoicesService {
       !actor.capabilities.includes('CARE_ADMIN') &&
       voice.reporterId !== actor.accountId;
     return {
-      items: data.map((message) => ({
+      items: data.map(({ sender: senderAccount, senderNameSnapshot, ...message }) => ({
         ...message,
         senderId:
           anonymousUnion && message.senderId === voice.reporterId ? undefined : message.senderId,
         sender:
           anonymousUnion && message.senderId === voice.reporterId
             ? { kind: 'ANONYMOUS_REPORTER', alias: voice.anonymousAlias }
-            : { kind: message.senderAccountKind },
+            : {
+                kind: message.senderAccountKind,
+                displayName:
+                  voice.visibility === VoiceVisibility.PRIVATE &&
+                  message.senderId !== voice.reporterId
+                    ? 'Komite'
+                    : (senderNameSnapshot ??
+                      (message.senderId === voice.reporterId
+                        ? voice.reporterNameSnapshot
+                        : senderAccount.displayName)),
+              },
       })),
       nextCursor: hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null,
     };
@@ -1525,7 +1611,14 @@ export class VoicesService {
     const scope = await this.policy.detailScope(actor);
     return this.prisma.conversation.findMany({
       where: {
-        voice: { AND: [scope, { status: { in: [VoiceStatus.IN_PROGRESS, VoiceStatus.CLOSED] } }] },
+        voice: {
+          AND: [
+            scope,
+            {
+              status: { in: [VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS, VoiceStatus.CLOSED] },
+            },
+          ],
+        },
       },
       include: {
         voice: { select: this.listSelect() },
@@ -1741,6 +1834,7 @@ export class VoicesService {
             where: { id },
             data: {
               status: VoiceStatus.IN_PROGRESS,
+              handlingCycleNumber: { increment: 1 },
               version: { increment: 1 },
               currentHandlerId: handlerId,
               handlerType,
@@ -1822,7 +1916,7 @@ export class VoicesService {
         visibility: VoiceVisibility.GENERAL,
         reporterDirectorateSnapshot: actor.directorate ?? '__none__',
         reporterDivisionSnapshot: actor.division ?? '__none__',
-        status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED] },
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] },
         currentHandlerId: null,
       },
     });
@@ -1846,7 +1940,7 @@ export class VoicesService {
             where: {
               visibility: VoiceVisibility.PRIVATE,
               currentHandlerId: null,
-              status: { in: [VoiceStatus.OPEN, VoiceStatus.MONITORED] },
+              status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] },
             },
           })
         : Promise.resolve(undefined),
@@ -1888,7 +1982,7 @@ export class VoicesService {
         AND: [
           context.where,
           await this.policy.detailScope(actor),
-          { status: { in: ['OPEN', 'MONITORED', 'IN_PROGRESS'] } },
+          { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } },
         ],
       },
       orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
@@ -1936,7 +2030,7 @@ export class VoicesService {
     ]);
     const counts: Record<VoiceStatus, number> = {
       OPEN: 0,
-      MONITORED: 0,
+      RESPONDED: 0,
       IN_PROGRESS: 0,
       CLOSED: 0,
     };
@@ -2274,11 +2368,9 @@ export class VoicesService {
       voice.reporterId,
       id,
       NotificationType.STATUS_CHANGED,
-      status === VoiceStatus.MONITORED
-        ? 'Voice Anda sedang dimonitor'
-        : 'Voice Anda mulai diproses',
-      status === VoiceStatus.MONITORED
-        ? 'Voice Anda telah diterima dan sedang dimonitor oleh tim penanggung jawab.'
+      status === VoiceStatus.RESPONDED ? 'Voice Anda telah direspons' : 'Voice Anda mulai diproses',
+      status === VoiceStatus.RESPONDED
+        ? 'Buka percakapan untuk melihat keterangan penanganan.'
         : 'Buka percakapan untuk melihat keterangan penanganan.',
     );
     return {
@@ -2308,6 +2400,12 @@ export class VoicesService {
         conversationId: conversation.id,
         senderId: actor.accountId,
         ...this.policy.senderSnapshot(actor),
+        senderNameSnapshot: (
+          await tx.userAccount.findUniqueOrThrow({
+            where: { id: actor.accountId },
+            select: { displayName: true },
+          })
+        ).displayName,
         text,
       },
     });
@@ -2329,12 +2427,15 @@ export class VoicesService {
       where: { id },
       select: { reporterId: true, currentHandlerId: true, routeOwnerId: true },
     });
-    const recipientId =
-      voice && actor.accountId === voice.reporterId
-        ? (voice.currentHandlerId ?? voice.routeOwnerId)
-        : voice?.reporterId;
-    if (recipientId && notifyRecipient)
-      await this.notify(tx, recipientId, id, NotificationType.MESSAGE, 'Pesan Voice baru');
+    if (voice && notifyRecipient) {
+      for (const recipientId of new Set(
+        [voice.reporterId, voice.routeOwnerId, voice.currentHandlerId].filter(
+          (value): value is string => Boolean(value) && value !== actor.accountId,
+        ),
+      )) {
+        await this.notify(tx, recipientId, id, NotificationType.MESSAGE, 'Pesan Voice baru');
+      }
+    }
     return message;
   }
 
@@ -2585,7 +2686,7 @@ export class VoicesService {
     const scope = await this.policy.detailScope(actor);
     const voice = await this.prisma.voice.findFirst({
       where: { id, AND: [scope] },
-      include: { conversation: { select: { id: true } } },
+      include: { conversation: { select: { id: true } }, handlingTargets: true },
     });
     if (!voice) throw forbiddenAsNotFound();
     return voice;
@@ -2819,7 +2920,7 @@ export class VoicesService {
     await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
     const voice = await tx.voice.findUnique({
       where: { id },
-      include: { conversation: { select: { id: true } } },
+      include: { conversation: { select: { id: true } }, handlingTargets: true },
     });
     if (!voice) throw forbiddenAsNotFound();
     if (voice.version !== expectedVersion)
@@ -2847,12 +2948,20 @@ export class VoicesService {
         reopenedAt: Date | null;
         rating?: { score: number } | null;
       }>;
+      handlingCycleNumber?: number;
+      handlingTargets?: Array<{ cycleNumber: number }>;
       conversation?: { id: string } | null;
     },
   ) {
     return computeAvailableActions(
       { accountId: actor.accountId, capabilities: actor.capabilities } satisfies ActionActor,
-      { ...voice, hasConversation: Boolean(voice.conversation) },
+      {
+        ...voice,
+        hasConversation: Boolean(voice.conversation),
+        hasHandlingTarget: voice.handlingTargets?.some(
+          (target) => target.cycleNumber === voice.handlingCycleNumber,
+        ),
+      },
     );
   }
   private conversationState(
@@ -2864,18 +2973,54 @@ export class VoicesService {
       visibility: VoiceVisibility;
       status: VoiceStatus;
       handlerType: HandlerType;
+      handlingCycleNumber?: number;
+      handlingTargets?: Array<{ cycleNumber: number }>;
       conversation?: { id: string } | null;
       closureCycles?: Array<{ reopenedAt: Date | null; rating?: { score: number } | null }>;
     },
   ): 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY' {
-    if (
-      voice.status === VoiceStatus.OPEN ||
-      voice.status === VoiceStatus.MONITORED ||
-      !voice.conversation
-    )
-      return 'UNAVAILABLE';
+    if (voice.status === VoiceStatus.OPEN || !voice.conversation) return 'UNAVAILABLE';
     const actions = this.actionSet(actor, voice);
     return actions.includes('MESSAGE') ? 'ACTIVE' : 'READ_ONLY';
+  }
+  private conversationParticipants(actor: AuthActor, voice: any) {
+    const privateVoice = voice.visibility === VoiceVisibility.PRIVATE;
+    const hiddenReporter =
+      privateVoice &&
+      !voice.showReporterIdentity &&
+      actor.accountId !== voice.reporterId &&
+      !actor.capabilities.includes('CARE_ADMIN');
+    const participants = [
+      {
+        accountId: voice.reporterId,
+        displayName: hiddenReporter ? voice.anonymousAlias : voice.reporterNameSnapshot,
+        role: 'REPORTER',
+      },
+      {
+        accountId: voice.routeOwnerId,
+        displayName: privateVoice ? 'Komite' : voice.routeOwner.displayName,
+        role: 'DEPARTMENT_HEAD',
+      },
+      ...(voice.currentHandler
+        ? [
+            {
+              accountId: voice.currentHandler.id,
+              displayName: privateVoice ? 'Komite' : voice.currentHandler.displayName,
+              role: 'SECTION_HEAD',
+            },
+          ]
+        : []),
+    ];
+    return participants
+      .filter(
+        (item, index) =>
+          participants.findIndex((other) => other.accountId === item.accountId) === index,
+      )
+      .map((item) => ({
+        id: hiddenReporter && item.role === 'REPORTER' ? 'anonymous-reporter' : item.accountId,
+        displayName: item.displayName,
+        role: privateVoice && item.role !== 'REPORTER' ? 'COMMITTEE' : item.role,
+      }));
   }
   private serialize(actor: AuthActor, voice: any) {
     const base = {
@@ -2897,8 +3042,14 @@ export class VoicesService {
       submittedAt: voice.submittedAt,
       updatedAt: voice.updatedAt,
       classificationSource: voice.classification?.source ?? null,
-      routeOwner: voice.routeOwner,
-      currentHandler: voice.currentHandler,
+      routeOwner:
+        voice.visibility === VoiceVisibility.PRIVATE
+          ? { ...voice.routeOwner, displayName: 'Komite' }
+          : voice.routeOwner,
+      currentHandler:
+        voice.visibility === VoiceVisibility.PRIVATE && voice.currentHandler
+          ? { ...voice.currentHandler, displayName: 'Komite' }
+          : voice.currentHandler,
       attachments: voice.attachments,
       locationReview: voice.locationReview,
       closureCycles: (voice.closureCycles ?? []).map((cycle: any) => {
@@ -2929,6 +3080,21 @@ export class VoicesService {
       }),
       availableActions: this.actionSet(actor, voice),
       conversationState: this.conversationState(actor, voice),
+      participants: this.conversationParticipants(actor, voice),
+      handlingCycleNumber: voice.handlingCycleNumber,
+      handlingTargets: (voice.handlingTargets ?? []).map((target: any) => {
+        const closed = voice.closureCycles?.find(
+          (cycle: any) => cycle.cycleNumber === target.cycleNumber,
+        );
+        return {
+          id: target.id,
+          cycleNumber: target.cycleNumber,
+          days: target.days,
+          setAt: target.setAt,
+          dueAt: target.dueAt,
+          state: handlingTargetState(target.dueAt, closed?.closedAt ?? null),
+        };
+      }),
     };
     const contactConsent = {
       privateContactConsent: voice.privateContactConsent,

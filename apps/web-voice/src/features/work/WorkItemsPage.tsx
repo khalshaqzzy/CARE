@@ -36,7 +36,7 @@ import { useCursorPagination } from '../../lib/useCursorPagination';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import type { HandoverHistoryItem } from '../../workforce-api';
 
-const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED']);
+const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED']);
 
 export function WorkItemsPage() {
   const { session } = useAuth();
@@ -63,7 +63,7 @@ export function WorkItemsPage() {
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
   const handoverMode = isManager && rawView === 'HANDOVERS';
   const view = handoverMode ? 'HANDOVERS' : STATUS_VIEWS.has(rawView) ? rawView : 'ACTIVE';
-  const status = ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'].includes(view) ? view : undefined;
+  const status = ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'].includes(view) ? view : undefined;
   const statusGroup = status || handoverMode ? undefined : (view as 'ACTIVE' | 'CLOSED' | 'ALL');
   const severity = searchParams.get('severity') ?? undefined;
   const area = searchParams.get('area') ?? undefined;
@@ -247,8 +247,8 @@ export function WorkItemsPage() {
                       ? {
                           key: 'verifikasi',
                           icon: <ScrollText />,
-                          value: bucketValue(aggregate.data.status, 'MONITORED'),
-                          label: 'Dimonitor',
+                          value: bucketValue(aggregate.data.status, 'RESPONDED'),
+                          label: 'Direspons',
                           tone: 'brand',
                         }
                       : {

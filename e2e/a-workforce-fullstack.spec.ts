@@ -205,22 +205,18 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
     };
     await login(managerPage, '000003', '000003');
     await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
-    await managerPage.getByRole('button', { name: 'Monitor Voice' }).click();
-    await expect(managerPage.locator('[aria-current="step"]')).toHaveText('Dimonitor');
-    expect(
-      await db.notification.count({
-        where: { voiceId, recipientId: original.reporterId, title: 'Voice Anda sedang dimonitor' },
-      }),
-    ).toBe(1);
-    await managerPage.getByRole('button', { name: 'Proses Voice', exact: true }).click();
+    await managerPage.getByRole('button', { name: 'Respons Voice' }).click();
     await managerPage
       .getByRole('textbox', { name: 'Keterangan penanganan' })
       .fill('PIC memeriksa kondisi langsung di lokasi.');
-    await managerPage.getByRole('button', { name: 'Mulai proses & buka chat' }).click();
+    await managerPage.getByRole('button', { name: 'Respons & buka chat' }).click();
     await expect(managerPage).toHaveURL(new RegExp(`/voices/${voiceId}/chat$`));
     await expect(managerPage.getByText('PIC memeriksa kondisi langsung di lokasi.')).toBeVisible();
     expect(await db.message.count({ where: { conversation: { voiceId } } })).toBe(1);
     await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
+    await managerPage.getByRole('button', { name: 'Proses Voice', exact: true }).click();
+    await managerPage.getByRole('button', { name: 'Hari ini', exact: true }).click();
+    await managerPage.getByRole('button', { name: 'Mulai diproses' }).click();
     await managerPage.getByRole('button', { name: 'Selesaikan Voice' }).click();
     await managerPage
       .getByRole('textbox', { name: 'Catatan penyelesaian' })
@@ -250,6 +246,7 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
       await db.conversation.deleteMany({ where: { voiceId } });
       await db.notification.deleteMany({ where: { voiceId } });
       await db.voiceEvent.deleteMany({ where: { voiceId } });
+      await db.voiceHandlingTarget.deleteMany({ where: { voiceId } });
       await db.voice.delete({ where: { id: voiceId } });
     }
     await db.$disconnect();

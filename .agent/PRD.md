@@ -78,7 +78,7 @@ Menyediakan kanal member voice yang aman, responsif, transparan, dan dapat diper
 - Menyediakan Private Voice yang ditangani Union dengan consent tampil/sembunyikan identitas.
 - Merutekan General Voice kepada Manager yang tepat secara deterministik.
 - Menggunakan AI untuk rekomendasi kategori/severity dan advisory location review dengan fallback manual yang aman.
-- Menyediakan lifecycle Open, Dimonitor, In Progress, Closed, serta reopen yang traceable.
+- Menyediakan lifecycle Open, Direspons, In Progress, Closed, serta reopen yang traceable.
 - Menyediakan room chat dengan lampiran gambar untuk verifikasi.
 - Menurunkan Manager/Department Head dan Section Head dari workbook authoritative serta memungkinkan Manager mendelegasikan Voice kepada kandidat Section Head yang sah.
 - Mewajibkan bukti dan catatan ketika Voice ditutup.
@@ -703,52 +703,58 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 ### 15.1 Status dan progress
 
-Voice memiliki tepat empat status: `OPEN` (Terbuka), `MONITORED` (Dimonitor),
-`IN_PROGRESS` (Diproses), `CLOSED` (Selesai). `REOPENED` adalah event dan badge
-kontekstual, bukan status kelima. Detail menampilkan progress empat langkah.
+Voice memiliki empat status: `OPEN` (Terbuka), `RESPONDED` (Direspons),
+`IN_PROGRESS` (Diproses), dan `CLOSED` (Selesai). Reopen adalah event/badge,
+bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 
 ### 15.2 Transition matrix
 
-| Dari      | Action                          | Actor                                                       | Ke        | Efek                                                                   |
-| --------- | ------------------------------- | ----------------------------------------------------------- | --------- | ---------------------------------------------------------------------- |
-| Draft     | Submit                          | Reporter                                                    | Terbuka   | Route owner dan timeline dibuat                                        |
-| Terbuka   | Monitor                         | Responder yang berhak                                       | Dimonitor | Notifikasi acknowledgement reporter; tanpa chat/assignment             |
-| Terbuka   | Assign PIC                      | Route Manager / Union Head                                  | Dimonitor | Assignment + event monitor; notifikasi reporter dan PIC                |
-| Dimonitor | Assign/reassign                 | Route Manager / Union Head                                  | Dimonitor | Histori assignment dipertahankan; monitor tidak dinotifikasi ulang     |
-| Dimonitor | Proses + keterangan             | Current handler; route owner/Union Head jika belum assigned | Diproses  | PIC efektif ditetapkan; keterangan menjadi pesan pertama; chat terbuka |
-| Diproses  | Close                           | Route owner/current handler sesuai scope                    | Selesai   | Closure cycle dan review window existing                               |
-| Selesai   | Rating 1–2 + reopen tepat waktu | Reporter                                                    | Diproses  | Chat yang sama aktif; badge Dibuka kembali                             |
+| Dari                  | Action                          | Actor                                                 | Ke        | Efek                                                  |
+| --------------------- | ------------------------------- | ----------------------------------------------------- | --------- | ----------------------------------------------------- |
+| Draft                 | Submit                          | Reporter                                              | Terbuka   | Route dan timeline dibuat                             |
+| Terbuka               | Respons + keterangan            | Responder berhak                                      | Direspons | Room, pesan pertama actor, event, notifikasi reporter |
+| Terbuka               | Assign PIC + keterangan         | Route Manager / Union Head                            | Direspons | Assignment dan respons disimpan atomik                |
+| Direspons             | Assign/reassign                 | Route Manager / Union Head                            | Direspons | Histori assignment, room sama, alasan opsional        |
+| Direspons             | Proses + target hari            | PIC aktif; route owner/Union Head bila belum assigned | Diproses  | PIC efektif dan target siklus ditetapkan              |
+| Diproses tanpa target | Tetapkan target baru            | PIC efektif                                           | Diproses  | Target siklus ditetapkan satu kali                    |
+| Diproses              | Close                           | Responder sesuai scope existing                       | Selesai   | Closure cycle dan review window                       |
+| Selesai               | Rating 1–2 + reopen tepat waktu | Reporter                                              | Diproses  | Chat aktif, siklus baru membutuhkan target baru       |
 
 ### 15.3 Transition rules
 
-- Membaca detail tidak mengubah status; Monitor hanya melalui mutation eksplisit.
-- Tidak ada direct Terbuka → Diproses. Proses wajib text 1–4.000 karakter setelah trim.
-- Setelah assignment, hanya PIC aktif yang memulai Proses; route owner tidak mengambil alih secara implisit.
-- Assign/reassign hanya pada Terbuka/Dimonitor. Handover tetap hanya General Terbuka tanpa assignment.
-- Route Manager tetap dapat close General Voice yang sedang ditangani Section Head; hak close/chat lainnya tidak berubah.
-- Reporter tidak dapat menjalankan responder action atas Voice miliknya sendiri.
-- Version, row lock dan idempotency melindungi perubahan; retry tidak menggandakan event/pesan/notifikasi.
+- Membaca detail tidak mengubah status. Respons wajib keterangan 1–4.000 karakter setelah trim.
+- Assignment pada Terbuka melalui pilihan PIC, tombol Tugaskan, lalu sheet keterangan. Tidak ada mutation sampai konfirmasi keterangan; pembatalan tidak menyimpan assignment.
+- Respons menyimpan room, pesan, status, event dan notifikasi dalam transaksi yang sama.
+- Setelah assignment, hanya PIC aktif dapat memulai proses dan menetapkan target. Route owner tetap dapat chat dan close sesuai scope.
+- Assign/reassign hanya Terbuka/Direspons. Handover hanya General Terbuka tanpa assignment.
+- Reporter tidak menjalankan responder action atas laporannya sendiri. Version, row lock, dan idempotency tetap wajib.
+- Endpoint Monitor dan Ask lama menolak dengan `CLIENT_UPDATE_REQUIRED`.
+- Migrasi mengubah Dimonitor menjadi Direspons, membuat room kosong yang hilang, dan tidak memalsukan pesan atau notifikasi historis. Event MONITORED lama tetap utuh; KPI respons mengakui MONITORED/RESPONDED pertama.
 
-### 15.4 PIC Display
+### 15.4 PIC dan target penyelesaian
 
-- Sebelum assignment, tampilkan route tujuan; Dimonitor tidak mengambil assignment secara otomatis.
-- Setelah assignment/proses, General menampilkan PIC efektif.
-- Private tetap memakai `Komite` pada destination/PIC; identitas anonim dan consent tetap server-enforced.
-- Closed mempertahankan closure actor dan PIC terakhir. Reopen mempertahankan PIC aktif atau fallback ke route owner aktif dengan audit.
+- Sebelum assignment/proses, route tujuan tetap ditampilkan; sesudahnya PIC efektif ditampilkan. Private memakai Komite.
+- Proses meminta target wajib integer 0–365 hari. Tidak ada pilihan otomatis. Pilihan cepat: Hari ini, 1, 3, 7, 14 hari.
+- Hari dihitung dari tanggal server di Asia/Jakarta. Nol berarti hari ini; satu berarti besok. Deadline adalah akhir hari 23.59.59,999 WIB, disimpan UTC, ditampilkan tanggal/jam 23.59 WIB.
+- Bottom sheet menampilkan pratinjau; target final mengikuti waktu server saat transaksi. Target immutable per siklus penanganan, dengan hari, actor, waktu penetapan, deadline dan penanda notifikasi keterlambatan.
+- Detail menampilkan target, Dalam target/Target terlewati/Selesai sesuai target/Selesai melewati target, serta riwayat siklus. Data lama tanpa target menampilkan Belum ditetapkan, tanpa backfill target fiktif.
+- Reopen mempertahankan room dan fallback PIC existing, membuka siklus baru tanpa target. PIC menetapkan target baru tanpa menutup chat.
+- Penetapan target mengirim notifikasi ke reporter dan route-owning Department Head (Union Head pada Private), penerima dideduplikasi meskipun penetap adalah penerima.
+- Keterlambatan tidak mengubah status atau memblokir chat. Indikator dihitung saat read; worker mengirim satu notifikasi per target/penerima melalui outbox, tanpa pengingat harian atau eskalasi otomatis.
+- Worker memakai lock Voice yang sama dengan close/reopen. Target siklus lama dan Voice yang telah ditutup tidak mengirim pengingat keterlambatan baru.
+- Notifikasi in-app mencantumkan target tanggal/jam. Push Private tetap generik sesuai kebijakan privasi.
 
 ## 16. Conversation dan Keterangan Penanganan
 
-- Terbuka/Dimonitor tidak membuka chat; baca/kirim melalui API juga ditolak.
-- Proses menyimpan keterangan pertama, conversation, PIC, status, event, dan satu notifikasi reporter dalam transaksi yang sama.
-- UI langsung membuka `/voices/:id/chat` setelah detail terbaru tersedia. Keterangan adalah pesan PIC, bukan pesan sistem.
-- Satu Voice memiliki maksimum satu conversation berkelanjutan lintas closure cycle.
-- Diproses mendukung chat; Selesai read-only; reopen kembali mengaktifkan chat yang sama tanpa keterangan awal baru.
-- Text 1–4.000 karakter; pesan dapat memuat maksimum lima gambar, maksimum 10 MB/file. Empty message tanpa text/attachment ditolak. Pesan tidak diedit/dihapus.
-- `conversationState` tetap `UNAVAILABLE` / `ACTIVE` / `READ_ONLY`, ditegakkan sesuai object policy pada baca/kirim.
-- Pengiriman pesan dan closure memakai lock Voice yang sama sehingga pesan tidak lolos setelah penutupan.
-- Sender snapshot, alias Private, consent, read-only leadership/Admin, dan privacy notifikasi tetap berlaku.
-- Endpoint `/ask` lama menolak dengan `CLIENT_UPDATE_REQUIRED`; event `ASKED_REPORTER` historis tetap dapat dibaca.
-- Migrasi legacy: Verifikasi dengan pesan (termasuk attachment-only) atau histori reopen menjadi Diproses; sisanya Dimonitor. Diproses lama tanpa room mendapat room kosong tanpa pesan fiktif. Histori dan timestamp asli tetap utuh.
+- Terbuka tidak menyediakan chat. Direspons dan Diproses aktif untuk peserta berhak; Selesai hanya baca. Leadership/Admin tetap read-only sesuai scope.
+- Satu Voice memiliki satu conversation lintas closure cycle. Respons/assignment awal membuka `/voices/:id/chat` setelah detail terbaru tersedia.
+- General tanpa assignment memiliki reporter dan Department Head; dengan assignment ditambahkan Section Head aktif. Identitas sama dideduplikasi. Reassignment mengganti peserta aktif tanpa mengubah identitas pesan historis.
+- Backend menyediakan peserta dan identitas pengirim berdasarkan audience; pesan baru menyimpan snapshot nama. Private mempertahankan alias Komite dan anonimitas reporter, termasuk menghilangkan ID reporter pada pesan untuk audience anonim.
+- Label nama mengambil nama lengkap dan menampilkan maksimal 12 karakter: 11 karakter + elipsis jika terpotong. Nama lengkap tersedia pada detail peserta dan aksesibilitas.
+- Header ringkas memuat konteks, status, avatar dan peran peserta. Pesan dikelompokkan per hari WIB; composer tetap terjangkau di atas dock/safe area.
+- Draft teks/lampiran baru dibersihkan setelah kirim berhasil; retry memakai idempotency yang sama untuk payload sama. Pesan baru tidak memaksa scroll ketika pengguna membaca riwayat.
+- Text 1–4.000 karakter; maksimum lima gambar, 10 MB/file. Pesan kosong tanpa attachment ditolak. Pesan tidak diedit/dihapus. Close dan message menggunakan lock Voice yang sama.
+- Aksesibilitas, responsive layout dan legacy WebKit tetap wajib. Presence/read receipt tidak ditambahkan.
 
 ---
 
@@ -832,7 +838,7 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
 ### 18.1 Member Home
 
 - primary actions **Buat Voice** dan **Riwayat**;
-- empat count Voice milik reporter: Open, Dimonitor, In Progress, Closed;
+- empat count Voice milik reporter: Open, Direspons, In Progress, Closed;
 - recent Voice list dengan ID, judul, severity, status, dan waktu update.
 
 ### 18.2 Manager Dashboard
@@ -840,7 +846,7 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
 - aggregate-only General Voice pada division Manager: total, status, severity, category, trend, dan breakdown department;
 - default rentang 30 hari, dengan preset 90 hari, tahun berjalan, semua waktu,
   custom date, serta filter area, category, severity, dan status berbasis URL;
-- KPI total, aktif, Dimonitor, In Progress, Closed, dan Critical;
+- KPI total, aktif, Direspons, In Progress, Closed, dan Critical;
 - operational inbox terpisah untuk General Voice yang berada pada department route, default route, atau global route miliknya;
 - recent/high-priority operational items;
 - assignment Section Head summary sesuai candidate scope;
@@ -916,7 +922,7 @@ tidak mempunyai Voice Saya.
 - Voice baru kepada Manager/PIC global/Union Head;
 - assignment/reassignment kepada Section Head atau Union Officer;
 - message baru;
-- status menjadi Dimonitor/In Progress;
+- status menjadi Direspons/In Progress;
 - closure kepada reporter;
 - rating/reopen kepada PIC;
 - auto-accept closure kepada reporter dan PIC penutup (`CLOSURE_AUTO_ACCEPTED`);
@@ -995,7 +1001,7 @@ type GeneralVoiceCategoryStatus = 'ACTIVE' | 'ARCHIVED';
 type GeneralVoiceCategoryRouteMode = 'FIXED_DEPARTMENT' | 'RELATED_REPORTER_DEPARTMENT';
 type GeneralVoiceCategoryKey = string; // immutable, server-managed stable key
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-type VoiceStatus = 'OPEN' | 'MONITORED' | 'IN_PROGRESS' | 'CLOSED';
+type VoiceStatus = 'OPEN' | 'RESPONDED' | 'IN_PROGRESS' | 'CLOSED';
 type HandlerType = 'MANAGER' | 'SECTION_HEAD' | 'UNION_HEAD' | 'UNION_OFFICER';
 type ClassificationSource = 'AI' | 'MANUAL_FALLBACK';
 type LocationCompleteness = 'COMPLETE' | 'INCOMPLETE' | 'UNKNOWN';
@@ -1785,13 +1791,13 @@ Minimum journeys:
 
 ### 34.4 Lifecycle, Chat, dan Assignment
 
-- [ ] Status hanya Open/Dimonitor/In Progress/Closed.
+- [ ] Status hanya Open/Direspons/In Progress/Closed.
 - [ ] Monitor, proceed dengan keterangan wajib, assign, reassign, close, dan reopen mengikuti transition matrix.
-- [ ] Dimonitor/In Progress menampilkan PIC/current handler sesuai privacy.
+- [ ] Direspons/In Progress menampilkan PIC/current handler sesuai privacy.
 - [ ] Reassign hanya sebelum In Progress.
 - [ ] Union Head menjadi route owner semua Private dan hanya Head dapat assign/reassign Union 1/2 sebelum In Progress.
 - [ ] Union Officer hanya melihat/menangani Private yang ditugaskan; Manager atau active handler dapat close General dan Head/assigned Officer dapat close Private sesuai object scope.
-- [ ] Close dari Open/Dimonitor ditolak; hanya In Progress yang dapat ditutup.
+- [ ] Close dari Open/Direspons ditolak; hanya In Progress yang dapat ditutup.
 - [ ] Chat immutable dengan image attachment dan notification.
 - [ ] Timeline actor/timestamp/event lengkap dan append-only.
 
@@ -1990,7 +1996,7 @@ tidak dibedakan, istilah tersebut berarti **current operational category**.
   `routeOwnerId` terkini dapat memulai handover.
 - Voice wajib `GENERAL`, `OPEN`, dan `currentHandlerId=null`. Handover tidak
   tersedia untuk reporter, Section Head, Union Head/Officer, leadership,
-  CARE Admin, previous PIC, Private Voice, atau status `MONITORED`,
+  CARE Admin, previous PIC, Private Voice, atau status `RESPONDED`,
   `IN_PROGRESS`, dan `CLOSED`.
 - Transfer mempertahankan `status=OPEN`, `handlerType=MANAGER`, dan
   `currentHandlerId=null`; Voice version bertambah satu. Voice dapat berpindah
@@ -2127,7 +2133,7 @@ membership yang berlaku pada assignment; data yang tidak terbukti tetap unknown.
 Tren menghitung waktu submit, bukan waktu assignment atau handover, dengan
 bucket harian/mingguan/bulanan dan pembanding periode berdurasi sama.
 
-KPI Total mengikuti filter, Aktif menjumlah Open/Dimonitor/In Progress,
+KPI Total mengikuti filter, Aktif menjumlah Open/Direspons/In Progress,
 dan Kritis berasal dari severity. Angka yang dilindungi ditampilkan sebagai tidak
 tersedia, bukan nol. Cohort lintas detail scope di bawah lima tidak mengembalikan
 angka metrik/pembanding. Dimensi yang memiliki bucket kecil dilindungi keseluruhan
@@ -2208,14 +2214,14 @@ persona responder/leadership/Union:
 
 §15–17 dan ADR-0044 menggantikan referensi Verifikasi, Tanya Reporter, direct Proceed,
 serta assignment membuka chat pada amandemen historis di bawah/di atas. Semua status
-filter, dashboard, Admin dan API memakai MONITORED; Admin summary memakai monitored.
+filter, dashboard, Admin dan API memakai RESPONDED; Admin summary memakai monitored.
 Progress CLOSED tetap Selesai dengan substatus review existing. Dibuka kembali tampil
 sebagai badge tambahan hanya saat cycle terbaru REJECTED dan Voice IN_PROGRESS.
 Rilis memerlukan maintenance window dan API/workforce/Admin satu versi.
 
 ### Dashboard KPI dan filter organisasi — 14 September 2026
 
-Dashboard responder, leadership, General Penanganan/Pelaporan dan Union Private menampilkan Average Response Time, Average Completion Time dan Performance. Response merupakan rata-rata submit → event MONITORED pertama per Voice, termasuk assignment otomatis. Completion menghitung setiap siklus selesai: submit → closed pertama, lalu reopenedAt siklus sebelumnya → closed berikutnya. Performance memakai seluruh Rating.score, termasuk rating pemicu reopen. Reopen langsung ke In Progress tidak membuat sampel response baru.
+Dashboard responder, leadership, General Penanganan/Pelaporan dan Union Private menampilkan Average Response Time, Average Completion Time dan Performance. Response merupakan rata-rata submit → event RESPONDED pertama per Voice, termasuk assignment otomatis. Completion menghitung setiap siklus selesai: submit → closed pertama, lalu reopenedAt siklus sebelumnya → closed berikutnya. Performance memakai seluruh Rating.score, termasuk rating pemicu reopen. Reopen langsung ke In Progress tidak membuat sampel response baru.
 
 Seluruh KPI mengikuti cohort Voice yang sama dengan filter aktif, termasuk status saat ini dan periode submit (Asia/Jakarta). Semua siklus/rating cohort ikut dihitung meskipun terjadi di luar periode submit terpilih. Durasi memakai elapsed calendar time; waktu antara closed dan reopen tidak masuk siklus berikutnya. Timestamp tidak terbukti dan durasi negatif dikecualikan; durasi nol valid. Tidak ada sampel menghasilkan null/—, bukan nol. API menyediakan rata-rata dalam detik serta jumlah sampel Voice/siklus/rating.
 

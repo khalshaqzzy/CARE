@@ -168,7 +168,7 @@ describe('Union private inbox scope and assignment queue', () => {
     await voices.assign(
       unionHead,
       waiting.id,
-      { handlerAccountId: officer.accountId },
+      { handlerAccountId: officer.accountId, text: 'Keterangan penanganan' },
       'assign-queue',
     );
     const after = await voices.dashboardPrivate(unionHead, {});

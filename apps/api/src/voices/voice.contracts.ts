@@ -99,6 +99,16 @@ export type VoiceDetailBase = {
     rating: { score: number; feedback: string | null; reopen: boolean; createdAt: Date } | null;
   }>;
   availableActions: string[];
+  handlingCycleNumber: number;
+  handlingTargets: Array<{
+    id: string;
+    cycleNumber: number;
+    days: number;
+    setAt: Date;
+    dueAt: Date;
+    state: string;
+  }>;
+  participants: Array<{ id: string; displayName: string; role: string }>;
   conversationState: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
 };
 type PrivateContactConsentSnapshot = {

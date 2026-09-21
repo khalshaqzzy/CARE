@@ -1,14 +1,26 @@
 import { Alert, Button, ChoiceCardGroup, Dialog, Input, Stack, Textarea } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, Check, ImagePlus, Lock, Eye, Play, Send, UserRound } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Check,
+  ImagePlus,
+  Lock,
+  MessageCircle,
+  Play,
+  Send,
+  UserRound,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ACTION_LABELS } from '../lib/formatters';
+import { formatTargetDate, previewHandlingTarget } from '../lib/handling-target';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
 
-type Action = 'proceed' | 'close' | 'rate' | 'assign' | 'reassign' | 'none';
+type Action =
+  'respond' | 'proceed' | 'target' | 'close' | 'assign' | 'reassign' | 'assignment-note' | 'none';
+type Assignment = { handlerAccountId: string; reason?: string };
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const api = useApi();
@@ -19,112 +31,103 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const [active, setActive] = useState<Action>('none');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [processText, setProcessText] = useState('');
-
-  const monitorKey = useMutationKey('monitor');
-  const proceedKey = useMutationKey('proceed');
-  const closeKey = useMutationKey('close');
-  const assignKey = useMutationKey('assign');
-  const monitorVersion = useRef<number | null>(null);
-  const processRequest = useRef<{ text: string; version: number } | null>(null);
-  const assignmentRequest = useRef<{ signature: string; expectedVersion: number } | null>(null);
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId) });
-
-  const refreshOnConflict = (cause: unknown) => {
-    if (
-      typeof cause === 'object' &&
-      cause &&
-      'code' in cause &&
-      cause.code === 'VERSION_CONFLICT'
-    ) {
-      monitorVersion.current = null;
-      processRequest.current = null;
-      assignmentRequest.current = null;
-      monitorKey.reset();
-      proceedKey.reset();
-      assignKey.reset();
-      void invalidate();
-    }
-    setError(cause instanceof Error ? cause.message : 'Perubahan belum tersimpan. Coba lagi.');
+  const [text, setText] = useState('');
+  const [days, setDays] = useState('');
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const mutationKey = useMutationKey('voice-action');
+  const request = useRef<{ signature: string; version: number } | null>(null);
+  const validDays = /^\d+$/.test(days) && Number(days) <= 365;
+  const refresh = () => queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId) });
+  const open = (action: Action) => {
+    setActive(action);
+    setError(null);
+    setText('');
+    setDays('');
+    request.current = null;
+    mutationKey.reset();
   };
-
-  const monitor = useMutation({
-    mutationFn: () =>
-      api.monitor(
+  const mutation = useMutation({
+    mutationFn: async ({
+      action,
+      assignmentBody,
+      note,
+    }: {
+      action: Action;
+      assignmentBody?: Assignment;
+      note?: string;
+    }) => {
+      const signature = JSON.stringify({ action, assignmentBody, note, days });
+      if (request.current?.signature !== signature) {
+        mutationKey.reset();
+        request.current = { signature, version: detail.version };
+      }
+      const version = request.current.version;
+      const key = mutationKey.key();
+      if (action === 'respond') return api.respond(detail.id, { text: note!, version }, key);
+      if (action === 'proceed' || action === 'target')
+        return (action === 'target' ? api.setTarget : api.proceed)(
+          detail.id,
+          { days: Number(days), version },
+          key,
+        );
+      if (action === 'close') return api.close(detail.id, { note: note!, version }, key);
+      return (action === 'reassign' ? api.reassign : api.assign)(
         detail.id,
-        { version: (monitorVersion.current ??= detail.version) },
-        monitorKey.key(),
-      ),
-    onSuccess: async () => {
-      monitorKey.reset();
-      monitorVersion.current = null;
-      setError(null);
-      await invalidate();
-      setNotice('Voice sedang dimonitor. Pelapor telah diberi tahu.');
+        { ...assignmentBody!, ...(note ? { text: note } : {}), expectedVersion: version },
+        key,
+      );
     },
-    onError: refreshOnConflict,
-  });
-  const proceed = useMutation({
-    mutationFn: (text: string) => {
-      processRequest.current ??= { text, version: detail.version };
-      return api.proceed(detail.id, processRequest.current, proceedKey.key());
-    },
-    onSuccess: async () => {
-      proceedKey.reset();
-      processRequest.current = null;
+    onSuccess: async (_result, variables) => {
+      mutationKey.reset();
+      request.current = null;
       setError(null);
-      await invalidate();
+      await refresh();
       await queryClient.fetchQuery({
         queryKey: voiceQuery(sessionId, 'voice', detail.id),
         queryFn: () => api.voiceDetail(detail.id),
         staleTime: 0,
       });
       setActive('none');
-      void navigate(`/voices/${detail.id}/chat`);
+      if (variables.action === 'respond' || variables.action === 'assignment-note')
+        void navigate(`/voices/${detail.id}/chat`);
+      else
+        setNotice(
+          variables.action === 'proceed' || variables.action === 'target'
+            ? 'Target penyelesaian tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
+            : variables.action === 'close'
+              ? 'Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.'
+              : 'PIC berhasil diperbarui.',
+        );
     },
-    onError: refreshOnConflict,
-  });
-  const close = useMutation({
-    mutationFn: (body: { note: string; version: number }) =>
-      api.close(detail.id, body, closeKey.key()),
-    onSuccess: () => {
-      void invalidate();
-      setNotice('Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.');
-      setActive('none');
-    },
-    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Aksi gagal.'),
-    onSettled: closeKey.reset,
-  });
-  const assign = useMutation({
-    mutationFn: (body: { handlerAccountId: string; reason?: string }) => {
-      const signature = JSON.stringify({ action: active, ...body });
-      if (assignmentRequest.current?.signature !== signature) {
-        assignmentRequest.current = { signature, expectedVersion: detail.version };
-        assignKey.reset();
+    onError: (cause) => {
+      if (
+        typeof cause === 'object' &&
+        cause &&
+        'code' in cause &&
+        cause.code === 'VERSION_CONFLICT'
+      ) {
+        request.current = null;
+        mutationKey.reset();
+        void refresh();
       }
-      return (active === 'reassign' ? api.reassign : api.assign)(
-        detail.id,
-        { ...body, expectedVersion: assignmentRequest.current.expectedVersion },
-        assignKey.key(),
-      );
+      setError(cause instanceof Error ? cause.message : 'Perubahan belum tersimpan. Coba lagi.');
     },
-    onSuccess: () => {
-      void invalidate();
-      assignKey.reset();
-      assignmentRequest.current = null;
-      setNotice('PIC diperbarui. Voice sedang dimonitor; percakapan dibuka saat proses dimulai.');
-      setActive('none');
-    },
-    onError: refreshOnConflict,
   });
-
+  const pending = mutation.isPending;
+  const cancel = () => {
+    if (!pending) {
+      setActive('none');
+      setAssignment(null);
+      setError(null);
+    }
+  };
   if (!actions.length) return null;
-
   return (
     <>
-      {detail.status === 'MONITORED' && detail.currentHandler && !actions.includes('PROCEED') ? (
-        <p className="action-panel__waiting">Menunggu PIC memulai penanganan.</p>
+      {detail.status === 'RESPONDED' && detail.currentHandler && !actions.includes('PROCEED') ? (
+        <p className="action-panel__waiting">
+          Menunggu PIC memulai penanganan. Percakapan tetap tersedia.
+        </p>
       ) : null}
       <div className="action-panel" role="group" aria-label="Tindakan">
         {actions.some((action) => ['ASSIGN', 'REASSIGN'].includes(action)) ? (
@@ -134,155 +137,218 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             aria-label="Aksi pendukung"
           >
             {actions.includes('ASSIGN') ? (
-              <Button variant="secondary" onClick={() => setActive('assign')}>
+              <Button variant="secondary" onClick={() => open('assign')}>
                 <UserRound size={18} aria-hidden="true" />
                 {ACTION_LABELS.ASSIGN}
               </Button>
             ) : null}
             {actions.includes('REASSIGN') ? (
-              <Button variant="secondary" onClick={() => setActive('reassign')}>
+              <Button variant="secondary" onClick={() => open('reassign')}>
                 <ArrowLeftRight size={18} aria-hidden="true" />
                 {ACTION_LABELS.REASSIGN}
               </Button>
             ) : null}
           </div>
         ) : null}
-        {actions.some((action) => ['MONITOR', 'HANDOVER', 'PROCEED', 'CLOSE'].includes(action)) ? (
-          <div className="action-row action-row--primary" role="group" aria-label="Keputusan Voice">
-            {actions.includes('HANDOVER') ? (
-              <Button
-                variant="secondary"
-                onClick={() => void navigate(`/voices/${detail.id}/handover`)}
-              >
-                <Send size={18} aria-hidden="true" />
-                {ACTION_LABELS.HANDOVER}
-              </Button>
-            ) : null}
-            {actions.includes('MONITOR') ? (
-              <Button
-                variant="primary"
-                loading={monitor.isPending}
-                disabled={monitor.isPending}
-                onClick={() => monitor.mutate()}
-              >
-                <Eye size={18} aria-hidden="true" /> Monitor Voice
-              </Button>
-            ) : null}
-            {actions.includes('PROCEED') ? (
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setError(null);
-                  setProcessText('');
-                  processRequest.current = null;
-                  proceedKey.reset();
-                  setProcessText('');
-                  processRequest.current = null;
-                  setActive('proceed');
-                }}
-              >
-                <Play size={18} aria-hidden="true" />
-                {ACTION_LABELS.PROCEED}
-              </Button>
-            ) : null}
-            {actions.includes('CLOSE') ? (
-              <Button variant="primary" onClick={() => setActive('close')}>
-                <Check size={18} aria-hidden="true" />
-                {ACTION_LABELS.CLOSE}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="action-row action-row--primary" role="group" aria-label="Keputusan Voice">
+          {actions.includes('HANDOVER') ? (
+            <Button
+              variant="secondary"
+              onClick={() => void navigate(`/voices/${detail.id}/handover`)}
+            >
+              <Send size={18} aria-hidden="true" />
+              {ACTION_LABELS.HANDOVER}
+            </Button>
+          ) : null}
+          {actions.includes('RESPOND') ? (
+            <Button variant="primary" onClick={() => open('respond')}>
+              <MessageCircle size={18} aria-hidden="true" />
+              Respons Voice
+            </Button>
+          ) : null}
+          {actions.includes('PROCEED') ? (
+            <Button variant="primary" onClick={() => open('proceed')}>
+              <Play size={18} aria-hidden="true" />
+              {ACTION_LABELS.PROCEED}
+            </Button>
+          ) : null}
+          {actions.includes('SET_TARGET') ? (
+            <Button variant="primary" onClick={() => open('target')}>
+              Tetapkan target baru
+            </Button>
+          ) : null}
+          {actions.includes('CLOSE') ? (
+            <Button variant="primary" onClick={() => open('close')}>
+              <Check size={18} aria-hidden="true" />
+              {ACTION_LABELS.CLOSE}
+            </Button>
+          ) : null}
+        </div>
       </div>
-      {error && active !== 'proceed' ? (
-        <Alert tone="danger" title="Periksa kembali">
-          {error}
-        </Alert>
-      ) : null}
       {notice ? (
         <Alert tone="success" title="Perubahan tersimpan">
           {notice}
         </Alert>
       ) : null}
-
       <AssignDialog
         open={active === 'assign' || active === 'reassign'}
         reassign={active === 'reassign'}
         detail={detail}
-        onCancel={() => setActive('none')}
-        onConfirm={(body) => assign.mutate(body)}
-        loading={assign.isPending}
-        error={
-          assign.isError
-            ? assign.error instanceof Error
-              ? assign.error.message
-              : 'Penugasan gagal. Coba lagi.'
-            : null
-        }
+        onCancel={cancel}
+        loading={pending}
+        error={error}
+        onConfirm={(body) => {
+          if (detail.status === 'OPEN') {
+            setAssignment(body);
+            setActive('assignment-note');
+            setError(null);
+          } else mutation.mutate({ action: active, assignmentBody: body });
+        }}
       />
-
       <Dialog
-        open={active === 'proceed'}
-        onOpenChange={(open) => {
-          if (!proceed.isPending) setActive(open ? 'proceed' : 'none');
+        open={active === 'respond' || active === 'assignment-note'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
         }}
         mobileSheet
         className="assignment-dialog process-dialog"
-        title="Mulai proses Voice"
-        description="Keterangan ini akan dikirim sebagai pesan pertama kepada pelapor."
+        title="Keterangan penanganan"
+        description="Keterangan ini menjadi pesan pertama kepada pelapor dan membuka percakapan."
         footer={
           <div className="dialog-actions">
-            <Button variant="ghost" disabled={proceed.isPending} onClick={() => setActive('none')}>
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
               Batal
             </Button>
             <Button
               variant="primary"
-              loading={proceed.isPending}
-              disabled={!processText.trim() || proceed.isPending}
-              onClick={() => proceed.mutate(processText.trim())}
+              loading={pending}
+              disabled={!text.trim() || pending}
+              onClick={() =>
+                mutation.mutate({
+                  action: active,
+                  note: text.trim(),
+                  ...(assignment ? { assignmentBody: assignment } : {}),
+                })
+              }
             >
-              Mulai proses &amp; buka chat
+              {active === 'assignment-note' ? 'Tugaskan & buka chat' : 'Respons & buka chat'}
             </Button>
           </div>
         }
       >
         <Stack gap="md">
           {error ? (
-            <Alert tone="danger" title="Proses belum tersimpan">
+            <Alert tone="danger" title="Respons belum tersimpan">
               {error}
             </Alert>
           ) : null}
           <Textarea
             label="Keterangan penanganan"
             placeholder="Jelaskan tindak lanjut yang akan dilakukan"
-            value={processText}
-            onChange={(event) => {
-              setProcessText(event.target.value);
-              processRequest.current = null;
-              proceedKey.reset();
-              setError(null);
-            }}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
             rows={5}
             maxLength={4000}
-            counter={`${processText.length}/4000`}
+            counter={`${text.length}/4000`}
             required
-            disabled={proceed.isPending}
+            disabled={pending}
           />
         </Stack>
       </Dialog>
-
+      <Dialog
+        open={active === 'proceed' || active === 'target'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        className="assignment-dialog target-dialog"
+        title={active === 'proceed' ? 'Mulai penanganan' : 'Tetapkan target baru'}
+        description="Tentukan target penyelesaian untuk siklus penanganan ini."
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              disabled={!validDays || pending}
+              onClick={() => mutation.mutate({ action: active })}
+            >
+              {active === 'proceed' ? 'Mulai diproses' : 'Simpan target'}
+            </Button>
+          </div>
+        }
+      >
+        <Stack gap="md">
+          {error ? (
+            <Alert tone="danger" title="Target belum tersimpan">
+              {error}
+            </Alert>
+          ) : null}
+          <Input
+            label="Target penyelesaian (hari)"
+            inputMode="numeric"
+            type="number"
+            min={0}
+            max={365}
+            step={1}
+            value={days}
+            onChange={(event) => setDays(event.target.value)}
+            required
+            disabled={pending}
+            placeholder="Masukkan jumlah hari"
+          />
+          <div className="target-presets" role="group" aria-label="Pilihan jumlah hari">
+            {[0, 1, 3, 7, 14].map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={days === String(value)}
+                disabled={pending}
+                onClick={() => setDays(String(value))}
+              >
+                {value === 0 ? 'Hari ini' : `${value} hari`}
+              </button>
+            ))}
+          </div>
+          <div className="target-preview" role="status">
+            <span>Target penyelesaian</span>
+            <strong>
+              {validDays
+                ? formatTargetDate(previewHandlingTarget(Number(days)))
+                : 'Pilih jumlah hari'}
+            </strong>
+            <p>
+              Dihitung dari hari ini, sampai pukul 23.59 WIB. Target final mengikuti waktu saat
+              disimpan.
+            </p>
+          </div>
+          <p className="dialog-copy">
+            Target tidak dapat diubah dalam siklus ini. Pelapor dan penanggung jawab menerima
+            notifikasi; pengingat dikirim sekali jika target terlewati.
+          </p>
+        </Stack>
+      </Dialog>
       <Dialog
         open={active === 'close'}
-        onOpenChange={(open) => setActive(open ? 'close' : 'none')}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
         mobileSheet
         title="Tutup Voice"
         description="Voice akan ditutup dan status berubah menjadi Selesai."
       >
+        {error ? (
+          <Alert tone="danger" title="Penutupan belum tersimpan">
+            {error}
+          </Alert>
+        ) : null}
         <CloseDialog
           detail={detail}
-          onCancel={() => setActive('none')}
-          onConfirm={(body) => close.mutate(body)}
-          loading={close.isPending}
+          onCancel={cancel}
+          onConfirm={(body) => mutation.mutate({ action: 'close', note: body.note })}
+          loading={pending}
         />
       </Dialog>
     </>
@@ -371,7 +437,8 @@ function AssignDialog({
       <Stack gap="md">
         {detail.status === 'OPEN' ? (
           <p className="dialog-copy">
-            Penugasan mengubah status menjadi Dimonitor dan memberi tahu pelapor.
+            Setelah memilih PIC, isi keterangan penanganan untuk membuka percakapan. Penugasan
+            disimpan pada langkah berikutnya.
           </p>
         ) : null}
         {error ? (

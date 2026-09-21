@@ -10407,6 +10407,324 @@
         }
       }
     },
+    "/api/v1/voices/{id}/respond": {
+      "post": {
+        "operationId": "VoicesController_respond",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceTextMutationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voices/{id}/target": {
+      "post": {
+        "operationId": "VoicesController_setTarget",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandlingTargetRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voices/{id}/ask": {
       "post": {
         "operationId": "VoicesController_ask",
@@ -10718,7 +11036,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VoiceTextMutationRequest"
+                "$ref": "#/components/schemas/HandlingTargetRequest"
               }
             }
           }
@@ -14346,6 +14664,88 @@
           }
         }
       },
+      "HandlingTargetRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "days",
+          "version"
+        ],
+        "properties": {
+          "days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "HandlingTarget": {
+        "type": "object",
+        "required": [
+          "id",
+          "cycleNumber",
+          "days",
+          "setAt",
+          "dueAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cycleNumber": {
+            "type": "integer"
+          },
+          "days": {
+            "type": "integer"
+          },
+          "setAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ON_TRACK",
+              "OVERDUE",
+              "COMPLETED_ON_TIME",
+              "COMPLETED_LATE"
+            ]
+          }
+        }
+      },
+      "ConversationParticipant": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "REPORTER",
+              "DEPARTMENT_HEAD",
+              "SECTION_HEAD",
+              "COMMITTEE"
+            ]
+          }
+        }
+      },
       "AssignmentRequest": {
         "type": "object",
         "required": [
@@ -14356,6 +14756,12 @@
           "handlerAccountId": {
             "type": "string",
             "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "Required while OPEN; opening handling note"
           },
           "reason": {
             "type": "string",
@@ -15653,6 +16059,9 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
           "conversationState",
           "closureCycles",
           "routeOwner",
@@ -15740,7 +16149,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15769,6 +16178,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
             }
           },
           "conversationState": {
@@ -15882,6 +16306,9 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
           "conversationState",
           "closureCycles",
           "routeOwner",
@@ -15969,7 +16396,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -15998,6 +16425,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
             }
           },
           "conversationState": {
@@ -16107,6 +16549,9 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
           "conversationState",
           "closureCycles",
           "routeOwner",
@@ -16194,7 +16639,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16223,6 +16668,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
             }
           },
           "conversationState": {
@@ -16313,6 +16773,9 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
           "conversationState",
           "closureCycles",
           "routeOwner",
@@ -16400,7 +16863,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16429,6 +16892,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
             }
           },
           "conversationState": {
@@ -16527,6 +17005,9 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
           "conversationState",
           "closureCycles",
           "routeOwner",
@@ -16614,7 +17095,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16643,6 +17124,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
             }
           },
           "conversationState": {
@@ -16752,6 +17248,9 @@
           "updatedAt",
           "classificationSource",
           "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
           "conversationState",
           "closureCycles",
           "routeOwner",
@@ -16840,7 +17339,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -16869,6 +17368,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
             }
           },
           "conversationState": {
@@ -17846,7 +18360,7 @@
                 "type": "string",
                 "enum": [
                   "OPEN",
-                  "MONITORED",
+                  "RESPONDED",
                   "IN_PROGRESS",
                   "CLOSED"
                 ],
@@ -18058,7 +18572,7 @@
             "type": "object",
             "required": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ],
@@ -18067,7 +18581,7 @@
               "OPEN": {
                 "type": "integer"
               },
-              "MONITORED": {
+              "RESPONDED": {
                 "type": "integer"
               },
               "IN_PROGRESS": {
@@ -18693,7 +19207,7 @@
             "type": "object",
             "required": [
               "open",
-              "monitored",
+              "responded",
               "inProgress",
               "closed",
               "critical"
@@ -18703,7 +19217,7 @@
               "open": {
                 "type": "integer"
               },
-              "monitored": {
+              "responded": {
                 "type": "integer"
               },
               "inProgress": {
@@ -19738,7 +20252,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19928,7 +20442,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19955,7 +20469,7 @@
             "type": "string",
             "enum": [
               "OPEN",
-              "MONITORED",
+              "RESPONDED",
               "IN_PROGRESS",
               "CLOSED"
             ]
@@ -19975,6 +20489,9 @@
           "handoverId": {
             "type": "string",
             "format": "uuid"
+          },
+          "handlingTarget": {
+            "$ref": "#/components/schemas/HandlingTarget"
           }
         }
       },
@@ -20116,6 +20633,9 @@
                 "type": "string"
               },
               "alias": {
+                "type": "string"
+              },
+              "displayName": {
                 "type": "string"
               }
             }

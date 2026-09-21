@@ -356,6 +356,8 @@ function successSchema(operationId: string) {
     VoicesController_addDraftAttachment: 'AttachmentResponse',
     VoicesController_ask: 'VoiceMutationResponse',
     VoicesController_monitor: 'VoiceMutationResponse',
+    VoicesController_respond: 'VoiceMutationResponse',
+    VoicesController_setTarget: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
     VoicesController_monitoringOptions: 'MonitoringOptions',
@@ -411,7 +413,9 @@ function requestSchema(operationId: string) {
     NotificationsController_subscribe: 'PushSubscriptionRequest',
     VoicesController_ask: 'VoiceTextMutationRequest',
     VoicesController_monitor: 'VersionedMutationRequest',
-    VoicesController_proceed: 'VoiceTextMutationRequest',
+    VoicesController_proceed: 'HandlingTargetRequest',
+    VoicesController_setTarget: 'HandlingTargetRequest',
+    VoicesController_respond: 'VoiceTextMutationRequest',
     VoicesController_close: 'CloseVoiceRequest',
     VoicesController_rate: 'RatingRequest',
   };
@@ -459,7 +463,7 @@ const baseVoiceProperties = {
     },
   },
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
-  status: { type: 'string', enum: ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'] },
+  status: { type: 'string', enum: ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
   submittedAt: { type: 'string', format: 'date-time' },
   updatedAt: { type: 'string', format: 'date-time' },
@@ -469,6 +473,9 @@ const baseVoiceProperties = {
     enum: ['AI', 'MANUAL_FALLBACK'],
   },
   availableActions: { type: 'array', items: { type: 'string' } },
+  participants: { type: 'array', items: { $ref: '#/components/schemas/ConversationParticipant' } },
+  handlingCycleNumber: { type: 'integer' },
+  handlingTargets: { type: 'array', items: { $ref: '#/components/schemas/HandlingTarget' } },
   conversationState: {
     type: 'string',
     enum: ['UNAVAILABLE', 'ACTIVE', 'READ_ONLY'],
@@ -714,12 +721,51 @@ const schemas: Record<string, any> = {
       acknowledgeIncompleteLocation: { type: 'boolean' },
     },
   },
+  HandlingTargetRequest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['days', 'version'],
+    properties: {
+      days: { type: 'integer', minimum: 0, maximum: 365 },
+      version: { type: 'integer', minimum: 1 },
+    },
+  },
+  HandlingTarget: {
+    type: 'object',
+    required: ['id', 'cycleNumber', 'days', 'setAt', 'dueAt'],
+    properties: {
+      id: { type: 'string' },
+      cycleNumber: { type: 'integer' },
+      days: { type: 'integer' },
+      setAt: { type: 'string', format: 'date-time' },
+      dueAt: { type: 'string', format: 'date-time' },
+      state: {
+        type: 'string',
+        enum: ['ON_TRACK', 'OVERDUE', 'COMPLETED_ON_TIME', 'COMPLETED_LATE'],
+      },
+    },
+  },
+  ConversationParticipant: {
+    type: 'object',
+    required: ['id', 'displayName', 'role'],
+    properties: {
+      id: { type: 'string' },
+      displayName: { type: 'string' },
+      role: { type: 'string', enum: ['REPORTER', 'DEPARTMENT_HEAD', 'SECTION_HEAD', 'COMMITTEE'] },
+    },
+  },
   AssignmentRequest: {
     type: 'object',
     required: ['handlerAccountId'],
     additionalProperties: false,
     properties: {
       handlerAccountId: { type: 'string', format: 'uuid' },
+      text: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 4000,
+        description: 'Required while OPEN; opening handling note',
+      },
       reason: { type: 'string', maxLength: 500 },
       expectedVersion: { type: 'integer', minimum: 1 },
     },
@@ -1509,11 +1555,11 @@ const schemas: Record<string, any> = {
       total: { type: 'integer' },
       counts: {
         type: 'object',
-        required: ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'],
+        required: ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'],
         additionalProperties: false,
         properties: {
           OPEN: { type: 'integer' },
-          MONITORED: { type: 'integer' },
+          RESPONDED: { type: 'integer' },
           IN_PROGRESS: { type: 'integer' },
           CLOSED: { type: 'integer' },
         },
@@ -1804,11 +1850,11 @@ const schemas: Record<string, any> = {
       },
       voices: {
         type: 'object',
-        required: ['open', 'monitored', 'inProgress', 'closed', 'critical'],
+        required: ['open', 'responded', 'inProgress', 'closed', 'critical'],
         additionalProperties: false,
         properties: {
           open: { type: 'integer' },
-          monitored: { type: 'integer' },
+          responded: { type: 'integer' },
           inProgress: { type: 'integer' },
           closed: { type: 'integer' },
           critical: { type: 'integer' },
@@ -2319,6 +2365,7 @@ const schemas: Record<string, any> = {
       currentHandlerId: { type: 'string', format: 'uuid', nullable: true },
       handlerType: { type: 'string' },
       handoverId: { type: 'string', format: 'uuid' },
+      handlingTarget: { $ref: '#/components/schemas/HandlingTarget' },
     },
   },
   TimelineEvent: {
@@ -2367,7 +2414,11 @@ const schemas: Record<string, any> = {
       sender: {
         type: 'object',
         required: ['kind'],
-        properties: { kind: { type: 'string' }, alias: { type: 'string' } },
+        properties: {
+          kind: { type: 'string' },
+          alias: { type: 'string' },
+          displayName: { type: 'string' },
+        },
       },
       attachments: {
         type: 'array',

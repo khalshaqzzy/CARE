@@ -62,7 +62,7 @@ export function InboxVoiceCard({
   showPic?: boolean;
 }) {
   const handlerName = voice.currentHandlerName ?? null;
-  const unassigned = ['OPEN', 'MONITORED'].includes(voice.status) && !handlerName;
+  const unassigned = ['OPEN', 'RESPONDED'].includes(voice.status) && !handlerName;
   const pic = handlerName ? `PIC: ${shortenPersonName(handlerName)}` : null;
   // Identity (Union private) cards already fill the top row with the alias
   // tile and severity chip, so their PIC chip stays in the footer; plain

@@ -84,3 +84,10 @@ ADR-0047 supersedes platform baseline generation and repeated no-update comparis
 requirements in this record. Native screenshots and CI gallery artifacts are used
 for inspection; existing functional, accessibility and layout assertions remain
 required. Historical validation results above are retained as evidence of those runs.
+
+## Supersession — 21 September 2026
+
+ADR-0052 replaces MONITORED with RESPONDED and opens the conversation when the
+required response note is recorded. Processing now records a calendar-day target
+instead of an opening message. Historical MONITORED events and previous validation
+evidence above remain historical records, not the current product contract.

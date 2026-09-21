@@ -136,7 +136,7 @@ describe('Organization dashboard scope, privacy and filtering', () => {
   afterAll(() => db.$disconnect());
   it('averages independent response, completion-cycle and feedback samples within the filtered cohort', async () => {
     const first = await seed({ status: 'IN_PROGRESS' });
-    const second = await seed({ status: 'MONITORED' });
+    const second = await seed({ status: 'RESPONDED' });
     await seed(); // Missing historical timestamps never become zero samples.
     const at = (hours: number) => new Date(first.submittedAt.getTime() + hours * 3600000);
     for (const [voiceId, hours] of [
@@ -147,7 +147,7 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       await db.voiceEvent.create({
         data: {
           voiceId,
-          type: 'MONITORED',
+          type: 'RESPONDED',
           actorId: manager.accountId,
           actorAccountKind: 'WORKFORCE',
           actorCapabilities: ['MANAGER'],
@@ -182,7 +182,7 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       averageFeedbackScore: 3.5,
       feedbackSampleCount: 2,
     });
-    const monitored = await dashboard.aggregate(manager, { ...common, status: 'MONITORED' });
+    const monitored = await dashboard.aggregate(manager, { ...common, status: 'RESPONDED' });
     expect(monitored.performance).toEqual({
       averageResponseSeconds: 21600,
       responseSampleCount: 1,
@@ -209,7 +209,7 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       await db.voiceEvent.create({
         data: {
           voiceId,
-          type: 'MONITORED',
+          type: 'RESPONDED',
           actorId: manager.accountId,
           actorAccountKind: 'WORKFORCE',
           actorCapabilities: ['MANAGER'],
@@ -339,7 +339,7 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       await db.voiceEvent.create({
         data: {
           voiceId: voice.id,
-          type: 'MONITORED',
+          type: 'RESPONDED',
           actorId: manager.accountId,
           actorAccountKind: 'WORKFORCE',
           actorCapabilities: ['MANAGER'],

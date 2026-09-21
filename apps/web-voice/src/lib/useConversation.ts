@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from './query';
 import { useCursorFeed } from './useCursorFeed';
 import type { Message } from '../workforce-api';
@@ -30,16 +30,27 @@ export function useConversation(voiceId: string) {
     resetKey: voiceId,
   });
 
+  const requestSignature = useRef('');
   const send = useMutation({
-    mutationFn: ({ text, files }: { text: string; files: File[] }) =>
-      api.sendMessage(voiceId, text, files, messageKey.key()),
+    mutationFn: ({ text, files }: { text: string; files: File[] }) => {
+      const signature = JSON.stringify([
+        text,
+        files.map((file) => [file.name, file.size, file.lastModified]),
+      ]);
+      if (signature !== requestSignature.current) {
+        messageKey.reset();
+        requestSignature.current = signature;
+      }
+      return api.sendMessage(voiceId, text, files, messageKey.key());
+    },
     onSuccess: () => {
+      messageKey.reset();
+      requestSignature.current = '';
       void queryClient.invalidateQueries({
         queryKey: voiceQuery(sessionId, 'voice', voiceId, 'messages'),
       });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', voiceId) });
     },
-    onSettled: messageKey.reset,
   });
 
   // `feed.items` is newest-first; reverse so the newest message sits at the bottom.

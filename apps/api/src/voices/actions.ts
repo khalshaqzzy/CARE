@@ -8,6 +8,7 @@ export type ActionableVoice = {
   status: VoiceStatus;
   handlerType: HandlerType;
   hasConversation?: boolean;
+  hasHandlingTarget?: boolean;
   closureCycles?: Array<{
     reopenedAt: Date | null;
     reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
@@ -42,11 +43,11 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
   const actions: string[] = [];
   if (canOperate) {
     if (voice.status === 'OPEN') {
-      actions.push('MONITOR');
+      actions.push('RESPOND');
       if (canAssign) actions.push('ASSIGN');
       if (!isPrivate && actor.capabilities.includes('MANAGER') && isRouteOwner)
         actions.push('HANDOVER');
-    } else if (voice.status === 'MONITORED') {
+    } else if (voice.status === 'RESPONDED') {
       if (
         isHandler ||
         (!voice.currentHandlerId &&
@@ -54,12 +55,21 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       )
         actions.push('PROCEED');
       if (canAssign) actions.push(voice.currentHandlerId ? 'REASSIGN' : 'ASSIGN');
+      if (voice.hasConversation) actions.push('MESSAGE');
     } else if (voice.status === 'IN_PROGRESS') {
+      if (
+        !voice.hasHandlingTarget &&
+        (isHandler ||
+          (!voice.currentHandlerId &&
+            (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD')))))
+      )
+        actions.push('SET_TARGET');
       actions.push('CLOSE');
       if (voice.hasConversation) actions.push('MESSAGE');
     }
   } else if (isReporter) {
-    if (voice.status === 'IN_PROGRESS' && voice.hasConversation) actions.push('MESSAGE');
+    if (['RESPONDED', 'IN_PROGRESS'].includes(voice.status) && voice.hasConversation)
+      actions.push('MESSAGE');
     else if (voice.status === 'CLOSED') {
       const latest = voice.closureCycles?.at(-1);
       if (latest && !latest.reopenedAt && !latest.rating) actions.push('RATE');

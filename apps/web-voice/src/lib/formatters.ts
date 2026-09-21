@@ -15,7 +15,7 @@ export const SEVERITY_LABELS: Record<string, string> = {
 
 export const STATUS_LABELS: Record<string, string> = {
   OPEN: 'Terbuka',
-  MONITORED: 'Dimonitor',
+  RESPONDED: 'Direspons',
   IN_PROGRESS: 'Diproses',
   CLOSED: 'Selesai',
 };
@@ -65,7 +65,7 @@ export const CLASSIFICATION_LABELS: Record<string, string> = {
 };
 
 export const ACTION_LABELS: Record<string, string> = {
-  MONITOR: 'Monitor Voice',
+  RESPOND: 'Respons Voice',
   PROCEED: 'Proses Voice',
   ASSIGN: 'Assign PIC',
   REASSIGN: 'Ganti PIC',
@@ -78,12 +78,15 @@ export const ACTION_LABELS: Record<string, string> = {
 
 export const VOICE_ACTION_LABELS: Record<string, string> = {
   SUBMITTED: 'Diajukan',
-  MONITORED: 'Dimonitor',
+  RESPONDED: 'Direspons',
   ASKED_REPORTER: 'Menanyakan Reporter',
   MESSAGE_SENT: 'Pesan Terkirim',
   ASSIGNED: 'Ditugaskan',
   REASSIGNED: 'Dialihkan',
   HANDOVER_COMPLETED: 'Dihandover',
+  MONITORED: 'Dimonitor',
+  TARGET_SET: 'Target penyelesaian ditetapkan',
+  TARGET_OVERDUE: 'Target terlewati',
   PROCEEDED: 'Diproses',
   CLOSED: 'Ditutup',
   RATED: 'Dinilai',

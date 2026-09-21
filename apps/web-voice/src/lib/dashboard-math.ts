@@ -5,11 +5,11 @@ export function bucketValue(buckets: Bucket[] | undefined, label: string): numbe
   return buckets?.find((bucket) => bucket.label === label)?.value ?? 0;
 }
 
-/** Sum of OPEN + MONITORED + IN_PROGRESS status buckets. */
+/** Sum of OPEN + RESPONDED + IN_PROGRESS status buckets. */
 export function activeCount(statusBuckets: Bucket[] | undefined): number {
   return (
     bucketValue(statusBuckets, 'OPEN') +
-    bucketValue(statusBuckets, 'MONITORED') +
+    bucketValue(statusBuckets, 'RESPONDED') +
     bucketValue(statusBuckets, 'IN_PROGRESS')
   );
 }
@@ -32,11 +32,11 @@ export type DistributionSlice = {
   color: string;
 };
 
-const STATUS_ORDER = ['OPEN', 'MONITORED', 'IN_PROGRESS', 'CLOSED'] as const;
+const STATUS_ORDER = ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const;
 
 const STATUS_COLORS: Record<string, string> = {
   OPEN: 'var(--raw-brand-600)',
-  MONITORED: 'var(--raw-warning)',
+  RESPONDED: 'var(--raw-warning)',
   IN_PROGRESS: 'var(--raw-brand-400)',
   CLOSED: 'var(--raw-success)',
 };
