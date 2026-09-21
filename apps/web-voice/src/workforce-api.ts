@@ -282,16 +282,23 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
-    monitor: (id: string, body: components['schemas']['VersionedMutationRequest'], key: string) =>
+    respond: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
       dataOrThrow(
-        client.POST('/api/v1/voices/{id}/monitor', {
+        client.POST('/api/v1/voices/{id}/respond', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },
           body,
         }),
       ),
-    proceed: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
+    proceed: (id: string, body: components['schemas']['HandlingTargetRequest'], key: string) =>
       dataOrThrow(
         client.POST('/api/v1/voices/{id}/proceed', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    setTarget: (id: string, body: components['schemas']['HandlingTargetRequest'], key: string) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/target', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },
           body,
         }),

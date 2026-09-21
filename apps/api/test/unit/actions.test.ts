@@ -26,17 +26,17 @@ function voice(overrides: Partial<ActionableVoice> = {}): ActionableVoice {
 describe('computeAvailableActions', () => {
   it('gives a route owner monitor on OPEN General', () => {
     const result = computeAvailableActions(actor(['MANAGER'], 'owner'), voice());
-    expect(result).toContain('MONITOR');
+    expect(result).toContain('RESPOND');
     expect(result).not.toContain('PROCEED');
     expect(result).not.toContain('MESSAGE');
     expect(result).toContain('ASSIGN');
     expect(result).toContain('HANDOVER');
   });
 
-  it('offers reassign only in MONITORED for a managing route owner', () => {
+  it('offers reassign only in RESPONDED for a managing route owner', () => {
     const result = computeAvailableActions(
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'MONITORED' as VoiceStatus, currentHandlerId: 'handler' }),
+      voice({ status: 'RESPONDED' as VoiceStatus, currentHandlerId: 'handler' }),
     );
     expect(result).toContain('REASSIGN');
     expect(result).not.toContain('PROCEED');
@@ -71,7 +71,7 @@ describe('computeAvailableActions', () => {
     [
       'Manager after verification',
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'MONITORED' as VoiceStatus }),
+      voice({ status: 'RESPONDED' as VoiceStatus }),
     ],
     [
       'Manager while in progress',
@@ -104,7 +104,7 @@ describe('computeAvailableActions', () => {
     expect(open).not.toContain('MESSAGE');
     const verification = computeAvailableActions(
       replyer,
-      voice({ reporterId: 'reporter', status: 'MONITORED' as VoiceStatus }),
+      voice({ reporterId: 'reporter', status: 'RESPONDED' as VoiceStatus }),
     );
     expect(verification).not.toContain('MESSAGE');
   });
@@ -130,7 +130,7 @@ describe('computeAvailableActions', () => {
       }),
     );
     expect(result).toContain('ASSIGN');
-    expect(result).toContain('MONITOR');
+    expect(result).toContain('RESPOND');
   });
 
   it('does not expose assign control to a Section Head', () => {
@@ -141,7 +141,7 @@ describe('computeAvailableActions', () => {
         currentHandlerId: 'handler',
       }),
     );
-    expect(result).toContain('MONITOR');
+    expect(result).toContain('RESPOND');
     expect(result).not.toContain('ASSIGN');
   });
 

@@ -101,3 +101,19 @@ Delivery iterates every active registration of the recipient. A `404`/`410` reti
 ## Operational endpoints
 
 `/health` proves liveness. `/ready` checks PostgreSQL, migrations/configuration, and media storage while reporting optional AI/push degradation safely. `/release.json` exposes only release identity. `/metrics` requires the dedicated metrics bearer token.
+
+### Response and handling targets (ADR-0052)
+
+`POST /voices/:id/respond` requires trimmed `text` (1–4,000) and `version`.
+Initial assignment requires the same opening `text` alongside its existing fields.
+`POST /voices/:id/proceed` now takes `days` (integer 0–365) and `version`;
+`POST /voices/:id/target` uses that body to fill an absent current-cycle target.
+Both require the effective handler and idempotency key. The server stores end of
+the target Jakarta calendar day and sends target notifications to reporter/route
+owner. `/monitor` and `/ask` fail with `CLIENT_UPDATE_REQUIRED`.
+
+Detail exposes safe participants and per-cycle handling targets; messages expose
+safe sender display names. RESPONDED rooms are usable, CLOSED rooms read-only.
+The lifecycle target worker is enabled by OUTBOX_ENABLED, polls every 30 seconds,
+and creates at most one overdue notification per current target/recipient. Private
+Web Push retains generic text while in-app notifications carry the target date.

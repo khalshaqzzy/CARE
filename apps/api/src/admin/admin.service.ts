@@ -335,7 +335,7 @@ export class AdminService {
       recentResolution,
       voices: {
         open: voiceCounts.OPEN ?? 0,
-        monitored: voiceCounts.MONITORED ?? 0,
+        responded: voiceCounts.RESPONDED ?? 0,
         inProgress: voiceCounts.IN_PROGRESS ?? 0,
         closed: voiceCounts.CLOSED ?? 0,
         critical: criticalVoices,

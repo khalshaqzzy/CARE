@@ -1,12 +1,12 @@
 import { VoiceStatus } from '@prisma/client';
 
-export type VoiceAction = 'MONITOR' | 'ASSIGN' | 'REASSIGN' | 'PROCEED' | 'CLOSE' | 'REOPEN';
+export type VoiceAction = 'RESPOND' | 'ASSIGN' | 'REASSIGN' | 'PROCEED' | 'CLOSE' | 'REOPEN';
 export function transitionTarget(status: VoiceStatus, action: VoiceAction): VoiceStatus | null {
-  if (status === VoiceStatus.OPEN && (action === 'MONITOR' || action === 'ASSIGN'))
-    return VoiceStatus.MONITORED;
-  if (status === VoiceStatus.MONITORED && (action === 'ASSIGN' || action === 'REASSIGN'))
-    return VoiceStatus.MONITORED;
-  if (status === VoiceStatus.MONITORED && action === 'PROCEED') return VoiceStatus.IN_PROGRESS;
+  if (status === VoiceStatus.OPEN && (action === 'RESPOND' || action === 'ASSIGN'))
+    return VoiceStatus.RESPONDED;
+  if (status === VoiceStatus.RESPONDED && (action === 'ASSIGN' || action === 'REASSIGN'))
+    return VoiceStatus.RESPONDED;
+  if (status === VoiceStatus.RESPONDED && action === 'PROCEED') return VoiceStatus.IN_PROGRESS;
   if (status === VoiceStatus.IN_PROGRESS && action === 'CLOSE') return VoiceStatus.CLOSED;
   if (status === VoiceStatus.CLOSED && action === 'REOPEN') return VoiceStatus.IN_PROGRESS;
   return null;

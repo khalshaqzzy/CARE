@@ -21,13 +21,13 @@ function severityTone(severity: string): 'danger' | 'warning' | 'success' {
 
 const STATUS_LABELS: Record<string, string> = {
   OPEN: 'Terbuka',
-  MONITORED: 'Dimonitor',
+  RESPONDED: 'Direspons',
   IN_PROGRESS: 'Diproses',
   CLOSED: 'Selesai',
 };
 
 function voiceStatusTone(status: string): 'warning' | 'info' | 'success' | 'neutral' {
-  if (status === 'OPEN' || status === 'MONITORED') return 'warning';
+  if (status === 'OPEN' || status === 'RESPONDED') return 'warning';
   if (status === 'IN_PROGRESS') return 'info';
   if (status === 'CLOSED') return 'success';
   return 'neutral';
@@ -187,7 +187,7 @@ export function VoiceExplorerPage() {
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'OPEN', label: 'OPEN' },
-                { value: 'MONITORED', label: 'Dimonitor' },
+                { value: 'RESPONDED', label: 'Direspons' },
                 { value: 'IN_PROGRESS', label: 'Diproses' },
                 { value: 'CLOSED', label: 'Selesai' },
               ]}

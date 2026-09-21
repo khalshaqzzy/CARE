@@ -189,6 +189,22 @@ export class VoicesController {
   ) {
     return this.voices.monitor(a, id, b, key);
   }
+  @Post('voices/:id/respond') respond(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.respond(a, id, b, key);
+  }
+  @Post('voices/:id/target') setTarget(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.setTarget(a, id, b, key);
+  }
   @Post('voices/:id/ask') ask(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

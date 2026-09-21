@@ -1,9 +1,10 @@
-import { Alert, Button, IconButton, Skeleton, Stack, Textarea, EmptyState } from '@care/ui';
+import { Alert, Button, Dialog, IconButton, Skeleton, Stack, Textarea, EmptyState } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ImagePlus, Send, UserRound } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
+import { clipParticipantName } from '../../lib/handling-target';
 import { VoiceHero } from '../../components/VoiceHero';
 import { MediaGallery } from '../../components/MediaGallery';
 import { formatDayDivider, formatNotificationTime } from '../../lib/formatters';
@@ -76,6 +77,8 @@ function ConversationSurface({
   onBack: () => void;
 }) {
   const { feed, items, send } = useConversation(voice.id);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const participants = voice.participants ?? [];
 
   const groups: { key: string; label: string; messages: Message[] }[] = [];
   for (const message of items) {
@@ -88,6 +91,45 @@ function ConversationSurface({
   return (
     <div className="chat-page">
       <VoiceHero voice={voice} variant="compact" onBack={onBack} />
+      <button
+        type="button"
+        className="chat-participants"
+        onClick={() => setShowParticipants(true)}
+        aria-label="Lihat peserta percakapan"
+      >
+        {participants.map((participant) => (
+          <span
+            key={participant.id}
+            className="chat-participant"
+            aria-label={participant.displayName}
+            title={participant.displayName}
+          >
+            <span className="chat-participant__avatar" aria-hidden="true">
+              {participant.displayName.slice(0, 1)}
+            </span>
+            <span>
+              <strong>{clipParticipantName(participant.displayName)}</strong>
+              <small>{participantRole(participant.role)}</small>
+            </span>
+          </span>
+        ))}
+      </button>
+      <Dialog
+        open={showParticipants}
+        onOpenChange={setShowParticipants}
+        mobileSheet
+        title="Peserta percakapan"
+        description="Pihak yang terlibat dalam penanganan Voice ini."
+      >
+        <ul className="chat-participant-list">
+          {participants.map((participant) => (
+            <li key={participant.id}>
+              <strong>{participant.displayName}</strong>
+              <span>{participantRole(participant.role)}</span>
+            </li>
+          ))}
+        </ul>
+      </Dialog>
       <div className="chat-head">
         <h2>Percakapan</h2>
         <span className="chat-head__count">
@@ -95,8 +137,11 @@ function ConversationSurface({
         </span>
       </div>
       {state === 'READ_ONLY' ? (
-        <Alert tone="info" title="Percakapan telah selesai">
-          Riwayat tetap tersedia, tetapi pesan baru tidak dapat dikirim pada status ini.
+        <Alert
+          tone="info"
+          title={voice.status === 'CLOSED' ? 'Percakapan telah selesai' : 'Akses hanya baca'}
+        >
+          Riwayat tersedia untuk dibaca. Pengiriman pesan tidak tersedia pada akses ini.
         </Alert>
       ) : null}
       {send.isError ? (
@@ -104,11 +149,16 @@ function ConversationSurface({
           {send.error instanceof Error ? send.error.message : 'Coba kirim kembali.'}
         </Alert>
       ) : null}
+      {feed.error ? (
+        <Alert tone="danger" title="Percakapan gagal dimuat">
+          Pesan akan dimuat ulang otomatis. Anda juga dapat memuat ulang halaman.
+        </Alert>
+      ) : null}
       <div className="chat-log" role="log" aria-live="polite">
         {feed.isLoading ? (
           <p className="chat-empty">Memuat percakapan…</p>
         ) : items.length === 0 ? (
-          <p className="chat-empty">Belum ada pesan. Mulai percakapan untuk verifikasi.</p>
+          <p className="chat-empty">Belum ada pesan. Diskusikan tindak lanjut Voice di sini.</p>
         ) : (
           <>
             {feed.canLoadMore ? (
@@ -144,46 +194,79 @@ function ConversationSurface({
 function ChatAnchor({ items }: { items: Message[] }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
+  const [showLatest, setShowLatest] = useState(false);
+  const nearBottom = useRef(true);
+  useEffect(() => {
+    const update = () => {
+      nearBottom.current =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 240;
+    };
+    window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
+  }, []);
   useEffect(() => {
     const last = items[items.length - 1];
     if (!last) return;
     if (lastIdRef.current && last.id !== lastIdRef.current) {
-      anchorRef.current?.scrollIntoView();
+      if (nearBottom.current) anchorRef.current?.scrollIntoView({ block: 'end' });
+      else setShowLatest(true);
     }
     lastIdRef.current = last.id;
   }, [items]);
-  return <div ref={anchorRef} aria-hidden="true" />;
+  return (
+    <>
+      <div ref={anchorRef} aria-hidden="true" />
+      {showLatest ? (
+        <button
+          type="button"
+          className="chat-latest"
+          onClick={() => {
+            anchorRef.current?.scrollIntoView({ block: 'end' });
+            setShowLatest(false);
+          }}
+        >
+          Pesan baru ↓
+        </button>
+      ) : null}
+    </>
+  );
 }
 
 /** Resolves the other party's display label without leaking anonymous identity. */
+function participantRole(role: string): string {
+  return (
+    (
+      {
+        REPORTER: 'Pelapor',
+        DEPARTMENT_HEAD: 'Dept Head',
+        SECTION_HEAD: 'Section Head',
+        COMMITTEE: 'Komite',
+      } as Record<string, string>
+    )[role] ?? 'Responder'
+  );
+}
 function senderLabel(message: Message, voice: VoiceDetail): string {
   if (message.sender?.alias) return message.sender.alias;
-  if (voice.currentHandler && message.senderId === voice.currentHandler.id) {
+  if (message.sender?.displayName) return message.sender.displayName;
+  const participant = voice.participants?.find((item) => item.id === message.senderId);
+  if (participant) return participant.displayName;
+  if (voice.visibility === 'PRIVATE') return 'Komite';
+  if (message.senderId === voice.routeOwner?.id) return voice.routeOwner.displayName;
+  if (voice.currentHandler && message.senderId === voice.currentHandler.id)
     return voice.currentHandler.displayName;
-  }
-  switch (voice.audience) {
-    case 'REPORTER_SELF':
-      return voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? 'PIC';
-    case 'UNION_IDENTIFIED':
-      return voice.reporter.name;
-    case 'UNION_ANONYMOUS':
-      return voice.anonymousReporter.alias;
-    case 'GENERAL_RESPONDER':
-      return voice.reporter.name;
-    case 'LEADERSHIP_GENERAL_READ_ONLY': {
-      // Leadership contract keeps the reporter snapshot loose; read defensively.
-      const reporter = voice.reporter as { name?: string };
-      return reporter.name ?? 'Reporter';
-    }
-    default:
-      return 'Responder';
-  }
+  return 'reporter' in voice && 'name' in voice.reporter ? String(voice.reporter.name) : 'Pelapor';
 }
 
 function ChatMessage({ message, voice }: { message: Message; voice: VoiceDetail }) {
   const { session } = useAuth();
   const isMine = message.senderId === session?.account.id;
-  const label = isMine ? 'Anda' : senderLabel(message, voice);
+  const label =
+    message.sender?.alias ??
+    (isMine
+      ? voice.visibility === 'PRIVATE' && voice.audience !== 'REPORTER_SELF'
+        ? 'Komite'
+        : (message.sender?.displayName ?? session?.account.displayName ?? 'Anda')
+      : senderLabel(message, voice));
   return (
     <article className={`chat-msg ${isMine ? 'is-mine' : 'is-theirs'}`}>
       {!isMine ? (
@@ -192,7 +275,10 @@ function ChatMessage({ message, voice }: { message: Message; voice: VoiceDetail 
         </span>
       ) : null}
       <div className="chat-msg__stack">
-        <span className="chat-msg__sender">{label}</span>
+        <span className="chat-msg__sender" title={label} aria-label={label}>
+          {clipParticipantName(label)}
+          {isMine ? <small> · Anda</small> : null}
+        </span>
         <div className="chat-msg__bubble">
           <span className="care-sr-only">{label}: </span>
           {message.text ? <p className="chat-msg__text">{message.text}</p> : null}
@@ -227,9 +313,16 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
       onSubmit={(event) => {
         event.preventDefault();
         if (!text.trim() && !files.length) return;
-        send.mutate({ text, files });
-        setText('');
-        setFiles([]);
+        if (pending) return;
+        send.mutate(
+          { text, files },
+          {
+            onSuccess: () => {
+              setText('');
+              setFiles([]);
+            },
+          },
+        );
       }}
     >
       <div className="chat-composer__row">
@@ -237,7 +330,7 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
           aria-label="Lampirkan gambar"
           className="chat-composer__attach"
           onClick={() => fileInput.current?.click()}
-          disabled={files.length >= 5}
+          disabled={pending || files.length >= 5}
         >
           <ImagePlus size={19} />
         </IconButton>
@@ -249,6 +342,7 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
           rows={1}
           maxLength={4000}
           placeholder="Tulis pesan…"
+          disabled={pending}
           ref={fieldRef}
         />
         <input
@@ -269,7 +363,7 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
           className="chat-composer__send"
           aria-label="Kirim pesan"
           loading={pending}
-          disabled={!text.trim() && !files.length}
+          disabled={pending || (!text.trim() && !files.length)}
         >
           <Send size={18} />
         </Button>
@@ -281,6 +375,8 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
               {file.name}
               <button
                 type="button"
+                disabled={pending}
+                aria-label={`Hapus ${file.name}`}
                 onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
               >
                 ×

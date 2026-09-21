@@ -15,7 +15,7 @@ const voice = {
   area: 'KARAWANG_1',
   title: 'Bahaya kebakaran',
   detail: 'Ditemukan potensi bahaya kebakaran di area parkir.',
-  availableActions: ['ASSIGN', 'MONITOR', 'HANDOVER'],
+  availableActions: ['ASSIGN', 'RESPOND', 'HANDOVER'],
 };
 const option = {
   category: { id: 'category-target', key: 'ENVIRONMENT', name: 'Environment' },

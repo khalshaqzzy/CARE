@@ -188,10 +188,10 @@ describe('CARE domain contracts', () => {
     expect(JSON.stringify(result)).not.toContain('OPENAI_API_KEY');
   });
   it.each([
-    [VoiceStatus.OPEN, 'MONITOR', VoiceStatus.MONITORED],
+    [VoiceStatus.OPEN, 'RESPOND', VoiceStatus.RESPONDED],
     [VoiceStatus.OPEN, 'PROCEED', null],
-    [VoiceStatus.MONITORED, 'PROCEED', VoiceStatus.IN_PROGRESS],
-    [VoiceStatus.MONITORED, 'REASSIGN', VoiceStatus.MONITORED],
+    [VoiceStatus.RESPONDED, 'PROCEED', VoiceStatus.IN_PROGRESS],
+    [VoiceStatus.RESPONDED, 'REASSIGN', VoiceStatus.RESPONDED],
     [VoiceStatus.IN_PROGRESS, 'CLOSE', VoiceStatus.CLOSED],
     [VoiceStatus.CLOSED, 'REOPEN', VoiceStatus.IN_PROGRESS],
     [VoiceStatus.OPEN, 'CLOSE', null],

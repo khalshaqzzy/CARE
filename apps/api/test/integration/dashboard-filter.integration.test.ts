@@ -243,7 +243,7 @@ describe('Dashboard filters and suppression metadata', () => {
     await seedVoice({ department: 'PendingA', status: VoiceStatus.OPEN });
     await seedVoice({
       department: 'PendingA',
-      status: VoiceStatus.MONITORED,
+      status: VoiceStatus.RESPONDED,
       currentHandlerId: manager.accountId,
       handlerType: HandlerType.MANAGER,
     });

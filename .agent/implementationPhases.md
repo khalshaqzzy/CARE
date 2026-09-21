@@ -1,5 +1,19 @@
 # CARE v1.1 Implementation Phases
 
+## Responded conversations and handling targets — 21 September 2026
+
+Phase 13 remains `in_progress`. Implementation now replaces MONITORED status with
+RESPONDED, moves the opening note/chat transaction to response or initial assignment,
+and adds immutable calendar-day handling targets per cycle (0–365 days, end of day
+WIB), one-time overdue notifications, three-party General conversations and
+privacy-safe sender identity. Workforce, Admin, API/OpenAPI/generated clients,
+migration and regression scenarios have been updated. ADR-0052 supersedes the
+relevant lifecycle behavior in ADR-0044/0031. Implementation is complete locally;
+delegated Luna high verification passed static/build, integration 105, security 14,
+organization 5, performance 2, migrations, fullstack 6, browser 204, legacy 6 and
+native capture 170. Checks began only after implementation; Prisma/OpenAPI generation
+and formatting were authoring steps. No commit, push or deployment is included.
+
 ## Classification Definition clarity and severity calibration — 16 September 2026
 
 Phase 13 remains `in_progress`; no second phase is opened. The six built-in

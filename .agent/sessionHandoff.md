@@ -1,5 +1,120 @@
 # CARE Session Handoff
 
+## Responded conversations and handling targets — 21 September 2026
+
+**Current objective:** implement the approved Direspons/chat/target plan, then
+verify through one delegated `gpt-5.6-luna` agent with `high` reasoning.
+**Status:** implementation and delegated local verification complete. Prisma generation,
+OpenAPI/client generation and formatting preceded verification; no checks were run
+until the implementation handoff to Luna high.
+Phase 13 remains the single `in_progress` phase. Commit/push on
+`feat/response-status` and a PR targeting `staging` are authorized. Merge and
+deployment are not part of this delivery.
+
+### Final delegated verification evidence
+
+Luna high completed verification using Node 22.23.2 / pnpm 11.8.0 and the shared
+validation jobs. Static passed: formatting/lint, API 111, workforce 126, UI 26,
+frontend-core 15, Admin 2 and validation orchestration 9 unit tests, mock provider
+smoke and diff checks. Build passed OpenAPI byte stability, typecheck, API/workforce/
+Admin production builds and PWA compatibility (main gzip 146,663 bytes).
+Integration 105/105, security 14/14, organization 5/5, performance 2/2 (p95 448 ms),
+fresh 14-migration chain and all upgrade harnesses passed. Fullstack passed 6/6.
+Final browser passed 204/204, legacy WebKit 6/6 and native capture 170/170. Luna
+inspected response, response-note, overdue-target and three-party chat PNGs at 360px.
+The anonymous Private Union privacy browser test passes after the final correction.
+
+Verification found and corrected unused retired-endpoint arguments, one status-sort
+expectation, a nullable current-handler guard and its formatting, a misdirected
+obsolete-endpoint test, target Date-versus-ISO replay inconsistency, fullstack target
+cleanup, and the Private own-message label bypassing Komite. The final affected
+build/browser/legacy/capture rerun passed; unchanged backend jobs were not repeated.
+The General chat screenshot correctly displays its General reporter fixture name;
+it is not evidence of a Private identity leak.
+
+Docker test containers were stopped by the runner/verifier; final frontend reruns
+started no Docker stack and their managed servers exited. No runtime is intentionally
+left running. Hosted delivery gates and real-device push acceptance are not claimed.
+Delivery preparation: final formatting and diff checks passed; directory Gitleaks
+v8.24.3 found no leaks. Existing application verification remains applicable to
+unchanged source. The current branch starts at the latest fetched staging HEAD.
+Unrelated local PDF/output artifacts are excluded. Next action: inspect hosted PR
+checks for the pushed candidate; merge/deployment require separate authorization.
+
+### Implemented behavior
+
+- OPEN → RESPONDED requires a handling note, creates room/first actor message,
+  and notifies reporter atomically. Initial assignment collects the note after
+  Tugaskan and saves nothing until confirmation. Subsequent assignments retain
+  the existing room and optional reason. Only active assigned PIC starts processing;
+  without assignment the route owner/Union Head does so.
+- RESPONDED/IN_PROGRESS chat is active for reporter, route owner and current
+  handler. General names are server-resolved, new messages snapshot names, and
+  Private retains anonymous reporter/Komite labels. Compact names cap at twelve
+  characters including ellipsis; the participant sheet exposes permitted full names.
+  Failed sends retain draft/files and retry keys. New-message scrolling respects
+  readers viewing history.
+- Processing requests integer 0–365 days, no preselection. Date calculation is
+  server-side Jakarta calendar day plus N, ending 23.59.59.999 WIB. Detail shows
+  target date/time, overdue/completion state and cycle history. Target is immutable
+  per cycle; reopen needs a new target but preserves chat. Old records have no
+  fabricated target. Setter and overdue notifications go to reporter/route owner,
+  deduplicated even if setter is owner; Private Web Push remains generic.
+- The overdue worker follows OUTBOX_ENABLED/30-second cadence, locks Voice like
+  close/reopen, checks current cycle, and persists notification marker plus outbox
+  atomically. It catches up once and never issues daily reminders.
+
+### Code and contract map
+
+- API: voices service/actions/policies/controller/contracts, new handling-target
+  calculation and worker service, dashboard response event aggregation, Admin counts.
+- Database: `20260921090000_responded_targets` forward migration renames only status
+  MONITORED → RESPONDED, retains historical MONITORED events, creates missing rooms,
+  bumps affected versions without rewriting original timestamps, normalizes replay
+  status envelopes, adds cycle targets and nullable sender-name snapshots.
+- UI: ActionPanel two-step assignment/response and target sheets; HandlingTargetCard;
+  ConversationPage participants/composer; status displays, filters, dashboards,
+  Admin aggregate key and PWA dashboard cache v3.
+- Contract: `/respond` text/version; `/proceed` and `/target` days/version;
+  assignment text required for OPEN; `/monitor` retired. Detail adds participants,
+  handlingCycleNumber and handlingTargets; message sender adds safe displayName.
+  OpenAPI and generated TypeScript are regenerated.
+- Tests: updated lifecycle/integration/assignment/fullstack fixtures; new target
+  unit and integration scenarios; migration upgrade harness added to root script;
+  response/target/chat UI tests and visual states. Capture inventory becomes 170,
+  total browser inventory 386 (existing 373 + four functional + nine capture).
+- Documentation: PRD §15–16, roadmap, ADR-0052, supersession/amendment in ADR-0044
+  and ADR-0031, backend contract notes.
+
+### Verification scope (completed)
+
+Read rules/PRD and ADR-0052, plus ADR-0047 validation policy. Use pinned Node 22.23.2
+and pnpm 11.8.0. Inspect `pnpm verify:local --plan`, then execute the shared selected
+validation against isolated Docker test DB. New root script changes require the
+normal dependency setup rule. Capture only after a current build and inspect relevant
+native PNGs. Do not start a hosted delivery or mutate unrelated local artifacts.
+
+Required scenarios: response/assignment required note and atomic rollback, note
+cancellation, three-party authorization, sender attribution after assignment,
+Private identity and alias protections, version/idempotency/concurrency, old/fresh
+migration preservation, 0/365/invalid days, midnight WIB/year/leap transitions,
+one target per cycle and reopened cycle with no target, notifier deduplication
+across workers and retry, closure/target races, no stale-cycle reminders, clipped
+names with full-name accessibility, failed-send retention, responsive/no overflow,
+Axe/keyboard, legacy WebKit, fullstack and native capture review. Preserve broad
+functional assertions; update obsolete lifecycle expectations instead of skipping.
+
+The completed command outcomes and failure corrections are recorded above. The parent
+must not poll progress; inspect findings only when the verifier returns. Stop
+agent-started servers/containers per rules. If failures require corrections,
+record them and rerun affected checks after the parent fixes the implementation.
+
+### Local files to preserve
+
+Pre-existing untracked `docs/reports/ling3-live-30-voice-evaluation-2026-09-16.pdf`
+and `output/` are unrelated and must remain untouched. No development stack was
+started during implementation. Generated-contract tooling has exited.
+
 ## Classification Definition clarity and severity calibration — 16 September 2026
 
 Branch `feat/classification-definitions-v2` starts from `origin/staging`. The

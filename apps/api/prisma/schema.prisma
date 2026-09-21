@@ -78,7 +78,7 @@ enum Severity {
 
 enum VoiceStatus {
   OPEN
-  MONITORED
+  RESPONDED
   IN_PROGRESS
   CLOSED
 }
@@ -153,6 +153,9 @@ enum VoiceEventType {
   HANDOVER_COMPLETED
   ASKED_REPORTER
   MONITORED
+  RESPONDED
+  TARGET_SET
+  TARGET_OVERDUE
   MESSAGE_SENT
   ASSIGNED
   REASSIGNED
@@ -176,6 +179,8 @@ enum NotificationType {
   ASSIGNED
   MESSAGE
   STATUS_CHANGED
+  TARGET_SET
+  TARGET_OVERDUE
   CLOSED
   RATED
   REOPENED
@@ -598,6 +603,8 @@ model Voice {
   events                          VoiceEvent[]
   conversation                    Conversation?
   closureCycles                   ClosureCycle[]
+  handlingTargets                 VoiceHandlingTarget[]
+  handlingCycleNumber             Int                     @default(1)
   notifications                   Notification[]
   legacyAccess                    LegacyVoiceAccess[]
   handovers                       VoiceHandover[]
@@ -776,6 +783,7 @@ model Message {
   senderAccountKind        AccountKind
   senderStructuralPosition String?      @db.VarChar(200)
   senderCapabilities       Json
+  senderNameSnapshot       String?      @db.VarChar(200)
   text                     String?      @db.VarChar(4000)
   createdAt                DateTime     @default(now())
   conversation             Conversation @relation(fields: [conversationId], references: [id])
@@ -910,4 +918,19 @@ model LegacyVoiceAccess {
 
   @@unique([voiceId, accountId])
   @@index([accountId, effectiveTo])
+}
+
+model VoiceHandlingTarget {
+  id                String   @id @default(uuid()) @db.Uuid
+  voiceId           String   @db.Uuid
+  cycleNumber       Int
+  days              Int
+  setById           String   @db.Uuid
+  setAt             DateTime @default(now())
+  dueAt             DateTime
+  overdueNotifiedAt DateTime?
+  voice             Voice    @relation(fields: [voiceId], references: [id])
+
+  @@unique([voiceId, cycleNumber])
+  @@index([overdueNotifiedAt, dueAt])
 }

@@ -1,15 +1,14 @@
-import { Check, Circle, Eye, Play } from 'lucide-react';
+import { Check, Circle, MessageCircle, Play } from 'lucide-react';
 
 const steps = [
   { status: 'OPEN', label: 'Terbuka', icon: Circle },
-  { status: 'MONITORED', label: 'Dimonitor', icon: Eye },
+  { status: 'RESPONDED', label: 'Direspons', icon: MessageCircle },
   { status: 'IN_PROGRESS', label: 'Diproses', icon: Play },
   { status: 'CLOSED', label: 'Selesai', icon: Check },
 ];
 const descriptions: Record<string, string> = {
   OPEN: 'Voice menunggu ditinjau oleh penanggung jawab.',
-  MONITORED:
-    'Voice telah diterima dan sedang dimonitor. Percakapan tersedia setelah penanganan dimulai.',
+  RESPONDED: 'Voice telah direspons. Percakapan terbuka untuk membahas tindak lanjut.',
   IN_PROGRESS: 'Voice sedang ditangani. Diskusikan tindak lanjut melalui percakapan.',
   CLOSED: 'Penanganan Voice telah selesai. Hasil penyelesaian dan penilaian tersedia di bawah.',
 };

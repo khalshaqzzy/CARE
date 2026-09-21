@@ -107,3 +107,12 @@ dock is preserved unchanged.
   two consecutive runs.
 - The bottom dock remains unchanged on both surfaces, including its role-varied
   icon-only composition, per the product owner's locked decision.
+
+## Conversation participant amendment — 21 September 2026
+
+ADR-0052 replaces inferred two-party sender labels with server-authorized
+participants and sender names. General rooms include reporter, route owner and
+assigned PIC; Private aliases remain protected. The participant sheet exposes full
+permitted names while compact labels use a twelve-character limit. Chat opens at
+Direspons, preserves failed-send drafts, and does not force readers away from older
+messages. Target commitments are displayed on the Voice detail surface.

@@ -514,7 +514,7 @@ export class OrganizationDashboard {
       WITH cohort AS MATERIALIZED (SELECT v.id, v."submittedAt", v."handlingOrganizationSource" FROM "Voice" v WHERE ${sql}),
       responses AS (
         SELECT min(e."occurredAt") AS monitored, v."submittedAt" AS submitted
-        FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type = 'MONITORED'
+        FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type IN ('MONITORED', 'RESPONDED')
         GROUP BY v.id, v."submittedAt"
       ), cycles AS (
         SELECT c.id, c."closedAt", CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"

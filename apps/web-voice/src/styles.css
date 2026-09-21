@@ -2530,9 +2530,9 @@
   background: var(--raw-danger);
 }
 .voice-hero__chip i[data-tone='open'],
-.voice-hero__chip i[data-tone='monitored'],
+.voice-hero__chip i[data-tone='responded'],
 .voice-hero__dot[data-tone='open'],
-.voice-hero__dot[data-tone='monitored'] {
+.voice-hero__dot[data-tone='responded'] {
   background: var(--raw-brand-500);
 }
 .voice-hero__chip i[data-tone='progress'],
@@ -4344,7 +4344,7 @@
   color: var(--raw-brand-700);
   background: var(--raw-brand-50);
 }
-.inbox-card__status[data-status='MONITORED'] {
+.inbox-card__status[data-status='RESPONDED'] {
   color: #9a3412;
   color: color-mix(in srgb, var(--raw-warning) 78%, black);
   background: #fff7ed;
@@ -6357,4 +6357,199 @@
 }
 .dashboard-performance__card .care-skeleton {
   min-height: 82px;
+}
+
+/* Response conversations and calendar-day handling commitments. */
+.target-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.target-presets button {
+  min-height: 44px;
+  padding: 10px 15px;
+  border: 1px solid #dce5f2;
+  border-radius: 14px;
+  background: #fff;
+  color: #344664;
+  font: inherit;
+  cursor: pointer;
+}
+.target-presets button[aria-pressed='true'] {
+  color: #fff;
+  background: #2459cf;
+  border-color: #2459cf;
+}
+.target-preview {
+  padding: 18px;
+  border-radius: 16px;
+  background: #eff5ff;
+  color: #254473;
+}
+.target-preview > span {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.target-preview strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.target-preview p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+.handling-target {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid #dae5f4;
+  border-radius: 20px;
+  background: #f7faff;
+  color: #254473;
+}
+.handling-target.is-late {
+  background: #fff8ed;
+  color: #80510b;
+  border-color: #edd6af;
+}
+.handling-target__icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #fff;
+}
+.handling-target__content {
+  min-width: 0;
+}
+.handling-target h2 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.handling-target strong {
+  font-size: 17px;
+  line-height: 1.5;
+}
+.handling-target p,
+.handling-target summary {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+.handling-target summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+.chat-participants {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e4eaf4;
+  border-radius: 18px;
+  background: #fff;
+  text-align: left;
+  color: #283b59;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgb(30 60 100 / 4%);
+}
+.chat-participant {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+.chat-participant__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #edf3ff;
+  color: #2459cf;
+  font-size: 13px;
+  font-weight: 700;
+}
+.chat-participant strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.chat-participant small {
+  display: block;
+  font-size: 10px;
+  color: #62728a;
+}
+.chat-participant-list {
+  padding: 0;
+  list-style: none;
+}
+.chat-participant-list li {
+  padding: 14px 0;
+  border-bottom: 1px solid #edf0f5;
+  overflow-wrap: anywhere;
+}
+.chat-participant-list span {
+  display: block;
+  color: #62728a;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.chat-page .chat-msg__bubble {
+  box-shadow: 0 3px 12px rgb(24 47 82 / 4%);
+}
+.chat-page .chat-msg__sender {
+  font-size: 11px;
+  font-weight: 600;
+}
+.chat-msg__sender small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #62728a;
+}
+.chat-page .chat-composer {
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 30px rgb(25 51 93 / 6%);
+}
+.chat-latest {
+  position: sticky;
+  bottom: 160px;
+  display: block;
+  margin: 12px auto;
+  border: 1px solid #dae5f4;
+  border-radius: 999px;
+  background: #fff;
+  color: #2459cf;
+  padding: 12px 20px;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgb(25 51 93 / 10%);
+}
+@media (max-width: 479px) {
+  .chat-participants {
+    gap: 6px;
+    padding: 12px 8px;
+    justify-content: space-between;
+  }
+  .chat-participant {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  .chat-participant strong {
+    font-size: 11px;
+  }
+  .handling-target {
+    padding: 16px;
+  }
 }

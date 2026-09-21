@@ -1012,6 +1012,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/voices/{id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_respond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_setTarget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/voices/{id}/ask": {
         parameters: {
             query?: never;
@@ -1460,9 +1492,32 @@ export interface components {
             locationContentHash?: string | null;
             acknowledgeIncompleteLocation?: boolean;
         };
+        HandlingTargetRequest: {
+            days: number;
+            version: number;
+        };
+        HandlingTarget: {
+            id: string;
+            cycleNumber: number;
+            days: number;
+            /** Format: date-time */
+            setAt: string;
+            /** Format: date-time */
+            dueAt: string;
+            /** @enum {string} */
+            state?: "ON_TRACK" | "OVERDUE" | "COMPLETED_ON_TIME" | "COMPLETED_LATE";
+        };
+        ConversationParticipant: {
+            id: string;
+            displayName: string;
+            /** @enum {string} */
+            role: "REPORTER" | "DEPARTMENT_HEAD" | "SECTION_HEAD" | "COMMITTEE";
+        };
         AssignmentRequest: {
             /** Format: uuid */
             handlerAccountId: string;
+            /** @description Required while OPEN; opening handling note */
+            text?: string;
             reason?: string;
             expectedVersion?: number;
         };
@@ -1793,7 +1848,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: date-time */
             submittedAt: string;
@@ -1802,6 +1857,9 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
             /** @enum {string} */
             conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
@@ -1852,7 +1910,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: date-time */
             submittedAt: string;
@@ -1861,6 +1919,9 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
             /** @enum {string} */
             conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
@@ -1909,7 +1970,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: date-time */
             submittedAt: string;
@@ -1918,6 +1979,9 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
             /** @enum {string} */
             conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
@@ -1963,7 +2027,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: date-time */
             submittedAt: string;
@@ -1972,6 +2036,9 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
             /** @enum {string} */
             conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
@@ -2018,7 +2085,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: date-time */
             submittedAt: string;
@@ -2027,6 +2094,9 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
             /** @enum {string} */
             conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
@@ -2075,7 +2145,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: date-time */
             submittedAt: string;
@@ -2084,6 +2154,9 @@ export interface components {
             /** @enum {string|null} */
             classificationSource: "AI" | "MANUAL_FALLBACK" | null;
             availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
             /** @enum {string} */
             conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
             closureCycles: components["schemas"]["ClosureCycleResponse"][];
@@ -2310,7 +2383,7 @@ export interface components {
                 /** @enum {string|null} */
                 severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
                 /** @enum {string|null} */
-                status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED" | null;
+                status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED" | null;
                 /** Format: date-time */
                 from: string | null;
                 /** Format: date-time */
@@ -2370,7 +2443,7 @@ export interface components {
             total: number;
             counts: {
                 OPEN: number;
-                MONITORED: number;
+                RESPONDED: number;
                 IN_PROGRESS: number;
                 CLOSED: number;
             };
@@ -2536,7 +2609,7 @@ export interface components {
             } | null;
             voices: {
                 open: number;
-                monitored: number;
+                responded: number;
                 inProgress: number;
                 closed: number;
                 critical: number;
@@ -2829,7 +2902,7 @@ export interface components {
             /** @enum {string} */
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             currentHandlerName?: string | null;
             reporterAlias?: string | null;
             /** @enum {string|null} */
@@ -2878,20 +2951,21 @@ export interface components {
             id: string;
             displayId: string;
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
         };
         VoiceMutationResponse: {
             /** Format: uuid */
             id: string;
             displayId: string;
             /** @enum {string} */
-            status: "OPEN" | "MONITORED" | "IN_PROGRESS" | "CLOSED";
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
             /** Format: uuid */
             currentHandlerId?: string | null;
             handlerType?: string;
             /** Format: uuid */
             handoverId?: string;
+            handlingTarget?: components["schemas"]["HandlingTarget"];
         };
         TimelineEvent: {
             /** Format: uuid */
@@ -2935,6 +3009,7 @@ export interface components {
             sender: {
                 kind: string;
                 alias?: string;
+                displayName?: string;
             };
             attachments: components["schemas"]["AttachmentResponse"][];
         };
@@ -12076,6 +12151,270 @@ export interface operations {
             };
         };
     };
+    VoicesController_respond: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceTextMutationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_setTarget: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandlingTargetRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     VoicesController_ask: {
         parameters: {
             query?: never;
@@ -12224,7 +12563,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoiceTextMutationRequest"];
+                "application/json": components["schemas"]["HandlingTargetRequest"];
             };
         };
         responses: {

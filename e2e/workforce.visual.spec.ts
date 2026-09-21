@@ -39,7 +39,7 @@ const managerDashboard = {
   total: 42,
   status: [
     { label: 'OPEN', value: 18 },
-    { label: 'MONITORED', value: 7 },
+    { label: 'RESPONDED', value: 7 },
     { label: 'IN_PROGRESS', value: 9 },
     { label: 'CLOSED', value: 8 },
   ],
@@ -136,7 +136,7 @@ const privateDashboard = {
   total: 12,
   status: [
     { label: 'OPEN', value: 5 },
-    { label: 'MONITORED', value: 4 },
+    { label: 'RESPONDED', value: 4 },
     { label: 'IN_PROGRESS', value: 3 },
   ],
   severity: [
