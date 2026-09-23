@@ -1,5 +1,5 @@
 {
-  "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+  "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
   "dirty": true,
   "platform": "darwin-arm64",
   "browser": "chromium",
@@ -25,7 +25,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -46,7 +46,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -67,7 +67,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -88,7 +88,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -109,7 +109,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -130,7 +130,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -151,7 +151,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -172,7 +172,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -193,7 +193,49 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-0000e12abba74d833e81",
+      "title": " › visual › admin-pages.visual.spec.ts › admin handover decision native baseline",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-handover-decision-1440.png",
+          "name": "admin-handover-decision-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-handover-decision-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "c39f5140d4e852f789ae-60da4f9c5e3d14d20b31",
+      "title": " › visual › admin-pages.visual.spec.ts › admin handover queue native baseline",
+      "status": "passed",
+      "images": [
+        {
+          "file": "admin-handover-queue-1440.png",
+          "name": "admin-handover-queue-1440.png",
+          "width": 1440,
+          "height": 1000
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:admin-handover-queue-1440.png",
+          "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -224,7 +266,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -255,7 +297,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -286,7 +328,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -307,7 +349,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -328,7 +370,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -349,7 +391,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -370,7 +412,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -391,7 +433,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -412,7 +454,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -433,7 +475,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -454,7 +496,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -475,7 +517,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -496,7 +538,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -517,7 +559,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -538,7 +580,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -559,7 +601,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -580,7 +622,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -601,7 +643,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -622,7 +664,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -643,7 +685,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -664,7 +706,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -685,7 +727,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -706,7 +748,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -727,7 +769,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -748,7 +790,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -769,7 +811,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -790,7 +832,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -811,7 +853,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -832,7 +874,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -853,7 +895,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -874,7 +916,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -895,7 +937,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -916,7 +958,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -937,7 +979,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -958,7 +1000,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -979,7 +1021,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1000,7 +1042,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1021,7 +1063,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1042,7 +1084,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1063,7 +1105,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1084,7 +1126,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1105,7 +1147,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1126,7 +1168,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1147,7 +1189,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1168,7 +1210,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1189,7 +1231,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1210,7 +1252,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1231,7 +1273,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1252,7 +1294,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1273,7 +1315,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1294,7 +1336,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1315,7 +1357,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1336,7 +1378,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1357,7 +1399,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1378,7 +1420,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1399,7 +1441,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1420,7 +1462,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1441,7 +1483,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1462,7 +1504,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1483,7 +1525,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1504,7 +1546,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1525,7 +1567,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1546,7 +1588,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1567,7 +1609,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1588,7 +1630,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1609,7 +1651,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1630,7 +1672,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1651,7 +1693,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1672,7 +1714,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1693,7 +1735,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1714,7 +1756,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1735,7 +1777,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1756,7 +1798,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1777,7 +1819,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1798,7 +1840,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1819,7 +1861,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1840,7 +1882,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1861,7 +1903,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1882,7 +1924,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1903,7 +1945,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1924,7 +1966,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1945,7 +1987,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1966,7 +2008,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -1987,7 +2029,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2008,7 +2050,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2029,7 +2071,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2050,7 +2092,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2071,7 +2113,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2092,7 +2134,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2113,7 +2155,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2134,7 +2176,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2155,7 +2197,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2176,7 +2218,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2197,7 +2239,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2218,7 +2260,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2239,7 +2281,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2260,7 +2302,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2281,7 +2323,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2302,7 +2344,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2323,7 +2365,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2344,7 +2386,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2365,7 +2407,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2377,7 +2419,7 @@
           "file": "lifecycle-chat_3-360-darwin.png",
           "name": "lifecycle-chat_3-360-darwin.png",
           "width": 360,
-          "height": 986
+          "height": 900
         }
       ],
       "metadata": [
@@ -2386,7 +2428,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2407,7 +2449,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2428,7 +2470,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2449,7 +2491,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2470,7 +2512,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2491,7 +2533,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2512,7 +2554,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2533,7 +2575,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2554,7 +2596,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2575,7 +2617,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2596,7 +2638,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2617,7 +2659,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2638,7 +2680,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2659,7 +2701,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2680,7 +2722,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2701,7 +2743,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2722,7 +2764,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2743,7 +2785,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2764,7 +2806,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2785,7 +2827,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2806,7 +2848,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2827,7 +2869,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2848,7 +2890,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2869,7 +2911,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2890,7 +2932,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2911,7 +2953,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2932,7 +2974,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2953,7 +2995,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2974,7 +3016,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -2995,7 +3037,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3016,7 +3058,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3037,7 +3079,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3058,7 +3100,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3079,7 +3121,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3100,7 +3142,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3121,7 +3163,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3142,7 +3184,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3154,7 +3196,7 @@
           "file": "workforce-handover-1440.png",
           "name": "workforce-handover-1440.png",
           "width": 1440,
-          "height": 1406
+          "height": 1450
         }
       ],
       "metadata": [
@@ -3163,7 +3205,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3175,7 +3217,7 @@
           "file": "workforce-handover-360.png",
           "name": "workforce-handover-360.png",
           "width": 360,
-          "height": 2136
+          "height": 2251
         }
       ],
       "metadata": [
@@ -3184,7 +3226,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3196,7 +3238,7 @@
           "file": "workforce-handover-768.png",
           "name": "workforce-handover-768.png",
           "width": 768,
-          "height": 1957
+          "height": 2051
         }
       ],
       "metadata": [
@@ -3205,7 +3247,7 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3226,7 +3268,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3247,7 +3289,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3268,7 +3310,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3289,7 +3331,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3310,7 +3352,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3331,7 +3373,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3352,7 +3394,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3373,7 +3415,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3394,7 +3436,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3415,7 +3457,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":1000},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3436,7 +3478,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3457,7 +3499,28 @@
           "value": "{\"viewport\":{\"width\":768,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
+      "platform": "darwin-arm64"
+    },
+    {
+      "id": "267df09e5956e83d9bc9-08f493588fbc3a87a7b2",
+      "title": " › visual › workforce.visual.spec.ts › workforce three participant conversation visual at 360",
+      "status": "passed",
+      "images": [
+        {
+          "file": "workforce-conversation-three-participants-360-darwin.png",
+          "name": "workforce-conversation-three-participants-360-darwin.png",
+          "width": 360,
+          "height": 800
+        }
+      ],
+      "metadata": [
+        {
+          "name": "capture-meta:workforce-conversation-three-participants-360-darwin.png",
+          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
+        }
+      ],
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3478,7 +3541,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3499,7 +3562,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3520,7 +3583,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3541,7 +3604,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3562,7 +3625,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3583,7 +3646,7 @@
           "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     },
     {
@@ -3604,7 +3667,7 @@
           "value": "{\"viewport\":{\"width\":1440,\"height\":900},\"browserVersion\":\"151.0.7922.34\"}"
         }
       ],
-      "sha": "5814f31a5820eb214cadfc4496515ab1a1d1cd7c",
+      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
       "platform": "darwin-arm64"
     }
   ]

@@ -40,6 +40,15 @@ test.describe('workforce journeys (mocked contract)', () => {
     await mockWorkforceApi(page, { voice: generalVoice });
     await page.goto('/');
     const dock = page.getByRole('navigation', { name: 'Navigasi utama' });
+    const createHighlight = dock.locator('.member-create-highlight');
+    await expect(createHighlight).toHaveCSS('clip-path', 'none');
+    expect(
+      await createHighlight.evaluate((node) => getComputedStyle(node, '::before').animationName),
+    ).toBe('member-create-pulse');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect(
+      await createHighlight.evaluate((node) => getComputedStyle(node, '::before').animationName),
+    ).toBe('none');
     await dock.getByRole('button', { name: 'Voice Saya' }).click();
     await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
     await page.goBack();
@@ -219,6 +228,59 @@ test.describe('workforce journeys (mocked contract)', () => {
       .fill('Sudah kami cek, tim sedang menuju lokasi.');
     await page.getByRole('button', { name: 'Kirim pesan' }).click();
     await expect(page.getByText('Sudah kami cek, tim sedang menuju lokasi.')).toBeVisible();
+  });
+
+  test('conversation scroll keeps the Voice card and composer in place', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: responder, voice: generalVoice });
+    await page.route('**/api/v1/voices/voice-1/messages**', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: Array.from({ length: 35 }, (_, index) => ({
+            id: `msg-scroll-${index}`,
+            text: `Pesan penanganan ${index + 1} dengan uraian tindak lanjut.`,
+            createdAt: new Date(Date.UTC(2026, 8, 23, 2, index)).toISOString(),
+            senderId: 'handler-1',
+            senderAccountKind: 'WORKFORCE',
+            sender: { kind: 'WORKFORCE', displayName: 'Dedi Slamet' },
+            attachments: [],
+          })),
+          nextCursor: null,
+        }),
+      });
+    });
+    await page.goto('/voices/voice-1/chat');
+    const log = page.locator('.chat-log');
+    await expect(page.getByText('Pesan penanganan 35')).toBeAttached();
+    const before = await page.evaluate(() => ({
+      hero: document.querySelector('.chat-page__fixed-head')!.getBoundingClientRect().top,
+      composer: document.querySelector('.chat-composer')!.getBoundingClientRect().top,
+      pageY: window.scrollY,
+    }));
+    await log.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    await expect.poll(() => log.evaluate((node) => node.scrollTop)).toBe(0);
+    const after = await page.evaluate(() => ({
+      hero: document.querySelector('.chat-page__fixed-head')!.getBoundingClientRect().top,
+      composer: document.querySelector('.chat-composer')!.getBoundingClientRect().top,
+      pageY: window.scrollY,
+    }));
+    expect(after).toEqual(before);
+    await expect(page.getByRole('button', { name: 'Lampirkan gambar' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kirim pesan' })).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const desktop = await page.evaluate(() => ({
+      hero: document.querySelector('.chat-page__fixed-head')!.getBoundingClientRect().top,
+      composer: document.querySelector('.chat-composer')!.getBoundingClientRect().bottom,
+      logHeight: document.querySelector('.chat-log')!.getBoundingClientRect().height,
+    }));
+    expect(desktop.hero).toBeGreaterThanOrEqual(0);
+    expect(desktop.composer).toBeLessThanOrEqual(900);
+    expect(desktop.logHeight).toBeGreaterThan(100);
   });
 
   test('attachment images open in an in-page viewer with back and prev/next', async ({ page }) => {

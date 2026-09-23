@@ -91,6 +91,7 @@ enum ClosureReviewState {
 
 enum HandlerType {
   MANAGER
+  ADMIN_TRIAGE
   SECTION_HEAD
   UNION_HEAD
   UNION_OFFICER
@@ -151,6 +152,9 @@ enum LocationCompleteness {
 enum VoiceEventType {
   SUBMITTED
   HANDOVER_COMPLETED
+  ADMIN_HANDOVER_REQUESTED
+  ADMIN_HANDOVER_ROUTED
+  ADMIN_HANDOVER_RETURNED
   ASKED_REPORTER
   MONITORED
   RESPONDED
@@ -176,6 +180,7 @@ enum OutboxStatus {
 enum NotificationType {
   VOICE_SUBMITTED
   HANDOVER_RECEIVED
+  ADMIN_HANDOVER_RETURNED
   ASSIGNED
   MESSAGE
   STATUS_CHANGED
@@ -186,6 +191,12 @@ enum NotificationType {
   REOPENED
   CLOSURE_AUTO_ACCEPTED
   SECURITY
+}
+
+enum AdminHandoverStatus {
+  PENDING
+  ROUTED
+  RETURNED
 }
 
 model Employee {
@@ -239,6 +250,9 @@ model UserAccount {
   handoversSent            VoiceHandover[]                @relation("HandoverFromPic")
   handoversReceived        VoiceHandover[]                @relation("HandoverToPic")
   handoversInitiated       VoiceHandover[]                @relation("HandoverActor")
+  adminHandoversRequested  AdminHandover[]                @relation("AdminHandoverManager")
+  adminHandoversOwned      AdminHandover[]                @relation("AdminHandoverAdmin")
+  adminHandoversResolved   AdminHandover[]                @relation("AdminHandoverResolver")
 
   @@index([accountKind, status])
   @@index([username, displayName])
@@ -608,6 +622,7 @@ model Voice {
   notifications                   Notification[]
   legacyAccess                    LegacyVoiceAccess[]
   handovers                       VoiceHandover[]
+  adminHandovers                  AdminHandover[]
 
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
@@ -750,6 +765,35 @@ model VoiceHandover {
   @@index([fromPicId, createdAt, id])
   @@index([toPicId, createdAt, id])
   @@index([voiceId, createdAt, id])
+}
+
+model AdminHandover {
+  id                       String              @id @default(uuid()) @db.Uuid
+  voiceId                  String              @db.Uuid
+  managerId                String              @db.Uuid
+  adminId                  String              @db.Uuid
+  status                   AdminHandoverStatus @default(PENDING)
+  managerDetail            String              @db.VarChar(4000)
+  adminDetail              String?             @db.VarChar(4000)
+  sourceRouteMappingId     String?             @db.Uuid
+  sourceOrganizationUnitId String?             @db.Uuid
+  destinationUnitId        String?             @db.Uuid
+  destinationRouteMappingId String?            @db.Uuid
+  destinationPicId         String?             @db.Uuid
+  categoryId               String?             @db.Uuid
+  categoryKey              String?             @db.VarChar(80)
+  categoryNameSnapshot     String?             @db.VarChar(160)
+  resolvedById             String?             @db.Uuid
+  createdAt                DateTime            @default(now())
+  resolvedAt               DateTime?
+  voice                    Voice               @relation(fields: [voiceId], references: [id])
+  manager                  UserAccount         @relation("AdminHandoverManager", fields: [managerId], references: [id])
+  admin                    UserAccount         @relation("AdminHandoverAdmin", fields: [adminId], references: [id])
+  resolvedBy               UserAccount?        @relation("AdminHandoverResolver", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt, id])
+  @@index([voiceId, createdAt, id])
+  @@index([managerId, createdAt, id])
 }
 
 model VoiceEvent {

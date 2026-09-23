@@ -26,6 +26,7 @@ const TYPE_ICONS: Record<string, { icon: React.ReactNode; tone: string }> = {
   VOICE_SUBMITTED: { icon: <Inbox />, tone: 'info' },
   ASSIGNED: { icon: <ClipboardCheck />, tone: 'info' },
   HANDOVER_RECEIVED: { icon: <Send />, tone: 'info' },
+  ADMIN_HANDOVER_RETURNED: { icon: <Send />, tone: 'info' },
   MESSAGE: { icon: <MessageSquare />, tone: 'info' },
   STATUS_CHANGED: { icon: <RefreshCw />, tone: 'warning' },
   CLOSED: { icon: <CheckCircle2 />, tone: 'success' },

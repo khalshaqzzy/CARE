@@ -30,19 +30,28 @@ const record = {
 
 describe('Voice handover note boundary', () => {
   const service = Object.create(VoicesService.prototype) as {
-    handoverShape: (actor: { accountId: string }, value: typeof record) => unknown;
+    handoverShape: (
+      actor: { accountId: string; capabilities: string[] },
+      value: typeof record,
+    ) => unknown;
   };
 
   it.each(['manager-a', 'manager-b'])('returns the note to adjacent PIC %s', (accountId) => {
-    expect(service.handoverShape({ accountId }, record)).toMatchObject({
+    expect(service.handoverShape({ accountId, capabilities: [] }, record)).toMatchObject({
       detail: 'PAIRWISE-SECRET-NOTE',
     });
   });
 
-  it.each(['reporter', 'leadership', 'care-admin', 'unrelated-manager'])(
+  it('returns the note to CARE Admin', () => {
+    expect(
+      service.handoverShape({ accountId: 'care-admin', capabilities: ['CARE_ADMIN'] }, record),
+    ).toMatchObject({ detail: 'PAIRWISE-SECRET-NOTE' });
+  });
+
+  it.each(['reporter', 'leadership', 'unrelated-manager'])(
     'redacts the note from %s',
     (accountId) => {
-      const shaped = service.handoverShape({ accountId }, record);
+      const shaped = service.handoverShape({ accountId, capabilities: [] }, record);
       expect(JSON.stringify(shaped)).not.toContain('PAIRWISE-SECRET-NOTE');
       expect(shaped).not.toHaveProperty('detail');
     },

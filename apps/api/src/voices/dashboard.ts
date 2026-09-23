@@ -381,6 +381,15 @@ export class OrganizationDashboard {
             orderBy: { key: 'asc' },
           })
         : [];
+    const customCategories =
+      q.visibility === 'GENERAL'
+        ? await this.db.voice.findMany({
+            where: { AND: [...clauses, { currentCategoryKey: { startsWith: 'ADMIN_CUSTOM_' } }] },
+            distinct: ['currentCategoryKey'],
+            select: { currentCategoryKey: true, currentCategoryNameSnapshot: true },
+            take: 1000,
+          })
+        : [];
     // Targets replace organization state atomically; they never grant additional scope.
     const organizationControls = levels.map((name, index) => {
       const boundary =
@@ -454,7 +463,15 @@ export class OrganizationDashboard {
             : { directorate: [], division: [], department: [], section: [] },
         selected: selections,
         handlers,
-        categories: categories.map((c) => ({ id: c.key, label: c.revisions[0]?.name ?? c.key })),
+        categories: [
+          ...categories.map((c) => ({ id: c.key, label: c.revisions[0]?.name ?? c.key })),
+          ...customCategories
+            .filter((c) => c.currentCategoryKey)
+            .map((c) => ({
+              id: c.currentCategoryKey!,
+              label: c.currentCategoryNameSnapshot ?? 'Kategori khusus',
+            })),
+        ],
         scopeLabel:
           q.visibility === 'PRIVATE'
             ? caps.includes('UNION_HEAD')

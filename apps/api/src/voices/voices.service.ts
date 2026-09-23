@@ -1,6 +1,8 @@
 import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 import {
+  AccountKind,
   AccountStatus,
+  AdminHandoverStatus,
   AttachmentPurpose,
   AttachmentState,
   ClassificationSource,
@@ -156,6 +158,24 @@ const handoverSchema = z
     expectedVersion: z.number().int().positive(),
   })
   .strict();
+const adminHandoverRequestSchema = z
+  .object({
+    detail: z.string().trim().min(1).max(4000),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
+const adminHandoverDecisionSchema = z
+  .object({
+    organizationUnitId: z.string().uuid(),
+    categoryId: z.string().uuid().optional(),
+    customCategory: z.string().trim().min(1).max(160).optional(),
+    detail: z.string().trim().min(1).max(4000),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict()
+  .refine((value) => !(value.categoryId && value.customCategory), {
+    message: 'Pilih kategori katalog atau label khusus Voice, bukan keduanya.',
+  });
 const textSchema = z
   .object({ text: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
   .strict();
@@ -1171,7 +1191,9 @@ export class VoicesService {
     return {
       current: {
         category: {
-          id: voice.currentCategoryId ?? voice.categoryId,
+          id: voice.currentCategoryKey?.startsWith('ADMIN_CUSTOM_')
+            ? null
+            : (voice.currentCategoryId ?? voice.categoryId),
           key: voice.currentCategoryKey ?? voice.categoryKey,
           name: voice.currentCategoryNameSnapshot ?? voice.categoryNameSnapshot,
         },
@@ -1236,7 +1258,9 @@ export class VoicesService {
           data: {
             voiceId: id,
             sequence,
-            fromCategoryId: voice.currentCategoryId ?? voice.categoryId,
+            fromCategoryId: voice.currentCategoryKey?.startsWith('ADMIN_CUSTOM_')
+              ? null
+              : (voice.currentCategoryId ?? voice.categoryId),
             fromCategoryKey: voice.currentCategoryKey ?? voice.categoryKey,
             fromCategoryNameSnapshot:
               voice.currentCategoryNameSnapshot ?? voice.categoryNameSnapshot,
@@ -1338,6 +1362,502 @@ export class VoicesService {
         };
       },
     );
+  }
+
+  async requestAdminHandover(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(adminHandoverRequestSchema, input);
+    if (!actor.capabilities.includes('MANAGER')) throw forbiddenAsNotFound();
+    return this.idempotentMutation(
+      actor,
+      `admin-handover-request:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const voice = await tx.voice.findUnique({ where: { id } });
+        if (
+          !voice ||
+          voice.routeOwnerId !== actor.accountId ||
+          voice.visibility !== VoiceVisibility.GENERAL
+        )
+          throw forbiddenAsNotFound();
+        if (voice.status !== VoiceStatus.OPEN || voice.currentHandlerId !== null)
+          throw conflict('HANDOVER_INVALID_STATE', 'Voice tidak lagi dapat diserahkan ke Admin.');
+        if (voice.version !== data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'Voice telah berubah.');
+        const admins = await tx.userAccount.findMany({
+          where: { accountKind: AccountKind.CARE_ADMIN, status: AccountStatus.ACTIVE },
+          select: { id: true },
+          take: 2,
+        });
+        if (admins.length !== 1)
+          throw conflict('ADMIN_HANDOVER_UNAVAILABLE', 'Akun Admin aktif tidak tersedia.');
+        const handover = await tx.adminHandover.create({
+          data: {
+            voiceId: id,
+            managerId: actor.accountId,
+            adminId: admins[0]!.id,
+            managerDetail: data.detail,
+            sourceRouteMappingId: voice.routeMappingId,
+            sourceOrganizationUnitId: voice.handlingOrganizationUnitId,
+          },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: {
+            routeOwnerId: admins[0]!.id,
+            routeMappingId: null,
+            handlerType: HandlerType.ADMIN_TRIAGE,
+            handlingOrganizationSource: 'ADMIN_HANDOVER',
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.ADMIN_HANDOVER_REQUESTED,
+            payload: { handoverId: handover.id, fromManagerId: actor.accountId },
+          },
+        });
+        await this.adminHandoverAudit(tx, actor, id, handover.id, 'ADMIN_HANDOVER_REQUESTED');
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          handoverId: handover.id,
+        };
+      },
+    );
+  }
+
+  async adminHandoverQueue(actor: AuthActor, query: { cursor?: string; limit?: string } = {}) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
+    const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const rows = await this.prisma.adminHandover.findMany({
+      where: { status: AdminHandoverStatus.PENDING, adminId: actor.accountId },
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      include: {
+        manager: { select: { id: true, displayName: true } },
+        voice: {
+          select: {
+            id: true,
+            displayId: true,
+            title: true,
+            severity: true,
+            status: true,
+            version: true,
+            categoryNameSnapshot: true,
+            currentCategoryNameSnapshot: true,
+            area: true,
+          },
+        },
+      },
+    });
+    const hasNext = rows.length > take;
+    const items = hasNext ? rows.slice(0, take) : rows;
+    return {
+      items: items.map((row) => ({
+        id: row.id,
+        createdAt: row.createdAt,
+        manager: row.manager,
+        managerDetail: row.managerDetail,
+        voice: row.voice,
+      })),
+      nextCursor: hasNext ? encodeCursor(items[items.length - 1]!.id) : null,
+    };
+  }
+
+  async adminHandoverDetail(actor: AuthActor, handoverId: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const row = await this.prisma.adminHandover.findFirst({
+      where: { id: handoverId, adminId: actor.accountId },
+      include: {
+        manager: { select: { id: true, displayName: true } },
+        voice: { include: { routeOwner: { select: { id: true, displayName: true } } } },
+      },
+    });
+    if (!row) throw forbiddenAsNotFound();
+    return {
+      id: row.id,
+      status: row.status,
+      createdAt: row.createdAt,
+      manager: row.manager,
+      managerDetail: row.managerDetail,
+      adminDetail: row.adminDetail,
+      voice: {
+        id: row.voice.id,
+        displayId: row.voice.displayId,
+        title: row.voice.title,
+        detail: row.voice.detail,
+        status: row.voice.status,
+        version: row.voice.version,
+        categoryNameSnapshot: row.voice.categoryNameSnapshot,
+        currentCategoryNameSnapshot: row.voice.currentCategoryNameSnapshot,
+        area: row.voice.area,
+        routeOwner: row.voice.routeOwner,
+      },
+    };
+  }
+
+  async adminHandoversForVoice(actor: AuthActor, voiceId: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const voice = await this.prisma.voice.findFirst({
+      where: { id: voiceId, visibility: VoiceVisibility.GENERAL },
+      select: { id: true },
+    });
+    if (!voice) throw forbiddenAsNotFound();
+    const rows = await this.prisma.adminHandover.findMany({
+      where: { voiceId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        manager: { select: { displayName: true } },
+        resolvedBy: { select: { displayName: true } },
+      },
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        status: row.status,
+        createdAt: row.createdAt,
+        resolvedAt: row.resolvedAt,
+        managerName: row.manager.displayName,
+        managerDetail: row.managerDetail,
+        adminName: row.resolvedBy?.displayName ?? null,
+        adminDetail: row.adminDetail,
+        categoryNameSnapshot: row.categoryNameSnapshot,
+      })),
+    };
+  }
+
+  async adminHandoverOptions(actor: AuthActor, handoverId: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const row = await this.prisma.adminHandover.findFirst({
+      where: { id: handoverId, adminId: actor.accountId, status: AdminHandoverStatus.PENDING },
+      include: { voice: { select: { reporterOrganizationUnitId: true, currentCategoryId: true } } },
+    });
+    if (!row) throw forbiddenAsNotFound();
+    const units = await this.prisma.organizationUnit.findMany({
+      where: { memberships: { some: { snapshot: { status: 'ACTIVE' } } } },
+      orderBy: [{ directorate: 'asc' }, { division: 'asc' }, { department: 'asc' }],
+      include: {
+        routeMappings: {
+          where: {
+            kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
+            effectiveTo: null,
+            owner: { status: AccountStatus.ACTIVE },
+          },
+          include: { owner: { select: { id: true, displayName: true } } },
+        },
+      },
+    });
+    const categories = await this.prisma.generalVoiceCategory.findMany({
+      where: { status: 'ACTIVE' },
+      include: {
+        revisions: { where: { effectiveTo: null }, take: 1 },
+        routes: { where: { effectiveTo: null }, take: 2 },
+      },
+    });
+    return {
+      currentCategoryId: row.voice.currentCategoryId,
+      items: units.map((unit) => ({
+        id: unit.id,
+        directorate: unit.directorate,
+        division: unit.division,
+        department: unit.department,
+        available: unit.routeMappings.length === 1,
+        disabledReason:
+          unit.routeMappings.length === 0
+            ? 'PIC aktif belum tersedia.'
+            : unit.routeMappings.length > 1
+              ? 'Lebih dari satu PIC aktif.'
+              : null,
+        pic: unit.routeMappings.length === 1 ? unit.routeMappings[0]!.owner : null,
+        categories: categories
+          .filter(
+            (category) =>
+              category.routes.length === 1 &&
+              (category.routes[0]!.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT
+                ? category.routes[0]!.organizationUnitId === unit.id
+                : row.voice.reporterOrganizationUnitId === unit.id),
+          )
+          .filter((category) => category.revisions.length === 1)
+          .map((category) => ({
+            id: category.id,
+            key: category.key,
+            name: category.revisions[0]!.name,
+          })),
+      })),
+    };
+  }
+
+  async resolveAdminHandover(actor: AuthActor, handoverId: string, input: unknown, key: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const data = parse(adminHandoverDecisionSchema, input);
+    return this.idempotentMutation(
+      actor,
+      `admin-handover-resolve:${handoverId}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const initial = await tx.adminHandover.findUnique({ where: { id: handoverId } });
+        if (!initial || initial.adminId !== actor.accountId) throw forbiddenAsNotFound();
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${initial.voiceId}::uuid FOR UPDATE`;
+        const row = await tx.adminHandover.findUnique({
+          where: { id: handoverId },
+          include: { voice: true },
+        });
+        if (
+          !row ||
+          row.status !== AdminHandoverStatus.PENDING ||
+          row.voice.routeOwnerId !== actor.accountId ||
+          row.voice.status !== VoiceStatus.OPEN ||
+          row.voice.handlerType !== HandlerType.ADMIN_TRIAGE
+        )
+          throw conflict('ADMIN_HANDOVER_INVALID_STATE', 'Handover Admin telah berubah.');
+        if (row.voice.version !== data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'Voice telah berubah.');
+        const unit = await tx.organizationUnit.findFirst({
+          where: {
+            id: data.organizationUnitId,
+            memberships: { some: { snapshot: { status: 'ACTIVE' } } },
+          },
+        });
+        if (!unit) throw conflict('HANDOVER_DESTINATION_UNAVAILABLE', 'Department tidak aktif.');
+        const mappings = await tx.routeMapping.findMany({
+          where: {
+            organizationUnitId: unit.id,
+            effectiveTo: null,
+            kind: { in: [RouteKind.DEPARTMENT_HEAD, RouteKind.DEFAULT_DEPARTMENT] },
+            owner: { status: AccountStatus.ACTIVE },
+          },
+          take: 2,
+        });
+        if (mappings.length !== 1)
+          throw conflict(
+            'HANDOVER_DESTINATION_UNAVAILABLE',
+            'Department perlu tepat satu PIC aktif.',
+          );
+        const categoryRows = await tx.generalVoiceCategory.findMany({
+          where: { status: 'ACTIVE' },
+          include: {
+            revisions: { where: { effectiveTo: null }, take: 1 },
+            routes: { where: { effectiveTo: null }, take: 2 },
+          },
+        });
+        const matched = categoryRows.filter(
+          (category) =>
+            category.routes.length === 1 &&
+            (category.routes[0]!.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT
+              ? category.routes[0]!.organizationUnitId === unit.id
+              : row.voice.reporterOrganizationUnitId === unit.id) &&
+            category.revisions.length === 1,
+        );
+        const preservedCategoryId = matched.some((item) => item.id === row.voice.currentCategoryId)
+          ? row.voice.currentCategoryId
+          : null;
+        const chosenCategoryId = data.categoryId ?? preservedCategoryId;
+        if (matched.length && (!chosenCategoryId || data.customCategory))
+          throw conflict('ADMIN_HANDOVER_CATEGORY_REQUIRED', 'Pilih kategori aktif yang sesuai.');
+        if (!matched.length && (!data.customCategory || data.categoryId))
+          throw conflict('ADMIN_HANDOVER_CATEGORY_REQUIRED', 'Isi kategori khusus Voice ini.');
+        const category = matched.find((item) => item.id === chosenCategoryId);
+        if (matched.length && !category)
+          throw conflict('HANDOVER_CATEGORY_CONFIGURATION_CHANGED', 'Kategori tujuan berubah.');
+        const categoryName = category?.revisions[0]!.name ?? data.customCategory!;
+        const categoryKey =
+          category?.key ??
+          `ADMIN_CUSTOM_${canonicalHash(categoryName.toLocaleLowerCase('id-ID')).slice(0, 32)}`;
+        const now = new Date();
+        await tx.adminHandover.update({
+          where: { id: handoverId },
+          data: {
+            status: AdminHandoverStatus.ROUTED,
+            adminDetail: data.detail,
+            destinationUnitId: unit.id,
+            destinationRouteMappingId: mappings[0]!.id,
+            destinationPicId: mappings[0]!.ownerAccountId,
+            categoryId: category?.id ?? null,
+            categoryKey,
+            categoryNameSnapshot: categoryName,
+            resolvedById: actor.accountId,
+            resolvedAt: now,
+          },
+        });
+        const voice = await tx.voice.update({
+          where: { id: row.voiceId },
+          data: {
+            routeOwnerId: mappings[0]!.ownerAccountId,
+            routeMappingId: mappings[0]!.id,
+            currentCategoryId: category?.id ?? null,
+            currentCategoryKey: categoryKey,
+            currentCategoryNameSnapshot: categoryName,
+            handlerType: HandlerType.MANAGER,
+            handlingOrganizationUnitId: unit.id,
+            handlingDirectorateSnapshot: unit.directorate,
+            handlingDivisionSnapshot: unit.division,
+            handlingDepartmentSnapshot: unit.department,
+            handlingSectionSnapshot: null,
+            handlingOrganizationSource: 'ADMIN_HANDOVER',
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: row.voiceId,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.ADMIN_HANDOVER_ROUTED,
+            payload: {
+              handoverId,
+              toDepartment: unit.department,
+              toPicId: mappings[0]!.ownerAccountId,
+              category: categoryName,
+            },
+          },
+        });
+        await this.adminHandoverAudit(tx, actor, row.voiceId, handoverId, 'ADMIN_HANDOVER_ROUTED');
+        await this.notify(
+          tx,
+          mappings[0]!.ownerAccountId,
+          row.voiceId,
+          NotificationType.HANDOVER_RECEIVED,
+          'Voice diteruskan oleh Admin',
+        );
+        return {
+          id: voice.id,
+          displayId: voice.displayId,
+          status: voice.status,
+          version: voice.version,
+          handoverId,
+        };
+      },
+    );
+  }
+
+  async returnAdminHandover(actor: AuthActor, handoverId: string, input: unknown, key: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const data = parse(adminHandoverRequestSchema, input);
+    return this.idempotentMutation(
+      actor,
+      `admin-handover-return:${handoverId}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const initial = await tx.adminHandover.findUnique({ where: { id: handoverId } });
+        if (!initial || initial.adminId !== actor.accountId) throw forbiddenAsNotFound();
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${initial.voiceId}::uuid FOR UPDATE`;
+        const row = await tx.adminHandover.findUnique({
+          where: { id: handoverId },
+          include: { voice: true },
+        });
+        if (
+          !row ||
+          row.status !== AdminHandoverStatus.PENDING ||
+          row.voice.routeOwnerId !== actor.accountId ||
+          row.voice.handlerType !== HandlerType.ADMIN_TRIAGE ||
+          row.voice.status !== VoiceStatus.OPEN
+        )
+          throw conflict('ADMIN_HANDOVER_INVALID_STATE', 'Handover Admin telah berubah.');
+        if (row.voice.version !== data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'Voice telah berubah.');
+        const manager = await tx.userAccount.findUnique({ where: { id: row.managerId } });
+        if (!manager || manager.status !== AccountStatus.ACTIVE)
+          throw conflict('HANDOVER_DESTINATION_UNAVAILABLE', 'Manager asal tidak aktif.');
+        const sourceRoute = row.sourceRouteMappingId
+          ? await tx.routeMapping.findFirst({
+              where: {
+                id: row.sourceRouteMappingId,
+                ownerAccountId: row.managerId,
+                effectiveTo: null,
+                owner: { status: AccountStatus.ACTIVE },
+              },
+            })
+          : null;
+        if (!sourceRoute)
+          throw conflict('HANDOVER_DESTINATION_UNAVAILABLE', 'Rute Manager asal tidak lagi aktif.');
+        await tx.adminHandover.update({
+          where: { id: handoverId },
+          data: {
+            status: AdminHandoverStatus.RETURNED,
+            adminDetail: data.detail,
+            resolvedById: actor.accountId,
+            resolvedAt: new Date(),
+          },
+        });
+        const voice = await tx.voice.update({
+          where: { id: row.voiceId },
+          data: {
+            routeOwnerId: row.managerId,
+            routeMappingId: row.sourceRouteMappingId,
+            handlerType: HandlerType.MANAGER,
+            handlingOrganizationUnitId: row.sourceOrganizationUnitId,
+            handlingOrganizationSource: 'ADMIN_RETURN',
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: row.voiceId,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.ADMIN_HANDOVER_RETURNED,
+            payload: { handoverId, toManagerId: row.managerId },
+          },
+        });
+        await this.adminHandoverAudit(
+          tx,
+          actor,
+          row.voiceId,
+          handoverId,
+          'ADMIN_HANDOVER_RETURNED',
+        );
+        await this.notify(
+          tx,
+          row.managerId,
+          row.voiceId,
+          NotificationType.ADMIN_HANDOVER_RETURNED,
+          'Voice dikembalikan oleh Admin',
+        );
+        return {
+          id: voice.id,
+          displayId: voice.displayId,
+          status: voice.status,
+          version: voice.version,
+          handoverId,
+        };
+      },
+    );
+  }
+
+  private async adminHandoverAudit(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    voiceId: string,
+    handoverId: string,
+    action: string,
+  ) {
+    await tx.auditEvent.create({
+      data: {
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        action,
+        result: 'SUCCESS',
+        resourceType: 'VOICE',
+        resourceId: voiceId,
+        summary: { handoverId, detail: 'redacted' },
+        correlationId: `admin-handover:${handoverId}`,
+        releaseSha: loadConfig().RELEASE_SHA,
+      },
+    });
   }
 
   async handovers(actor: AuthActor, id: string) {
@@ -2861,7 +3381,10 @@ export class VoicesService {
   }
 
   private handoverShape(actor: AuthActor, record: any) {
-    const participant = record.fromPicId === actor.accountId || record.toPicId === actor.accountId;
+    const participant =
+      actor.capabilities.includes('CARE_ADMIN') ||
+      record.fromPicId === actor.accountId ||
+      record.toPicId === actor.accountId;
     return {
       id: record.id,
       sequence: record.sequence,
@@ -2900,6 +3423,7 @@ export class VoicesService {
     };
   }
   private async actionVoice(actor: AuthActor, id: string) {
+    if (actor.capabilities.includes('CARE_ADMIN')) throw forbiddenAsNotFound();
     const voice = await this.authorizedVoice(actor, id);
     const allowed =
       (voice.visibility === VoiceVisibility.GENERAL &&
@@ -2917,6 +3441,7 @@ export class VoicesService {
     id: string,
     expectedVersion: number,
   ) {
+    if (actor.capabilities.includes('CARE_ADMIN')) throw forbiddenAsNotFound();
     await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
     const voice = await tx.voice.findUnique({
       where: { id },

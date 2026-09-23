@@ -684,6 +684,9 @@ export async function mockAdminApi(
     release?: Release;
     aiConfiguration?: AiConfiguration;
     categories?: GeneralVoiceCategoryAdmin[];
+    adminHandovers?: components['schemas']['AdminHandoverQueue'];
+    adminHandoverDetail?: components['schemas']['AdminHandoverDetail'];
+    adminHandoverOptions?: components['schemas']['AdminHandoverOptions'];
   } = {},
 ) {
   const session = opts.session ?? adminSession();
@@ -714,6 +717,23 @@ export async function mockAdminApi(
     }
     if (method === 'GET' && path === '/api/v1/admin/overview')
       return fulfill(200, override('overview') ?? overviewFixture());
+    if (method === 'GET' && path === '/api/v1/admin/handovers')
+      return fulfill(200, override('adminHandovers') ?? { items: [], nextCursor: null });
+    if (method === 'GET' && /\/api\/v1\/admin\/handovers\/[^/]+\/options$/.test(path))
+      return fulfill(
+        200,
+        override('adminHandoverOptions') ?? { currentCategoryId: null, items: [] },
+      );
+    if (method === 'GET' && /\/api\/v1\/admin\/handovers\/[^/]+$/.test(path))
+      return fulfill(200, override('adminHandoverDetail') ?? {});
+    if (method === 'GET' && /\/api\/v1\/admin\/voices\/[^/]+\/handover-history$/.test(path))
+      return fulfill(200, { items: [] });
+    if (method === 'GET' && /\/api\/v1\/voices\/[^/]+\/handovers$/.test(path))
+      return fulfill(200, {
+        voice: { id: 'voice-1', displayId: 'CARE-202608-000001' },
+        accessMode: 'VOICE_READER',
+        items: [],
+      });
     if (method === 'GET' && path === '/api/v1/admin/general-voice-categories')
       return fulfill(200, override('categories') ?? [categoryFixture()]);
     if (method === 'POST' && path === '/api/v1/admin/general-voice-categories') {

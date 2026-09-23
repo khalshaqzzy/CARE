@@ -88,7 +88,7 @@ test.describe('Manager handover', () => {
     const dialog = page.getByRole('dialog', { name: 'Konfirmasi handover' });
     await expect(dialog.getByText('Production Engineering')).toBeVisible();
     await expect(dialog.getByText('Yudo Ardiyanto')).toBeVisible();
-    await expect(dialog.getByText(/hanya dapat dibaca oleh Anda dan PIC tujuan/i)).toBeVisible();
+    await expect(dialog.getByText(/dapat dibaca oleh CARE Admin dan PIC terkait/i)).toBeVisible();
     await dialog.getByRole('button', { name: 'Konfirmasi Handover' }).click();
     await expect(page).toHaveURL(/\/work-items$/);
     await expect(page.getByText('Voice berhasil dihandover kepada PIC baru.')).toBeVisible();

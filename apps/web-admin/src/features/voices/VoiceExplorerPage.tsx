@@ -128,6 +128,24 @@ export function VoiceExplorerPage() {
     enabled: !!session && !!selected && open,
   });
   const messageItems = messages.data?.pages.flatMap((page) => page.items) ?? [];
+  const adminHandovers = useQuery({
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'admin-handover-history',
+      selected?.id ?? 'none',
+    ),
+    queryFn: () => api.adminHandoverHistory(selected!.id),
+    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL',
+  });
+  const directHandovers = useQuery({
+    queryKey: careQueryKey(
+      session?.sessionId ?? 'anon',
+      'direct-handover-history',
+      selected?.id ?? 'none',
+    ),
+    queryFn: () => api.directHandoverHistory(selected!.id),
+    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL',
+  });
   const updateFilter = (name: string, value: string) => {
     const params = new URLSearchParams(searchParams);
     params.delete('cursor');
@@ -530,6 +548,61 @@ export function VoiceExplorerPage() {
                 )}
               </Stack>
             </div>
+            {selected?.visibility === 'GENERAL' ? (
+              <div className="admin-card admin-card--subtle">
+                <Stack gap="xs">
+                  <strong>Riwayat handover</strong>
+                  {adminHandovers.isLoading || directHandovers.isLoading ? (
+                    <AdminSkeleton lines={2} label="Memuat handover" />
+                  ) : adminHandovers.isError || directHandovers.isError ? (
+                    <Alert tone="warning" title="Riwayat gagal dimuat">
+                      Coba buka kembali detail Voice.
+                    </Alert>
+                  ) : (
+                    <>
+                      {(adminHandovers.data?.items.length ?? 0) +
+                        (directHandovers.data?.items.length ?? 0) ===
+                      0 ? (
+                        <span>Belum ada handover.</span>
+                      ) : null}
+                      {adminHandovers.data?.items.map((item) => (
+                        <div key={item.id} className="admin-handover-history-item">
+                          <strong>
+                            Manager → Admin ·{' '}
+                            {item.status === 'PENDING'
+                              ? 'Menunggu'
+                              : item.status === 'ROUTED'
+                                ? 'Diteruskan'
+                                : 'Dikembalikan'}
+                          </strong>
+                          <small>{new Date(item.createdAt).toLocaleString('id-ID')}</small>
+                          <p>
+                            <b>{item.managerName}:</b> {item.managerDetail}
+                          </p>
+                          {item.adminDetail ? (
+                            <p>
+                              <b>{item.adminName ?? 'Admin'}:</b> {item.adminDetail}
+                            </p>
+                          ) : null}
+                          {item.categoryNameSnapshot ? (
+                            <small>Kategori: {item.categoryNameSnapshot}</small>
+                          ) : null}
+                        </div>
+                      ))}
+                      {directHandovers.data?.items.map((item) => (
+                        <div key={item.id} className="admin-handover-history-item">
+                          <strong>
+                            {item.from.pic.displayName} → {item.to.pic.displayName}
+                          </strong>
+                          <small>{new Date(item.createdAt).toLocaleString('id-ID')}</small>
+                          {item.detail ? <p>{item.detail}</p> : null}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </Stack>
+              </div>
+            ) : null}
             <div className="admin-card admin-card--subtle">
               <Stack gap="xs">
                 <strong>Percakapan</strong>

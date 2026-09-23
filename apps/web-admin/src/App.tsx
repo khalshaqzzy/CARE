@@ -18,6 +18,7 @@ import {
   Building2,
   CircleGauge,
   FileSearch,
+  GitPullRequestArrow,
   LogOut,
   Route as RouteIcon,
   Settings,
@@ -33,6 +34,10 @@ import { RemediationPage } from './features/remediation/RemediationPage';
 import { UnionPage } from './features/union/UnionPage';
 import { AccountsPage } from './features/accounts/AccountsPage';
 import { VoiceExplorerPage } from './features/voices/VoiceExplorerPage';
+import {
+  AdminHandoverQueuePage,
+  AdminHandoverDecisionPage,
+} from './features/handovers/AdminHandoverPage';
 import { AuditPage } from './features/audit/AuditPage';
 import { SystemStatusPage } from './features/system/SystemStatusPage';
 import { AccountPage } from './features/account/AccountPage';
@@ -62,6 +67,8 @@ export function App() {
         <Route path="union" element={<UnionPage />} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="voices" element={<VoiceExplorerPage />} />
+        <Route path="handovers" element={<AdminHandoverQueuePage />} />
+        <Route path="handovers/:id" element={<AdminHandoverDecisionPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="system" element={<SystemStatusPage />} />
         <Route path="account" element={<AccountPage />} />
@@ -275,6 +282,7 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   union: '/union',
   accounts: '/accounts',
   voices: '/voices',
+  handovers: '/handovers',
   audit: '/audit',
   system: '/system',
 };
@@ -295,13 +303,15 @@ function AdminShell() {
           ? 'accounts'
           : path.startsWith('/voices')
             ? 'voices'
-            : path.startsWith('/audit')
-              ? 'audit'
-              : path.startsWith('/system')
-                ? 'system'
-                : path.startsWith('/account')
-                  ? 'account'
-                  : 'overview';
+            : path.startsWith('/handovers')
+              ? 'handovers'
+              : path.startsWith('/audit')
+                ? 'audit'
+                : path.startsWith('/system')
+                  ? 'system'
+                  : path.startsWith('/account')
+                    ? 'account'
+                    : 'overview';
   const items = [
     {
       id: 'overview',
@@ -332,6 +342,11 @@ function AdminShell() {
       id: 'voices',
       label: 'Voice Explorer',
       icon: <FileSearch size={19} />,
+    },
+    {
+      id: 'handovers',
+      label: 'Handover Admin',
+      icon: <GitPullRequestArrow size={19} />,
     },
     {
       id: 'audit',
