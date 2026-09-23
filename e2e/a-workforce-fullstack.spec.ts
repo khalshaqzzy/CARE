@@ -11,7 +11,7 @@ const USERNAME = '000128';
 const NEW_PASSWORD = 'care-member-e2e-123';
 const enabled = process.env.FULLSTACK_E2E === '1';
 
-// The seeded member `000128` (Budi Santoso) starts with passwordChangeRequired.
+// The seeded member `00000128` (Budi Santoso) starts with passwordChangeRequired.
 // This smoke runs before the Admin full-stack journey (which later resets /
 // deactivates the seeded workforce), so it starts from a fresh seed each run.
 test.skip(
@@ -203,7 +203,7 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
         await page.getByRole('button', { name: 'Lain kali' }).click();
       await expect(page.getByRole('banner').getByRole('button', { name: 'Keluar' })).toBeVisible();
     };
-    await login(managerPage, '000003', '000003');
+    await login(managerPage, '000003', '00000003');
     await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
     await managerPage.getByRole('button', { name: 'Respons Voice' }).click();
     await managerPage

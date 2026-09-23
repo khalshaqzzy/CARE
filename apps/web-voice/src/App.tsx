@@ -40,6 +40,7 @@ import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 
 import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { AuthReveal } from './features/auth/AuthReveal';
 import { authFailureMessage } from './features/auth/messages';
+import { normalizeLoginIdentifier } from './features/auth/normalize-identifier';
 import authHeroAsset from './assets/auth-hero-asset.png';
 import { registerCareServiceWorker } from './register-sw.js';
 import { getBrowserCapabilities } from './lib/browser-capabilities';
@@ -213,18 +214,20 @@ function LoginPage() {
   }, [navigate, session]);
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const identifier = normalizeLoginIdentifier(username);
+    setUsername(identifier);
     setPending(true);
     setError('');
     const version = ++requestVersion.current;
     try {
       if (!expanded) {
-        const result = await startLogin(username);
+        const result = await startLogin(identifier);
         if (version !== requestVersion.current) return;
         if (result.next === 'CHANGE_PASSWORD') void navigate('/change-password', { replace: true });
         else setExpanded(true);
         return;
       }
-      const result = await login(username, password);
+      const result = await login(identifier, password);
       if (!admitsAccount(result, 'voice')) {
         await logout();
         setError('Akun CARE Admin hanya dapat digunakan pada aplikasi Admin.');
@@ -279,6 +282,7 @@ function LoginPage() {
               spellCheck={false}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
+              onBlur={() => setUsername((current) => normalizeLoginIdentifier(current))}
               required
             />
             <AuthReveal open={expanded}>
@@ -609,6 +613,17 @@ function WorkforceShell() {
     }));
   const desktopNav = withIcons(true);
   const bottomNav = withIcons(false);
+  const highlightMemberCreate =
+    caps.isMember && !caps.isResponder && !caps.isLeadership && !caps.isUnion;
+  if (highlightMemberCreate) {
+    const create = bottomNav.find((item) => item.id === 'create');
+    if (create)
+      create.icon = (
+        <span className="member-create-highlight">
+          <Plus size={20} />
+        </span>
+      );
+  }
 
   // The reference home leads with the hero identity, so the chrome topbar
   // yields on mobile; the voice detail and conversation surfaces carry their
@@ -619,6 +634,7 @@ function WorkforceShell() {
   return (
     <AppShell
       density="roomy"
+      {...(location.pathname.endsWith('/chat') ? { className: 'care-app-shell--chat' } : {})}
       {...(showTopbar
         ? {
             topbar: (

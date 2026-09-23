@@ -19,7 +19,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Actor } from '../auth/auth.decorators';
+import { Actor, Capabilities } from '../auth/auth.decorators';
 import type { AuthActor } from '../auth/auth.types';
 import { MediaService } from '../media/media.service';
 import { VoicesService } from './voices.service';
@@ -168,6 +168,54 @@ export class VoicesController {
     @Headers('idempotency-key') key = '',
   ) {
     return this.voices.handover(a, id, b, key);
+  }
+  @Post('voices/:id/admin-handover') requestAdminHandover(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.requestAdminHandover(a, id, b, key);
+  }
+  @Get('admin/handovers') @Capabilities('CARE_ADMIN') adminHandoverQueue(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['adminHandoverQueue']>[1],
+  ) {
+    return this.voices.adminHandoverQueue(a, q ?? {});
+  }
+  @Get('admin/handovers/:id') @Capabilities('CARE_ADMIN') adminHandoverDetail(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.adminHandoverDetail(a, id);
+  }
+  @Get('admin/handovers/:id/options') @Capabilities('CARE_ADMIN') adminHandoverOptions(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.adminHandoverOptions(a, id);
+  }
+  @Get('admin/voices/:id/handover-history') @Capabilities('CARE_ADMIN') adminHandoversForVoice(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.adminHandoversForVoice(a, id);
+  }
+  @Post('admin/handovers/:id/resolve') @Capabilities('CARE_ADMIN') resolveAdminHandover(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.resolveAdminHandover(a, id, b, key);
+  }
+  @Post('admin/handovers/:id/return') @Capabilities('CARE_ADMIN') returnAdminHandover(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.returnAdminHandover(a, id, b, key);
   }
   @Get('voices/:id/handovers') handovers(
     @Actor() a: AuthActor,

@@ -325,6 +325,32 @@ test('workforce active conversation visual at 360', async ({ page }) => {
   await capture(page, `workforce-conversation-active-360-${visualPlatform}.png`, screenshotOptions);
 });
 
+test('workforce three participant conversation visual at 360', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockWorkforceApi(page, {
+    session: managerSession,
+    voice: {
+      ...voice,
+      availableActions: ['MESSAGE'],
+      conversationState: 'ACTIVE',
+      participants: [
+        { id: 'reporter', displayName: 'Budi Santoso', role: 'REPORTER' },
+        { id: 'owner', displayName: 'Muhammad Rizky Pratama', role: 'DEPARTMENT_HEAD' },
+        { id: 'handler', displayName: 'Agus Setiawan', role: 'SECTION_HEAD' },
+      ],
+    },
+  });
+  await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
+  await page.goto('/voices/voice-1/chat');
+  await expect(page.locator('.chat-participant')).toHaveCount(3);
+  await capture(
+    page,
+    `workforce-conversation-three-participants-360-${visualPlatform}.png`,
+    screenshotOptions,
+  );
+});
+
 // Baselines for the redesigned Voice detail (screens 13–14): an active voice
 // framed from the top and a closed voice framed on the closure/rating card.
 

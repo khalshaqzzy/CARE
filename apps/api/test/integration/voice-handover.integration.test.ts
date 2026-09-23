@@ -280,7 +280,7 @@ describe('Manager Voice handover', () => {
     expect(historyB.items.map((item) => item.detail)).toEqual([noteAB, noteBC]);
     expect(historyC.items.map((item) => item.detail)).toEqual([undefined, noteBC]);
     expect(historyReporter.items.every((item) => item.detail === undefined)).toBe(true);
-    expect(historyAdmin.items.every((item) => item.detail === undefined)).toBe(true);
+    expect(historyAdmin.items.map((item) => item.detail)).toEqual([noteAB, noteBC]);
     await expect(voices.detail(managerA, voiceId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
 
     const mine = await voices.myHandovers(managerA, {});
@@ -381,5 +381,190 @@ describe('Manager Voice handover', () => {
     expect(
       await prisma.voiceHandover.count({ where: { voiceId: competing.id } }),
     ).toBeLessThanOrEqual(1);
+  });
+
+  it('routes an OPEN Voice through Admin, supports return, and keeps reasons private', async () => {
+    const queued = await prisma.voice.create({
+      data: {
+        displayId: 'CARE-202609-990003',
+        reporterId: reporter.accountId,
+        visibility: VoiceVisibility.GENERAL,
+        area: 'KARAWANG_1',
+        reporterOrganizationUnitId: reporterUnitId,
+        reporterNoRegSnapshot: '104',
+        reporterNameSnapshot: 'Reporter Handover',
+        reporterDivisionSnapshot: 'Production',
+        reporterDepartmentSnapshot: 'Production Control',
+        locationDetail: 'Line 3',
+        title: 'Admin route fixture',
+        detail: 'Perlu rute Admin',
+        categoryKey: 'ASSEMBLY_HANDOVER',
+        categoryId: categoryAId,
+        categoryNameSnapshot: 'Assembly',
+        currentCategoryKey: 'ASSEMBLY_HANDOVER',
+        currentCategoryId: categoryAId,
+        currentCategoryNameSnapshot: 'Assembly',
+        severity: Severity.MEDIUM,
+        routeOwnerId: managerA.accountId,
+        routeMappingId: routeAId,
+        handlerType: HandlerType.MANAGER,
+        status: VoiceStatus.OPEN,
+        anonymousAlias: 'R-ADMIN',
+      },
+    });
+    const request = await voices.requestAdminHandover(
+      managerA,
+      queued.id,
+      { detail: 'Perlu keputusan Admin', expectedVersion: 1 },
+      'admin-request-1',
+    );
+    expect(request).toMatchObject({ status: VoiceStatus.OPEN, version: 2 });
+    expect(
+      await voices.requestAdminHandover(
+        managerA,
+        queued.id,
+        { detail: 'Perlu keputusan Admin', expectedVersion: 1 },
+        'admin-request-1',
+      ),
+    ).toEqual(request);
+    const pending = await prisma.voice.findUniqueOrThrow({ where: { id: queued.id } });
+    expect(pending).toMatchObject({
+      routeOwnerId: admin.accountId,
+      handlerType: HandlerType.ADMIN_TRIAGE,
+      currentHandlerId: null,
+    });
+    const queue = await voices.adminHandoverQueue(admin);
+    expect(queue.items.some((item) => item.id === request.handoverId)).toBe(true);
+    await expect(
+      voices.requestAdminHandover(
+        reporter,
+        queued.id,
+        { detail: 'Tidak sah', expectedVersion: 2 },
+        'admin-request-reporter',
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    const returned = await voices.returnAdminHandover(
+      admin,
+      request.handoverId,
+      { detail: 'Mohon lengkapi konteks', expectedVersion: 2 },
+      'admin-return-1',
+    );
+    expect(returned).toMatchObject({ status: VoiceStatus.OPEN, version: 3 });
+    expect((await prisma.voice.findUniqueOrThrow({ where: { id: queued.id } })).routeOwnerId).toBe(
+      managerA.accountId,
+    );
+    const second = await voices.requestAdminHandover(
+      managerA,
+      queued.id,
+      { detail: 'Konteks dilengkapi', expectedVersion: 3 },
+      'admin-request-2',
+    );
+    const options = await voices.adminHandoverOptions(admin, second.handoverId);
+    expect(options.currentCategoryId).toBe(categoryAId);
+    const assembly = options.items.find((item) => item.id === managerA.organizationUnitId);
+    expect(assembly?.available).toBe(true);
+    const routed = await voices.resolveAdminHandover(
+      admin,
+      second.handoverId,
+      {
+        organizationUnitId: managerA.organizationUnitId,
+        detail: 'Diteruskan ke Assembly',
+        expectedVersion: 4,
+      },
+      'admin-route-1',
+    );
+    expect(routed).toMatchObject({ status: VoiceStatus.OPEN, version: 5 });
+    const finalVoice = await prisma.voice.findUniqueOrThrow({ where: { id: queued.id } });
+    expect(finalVoice).toMatchObject({
+      categoryId: categoryAId,
+      currentCategoryId: categoryAId,
+      routeOwnerId: managerA.accountId,
+    });
+    const history = await voices.adminHandoversForVoice(admin, queued.id);
+    expect(history.items).toHaveLength(2);
+    expect(history.items[0]).toMatchObject({
+      managerDetail: 'Konteks dilengkapi',
+      adminDetail: 'Diteruskan ke Assembly',
+    });
+    expect(JSON.stringify(await voices.timeline(reporter, queued.id, {}))).not.toContain(
+      'Konteks dilengkapi',
+    );
+
+    const noCategoryUnit = await prisma.organizationUnit.create({
+      data: {
+        directorate: 'Manufacturing',
+        division: 'Production',
+        department: 'Quality Routing',
+      },
+    });
+    const employee = await prisma.employee.create({
+      data: { noReg: '105', name: 'Manager Quality' },
+    });
+    const pic = await prisma.userAccount.create({
+      data: {
+        username: 'handover-105',
+        displayName: 'Manager Quality',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    const snapshot = await prisma.organizationSnapshot.findFirstOrThrow({
+      where: { status: 'ACTIVE' },
+    });
+    await prisma.organizationMembership.create({
+      data: {
+        snapshotId: snapshot.id,
+        employeeId: employee.id,
+        organizationUnitId: noCategoryUnit.id,
+        employeeName: 'Manager Quality',
+        structuralPosition: 'Department Head',
+        section: 'Management',
+        sourceRow: 105,
+      },
+    });
+    await prisma.routeMapping.create({
+      data: {
+        kind: RouteKind.DEPARTMENT_HEAD,
+        organizationUnitId: noCategoryUnit.id,
+        ownerAccountId: pic.id,
+      },
+    });
+    const customRequest = await voices.requestAdminHandover(
+      managerA,
+      queued.id,
+      { detail: 'Rute lintas kategori', expectedVersion: 5 },
+      'admin-request-custom',
+    );
+    await expect(
+      voices.resolveAdminHandover(
+        admin,
+        customRequest.handoverId,
+        { organizationUnitId: noCategoryUnit.id, detail: 'Belum ada kategori', expectedVersion: 6 },
+        'admin-route-invalid',
+      ),
+    ).rejects.toMatchObject({
+      code: 'ADMIN_HANDOVER_CATEGORY_REQUIRED',
+    });
+    const catalogCount = await prisma.generalVoiceCategory.count();
+    await voices.resolveAdminHandover(
+      admin,
+      customRequest.handoverId,
+      {
+        organizationUnitId: noCategoryUnit.id,
+        customCategory: 'Kualitas proses',
+        detail: 'PIC Quality akan menindaklanjuti',
+        expectedVersion: 6,
+      },
+      'admin-route-custom',
+    );
+    expect(await prisma.generalVoiceCategory.count()).toBe(catalogCount);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: queued.id } })).toMatchObject({
+      routeOwnerId: pic.id,
+      currentCategoryId: null,
+      currentCategoryNameSnapshot: 'Kualitas proses',
+      categoryId: categoryAId,
+    });
   });
 });

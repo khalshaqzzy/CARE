@@ -80,7 +80,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   // integration suite), proving the reset mutation wiring against the real API.
   await page.goto(`${ADMIN}/accounts`);
   await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
-  await page.locator('tr', { hasText: '000128' }).getByRole('button', { name: 'Detail' }).click();
+  await page.locator('tr', { hasText: '00000128' }).getByRole('button', { name: 'Detail' }).click();
   const resetDialog = page.getByRole('dialog', { name: 'Reset password' });
   await page.getByRole('button', { name: /Reset password/ }).click();
   await expect(resetDialog).toBeVisible();
@@ -94,7 +94,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   const privateRow = page.locator('tr', { hasText: 'Keluhan fasilitas toilet' });
   await expect(privateRow).toBeVisible();
   await privateRow.getByRole('button', { name: 'Detail' }).click();
-  await expect(page.getByText(/Budi Santoso \(000128\)/)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Budi Santoso \(00000128\)/)).toBeVisible({ timeout: 10_000 });
   // Read-only: no lifecycle action affordance is exposed.
   await expect(page.getByText(/Tidak ada kontrol aksi/)).toBeVisible();
 

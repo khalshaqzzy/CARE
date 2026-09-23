@@ -32,6 +32,10 @@ export type AiConfigurationTest = components['schemas']['AiConfigurationTestResp
 export type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCategoryAdmin'];
 export type GeneralVoiceCategoryAdminList = components['schemas']['GeneralVoiceCategoryAdminList'];
 export type OrganizationUnitList = components['schemas']['OrganizationUnitList'];
+export type AdminHandoverQueue = components['schemas']['AdminHandoverQueue'];
+export type AdminHandoverDetail = components['schemas']['AdminHandoverDetail'];
+export type AdminHandoverOptions = components['schemas']['AdminHandoverOptions'];
+export type AdminHandoverHistory = components['schemas']['AdminHandoverHistory'];
 type AccountsQuery = NonNullable<operations['AdminController_accounts']['parameters']['query']>;
 type RemediationQuery = NonNullable<operations['AdminController_issues']['parameters']['query']>;
 type RemediationHistoryQuery = NonNullable<
@@ -266,6 +270,52 @@ export function createAdminApi(transport: CareTransport) {
     voices: (query: QueryInput<VoicesQuery>) =>
       dataOrThrow<VoiceList>(
         client.GET('/api/v1/voices', { params: { query: compactQuery(query) } }),
+      ),
+    adminHandovers: (cursor?: string) =>
+      dataOrThrow<AdminHandoverQueue>(
+        client.GET('/api/v1/admin/handovers', {
+          params: { query: { limit: 30, ...(cursor ? { cursor } : {}) } },
+        }),
+      ),
+    adminHandover: (id: string) =>
+      dataOrThrow<AdminHandoverDetail>(
+        client.GET('/api/v1/admin/handovers/{id}', { params: { path: { id } } }),
+      ),
+    adminHandoverOptions: (id: string) =>
+      dataOrThrow<AdminHandoverOptions>(
+        client.GET('/api/v1/admin/handovers/{id}/options', { params: { path: { id } } }),
+      ),
+    adminHandoverHistory: (voiceId: string) =>
+      dataOrThrow<AdminHandoverHistory>(
+        client.GET('/api/v1/admin/voices/{id}/handover-history', {
+          params: { path: { id: voiceId } },
+        }),
+      ),
+    directHandoverHistory: (voiceId: string) =>
+      dataOrThrow<components['schemas']['HandoverHistoryResponse']>(
+        client.GET('/api/v1/voices/{id}/handovers', { params: { path: { id: voiceId } } }),
+      ),
+    resolveAdminHandover: (
+      id: string,
+      body: components['schemas']['AdminHandoverDecisionRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/admin/handovers/{id}/resolve', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    returnAdminHandover: (
+      id: string,
+      body: components['schemas']['AdminHandoverNoteRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/admin/handovers/{id}/return', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
       ),
     voice: (id: string) =>
       dataOrThrow<VoiceDetail>(client.GET('/api/v1/voices/{id}', { params: { path: { id } } })),

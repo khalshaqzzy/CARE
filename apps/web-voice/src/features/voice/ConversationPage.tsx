@@ -1,7 +1,7 @@
 import { Alert, Button, Dialog, IconButton, Skeleton, Stack, Textarea, EmptyState } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ImagePlus, Send, UserRound } from 'lucide-react';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { ChevronRight, ImagePlus, Send, UserRound } from 'lucide-react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { clipParticipantName } from '../../lib/handling-target';
@@ -78,7 +78,43 @@ function ConversationSurface({
 }) {
   const { feed, items, send } = useConversation(voice.id);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [showLatest, setShowLatest] = useState(false);
+  const logRef = useRef<HTMLDivElement>(null);
+  const nearBottomRef = useRef(true);
+  const previousRef = useRef<{ first: string; last: string; height: number } | null>(null);
   const participants = voice.participants ?? [];
+
+  useEffect(() => {
+    const setHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty('--care-chat-viewport-height', `${height}px`);
+    };
+    setHeight();
+    window.addEventListener('resize', setHeight);
+    window.visualViewport?.addEventListener('resize', setHeight);
+    return () => {
+      window.removeEventListener('resize', setHeight);
+      window.visualViewport?.removeEventListener('resize', setHeight);
+      document.documentElement.style.removeProperty('--care-chat-viewport-height');
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const log = logRef.current;
+    const first = items[0]?.id;
+    const last = items[items.length - 1]?.id;
+    if (!log || !first || !last) return;
+    const previous = previousRef.current;
+    if (!previous || (previous.last !== last && nearBottomRef.current)) {
+      log.scrollTop = log.scrollHeight;
+      setShowLatest(false);
+    } else if (previous.first !== first && previous.last === last) {
+      log.scrollTop += log.scrollHeight - previous.height;
+    } else if (previous.last !== last) {
+      setShowLatest(true);
+    }
+    previousRef.current = { first, last, height: log.scrollHeight };
+  }, [items]);
 
   const groups: { key: string; label: string; messages: Message[] }[] = [];
   for (const message of items) {
@@ -90,71 +126,91 @@ function ConversationSurface({
 
   return (
     <div className="chat-page">
-      <VoiceHero voice={voice} variant="compact" onBack={onBack} />
-      <button
-        type="button"
-        className="chat-participants"
-        onClick={() => setShowParticipants(true)}
-        aria-label="Lihat peserta percakapan"
-      >
-        {participants.map((participant) => (
-          <span
-            key={participant.id}
-            className="chat-participant"
-            aria-label={participant.displayName}
-            title={participant.displayName}
-          >
-            <span className="chat-participant__avatar" aria-hidden="true">
-              {participant.displayName.slice(0, 1)}
-            </span>
+      <div className="chat-page__fixed-head">
+        <VoiceHero voice={voice} variant="compact" onBack={onBack} />
+        <button
+          type="button"
+          className="chat-participants"
+          onClick={() => setShowParticipants(true)}
+          aria-label="Lihat peserta percakapan"
+        >
+          <span className="chat-participants__heading">
+            <strong>Peserta percakapan</strong>
             <span>
-              <strong>{clipParticipantName(participant.displayName)}</strong>
-              <small>{participantRole(participant.role)}</small>
+              Lihat semua <ChevronRight size={15} aria-hidden="true" />
             </span>
           </span>
-        ))}
-      </button>
-      <Dialog
-        open={showParticipants}
-        onOpenChange={setShowParticipants}
-        mobileSheet
-        title="Peserta percakapan"
-        description="Pihak yang terlibat dalam penanganan Voice ini."
-      >
-        <ul className="chat-participant-list">
-          {participants.map((participant) => (
-            <li key={participant.id}>
-              <strong>{participant.displayName}</strong>
-              <span>{participantRole(participant.role)}</span>
-            </li>
-          ))}
-        </ul>
-      </Dialog>
-      <div className="chat-head">
-        <h2>Percakapan</h2>
-        <span className="chat-head__count">
-          {state === 'READ_ONLY' ? 'Hanya baca' : `${items.length} pesan`}
-        </span>
-      </div>
-      {state === 'READ_ONLY' ? (
-        <Alert
-          tone="info"
-          title={voice.status === 'CLOSED' ? 'Percakapan telah selesai' : 'Akses hanya baca'}
+          <span className="chat-participants__people">
+            {participants.map((participant) => (
+              <span
+                key={participant.id}
+                className="chat-participant"
+                aria-label={participant.displayName}
+                title={participant.displayName}
+              >
+                <span className="chat-participant__avatar" aria-hidden="true">
+                  {participant.displayName.slice(0, 1)}
+                </span>
+                <span>
+                  <strong>{participant.displayName}</strong>
+                  <small>{participantRole(participant.role)}</small>
+                </span>
+              </span>
+            ))}
+          </span>
+        </button>
+        <Dialog
+          open={showParticipants}
+          onOpenChange={setShowParticipants}
+          mobileSheet
+          title="Peserta percakapan"
+          description="Pihak yang terlibat dalam penanganan Voice ini."
         >
-          Riwayat tersedia untuk dibaca. Pengiriman pesan tidak tersedia pada akses ini.
-        </Alert>
-      ) : null}
-      {send.isError ? (
-        <Alert tone="danger" title="Pesan gagal dikirim">
-          {send.error instanceof Error ? send.error.message : 'Coba kirim kembali.'}
-        </Alert>
-      ) : null}
-      {feed.error ? (
-        <Alert tone="danger" title="Percakapan gagal dimuat">
-          Pesan akan dimuat ulang otomatis. Anda juga dapat memuat ulang halaman.
-        </Alert>
-      ) : null}
-      <div className="chat-log" role="log" aria-live="polite">
+          <ul className="chat-participant-list">
+            {participants.map((participant) => (
+              <li key={participant.id}>
+                <strong>{participant.displayName}</strong>
+                <span>{participantRole(participant.role)}</span>
+              </li>
+            ))}
+          </ul>
+        </Dialog>
+        <div className="chat-head">
+          <h2>Percakapan</h2>
+          <span className="chat-head__count">
+            {state === 'READ_ONLY' ? 'Hanya baca' : `${items.length} pesan`}
+          </span>
+        </div>
+        {state === 'READ_ONLY' ? (
+          <Alert
+            tone="info"
+            title={voice.status === 'CLOSED' ? 'Percakapan telah selesai' : 'Akses hanya baca'}
+          >
+            Riwayat tersedia untuk dibaca. Pengiriman pesan tidak tersedia pada akses ini.
+          </Alert>
+        ) : null}
+        {send.isError ? (
+          <Alert tone="danger" title="Pesan gagal dikirim">
+            {send.error instanceof Error ? send.error.message : 'Coba kirim kembali.'}
+          </Alert>
+        ) : null}
+        {feed.error ? (
+          <Alert tone="danger" title="Percakapan gagal dimuat">
+            Pesan akan dimuat ulang otomatis. Anda juga dapat memuat ulang halaman.
+          </Alert>
+        ) : null}
+      </div>
+      <div
+        className="chat-log"
+        role="log"
+        aria-live="polite"
+        ref={logRef}
+        onScroll={(event) => {
+          const log = event.currentTarget;
+          nearBottomRef.current = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
+          if (nearBottomRef.current) setShowLatest(false);
+        }}
+      >
         {feed.isLoading ? (
           <p className="chat-empty">Memuat percakapan…</p>
         ) : items.length === 0 ? (
@@ -181,54 +237,24 @@ function ConversationSurface({
                 ))}
               </Fragment>
             ))}
-            <ChatAnchor items={items} />
           </>
         )}
+        {showLatest ? (
+          <button
+            type="button"
+            className="chat-latest"
+            onClick={() => {
+              if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+              nearBottomRef.current = true;
+              setShowLatest(false);
+            }}
+          >
+            Pesan baru ↓
+          </button>
+        ) : null}
       </div>
       {state === 'ACTIVE' ? <Composer send={send} /> : null}
     </div>
-  );
-}
-
-/** Keeps the latest message in view once a conversation is already open. */
-function ChatAnchor({ items }: { items: Message[] }) {
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const lastIdRef = useRef<string | null>(null);
-  const [showLatest, setShowLatest] = useState(false);
-  const nearBottom = useRef(true);
-  useEffect(() => {
-    const update = () => {
-      nearBottom.current =
-        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 240;
-    };
-    window.addEventListener('scroll', update, { passive: true });
-    return () => window.removeEventListener('scroll', update);
-  }, []);
-  useEffect(() => {
-    const last = items[items.length - 1];
-    if (!last) return;
-    if (lastIdRef.current && last.id !== lastIdRef.current) {
-      if (nearBottom.current) anchorRef.current?.scrollIntoView({ block: 'end' });
-      else setShowLatest(true);
-    }
-    lastIdRef.current = last.id;
-  }, [items]);
-  return (
-    <>
-      <div ref={anchorRef} aria-hidden="true" />
-      {showLatest ? (
-        <button
-          type="button"
-          className="chat-latest"
-          onClick={() => {
-            anchorRef.current?.scrollIntoView({ block: 'end' });
-            setShowLatest(false);
-          }}
-        >
-          Pesan baru ↓
-        </button>
-      ) : null}
-    </>
   );
 }
 

@@ -46,6 +46,80 @@ const empty: { path: string; message: string }[] = [
 ];
 
 test.describe('Admin mocked-contract journeys', () => {
+  test('handover requires a Voice-only category for a department without active categories', async ({
+    page,
+  }) => {
+    await mockAdminApi(page, {
+      adminHandoverDetail: {
+        id: 'handover-1',
+        status: 'PENDING',
+        createdAt: '2026-09-23T02:10:00.000Z',
+        manager: { id: 'manager-1', displayName: 'Dedi Slamet' },
+        managerDetail: 'Perlu PIC lintas kategori',
+        adminDetail: null,
+        voice: {
+          id: 'voice-1',
+          displayId: 'CARE-202609-000071',
+          title: 'Pencahayaan area',
+          detail: 'Lampu produksi redup.',
+          status: 'OPEN',
+          version: 2,
+          categoryNameSnapshot: 'Fasilitas',
+          currentCategoryNameSnapshot: 'Fasilitas',
+          area: 'KARAWANG_1',
+          routeOwner: { id: 'admin-1', displayName: 'CARE Admin' },
+        },
+      },
+      adminHandoverOptions: {
+        currentCategoryId: null,
+        items: [
+          {
+            id: 'unit-1',
+            directorate: 'Manufacturing',
+            division: 'Production',
+            department: 'Plant Engineering',
+            available: true,
+            disabledReason: null,
+            pic: { id: 'manager-2', displayName: 'Siti Rahmawati' },
+            categories: [],
+          },
+        ],
+      },
+    });
+    let submitted: Record<string, unknown> | null = null;
+    await page.route('**/api/v1/admin/handovers/handover-1/resolve', async (route) => {
+      submitted = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'voice-1',
+          displayId: 'CARE-202609-000071',
+          status: 'OPEN',
+          version: 3,
+          handoverId: 'handover-1',
+        }),
+      });
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${ADMIN}/handovers/handover-1`);
+    await page.getByRole('radio', { name: /Plant Engineering/ }).click();
+    await page
+      .getByRole('textbox', { name: 'Alasan penentuan tujuan' })
+      .fill('PIC terkait tersedia.');
+    await expect(page.getByRole('button', { name: /Teruskan ke department/ })).toBeDisabled();
+    await page
+      .getByRole('textbox', { name: 'Kategori operasional khusus Voice' })
+      .fill('Perbaikan pencahayaan');
+    await page.getByRole('button', { name: /Teruskan ke department/ }).click();
+    await expect(page).toHaveURL(`${ADMIN}/handovers`);
+    expect(submitted).toMatchObject({
+      organizationUnitId: 'unit-1',
+      customCategory: 'Perbaikan pencahayaan',
+      expectedVersion: 2,
+    });
+  });
+
   test.describe('happy path', () => {
     for (const p of happy) {
       test(`renders ${p.path}`, async ({ page }) => {

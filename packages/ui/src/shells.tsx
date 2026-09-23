@@ -8,15 +8,17 @@ export function AppShell({
   children,
   bottomNav,
   density = 'comfortable',
+  className,
 }: {
   sidebar?: ReactNode;
   topbar?: ReactNode;
   children: ReactNode;
   bottomNav?: ReactNode;
   density?: 'compact' | 'comfortable' | 'roomy';
+  className?: string;
 }) {
   return (
-    <div className="care-app-shell" data-density={density}>
+    <div className={`care-app-shell${className ? ` ${className}` : ''}`} data-density={density}>
       {sidebar}
       {topbar ? <header className="care-app-shell__topbar">{topbar}</header> : null}
       <main className="care-app-shell__content">{children}</main>

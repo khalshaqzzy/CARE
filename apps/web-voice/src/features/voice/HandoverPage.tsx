@@ -56,6 +56,7 @@ export function HandoverPage() {
   const selected = options.data?.options.find(
     (option) => option.available && option.category.id === selectedId,
   );
+  const selectedAdmin = selectedId === 'ADMIN';
   const noteValid = detail.trim().length > 0 && detail.trim().length <= DETAIL_LIMIT;
 
   const refreshAfterConflict = async (code?: string) => {
@@ -64,7 +65,7 @@ export function HandoverPage() {
     const stillValid = result.data?.options.some(
       (option) => option.available && option.category.id === selectedId,
     );
-    if (!stillValid) setSelectedId('');
+    if (!stillValid && selectedId !== 'ADMIN') setSelectedId('');
     setRecovery(
       code === 'VERSION_CONFLICT'
         ? 'Voice telah berubah. Opsi terbaru sudah dimuat; periksa kembali tujuan sebelum melanjutkan.'
@@ -76,20 +77,33 @@ export function HandoverPage() {
 
   const handover = useMutation({
     mutationFn: () =>
-      api.handover(
-        id,
-        {
-          targetCategoryId: selectedId,
-          detail: detail.trim(),
-          expectedVersion: voice.data?.version ?? 0,
-        },
-        mutationKey.key(),
-      ),
+      selectedAdmin
+        ? api.requestAdminHandover(
+            id,
+            {
+              detail: detail.trim(),
+              expectedVersion: voice.data?.version ?? 0,
+            },
+            mutationKey.key(),
+          )
+        : api.handover(
+            id,
+            {
+              targetCategoryId: selectedId,
+              detail: detail.trim(),
+              expectedVersion: voice.data?.version ?? 0,
+            },
+            mutationKey.key(),
+          ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId) });
       void navigate('/work-items', {
         replace: true,
-        state: { handoverSuccess: 'Voice berhasil dihandover kepada PIC baru.' },
+        state: {
+          handoverSuccess: selectedAdmin
+            ? 'Voice berhasil diserahkan kepada Admin untuk menentukan department tujuan.'
+            : 'Voice berhasil dihandover kepada PIC baru.',
+        },
       });
     },
     onError: async (cause) => {
@@ -140,8 +154,7 @@ export function HandoverPage() {
         <span className="handover-page__eyebrow">Rute penanganan</span>
         <h2>Handover Voice</h2>
         <p>
-          Pilih kategori yang paling sesuai. Department dan PIC tujuan mengikuti rute aktif kategori
-          tersebut.
+          Pilih rute kategori aktif atau serahkan kepada Admin untuk menentukan department tujuan.
         </p>
       </section>
 
@@ -196,6 +209,24 @@ export function HandoverPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
+          <button
+            type="button"
+            className="handover-admin-option"
+            aria-pressed={selectedAdmin}
+            onClick={() => {
+              setSelectedId('ADMIN');
+              setRecovery(null);
+            }}
+          >
+            <span className="handover-admin-option__icon">
+              <Building2 size={20} aria-hidden="true" />
+            </span>
+            <span>
+              <strong>Serahkan ke CARE Admin</strong>
+              <small>Admin akan memilih department aktif dan PIC tujuan.</small>
+            </span>
+            <span className="handover-admin-option__radio" aria-hidden="true" />
+          </button>
           {filtered.length ? (
             <div
               className="handover-destination-list"
@@ -252,9 +283,17 @@ export function HandoverPage() {
               />
               <p className="handover-page__privacy">
                 <LockKeyhole size={16} aria-hidden="true" />
-                Hanya dapat dilihat oleh PIC lama dan PIC baru.
+                Alasan handover dapat dilihat oleh CARE Admin dan PIC terkait.
               </p>
-              {selected ? (
+              {selectedAdmin ? (
+                <div className="handover-page__empty-summary">
+                  <Building2 size={19} aria-hidden="true" />
+                  <span>
+                    <strong>Tujuan: CARE Admin</strong>
+                    <small>Status Voice tetap Terbuka sampai Admin menentukan PIC.</small>
+                  </span>
+                </div>
+              ) : selected ? (
                 <DestinationSummary option={selected} />
               ) : (
                 <div className="handover-page__empty-summary">
@@ -278,10 +317,10 @@ export function HandoverPage() {
           <Button
             ref={confirmButtonRef}
             variant="primary"
-            disabled={!selected || !noteValid}
+            disabled={(!selected && !selectedAdmin) || !noteValid}
             onClick={() => {
               setTouched(true);
-              if (selected && noteValid) setConfirming(true);
+              if ((selected || selectedAdmin) && noteValid) setConfirming(true);
             }}
           >
             Lanjutkan Handover <ArrowRight size={18} aria-hidden="true" />
@@ -297,11 +336,17 @@ export function HandoverPage() {
         size="sm"
         finalFocusRef={confirmButtonRef}
       >
-        {selected ? (
+        {selected || selectedAdmin ? (
           <Stack gap="md">
-            <DestinationSummary option={selected} />
+            {selected ? (
+              <DestinationSummary option={selected} />
+            ) : (
+              <Alert tone="info" title="Serahkan ke CARE Admin">
+                Admin akan menentukan department dan PIC. Voice tetap Terbuka.
+              </Alert>
+            )}
             <Alert tone="info" title="Catatan bersifat privat">
-              Detail handover hanya dapat dibaca oleh Anda dan PIC tujuan untuk transfer ini.
+              Alasan handover dapat dibaca oleh CARE Admin dan PIC terkait.
             </Alert>
             <div className="dialog-actions">
               <Button variant="ghost" onClick={() => setConfirming(false)}>

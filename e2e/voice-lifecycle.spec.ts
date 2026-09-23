@@ -207,7 +207,7 @@ for (const width of [360, 768, 1440]) {
     });
     await page.goto('/voices/three-chat/chat');
     await expect(page.locator('.chat-participant')).toHaveCount(3);
-    await expect(page.locator('.chat-participants')).toContainText('Muhammad Ri…');
+    await expect(page.locator('.chat-participants')).toContainText('Muhammad Rizky Pratama');
     await page.getByRole('button', { name: 'Lihat peserta percakapan' }).click();
     await expect(page.getByRole('dialog')).toContainText('Muhammad Rizky Pratama');
     await page.keyboard.press('Escape');

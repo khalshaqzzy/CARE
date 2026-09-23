@@ -225,6 +225,17 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    requestAdminHandover: (
+      id: string,
+      body: components['schemas']['AdminHandoverNoteRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/admin-handover', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
     handovers: (id: string) =>
       dataOrThrow<HandoverHistory>(
         client.GET('/api/v1/voices/{id}/handovers', { params: { path: { id } } }),

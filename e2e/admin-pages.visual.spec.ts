@@ -89,3 +89,86 @@ for (const p of pages) {
     });
   });
 }
+
+const adminHandoverFixture = {
+  id: 'handover-1',
+  status: 'PENDING',
+  createdAt: '2026-09-23T02:10:00.000Z',
+  manager: { id: 'manager-1', displayName: 'Dedi Slamet' },
+  managerDetail: 'Butuh penanganan lintas department untuk area produksi.',
+  adminDetail: null,
+  voice: {
+    id: 'voice-1',
+    displayId: 'CARE-202609-000071',
+    title: 'Pencahayaan area produksi kurang',
+    detail: 'Lampu di stasiun 3 redup sehingga operator kesulitan membaca instruksi.',
+    status: 'OPEN',
+    version: 2,
+    categoryNameSnapshot: 'Fasilitas',
+    currentCategoryNameSnapshot: 'Fasilitas',
+    area: 'KARAWANG_1',
+    severity: 'MEDIUM',
+    routeOwner: { id: 'admin-1', displayName: 'CARE Admin' },
+  },
+} as const;
+
+test('admin handover queue native baseline', async ({ page }) => {
+  await mockAdminApi(page, {
+    adminHandovers: {
+      items: [
+        {
+          id: adminHandoverFixture.id,
+          createdAt: adminHandoverFixture.createdAt,
+          manager: adminHandoverFixture.manager,
+          managerDetail: adminHandoverFixture.managerDetail,
+          voice: adminHandoverFixture.voice,
+        },
+      ],
+      nextCursor: null,
+    },
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.clock.setFixedTime(new Date('2026-09-23T03:00:00.000Z'));
+  await page.goto('http://127.0.0.1:4174/handovers');
+  await expect(page.getByRole('heading', { name: 'Menunggu penentuan tujuan' })).toBeVisible();
+  await expect(page.getByText(adminHandoverFixture.managerDetail)).toBeVisible();
+  await capture(page, 'admin-handover-queue-1440.png');
+});
+
+test('admin handover decision native baseline', async ({ page }) => {
+  await mockAdminApi(page, {
+    adminHandoverDetail: adminHandoverFixture,
+    adminHandoverOptions: {
+      currentCategoryId: null,
+      items: [
+        {
+          id: 'unit-1',
+          directorate: 'Manufacturing',
+          division: 'Production',
+          department: 'Plant Engineering',
+          available: true,
+          disabledReason: null,
+          pic: { id: 'manager-2', displayName: 'Siti Rahmawati' },
+          categories: [],
+        },
+        {
+          id: 'unit-2',
+          directorate: 'Manufacturing',
+          division: 'Safety',
+          department: 'Safety Operations',
+          available: true,
+          disabledReason: null,
+          pic: { id: 'manager-3', displayName: 'Andi Pratama' },
+          categories: [{ id: 'category-1', key: 'SAFETY', name: 'Keselamatan Kerja' }],
+        },
+      ],
+    },
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.clock.setFixedTime(new Date('2026-09-23T03:00:00.000Z'));
+  await page.goto('http://127.0.0.1:4174/handovers/handover-1');
+  await expect(page.getByRole('heading', { name: 'Tentukan tujuan Voice' })).toBeVisible();
+  await page.getByRole('radio', { name: /Plant Engineering/ }).click();
+  await expect(page.getByText('Kategori operasional khusus Voice')).toBeVisible();
+  await capture(page, 'admin-handover-decision-1440.png');
+});

@@ -1967,7 +1967,7 @@ V1 siap production bila:
 - Empat status saja; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
 - Handover hanya untuk current route-owning Manager pada General Voice `OPEN` yang belum ditugaskan; dapat berulang, tidak mengubah status, dan memindahkan operational category + route owner tanpa mengubah immutable submission classification.
-- Detail tiap handover hanya dapat dibaca PIC sumber dan PIC tujuan transfer tersebut; CARE Admin, reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
+- Detail tiap handover Manager dapat dibaca PIC sumber, PIC tujuan, dan CARE Admin; reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
 - Manager atau current handler dapat close dari In Progress; closure note wajib dan foto opsional.
 - Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
@@ -2030,7 +2030,7 @@ currentCategoryNameSnapshot` adalah kategori operasional, diinisialisasi
   mapping, from/to PIC, actor, route mode, reporter-department flag, required
   trimmed detail 1–4.000 karakter, dan timestamp.
 - Otorisasi note dievaluasi per record: A melihat A→B; B melihat A→B dan B→C;
-  C melihat B→C. CARE Admin tidak diberi akses aplikasi ke note.
+  C melihat B→C. CARE Admin dapat membaca seluruh note untuk audit dan penentuan rute.
 - Current Voice reader dapat mengambil metadata transfer sanitasi. Former PIC
   tanpa akses Voice hanya menerima transfer yang melibatkan dirinya serta
   minimal `{id, displayId}`; title, reporter, description, attachment, chat,
@@ -2230,3 +2230,12 @@ Kartu compact ditempatkan sesudah filter sebelum grafik: tiga kolom pada >=768 p
 Metadata/view menyediakan organizationControls berupa visibility, opsi sah dan target query atomik. Filter ancestor terkunci disembunyikan; opsi Semua yang mengubah cakupan tetap tersedia walaupun hanya satu unit spesifik boleh dipilih. Dept Head dapat department sendiri ↔ seluruh department division dengan OWN/PARENT, tanpa izin memilih peer department atau descendant-nya. Section Head dan Division leadership mempertahankan transisi cakupan existing. Default PIC tetap dapat navigasi exact mapping lintas organisasi. Private tidak memiliki filter organisasi pelapor. Semua selector memakai descriptor server yang sama di desktop/mobile; query ilegal tetap ditolak server.
 
 Default rentang dan Reset adalah **Semua waktu**, menggantikan default 30 hari sebelumnya. Label relatif adalah **30 hari** dan **90 hari**. Parameter URL eksplisit untuk periode tetap dihormati. Kontrak legacy dashboard, izin detail/inbox dan lifecycle tetap berlaku.
+
+## 42. Admin mediated handover and conversation refinement — 23 September 2026
+
+- Current route owning Manager can hand an unassigned `OPEN` General Voice to CARE Admin with a required reason. Admin becomes interim route owner while Voice remains `OPEN`; Admin cannot execute responder lifecycle actions. Admin may return it to the source Manager with a required reason or route it to any active department with exactly one active department PIC.
+- On Admin routing, preserve the current operational category when its active route matches the chosen department. Otherwise Admin may select a matching active category. If none matches, a nonempty free text category is required and belongs only to that Voice; the global catalog and immutable submission category remain unchanged.
+- Request and decision use `expectedVersion`, idempotency, Voice row locking, revalidation, append-only event/audit records, and generic notifications. Admin reads all handover reasons, including Manager-to-Manager transfers; reporter, leadership, and unrelated workforce actors never receive those reasons in timeline, notifications, ordinary detail, or history.
+- Admin has a dedicated queue and decision page. General Voice Explorer shows both Manager and Admin handover histories. The workforce Manager has an explicit Admin destination in the existing handover flow.
+- Login pads one to seven digit numeric No. Reg to eight digits before lookup. Non-numeric identifiers and numeric strings of at least eight digits stay intact. The bottom plus icon is highlighted with a restrained pulse only for workforce Members without responder, management, or Union capability. Reduced-motion preference replaces the pulse with a static emphasis.
+- On the chat route, the compact blue Voice card, participant summary, and composer remain visible while only messages scroll. The three participant summaries show clear name/role hierarchy and accessible full names. Older-message loading preserves scroll position; incoming messages do not interrupt a reader away from the bottom. These layout changes do not affect other Voice routes.

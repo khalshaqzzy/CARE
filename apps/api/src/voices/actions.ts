@@ -37,6 +37,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     : actor.capabilities.includes('UNION_HEAD');
   const canOperate =
     !isReporter &&
+    !actor.capabilities.includes('CARE_ADMIN') &&
     (isPrivate
       ? actor.capabilities.includes('UNION_HEAD') || isHandler
       : isRouteOwner || isHandler);

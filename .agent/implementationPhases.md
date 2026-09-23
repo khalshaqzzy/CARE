@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Admin mediated handover and scoped chat polish — 23 September 2026
+
+Phase 13 remains `in_progress`; no separate phase or hosted acceptance claim is created. PRD §42 and ADR-0053 add the Manager → Admin queue → active department route (or reasoned return to Manager). Admin may read all handover reasons; category labels may be Voice-only if the destination has no matching active category. The additive migration, API/contracts, Admin/Workforce flows, numeric No. Reg padding, Member plus emphasis, and chat route viewport polish are implemented locally. Static/build, integration, organization, performance, migrations, full-stack 6, browser 206, legacy 6, and native capture 173 passed; exact evidence and the port-4300 validation setup are recorded in `sessionHandoff.md`. No commit, push, PR, or deployment is included.
+
 ## Responded conversations and handling targets — 21 September 2026
 
 Phase 13 remains `in_progress`. Implementation now replaces MONITORED status with
