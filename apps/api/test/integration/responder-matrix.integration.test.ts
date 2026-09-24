@@ -182,6 +182,43 @@ describe('Responder and leadership permission matrix', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
+  it('keeps personal history reporter-owned across responder and leadership capabilities', async () => {
+    const othersGeneral = await seedVoice();
+    const othersPrivate = await seedVoice({
+      visibility: VoiceVisibility.PRIVATE,
+      routeOwnerId: unionHead.accountId,
+      handlerType: HandlerType.UNION_HEAD,
+    });
+    for (const actor of [manager, sectionHead, divisionHead, deputyDivisionHead, director]) {
+      const ownGeneral = await seedVoice({ reporterId: actor.accountId });
+      const ownPrivate = await seedVoice({
+        reporterId: actor.accountId,
+        visibility: VoiceVisibility.PRIVATE,
+        routeOwnerId: unionHead.accountId,
+        handlerType: HandlerType.UNION_HEAD,
+      });
+      const first = await voices.listMine(actor, { limit: '1', sort: 'severity' });
+      const second = await voices.listMine(actor, {
+        limit: '1',
+        sort: 'severity',
+        cursor: first.nextCursor!,
+      });
+      const ids = [first.items[0]?.id, second.items[0]?.id];
+      expect(ids).toEqual(expect.arrayContaining([ownGeneral.id, ownPrivate.id]));
+      expect(ids).not.toContain(othersGeneral.id);
+      expect(ids).not.toContain(othersPrivate.id);
+      expect(second.nextCursor).toBeNull();
+      const privateOnly = await voices.listMine(actor, { visibility: VoiceVisibility.PRIVATE });
+      expect(privateOnly.items.map((item) => item.id)).toEqual([ownPrivate.id]);
+      const searched = await voices.listMine(actor, { search: othersGeneral.displayId });
+      expect(searched.items).toEqual([]);
+    }
+    const managerBrowse = await voices.list(manager, { search: othersGeneral.displayId });
+    expect(managerBrowse.items.map((item) => item.id)).toContain(othersGeneral.id);
+    await expect(voices.listMine(unionHead)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(voices.listMine(careAdmin)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
   it('prevents a Section Head from assigning or reassigning', async () => {
     const assigned = await seedVoice({
       currentHandlerId: sectionHead.accountId,

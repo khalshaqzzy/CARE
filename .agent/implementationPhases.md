@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Personal Voice history scope plan — 24 September 2026
+
+Phase 13 remains the only `in_progress` phase. ADR-0054 implements a dedicated `GET /voices/mine` for `/history`, preserving the existing General browse and work-item scopes. API integration/security, static/build, and focused browser verification passed. The selected local runner stopped at the unrelated 10,000-account organization-import timeout, repeated once in isolation; later jobs were not run. No acceptance gate or deployment status changes.
+
 ## Staging container CI repair — 24 September 2026
 
 Phase 13 remains the only `in_progress` phase. PR #53 merged into `staging`,

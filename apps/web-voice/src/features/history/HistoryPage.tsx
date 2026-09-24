@@ -21,9 +21,9 @@ export function HistoryPage() {
   const search = searchParams.get('search') ?? undefined;
 
   const voices = useQuery({
-    queryKey: voiceQuery(sessionId, 'voices', status, severity, area, search, nav.cursor),
+    queryKey: voiceQuery(sessionId, 'mine', status, severity, area, search, nav.cursor),
     queryFn: () =>
-      api.listVoices({
+      api.listMyVoices({
         limit: 10,
         ...(status ? { status: status as never } : {}),
         ...(severity ? { severity: severity as never } : {}),

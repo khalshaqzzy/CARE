@@ -114,6 +114,12 @@ export class VoicesController {
   @Get('voices') list(@Actor() a: AuthActor, @Query() q: Parameters<VoicesService['list']>[1]) {
     return this.voices.list(a, q);
   }
+  @Get('voices/mine') @Capabilities('MEMBER') listMine(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['listMine']>[1],
+  ) {
+    return this.voices.listMine(a, q);
+  }
   @Get('work-items') workItems(
     @Actor() a: AuthActor,
     @Query() q: Parameters<VoicesService['workItems']>[1],

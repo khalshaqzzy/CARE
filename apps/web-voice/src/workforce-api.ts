@@ -46,6 +46,7 @@ export type ClassificationPreview =
   operations['VoicesController_classify']['responses'][201]['content']['application/json'];
 
 type VoicesQuery = NonNullable<operations['VoicesController_list']['parameters']['query']>;
+type MyVoicesQuery = NonNullable<operations['VoicesController_listMine']['parameters']['query']>;
 type WorkItemsQuery = NonNullable<operations['VoicesController_workItems']['parameters']['query']>;
 type DraftsQuery = NonNullable<operations['VoicesController_listDrafts']['parameters']['query']>;
 type TimelineQuery = NonNullable<operations['VoicesController_timeline']['parameters']['query']>;
@@ -203,6 +204,10 @@ export function createWorkforceApi(transport: CareTransport) {
     listVoices: (query: QueryInput<VoicesQuery>) =>
       dataOrThrow<VoiceList>(
         client.GET('/api/v1/voices', { params: { query: compactQuery(query) } }),
+      ),
+    listMyVoices: (query: QueryInput<MyVoicesQuery>) =>
+      dataOrThrow<VoiceList>(
+        client.GET('/api/v1/voices/mine', { params: { query: compactQuery(query) } }),
       ),
     workItems: (query: QueryInput<WorkItemsQuery>) =>
       dataOrThrow<VoiceList>(
