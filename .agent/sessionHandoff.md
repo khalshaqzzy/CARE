@@ -1,5 +1,15 @@
 # CARE Session Handoff
 
+## Personal Voice history scope implementation — 24 September 2026
+
+**Objective:** make responder/management “Voice Saya” list only Voices submitted by the signed-in workforce account. Implemented `GET /voices/mine` with server-owned `reporterId`, shared list filters/pagination, Member capability and workforce-kind checks; `/history` uses the generated typed client and a distinct cache key. Both submit paths invalidate that key. Existing `/voices` browse and `/work-items` scopes remain intact. Added five-role integration coverage and a responder browser regression; updated the browser inventory to 392. ADR-0054 is Accepted. Phase 13 remains `in_progress`; no schema migration or Voice ownership rewrite was needed.
+
+Validation: formatting, lint, unit tests, OpenAPI check, typecheck, API and both web builds, PWA gate, integration 107/107, security 14/14, and focused workforce browser 27/27 with two workers passed. One five-worker browser run had an unrelated pre-session receipt redirect timeout; the complete focused file passed on rerun. The conservative `verify:local` selection stopped at the existing 10,000-account organization-import profile (`PROCESSING` after 240 seconds); a fresh isolated repeat hit its 300-second test timeout. That fixture does not exercise the new list. Performance, migration, full-stack, legacy, and capture jobs after organization were not run; hosted checks are intentionally not monitored per user instruction. Docker test containers and browser preview servers were stopped. Next action: commit/push this branch, then address the separate organization profile timeout before any release acceptance claim.
+
+## Personal Voice history scope analysis — 24 September 2026
+
+**Objective:** explain why responder/management accounts see other reporters' Voices in “Voice Saya” and prepare a complete fix plan. No application code or data was changed. `HistoryPage` calls `GET /voices`; `VoicesService.list` applies `PolicyService.browseScope`, which intentionally includes other General Voices for Manager, division leadership, and Director. A Section Head without another management capability gets own-only browse scope. The Member dashboard instead uses `reporterId = actor.accountId`. PRD §18.8 requires “Voice Saya” to contain only the account's own Voices. Existing Member-only history browser coverage does not detect the elevated-account mismatch. The analysis and proposed implementation/test sequence are in ADR-0054 (Proposed). Phase 13 remains `in_progress`. Checks run: read-only code and documentation inspection, plus `git status`; no runtime, database, or tests were started. Next action: implement and verify ADR-0054, then update its status and record evidence. Open question for any reported anomalies after the scope fix: whether affected records have the expected stored `reporterId`.
+
 ## Staging container CI repair — 24 September 2026
 
 **Objective:** restore the failed `Production containers and routing` gate on

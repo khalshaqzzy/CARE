@@ -70,6 +70,22 @@ const draftListItemSelect = Prisma.validator<Prisma.VoiceDraftSelect>()({
   updatedAt: true,
 });
 
+type VoiceListQuery = {
+  status?: VoiceStatus;
+  statusGroup?: 'ACTIVE' | 'CLOSED' | 'ALL';
+  visibility?: VoiceVisibility;
+  limit?: string;
+  cursor?: string;
+  search?: string;
+  severity?: Severity;
+  area?: string;
+  category?: string;
+  handler?: string;
+  from?: string;
+  to?: string;
+  sort?: string;
+};
+
 const draftSchema = z
   .object({
     area: z.enum(['KARAWANG_1', 'KARAWANG_2', 'KARAWANG_3', 'SUNTER_1', 'SUNTER_2']),
@@ -694,29 +710,21 @@ export class VoicesService {
     return response;
   }
 
-  async list(
-    actor: AuthActor,
-    query: {
-      status?: VoiceStatus;
-      statusGroup?: 'ACTIVE' | 'CLOSED' | 'ALL';
-      visibility?: VoiceVisibility;
-      limit?: string;
-      cursor?: string;
-      search?: string;
-      severity?: Severity;
-      area?: string;
-      category?: string;
-      handler?: string;
-      from?: string;
-      to?: string;
-      sort?: string;
-    },
-  ) {
+  async list(actor: AuthActor, query: VoiceListQuery = {}) {
+    return this.listScoped(actor, query, await this.policy.browseScope(actor));
+  }
+
+  async listMine(actor: AuthActor, query: VoiceListQuery = {}) {
+    if (actor.accountKind !== AccountKind.WORKFORCE || !actor.capabilities.includes('MEMBER'))
+      throw forbiddenAsNotFound();
+    return this.listScoped(actor, query, { reporterId: actor.accountId });
+  }
+
+  private async listScoped(actor: AuthActor, query: VoiceListQuery, scope: Prisma.VoiceWhereInput) {
     this.assertStatusFilter(query.status, query.statusGroup);
-    const where = await this.policy.browseScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
-    const and: Prisma.VoiceWhereInput[] = [where];
+    const and: Prisma.VoiceWhereInput[] = [scope];
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
       and.push({

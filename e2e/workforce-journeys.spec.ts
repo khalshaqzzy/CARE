@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   memberSession,
   mockWorkforceApi,
+  baseVoiceItem,
   unionPrivateVoiceDetail,
   unionSession,
 } from './helpers/mock-api';
@@ -195,6 +196,32 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/history');
     await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
     await expect(page.getByText('Pencahayaan area produksi kurang')).toBeVisible();
+  });
+
+  test('responder history requests only personal voices despite broad browse access', async ({
+    page,
+  }) => {
+    const otherVoice = {
+      ...generalVoice,
+      id: 'voice-other',
+      displayId: 'CARE-202608-000002',
+      title: 'Voice milik anggota lain',
+    };
+    await mockWorkforceApi(page, {
+      session: responder,
+      voiceList: {
+        items: [baseVoiceItem(generalVoice), baseVoiceItem(otherVoice)],
+        nextCursor: null,
+      },
+      myVoiceList: { items: [baseVoiceItem(generalVoice)], nextCursor: null },
+    });
+    const mineRequest = page.waitForRequest((request) =>
+      request.url().includes('/api/v1/voices/mine'),
+    );
+    await page.goto('/history');
+    await mineRequest;
+    await expect(page.getByText(generalVoice.title)).toBeVisible();
+    await expect(page.getByText(otherVoice.title)).toHaveCount(0);
   });
 
   test('voice detail renders timeline, conversation and responder actions', async ({ page }) => {

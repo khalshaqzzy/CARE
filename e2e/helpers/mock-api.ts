@@ -926,6 +926,8 @@ export type MockApiOptions = {
   voiceDetail?: unknown;
   /** Voice list response for `/voices` and `/work-items`. */
   voiceList?: unknown;
+  /** Reporter-owned list response for `/voices/mine`. */
+  myVoiceList?: unknown;
   /** Voice list response when `/work-items` is called with `unassigned=true`. */
   unassignedVoiceList?: unknown;
   /** Override for `GET /voices/{id}/assignment-candidates`. */
@@ -1261,6 +1263,12 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       return satisfy(
         200,
         opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
+      );
+    }
+    if (method === 'GET' && path === '/api/v1/voices/mine') {
+      return satisfy(
+        200,
+        opts.myVoiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
       );
     }
     if (method === 'GET' && path === '/api/v1/work-items') {

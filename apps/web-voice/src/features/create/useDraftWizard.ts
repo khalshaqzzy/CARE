@@ -162,6 +162,7 @@ export function useDraftWizard(draftId?: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'dashboard') });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice') });
+      void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'mine') });
       void queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'draft') });
       void navigate('/voices/submitted', { replace: true, state: { submitted: true } });
     },
