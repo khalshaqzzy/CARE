@@ -58,6 +58,22 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
   });
 
+  for (const capability of ['MANAGER', 'SECTION_HEAD', 'DIVISION_LEADERSHIP', 'DIRECTOR']) {
+    test(`${capability} keeps the create Voice highlight and destination`, async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, {
+        session: memberSession({ capabilities: ['MEMBER', capability] }),
+      });
+      await page.goto('/');
+      const dock = page.getByRole('navigation', { name: 'Navigasi utama' });
+      const create = dock.getByRole('button', { name: 'Buat', exact: true });
+      await expect(create.locator('.member-create-highlight')).toBeVisible();
+      await expect(create).not.toHaveAttribute('aria-current', 'page');
+      await create.click();
+      await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+    });
+  }
+
   test('desktop sidebar navigates to member history', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await mockWorkforceApi(page, { voice: generalVoice });

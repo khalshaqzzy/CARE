@@ -13,9 +13,18 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   await page.goto('/');
   await expect(page.getByText('Lingkungan', { exact: true })).toBeVisible();
   await expect(page.getByText('Environment', { exact: true })).toHaveCount(0);
-  await expect(
-    page.locator('.dashboard-summary__metric').filter({ hasText: 'Kritis' }).locator('strong'),
-  ).toHaveText('3');
+  const summary = page.locator('.dashboard-summary__grid');
+  await expect(summary.locator('.dashboard-summary__metric')).toHaveCount(4);
+  for (const [status, label, count] of [
+    ['OPEN', 'Terbuka', '6'],
+    ['RESPONDED', 'Direspons', '0'],
+    ['IN_PROGRESS', 'Diproses', '3'],
+    ['CLOSED', 'Selesai', '3'],
+  ]) {
+    const metric = summary.locator(`[data-status="${status}"]`);
+    await expect(metric.locator('strong')).toHaveText(count);
+    await expect(metric.locator('span')).toHaveText(label);
+  }
   await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await expect(page).toHaveURL(/level=department/);
@@ -29,10 +38,49 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
   await page.getByRole('button', { name: 'Reset', exact: true }).click();
   await expect(page).not.toHaveURL(/level=|basis=/);
-  const summary = await page.locator('.dashboard-summary').boundingBox();
+  const summaryBox = await page.locator('.dashboard-summary').boundingBox();
   const personal = await page.locator('.dashboard-personal').boundingBox();
-  expect(personal!.y).toBeGreaterThan(summary!.y);
+  expect(personal!.y).toBeGreaterThan(summaryBox!.y);
 });
+
+for (const [name, session] of [
+  ['Manager', manager],
+  ['Director', memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] })],
+  ['Union Head', unionSession({ slot: 'HEAD' })],
+] as const) {
+  test(`${name} sees four compact status counts without a duplicate chart`, async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const dashboard = {
+      total: 14,
+      status: [
+        { label: 'OPEN', value: 2 },
+        { label: 'RESPONDED', value: 3 },
+        { label: 'IN_PROGRESS', value: 4 },
+        { label: 'CLOSED', value: 5 },
+      ],
+    };
+    await mockWorkforceApi(page, {
+      session,
+      generalDashboard: dashboard,
+      privateDashboard: dashboard,
+    });
+    await page.goto('/');
+    const summary = page.locator('.dashboard-summary');
+    const metrics = summary.locator('.dashboard-summary__metric');
+    await expect(metrics.locator('strong')).toHaveText(['2', '3', '4', '5']);
+    await expect(metrics.locator('span')).toHaveText([
+      'Terbuka',
+      'Direspons',
+      'Diproses',
+      'Selesai',
+    ]);
+    await expect(page.getByRole('heading', { name: 'Distribusi status' })).toHaveCount(0);
+    expect((await summary.boundingBox())!.height).toBeLessThan(190);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  });
+}
 test('Union tabs isolate filters and never expose reporter organization on Private', async ({
   page,
 }) => {
@@ -124,31 +172,28 @@ for (const basis of ['HANDLING', 'REPORTER']) {
   test(`restores 12 → 17 → 12 for ${basis}, including reload and navigation`, async ({ page }) => {
     await mockWorkforceApi(page, { session: manager });
     await page.goto(`/?basis=${basis}`);
-    const total = page
-      .locator('.dashboard-summary__metric')
-      .filter({ hasText: 'Total' })
-      .locator('strong');
-    await expect(total).toHaveText('12');
+    const total = page.locator('.dashboard-summary__grid');
+    await expect(total).toHaveAttribute('data-total', '12');
     const initial = await page.locator('.dashboard-visual-grid').innerText();
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: 'Department', exact: true }).click();
-      await expect(total).toHaveText('17');
+      await expect(total).toHaveAttribute('data-total', '17');
       await expect(page).toHaveURL(/scopeMode=PARENT/);
       await page.getByRole('button', { name: 'Section', exact: true }).click();
-      await expect(total).toHaveText('12');
+      await expect(total).toHaveAttribute('data-total', '12');
       await expect(page.locator('.dashboard-visual-grid')).toHaveText(initial, {
         useInnerText: true,
       });
       await expect(page).not.toHaveURL(/[?&](department|division|section|directorate)=/);
     }
     await page.reload();
-    await expect(total).toHaveText('12');
+    await expect(total).toHaveAttribute('data-total', '12');
     await page.goBack();
-    await expect(total).toHaveText('17');
+    await expect(total).toHaveAttribute('data-total', '17');
     await page.goForward();
-    await expect(total).toHaveText('12');
+    await expect(total).toHaveAttribute('data-total', '12');
     await page.getByRole('button', { name: 'Reset', exact: true }).click();
-    await expect(total).toHaveText('12');
+    await expect(total).toHaveAttribute('data-total', '12');
   });
 }
 test('Section Head can switch between own section and department overview', async ({ page }) => {
@@ -159,15 +204,12 @@ test('Section Head can switch between own section and department overview', asyn
     }),
   });
   await page.goto('/');
-  const total = page
-    .locator('.dashboard-summary__metric')
-    .filter({ hasText: 'Total' })
-    .locator('strong');
-  await expect(total).toHaveText('8');
+  const total = page.locator('.dashboard-summary__grid');
+  await expect(total).toHaveAttribute('data-total', '8');
   await page.getByRole('button', { name: 'Seluruh section di department', exact: true }).click();
-  await expect(total).toHaveText('12');
+  await expect(total).toHaveAttribute('data-total', '12');
   await page.getByRole('button', { name: 'Section saya', exact: true }).click();
-  await expect(total).toHaveText('8');
+  await expect(total).toHaveAttribute('data-total', '8');
 });
 test('relative range refresh shares timestamps between aggregate and preview', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-08-30T03:00:00Z') });
@@ -180,9 +222,7 @@ test('relative range refresh shares timestamps between aggregate and preview', a
   });
   await mockWorkforceApi(page, { session: manager });
   await page.goto('/?range=30d');
-  await expect(
-    page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }),
-  ).toBeVisible();
+  await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
   await page.clock.runFor(3500);
   await expect.poll(() => bounds.general!.length).toBeGreaterThan(1);
   await expect.poll(() => bounds.preview!.length).toBe(bounds.general!.length);
@@ -216,18 +256,15 @@ test('a delayed wider response cannot replace the restored own scope', async ({ 
     }
   });
   await page.goto('/');
-  const total = page
-    .locator('.dashboard-summary__metric')
-    .filter({ hasText: 'Total' })
-    .locator('strong');
-  await expect(total).toHaveText('12');
+  const total = page.locator('.dashboard-summary__grid');
+  await expect(total).toHaveAttribute('data-total', '12');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await started;
   await page.goBack();
-  await expect(total).toHaveText('12');
+  await expect(total).toHaveAttribute('data-total', '12');
   release();
   await completed;
-  await expect(total).toHaveText('12');
+  await expect(total).toHaveAttribute('data-total', '12');
 });
 test('preview failure does not hide a successful aggregate', async ({ page }) => {
   await mockWorkforceApi(page, { session: manager });
@@ -235,9 +272,7 @@ test('preview failure does not hide a successful aggregate', async ({ page }) =>
     route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR', message: 'Unavailable' } }),
   );
   await page.goto('/');
-  await expect(
-    page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }).locator('strong'),
-  ).toHaveText('12');
+  await expect(page.locator('.dashboard-summary__grid')).toHaveAttribute('data-total', '12');
   await expect(page.getByText('Inbox gagal dimuat')).toBeVisible();
   await expect(page.getByText('Dashboard gagal dimuat')).toHaveCount(0);
 });

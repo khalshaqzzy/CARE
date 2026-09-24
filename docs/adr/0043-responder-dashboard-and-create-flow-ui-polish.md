@@ -116,3 +116,17 @@ workforce app.
 - The legacy `MemberHomePage` responder blocks in `HomePage.tsx` are
   unreachable dead code and were left untouched; a future cleanup may remove
   them.
+
+## Status summary amendment — 24 September 2026
+
+### Context and decision
+
+The blue organization dashboard hero previously showed Total, Aktif, and Kritis while a separate pie chart repeated the lifecycle status distribution below the filters. The summary now shows the four lifecycle states in order: Terbuka (`OPEN`), Direspons (`RESPONDED`), Diproses (`IN_PROGRESS`), and Selesai (`CLOSED`). Each count comes from the current filtered dashboard status buckets; absent buckets display zero. The same card is used by responder, leadership, and Union dashboards, including Union's Private tab. The duplicate status pie chart is removed from that dashboard. The separate Member home surface is outside this decision.
+
+### Rationale and alternatives
+
+Four directly labelled counts make the status of work visible without requiring interpretation of chart segments. A four-column layout with compact labels and small color markers keeps the card usable at 360 px. Retaining both the counts and pie chart was rejected because they repeat the same status data. Retaining Total/Aktif/Kritis would obscure the distinction between Direspons and Diproses.
+
+### Implementation and consequences
+
+Only workforce dashboard presentation changes. The existing dashboard aggregate and filter scope remain authoritative; no API, database, or authorization contract changes. Removing the chart leaves trend, severity, category where applicable, and organization scope in place. On wider screens, the three remaining General charts use one full-width trend row followed by two charts; the Private dashboard retains its two-column layout. Tests verify the four labels/counts, filtered totals, responsive layout, and absence of the duplicate chart. The main risk is label crowding at small widths, addressed by native mobile capture and overflow inspection. No additional follow-up is required unless the four-status taxonomy changes.
