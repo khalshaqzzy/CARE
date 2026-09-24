@@ -33,8 +33,10 @@ LABEL org.opencontainers.image.title="care-web-admin" \
 USER 0
 # Pinned alpine packages: force patched versions past the frozen base image
 # so the Trivy gate stays green between base-image digest bumps.
-# Stable Alpine now carries the patched libuuid release on both architectures.
-RUN apk add --no-cache libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.4-r0 libuuid=2.42.3-r1
+# Use a stable Alpine main mirror alongside the base repository to avoid stale
+# CDN indexes during patched-package rollovers; exact revisions still fail closed.
+RUN apk add --no-cache --repository https://dl-4.alpinelinux.org/v3.24/main \
+  libcrypto3=3.5.8-r0 libssl3=3.5.8-r0 libexpat=2.8.5-r0 libuuid=2.42.3-r1
 COPY deploy/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /workspace/apps/web-admin/dist/ /usr/share/nginx/html/
 USER 101
