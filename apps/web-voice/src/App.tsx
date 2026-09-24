@@ -613,16 +613,13 @@ function WorkforceShell() {
     }));
   const desktopNav = withIcons(true);
   const bottomNav = withIcons(false);
-  const highlightMemberCreate =
-    caps.isMember && !caps.isResponder && !caps.isLeadership && !caps.isUnion;
-  if (highlightMemberCreate) {
-    const create = bottomNav.find((item) => item.id === 'create');
-    if (create)
-      create.icon = (
-        <span className="member-create-highlight">
-          <Plus size={20} />
-        </span>
-      );
+  const create = bottomNav.find((item) => item.id === 'create');
+  if (create) {
+    create.icon = (
+      <span className="member-create-highlight">
+        <Plus size={20} />
+      </span>
+    );
   }
 
   // The reference home leads with the hero identity, so the chrome topbar

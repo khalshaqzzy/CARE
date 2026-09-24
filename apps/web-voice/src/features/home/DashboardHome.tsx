@@ -2,8 +2,6 @@ import { Alert, Button, Card, Dialog, EmptyState, Input, Select, Skeleton } from
 import { FrontendError, useAuth } from '@care/frontend-core';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Activity,
-  AlertTriangle,
   ArrowUp,
   Bell,
   Building2,
@@ -11,21 +9,19 @@ import {
   ChevronRight,
   ClipboardList,
   Inbox,
-  Layers3,
   Lock,
   MapPin,
   Plus,
   RotateCcw,
   UserRound,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardChartCard } from '../../components/DashboardChartCard';
-import { DonutChart, DonutLegend } from '../../components/DonutChart';
 import { FilterPillRow } from '../../components/FilterPills';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { TrendCard } from '../../components/TrendCard';
-import { activeCount, bucketValue } from '../../lib/dashboard-math';
+import { bucketValue } from '../../lib/dashboard-math';
 import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
 import {
   AREA_LABELS,
@@ -312,15 +308,15 @@ export function DashboardHome() {
         <div className="dashboard-summary" aria-label="Ringkasan Voice">
           <h2>Ringkasan Voice</h2>
           {data ? (
-            <div className="dashboard-summary__grid">
-              <Metric label="Total" value={data.total} icon={<Layers3 />} />
-              <Metric label="Aktif" value={activeCount(data.status)} icon={<Activity />} />
-              <Metric
-                label="Kritis"
-                value={bucketValue(data.severity, 'CRITICAL')}
-                icon={<AlertTriangle />}
-                danger
-              />
+            <div className="dashboard-summary__grid" data-total={data.total}>
+              {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((status) => (
+                <Metric
+                  key={status}
+                  status={status}
+                  label={STATUS_LABELS[status]!}
+                  value={bucketValue(data.status, status)}
+                />
+              ))}
             </div>
           ) : dashboard.isError ? (
             <p>Ringkasan belum tersedia.</p>
@@ -548,14 +544,9 @@ export function DashboardHome() {
                 />
               </Card>
             ) : null}
-            <div className="dashboard-visual-grid">
-              <Card className="distribution-card dashboard-donut">
-                <h2>Distribusi status</h2>
-                <div className="donut-card__grid">
-                  <DonutChart buckets={data.status} />
-                  <DonutLegend buckets={data.status} />
-                </div>
-              </Card>
+            <div
+              className={`dashboard-visual-grid${isPrivate ? '' : ' dashboard-visual-grid--three'}`}
+            >
               <TrendCard
                 title={`Tren ${range === '30d' ? '30 hari' : range === '90d' ? '90 hari' : range === 'year' ? 'tahun berjalan' : range === 'custom' ? 'periode terpilih' : 'seluruh periode'}`}
                 buckets={data.trend}
@@ -725,20 +716,9 @@ export function DashboardHome() {
     </div>
   );
 }
-function Metric({
-  label,
-  value,
-  icon,
-  danger,
-}: {
-  label: string;
-  value: number;
-  icon: ReactNode;
-  danger?: boolean;
-}) {
+function Metric({ status, label, value }: { status: string; label: string; value: number }) {
   return (
-    <div className="dashboard-summary__metric" data-danger={danger || undefined}>
-      <span aria-hidden="true">{icon}</span>
+    <div className="dashboard-summary__metric" data-status={status}>
       <strong>{value}</strong>
       <span>{label}</span>
     </div>

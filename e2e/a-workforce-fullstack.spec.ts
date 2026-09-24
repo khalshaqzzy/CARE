@@ -73,9 +73,7 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   await page.getByRole('button', { name: 'Lanjutkan' }).click();
   await page.getByRole('button', { name: 'Lain kali' }).click();
   await expect(page.locator('.dashboard-org-summary')).toContainText('Department A');
-  await expect(
-    page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }).locator('strong'),
-  ).toHaveText('1');
+  await expect(page.locator('.dashboard-summary__grid')).toHaveAttribute('data-total', '1');
   const db = new PrismaClient();
   const ids: string[] = [];
   try {
@@ -108,25 +106,22 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
       });
       ids.push(row.id);
     }
-    const total = page
-      .locator('.dashboard-summary__metric')
-      .filter({ hasText: 'Total' })
-      .locator('strong');
+    const total = page.locator('.dashboard-summary__grid');
     for (const basis of ['HANDLING', 'REPORTER']) {
       await page.goto(`/?basis=${basis}`);
-      await expect(total).toHaveText('12');
+      await expect(total).toHaveAttribute('data-total', '12');
       for (let round = 0; round < 2; round++) {
         await page.getByRole('button', { name: 'Department', exact: true }).click();
-        await expect(total).toHaveText('17');
+        await expect(total).toHaveAttribute('data-total', '17');
         await page.getByRole('button', { name: 'Section', exact: true }).click();
-        await expect(total).toHaveText('12');
+        await expect(total).toHaveAttribute('data-total', '12');
       }
       await page.reload();
-      await expect(total).toHaveText('12');
+      await expect(total).toHaveAttribute('data-total', '12');
       await page.goBack();
-      await expect(total).toHaveText('17');
+      await expect(total).toHaveAttribute('data-total', '17');
       await page.goForward();
-      await expect(total).toHaveText('12');
+      await expect(total).toHaveAttribute('data-total', '12');
     }
   } finally {
     await db.voice.deleteMany({ where: { id: { in: ids } } });

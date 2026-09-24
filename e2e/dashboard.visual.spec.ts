@@ -93,10 +93,7 @@ for (const width of [360, 768, 1440])
         await expect(page.getByText('Dashboard gagal dimuat')).toBeVisible();
       else if (scenario.id === 'loading')
         await expect(page.getByLabel('Memuat dashboard organisasi')).toBeVisible();
-      else
-        await expect(
-          page.locator('.dashboard-summary__metric').filter({ hasText: 'Total' }),
-        ).toBeVisible();
+      else await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
       if (scenario.id === 'filters') {
         await page.getByRole('button', { name: 'Filter lainnya, 2 aktif' }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
