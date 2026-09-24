@@ -1,5 +1,14 @@
 # CARE v1.1 Implementation Phases
 
+## Staging container CI repair — 24 September 2026
+
+Phase 13 remains the only `in_progress` phase. PR #53 merged into `staging`,
+but its push gate stopped in production container builds when the stable Alpine
+repository replaced the exact nginx `libexpat` revision. Both web Dockerfiles
+now pin the newer stable revision and use a second signed stable main mirror to
+handle CDN index lag. No product workflow, migration, or acceptance threshold
+changes. ADR-0041 records the package provenance and fail-closed tradeoff.
+
 ## Admin mediated handover and scoped chat polish — 23 September 2026
 
 Phase 13 remains `in_progress`; no separate phase or hosted acceptance claim is created. PRD §42 and ADR-0053 add the Manager → Admin queue → active department route (or reasoned return to Manager). Admin may read all handover reasons; category labels may be Voice-only if the destination has no matching active category. The additive migration, API/contracts, Admin/Workforce flows, numeric No. Reg padding, Member plus emphasis, and chat route viewport polish are implemented locally. Static/build, integration, organization, performance, migrations, full-stack 6, browser 206, legacy 6, and native capture 173 passed; exact evidence and the port-4300 validation setup are recorded in `sessionHandoff.md`. No commit, push, PR, or deployment is included.

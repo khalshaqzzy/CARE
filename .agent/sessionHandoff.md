@@ -1,5 +1,25 @@
 # CARE Session Handoff
 
+## Staging container CI repair — 24 September 2026
+
+**Objective:** restore the failed `Production containers and routing` gate on
+the `staging` push of merged PR #53. `gh run view 35934370859 --log-failed`
+showed `apk add` could not satisfy the exact `libexpat=2.8.4-r0` pin in the
+nginx runtime because the runner's Alpine v3.24 CDN index offered only
+`2.8.3-r0`. The release gate failed consequently; all other required jobs
+reported success.
+
+Both workforce and Admin nginx Dockerfiles now require the newer stable
+`libexpat=2.8.5-r0` and include the signed `dl-4` v3.24 main mirror alongside
+the base repository. Exact package pins and the Trivy gate remain intact.
+The package command succeeded on the pinned nginx base for `linux/amd64` and
+`linux/arm64`; both production web Compose images built successfully. Hadolint
+passed both changed Dockerfiles, and runtime environment/Compose validation
+passed. Trivy 0.70.0 reported zero High/Critical findings for both built web
+images with the committed exception policy. Phase 13 remains
+`in_progress`; ADR-0041 contains the rationale and future rollover rule.
+Unrelated `.zcodeignore`, PDF, and `output/` files remain untouched.
+
 ## Admin mediated handover and scoped chat polish — 23–24 September 2026
 
 **Current objective:** deliver Manager → Admin → department/Manager General Voice routing, numeric No. Reg padding, Member plus emphasis, and a bounded conversation viewport. Product decisions and privacy rules are recorded in PRD §42 and ADR-0053. Phase 13 remains `in_progress`. The completed feature is authorized for commit and push to `feat/tuning-23-sep`; hosted checks are intentionally not monitored at the user's direction.

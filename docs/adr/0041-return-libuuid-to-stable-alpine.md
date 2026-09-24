@@ -30,3 +30,20 @@ An exact stable-repository pin restores reproducible builds while minimizing pac
 - Build the production Compose images with fresh package indexes.
 - Verify migration, bootstrap, routing, headers, non-root users, private database exposure, and persistence across restart.
 - Scan the repository and all production runtime images for High/Critical vulnerabilities using the committed exception policy.
+
+## 24 September 2026: libexpat stable mirror rollover
+
+The staging container gate failed while building both nginx runtimes after Alpine
+replaced the exact `libexpat=2.8.4-r0` revision. The CDN index reached by the
+runner exposed only `2.8.3-r0`, so retaining the patch requirement correctly
+stopped the build before release. The web images now pin the newer stable
+`libexpat=2.8.5-r0` and add Alpine's `dl-4` v3.24 main mirror alongside the
+base repository. The mirror supplies the same signed stable packages when a
+CDN edge has a stale index. The other package pins and image digests remain
+unchanged.
+
+The exact pin continues to fail closed when that revision is retired. A future
+rollover still needs an explicit version review and runtime vulnerability scan.
+The package installation was verified on the pinned nginx base for both
+`linux/amd64` and `linux/arm64`; hosted container and Trivy gates remain the
+release acceptance checks.
