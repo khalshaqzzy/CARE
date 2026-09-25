@@ -48,7 +48,7 @@ for (const [name, session] of [
   ['Director', memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] })],
   ['Union Head', unionSession({ slot: 'HEAD' })],
 ] as const) {
-  test(`${name} sees four compact status counts without a duplicate chart`, async ({ page }) => {
+  test(`${name} sees the Voice total and four compact status counts`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     const dashboard = {
       total: 14,
@@ -66,6 +66,14 @@ for (const [name, session] of [
     });
     await page.goto('/');
     const summary = page.locator('.dashboard-summary');
+    const heading = summary.getByRole('heading', { name: 'Ringkasan Voice', exact: true });
+    const total = summary.locator('.dashboard-summary__total');
+    await expect(heading).toBeVisible();
+    await expect(total).toHaveText('Total 14');
+    const headingBox = (await heading.boundingBox())!;
+    const totalBox = (await total.boundingBox())!;
+    const headingMiddle = headingBox.y + headingBox.height / 2;
+    expect(Math.abs(totalBox.y + totalBox.height / 2 - headingMiddle)).toBeLessThan(6);
     const metrics = summary.locator('.dashboard-summary__metric');
     await expect(metrics.locator('strong')).toHaveText(['2', '3', '4', '5']);
     await expect(metrics.locator('span')).toHaveText([
