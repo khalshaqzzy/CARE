@@ -2206,7 +2206,7 @@ persona responder/leadership/Union:
   dashboard; penghapusan baris metadata tidak menghapus kewajiban §22.4.
 - Akses Buat Voice tetap tersedia melalui bottom navigation, quick actions,
   dan CTA section personal.
-- Card **Ringkasan Voice** pada dashboard responder, leadership, dan Union menampilkan empat hitungan status sesuai filter dan scope saat ini: **Terbuka**, **Direspons**, **Diproses**, dan **Selesai**. Keempat angka tetap terlihat pada satu baris yang ringkas di lebar mobile. Pie chart distribusi status di bawah filter dihapus; tren, severity, kategori yang berlaku, dan cakupan organisasi tetap tersedia.
+- Card **Ringkasan Voice** pada dashboard responder, leadership, dan Union menampilkan empat hitungan status sesuai filter dan scope saat ini: **Terbuka**, **Direspons**, **Diproses**, dan **Selesai**. Keempat angka tetap terlihat pada satu baris yang ringkas di lebar mobile. Di samping judul **Ringkasan Voice** ditampilkan chip kecil **“Total N”** berisi jumlah seluruh Voice pada filter dan scope yang sama (`total` aggregate dashboard, sama dengan jumlah keempat status); chip tidak mengubah accessible name judul. Pie chart distribusi status di bawah filter dihapus; tren, severity, kategori yang berlaku, dan cakupan organisasi tetap tersedia.
 - Verifikasi scope pada test memakai ringkasan selector organisasi
   (`.dashboard-org-summary`, sumber `scopeLabel` yang sama) dan state
   `aria-pressed` tab basis — bukan baris metadata yang dihapus.

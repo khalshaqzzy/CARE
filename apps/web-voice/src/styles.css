@@ -5550,11 +5550,36 @@
   color: #111827;
   box-shadow: 0 12px 32px rgb(0 36 108 / 10%);
 }
-.dashboard-summary h2 {
+.dashboard-summary__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   margin: 0 0 18px;
+}
+.dashboard-summary h2 {
+  margin: 0;
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.65px;
+}
+.dashboard-summary__total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #3d4b63;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.dashboard-summary__total strong {
+  color: #0b4fd1;
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 .dashboard-summary__grid {
   display: grid;

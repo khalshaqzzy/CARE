@@ -306,7 +306,14 @@ export function DashboardHome() {
           </div>
         ) : null}
         <div className="dashboard-summary" aria-label="Ringkasan Voice">
-          <h2>Ringkasan Voice</h2>
+          <div className="dashboard-summary__head">
+            <h2>Ringkasan Voice</h2>
+            {data ? (
+              <span className="dashboard-summary__total">
+                Total <strong>{data.total}</strong>
+              </span>
+            ) : null}
+          </div>
           {data ? (
             <div className="dashboard-summary__grid" data-total={data.total}>
               {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((status) => (

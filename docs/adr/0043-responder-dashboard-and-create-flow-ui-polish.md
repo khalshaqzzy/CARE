@@ -130,3 +130,17 @@ Four directly labelled counts make the status of work visible without requiring 
 ### Implementation and consequences
 
 Only workforce dashboard presentation changes. The existing dashboard aggregate and filter scope remain authoritative; no API, database, or authorization contract changes. Removing the chart leaves trend, severity, category where applicable, and organization scope in place. On wider screens, the three remaining General charts use one full-width trend row followed by two charts; the Private dashboard retains its two-column layout. Tests verify the four labels/counts, filtered totals, responsive layout, and absence of the duplicate chart. The main risk is label crowding at small widths, addressed by native mobile capture and overflow inspection. No additional follow-up is required unless the four-status taxonomy changes.
+
+## Summary total amendment — 24 September 2026
+
+### Context and decision
+
+Replacing Total/Aktif/Kritis with the four lifecycle counts removed the at-a-glance overall count; readers had to add four numbers to learn how many Voices the current filter covers. A small **"Total N"** chip is therefore rendered beside the **"Ringkasan Voice"** heading. N is the dashboard aggregate `total` for the same filters and scope, which equals the sum of the four status buckets. The chip is shown only once dashboard data has loaded and is absent in loading and error states.
+
+### Rationale and alternatives
+
+A secondary chip keeps the four status counts as the primary content while restoring the overall figure. A fifth metric column was rejected because five columns crowd the 360 px layout and would visually rank Total alongside the lifecycle states. Appending the number to the heading text was rejected because it would change the heading's accessible name, which tests and assistive technology rely on.
+
+### Implementation and consequences
+
+`DashboardHome` wraps the heading and chip in `.dashboard-summary__head`, a wrapping flex row that owns the former heading bottom margin, so the card height is unchanged at mobile widths. The chip (`.dashboard-summary__total`) uses the existing cobalt tint and tabular numerals and sits outside the `<h2>`. No API, aggregate, authorization, or database contract changes. Browser coverage for Manager, Director, and Union Head asserts the chip text, its vertical alignment with the heading, the unchanged heading name, the four counts, the card height bound, and the absence of horizontal overflow at 360 px.
