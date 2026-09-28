@@ -12,7 +12,7 @@ import {
   Lock,
   MapPin,
   Plus,
-  RotateCcw,
+  RefreshCw,
   UserRound,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -83,6 +83,8 @@ export function DashboardHome() {
   const union = caps.includes('UNION_HEAD') || caps.includes('UNION_OFFICER');
   const unionHead = caps.includes('UNION_HEAD');
   const isPrivate = union && params.get('dashboardTab') !== 'general';
+  // Director and Union already see every Voice, so only unit heads choose a basis.
+  const basisChoice = !union && !caps.includes('DIRECTOR');
   const prefix = isPrivate ? 'private.' : '';
   const read = (key: string) => params.get(`${prefix}${key}`) ?? undefined;
   const range = (read('range') ?? 'all') as DashboardRange;
@@ -99,7 +101,7 @@ export function DashboardHome() {
         !Number.isFinite(Date.parse(from)) ||
         !Number.isFinite(Date.parse(to))));
   const query = {
-    basis: isPrivate ? 'HANDLING' : (read('basis') ?? 'HANDLING'),
+    basis: basisChoice ? (read('basis') ?? 'HANDLING') : 'HANDLING',
     visibility: isPrivate ? 'PRIVATE' : 'GENERAL',
     scopeMode: read('scopeMode'),
     level: read('level'),
@@ -259,6 +261,28 @@ export function DashboardHome() {
     if (!query.status) p.set('statusGroup', 'ACTIVE');
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
+  // Sits directly above the summary because the basis changes every figure on the page.
+  const basisToggle = basisChoice ? (
+    <div className="dashboard-basis-bar">
+      <div className="dashboard-basis" role="group" aria-label="Basis dashboard">
+        {[
+          { id: 'HANDLING', label: 'Voice Untuk Saya' },
+          { id: 'REPORTER', label: 'Voice Tim Saya' },
+        ].map((b) => (
+          <button
+            type="button"
+            key={b.id}
+            aria-pressed={query.basis === b.id}
+            onClick={() =>
+              set({ ...clearOrg, basis: b.id, level: undefined, scopeMode: undefined })
+            }
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
   return (
     <div className="organization-home">
       <section className="member-hero organization-home__hero">
@@ -305,6 +329,7 @@ export function DashboardHome() {
             ))}
           </div>
         ) : null}
+        {basisToggle}
         <div className="dashboard-summary" aria-label="Ringkasan Voice">
           <div className="dashboard-summary__head">
             <h2>Ringkasan Voice</h2>
@@ -341,30 +366,22 @@ export function DashboardHome() {
         <Card className="dashboard-filters" padding="none">
           <div className="dashboard-filters__head">
             {!isPrivate ? (
-              <div className="dashboard-tabs" aria-label="Basis organisasi">
-                {[
-                  { id: 'HANDLING', label: 'Penanganan' },
-                  { id: 'REPORTER', label: 'Pelaporan' },
-                ].map((b) => (
-                  <button
-                    type="button"
-                    key={b.id}
-                    aria-pressed={query.basis === b.id}
-                    onClick={() =>
-                      set({ ...clearOrg, basis: b.id, level: undefined, scopeMode: undefined })
-                    }
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
+              <h2 className="dashboard-filters__title">Filter dashboard</h2>
             ) : (
               <span className="dashboard-scope">
                 <Lock size={16} /> {scope}
               </span>
             )}
-            <Button variant="ghost" size="sm" onClick={reset}>
-              <RotateCcw size={14} /> Reset
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!online}
+              onClick={() => {
+                void metadata.refetch();
+                void refresh.refetch();
+              }}
+            >
+              <RefreshCw size={14} /> Refresh
             </Button>
           </div>
           {!isPrivate ? (
