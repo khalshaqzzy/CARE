@@ -2196,7 +2196,7 @@ Berlaku untuk seluruh hero organization dashboard (`DashboardHome`) pada semua
 persona responder/leadership/Union:
 
 - Judul ringkasan dan accessible name-nya adalah **“Ringkasan Voice”** untuk
-  tab General maupun Private. Tab basis reporter berlabel **“Pelaporan”**.
+  tab General maupun Private. Label basis dashboard diatur oleh §18.8.4.
 - Hero tidak menampilkan avatar inisial, tombol **Buat Voice**, badge persona
   **“Operasional Responder”**, maupun baris metadata konteks (label scope,
   deskripsi basis organisasi, dan timestamp **Diperbarui**). Chip read-only
@@ -2210,6 +2210,26 @@ persona responder/leadership/Union:
 - Verifikasi scope pada test memakai ringkasan selector organisasi
   (`.dashboard-org-summary`, sumber `scopeLabel` yang sama) dan state
   `aria-pressed` tab basis — bukan baris metadata yang dihapus.
+
+### 18.8.4 Amandemen Toggle Basis Dashboard — 28 September 2026
+
+Menggantikan penempatan dan label toggle basis pada §18.8 dan §18.8.3. Kontrak API, izin
+agregat, dan definisi basis tidak berubah.
+
+- Toggle basis hanya tersedia untuk Section Head, Department Head/Default PIC (capability
+  `MANAGER`), dan Division/Deputy/Pjt. Head, yaitu akun tanpa capability `DIRECTOR`,
+  `UNION_HEAD`, atau `UNION_OFFICER`. Label: **“Voice Untuk Saya”** (basis `HANDLING`, default)
+  dan **“Voice Tim Saya”** (basis `REPORTER`, organisasi pelapor saat submit). Accessible name
+  grup adalah **“Basis dashboard”**.
+- Toggle berada di dalam hero biru, tepat di atas card **Ringkasan Voice**, karena basis mengubah
+  seluruh angka halaman termasuk ringkasan. Di mobile toggle berada di tengah dan selebar hero
+  dengan dua segmen sama lebar; di ≥768 px berupa pill ringkas rata kiri. Toggle tidak sticky.
+- Director dan Union (termasuk tab General) melihat seluruh Voice sehingga hanya memiliki satu
+  muka dashboard tanpa toggle. Basis selalu `HANDLING`; parameter `basis` pada URL diabaikan.
+- Kepala card filter menampilkan judul **“Filter dashboard”** (General) atau label scope
+  (Private). Aksi **Reset** diganti **Refresh**, yang memuat ulang metadata dan agregat tanpa
+  mengubah filter. Pembersihan filter tetap tersedia melalui **Bersihkan filter** pada sheet
+  **Filter lainnya** dan tombol **Reset filter** pada state kosong/error.
 
 ### Amandemen lifecycle — 9 September 2026
 

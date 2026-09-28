@@ -5533,6 +5533,81 @@
 .organization-home {
   min-width: 0;
 }
+/* Basis toggle inside the blue hero, directly above the summary it changes. */
+.dashboard-basis-bar {
+  display: flex;
+  justify-content: center;
+  margin: -6px 0 -10px;
+}
+.dashboard-basis {
+  display: flex;
+  width: 100%;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 14%);
+}
+.dashboard-basis button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 86%);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+.dashboard-basis button[aria-pressed='true'] {
+  background: #fff;
+  color: #0b4fd1;
+  box-shadow: 0 1px 4px rgb(0 36 108 / 16%);
+}
+.dashboard-basis button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+@media (max-width: 359px) {
+  .dashboard-basis button {
+    padding: 4px 6px;
+    font-size: 11.5px;
+  }
+}
+@media (min-width: 768px) {
+  .dashboard-basis-bar {
+    justify-content: flex-start;
+    margin: -4px 0 -6px;
+  }
+  .dashboard-basis {
+    display: inline-flex;
+    width: auto;
+  }
+  .dashboard-basis button {
+    flex: 0 0 auto;
+    padding: 5px 16px;
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-basis button {
+    transition: none;
+  }
+}
+.dashboard-filters__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
 .organization-home__body {
   display: grid;
   gap: 20px;

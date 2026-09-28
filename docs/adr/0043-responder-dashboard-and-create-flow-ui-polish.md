@@ -47,7 +47,8 @@ workforce app.
    the ghost "Kembali".
 5. **Responder dashboard labels.** The reporter basis tab reads
    **"Pelaporan"**, and the summary heading and accessible name are
-   **"Ringkasan Voice"** for both General and Private tabs.
+   **"Ringkasan Voice"** for both General and Private tabs. The basis labels
+   and placement are superseded by ADR-0055.
 6. **Responder dashboard hero simplification.** The hero no longer renders the
    avatar initial, the "Buat Voice" orb, or the "Operasional Responder"
    persona badge, and the `dashboard-context` line (scope label, basis

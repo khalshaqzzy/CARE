@@ -130,11 +130,11 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   await page.goto('/');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await expect(page.locator('.dashboard-org-summary')).toContainText('Division A');
-  await page.getByRole('button', { name: 'Pelaporan', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Pelaporan', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  const team = page
+    .getByRole('group', { name: 'Basis dashboard' })
+    .getByRole('button', { name: 'Voice Tim Saya', exact: true });
+  await team.click();
+  await expect(team).toHaveAttribute('aria-pressed', 'true');
   const aggregate = await page.request.get(`${ORIGIN}/api/v1/dashboard/general?basis=HANDLING`);
   expect(aggregate.ok()).toBe(true);
   const payload = await aggregate.json();

@@ -1,11 +1,17 @@
 import { dashboardFixture, orgKey } from './helpers/dashboard-fixture';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { mockWorkforceApi, memberSession, unionSession } from './helpers/mock-api';
 const manager = memberSession({
   capabilities: ['MEMBER', 'MANAGER'],
   structuralPosition: 'Department Head',
 });
+// Clearing filters lives in the "Filter lainnya" sheet; the head action refreshes data.
+async function clearFilters(page: Page) {
+  await page.getByRole('button', { name: /^Filter lainnya/ }).click();
+  await page.getByRole('button', { name: 'Bersihkan filter', exact: true }).click();
+  await page.getByRole('button', { name: 'Terapkan', exact: true }).click();
+}
 test('dashboard KPI, hierarchy, basis and browser history share one URL state', async ({
   page,
 }) => {
@@ -29,14 +35,22 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await expect(page).toHaveURL(/level=department/);
   await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
-  await page.getByRole('button', { name: 'Pelaporan', exact: true }).click();
+  const basis = page.getByRole('group', { name: 'Basis dashboard' });
+  await expect(
+    basis.getByRole('button', { name: 'Voice Untuk Saya', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await basis.getByRole('button', { name: 'Voice Tim Saya', exact: true }).click();
   await expect(page).toHaveURL(/basis=REPORTER/);
   await expect(page).not.toHaveURL(/level=/);
   await page.goBack();
   await expect(page).toHaveURL(/level=department/);
   await page.reload();
   await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
-  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Reset', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect(page).toHaveURL(/level=department/);
+  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
+  await clearFilters(page);
   await expect(page).not.toHaveURL(/level=|basis=/);
   const summaryBox = await page.locator('.dashboard-summary').boundingBox();
   const personal = await page.locator('.dashboard-personal').boundingBox();
@@ -95,14 +109,15 @@ test('Union tabs isolate filters and never expose reporter organization on Priva
   await mockWorkforceApi(page, { session: unionSession({ slot: 'OFFICER_1' }) });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pelaporan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Basis dashboard' })).toHaveCount(0);
   await expect(page.getByLabel('PIC Union')).toHaveCount(0);
   await expect(page.getByText(/menunggu penugasan/)).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Semua area' }).click();
   await page.getByRole('option', { name: 'Sunter 1', exact: true }).click();
   await expect(page).toHaveURL(/private.dashArea=SUNTER_1/);
   await page.getByRole('button', { name: 'General Voice', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Pelaporan', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Filter dashboard', exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Basis dashboard' })).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: 'Semua area' })).toContainText('Semua area');
   await page
     .getByLabel('Jenis dashboard')
@@ -200,10 +215,50 @@ for (const basis of ['HANDLING', 'REPORTER']) {
     await expect(total).toHaveAttribute('data-total', '17');
     await page.goForward();
     await expect(total).toHaveAttribute('data-total', '12');
-    await page.getByRole('button', { name: 'Reset', exact: true }).click();
+    await clearFilters(page);
     await expect(total).toHaveAttribute('data-total', '12');
   });
 }
+for (const [name, session] of [
+  ['Director', memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] })],
+  ['Union Head', unionSession({ slot: 'HEAD' })],
+] as const) {
+  test(`${name} sees one all-Voice dashboard without a basis choice`, async ({ page }) => {
+    const bases: (string | null)[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.pathname === '/api/v1/dashboard/general') bases.push(url.searchParams.get('basis'));
+    });
+    await mockWorkforceApi(page, { session });
+    await page.goto('/?dashboardTab=general&basis=REPORTER');
+    await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Basis dashboard' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Voice Tim Saya' })).toHaveCount(0);
+    await expect.poll(() => bases.length).toBeGreaterThan(0);
+    expect(bases.every((basis) => basis === 'HANDLING')).toBe(true);
+  });
+}
+test('Refresh reloads the dashboard without clearing filters', async ({ page }) => {
+  // Metadata is not polled (30 s stale time), so a new request proves the manual refresh.
+  let metadataRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/v1/dashboard/metadata') metadataRequests++;
+  });
+  await mockWorkforceApi(page, { session: manager });
+  await page.goto('/?dashArea=SUNTER_1&basis=REPORTER');
+  await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
+  await expect.poll(() => metadataRequests).toBeGreaterThan(0);
+  const before = metadataRequests;
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect.poll(() => metadataRequests).toBeGreaterThan(before);
+  await expect(page).toHaveURL(/dashArea=SUNTER_1/);
+  await expect(page).toHaveURL(/basis=REPORTER/);
+  await expect(
+    page
+      .getByRole('group', { name: 'Basis dashboard' })
+      .getByRole('button', { name: 'Voice Tim Saya', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+});
 test('Section Head can switch between own section and department overview', async ({ page }) => {
   await mockWorkforceApi(page, {
     session: memberSession({
@@ -394,7 +449,7 @@ test('compact performance cards follow server scope targets and use all time by 
   await expect(page.getByRole('option', { name: '90 hari', exact: true })).toBeVisible();
   await page.getByRole('option', { name: '30 hari', exact: true }).click();
   await expect(page).toHaveURL(/range=30d/);
-  await page.getByRole('button', { name: 'Reset', exact: true }).click();
+  await clearFilters(page);
   await expect(page.getByRole('combobox', { name: 'Rentang', exact: true })).toContainText(
     'Semua waktu',
   );
