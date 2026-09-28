@@ -11,7 +11,6 @@ import {
   Home as HomeIcon,
   Inbox,
   Lock,
-  Plus,
   ScrollText,
   ShieldCheck,
   Star,
@@ -28,9 +27,10 @@ import { HeroInset } from '../../components/HeroBand';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { KpiTrio, generalKpiItems, unionKpiItems } from '../../components/KpiTrio';
 import { StatusDistribution } from '../../components/StatusDistribution';
-import { StatusSummary } from '../../components/StatusSummary';
 import { TrendCard } from '../../components/TrendCard';
 import { VoiceCard } from '../../components/VoiceCard';
+import { VoiceSummaryCard } from '../../components/VoiceSummaryCard';
+import { NotificationBellButton } from '../notifications/NotificationBell';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
@@ -186,14 +186,13 @@ function MemberHomePage() {
         ]
       : isResponder
         ? [
-            { label: 'Buat Voice', icon: <Plus size={20} />, to: '/voices/new' },
             { label: 'Voice Member', icon: <Inbox size={20} />, to: '/work-items' },
             { label: 'Voice Saya', icon: <ClipboardList size={20} />, to: '/history' },
             { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
             { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
           ]
         : [
-            { label: 'Buat Voice', icon: <Plus size={20} />, to: '/voices/new' },
+            // Creating a Voice lives only in the navigation dock/sidebar.
             { label: 'Voice Saya', icon: <ClipboardList size={20} />, to: '/history' },
             { label: 'Notifikasi', icon: <Bell size={20} />, to: '/notifications' },
             { label: 'Akun', icon: <UserRound size={20} />, to: '/account' },
@@ -229,26 +228,7 @@ function MemberHomePage() {
             </div>
           </div>
           <div className="member-hero__actions">
-            {!isUnion ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Buat Voice"
-                className="member-hero__orb"
-                onClick={() => void navigate('/voices/new')}
-              >
-                <Plus size={20} />
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Lihat notifikasi"
-              className="member-hero__orb"
-              onClick={() => void navigate('/notifications')}
-            >
-              <Bell size={20} />
-            </Button>
+            <NotificationBellButton />
           </div>
         </div>
         {isResponder || isLeadership ? (
@@ -327,7 +307,10 @@ function MemberHomePage() {
         ) : member.isLoading ? (
           <Skeleton className="home-skeleton" label="Memuat ringkasan" />
         ) : member.data ? (
-          <StatusSummary dashboard={member.data} cached={offline} />
+          <VoiceSummaryCard
+            total={member.data.total}
+            count={(status) => member.data?.counts[status] ?? 0}
+          />
         ) : null}
       </section>
 
@@ -615,9 +598,6 @@ function MemberHomePage() {
         <section className="home-recent">
           <div className="home-section__head">
             <h2 className="home-section__title">Voice Anda</h2>
-            <Button size="sm" className="home-cta" onClick={() => void navigate('/voices/new')}>
-              <Plus size={16} /> Buat Voice
-            </Button>
           </div>
           {offline ? (
             <Card>
@@ -672,12 +652,7 @@ function MemberHomePage() {
               <EmptyState
                 icon={<HomeIcon size={24} />}
                 title="Belum ada Voice"
-                description="Buat Voice pertama Anda untuk mulai menyampaikan suara."
-                action={
-                  <Button onClick={() => void navigate('/voices/new')}>
-                    <Plus size={18} /> Buat Voice
-                  </Button>
-                }
+                description="Pilih Buat pada menu navigasi untuk menyampaikan Voice pertama Anda."
               />
             </Card>
           ) : (

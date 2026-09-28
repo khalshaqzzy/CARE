@@ -21,6 +21,8 @@ import { DashboardChartCard } from '../../components/DashboardChartCard';
 import { FilterPillRow } from '../../components/FilterPills';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { TrendCard } from '../../components/TrendCard';
+import { VoiceSummaryCard } from '../../components/VoiceSummaryCard';
+import { NotificationBellButton } from '../notifications/NotificationBell';
 import { bucketValue } from '../../lib/dashboard-math';
 import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
 import {
@@ -295,15 +297,7 @@ export function DashboardHome() {
             </div>
           </div>
           <div className="member-hero__actions">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="member-hero__orb"
-              aria-label="Lihat notifikasi"
-              onClick={() => void navigate('/notifications')}
-            >
-              <Bell size={20} />
-            </Button>
+            <NotificationBellButton />
           </div>
         </div>
         {readonly ? (
@@ -330,32 +324,17 @@ export function DashboardHome() {
           </div>
         ) : null}
         {basisToggle}
-        <div className="dashboard-summary" aria-label="Ringkasan Voice">
-          <div className="dashboard-summary__head">
-            <h2>Ringkasan Voice</h2>
-            {data ? (
-              <span className="dashboard-summary__total">
-                Total <strong>{data.total}</strong>
-              </span>
-            ) : null}
-          </div>
-          {data ? (
-            <div className="dashboard-summary__grid" data-total={data.total}>
-              {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((status) => (
-                <Metric
-                  key={status}
-                  status={status}
-                  label={STATUS_LABELS[status]!}
-                  value={bucketValue(data.status, status)}
-                />
-              ))}
-            </div>
-          ) : dashboard.isError ? (
-            <p>Ringkasan belum tersedia.</p>
-          ) : (
-            <Skeleton label="Memuat ringkasan dashboard" />
-          )}
-        </div>
+        <VoiceSummaryCard
+          total={data?.total}
+          count={(status) => (data ? bucketValue(data.status, status) : 0)}
+          fallback={
+            dashboard.isError ? (
+              <p>Ringkasan belum tersedia.</p>
+            ) : (
+              <Skeleton label="Memuat ringkasan dashboard" />
+            )
+          }
+        />
       </section>
       <div className="organization-home__body">
         {!online ? (
@@ -737,14 +716,6 @@ export function DashboardHome() {
           </div>
         </section>
       </div>
-    </div>
-  );
-}
-function Metric({ status, label, value }: { status: string; label: string; value: number }) {
-  return (
-    <div className="dashboard-summary__metric" data-status={status}>
-      <strong>{value}</strong>
-      <span>{label}</span>
     </div>
   );
 }

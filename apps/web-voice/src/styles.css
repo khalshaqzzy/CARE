@@ -707,6 +707,34 @@
 .member-hero__orb:hover {
   background: rgb(255 255 255 / 24%);
 }
+/* Unread notification count: a red pill pinned to the hero bell's top-right corner. */
+.member-hero__bell {
+  position: relative;
+  overflow: visible;
+}
+.unread-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  color: #fff;
+  background: #e5243b;
+  box-shadow: 0 2px 6px rgb(229 36 59 / 35%);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.member-hero__bell .unread-badge {
+  border-color: #0b4fd1;
+}
 .member-hero :is(button, a):focus-visible {
   outline-color: var(--text-inverse);
 }
@@ -5262,6 +5290,22 @@
 .more-menu > button small {
   color: var(--text-secondary);
 }
+.more-menu > button .more-menu__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.unread-note {
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #c81e33;
+  background: #fdecee;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+}
 
 /* ===== Desktop (≥1280px): the workforce app stays mobile-first; the desktop
    layer adds a centered reading container, an aligned topbar, and an
@@ -6703,7 +6747,6 @@
     opacity: 0.38;
   }
 }
-
 /* The chat route owns its viewport. Only the message region scrolls. */
 .care-app-shell--chat {
   height: var(--care-chat-viewport-height, 100vh);
