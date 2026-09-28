@@ -32,8 +32,79 @@ test.describe('workforce journeys (mocked contract)', () => {
     await mockWorkforceApi(page, { voice: generalVoice });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Buat Voice/ }).first()).toBeVisible();
     await expect(page.getByText('Pencahayaan area produksi kurang')).toBeVisible();
+  });
+
+  test('member home summary matches the dashboard and keeps create in the dock only', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { voice: generalVoice });
+    await page.goto('/');
+    const summary = page.getByLabel('Ringkasan Voice', { exact: true });
+    await expect(
+      summary.getByRole('heading', { name: 'Ringkasan Voice', exact: true }),
+    ).toBeVisible();
+    await expect(summary.locator('.dashboard-summary__total')).toHaveText('Total 1');
+    for (const label of ['Terbuka', 'Direspons', 'Diproses', 'Selesai'])
+      await expect(summary.getByText(label, { exact: true })).toBeVisible();
+    await expect(summary.locator('[data-status="IN_PROGRESS"] strong')).toHaveText('1');
+    await expect(page.getByRole('button', { name: /Buat Voice/ })).toHaveCount(0);
+    await expect(
+      page.getByLabel('Aksi cepat').getByRole('button', { name: 'Buat Voice' }),
+    ).toHaveCount(0);
+    await page
+      .getByRole('navigation', { name: 'Navigasi utama' })
+      .getByRole('button', { name: 'Buat', exact: true })
+      .click();
+    await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
+  });
+
+  for (const [persona, session] of [
+    ['Member', memberSession()],
+    ['Manager', responder],
+    ['Union Head', unionHead],
+  ] as const) {
+    test(`${persona} sees the unread notification count on the hero bell only`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { session, unread: 4 });
+      await page.goto('/');
+      const bell = page.getByRole('button', { name: 'Lihat notifikasi, 4 belum dibaca' });
+      await expect(bell.locator('.unread-badge')).toBeVisible();
+      await expect(bell.locator('.unread-badge')).toHaveText('4');
+      await expect(page.locator('.unread-badge')).toHaveCount(1);
+      await expect(
+        page.getByRole('navigation', { name: 'Navigasi utama' }).locator('.unread-badge'),
+      ).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        360,
+      );
+      // The "Lainnya" sheet labels the Notifikasi entry with the same count.
+      if (persona !== 'Union Head') {
+        await page
+          .getByRole('navigation', { name: 'Navigasi utama' })
+          .getByRole('button', { name: 'Lainnya', exact: true })
+          .click();
+        const entry = page.getByRole('dialog').getByRole('button', { name: /Notifikasi/ });
+        await expect(entry.locator('.unread-note')).toHaveText('4 belum dibaca');
+      }
+    });
+  }
+
+  test('no unread notifications hides every badge', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { unread: 0 });
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Lihat notifikasi', exact: true })).toBeVisible();
+    await expect(page.locator('.unread-badge')).toHaveCount(0);
+    await page
+      .getByRole('navigation', { name: 'Navigasi utama' })
+      .getByRole('button', { name: 'Lainnya', exact: true })
+      .click();
+    await expect(page.getByRole('dialog').getByText('Notifikasi', { exact: true })).toBeVisible();
+    await expect(page.locator('.unread-note')).toHaveCount(0);
   });
 
   test('mobile dock navigates to history and the create wizard', async ({ page }) => {
@@ -644,10 +715,10 @@ test.describe('workforce journeys (mocked contract)', () => {
     });
     await page.goto('/');
     const hero = page.locator('.member-hero');
-    const summary = page.locator('.status-summary__card');
+    const summary = page.locator('.member-hero .dashboard-summary');
     await expect(hero).toBeVisible();
     await expect(summary).toBeVisible();
-    for (const locator of [hero, summary, page.locator('.status-summary__segments')]) {
+    for (const locator of [hero, summary, page.locator('.dashboard-summary__grid')]) {
       const box = await locator.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);

@@ -18,7 +18,11 @@ test('renders the Member home hero and recent voice card', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
-  await expect(page.getByText('Buat Voice').first()).toBeVisible();
+  // Create Voice is reachable only from the navigation dock.
+  await expect(page.getByRole('button', { name: /Buat Voice/ })).toHaveCount(0);
+  await expect(
+    page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('button', { name: 'Buat' }),
+  ).toBeVisible();
   await expect(page.getByText(voice.title)).toBeVisible();
 });
 

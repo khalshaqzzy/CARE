@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Member home summary and unread notification indicator — 28 September 2026
+
+Phase 13 remains the only `in_progress` phase. ADR-0056 aligns the Member home summary with the responder **Ringkasan Voice** card, keeps Buat Voice only in the navigation dock/sidebar, and shows the unread notification count on the hero bell for every workforce role plus a "N belum dibaca" note in the mobile **Lainnya** sheet. Frontend-only; no API, schema, or permission change. Static/build checks and focused Chromium/visual browser runs passed locally; Docker-backed jobs rely on hosted CI. No acceptance gate or phase status changes.
+
 ## Personal Voice history scope plan — 24 September 2026
 
 Phase 13 remains the only `in_progress` phase. ADR-0054 implements a dedicated `GET /voices/mine` for `/history`, preserving the existing General browse and work-item scopes. API integration/security, static/build, and focused browser verification passed. The selected local runner stopped at the unrelated 10,000-account organization-import timeout, repeated once in isolation; later jobs were not run. No acceptance gate or deployment status changes.

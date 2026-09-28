@@ -51,6 +51,7 @@ import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { HomePage } from './features/home/HomePage';
+import { UnreadCountNote } from './features/notifications/NotificationBell';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { ConversationPage } from './features/voice/ConversationPage';
 import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
@@ -721,7 +722,10 @@ function WorkforceShell() {
             >
               <Bell size={20} />
               <span>
-                <strong>Notifikasi</strong>
+                <span className="more-menu__title">
+                  <strong>Notifikasi</strong>
+                  <UnreadCountNote />
+                </span>
                 <small>Lihat pembaruan Voice terbaru</small>
               </span>
               <ChevronRight size={18} aria-hidden="true" />

@@ -837,8 +837,8 @@ Setiap `ClosureCycle` membawa review state `PENDING` → `ACCEPTED` | `REJECTED`
 
 ### 18.1 Member Home
 
-- primary actions **Buat Voice** dan **Riwayat**;
-- empat count Voice milik reporter: Open, Direspons, In Progress, Closed;
+- primary actions **Buat Voice** dan **Riwayat** (Buat Voice hanya melalui navigasi; lihat §18.8.5);
+- empat count Voice milik reporter: Open, Direspons, In Progress, Closed, dengan total (§18.8.5);
 - recent Voice list dengan ID, judul, severity, status, dan waktu update.
 
 ### 18.2 Manager Dashboard
@@ -2230,6 +2230,26 @@ agregat, dan definisi basis tidak berubah.
   (Private). Aksi **Reset** diganti **Refresh**, yang memuat ulang metadata dan agregat tanpa
   mengubah filter. Pembersihan filter tetap tersedia melalui **Bersihkan filter** pada sheet
   **Filter lainnya** dan tombol **Reset filter** pada state kosong/error.
+
+### 18.8.5 Amandemen Beranda Member dan Indikator Notifikasi — 28 September 2026
+
+Menggantikan primary action dan presentasi count pada §18.1. Kontrak API tidak berubah.
+
+- Hero Beranda Member memakai card **Ringkasan Voice** yang sama dengan dashboard responder
+  (§18.8.3): chip **Total N** di samping judul, lalu jumlah Terbuka, Direspons, Diproses, dan
+  Selesai milik reporter. Card progres "Status Voice Anda" tidak lagi dipakai di Beranda Member.
+- Beranda Member tidak memiliki tombol Buat Voice sendiri (tombol + hero, tombol di header
+  "Voice Anda", tile Aksi cepat, dan tombol pada state kosong dihapus). Buat Voice hanya tersedia
+  dari navigasi: tombol **Buat** yang di-highlight pada dock mobile dan item **Buat** pada sidebar
+  desktop. State kosong mengarahkan pengguna ke menu navigasi.
+- Lonceng pada hero Beranda semua akun workforce (Member, responder/pimpinan, Union) menampilkan
+  badge merah berisi jumlah notifikasi belum dibaca (`GET /notifications/unread-count`, maksimum
+  tampilan "99+"); badge tidak tampil bila jumlahnya nol. Accessible name menjadi
+  "Lihat notifikasi, N belum dibaca".
+- Dock navigasi dan sidebar tidak menampilkan indikator. Pada sheet **Lainnya**, entri
+  **Notifikasi** menampilkan label kecil **"N belum dibaca"** bila ada notifikasi belum dibaca.
+- Jumlah diperbarui setiap 5 detik dan berbagi cache dengan Pusat Notifikasi, sehingga menandai
+  notifikasi sebagai dibaca langsung memperbarui badge.
 
 ### Amandemen lifecycle — 9 September 2026
 
