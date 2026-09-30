@@ -1,5 +1,67 @@
 # CARE Session Handoff
 
+## Staging domains and unused CARE image cleanup — 30 September 2026
+
+**Objective/status:** implementation complete locally on new branch
+`fix/staging-domains-image-cleanup`. Staging workforce moves to `https://satucare.com`
+and Admin to `https://admin-pad.satucare.com`. Production remains pending. Phase 13
+remains the only `in_progress` phase. Commit/push and a PR to `staging` are authorized;
+merge and deployment are outside this delivery. Hosted checks must still be verified.
+
+**Implementation:** CI staging caller/routing assertions, runtime renderer and example env
+use the new domains. Compose builds label image ownership. `cleanup-images.sh` inventories
+legacy CARE repository IDs before build (including the mutable PostgreSQL tag), retains
+that inventory across candidate failures and deletes unused CARE images after successful
+smoke/activation, regardless of retained release source. Cleanup removes stopped containers
+only in the active environment's Compose project; any image referenced by another container
+or carrying a foreign tag is preserved. Labeled dangling images are pruned. No forced image
+removal, global image/system/cache/volume prune or business-data deletion is performed.
+Cleanup errors fail the command visibly while leaving the healthy release active.
+
+Retained source/runtime environments remain capped at five. Retry now reads the persistent
+`previous_release` pointer rather than counting current twice, preserving rollback source
+when the same SHA/run is retried. Rollback rebuilds target images before startup. Automatic
+recovery invokes the candidate's updated script; manual rollback and rehearsal restoration
+use the current-generation script, including when the target predates this policy.
+
+**Files:** deployment cleanup/deploy/rollback/rehearsal scripts; Compose build labels;
+staging example env and renderer; CI workflow; deployment harness and new ownership/image
+cleanup regression harness; PRD, implementation phases, deployment guide, release checklist
+and ADR-0011 amendment. Historical domain references in old handoffs/ADRs are retained as
+historical evidence. Application source, schema, migrations and assets are unchanged.
+
+**Validation:** pinned Node 22.23.2/pnpm 11.8.0. `verify:local --plan` conservatively selected
+all application jobs. `verify:local` passed static, build, integration, organization,
+performance (dashboard p95 441 ms), migrations and fullstack. Browser finished 221 passed
+and one offline-PWA failure (loading shell instead of offline heading); both PWA tests
+passed in a focused `verify:ci browser e2e/pwa.spec.ts` rerun without code changes. Remaining
+`verify:ci legacy` passed 6 and `verify:ci capture` passed 173. The initial aggregate command
+therefore exited nonzero; a single uninterrupted all-green run is not claimed. Native
+capture generated references were restored because this task makes no UI changes.
+
+Deployment harness passed natively and on Linux, including real flock contention; a separate
+isolated Docker 29.4.0 daemon test confirmed legacy and overwritten-tag images are removed,
+container-referenced/shared/foreign images are preserved, media/database/Caddy sentinels
+remain unchanged and repeat cleanup is safe. The isolated daemon was removed afterward.
+Runtime/Compose validators, Actionlint 1.7.7, ShellCheck 0.11.0, validation orchestration 9/9,
+format and diff checks passed. Directory Gitleaks 8.24.3 found no leaks. Unchanged production
+image rebuild/scans, hosted CI and hosted DNS/TLS/rollback acceptance are not claimed.
+The local runner shut down its disposable PostgreSQL; browser preview processes exited.
+
+**DNS verification:** both new domains resolve to the same VM address as both historical
+staging domains using system DNS, Cloudflare (1.1.1.1) and Google (8.8.8.8). HTTP reaches
+Caddy and redirects to HTTPS; new-domain TLS handshakes still fail before deploying this
+configuration. Both old-domain release endpoints return HTTP 200. No DNS records were changed.
+
+**Next deployment prerequisites:** DNS records are ready; verify new-domain TLS after merge/deploy. Existing preflight still requires 5 GiB available before the build; image
+cleanup runs after success and cannot rescue a disk already below that threshold. Confirm
+HTTPS, both release identities, host isolation, new-origin login/PWA/push and reclaimed disk
+usage after deployment. Old DNS should remain available for historical runtime rollback.
+Rollback rebuild adds time and registry/package availability requirements. Legacy dangling
+images without tag/label/inventory and shared BuildKit cache cannot safely be attributed to
+CARE and are intentionally left for operator audit. Foto/attachments in `shared/media`,
+Voices in PostgreSQL, Caddy state and current frontend assets are preserved.
+
 ## Member home summary, single create entry, unread bell badge — 28 September 2026
 
 **Objective:** align the Member home with the responder dashboard and surface unread notifications. The Member hero now uses the shared **Ringkasan Voice** card (`VoiceSummaryCard`: Total chip + Terbuka/Direspons/Diproses/Selesai), also used by `DashboardHome`. All in-page Buat Voice buttons on the Member home were removed (hero plus orb, "Voice Anda" header button, Aksi cepat tile, empty-state button); creating a Voice is only via the dock **Buat** button / sidebar item. The hero bell on every workforce home shows a red unread-count badge (`GET /notifications/unread-count`, 5 s polling, shared cache key with the notification center, "99+" cap, hidden at zero). After review, badges on the dock/sidebar were rejected; instead the mobile **Lainnya** sheet shows a small "N belum dibaca" note beside **Notifikasi**. No API, schema, permission, or OpenAPI change. PRD §18.1/§18.8.5, ADR-0056, and `implementationPhases.md` record the decision. Phase 13 remains `in_progress`.

@@ -25,7 +25,7 @@ Deployment serialization has four layers: GitHub concurrency without cancellatio
 
 Database migrations are forward-only. A failed candidate never runs a down migration or resets PostgreSQL. When a previous release exists, recovery means restarting its code/images against the already migrated schema and persistent data. Schema changes therefore must use expand/contract compatibility. If no previous release exists, the failed application surface is stopped while PostgreSQL and media remain intact.
 
-The active release, its previous release, and up to five releases in total are retained. Cleanup validates the exact release path and SHA-tagged images and never prunes PostgreSQL, media, Caddy state, or deployment state.
+The active release, its previous release, and up to five source/runtime-environment releases in total are retained. Unused CARE images are removed independently of source retention after successful activation. Persistent PostgreSQL data, media, Caddy state, and deployment state are preserved. The amendment below defines ownership and rebuild-based rollback.
 
 The Web Push canary remains an explicitly invoked operational profile. It selects one enrolled active staging subscription by exact endpoint hash, sends a generic redacted payload through the CARE delivery path, and requires provider acceptance plus a new `lastSuccessAt`. It is intentionally outside automated tests, deployment smoke, and the automatic deployment gate. Live DeepSeek Chat Completions classification/location validation remains an automatic staging check whose failure is advisory under ADR-0015.
 
@@ -58,3 +58,47 @@ The repository enforces Dockerfile/Compose validation, Linux lock and archive-sa
 The pinned Alpine runtime images include libuuid 2.42.1-r0, which the refreshed vulnerability database associates with seven High util-linux advisories. The existing explicit runtime APK patch layers for workforce, Admin and PostgreSQL are extended with libuuid 2.42.3-r0. This retains immutable base digests and non-root runtime identities while applying the available distribution fix. Scanner severity and exceptions are unchanged. Validation covers rebuilt image scans, routing, health, non-root execution and persistent database/media restart behavior; future base refreshes should reconcile these explicit package pins.
 
 The stable v3.24 x86_64 package index lagged aarch64 for this patch. A tagged `@care-security` edge/main repository is therefore used only by the exact libuuid pin; other runtime packages remain on stable. The tag must be retired once the stable base supplies the patch on both architectures. Runtime patch verification must explicitly build linux/amd64 because native Apple Silicon builds can conceal package-availability differences.
+
+## Staging origin migration and CARE image cleanup — 30 September 2026
+
+Staging moves to `https://satucare.com` and `https://admin-pad.satucare.com`.
+Production placeholders and localhost origins remain unchanged. The runtime renderer,
+CI deployment inputs and routing assertions must agree; Caddy continues to receive
+hostnames from runtime configuration and obtains HTTPS certificates automatically.
+DNS pointing to the staging VM is an external prerequisite checked by preflight.
+Existing browser sessions, installed PWAs and push subscriptions are origin-bound;
+new-origin login, installation and push enrollment require hosted acceptance.
+
+Source retention is separated from image retention to avoid accumulating large
+rollback images. A successful remote deploy records activation first, removes stopped
+containers only from its own Compose project, then removes unused CARE images from
+all retained and orphaned releases. Exact repository names identify legacy images;
+IDs are inventoried before build to preserve identity when a mutable PostgreSQL tag
+moves. Inventory persists across failed candidates. New Compose builds attach
+`com.satucare.application=care`, allowing subsequent dangling-image pruning by label.
+Images referenced by any container or tagged for another application are protected.
+Removal is never forced. No global prune or persistent-volume deletion is used.
+
+Rollback rebuilds the target's five images before service startup. Automatic recovery
+uses the candidate's updated rollback script against the retained target source,
+which supports the first deployment even when historical scripts assumed local images.
+A same-SHA cleanup retry reads the stored previous-release pointer to protect rollback
+source without counting the current directory twice. Manual recovery must invoke the current script; rehearsal restoration also uses the
+current-generation script. Rebuild adds latency and depends on available registries
+and package revisions. Old runtime environments may restore old staging domains.
+Schema compatibility, locks, high-water state and forward-only migrations remain required.
+
+Keeping five sets of images was rejected because source retention should not dictate
+disk use. Host-wide image/cache pruning was rejected because this VM can contain
+other applications. Legacy dangling images with no ownership evidence and shared
+BuildKit cache cannot safely be attributed to CARE and remain for operator audit.
+Consequently this policy bounds unused CARE release images, not total host disk use;
+the existing 5 GiB preflight still requires sufficient room before the initial build.
+
+Cleanup errors fail the deploy command visibly after activation without rolling back
+a healthy candidate. Repeating the same SHA/run retries cleanup. The log includes
+removal output and Docker disk usage. Tests cover legacy image IDs, mutable tags,
+retained release images, active and shared images, other applications, stopped
+containers, dangling labels, failure ordering, cleanup errors and idempotent retry.
+Hosted acceptance must still verify DNS/TLS, new-origin browser behavior, actual
+reclaimed disk space and rollback rebuild against the deployed VM.
