@@ -1,5 +1,13 @@
 # CARE v1.1 Implementation Phases
 
+## PR #60 runtime OpenSSL repair — 30 September 2026
+
+Phase 13 remains the only `in_progress` phase. ADR-0057 requires actual patched
+OpenSSL in all affected runtimes and a temporary API-only package/version-scoped
+policy for the stale Debian vendor feed, expiring after 7 October 2026 UTC.
+All application jobs passed run 36684901612; production-image and final release
+acceptance remain pending. No gate threshold or deployment scope changes.
+
 ## PR #60 dependency audit repair — 30 September 2026
 
 Phase 13 remains the only `in_progress` phase. ADR-0045 extends range-scoped

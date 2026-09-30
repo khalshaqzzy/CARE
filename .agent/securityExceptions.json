@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "scanner": "trivy",
+    "id": "CVE-2026-84782",
+    "rationale": "Temporary vendor-feed false positive only for Debian 13 libssl3t64 and openssl-provider-legacy exactly 3.5.7-1~deb13u3, fixed by Debian DSA-6531-1 (https://security-tracker.debian.org/tracker/CVE-2026-84782). Package/version-scoped Rego applies only to the API image and independently expires. Unpatched packages and other images remain enforced. Remove once the feed recognizes the official patch.",
+    "expiresOn": "2026-10-07"
+  }
+]

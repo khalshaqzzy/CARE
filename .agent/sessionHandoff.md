@@ -1,5 +1,31 @@
 # CARE Session Handoff
 
+## PR #60 runtime OpenSSL repair — 30 September 2026
+
+**Status:** after b7c64a12, run 36684901612 passed dependency security and every
+application/quality/CodeQL job. Production containers passed startup, routing,
+persistence and filesystem scan, then failed the API OpenSSL CVE-2026-84782 image
+scan; the release gate failed consequently and PR deployment remained skipped.
+
+**Correction:** ADR-0057 moves API to pinned Debian 13 distroless plus actual signed
+security packages 3.5.7-1~deb13u3, with honest package metadata. Both web images and
+PostgreSQL pin Alpine OpenSSL 3.5.9-r0. Trivy's current feed still reports the fixed
+Debian backport, so an API-only package/version-scoped Rego policy expires after
+7 October UTC, with a matching validated registry entry. Global CVE ignores,
+scan thresholds and application source remain unchanged. A patched runtime probe
+passes; an unpatched base still fails with the identical policy. Production Compose
+build, Prisma migration/bootstrap, routing/readiness/headers/non-root/database
+isolation, persistence across restart and all five runtime image scans pass on ARM64.
+The patched Debian package stage also builds on AMD64. Hadolint, Actionlint,
+ShellCheck, deployment/runtime validators, deployment harness, exception validation,
+missing/extended registry rejection and orchestration 9/9 pass. `verify:local` passes
+all application jobs (performance p95 554 ms) but capture's report copy fails after
+173 passing scenarios because a concurrently started orchestration test clears the
+shared test-results directory. Standalone `verify:ci capture` then passes all 173
+and its reporter. Trivy filesystem vulnerability/secret/misconfiguration scan passes. Native references were restored because no UI changed. Runtime
+and validation stacks were stopped. Final-SHA hosted acceptance is pending.
+Phase 13 remains `in_progress`; no merge/deployment authorization is inferred.
+
 ## PR #60 dependency audit repair — 30 September 2026
 
 **Objective/status:** repair failed hosted CI on PR #60 in the existing
