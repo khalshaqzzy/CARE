@@ -1,5 +1,13 @@
 # CARE v1.1 Implementation Phases
 
+## PR #60 dependency audit repair — 30 September 2026
+
+Phase 13 remains the only `in_progress` phase. ADR-0045 extends range-scoped
+patched dependency resolution for fast-uri, undici and three brace-expansion
+major lines after the repository-wide CI audit failed. Application contracts,
+deployment scope and audit thresholds are unchanged. Fresh/frozen installs and
+initial audit pass; final local/hosted validation is recorded in sessionHandoff.md.
+
 ## Staging domains and unused CARE image cleanup — 30 September 2026
 
 Phase 13 remains the only `in_progress` phase. Staging targets `satucare.com` and

@@ -1,5 +1,32 @@
 # CARE Session Handoff
 
+## PR #60 dependency audit repair — 30 September 2026
+
+**Objective/status:** repair failed hosted CI on PR #60 in the existing
+`fix/staging-domains-image-cleanup` branch and push the correction. Initial run
+36683974942 failed `Dependency security`: repository-wide pnpm audit reported
+11 High advisories across fast-uri, undici and brace-expansion. The failure was
+reproduced locally; dependency review itself passed on the original deployment diff.
+
+**Second failed job:** `Production containers and routing` failed at the Trivy filesystem
+scan on the same fast-uri/brace-expansion advisory families; its build, routing and
+persistence steps had passed. The release gate failed as a consequence.
+
+**Correction:** same-major, range-scoped overrides select fast-uri 3.1.7,
+undici 8.10.2 and brace-expansion 1.1.20/2.1.6/5.0.11. Updated pnpm lockfile.
+No audit suppression, threshold change, application source or schema change.
+ADR-0045 records rationale and dependency consumer paths; Phase 13 remains
+`in_progress`. Fresh/frozen installs and initial audit pass (zero High/Critical,
+ten Moderate). `pnpm verify:local` passed all ten selected jobs in one run: static,
+build, integration/security, organization, performance (p95 590 ms), migrations,
+fullstack, browser, legacy and capture (173). PWA passed in the full browser run.
+Trivy 0.70.0 filesystem vulnerability scan passed with zero High/Critical.
+Capture outputs were restored because no UI source changed. The runner removed
+its disposable PostgreSQL and preview processes exited. Directory/commit Gitleaks
+and final format/diff checks passed. Hosted acceptance for the corrected SHA is
+still pending; all other jobs in the original run passed (Deploy staging was
+correctly skipped for a PR). Merge/deploy are outside this CI repair.
+
 ## Staging domains and unused CARE image cleanup — 30 September 2026
 
 **Objective/status:** implementation complete locally on new branch
