@@ -23,8 +23,8 @@ Satu VM Ubuntu 22.04 LTS menjalankan satu Compose project bernama `care-staging`
 
 | Surface       | URL                                       |
 | ------------- | ----------------------------------------- |
-| Workforce PWA | `https://care.qd-tmmin.site`              |
-| CARE Admin    | `https://admin-ped.qd-tmmin.site`         |
+| Workforce PWA | `https://satucare.com`                    |
+| CARE Admin    | `https://admin-pad.satucare.com`          |
 | API           | same-origin `/api/v1/*` pada kedua domain |
 
 DeepSeek Chat Completions API dan browser push provider adalah integrasi operasional aplikasi. Tidak ada callback
@@ -65,21 +65,35 @@ subpath `shared`.
 
 Buat dua record DNS yang menunjuk ke public IP VM staging yang sama:
 
-| Record                    | Target               |
-| ------------------------- | -------------------- |
-| `care.qd-tmmin.site`      | public IP VM staging |
-| `admin-ped.qd-tmmin.site` | public IP VM staging |
+| Record                   | Target               |
+| ------------------------ | -------------------- |
+| `satucare.com`           | public IP VM staging |
+| `admin-pad.satucare.com` | public IP VM staging |
 
 Verifikasi dari jaringan publik:
 
 ```bash
-dig +short care.qd-tmmin.site
-dig +short admin-ped.qd-tmmin.site
+dig +short satucare.com
+dig +short admin-pad.satucare.com
 ```
 
 Kedua hasil harus beririsan dengan address `VM_HOST`. Buka port SSH final, TCP 80/443, dan UDP 443
 pada firewall VM/provider. Jangan membuka port PostgreSQL, API, workforce web, atau Admin web.
 Caddy baru dapat memperoleh sertifikat setelah DNS dan TCP 80/443 dapat dijangkau publik.
+
+### Migrasi origin staging — 30 September 2026
+
+DNS `satucare.com` dan `admin-pad.satucare.com` wajib disiapkan sebelum merge/deploy release ini.
+CI caller, runtime renderer, example env, routing assertions dan external smoke menggunakan
+kedua domain baru. Production dan origin `*.localhost` tidak berubah. Caddy memakai automatic
+HTTPS dengan state sertifikat existing; tidak perlu menghapus state Caddy. Domain lama tidak
+menjadi alias/redirect dalam release baru. Pertahankan DNS lama selama rollback ke release
+historis masih mungkin diperlukan.
+
+Cookie/session browser, service worker, installed PWA dan Web Push terikat origin lama: pengguna
+harus login pada domain baru, memasang ulang PWA bila diperlukan, dan mengaktifkan notifikasi
+kembali. Record bisnis dan account tidak dimigrasi/dihapus oleh perubahan domain. Verifikasi
+kedua `release.json`, `/ready`, host isolation, install dan Web Push pada origin baru sesudah deploy.
 
 ## 4. SSH Key Deployment
 
@@ -265,16 +279,16 @@ Set `SHA` ke full 40-character SHA hasil merge:
 ```bash
 SHA=0123456789abcdef0123456789abcdef01234567
 
-curl -fsS https://care.qd-tmmin.site/release.json \
+curl -fsS https://satucare.com/release.json \
   | jq -e --arg sha "$SHA" '.application=="care-web-voice" and .releaseSha==$sha'
-curl -fsS https://admin-ped.qd-tmmin.site/release.json \
+curl -fsS https://admin-pad.satucare.com/release.json \
   | jq -e --arg sha "$SHA" '.application=="care-web-admin" and .releaseSha==$sha'
-curl -fsS https://admin-ped.qd-tmmin.site/ready \
+curl -fsS https://admin-pad.satucare.com/ready \
   | jq -e --arg sha "$SHA" '.status=="ready" and .releaseSha==$sha'
 
 deploy/scripts/smoke-check.sh "$SHA" \
-  https://care.qd-tmmin.site \
-  https://admin-ped.qd-tmmin.site
+  https://satucare.com \
+  https://admin-pad.satucare.com
 ```
 
 Login ke Admin origin menggunakan credential bootstrap, lalu segera ganti password melalui halaman
@@ -301,8 +315,27 @@ Ordering dilindungi oleh empat lapis:
 
 Run lebih rendah ditolak. Run yang sama hanya diterima untuk SHA yang sama. Jangan mengedit
 `highest_seen_run` untuk memaksa candidate lama. `current` dan `current_release` hanya berubah setelah
-smoke sukses. Retention mempertahankan current, previous, dan maksimal lima exact release; cleanup
-hanya menghapus directory/tag SHA yang tervalidasi dan tidak pernah menyentuh shared state.
+smoke sukses. Retention mempertahankan source/runtime env current, previous, dan maksimal lima
+exact release. Setelah aktivasi, cleanup menghapus image CARE yang tidak dipakai container,
+termasuk image previous/retained release. Source retained tetap menjadi bahan rebuild rollback.
+
+Cleanup pertama pada release baru sudah mencakup image lama dari repository `care-api`,
+`care-web-voice`, `care-web-admin`, `care-caddy`, dan `care-postgres`: ID dicatat sebelum build
+agar penggantian tag PostgreSQL tidak kehilangan identitas image lama. Inventory disimpan di
+`shared/deployment-state/care-image-inventory` dan tetap tersedia setelah candidate gagal.
+Build baru memakai label `com.satucare.application=care`, sehingga dangling image berikutnya
+bisa dibersihkan. Stopped container hanya dihapus untuk Compose project environment aktif;
+image yang direferensikan container mana pun atau memiliki tag aplikasi lain dilindungi.
+Tidak ada `image rm --force`, global image/system/container/volume prune, atau build-cache prune.
+Dangling image lama tanpa tag/label/inventory tidak dapat diatribusikan dengan aman ke CARE;
+build cache lama yang dipakai bersama juga dipertahankan. Keduanya memerlukan audit operator,
+bukan penghapusan otomatis yang bisa mengganggu aplikasi lain.
+
+Cleanup tidak berjalan pada candidate gagal. Error cleanup menggagalkan hasil command deployment
+setelah aktivasi, tanpa rollback release sehat. Log mencatat penghapusan dan `docker system df`;
+periksa inventory/log dan ulangi deployment SHA yang sama untuk retry cleanup. Database, media,
+dan state Caddy tidak dihapus. Free-space preflight tetap membutuhkan 5 GiB sebelum build;
+bila disk sudah di bawah batas tersebut, operator harus menyediakan ruang terlebih dahulu.
 
 Untuk acceptance ordering, merge dua candidate berdekatan. Hasil akhir wajib SHA HEAD terbaru;
 candidate lama boleh tercatat superseded, tetapi tidak boleh mengaktifkan SHA lama.
@@ -322,13 +355,16 @@ Manual code rollback ke SHA yang masih retained:
 
 ```bash
 ssh -p 22 care-deploy@VM_HOST
-bash /opt/care/staging/releases/TARGET_40_CHARACTER_SHA/deploy/scripts/remote-rollback.sh \
+bash /opt/care/staging/current/deploy/scripts/remote-rollback.sh \
   staging TARGET_40_CHARACTER_SHA /opt/care/staging
 ```
 
 Pastikan target kompatibel dengan schema yang telah maju, lalu jalankan external smoke. Code
-rollback menghidupkan image/env lama terhadap PostgreSQL/media yang sama; tidak ada down migration
-atau data restore.
+rollback membangun ulang image dari source target memakai script release aktif (termasuk target
+historis yang script-nya belum mendukung cleanup), kemudian menghidupkan image/env target terhadap
+PostgreSQL/media yang sama; tidak ada down migration atau data restore. Rebuild membutuhkan
+akses registry/package repository dan menambah waktu rollback. Rollback ke release sebelum
+migrasi domain juga memulihkan domain lama dari runtime env target.
 
 ## 11. Guarded Rollback Rehearsal
 

@@ -23,6 +23,6 @@ awk -v run="${REHEARSAL_RUN}" 'BEGIN{FS=OFS="="} $1=="DEPLOY_RUN_NUMBER"{$2=run}
 CHECKSUM="$(sha256sum "${ARCHIVE}" | awk '{print $1}')"
 if DEPLOY_LOCK_HELD=true DEPLOY_REHEARSAL=true DEPLOY_FORCE_SMOKE_FAILURE=true bash "${CURRENT_DIR}/deploy/scripts/remote-entrypoint.sh" staging "${CURRENT_SHA}" "${REHEARSAL_RUN}" 1 "${BASE_DIR}" "${ARCHIVE}" "${ENV_FILE}" "${CHECKSUM}" "${EXPECTED_HOST}"; then die "Forced failure unexpectedly succeeded."; fi
 [[ "$(<"${BASE_DIR}/current_release")" == "${PREVIOUS_SHA}" && -f "${SENTINEL}" ]] || die "Automatic rollback failed."
-DEPLOY_LOCK_HELD=true "${PREVIOUS_DIR}/deploy/scripts/remote-rollback.sh" staging "${CURRENT_SHA}" "${BASE_DIR}"
+DEPLOY_LOCK_HELD=true "${CURRENT_DIR}/deploy/scripts/remote-rollback.sh" staging "${CURRENT_SHA}" "${BASE_DIR}"
 [[ "$(<"${BASE_DIR}/current_release")" == "${CURRENT_SHA}" && "$(database_identity "${CURRENT_DIR}" "${CURRENT_DIR}/.runtime.env")" == "${DB_ID}" ]] || die "Current release restoration failed."
 cleanup_rehearsal; trap - EXIT; echo "Staging rollback rehearsal passed."

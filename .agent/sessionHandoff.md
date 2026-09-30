@@ -1,5 +1,120 @@
 # CARE Session Handoff
 
+## PR #60 runtime OpenSSL repair — 30 September 2026
+
+**Status:** after b7c64a12, run 36684901612 passed dependency security and every
+application/quality/CodeQL job. Production containers passed startup, routing,
+persistence and filesystem scan, then failed the API OpenSSL CVE-2026-84782 image
+scan; the release gate failed consequently and PR deployment remained skipped.
+
+**Correction:** ADR-0057 moves API to pinned Debian 13 distroless plus actual signed
+security packages 3.5.7-1~deb13u3, with honest package metadata. Both web images and
+PostgreSQL pin Alpine OpenSSL 3.5.9-r0. Trivy's current feed still reports the fixed
+Debian backport, so an API-only package/version-scoped Rego policy expires after
+7 October UTC, with a matching validated registry entry. Global CVE ignores,
+scan thresholds and application source remain unchanged. A patched runtime probe
+passes; an unpatched base still fails with the identical policy. Production Compose
+build, Prisma migration/bootstrap, routing/readiness/headers/non-root/database
+isolation, persistence across restart and all five runtime image scans pass on ARM64.
+The patched Debian package stage also builds on AMD64. Hadolint, Actionlint,
+ShellCheck, deployment/runtime validators, deployment harness, exception validation,
+missing/extended registry rejection and orchestration 9/9 pass. `verify:local` passes
+all application jobs (performance p95 554 ms) but capture's report copy fails after
+173 passing scenarios because a concurrently started orchestration test clears the
+shared test-results directory. Standalone `verify:ci capture` then passes all 173
+and its reporter. Trivy filesystem vulnerability/secret/misconfiguration scan passes. Native references were restored because no UI changed. Runtime
+and validation stacks were stopped. Final-SHA hosted acceptance is pending.
+Phase 13 remains `in_progress`; no merge/deployment authorization is inferred.
+
+## PR #60 dependency audit repair — 30 September 2026
+
+**Objective/status:** repair failed hosted CI on PR #60 in the existing
+`fix/staging-domains-image-cleanup` branch and push the correction. Initial run
+36683974942 failed `Dependency security`: repository-wide pnpm audit reported
+11 High advisories across fast-uri, undici and brace-expansion. The failure was
+reproduced locally; dependency review itself passed on the original deployment diff.
+
+**Second failed job:** `Production containers and routing` failed at the Trivy filesystem
+scan on the same fast-uri/brace-expansion advisory families; its build, routing and
+persistence steps had passed. The release gate failed as a consequence.
+
+**Correction:** same-major, range-scoped overrides select fast-uri 3.1.7,
+undici 8.10.2 and brace-expansion 1.1.20/2.1.6/5.0.11. Updated pnpm lockfile.
+No audit suppression, threshold change, application source or schema change.
+ADR-0045 records rationale and dependency consumer paths; Phase 13 remains
+`in_progress`. Fresh/frozen installs and initial audit pass (zero High/Critical,
+ten Moderate). `pnpm verify:local` passed all ten selected jobs in one run: static,
+build, integration/security, organization, performance (p95 590 ms), migrations,
+fullstack, browser, legacy and capture (173). PWA passed in the full browser run.
+Trivy 0.70.0 filesystem vulnerability scan passed with zero High/Critical.
+Capture outputs were restored because no UI source changed. The runner removed
+its disposable PostgreSQL and preview processes exited. Directory/commit Gitleaks
+and final format/diff checks passed. Hosted acceptance for the corrected SHA is
+still pending; all other jobs in the original run passed (Deploy staging was
+correctly skipped for a PR). Merge/deploy are outside this CI repair.
+
+## Staging domains and unused CARE image cleanup — 30 September 2026
+
+**Objective/status:** implementation complete locally on new branch
+`fix/staging-domains-image-cleanup`. Staging workforce moves to `https://satucare.com`
+and Admin to `https://admin-pad.satucare.com`. Production remains pending. Phase 13
+remains the only `in_progress` phase. Commit/push and a PR to `staging` are authorized;
+merge and deployment are outside this delivery. Hosted checks must still be verified.
+
+**Implementation:** CI staging caller/routing assertions, runtime renderer and example env
+use the new domains. Compose builds label image ownership. `cleanup-images.sh` inventories
+legacy CARE repository IDs before build (including the mutable PostgreSQL tag), retains
+that inventory across candidate failures and deletes unused CARE images after successful
+smoke/activation, regardless of retained release source. Cleanup removes stopped containers
+only in the active environment's Compose project; any image referenced by another container
+or carrying a foreign tag is preserved. Labeled dangling images are pruned. No forced image
+removal, global image/system/cache/volume prune or business-data deletion is performed.
+Cleanup errors fail the command visibly while leaving the healthy release active.
+
+Retained source/runtime environments remain capped at five. Retry now reads the persistent
+`previous_release` pointer rather than counting current twice, preserving rollback source
+when the same SHA/run is retried. Rollback rebuilds target images before startup. Automatic
+recovery invokes the candidate's updated script; manual rollback and rehearsal restoration
+use the current-generation script, including when the target predates this policy.
+
+**Files:** deployment cleanup/deploy/rollback/rehearsal scripts; Compose build labels;
+staging example env and renderer; CI workflow; deployment harness and new ownership/image
+cleanup regression harness; PRD, implementation phases, deployment guide, release checklist
+and ADR-0011 amendment. Historical domain references in old handoffs/ADRs are retained as
+historical evidence. Application source, schema, migrations and assets are unchanged.
+
+**Validation:** pinned Node 22.23.2/pnpm 11.8.0. `verify:local --plan` conservatively selected
+all application jobs. `verify:local` passed static, build, integration, organization,
+performance (dashboard p95 441 ms), migrations and fullstack. Browser finished 221 passed
+and one offline-PWA failure (loading shell instead of offline heading); both PWA tests
+passed in a focused `verify:ci browser e2e/pwa.spec.ts` rerun without code changes. Remaining
+`verify:ci legacy` passed 6 and `verify:ci capture` passed 173. The initial aggregate command
+therefore exited nonzero; a single uninterrupted all-green run is not claimed. Native
+capture generated references were restored because this task makes no UI changes.
+
+Deployment harness passed natively and on Linux, including real flock contention; a separate
+isolated Docker 29.4.0 daemon test confirmed legacy and overwritten-tag images are removed,
+container-referenced/shared/foreign images are preserved, media/database/Caddy sentinels
+remain unchanged and repeat cleanup is safe. The isolated daemon was removed afterward.
+Runtime/Compose validators, Actionlint 1.7.7, ShellCheck 0.11.0, validation orchestration 9/9,
+format and diff checks passed. Directory Gitleaks 8.24.3 found no leaks. Unchanged production
+image rebuild/scans, hosted CI and hosted DNS/TLS/rollback acceptance are not claimed.
+The local runner shut down its disposable PostgreSQL; browser preview processes exited.
+
+**DNS verification:** both new domains resolve to the same VM address as both historical
+staging domains using system DNS, Cloudflare (1.1.1.1) and Google (8.8.8.8). HTTP reaches
+Caddy and redirects to HTTPS; new-domain TLS handshakes still fail before deploying this
+configuration. Both old-domain release endpoints return HTTP 200. No DNS records were changed.
+
+**Next deployment prerequisites:** DNS records are ready; verify new-domain TLS after merge/deploy. Existing preflight still requires 5 GiB available before the build; image
+cleanup runs after success and cannot rescue a disk already below that threshold. Confirm
+HTTPS, both release identities, host isolation, new-origin login/PWA/push and reclaimed disk
+usage after deployment. Old DNS should remain available for historical runtime rollback.
+Rollback rebuild adds time and registry/package availability requirements. Legacy dangling
+images without tag/label/inventory and shared BuildKit cache cannot safely be attributed to
+CARE and are intentionally left for operator audit. Foto/attachments in `shared/media`,
+Voices in PostgreSQL, Caddy state and current frontend assets are preserved.
+
 ## Member home summary, single create entry, unread bell badge — 28 September 2026
 
 **Objective:** align the Member home with the responder dashboard and surface unread notifications. The Member hero now uses the shared **Ringkasan Voice** card (`VoiceSummaryCard`: Total chip + Terbuka/Direspons/Diproses/Selesai), also used by `DashboardHome`. All in-page Buat Voice buttons on the Member home were removed (hero plus orb, "Voice Anda" header button, Aksi cepat tile, empty-state button); creating a Voice is only via the dock **Buat** button / sidebar item. The hero bell on every workforce home shows a red unread-count badge (`GET /notifications/unread-count`, 5 s polling, shared cache key with the notification center, "99+" cap, hidden at zero). After review, badges on the dock/sidebar were rejected; instead the mobile **Lainnya** sheet shows a small "N belum dibaca" note beside **Notifikasi**. No API, schema, permission, or OpenAPI change. PRD §18.1/§18.8.5, ADR-0056, and `implementationPhases.md` record the decision. Phase 13 remains `in_progress`.

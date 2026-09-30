@@ -7,8 +7,8 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 - [ ] Environment is `staging`.
 - [ ] Branch is `staging` and candidate is its current full 40-character SHA.
 - [ ] GitHub run URL/number/attempt recorded in the approved evidence store.
-- [ ] Workforce target is `https://care.qd-tmmin.site`.
-- [ ] Admin target is `https://admin-ped.qd-tmmin.site`.
+- [ ] Workforce target is `https://satucare.com`.
+- [ ] Admin target is `https://admin-pad.satucare.com`.
 - [ ] VM bootstrap `--check` passes and runtime env file is mode `0600`.
 - [ ] DNS, TLS reachability, disk space, Docker, Compose, Buildx, paths, groups, and bind-mount permissions pass preflight.
 
@@ -39,7 +39,11 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 - [ ] Workforce, Admin, and Caddy became healthy in order.
 - [ ] Internal and external two-origin smoke passed.
 - [ ] `current` and `current_release` changed only after smoke success.
-- [ ] Active/previous release identity and retention result recorded.
+- [ ] Active/previous release identity and source retention result recorded.
+- [ ] DNS kedua domain staging baru menunjuk VM sebelum deploy; HTTPS dan host isolation lulus.
+- [ ] Success cleanup menghapus unused legacy/retained CARE images; active/shared/foreign images dan persistent data tetap tersedia; log disk usage dicatat.
+- [ ] Rollback menggunakan script current untuk rebuild retained target; waktu/akses registry dan old-domain DNS diperiksa.
+- [ ] Login, PWA installation dan Web Push enrollment diverifikasi pada origin baru.
 
 ## Hosted Verification
 

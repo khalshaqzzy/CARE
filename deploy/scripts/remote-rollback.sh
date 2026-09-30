@@ -13,6 +13,8 @@ if [[ "${DEPLOY_LOCK_HELD:-false}" != true ]]; then exec 9>"${BASE_DIR}/deploy.l
 active_release=''; [[ ! -f "${BASE_DIR}/current_release" ]] || active_release="$(<"${BASE_DIR}/current_release")"
 [[ -z "${active_release}" ]] || require_sha "${active_release}"
 echo "Rolling code back; database schema and shared volumes are not restored."
+# Successful deploys remove unused rollback images; rebuild from retained source first.
+compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" build --pull postgres api workforce-web admin-web caddy
 compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps postgres; wait_for_service "${RELEASE_DIR}" "${RUNTIME_ENV}" postgres 180
 compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps api; wait_for_service "${RELEASE_DIR}" "${RUNTIME_ENV}" api 240
 compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps workforce-web admin-web

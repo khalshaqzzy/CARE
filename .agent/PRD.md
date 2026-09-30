@@ -27,7 +27,7 @@ Amandemen ini menggantikan seluruh referensi lama kepada empat enum kategori dan
 
 Setiap kategori memilih `FIXED_DEPARTMENT` atau `RELATED_REPORTER_DEPARTMENT`. Fixed department menunjuk exact composite organization unit dan memakai route aktif Department Head/default PIC unit tersebut. Related department berarti organization unit reporter. PIC efektif selalu diturunkan dari route department saat submit; perubahan berikutnya tidak memindahkan Voice historis. `GLOBAL_SPECIAL` dan remediation PIC global dipertahankan hanya untuk membaca histori/rollback satu release dan tidak digunakan Voice baru.
 
-V1 memakai arsitektur monolitik single-VM per environment. Staging menyediakan workforce di `https://care.qd-tmmin.site` dan Admin di `https://admin-ped.qd-tmmin.site`; kedua production domain akan ditentukan kemudian. Keputusan v1 tidak menyediakan backup, point-in-time recovery, high availability, atau disaster recovery. Hal tersebut merupakan **Critical Accepted Risk**, bukan kemampuan yang boleh diklaim tersedia.
+V1 memakai arsitektur monolitik single-VM per environment. Staging menyediakan workforce di `https://satucare.com` dan Admin di `https://admin-pad.satucare.com`; kedua production domain akan ditentukan kemudian. Keputusan v1 tidak menyediakan backup, point-in-time recovery, high availability, atau disaster recovery. Hal tersebut merupakan **Critical Accepted Risk**, bukan kemampuan yang boleh diklaim tersedia.
 
 ---
 
@@ -1533,8 +1533,8 @@ Tidak ada database, media volume, secret, certificate state, atau Compose projec
 
 ### 30.2 Staging
 
-- Workforce origin: `https://care.qd-tmmin.site`.
-- Admin origin: `https://admin-ped.qd-tmmin.site`.
+- Workforce origin: `https://satucare.com`.
+- Admin origin: `https://admin-pad.satucare.com`.
 - Setiap origin melayani frontend masing-masing dan same-origin `/api/v1` proxy ke CARE API yang sama.
 - Cookie/session/CSRF host-scoped; browser tidak memakai cross-origin API calls.
 - Staging memiliki database/media/DeepSeek provider/VAPID credential sendiri.
@@ -1619,8 +1619,10 @@ Adaptasi pola `supplier-henkaten`:
 - per-service health wait;
 - smoke check kedua origin, API, release identity, host-scoped auth boundary, storage, dan DeepSeek staging fixtures;
 - atomic `current` symlink/release pointer;
-- retain candidate, previous, dan hingga total lima release;
-- stale image/release cleanup dengan validated target path.
+- retain source/runtime env candidate, previous, dan hingga total lima release;
+- setelah smoke dan aktivasi berhasil, hapus semua image CARE yang tidak direferensikan container, termasuk image release yang source-nya masih retained;
+- cleanup mengenali legacy CARE repository sebelum build dan label kepemilikan pada image baru; image aplikasi lain, shared image, serta volume/data persisten wajib dilindungi;
+- rollback memakai rebuild source retained sebelum startup; cleanup failure terlihat sebagai deployment failure tanpa rollback release sehat.
 
 Web Push canary tersedia sebagai operational one-shot profile yang memilih satu subscription staging aktif berdasarkan exact endpoint hash, mengirim payload generik teredaksi melalui delivery helper CARE, dan memverifikasi penerimaan provider serta pembaruan `lastSuccessAt`. Canary dijalankan manual oleh operator dan bukan automated test, deployment smoke, atau syarat auto-deploy. Tidak ada callback/service tambahan.
 
@@ -1833,7 +1835,7 @@ Minimum journeys:
 
 - [ ] Performance baseline memenuhi Section 29.
 - [ ] Unit, integration, E2E, AI contract validation, security, migration, build, dan deployment checks lulus.
-- [ ] Push `staging` auto-deploy ke `care.qd-tmmin.site` dan `admin-ped.qd-tmmin.site` setelah green CI.
+- [ ] Push `staging` auto-deploy ke `satucare.com` dan `admin-pad.satucare.com` setelah green CI.
 - [x] Push/PR `main` menjalankan checks tanpa production deployment caller; production activation tetap diblokir sampai prerequisite lengkap.
 - [ ] Release-by-SHA, health/readiness, smoke, dan code rollback rehearsal lulus.
 - [ ] Critical Accepted Risks memperoleh approval sebelum production.
@@ -1976,7 +1978,7 @@ V1 siap production bila:
 - Permanent logical retention tanpa backup/DR/HA.
 - Single VM terpisah per environment.
 - Backend v1.1 remediation/re-freeze wajib lulus sebelum frontend dimulai, lalu Frontend Complete → production containerization/deployment.
-- Staging memakai `care.qd-tmmin.site` dan `admin-ped.qd-tmmin.site`; kedua production domain merupakan external dependency.
+- Staging memakai `satucare.com` dan `admin-pad.satucare.com`; kedua production domain merupakan external dependency.
 - Push `staging` menjadi trigger deployment staging setelah seluruh checks hijau dan candidate masih menjadi branch HEAD.
 - Push/PR `main` hanya menjalankan CI pada scope saat ini; production deployment caller belum tersedia.
 - Web Push canary adalah operasi staging manual, bukan automated test, deployment smoke, atau auto-deploy gate.

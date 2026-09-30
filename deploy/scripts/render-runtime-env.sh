@@ -7,7 +7,7 @@ APP_ENV="$1"; RELEASE_SHA="$2"; DEPLOY_RUN_NUMBER="$3"
 [[ "${DEPLOY_RUN_NUMBER}" =~ ^[1-9][0-9]*$ ]] || { echo "deploy-run-number must be positive." >&2; exit 1; }
 if [[ "${APP_ENV}" == staging ]]; then
   COMPOSE_PROJECT_NAME=care-staging; SHARED_DIR=/opt/care/staging/shared
-  WORKFORCE_DOMAIN=care.qd-tmmin.site; ADMIN_DOMAIN=admin-ped.qd-tmmin.site
+  WORKFORCE_DOMAIN=satucare.com; ADMIN_DOMAIN=admin-pad.satucare.com
 else
   : "${PRODUCTION_CARE_DOMAIN:?PRODUCTION_CARE_DOMAIN is required}"
   : "${PRODUCTION_CARE_ADMIN_DOMAIN:?PRODUCTION_CARE_ADMIN_DOMAIN is required}"
