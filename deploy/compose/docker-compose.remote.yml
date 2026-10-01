@@ -38,6 +38,7 @@ services:
     image: care-postgres:16-pgvector
     build:
       context: ../..
+      labels: { com.satucare.application: care }
       dockerfile: deploy/postgres/Dockerfile
     init: true
     restart: unless-stopped
@@ -61,6 +62,7 @@ services:
     image: care-api:${RELEASE_SHA}
     build:
       context: ../..
+      labels: { com.satucare.application: care }
       dockerfile: apps/api/Dockerfile
       args: { RELEASE_SHA: '${RELEASE_SHA}' }
     init: true
@@ -120,6 +122,7 @@ services:
     image: care-api:${RELEASE_SHA}
     build:
       context: ../..
+      labels: { com.satucare.application: care }
       dockerfile: apps/api/Dockerfile
       args: { RELEASE_SHA: '${RELEASE_SHA}' }
     init: true
@@ -149,6 +152,7 @@ services:
     image: care-web-voice:${RELEASE_SHA}
     build:
       context: ../..
+      labels: { com.satucare.application: care }
       dockerfile: apps/web-voice/Dockerfile
       args: { RELEASE_SHA: '${RELEASE_SHA}' }
     init: true
@@ -168,6 +172,7 @@ services:
     image: care-web-admin:${RELEASE_SHA}
     build:
       context: ../..
+      labels: { com.satucare.application: care }
       dockerfile: apps/web-admin/Dockerfile
       args: { RELEASE_SHA: '${RELEASE_SHA}' }
     init: true
@@ -187,6 +192,7 @@ services:
     image: care-caddy:${RELEASE_SHA}
     build:
       context: ../..
+      labels: { com.satucare.application: care }
       dockerfile: deploy/caddy/Dockerfile
       args: { RELEASE_SHA: '${RELEASE_SHA}' }
     init: true

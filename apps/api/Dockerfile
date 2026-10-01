@@ -1,7 +1,25 @@
 # syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 
 ARG NODE_IMAGE=node:22.23.2-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
-ARG RUNTIME_IMAGE=gcr.io/distroless/cc-debian12:nonroot@sha256:9dac0a79194e45a7da0158a9c6da57b217585af0786db3845d1f0ec1a0dd182f
+ARG RUNTIME_IMAGE=gcr.io/distroless/cc-debian13:nonroot@sha256:54df941ed0d06a1bd95ef5e0ce391fd8d9f94b64782dc9a60062727849ee3f97
+
+ARG PATCH_IMAGE=debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+
+# Signed Debian security packages overlay the frozen distroless runtime.
+FROM ${PATCH_IMAGE} AS runtime-patch
+ARG OPENSSL_VERSION=3.5.7-1~deb13u3
+RUN apt-get update \
+  && mkdir -p /patched/var/lib/dpkg/status.d \
+  && apt-get install --yes --no-install-recommends --download-only --reinstall "libssl3t64=${OPENSSL_VERSION}" "openssl-provider-legacy=${OPENSSL_VERSION}" \
+  && for package in /var/cache/apt/archives/libssl3t64_*.deb /var/cache/apt/archives/openssl-provider-legacy_*.deb; do \
+    dpkg-deb --extract "${package}" /patched; \
+    dpkg-deb --control "${package}" /control; \
+    name="$(dpkg-deb --field "${package}" Package)"; \
+    cp /control/control "/patched/var/lib/dpkg/status.d/${name}"; \
+    cp /control/md5sums "/patched/var/lib/dpkg/status.d/${name}.md5sums"; \
+    rm -rf /control; \
+  done \
+  && rm -rf /var/lib/apt/lists/*
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /workspace
@@ -39,6 +57,7 @@ ENV NODE_ENV=production \
   PATH=/nodejs/bin
 WORKDIR /app
 
+COPY --from=runtime-patch /patched/ /
 COPY --from=build /usr/local/bin/node /nodejs/bin/node
 COPY --from=build --chown=65532:65532 /opt/api/ ./
 

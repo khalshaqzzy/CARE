@@ -8,6 +8,8 @@ for script in "${SCRIPTS}"/*.sh; do bash -n "${script}"; done
 config_json="$(docker compose --env-file "${EXAMPLE}" -f "${COMPOSE}" --profile operations config --format json)"
 jq -e '(.services|keys|sort)==["admin-web","api","bootstrap-admin","caddy","live-provider-smoke","migrate","postgres","push-canary","workforce-web"] and (.services.postgres.ports//[]|length)==0 and ([.services|to_entries[]|select(.key!="caddy")|(.value.ports//[])|length]|add)==0 and .networks.data.internal==true' <<<"${config_json}" >/dev/null || fail "Compose topology drifted"
 
+jq -e 'all(.services[] | select(.build); .build.labels["com.satucare.application"] == "care")' <<<"${config_json}" >/dev/null || fail "CARE build ownership labels missing"
+
 rendered="${TEST_ROOT}/runtime.env"
 CADDY_EMAIL=operator@care.test POSTGRES_USER=care POSTGRES_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa POSTGRES_DATABASE=care \
 SESSION_HASH_SECRET=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb SESSION_CSRF_SECRET=cccccccccccccccccccccccccccccccc AUTH_THROTTLE_SECRET=dddddddddddddddddddddddddddddddd \
@@ -15,6 +17,8 @@ CURSOR_SIGNING_SECRET=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee METRICS_TOKEN=fffffffffff
 OPENAI_API_KEY=sk-live-000000000000000000000000 OPENAI_CONFIG_ENCRYPTION_KEY=jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj OPENAI_MODEL=care-model OPENAI_BASE_URL=https://api.vendor.test/v1 \
 VAPID_SUBJECT=mailto:operator@care.test VAPID_PUBLIC_KEY=hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh VAPID_PRIVATE_KEY=iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii \
   "${SCRIPTS}/render-runtime-env.sh" staging aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 42 >"${rendered}"
+grep -qx 'WORKFORCE_DOMAIN=satucare.com' "${rendered}" || fail "Staging workforce domain drifted"
+grep -qx 'ADMIN_DOMAIN=admin-pad.satucare.com' "${rendered}" || fail "Staging Admin domain drifted"
 chmod 600 "${rendered}"; "${SCRIPTS}/validate-runtime-env.sh" "${rendered}" >/dev/null
 grep -qx 'OPENAI_REASONING_EFFORT=' "${rendered}" || fail "Provider-default reasoning effort was not rendered"
 grep -qx 'OPENAI_TIMEOUT_MS=90000' "${rendered}" || fail "90-second provider timeout was not rendered"
@@ -50,8 +54,14 @@ fake_bin="${TEST_ROOT}/bin"; mkdir -p "${fake_bin}"
 cat >"${fake_bin}/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+[[ -z "${TEST_DOCKER_LOG:-}" ]] || printf '%s\n' "$*" >>"${TEST_DOCKER_LOG}"
 if [[ "${1:-}" == inspect ]]; then echo healthy; exit 0; fi
-if [[ "${1:-}" == logs || "${1:-}" == image ]]; then exit 0; fi
+if [[ "${1:-}" == image ]]; then
+  [[ "${2:-}" != inspect ]] || exit 1
+  [[ "${2:-}" != prune || "${TEST_CLEANUP_FAIL:-false}" != true ]] || exit 1
+  exit 0
+fi
+if [[ "${1:-}" == logs || "${1:-}" == ps || "${1:-}" == system ]]; then exit 0; fi
 if [[ "${1:-}" == compose ]]; then
   for arg in "$@"; do
     [[ "${arg}" != build || "${TEST_BUILD_FAIL:-false}" != true ]] || exit 1
@@ -70,7 +80,7 @@ prepare_base() { mkdir -p "$1"/{releases,incoming,shared/deployment-state,shared
 prepare_candidate() {
   local base="$1" sha="$2" run="$3" smoke="${4:-0}" incoming="${1}/incoming/${2}.${3}.1" runtime="${1}/incoming/${2}.${3}.env" archive="${1}/incoming/${2}.${3}.tar.gz"
   mkdir -p "${incoming}/deploy/scripts"
-  cp "${SCRIPTS}/lib.sh" "${incoming}/deploy/scripts/lib.sh"
+  cp "${SCRIPTS}/lib.sh" "${SCRIPTS}/cleanup-images.sh" "${SCRIPTS}/remote-rollback.sh" "${incoming}/deploy/scripts/"
   # shellcheck disable=SC2016
   printf '#!/usr/bin/env bash\nexit "${TEST_PREFLIGHT_EXIT:-0}"\n' >"${incoming}/deploy/scripts/remote-preflight.sh"
   printf '#!/usr/bin/env bash\nexit %s\n' "${smoke}" >"${incoming}/deploy/scripts/smoke-check.sh"
@@ -86,13 +96,17 @@ run_candidate() {
 
 success="${DEPLOY_TEST_BASE}/success"; prepare_base "${success}"
 for i in 1 2 3 4 5 6; do old="$(printf '%040x' "${i}")"; mkdir -p "${success}/releases/${old}"; touch -t "20260${i}010000" "${success}/releases/${old}"; done
+TEST_DOCKER_LOG="${TEST_ROOT}/docker.log"; export TEST_DOCKER_LOG
 sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; run_candidate "${success}" "${sha}" 10 >/dev/null
 [[ "$(<"${success}/current_release")" == "${sha}" && "$(readlink "${success}/current")" == "${success}/releases/${sha}" ]] || fail "Atomic activation failed"
 [[ "$(find "${success}/releases" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" == 5 ]] || fail "Retention failed"
+grep -q '^image prune --force --filter label=com.satucare.application=care$' "${TEST_DOCKER_LOG}" || fail "Success did not clean images"
+! grep -Eq '^(system prune|volume|builder prune)' "${TEST_DOCKER_LOG}" || fail "Cleanup escaped CARE image scope"
 next_sha=abababababababababababababababababababab; run_candidate "${success}" "${next_sha}" 11 >/dev/null
 [[ "$(<"${success}/current_release")" == "${next_sha}" && "$(<"${success}/previous_release")" == "${sha}" ]] || fail "Current/previous release pointers failed"
 run_candidate "${success}" "${next_sha}" 11 >/dev/null
 [[ "$(<"${success}/current_release")" == "${next_sha}" ]] || fail "Idempotent same-run rerun changed activation"
+[[ -d "${success}/releases/${sha}" && "$(find "${success}/releases" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" == 5 ]] || fail "Cleanup retry deleted previous rollback source or counted current twice"
 
 rehearsal_highwater="${DEPLOY_TEST_BASE}/rehearsal-highwater"; prepare_base "${rehearsal_highwater}"
 printf '60 %s\n' 9999999999999999999999999999999999999999 >"${rehearsal_highwater}/shared/deployment-state/highest_seen_run"
@@ -104,6 +118,7 @@ if run_candidate "${stale}" bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 19 >/dev/nu
 equal="${DEPLOY_TEST_BASE}/equal"; prepare_base "${equal}"; printf '30 %040d\n' 1 >"${equal}/shared/deployment-state/highest_seen_run"
 if run_candidate "${equal}" cccccccccccccccccccccccccccccccccccccccc 30 >/dev/null 2>&1; then fail "Equal run with different SHA accepted"; fi
 
+: >"${TEST_DOCKER_LOG}"
 failure="${DEPLOY_TEST_BASE}/failure"; prepare_base "${failure}"
 if TEST_BUILD_FAIL=true run_candidate "${failure}" dddddddddddddddddddddddddddddddddddddddd 31 >/dev/null 2>&1; then fail "Build failure returned success"; fi
 [[ ! -f "${failure}/current_release" && -d "${failure}/shared/postgres-data" && -d "${failure}/shared/media" ]] || fail "Failure changed pointer/persistence"
@@ -116,16 +131,26 @@ migration="${DEPLOY_TEST_BASE}/migration"; prepare_base "${migration}"
 if TEST_MIGRATE_FAIL=true run_candidate "${migration}" 3333333333333333333333333333333333333333 33 >/dev/null 2>&1; then fail "Migration failure returned success"; fi
 [[ ! -f "${migration}/current_release" && -d "${migration}/shared/postgres-data" ]] || fail "Migration failure changed pointer or database path"
 
+! grep -q '^image prune' "${TEST_DOCKER_LOG}" || fail "Failed deployment cleaned images"
 provider_smoke="${DEPLOY_TEST_BASE}/provider-smoke"; prepare_base "${provider_smoke}"
 TEST_PROVIDER_SMOKE_FAIL=true run_candidate "${provider_smoke}" 4444444444444444444444444444444444444444 34 >/dev/null
 [[ "$(<"${provider_smoke}/current_release")" == 4444444444444444444444444444444444444444 ]] || fail "Provider smoke failure blocked activation"
 [[ "$(grep -E '^status=failed ' "${provider_smoke}/shared/deployment-state/live-provider-smoke.result")" != "" ]] || fail "Provider smoke failure was not recorded"
 
 rollback="${DEPLOY_TEST_BASE}/rollback"; prepare_base "${rollback}"; previous=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-mkdir -p "${rollback}/releases/${previous}/deploy/scripts"; printf '%s\n' "${previous}" >"${rollback}/current_release"
-printf '#!/usr/bin/env bash\ntouch %q\n' "${rollback}/rollback-called" >"${rollback}/releases/${previous}/deploy/scripts/remote-rollback.sh"; chmod +x "${rollback}/releases/${previous}/deploy/scripts/remote-rollback.sh"
+IFS='|' read -r previous_incoming previous_runtime _ _ < <(prepare_candidate "${rollback}" "${previous}" 39)
+cp "${previous_runtime}" "${previous_incoming}/.runtime.env"
+mv "${previous_incoming}" "${rollback}/releases/${previous}"
+printf '%s\n' "${previous}" >"${rollback}/current_release"
+: >"${TEST_DOCKER_LOG}"
 if run_candidate "${rollback}" ffffffffffffffffffffffffffffffffffffffff 40 1 >/dev/null 2>&1; then fail "Failed smoke returned success"; fi
-[[ -f "${rollback}/rollback-called" && "$(<"${rollback}/current_release")" == "${previous}" ]] || fail "Automatic rollback was not called"
+[[ "$(<"${rollback}/current_release")" == "${previous}" ]] || fail "Automatic rollback did not restore previous SHA"
+grep -q "releases/${previous}/deploy/compose/docker-compose.remote.yml build --pull" "${TEST_DOCKER_LOG}" || fail "Rollback did not rebuild deleted images"
+! grep -q '^image prune' "${TEST_DOCKER_LOG}" || fail "Failed smoke cleaned images"
+
+cleanup_failure="${DEPLOY_TEST_BASE}/cleanup-failure"; prepare_base "${cleanup_failure}"
+if TEST_CLEANUP_FAIL=true run_candidate "${cleanup_failure}" 5555555555555555555555555555555555555555 41 >/dev/null 2>&1; then fail "Cleanup failure was hidden"; fi
+[[ "$(<"${cleanup_failure}/current_release")" == 5555555555555555555555555555555555555555 ]] || fail "Cleanup failure rolled back a healthy release"
 
 lock="${DEPLOY_TEST_BASE}/lock"; prepare_base "${lock}"
 if command -v flock >/dev/null 2>&1; then
@@ -133,4 +158,5 @@ if command -v flock >/dev/null 2>&1; then
   if run_candidate "${lock}" 1111111111111111111111111111111111111111 50 >/dev/null 2>&1; then fail "Concurrent deploy acquired lock"; fi
   wait "${lock_pid}"
 else echo "flock unavailable; contention remains mandatory in Linux CI."; fi
+bash "${ROOT}/deploy/tests/image-cleanup.sh"
 echo "Deployment env, topology, archive safety, failure stages, stale/equal-run, idempotency, lock, rollback, activation, and retention tests passed."

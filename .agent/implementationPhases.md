@@ -2,7 +2,33 @@
 
 ## Incident shop routing for location-owned categories — 30 September 2026
 
-Phase 13 remains the only `in_progress` phase. ADR-0057 adds the `LOCATION_OWNER_DEPARTMENT` route mode (now used by Fasilitas Kerja / Kesulitan Kerja), Admin-managed **Lokasi shop** (department × areas × aliases), incident-shop inference from the selected Area and Detail Lokasi (alias match, reporter tie-break, AI suggestion in the existing location review), a one-tap reporter confirmation only when uncertain, shop snapshots on Voice, location-owner handover targets, and a location/section-aware assignment sheet. Schema, API, OpenAPI/contracts, Admin and workforce UI changed; two migrations are additive. Local static checks, unit tests, typecheck, builds, the full Chromium/visual browser suite, and legacy WebKit passed (timing flakes under parallel load passed serially). Database integration, migrations, full-stack, and Gitleaks rely on hosted CI because Docker is unavailable on the development host. Follow-up: an Area column per employee/Section in the organization import to rank assignment candidates.
+Phase 13 remains the only `in_progress` phase. ADR-0058 adds the `LOCATION_OWNER_DEPARTMENT` route mode (now used by Fasilitas Kerja / Kesulitan Kerja), Admin-managed **Lokasi shop** (department × areas × aliases), incident-shop inference from the selected Area and Detail Lokasi (alias match, reporter tie-break, AI suggestion in the existing location review), a one-tap reporter confirmation only when uncertain, shop snapshots on Voice, location-owner handover targets, and a location/section-aware assignment sheet. Schema, API, OpenAPI/contracts, Admin and workforce UI changed; two migrations are additive. Local static checks, unit tests, typecheck, builds, the full Chromium/visual browser suite, and legacy WebKit passed (timing flakes under parallel load passed serially). Database integration, migrations, full-stack, and Gitleaks rely on hosted CI because Docker is unavailable on the development host. Follow-up: an Area column per employee/Section in the organization import to rank assignment candidates.
+
+## PR #60 runtime OpenSSL repair — 30 September 2026
+
+Phase 13 remains the only `in_progress` phase. ADR-0057 requires actual patched
+OpenSSL in all affected runtimes and a temporary API-only package/version-scoped
+policy for the stale Debian vendor feed, expiring after 7 October 2026 UTC.
+All application jobs passed run 36684901612; production-image and final release
+acceptance remain pending. No gate threshold or deployment scope changes.
+
+## PR #60 dependency audit repair — 30 September 2026
+
+Phase 13 remains the only `in_progress` phase. ADR-0045 extends range-scoped
+patched dependency resolution for fast-uri, undici and three brace-expansion
+major lines after the repository-wide CI audit failed. Application contracts,
+deployment scope and audit thresholds are unchanged. Fresh/frozen installs and
+initial audit pass; final local/hosted validation is recorded in sessionHandoff.md.
+
+## Staging domains and unused CARE image cleanup — 30 September 2026
+
+Phase 13 remains the only `in_progress` phase. Staging targets `satucare.com` and
+`admin-pad.satucare.com`; production placeholders stay pending. ADR-0011 separates
+retained source/runtime environments from unused image retention: success cleanup
+covers legacy CARE repositories immediately and labeled dangling images going forward,
+protects active/shared/foreign images and persistent state, and rebuilds retained rollback
+targets with the current script. DNS/TLS, origin-bound login/PWA/push, reclaimed disk and
+hosted rollback remain acceptance work. No phase completion or deployment is claimed.
 
 ## Member home summary and unread notification indicator — 28 September 2026
 
@@ -867,7 +893,7 @@ Scope:
 
 - release-by-SHA, checksum/safe path/deploy lock/high-water run, preflight/deploy/rollback/smoke;
 - staging CI/CD with security/migration/container gates and stale-candidate rejection;
-- deploy workforce ke `care.qd-tmmin.site` dan Admin ke `admin-ped.qd-tmmin.site`;
+- deploy workforce ke `satucare.com` dan Admin ke `admin-pad.satucare.com`;
 - live DeepSeek Chat Completions, auth, import/remediation, routing/Union/privacy, push/media, host isolation, migration, dan rollback rehearsal.
 
 Acceptance:

@@ -338,13 +338,13 @@ jobs:
       - name: Verify release, routing, headers, and non-root policy
         run: |
           sha=0000000000000000000000000000000000000000
-          curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-voice" and .releaseSha==$sha'
-          curl -fsS -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-admin" and .releaseSha==$sha'
-          curl -fsS -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/ready | jq -e --arg sha "$sha" '.status=="ready" and .releaseSha==$sha'
-          curl -fsS -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/a/deep/link | grep -F '<div id="root" data-care-boot-state="loading">'
-          [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/api/v1/auth/session)" == 401 ]]
-          [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: admin-ped.qd-tmmin.site' http://127.0.0.1:18080/manifest.webmanifest)" == 404 ]]
-          curl -fsSI -H 'Host: care.qd-tmmin.site' http://127.0.0.1:18080/ | grep -Eiq '^content-security-policy:'
+          curl -fsS -H 'Host: satucare.com' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-voice" and .releaseSha==$sha'
+          curl -fsS -H 'Host: admin-pad.satucare.com' http://127.0.0.1:18080/release.json | jq -e --arg sha "$sha" '.application=="care-web-admin" and .releaseSha==$sha'
+          curl -fsS -H 'Host: admin-pad.satucare.com' http://127.0.0.1:18080/ready | jq -e --arg sha "$sha" '.status=="ready" and .releaseSha==$sha'
+          curl -fsS -H 'Host: satucare.com' http://127.0.0.1:18080/a/deep/link | grep -F '<div id="root" data-care-boot-state="loading">'
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: satucare.com' http://127.0.0.1:18080/api/v1/auth/session)" == 401 ]]
+          [[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Host: admin-pad.satucare.com' http://127.0.0.1:18080/manifest.webmanifest)" == 404 ]]
+          curl -fsSI -H 'Host: satucare.com' http://127.0.0.1:18080/ | grep -Eiq '^content-security-policy:'
           compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")
           for service in api workforce-web admin-web caddy postgres; do
             id="$("${compose[@]}" ps -q "$service")"
@@ -376,6 +376,7 @@ jobs:
         with:
           {
             image-ref: 'care-api:0000000000000000000000000000000000000000',
+            ignore-policy: deploy/security/trivy-patched-openssl.rego,
             scanners: vuln,
             severity: 'HIGH,CRITICAL',
             ignore-unfixed: false,
@@ -471,8 +472,8 @@ jobs:
       release_sha: ${{ github.sha }}
       deploy_run_number: ${{ format('{0}', github.run_number) }}
       deploy_run_attempt: ${{ format('{0}', github.run_attempt) }}
-      environment_url: https://care.qd-tmmin.site
+      environment_url: https://satucare.com
       remote_base_dir: /opt/care/staging
-      workforce_domain: care.qd-tmmin.site
-      admin_domain: admin-ped.qd-tmmin.site
+      workforce_domain: satucare.com
+      admin_domain: admin-pad.satucare.com
     secrets: inherit

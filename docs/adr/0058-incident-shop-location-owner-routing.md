@@ -1,4 +1,4 @@
-# ADR-0057: Incident shop routing for location-owned categories
+# ADR-0058: Incident shop routing for location-owned categories
 
 - Status: Accepted
 - Date: 30 September 2026

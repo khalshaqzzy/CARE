@@ -67,3 +67,30 @@ existing override entries (`deepmerge-ts`, `path-to-regexp`).
   complete browser suite (310, including media/attachment paths that exercise
   `sharp`).
 - Gitleaks directory scan and `git diff --check` passed.
+
+## Transitive audit refresh — 30 September 2026
+
+The dependency-security job for PR #60 failed on 11 High advisories in the
+existing lockfile. The same failure was reproduced with the pinned local
+Node/pnpm runtime. Dependency review found no new vulnerable packages in the
+original deployment diff; the repository-wide audit still evaluates all resolved
+versions against the current advisory feed.
+
+Range-scoped workspace overrides advance only the affected installed lines:
+
+- `fast-uri@^3.0.0` to `3.1.7`, addressing authority injection and malformed
+  IPv6-bracket host confusion ([maintainer advisory](https://github.com/fastify/fast-uri/security/advisories/GHSA-58mr-gqgx-xq4g)).
+- `undici@^8.0.0` to `8.10.2`, addressing WebSocket subprotocol DoS,
+  BalancedPool TLS-option forwarding and cache origin isolation. Its Node
+  requirement is compatible with the pinned Node 22.23.2 runtime.
+- `brace-expansion@^1.0.0` to `1.1.20`, `@^2.0.0` to `2.1.6`, and
+  `@^5.0.0` to `5.0.11`, addressing both recursion/stack-exhaustion advisory
+  families ([nested-group advisory](https://github.com/advisories/GHSA-qhr7-859c-m2p7),
+  [comma-parser advisory](https://github.com/advisories/GHSA-6j4f-fj2g-mc7p)).
+
+Major versions are preserved; no unused 4.x override or blanket latest-version
+upgrade is introduced. These packages are used through ESLint/minimatch,
+ExcelJS/archiver, OpenAPI generation, Workbox/Ajv and jsdom test infrastructure.
+Audit thresholds, workflow coverage and exceptions remain unchanged. Initial
+fresh/frozen installs and audit passed with zero High/Critical and ten Moderate
+findings. Final regression and hosted evidence is recorded in the session handoff.

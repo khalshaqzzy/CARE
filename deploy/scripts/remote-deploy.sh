@@ -81,10 +81,12 @@ candidate_deploy() {
   "${RELEASE_DIR}/deploy/scripts/smoke-check.sh" "${REQUESTED_SHA}" "https://$(require_env_value "${RUNTIME_ENV}" WORKFORCE_DOMAIN)" "https://$(require_env_value "${RUNTIME_ENV}" ADMIN_DOMAIN)"
 }
 
+"${RELEASE_DIR}/deploy/scripts/cleanup-images.sh" inventory "${BASE_DIR}"
+
 if ! candidate_deploy; then
   echo "Candidate failed; database down migration will not be attempted." >&2
   if [[ -n "${previous_release}" && "${previous_release}" != "${REQUESTED_SHA}" ]]; then
-    DEPLOY_LOCK_HELD=true "${BASE_DIR}/releases/${previous_release}/deploy/scripts/remote-rollback.sh" "${REQUESTED_ENV}" "${previous_release}" "${BASE_DIR}" || echo "Automatic code rollback also failed." >&2
+    DEPLOY_LOCK_HELD=true "${RELEASE_DIR}/deploy/scripts/remote-rollback.sh" "${REQUESTED_ENV}" "${previous_release}" "${BASE_DIR}" || echo "Automatic code rollback also failed." >&2
   else compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" stop caddy workforce-web admin-web api || true; fi
   exit 1
 fi
@@ -97,12 +99,15 @@ activate_symlink "${RELEASE_DIR}" "${BASE_DIR}/current"
 printf '%s\n' "${REQUESTED_SHA}" >"${BASE_DIR}/current_release.tmp"; mv "${BASE_DIR}/current_release.tmp" "${BASE_DIR}/current_release"
 releases=()
 while IFS= read -r release_entry; do releases+=("${release_entry}"); done < <(find "${BASE_DIR}/releases" -mindepth 1 -maxdepth 1 -type d -print | sort)
-kept=("${RELEASE_DIR}"); [[ -z "${previous_release}" || ! -d "${BASE_DIR}/releases/${previous_release}" ]] || kept+=("${BASE_DIR}/releases/${previous_release}")
+retained_previous=''
+if [[ -f "${BASE_DIR}/previous_release" ]]; then retained_previous="$(<"${BASE_DIR}/previous_release")"; require_sha "${retained_previous}"; fi
+kept=("${RELEASE_DIR}")
+[[ -z "${retained_previous}" || "${retained_previous}" == "${REQUESTED_SHA}" || ! -d "${BASE_DIR}/releases/${retained_previous}" ]] || kept+=("${BASE_DIR}/releases/${retained_previous}")
 for entry in "${releases[@]}"; do [[ " ${kept[*]} " == *" ${entry} "* || ${#kept[@]} -ge 5 ]] || kept+=("${entry}"); done
 for stale in "${releases[@]}"; do
   [[ " ${kept[*]} " != *" ${stale} "* ]] || continue
   require_safe_path "${stale}" "${BASE_DIR}/releases"; stale_sha="$(basename "${stale}")"; require_sha "${stale_sha}"; rm -rf -- "${stale}"
-  docker image rm "care-api:${stale_sha}" "care-web-voice:${stale_sha}" "care-web-admin:${stale_sha}" "care-caddy:${stale_sha}" >/dev/null 2>&1 || true
 done
+"${RELEASE_DIR}/deploy/scripts/cleanup-images.sh" clean "${BASE_DIR}"
 rm -f -- "${ARCHIVE}" "${RUNTIME_ENV_INCOMING}"
 printf 'Release %s is active; previous release was %s.\n' "${REQUESTED_SHA}" "${previous_release:-none}"
