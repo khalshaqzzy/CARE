@@ -105,6 +105,12 @@ reclaimed disk space and rollback rebuild against the deployed VM.
 
 ## 1 October 2026: Dedicated builders and success build-cache cleanup
 
+Rollout correction: the remote entrypoint runs deployment from the incoming
+directory, which is moved to the immutable release directory or removed on a
+same-SHA retry. Rebind the current-generation helper directory after this step,
+before any build. The deployment harness must execute the copied incoming script
+so fresh promotion, retries and automatic rollback exercise the real path.
+
 ### Context and decision
 
 VM diagnosis found approximately 77.2 GB of BuildKit cache while current runtime

@@ -1,5 +1,14 @@
 # CARE v1.1 Implementation Phases
 
+## Staging deployment helper path repair — 1 October 2026
+
+Phase 13 remains `in_progress`. Latest staging validation and release gate passed,
+but rollout failed because the build helper path still referenced moved incoming
+source. Rebind helpers after promotion and exercise the incoming execution path
+in the deployment harness, including retries and rollback. Automatic recovery
+kept `a35ad0c9` healthy and reduced VM disk use to 19%; candidate deployment
+acceptance remains pending. See sessionHandoff and ADR-0011.
+
 ## Per-deploy CARE build-cache cleanup — 1 October 2026
 
 Phase 13 remains the only `in_progress` phase. ADR-0011 extends success cleanup

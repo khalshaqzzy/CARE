@@ -39,6 +39,9 @@ else
   printf '%s\n' "${REQUESTED_SHA}" >"${INCOMING_DIR}/.source.sha"
   mv "${INCOMING_DIR}" "${RELEASE_DIR}"
 fi
+# Entrypoint runs this script from incoming. That directory has now moved to
+# releases (or was removed on a retry), so current-generation helpers live here.
+SCRIPT_DIR="${RELEASE_DIR}/deploy/scripts"
 RUNTIME_ENV="${RELEASE_DIR}/.runtime.env"
 previous_release=''; [[ ! -f "${BASE_DIR}/current_release" ]] || previous_release="$(<"${BASE_DIR}/current_release")"
 [[ -z "${previous_release}" ]] || require_sha "${previous_release}"
