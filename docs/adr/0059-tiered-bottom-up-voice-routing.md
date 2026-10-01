@@ -1,0 +1,85 @@
+# ADR-0059: Tiered bottom-up routing for Kesulitan Kerja and Kesejahteraan
+
+- Status: Accepted (stage 1 implemented; stages 2 and 3 planned)
+- Date: 2 October 2026
+- Related: PRD §9.1, §9.3, §14, §15.4, §43; ADR-0029, ADR-0033, ADR-0053, ADR-0055, ADR-0058
+
+## Context
+
+General Voices in Fasilitas Kerja / Kesulitan Kerja and Kesejahteraan were routed to the Department Head of the reporter (or of the incident shop, ADR-0058). Most of these Voices are best resolved by the reporter's immediate supervisors — the Group Leader of the production line or the Section Head — before a Manager is involved. CARE had no concept of Group Leader or Line, no working calendar, and no automatic escalation (PRD §15.4 explicitly excluded it).
+
+The organization file carried only `Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section` (optionally `Birth Date`). There was no link between a member and a Group Leader.
+
+## Decision
+
+Routing for the two categories becomes bottom-up: Group Leader (line leader) → Section Head → Manager → Deputy Division Head(s) and Division Head. The full design is recorded in PRD §43:
+
+- The chain follows the reporter's organization. Kesejahteraan always does. Fasilitas Kerja does unless the incident is in another department's shop, in which case the Voice goes straight to that shop's Manager with an "outside reporter" badge.
+- Respond and process windows apply at every tier, vary by severity, and are configured by Admin. Defaults: Low 2/3 working days, Medium 1/2, High 1/1, Critical 4/24 calendar hours.
+- An unanswered Voice escalates with full ownership. A responded-but-unprocessed Voice brings the upper tier into the chat with Remind, Reassign, or Process. Anyone in the chat can Process. Escalation stops once the Voice is processed.
+- Group Leaders and Section Heads cannot hand over sideways. They can escalate early with a reason. Only Managers hand over, while the Voice is not yet processed.
+- Upper tiers see team Voices read-only under "Voice Tim Saya", with the current stage shown. Voices that need action are under "Voice Untuk Saya".
+- Away delegation, severity changes until processed, Critical notifications to all upper tiers, and AI guidance toward Private Voice for complaints about superiors complete the model.
+
+Delivery is split into three stages so that real Line and Group Leader data can be validated before Voices are routed to Group Leaders:
+
+1. **Data and configuration (this change):**
+   - Area and Line import columns;
+   - the `GROUP_LEADER` capability with a Section Head–like dashboard;
+   - reporter Line/Area snapshots on new Voices;
+   - Admin working calendar and per-severity deadlines.
+2. **Routing and actions:** chain start, read-only visibility, chat actions, outside-reporter badge, relaxed Manager handover, away delegation, severity changes, and Private Voice guidance.
+3. **Automatic escalation:** a working-calendar-aware worker and its notifications.
+
+## Rationale
+
+- **Organization data.** Line and Group Leader come from the authoritative monthly file. Admin-maintained mappings were rejected: they would drift from HR data.
+- **Column format.** The existing `Posisi (struktural)` column gains the value `Group Leader`, and `Area` and `Line` are appended after `Section`. Older 7- and 8-column files keep working.
+- **Leader gaps are advisory.** Duplicate or missing leaders are reported in the import preview but do not block the import, because the routing rule (skip a level that is not exactly one person) degrades safely.
+- **Group Leader capability.** Group Leaders share the Section Head dashboard scope. A Line-level dashboard dimension is deferred until Group Leaders handle Voices.
+- **Calendar arithmetic.**
+  - Working days are counted in WIB.
+  - The time of day is kept, so a Voice submitted Friday 10.00 with one working day is due Monday 10.00.
+  - A Voice submitted on a non-working day counts from 00.00 of the next working day.
+  - Critical uses calendar hours, so emergencies are not delayed by weekends.
+- **Settings changes.** Deadlines and calendar edits use optimistic versions and audit events, and apply only to deadlines computed afterwards. Limits are 30 working days and 720 hours, which prevents a misconfiguration from parking Voices for months.
+
+## Alternatives considered
+
+- **One release with all three stages.** Rejected: Group Leader data quality would be untested when routing changes.
+- **Separate `Posisi` column for role level.** Rejected by the data owner; the existing column carries the new value.
+- **Blocking the import on duplicate or missing leaders.** Rejected: one inconsistent Line would stop the whole monthly snapshot.
+- **Fixed deadlines in code.** Rejected: operations want to tune them without a release.
+- **Group Leader as part of the Section Head capability.** Rejected: the roles differ in later stages (scope, eligible assignees).
+
+## Implementation (stage 1)
+
+- **Prisma and migrations.** Migration `20261002090000_tiered_routing_foundation` adds:
+  - `OrganizationMembership.lineName` and `area`;
+  - `Voice.reporterLineSnapshot` and `reporterAreaSnapshot`;
+  - `WorkingCalendarSetting`, `WorkingCalendarException`, and `EscalationDeadline`, seeded with the standard calendar and the default deadlines.
+- **Import.** `ImportsService` accepts the optional `Area, Line` trailer (`parseArea`), detects Area/Line changes as updates, persists them, and adds `summary.tiers` (`tierSummary`) to the preview.
+- **Capabilities.** `GROUP_LEADER` is added to the capability list, the session contract, the dashboard access check, the work-item and overview scopes, and the workforce navigation, home, account, and work-item views.
+- **Working time.** `apps/api/src/escalation/working-time.ts` provides `addWorkingTime`, `isWorkingDay`, and `jakartaDateKey`.
+- **Admin settings.** `EscalationSettingsService` and `AdminEscalationSettingsController` serve `/api/v1/admin/escalation-settings`. The Admin page is **Kalender & Eskalasi**, and the import preview shows an Area & Line readiness panel.
+- **Contracts.** OpenAPI and contracts are regenerated. The browser inventory grows from 415 to 419 tests, and capture scenarios from 181 to 184.
+
+## Consequences
+
+- Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.
+- Group Leaders see the responder dashboard and Voice Member immediately. Their "Voice Untuk Saya" remains empty until stage 2.
+- PRD §15.4 still holds until stage 3 ships for the tiered categories.
+
+## Validation
+
+- **Unit:** working-time arithmetic (WIB boundaries, weekends, custom holidays and extra working days, non-working-day start); Area/Line parsing (all four header layouts, area spellings, invalid area, incomplete trailer); tier summary duplicates and gaps; Group Leader navigation.
+- **Integration:**
+  - The new `tiered-routing-foundation` suite runs against Docker PostgreSQL. It covers import with Area/Line, readiness summary, persisted membership values, the `GROUP_LEADER` capability and dashboard, Voice Line/Area snapshot, seeded defaults, calendar versions and exceptions, and deadline validation, versions, and audit.
+  - The existing suites pass, except for known timing flakes on the development laptop.
+- **Browser:** the Admin escalation page at 1280 and 1440 px, the edit flow with request assertions, and the Group Leader dashboard.
+
+## Risks and follow-up
+
+- Line names repeat across Sections. Leaders are therefore matched by department, Section, and Line together.
+- Stage 2 must define the Line-level "Voice Tim Saya" scope for Group Leaders and the read-only visibility queries without regressing dashboard performance.
+- Stage 3 must use row locks shared with human actions, be idempotent across API instances, and recover missed deadlines after downtime.

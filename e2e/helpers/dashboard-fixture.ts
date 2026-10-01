@@ -81,7 +81,9 @@ export function dashboardFixture(
     visibility: isPrivate ? 'PRIVATE' : 'GENERAL',
     level,
     allowedLevels:
-      isPrivate || (caps.includes('SECTION_HEAD') && !caps.includes('MANAGER'))
+      isPrivate ||
+      ((caps.includes('SECTION_HEAD') || caps.includes('GROUP_LEADER')) &&
+        !caps.includes('MANAGER'))
         ? ['section']
         : global
           ? ['division', 'department', 'section']

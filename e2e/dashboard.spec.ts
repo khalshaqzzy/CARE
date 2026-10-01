@@ -465,3 +465,21 @@ test('compact performance cards follow server scope targets and use all time by 
   }
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
+test('Group Leader gets the section-scoped responder dashboard and Voice Member', async ({
+  page,
+}) => {
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'GROUP_LEADER'],
+      structuralPosition: 'Group Leader',
+    }),
+  });
+  await page.goto('/');
+  await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
+  const basis = page.getByRole('group', { name: 'Basis dashboard' });
+  await expect(
+    basis.getByRole('button', { name: 'Voice Untuk Saya', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(basis.getByRole('button', { name: 'Voice Tim Saya', exact: true })).toBeVisible();
+  await expect(page.getByText('Voice Member', { exact: true }).first()).toBeAttached();
+});

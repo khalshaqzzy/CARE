@@ -28,6 +28,7 @@ import { AdminEmpty } from '../../components/AdminEmpty';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { AdminStepper } from '../../components/AdminStepper';
 import { createAdminApi, type ImportPreview } from '../../admin-api';
+import { ImportTierSummary } from './ImportTierSummary';
 import { cursorPagination } from '../../use-cursor-pagination';
 
 const STEPS = [
@@ -371,6 +372,7 @@ export function ImportsPage() {
                   </span>
                 </li>
               </ul>
+              <ImportTierSummary tiers={data.summary.tiers} />
               <p className="admin-note">
                 <Info size={14} aria-hidden="true" />
                 <span>

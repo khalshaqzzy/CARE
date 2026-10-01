@@ -23,6 +23,7 @@ import {
   Route as RouteIcon,
   Settings,
   ShieldCheck,
+  CalendarClock,
   UserRound,
   UsersRound,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react
 import { OverviewPage } from './features/overview/OverviewPage';
 import { ImportsPage } from './features/imports/ImportsPage';
 import { RemediationPage } from './features/remediation/RemediationPage';
+import { EscalationSettingsPage } from './features/escalation/EscalationSettingsPage';
 import { UnionPage } from './features/union/UnionPage';
 import { AccountsPage } from './features/accounts/AccountsPage';
 import { VoiceExplorerPage } from './features/voices/VoiceExplorerPage';
@@ -64,6 +66,7 @@ export function App() {
         <Route index element={<OverviewPage />} />
         <Route path="imports" element={<ImportsPage />} />
         <Route path="remediation" element={<RemediationPage />} />
+        <Route path="escalation" element={<EscalationSettingsPage />} />
         <Route path="union" element={<UnionPage />} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="voices" element={<VoiceExplorerPage />} />
@@ -279,6 +282,7 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   overview: '/',
   imports: '/imports',
   remediation: '/remediation',
+  escalation: '/escalation',
   union: '/union',
   accounts: '/accounts',
   voices: '/voices',
@@ -297,21 +301,23 @@ function AdminShell() {
     ? 'imports'
     : path.startsWith('/remediation')
       ? 'remediation'
-      : path.startsWith('/union')
-        ? 'union'
-        : path.startsWith('/accounts')
-          ? 'accounts'
-          : path.startsWith('/voices')
-            ? 'voices'
-            : path.startsWith('/handovers')
-              ? 'handovers'
-              : path.startsWith('/audit')
-                ? 'audit'
-                : path.startsWith('/system')
-                  ? 'system'
-                  : path.startsWith('/account')
-                    ? 'account'
-                    : 'overview';
+      : path.startsWith('/escalation')
+        ? 'escalation'
+        : path.startsWith('/union')
+          ? 'union'
+          : path.startsWith('/accounts')
+            ? 'accounts'
+            : path.startsWith('/voices')
+              ? 'voices'
+              : path.startsWith('/handovers')
+                ? 'handovers'
+                : path.startsWith('/audit')
+                  ? 'audit'
+                  : path.startsWith('/system')
+                    ? 'system'
+                    : path.startsWith('/account')
+                      ? 'account'
+                      : 'overview';
   const items = [
     {
       id: 'overview',
@@ -327,6 +333,11 @@ function AdminShell() {
       id: 'remediation',
       label: 'Remediation & Route',
       icon: <RouteIcon size={19} />,
+    },
+    {
+      id: 'escalation',
+      label: 'Kalender & Eskalasi',
+      icon: <CalendarClock size={19} />,
     },
     {
       id: 'union',

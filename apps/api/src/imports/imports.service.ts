@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import {
   AccountKind,
   AccountStatus,
+  Area,
   ImportIssueStatus,
   ImportIssueType,
   ImportStatus,
@@ -41,7 +42,30 @@ export const ORGANIZATION_BIRTH_DATE_HEADERS = [
   'Birth Date',
   ...ORGANIZATION_HEADERS.slice(3),
 ] as const;
+// Optional trailing columns for tiered routing: plant area and production line.
+export const ORGANIZATION_TIER_HEADERS = ['Area', 'Line'] as const;
+type HeaderLayout = { birthDate: boolean; tier: boolean };
+const AREA_VALUES: Record<string, Area> = {
+  'karawang 1': Area.KARAWANG_1,
+  'karawang 2': Area.KARAWANG_2,
+  'karawang 3': Area.KARAWANG_3,
+  'sunter 1': Area.SUNTER_1,
+  'sunter 2': Area.SUNTER_2,
+};
+/** Accepts "Karawang 1", "KARAWANG_1", "karawang1"; blank means unknown. */
+export function parseArea(value: string): Area | null | undefined {
+  if (!value) return null;
+  const key = value
+    .toLocaleLowerCase('en-US')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])(\d)/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return AREA_VALUES[key];
+}
 type ImportRow = {
+  area?: Area | null;
+  line?: string | null;
   birthDate?: string | null;
   noReg: string;
   name: string;
@@ -66,6 +90,65 @@ const confirmBody = z
     expectedVersion: z.number().int().positive(),
   })
   .strict();
+
+const tierKey = (row: ImportRow, ...parts: string[]) =>
+  [unitKey(row), ...parts.map((part) => normalize(part).toLocaleLowerCase('en-US'))].join('|');
+const positionOf = (row: ImportRow) => normalize(row.structuralPosition).toLocaleLowerCase('en-US');
+
+/**
+ * Advisory checks for tiered routing: each Section should have one Section
+ * Head and each Line one Group Leader. Gaps and duplicates do not block the
+ * import; routing skips a level it cannot resolve to exactly one person.
+ */
+export function tierSummary(rows: ImportRow[]) {
+  const columnsPresent = rows.some((row) => row.area !== undefined || row.line !== undefined);
+  const describe = (row: ImportRow, extra: Record<string, string> = {}) => ({
+    division: row.division,
+    department: row.department,
+    section: row.section,
+    ...extra,
+  });
+  const sectionHeads = new Map<string, { row: ImportRow; count: number }>();
+  const lines = new Map<string, { row: ImportRow; leaders: number; members: number }>();
+  for (const row of rows) {
+    if (row.department === '14') continue;
+    if (row.section && positionOf(row) === 'section head') {
+      const key = tierKey(row, row.section);
+      const entry = sectionHeads.get(key) ?? { row, count: 0 };
+      entry.count += 1;
+      sectionHeads.set(key, entry);
+    }
+    if (row.line) {
+      const key = tierKey(row, row.section, row.line);
+      const entry = lines.get(key) ?? { row, leaders: 0, members: 0 };
+      if (positionOf(row) === 'group leader') entry.leaders += 1;
+      else entry.members += 1;
+      lines.set(key, entry);
+    }
+  }
+  const lineEntries = [...lines.values()];
+  return {
+    columnsPresent,
+    withLine: rows.filter((row) => row.line).length,
+    withArea: rows.filter((row) => row.area).length,
+    groupLeaders: rows.filter((row) => positionOf(row) === 'group leader').length,
+    duplicateSectionHeads: [...sectionHeads.values()]
+      .filter((entry) => entry.count > 1)
+      .map((entry) => ({ ...describe(entry.row), count: entry.count })),
+    duplicateLineLeaders: lineEntries
+      .filter((entry) => entry.leaders > 1)
+      .map((entry) => ({
+        ...describe(entry.row, { line: entry.row.line! }),
+        count: entry.leaders,
+      })),
+    linesWithoutLeader: lineEntries
+      .filter((entry) => entry.leaders === 0)
+      .map((entry) => ({
+        ...describe(entry.row, { line: entry.row.line! }),
+        count: entry.members,
+      })),
+  };
+}
 
 @Injectable()
 export class ImportsService implements OnModuleInit, OnModuleDestroy {
@@ -126,6 +209,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       organizationChanged?: boolean;
       nameChanged?: boolean;
       birthDateChanged?: boolean;
+      tierChanged?: boolean;
     }> = rows.map((row) => {
       const previous = current.get(row.noReg);
       if (!previous) return { noReg: row.noReg, type: 'CREATE' as const };
@@ -136,16 +220,21 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       const birthDateChanged =
         row.birthDate !== undefined &&
         row.birthDate !== (previous.employee.birthDate?.toISOString().slice(0, 10) ?? null);
+      // A file without Area/Line clears both, so any stored value counts as a change.
+      const tierChanged =
+        (row.area ?? null) !== (previous.area ?? null) ||
+        (row.line ?? null) !== (previous.lineName ?? null);
       return {
         noReg: row.noReg,
         type:
-          positionChanged || organizationChanged || nameChanged || birthDateChanged
+          positionChanged || organizationChanged || nameChanged || birthDateChanged || tierChanged
             ? ('UPDATE' as const)
             : ('UNCHANGED' as const),
         positionChanged,
         organizationChanged,
         nameChanged,
         birthDateChanged,
+        tierChanged,
       };
     });
     for (const noReg of current.keys())
@@ -218,6 +307,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       unionGaps: (['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).filter(
         (slot) => !unionTerms.some((term) => term.slot === slot),
       ),
+      tiers: tierSummary(rows),
     };
     const storageKey = `imports/${randomToken(24)}.${format}`;
     const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
@@ -805,6 +895,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
               employeeName: row.name,
               structuralPosition: row.structuralPosition,
               section: row.section,
+              lineName: row.line ?? null,
+              area: row.area ?? null,
               sourceRow: row.sourceRow,
             })),
           });
@@ -1038,7 +1130,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       { length: headerRow.cellCount },
       (_, i) => headerRow.getCell(i + 1).value,
     );
-    const hasBirthDate = this.validateHeaders(headers, 'XLSX');
+    const layout = this.validateHeaders(headers, 'XLSX');
+    const hasBirthDate = layout.birthDate;
     if (sheet.actualRowCount - 1 > 10_000)
       throw badRequest('XLSX_ROW_LIMIT', 'Workbook exceeds 10,000 data rows');
     const values: string[][] = [];
@@ -1067,18 +1160,22 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       );
       sourceRows.push(rowNumber);
     }
-    return this.buildRows(values, 'XLSX', hasBirthDate, sourceRows);
+    return this.buildRows(values, 'XLSX', layout, sourceRows);
   }
 
-  private validateHeaders(headers: unknown[], source: 'XLSX' | 'CSV') {
+  private validateHeaders(headers: unknown[], source: 'XLSX' | 'CSV'): HeaderLayout {
     const match = (expected: readonly string[]) =>
       headers.length === expected.length &&
       headers.every((value, index) => value === expected[index]);
-    if (match(ORGANIZATION_BIRTH_DATE_HEADERS)) return true;
-    if (match(ORGANIZATION_HEADERS)) return false;
+    for (const birthDate of [true, false])
+      for (const tier of [true, false]) {
+        const base = birthDate ? ORGANIZATION_BIRTH_DATE_HEADERS : ORGANIZATION_HEADERS;
+        if (match(tier ? [...base, ...ORGANIZATION_TIER_HEADERS] : base))
+          return { birthDate, tier };
+      }
     throw badRequest(
       `${source}_HEADERS_INVALID`,
-      'Use the seven organization headers, optionally with Birth Date after Posisi (struktural)',
+      'Use the seven organization headers, optionally with Birth Date after Posisi (struktural) and Area, Line after Section',
     );
   }
 
@@ -1103,9 +1200,11 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
   private buildRows(
     values: string[][],
     source: 'XLSX' | 'CSV',
-    hasBirthDate: boolean,
+    layout: HeaderLayout,
     sourceRows?: number[],
   ): ImportRow[] {
+    const hasBirthDate = layout.birthDate;
+    const columnCount = 7 + (hasBirthDate ? 1 : 0) + (layout.tier ? 2 : 0);
     if (values.length > 10_000)
       throw badRequest(`${source}_ROW_LIMIT`, 'Organization file exceeds 10,000 data rows');
     const rows: ImportRow[] = [];
@@ -1113,7 +1212,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     for (let index = 0; index < values.length; index += 1) {
       const rowNumber = sourceRows?.[index] ?? index + 2;
       const cells = values[index]!;
-      if (cells.length !== (hasBirthDate ? 8 : 7))
+      if (cells.length !== columnCount)
         throw badRequest(
           `${source}_COLUMN_COUNT_INVALID`,
           `Row ${rowNumber} has an invalid column count`,
@@ -1130,8 +1229,26 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
             `Invalid birth date at row ${rowNumber}; use YYYY-MM-DD`,
           );
       }
-      const [noReg, name, structuralPosition, directorate, division, rawDepartment, section] =
-        normalized;
+      const [
+        noReg,
+        name,
+        structuralPosition,
+        directorate,
+        division,
+        rawDepartment,
+        section,
+        rawArea,
+        rawLine,
+      ] = normalized;
+      let area: Area | null | undefined;
+      if (layout.tier) {
+        area = parseArea(rawArea ?? '');
+        if (area === undefined)
+          throw badRequest(
+            `${source}_AREA_INVALID`,
+            `Invalid Area at row ${rowNumber}; use Karawang 1-3 or Sunter 1-2`,
+          );
+      }
       const department = rawDepartment || '14';
       if (!noReg || !name || !structuralPosition || !directorate)
         throw badRequest(`${source}_REQUIRED_VALUE`, `Row ${rowNumber} is incomplete`);
@@ -1148,6 +1265,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         department,
         section,
         ...(hasBirthDate ? { birthDate } : {}),
+        ...(layout.tier ? { area, line: rawLine || null } : {}),
         sourceRow: rowNumber,
       });
     }

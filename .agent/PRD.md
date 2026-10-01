@@ -334,7 +334,7 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 9.1 Authoritative Organization File Contract
 
-Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format menerima tujuh header legacy berikut, atau delapan header dengan `Birth Date` tepat setelah `Posisi (struktural)`:
+Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format menerima tujuh header legacy berikut, atau delapan header dengan `Birth Date` tepat setelah `Posisi (struktural)`. Setiap format juga boleh diakhiri kolom `Area` lalu `Line` setelah `Section` (9 atau 10 kolom) untuk routing bertingkat (§43):
 
 ```text
 Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
@@ -345,9 +345,10 @@ Aturan:
 - satu row merepresentasikan satu workforce account; `Noreg` diperlakukan sebagai text agar leading zero terjaga;
 - Header wajib sesuai salah satu format yang didukung; kolom tambahan lainnya, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak. Section kosong tetap didukung; tidak dibuat Section sintetis.
 - XLSX memakai plain string atau blank, kecuali Birth Date yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. DOB teks wajib `YYYY-MM-DD`, valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. Format tujuh kolom mempertahankan DOB existing; format delapan kolom memperbarui DOB termasuk blank menjadi null.
+- `Area` menerima Karawang 1–3 dan Sunter 1–2 (huruf besar/kecil, spasi, atau garis bawah tidak berpengaruh) atau kosong; nilai lain menolak file. `Line` adalah teks bebas; Line kosong berarti member tidak memiliki Group Leader. Format tanpa kedua kolom ini mengosongkan Area dan Line seluruh karyawan, dan preview menampilkan peringatan;
 - `Noreg` unik setelah trim; password existing tidak berubah akibat import;
 - organization unit memakai key komposit `Directorat + Division + Department`;
-- posisi mentah disimpan, tetapi hanya `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability;
+- posisi mentah disimpan, tetapi hanya `Group Leader`, `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability; `Group Leader` adalah ketua Line dan memberi capability `GROUP_LEADER`;
 - nilai `Department = 14` tidak dianggap route General yang sah; user tersebut hanya dapat submit Private sampai source data berubah;
 - Workbook September yang diperiksa berisi 7.418 anggota unik: 7.018 numerik dengan DOB dan 400 TM tanpa DOB/Section, semuanya tetap memakai role existing. Tanggal sumber tidak dikoreksi otomatis; preview menghitung tersedia/kosong/anomali usia di luar 15–80 tahun tanpa menampilkan DOB aktual. Perubahan DOB dihitung sebagai update.
 - workbook Agustus baseline berisi 7.018 row, 38 Department Head, 250 Section Head, 4 Division Head, 8 Deputy/acting Division Head, 1 Director, dan 188 row dengan `Department = 14`;
@@ -364,7 +365,7 @@ Aturan:
 
 ### 9.3 Route dan Account Remediation
 
-Preview wajib menampilkan create/update/deactivate/unchanged, perubahan posisi/unit, missing Department Head, invalid default PIC atau category route, `Department = 14`, dan status tiga akun Union. Confirm memakai checksum, expected version, idempotency key, dan satu transaction.
+Preview wajib menampilkan create/update/deactivate/unchanged, perubahan posisi/unit/Area/Line, ringkasan Area & Line (jumlah Group Leader, Section dengan lebih dari satu Section Head, Line dengan lebih dari satu atau tanpa Group Leader — advisory, tidak memblokir), missing Department Head, invalid default PIC atau category route, `Department = 14`, dan status tiga akun Union. Confirm memakai checksum, expected version, idempotency key, dan satu transaction.
 
 Setelah confirm, Admin remediation queue menyediakan minimum action berikut:
 
@@ -2304,3 +2305,40 @@ Default rentang dan Reset adalah **Semua waktu**, menggantikan default 30 hari s
 - Admin has a dedicated queue and decision page. General Voice Explorer shows both Manager and Admin handover histories. The workforce Manager has an explicit Admin destination in the existing handover flow.
 - Login pads one to seven digit numeric No. Reg to eight digits before lookup. Non-numeric identifiers and numeric strings of at least eight digits stay intact. The bottom plus icon is highlighted with a restrained pulse for every workforce role whose navigation includes Buat Voice, including responder and leadership capabilities. Union navigation has no Buat Voice destination under the v1 capability contract. Reduced-motion preference replaces the pulse with a static emphasis.
 - On the chat route, the compact blue Voice card, participant summary, and composer remain visible while only messages scroll. The three participant summaries show clear name/role hierarchy and accessible full names. Older-message loading preserves scroll position; incoming messages do not interrupt a reader away from the bottom. These layout changes do not affect other Voice routes.
+
+## 43. Routing bertingkat (bawah ke atas) — 2 Oktober 2026
+
+Status: **Tahap 1 diimplementasikan; Tahap 2 dan 3 direncanakan.** ADR-0059 mencatat keputusan lengkap.
+
+### 43.1 Cakupan
+
+- Berlaku untuk General Voice **Fasilitas Kerja / Kesulitan Kerja** dan **Kesejahteraan**. Kategori fixed (Safety, Environment, Fasilitas Umum, Facility Repair) dan Private Voice tidak berubah.
+- Kesejahteraan selalu mengikuti organisasi pelapor. Fasilitas Kerja mengikuti organisasi pelapor kecuali kejadian berada di shop department lain (§14.5); Voice tersebut langsung ke Manager shop dengan badge **"Pelapor dari luar department"**, lalu dapat naik ke Deputy/Division Head shop.
+- Keluhan tentang atasan (bullying, harassment, konflik) diarahkan AI untuk diganti menjadi Private Voice.
+
+### 43.2 Rantai dan batas waktu
+
+- Rantai: Group Leader (Line pelapor) → Section Head (Section pelapor) → Manager → Deputy Division Head (semua, bersamaan) dan Division Head. Level yang kosong atau tidak tepat satu orang dilewati. Pelapor tidak pernah menangani Voice-nya sendiri; rantai mulai satu level di atasnya.
+- Batas waktu per jenjang mengikuti severity dan diatur Admin (§43.4). Default: Low 2/3 hari kerja, Medium 1/2 hari kerja, High 1/1 hari kerja, Critical 4/24 jam kalender (respons/proses).
+- Belum direspons dalam batas waktu: Voice naik dan level atas menjadi penanggung jawab dengan batas respons + proses penuh. Sudah direspons tetapi belum diproses: level atas bergabung ke chat dan memilih **Ingatkan** (notifikasi, maksimal 1 kali per hari kerja per orang per Voice), **Tugaskan** ke siapa pun di bawahnya dalam unitnya (penanggung baru mendapat batas proses baru), atau **Proses** sendiri. Semua level di chat dapat klik Proses; yang klik menjadi PIC. Eskalasi berhenti saat Voice Diproses.
+- GL/SH dapat **Naikkan ke atasan** dengan alasan wajib. Hanya Manager yang dapat handover ke kategori/department lain, selama Voice belum Diproses; handover masuk ke kategori bertingkat langsung ke Manager tujuan. Reopen kembali ke PIC terakhir dengan batas proses baru.
+- Responder dapat mengubah severity sampai Voice Diproses, dengan alasan wajib; batas waktu jenjang saat ini dihitung ulang sejak perubahan.
+
+### 43.3 Visibilitas dan notifikasi
+
+- Semua level di atas pelapor melihat Voice kategori bertingkat sebagai baca-saja beserta tahap saat ini di **Voice Tim Saya**; Voice yang memerlukan aksi berada di **Voice Untuk Saya**. Detail Voice baca-saja menampilkan timeline tahap penanganan.
+- Notifikasi dikirim ke penanggung jawab level saat ini, saat eskalasi ke penerima baru, level sebelumnya, dan pelapor (teks generik). Voice Critical memberi notifikasi ke semua level di atas sejak submit. Voice kategori fixed dari anggota tim hanya terlihat di Voice Tim Saya; hanya Critical memberi notifikasi baca-saja ke Manager pelapor.
+- Chat menampilkan maksimal lima avatar dengan tombol Detail untuk daftar peserta lengkap.
+- **Sedang tidak masuk:** GL ke atas memilih periode dan pengganti (level sama atau satu level di atas dalam unitnya). Voice baru dan Voice yang sedang dipegang dialihkan; status aktif kembali otomatis atau melalui tombol **Aktif kembali**. Jika pengganti juga off, Voice naik ke atasnya.
+
+### 43.4 Tahap 1 — data dan konfigurasi (diimplementasikan)
+
+- Import menerima kolom `Area` dan `Line` (§9.1) dan menyimpan `lineName`/`area` pada membership. Voice General baru menyimpan `reporterLineSnapshot` dan `reporterAreaSnapshot`.
+- Capability `GROUP_LEADER` diberikan oleh posisi `Group Leader`. GL mendapat dashboard responder seperti Section Head (basis Voice Untuk Saya / Voice Tim Saya, cakupan section) dan menu Voice Member. Routing Voice belum berubah pada tahap ini.
+- Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
+- API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
+
+### 43.5 Tahap berikutnya
+
+- **Tahap 2:** Voice mulai di GL/SH, visibilitas baca-saja dan pemisahan Voice Untuk Saya/Tim Saya, aksi Naikkan/Tugaskan/Ingatkan/Proses di chat bertingkat, badge pelapor dari luar, handover Manager yang dilonggarkan, Sedang tidak masuk, ubah severity, dan saran AI ke Private Voice.
+- **Tahap 3:** worker eskalasi otomatis berbasis kalender kerja, notifikasi eskalasi, dan notifikasi Critical. Setelah Tahap 3, aturan §15.4 "tanpa eskalasi otomatis" tidak lagi berlaku untuk kategori bertingkat.

@@ -24,6 +24,7 @@ import { useAuth } from '@care/frontend-core';
 
 const CAPABILITY_LABELS: Record<string, string> = {
   MEMBER: 'Member',
+  GROUP_LEADER: 'Group Leader',
   SECTION_HEAD: 'Section Head',
   MANAGER: 'Manager',
   DIVISION_LEADERSHIP: 'Divisi Leadership',

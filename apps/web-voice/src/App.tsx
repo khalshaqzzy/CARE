@@ -552,10 +552,10 @@ function capabilityFor(session: ReturnType<typeof useAuth>['session']): {
   const caps = session?.capabilities ?? [];
   return {
     isMember: caps.includes('MEMBER'),
-    isResponder: caps.some((c) => ['MANAGER', 'SECTION_HEAD'].includes(c)),
+    isResponder: caps.some((c) => ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER'].includes(c)),
     isLeadership: caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c)),
     isUnion: caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER'].includes(c)),
-    hasSectionHead: caps.includes('SECTION_HEAD'),
+    hasSectionHead: caps.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)),
   };
 }
 

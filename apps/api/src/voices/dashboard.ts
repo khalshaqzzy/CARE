@@ -133,7 +133,12 @@ export class OrganizationDashboard {
     const global = union || caps.includes('DIRECTOR') || caps.includes('CARE_ADMIN');
     const leader = caps.includes('DIVISION_LEADERSHIP');
     const manager = caps.includes('MANAGER');
-    if (!global && !leader && !manager && !caps.includes('SECTION_HEAD'))
+    if (
+      !global &&
+      !leader &&
+      !manager &&
+      !caps.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c))
+    )
       throw forbiddenAsNotFound();
     if (q.visibility === 'PRIVATE' && !union) throw forbiddenAsNotFound();
     if (
