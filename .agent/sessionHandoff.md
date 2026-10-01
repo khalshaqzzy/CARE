@@ -1,5 +1,43 @@
 # CARE Session Handoff
 
+## Per-deploy CARE build-cache cleanup — 1 October 2026
+
+**Objective:** reduce deployment disk growth while preserving other applications
+and all persistent data. Pulled `origin/staging` at a35ad0c9 and created
+`fix/care-deployment-build-cache-cleanup`. Read-only VM diagnosis found 77.2 GB
+BuildKit cache, including 57.7 GB across CARE dependency-install records, versus
+approximately 102 MB database, 8.7 MB media and 149 MB logs. The default builder
+allows about 72.6 GiB cache; image cleanup alone cannot address this accumulation.
+
+**Implementation:** dedicated digest-pinned docker-container builders per environment,
+Compose default-load exports, 5 GB failure-cache GC budget, ownership marker and
+fail-closed adoption/driver checks. Successful deploys and successful rollback
+clear unused dedicated cache. Legacy default-builder migration selects explicit
+CARE package execution records and their descendants, then only private/reclaimable
+IDs; unknown ancestors, shared records and active builds remain protected. No
+global prune, volume removal, application-source/schema change or VM deployment.
+Current-generation rollback uses the same builder even for retained older source.
+
+**Validation:** pinned/frozen install and `verify:local --plan` completed. Full
+`verify:local` passed all ten jobs, including performance p95 512 ms, Chromium/PWA/
+push 222, legacy 6 and capture 181. Native references were restored because no UI
+changed. Statefully mocked tests cover ownership,
+environment separation, legacy descendants, foreign/shared/active protection,
+repeat preparation and visible cleanup failure after healthy activation. An opt-in
+empty-daemon integration harness verifies real Compose image export, cache record
+deletion and image/container/media preservation. Hosted container CI exercises the
+same builder wrapper and cleanup, followed by service restart/readiness/release/media
+checks. The empty Docker 29.4.0 integration run passed with dedicated cache 0 B,
+legacy seed/descendant IDs absent, unrelated cache and image/container/media intact,
+and a repeat clean pass. Linux deployment harness with real flock passed in a
+temporary VM directory; all five VM services stayed healthy and test files were
+removed. The VM inventory dry run identifies 375 private CARE records totaling
+63.69 GB; no live VM cache prune or rollout occurred. The disposable Docker daemon/cache volumes and local validation processes were removed. Actionlint, ShellCheck,
+runtime/Compose validators, exception check, directory Gitleaks and pnpm audit (zero High/Critical, ten Moderate) pass. Trivy filesystem secret/misconfiguration scan passes. Local full Trivy
+filesystem scanning could not finish its fresh vulnerability DB download because
+of registry throughput; no finding/threshold is ignored, and hosted scanning
+remains required. Phase 13 remains the only `in_progress` phase.
+
 ## Incident shop routing for location-owned categories — 30 September 2026
 
 **Objective:** route Voices by the owner of the incident location instead of the reporter's department where that is the right owner. Before this change, Fasilitas Kerja / Kesulitan Kerja and Kesejahteraan went to the reporter's Department Head, and Safety, Environment, Fasilitas Umum, and Facility Repair went to fixed PIC departments. So an office member reporting a machine problem in a production shop reached their own office Manager. Decisions confirmed with the product owner:

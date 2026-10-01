@@ -14,7 +14,7 @@ active_release=''; [[ ! -f "${BASE_DIR}/current_release" ]] || active_release="$
 [[ -z "${active_release}" ]] || require_sha "${active_release}"
 echo "Rolling code back; database schema and shared volumes are not restored."
 # Successful deploys remove unused rollback images; rebuild from retained source first.
-compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" build --pull postgres api workforce-web admin-web caddy
+build_for "${RELEASE_DIR}" "${RUNTIME_ENV}" "${BASE_DIR}"
 compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps postgres; wait_for_service "${RELEASE_DIR}" "${RUNTIME_ENV}" postgres 180
 compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps api; wait_for_service "${RELEASE_DIR}" "${RUNTIME_ENV}" api 240
 compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps workforce-web admin-web
@@ -23,3 +23,6 @@ compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps caddy --remove-orp
 "${RELEASE_DIR}/deploy/scripts/smoke-check.sh" "${RELEASE_SHA}" "https://$(require_env_value "${RUNTIME_ENV}" WORKFORCE_DOMAIN)" "https://$(require_env_value "${RUNTIME_ENV}" ADMIN_DOMAIN)"
 if [[ -n "${active_release}" && "${active_release}" != "${RELEASE_SHA}" ]]; then printf '%s\n' "${active_release}" >"${BASE_DIR}/previous_release.tmp"; mv "${BASE_DIR}/previous_release.tmp" "${BASE_DIR}/previous_release"; fi
 activate_symlink "${RELEASE_DIR}" "${BASE_DIR}/current"; printf '%s\n' "${RELEASE_SHA}" >"${BASE_DIR}/current_release.tmp"; mv "${BASE_DIR}/current_release.tmp" "${BASE_DIR}/current_release"
+
+# Successful rollback is also an activation; clear only the dedicated cache.
+"${SCRIPT_DIR}/build-cache.sh" clean "${REQUESTED_ENV}" "${BASE_DIR}"

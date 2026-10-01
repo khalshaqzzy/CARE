@@ -19,6 +19,8 @@ source /etc/os-release
 docker info >/dev/null
 version_ge "$(docker version --format '{{.Server.Version}}')" 24.0.0 || die "Docker Engine 24+ is required."
 version_ge "$(docker compose version --short)" 2.20.0 || die "Docker Compose 2.20+ is required."
+docker compose build --help | grep -q -- --builder || die "Docker Compose build --builder support is required."
+version_ge "$(docker buildx version | awk '{print $2}' | sed 's/^v//')" 0.14.0 || die "Docker Buildx 0.14+ (default-load) is required."
 for path in "${BASE_DIR}" "${BASE_DIR}/releases" "${BASE_DIR}/incoming" "${BASE_DIR}/shared"; do [[ -d "${path}" && -w "${path}" ]] || die "Required writable path unavailable: ${path}"; done
 for path in media caddy-data caddy-config deployment-state; do [[ -d "${BASE_DIR}/shared/${path}" && -w "${BASE_DIR}/shared/${path}" ]] || die "Shared path unavailable: ${path}"; done
 [[ -d "${BASE_DIR}/shared/postgres-data" && "$(stat -c '%u' "${BASE_DIR}/shared/postgres-data")" == 70 ]] || die "PostgreSQL data must be owned by UID 70."

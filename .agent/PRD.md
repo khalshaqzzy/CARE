@@ -1640,7 +1640,9 @@ Adaptasi pola `supplier-henkaten`:
 - retain source/runtime env candidate, previous, dan hingga total lima release;
 - setelah smoke dan aktivasi berhasil, hapus semua image CARE yang tidak direferensikan container, termasuk image release yang source-nya masih retained;
 - cleanup mengenali legacy CARE repository sebelum build dan label kepemilikan pada image baru; image aplikasi lain, shared image, serta volume/data persisten wajib dilindungi;
-- rollback memakai rebuild source retained sebelum startup; cleanup failure terlihat sebagai deployment failure tanpa rollback release sehat.
+- rollback memakai rebuild source retained sebelum startup; cleanup failure terlihat sebagai deployment failure tanpa rollback release sehat;
+- build deployment/rollback memakai builder khusus CARE per environment; setelah aktivasi sukses, unused build cache builder tersebut dihapus;
+- cleanup legacy cache default builder hanya mencakup private/reclaimable record dari perintah package CARE dan turunannya; shared/active/unknown cache dan data aplikasi lain wajib dilindungi.
 
 Web Push canary tersedia sebagai operational one-shot profile yang memilih satu subscription staging aktif berdasarkan exact endpoint hash, mengirim payload generik teredaksi melalui delivery helper CARE, dan memverifikasi penerimaan provider serta pembaruan `lastSuccessAt`. Canary dijalankan manual oleh operator dan bukan automated test, deployment smoke, atau syarat auto-deploy. Tidak ada callback/service tambahan.
 

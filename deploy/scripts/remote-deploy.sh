@@ -54,7 +54,7 @@ record_provider_smoke_state() {
 }
 
 candidate_deploy() {
-  compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" build --pull postgres api workforce-web admin-web caddy || return 1
+  build_for "${RELEASE_DIR}" "${RUNTIME_ENV}" "${BASE_DIR}" || return 1
   compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" up -d --no-deps postgres || return 1
   wait_for_service "${RELEASE_DIR}" "${RUNTIME_ENV}" postgres 180 || return 1
   compose_for "${RELEASE_DIR}" "${RUNTIME_ENV}" --profile operations run --rm migrate || return 1
@@ -109,5 +109,6 @@ for stale in "${releases[@]}"; do
   require_safe_path "${stale}" "${BASE_DIR}/releases"; stale_sha="$(basename "${stale}")"; require_sha "${stale_sha}"; rm -rf -- "${stale}"
 done
 "${RELEASE_DIR}/deploy/scripts/cleanup-images.sh" clean "${BASE_DIR}"
+"${RELEASE_DIR}/deploy/scripts/build-cache.sh" clean "${REQUESTED_ENV}" "${BASE_DIR}"
 rm -f -- "${ARCHIVE}" "${RUNTIME_ENV_INCOMING}"
 printf 'Release %s is active; previous release was %s.\n' "${REQUESTED_SHA}" "${previous_release:-none}"

@@ -102,3 +102,79 @@ retained release images, active and shared images, other applications, stopped
 containers, dangling labels, failure ordering, cleanup errors and idempotent retry.
 Hosted acceptance must still verify DNS/TLS, new-origin browser behavior, actual
 reclaimed disk space and rollback rebuild against the deployed VM.
+
+## 1 October 2026: Dedicated builders and success build-cache cleanup
+
+### Context and decision
+
+VM diagnosis found approximately 77.2 GB of BuildKit cache while current runtime
+images occupied less than 1 GB and persistent database/media data about 110 MB.
+Most cache came from repeated CARE pnpm dependency installation. The default
+builder's effective GC limit allowed approximately 72.6 GiB, so removing old
+release images did not meaningfully bound build-storage growth.
+
+Deployment and current-generation rollback now build through separate
+`care-staging-deploy` and `care-production-deploy` docker-container builders.
+BuildKit 0.32.2 is digest-pinned. Compose receives an explicit builder and
+`default-load=true` exports runtime images to Docker Engine. A protected ownership
+marker prevents adopting/pruning a preexisting foreign builder with the same name.
+A wrong driver fails closed. GC retains at least 1 GB, targets at most 5 GB cache
+and 10 GB free disk when possible; in-use build data cannot be forcibly reclaimed.
+Successful activation clears unused dedicated cache including frontend records.
+Failure cleanup errors remain visible without undoing a healthy activation.
+
+### Legacy migration and isolation
+
+The first success also inventories the default builder using JSON records. Explicit
+pnpm install/build commands targeting CARE packages seed ownership. Cache descendants
+inherit that provenance so dependency snapshots can actually be released rather than
+remaining pinned by later COPY/build records. Only private and reclaimable records
+are selected. Pruning uses an exact validated ID regex plus a live private-record filter; BuildKit itself protects in-use records.
+Generic ancestors, anonymous source contexts, shared image layers and unrelated cache
+are not promoted to ownership. The migration repeats idempotently in case earlier
+cleanup was interrupted; unknown residual cache remains an operator audit item.
+
+### Tradeoffs, alternatives and consequences
+
+Host-wide builder pruning and shrinking the shared daemon's GC limits were rejected
+because they could evict another application's cache. Description-only pruning was
+insufficient because descendant snapshots can retain parent filesystem layers.
+Continuing to build in the shared builder would also leave ownership ambiguous for
+future COPY/source records. Full cleanup in an isolated builder trades build speed
+and registry/network dependence for predictable post-success disk use. Retained
+source still supports rebuild rollback, but historical exact package availability
+remains an existing constraint. Builder failure caches have a GC budget rather than
+a strict instantaneous ceiling. Initial free-space preflight remains 5 GiB; this
+success-only cleanup does not rescue a disk already too full to build.
+
+Compose must expose `build --builder` and Buildx must support default-load (0.14+).
+No Docker daemon restart/config edit, host-wide prune, runtime-volume deletion,
+database migration or application feature change is needed.
+
+### Validation and follow-up
+
+Stateful command tests cover ownership, repeat prepare, environment separation,
+legacy ownership closure and protected unknown/shared/active/foreign records.
+Deployment tests cover builder routing, failures before activation, cleanup errors
+and rollback of older retained source through current-generation helpers. An
+opt-in empty Docker daemon harness verifies actual Compose export, legacy cache
+record removal, unrelated cache preservation and running image/media continuity.
+Hosted production-container validation uses the same wrapper and cleanup path.
+First rollout must capture before/after disk/cache usage and report any remaining
+unattributable legacy cache without claiming host-wide reclamation.
+
+The real isolated Docker 29.4.0 test passes: dedicated builder usage falls to 0 B,
+selected legacy dependency and descendant records disappear, unrelated cache and
+running image/media sentinels remain, and repeated cleanup succeeds. Native and
+Linux deployment harnesses pass; Linux exercises real flock. All ten local
+application validation jobs also pass. An inventory-only evaluation against the
+VM selects 375 private CARE records representing about 63.69 GB, without executing
+live pruning. Actual first-rollout reclaimed bytes remain an acceptance check.
+
+BuildKit represents the `private` predicate as an empty string when present. The
+CLI selector is intentionally `private=""` (with literal quotes inside the
+argument), not `shared=false`, `private=true` or an unquoted empty value. Those
+forms either select no records or fail parsing on the tested engine. The real
+integration harness catches both errors and verifies record absence. Relevant
+behavior is defined in [BuildKit's pinned cache adapter](https://github.com/moby/buildkit/blob/v0.32.2/cache/manager.go)
+and the [Buildx prune selectors](https://docs.docker.com/reference/cli/docker/buildx/prune/).
