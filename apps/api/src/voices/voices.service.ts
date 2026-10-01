@@ -705,6 +705,8 @@ export class VoicesService {
           reporterDepartmentSnapshot: unit.department,
           reporterSectionSnapshot: current.section,
           reporterPositionSnapshot: current.structuralPosition,
+          reporterLineSnapshot: current.lineName,
+          reporterAreaSnapshot: current.area,
           ...(draft.visibility === VoiceVisibility.GENERAL
             ? await this.handlingProjection(tx, route.id)
             : {}),
@@ -950,7 +952,9 @@ export class VoicesService {
   }
   async monitoringOptions(actor: AuthActor) {
     const monitors = actor.capabilities.some((capability) =>
-      ['MANAGER', 'SECTION_HEAD', 'DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
+      ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER', 'DIVISION_LEADERSHIP', 'DIRECTOR'].includes(
+        capability,
+      ),
     );
     if (!monitors) return { handlers: [], generatedAt: new Date().toISOString() };
     const leadership = actor.capabilities.some((capability) =>
@@ -2669,7 +2673,7 @@ export class VoicesService {
     );
     // A Section Head's aggregate overview is scoped to voices currently assigned
     // to them, not to voices they happened to report.
-    if (actor.capabilities.includes('SECTION_HEAD') && !full)
+    if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)) && !full)
       where = { visibility, currentHandlerId: actor.accountId };
     else if (actor.capabilities.includes('MANAGER') && !full)
       where = {

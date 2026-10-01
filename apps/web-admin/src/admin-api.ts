@@ -33,6 +33,8 @@ export type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCateg
 export type GeneralVoiceCategoryAdminList = components['schemas']['GeneralVoiceCategoryAdminList'];
 export type OrganizationUnitList = components['schemas']['OrganizationUnitList'];
 export type ShopLocationAdmin = components['schemas']['ShopLocationAdmin'];
+export type EscalationSettings = components['schemas']['EscalationSettings'];
+export type EscalationDeadline = components['schemas']['EscalationDeadline'];
 export type ShopLocationUnmatched = components['schemas']['ShopLocationUnmatchedList'][number];
 export type AreaKey = ShopLocationAdmin['areas'][number];
 export type AdminHandoverQueue = components['schemas']['AdminHandoverQueue'];
@@ -100,6 +102,35 @@ export function createAdminApi(transport: CareTransport) {
       dataOrThrow<GeneralVoiceCategoryAdmin>(
         client.PUT('/api/v1/admin/general-voice-categories/{id}/status', {
           params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    escalationSettings: () =>
+      dataOrThrow<EscalationSettings>(client.GET('/api/v1/admin/escalation-settings')),
+    updateWorkingCalendar: (body: components['schemas']['WorkingCalendarUpdateRequest']) =>
+      dataOrThrow<EscalationSettings>(
+        client.PUT('/api/v1/admin/escalation-settings/calendar', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    addCalendarException: (body: components['schemas']['CalendarExceptionRequest']) =>
+      dataOrThrow<EscalationSettings>(
+        client.POST('/api/v1/admin/escalation-settings/calendar/exceptions', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    removeCalendarException: (id: string) =>
+      dataOrThrow<EscalationSettings>(
+        client.DELETE('/api/v1/admin/escalation-settings/calendar/exceptions/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+        }),
+      ),
+    updateEscalationDeadlines: (body: components['schemas']['EscalationDeadlinesRequest']) =>
+      dataOrThrow<EscalationSettings>(
+        client.PUT('/api/v1/admin/escalation-settings/deadlines', {
+          params: { header: { 'X-CSRF-Token': '' } },
           body,
         }),
       ),

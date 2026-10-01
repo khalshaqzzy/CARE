@@ -26,7 +26,9 @@ export function navigationForCapabilities(
     ];
 
   const monitorsMembers = capabilities.some((capability) =>
-    ['MANAGER', 'SECTION_HEAD', 'DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
+    ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER', 'DIVISION_LEADERSHIP', 'DIRECTOR'].includes(
+      capability,
+    ),
   );
   const items = [
     workforceCore[0]!,

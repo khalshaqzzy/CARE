@@ -70,6 +70,7 @@ export class PolicyService {
     if (unionTerm?.slot === UnionSlot.OFFICER_1 || unionTerm?.slot === UnionSlot.OFFICER_2)
       capabilitySet.add('UNION_OFFICER');
     const position = normalizedPosition(membership?.structuralPosition);
+    if (position === 'group leader') capabilitySet.add('GROUP_LEADER');
     if (position === 'section head') capabilitySet.add('SECTION_HEAD');
     if (position === 'department head') capabilitySet.add('MANAGER');
     if (position && divisionLeadershipPositions.has(position))
@@ -157,7 +158,7 @@ export class PolicyService {
     const scopes: Prisma.VoiceWhereInput[] = [];
     if (actor.capabilities.includes('MANAGER'))
       scopes.push({ visibility: VoiceVisibility.GENERAL, routeOwnerId: actor.accountId });
-    if (actor.capabilities.includes('SECTION_HEAD'))
+    if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)))
       scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: actor.accountId });
     if (actor.capabilities.includes('UNION_HEAD'))
       scopes.push({ visibility: VoiceVisibility.PRIVATE });

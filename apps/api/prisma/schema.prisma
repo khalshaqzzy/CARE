@@ -80,6 +80,18 @@ enum ShopConfirmation {
   NOT_SHOP
 }
 
+// Unit of an escalation window: working days follow the working calendar,
+// calendar hours run around the clock.
+enum EscalationTimeUnit {
+  WORKING_DAY
+  CALENDAR_HOUR
+}
+
+enum CalendarDayKind {
+  HOLIDAY
+  WORKDAY
+}
+
 // Transitional storage vocabulary retained for rollback/read compatibility.
 // New application logic uses GeneralVoiceCategory.key.
 enum RoutingCategory {
@@ -422,6 +434,36 @@ model ShopLocation {
   @@index([status])
 }
 
+// Working calendar used by escalation deadlines. With useStandard, Monday-Friday
+// are working days and exceptions are ignored.
+model WorkingCalendarSetting {
+  id          String   @id @db.VarChar(40)
+  useStandard Boolean  @default(true)
+  version     Int      @default(1)
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+}
+
+model WorkingCalendarException {
+  id          String          @id @default(uuid()) @db.Uuid
+  date        DateTime        @unique @db.Date
+  kind        CalendarDayKind
+  label       String          @db.VarChar(120)
+  createdById String?         @db.Uuid
+  createdAt   DateTime        @default(now())
+}
+
+// Respond/process window per severity, applied at every tier.
+model EscalationDeadline {
+  severity      Severity           @id
+  respondAmount Int
+  processAmount Int
+  unit          EscalationTimeUnit
+  version       Int                @default(1)
+  updatedById   String?            @db.Uuid
+  updatedAt     DateTime           @updatedAt
+}
+
 model OrganizationMembership {
   id                 String               @id @default(uuid()) @db.Uuid
   snapshotId         String               @db.Uuid
@@ -430,6 +472,9 @@ model OrganizationMembership {
   employeeName       String               @db.VarChar(200)
   structuralPosition String               @db.VarChar(200)
   section            String               @db.VarChar(200)
+  // Optional organization columns: an empty line means no Group Leader (line leader).
+  lineName           String?              @db.VarChar(200)
+  area               Area?
   sourceRow          Int
   snapshot           OrganizationSnapshot @relation(fields: [snapshotId], references: [id])
   employee           Employee             @relation(fields: [employeeId], references: [id])
@@ -611,6 +656,8 @@ model Voice {
   reporterDepartmentSnapshot      String                  @db.VarChar(200)
   reporterSectionSnapshot         String?                 @db.VarChar(200)
   reporterPositionSnapshot        String?                 @db.VarChar(200)
+  reporterLineSnapshot            String?                 @db.VarChar(200)
+  reporterAreaSnapshot            Area?
   handlingOrganizationUnitId      String?                 @db.Uuid
   handlingDirectorateSnapshot     String?                 @db.VarChar(200)
   handlingDivisionSnapshot        String?                 @db.VarChar(200)

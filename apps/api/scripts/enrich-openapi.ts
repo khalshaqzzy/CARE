@@ -359,6 +359,11 @@ function successSchema(operationId: string) {
     AdminShopLocationsController_create: 'ShopLocationAdmin',
     AdminShopLocationsController_update: 'ShopLocationAdmin',
     AdminShopLocationsController_status: 'ShopLocationAdmin',
+    AdminEscalationSettingsController_get: 'EscalationSettings',
+    AdminEscalationSettingsController_calendar: 'EscalationSettings',
+    AdminEscalationSettingsController_addException: 'EscalationSettings',
+    AdminEscalationSettingsController_removeException: 'EscalationSettings',
+    AdminEscalationSettingsController_deadlines: 'EscalationSettings',
     AuthController_changePassword: 'SuccessResponse',
     AuthController_deferPasswordChange: 'SessionResponse',
     AuthController_startLogin: 'LoginStartResponse',
@@ -446,6 +451,9 @@ function requestSchema(operationId: string) {
     AdminShopLocationsController_create: 'ShopLocationCreateRequest',
     AdminShopLocationsController_update: 'ShopLocationUpdateRequest',
     AdminShopLocationsController_status: 'ShopLocationStatusRequest',
+    AdminEscalationSettingsController_calendar: 'WorkingCalendarUpdateRequest',
+    AdminEscalationSettingsController_addException: 'CalendarExceptionRequest',
+    AdminEscalationSettingsController_deadlines: 'EscalationDeadlinesRequest',
     VoicesController_confirmShop: 'ShopConfirmationRequest',
     ImportsController_confirm: 'ConfirmImportRequest',
     AuthController_login: 'LoginRequest',
@@ -1516,6 +1524,7 @@ const schemas: Record<string, any> = {
     type: 'string',
     enum: [
       'MEMBER',
+      'GROUP_LEADER',
       'SECTION_HEAD',
       'MANAGER',
       'DIVISION_LEADERSHIP',
@@ -1933,6 +1942,50 @@ const schemas: Record<string, any> = {
       department14Rows: { type: 'integer' },
       globalPicInvalid: { type: 'boolean' },
       unionGaps: { type: 'array', items: { type: 'string' } },
+      tiers: {
+        type: 'object',
+        description: 'Advisory Area/Line checks for tiered routing; never blocks the import.',
+        required: [
+          'columnsPresent',
+          'withLine',
+          'withArea',
+          'groupLeaders',
+          'duplicateSectionHeads',
+          'duplicateLineLeaders',
+          'linesWithoutLeader',
+        ],
+        additionalProperties: false,
+        properties: {
+          columnsPresent: { type: 'boolean' },
+          withLine: { type: 'integer' },
+          withArea: { type: 'integer' },
+          groupLeaders: { type: 'integer' },
+          duplicateSectionHeads: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/OrganizationTierIssue' },
+          },
+          duplicateLineLeaders: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/OrganizationTierIssue' },
+          },
+          linesWithoutLeader: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/OrganizationTierIssue' },
+          },
+        },
+      },
+    },
+  },
+  OrganizationTierIssue: {
+    type: 'object',
+    required: ['division', 'department', 'section', 'count'],
+    additionalProperties: false,
+    properties: {
+      division: { type: 'string' },
+      department: { type: 'string' },
+      section: { type: 'string' },
+      line: { type: 'string' },
+      count: { type: 'integer' },
     },
   },
   OrganizationImportPreview: {
@@ -2746,6 +2799,101 @@ const schemas: Record<string, any> = {
         },
       },
       health: { type: 'string', enum: ['HEALTHY', 'GAP'] },
+    },
+  },
+  EscalationSettings: {
+    type: 'object',
+    required: ['calendar', 'deadlines'],
+    additionalProperties: false,
+    properties: {
+      calendar: {
+        type: 'object',
+        required: ['useStandard', 'version', 'updatedAt', 'exceptions'],
+        additionalProperties: false,
+        properties: {
+          useStandard: {
+            type: 'boolean',
+            description: 'Monday-Friday working days; exceptions are ignored while true.',
+          },
+          version: { type: 'integer' },
+          updatedAt: { type: 'string', format: 'date-time' },
+          exceptions: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/CalendarException' },
+          },
+        },
+      },
+      deadlines: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/EscalationDeadline' },
+      },
+    },
+  },
+  CalendarException: {
+    type: 'object',
+    required: ['id', 'date', 'kind', 'label'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      date: { type: 'string', format: 'date' },
+      kind: { type: 'string', enum: ['HOLIDAY', 'WORKDAY'] },
+      label: { type: 'string' },
+    },
+  },
+  EscalationDeadline: {
+    type: 'object',
+    required: ['severity', 'respondAmount', 'processAmount', 'unit', 'version', 'updatedAt'],
+    additionalProperties: false,
+    properties: {
+      severity: baseVoiceProperties.severity,
+      respondAmount: { type: 'integer', minimum: 1 },
+      processAmount: { type: 'integer', minimum: 1 },
+      unit: { type: 'string', enum: ['WORKING_DAY', 'CALENDAR_HOUR'] },
+      version: { type: 'integer' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  WorkingCalendarUpdateRequest: {
+    type: 'object',
+    required: ['useStandard', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      useStandard: { type: 'boolean' },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  CalendarExceptionRequest: {
+    type: 'object',
+    required: ['date', 'kind', 'label'],
+    additionalProperties: false,
+    properties: {
+      date: { type: 'string', format: 'date' },
+      kind: { type: 'string', enum: ['HOLIDAY', 'WORKDAY'] },
+      label: { type: 'string', minLength: 1, maxLength: 120 },
+    },
+  },
+  EscalationDeadlinesRequest: {
+    type: 'object',
+    required: ['deadlines'],
+    additionalProperties: false,
+    properties: {
+      deadlines: {
+        type: 'array',
+        minItems: 4,
+        maxItems: 4,
+        items: {
+          type: 'object',
+          required: ['severity', 'respondAmount', 'processAmount', 'unit', 'expectedVersion'],
+          additionalProperties: false,
+          properties: {
+            severity: baseVoiceProperties.severity,
+            respondAmount: { type: 'integer', minimum: 1 },
+            processAmount: { type: 'integer', minimum: 1 },
+            unit: { type: 'string', enum: ['WORKING_DAY', 'CALENDAR_HOUR'] },
+            expectedVersion: { type: 'integer', minimum: 1 },
+          },
+        },
+      },
     },
   },
   ShopLocationAdminList: {

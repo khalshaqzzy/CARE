@@ -62,6 +62,7 @@ export function HomePage() {
     [
       'MANAGER',
       'SECTION_HEAD',
+      'GROUP_LEADER',
       'DIVISION_LEADERSHIP',
       'DIRECTOR',
       'UNION_HEAD',
@@ -88,7 +89,7 @@ function MemberHomePage() {
   const isUnionHead = caps.includes('UNION_HEAD');
   const isMember = caps.includes('MEMBER');
   const isLeadership = caps.some((c) => ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(c));
-  const isResponder = caps.some((c) => ['MANAGER', 'SECTION_HEAD'].includes(c));
+  const isResponder = caps.some((c) => ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER'].includes(c));
   const isManager = caps.includes('MANAGER');
 
   const member = useQuery({

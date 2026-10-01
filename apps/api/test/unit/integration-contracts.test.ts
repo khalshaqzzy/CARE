@@ -4,7 +4,14 @@ import { deflateRawSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AiService } from '../../src/ai/ai.service';
 import { resetConfigForTests } from '../../src/config';
-import { ImportsService, ORGANIZATION_HEADERS } from '../../src/imports/imports.service';
+import {
+  ImportsService,
+  ORGANIZATION_BIRTH_DATE_HEADERS,
+  ORGANIZATION_HEADERS,
+  ORGANIZATION_TIER_HEADERS,
+  parseArea,
+  tierSummary,
+} from '../../src/imports/imports.service';
 
 afterEach(() => {
   for (const key of [
@@ -703,5 +710,127 @@ describe('Location review shop matching', () => {
     ]);
     expect(request.messages[1].content).not.toContain('shopContext');
     expect(result).toMatchObject({ shopLocationId: null, shopConfidence: null });
+  });
+});
+
+describe('Area and Line import columns', () => {
+  const service = new ImportsService({} as never);
+  const csv = (headers: readonly string[], rows: string[][]) =>
+    Buffer.from(`${headers.join(',')}\n${rows.map((row) => row.join(',')).join('\n')}\n`);
+  const tierHeaders = [...ORGANIZATION_HEADERS, ...ORGANIZATION_TIER_HEADERS];
+
+  it('normalizes area spellings and rejects unknown areas', () => {
+    expect(parseArea('Karawang 1')).toBe('KARAWANG_1');
+    expect(parseArea('SUNTER_2')).toBe('SUNTER_2');
+    expect(parseArea('karawang3')).toBe('KARAWANG_3');
+    expect(parseArea('')).toBeNull();
+    expect(parseArea('Cikarang 1')).toBeUndefined();
+  });
+
+  it('parses trailing Area and Line with and without Birth Date', async () => {
+    const rows = await service.parse(
+      csv(tierHeaders, [
+        [
+          '000001',
+          'Leader',
+          'Group Leader',
+          'Mfg',
+          'Div A',
+          'Assy 1',
+          'Line Sect',
+          'Karawang 1',
+          'Line A',
+        ],
+        ['000002', 'Member', 'Member', 'Mfg', 'Div A', 'Assy 1', 'Line Sect', '', ''],
+      ]),
+      'csv',
+    );
+    expect(rows[0]).toMatchObject({ area: 'KARAWANG_1', line: 'Line A' });
+    expect(rows[1]).toMatchObject({ area: null, line: null });
+    const withBirth = await service.parse(
+      csv(
+        [...ORGANIZATION_BIRTH_DATE_HEADERS, ...ORGANIZATION_TIER_HEADERS],
+        [
+          [
+            '000003',
+            'Member',
+            'Member',
+            '1990-01-01',
+            'Mfg',
+            'Div A',
+            'Assy 1',
+            'S',
+            'Sunter 1',
+            'Line B',
+          ],
+        ],
+      ),
+      'csv',
+    );
+    expect(withBirth[0]).toMatchObject({
+      birthDate: '1990-01-01',
+      area: 'SUNTER_1',
+      line: 'Line B',
+    });
+  });
+
+  it('keeps the seven-column format without area or line', async () => {
+    const rows = await service.parse(
+      csv(ORGANIZATION_HEADERS, [['000004', 'Member', 'Member', 'Mfg', 'Div A', 'Dept', 'S']]),
+      'csv',
+    );
+    expect(rows[0]).not.toHaveProperty('area');
+    expect(rows[0]).not.toHaveProperty('line');
+  });
+
+  it('rejects an invalid area and only Area without Line', async () => {
+    await expect(
+      service.parse(
+        csv(tierHeaders, [
+          ['000005', 'Member', 'Member', 'Mfg', 'Div A', 'Dept', 'S', 'Bekasi', ''],
+        ]),
+        'csv',
+      ),
+    ).rejects.toMatchObject({ code: 'CSV_AREA_INVALID' });
+    await expect(
+      service.parse(
+        csv(
+          [...ORGANIZATION_HEADERS, 'Area'],
+          [['000006', 'M', 'Member', 'Mfg', 'D', 'Dept', 'S', '']],
+        ),
+        'csv',
+      ),
+    ).rejects.toMatchObject({ code: 'CSV_HEADERS_INVALID' });
+  });
+
+  it('reports duplicate and missing leaders without blocking', () => {
+    const row = (noReg: string, position: string, section: string, line: string | null) => ({
+      noReg,
+      name: noReg,
+      structuralPosition: position,
+      directorate: 'Mfg',
+      division: 'Div A',
+      department: 'Assy 1',
+      section,
+      line,
+      area: null,
+      sourceRow: 2,
+    });
+    const summary = tierSummary([
+      row('1', 'Section Head', 'S1', null),
+      row('2', 'Section Head', 'S1', null),
+      row('3', 'Group Leader', 'S1', 'Line A'),
+      row('4', 'Group Leader', 'S1', 'Line A'),
+      row('5', 'Member', 'S1', 'Line A'),
+      row('6', 'Member', 'S1', 'Line B'),
+    ]);
+    expect(summary).toMatchObject({
+      columnsPresent: true,
+      groupLeaders: 2,
+      withLine: 4,
+      duplicateSectionHeads: [expect.objectContaining({ section: 'S1', count: 2 })],
+      duplicateLineLeaders: [expect.objectContaining({ line: 'Line A', count: 2 })],
+      linesWithoutLeader: [expect.objectContaining({ line: 'Line B', count: 1 })],
+    });
   });
 });

@@ -12,6 +12,7 @@ import type {
 
 export type Capability =
   | 'MEMBER'
+  | 'GROUP_LEADER'
   | 'SECTION_HEAD'
   | 'MANAGER'
   | 'DIVISION_LEADERSHIP'

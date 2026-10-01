@@ -427,14 +427,16 @@ export class AuthService {
     if (actor.capabilities.includes('DIVISION_LEADERSHIP')) return ['GENERAL_OWN_DIVISION'];
     if (actor.capabilities.includes('MANAGER'))
       return ['GENERAL_OWN_DEPARTMENT', 'EXPLICIT_WORK_ITEMS'];
-    if (actor.capabilities.includes('SECTION_HEAD')) return ['ASSIGNED', 'OWN'];
+    if (actor.capabilities.some((value) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(value)))
+      return ['ASSIGNED', 'OWN'];
     return ['OWN'];
   }
 
   private actionScopes(actor: AuthActor) {
     const result = ['REPORTER_OWN'];
     if (actor.capabilities.includes('MANAGER')) result.push('ROUTE_OWNED_GENERAL');
-    if (actor.capabilities.includes('SECTION_HEAD')) result.push('ASSIGNED_GENERAL');
+    if (actor.capabilities.some((value) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(value)))
+      result.push('ASSIGNED_GENERAL');
     if (actor.capabilities.includes('UNION_HEAD')) result.push('PRIVATE_ALL');
     if (actor.capabilities.includes('UNION_OFFICER')) result.push('PRIVATE_ASSIGNED');
     return result;

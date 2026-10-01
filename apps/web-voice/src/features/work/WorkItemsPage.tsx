@@ -57,7 +57,8 @@ export function WorkItemsPage() {
   );
   const isDirector = caps.includes('DIRECTOR');
   const isManager = caps.includes('MANAGER');
-  const isSectionHead = caps.includes('SECTION_HEAD') && !isManager;
+  const isSectionHead =
+    caps.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)) && !isManager;
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');

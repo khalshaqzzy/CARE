@@ -19,7 +19,7 @@ describe('capability-to-navigation mapping', () => {
     ]);
   });
 
-  it.each(['MANAGER', 'SECTION_HEAD', 'DIVISION_LEADERSHIP', 'DIRECTOR'])(
+  it.each(['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER', 'DIVISION_LEADERSHIP', 'DIRECTOR'])(
     'adds Voice Member for %s',
     (capability) => {
       expect(labels(['MEMBER', capability])).toEqual([

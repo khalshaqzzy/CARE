@@ -38,6 +38,68 @@ filesystem scanning could not finish its fresh vulnerability DB download because
 of registry throughput; no finding/threshold is ignored, and hosted scanning
 remains required. Phase 13 remains the only `in_progress` phase.
 
+## Tiered bottom-up routing, stage 1 — 2 October 2026
+
+**Objective:** route Kesulitan Kerja and Kesejahteraan Voices from the bottom up: Group Leader (line leader) → Section Head → Manager → Deputy/Division Head, with escalation windows per severity. The complete product decisions agreed with the product owner are in PRD §43 and ADR-0059:
+
+- the chain follows the reporter's organization, except Fasilitas Kerja incidents in another department's shop, which go to that shop's Manager with an outside-reporter badge;
+- per-severity windows are configurable by Admin, on working days or calendar hours;
+- responded-but-unprocessed escalation adds the upper tier to the chat with Remind, Reassign, or Process;
+- Group Leaders and Section Heads escalate early instead of handing over; only Managers hand over sideways;
+- upper tiers see team Voices read-only under "Voice Tim Saya";
+- also covered: away delegation, severity edits until processed, Critical notifications, and AI guidance toward Private Voice.
+
+The UI preview (variant A timeline for read-only detail) was approved and is kept as `proto-tiered-routing.patch` in the session scratchpad for stage 2.
+
+**Stage 1 delivered (this branch `feat/voice-tiered-routing`):**
+
+- **Import:**
+  - optional trailing `Area, Line` columns in all formats;
+  - `Posisi (struktural)` value `Group Leader`;
+  - Area/Line change detection;
+  - an advisory `summary.tiers` readiness check (duplicate Section Heads, duplicate or missing Line leaders), shown in the Admin import preview.
+- **`GROUP_LEADER` capability:** a Section Head–like dashboard, work-item and overview scopes, Voice Member navigation, and the account label.
+- **Voice snapshots:** new General Voices store `reporterLineSnapshot` and `reporterAreaSnapshot`.
+- **Admin "Kalender & Eskalasi":**
+  - standard Monday–Friday calendar or a custom calendar with holidays and extra working days;
+  - per-severity respond/process deadlines, seeded Low 2/3, Medium 1/2, High 1/1 working days and Critical 4/24 calendar hours;
+  - optimistic versions and audit events.
+- **Working-time library:** `addWorkingTime` in WIB.
+
+Voice routing is unchanged until stage 2.
+
+**Files:**
+
+- **API:**
+  - `prisma/schema.prisma` and migration `20261002090000_tiered_routing_foundation`;
+  - `src/imports/imports.service.ts`;
+  - `src/escalation/*` (new);
+  - `src/auth/{capabilities,policy.service,auth.service}.ts`;
+  - `src/voices/{dashboard,voices.service,voice.contracts}.ts`;
+  - `src/app.module.ts`;
+  - `scripts/enrich-openapi.ts`, plus regenerated `openapi.json` and contracts.
+- **Web:**
+  - `web-admin`: `features/escalation/EscalationSettingsPage.tsx` (new), `features/imports/ImportTierSummary.tsx` (new), `ImportsPage.tsx`, `App.tsx`, `admin-api.ts`, `styles.css`;
+  - `web-voice`: `App.tsx`, `lib/navigation(.test).ts`, `features/home/HomePage.tsx`, `features/account/AccountPage.tsx`, `features/work/WorkItemsPage.tsx`.
+- **Tests:**
+  - `test/unit/working-time.test.ts` (new) and `test/unit/integration-contracts.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts` (new);
+  - `e2e/escalation-settings.visual.spec.ts` (new), `e2e/dashboard.spec.ts`, `e2e/helpers/dashboard-fixture.ts`;
+  - validation inventory 415 → 419, captures 181 → 184.
+- **Docs:** PRD §9.1, §9.3, and §43 (new); ADR-0059; `implementationPhases.md`.
+
+**Validation (Windows host, Docker Desktop):**
+
+- **Static:** Prisma validate/generate, typecheck, and all unit suites passed (API 143, web-voice 127, UI 26, frontend-core 15, Admin 2).
+- **Integration:**
+  - The new foundation suite passed 4/4 against Docker PostgreSQL.
+  - The full integration run passed 117/119. The two failures are the known `admin-safety` transaction-start timeout and a `push-subscription` concurrency race; the latter fails and passes alternately in isolation. Neither area changed.
+  - Security 14/14, organization 5/5, `test:migration:upgrade` all harnesses, and fullstack 6/6.
+- **Browser:** the full Chromium + visual + legacy run passed 398/400. The two load-related failures (admin `/accounts` error state, auth recovery at 768) passed serially. The new Admin escalation spec (3) and the Group Leader dashboard test passed, and the Admin page captures were inspected.
+- **Cleanup:** the Docker stack was stopped.
+
+**Next action:** commit, Gitleaks, push, and a PR to `staging`. Then import a real organization file with Area and Line on staging and review the readiness summary before starting stage 2.
+
 ## Incident shop routing for location-owned categories — 30 September 2026
 
 **Objective:** route Voices by the owner of the incident location instead of the reporter's department where that is the right owner. Before this change, Fasilitas Kerja / Kesulitan Kerja and Kesejahteraan went to the reporter's Department Head, and Safety, Environment, Fasilitas Umum, and Facility Repair went to fixed PIC departments. So an office member reporting a machine problem in a production shop reached their own office Manager. Decisions confirmed with the product owner:

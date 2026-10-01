@@ -8,6 +8,24 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 1 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase.
+
+ADR-0059 records bottom-up routing for Kesulitan Kerja and Kesejahteraan: Group Leader → Section Head → Manager → Deputy/Division Head, with per-severity windows on a working calendar. It is delivered in three stages.
+
+Stage 1 is implemented:
+
+- Area and Line import columns, with an advisory leader-readiness preview;
+- the `GROUP_LEADER` capability with the Section Head dashboard;
+- reporter Line/Area snapshots on new Voices;
+- the Admin **Kalender & Eskalasi** page (working calendar and deadlines);
+- the working-time library.
+
+Voice routing is unchanged in this stage.
+
+Stage 2 (chain routing, chat actions, delegation) and stage 3 (escalation worker) are pending. Stage 2 should start after a real organization file with Area and Line has been imported and its readiness summary reviewed.
+
 ## Incident shop routing for location-owned categories — 30 September 2026
 
 Phase 13 remains the only `in_progress` phase. ADR-0058 adds the `LOCATION_OWNER_DEPARTMENT` route mode (now used by Fasilitas Kerja / Kesulitan Kerja), Admin-managed **Lokasi shop** (department × areas × aliases), incident-shop inference from the selected Area and Detail Lokasi (alias match, reporter tie-break, AI suggestion in the existing location review), a one-tap reporter confirmation only when uncertain, shop snapshots on Voice, location-owner handover targets, and a location/section-aware assignment sheet. Schema, API, OpenAPI/contracts, Admin and workforce UI changed; two migrations are additive. Local static checks, unit tests, typecheck, builds, the full Chromium/visual browser suite, and legacy WebKit passed (timing flakes under parallel load passed serially). Database integration, migrations, full-stack, and Gitleaks rely on hosted CI because Docker is unavailable on the development host. Follow-up: an Area column per employee/Section in the organization import to rank assignment candidates.
