@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma.service';
 
 const routeSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('RELATED_REPORTER_DEPARTMENT') }).strict(),
+  z.object({ mode: z.literal('LOCATION_OWNER_DEPARTMENT') }).strict(),
   z.object({ mode: z.literal('FIXED_DEPARTMENT'), organizationUnitId: z.string().uuid() }).strict(),
 ]);
 const contentSchema = z.object({
@@ -319,7 +320,10 @@ export class CategoriesService {
               noReg: ownerRoute.owner.employee?.noReg ?? null,
             }
           : null,
-        health: route?.mode === 'RELATED_REPORTER_DEPARTMENT' || ownerRoute ? 'HEALTHY' : 'GAP',
+        health:
+          (route && route.mode !== GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT) || ownerRoute
+            ? 'HEALTHY'
+            : 'GAP',
       },
     };
   }

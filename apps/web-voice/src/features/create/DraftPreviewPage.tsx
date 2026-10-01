@@ -13,6 +13,7 @@ import {
   ReviewMetaBar,
   ReviewSummary,
 } from './ReviewParts';
+import { ShopClarification } from './ShopClarification';
 
 export function DraftPreviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export function DraftPreviewPage() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const [ack, setAck] = useState(false);
+  const [shopError, setShopError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const submitKey = useMutationKey('submit');
 
@@ -29,6 +31,18 @@ export function DraftPreviewPage() {
     queryKey: voiceQuery(sessionId, 'draft', id, 'preview'),
     queryFn: () => api.previewDraft(id!),
     enabled: !!id && !!session,
+  });
+
+  const confirmShop = useMutation({
+    mutationFn: (shopLocationId: string | null) =>
+      api.confirmShop(id!, { shopLocationId, expectedVersion: preview.data!.version }),
+    onMutate: () => setShopError(null),
+    onSuccess: (next) =>
+      queryClient.setQueryData(voiceQuery(sessionId, 'draft', id, 'preview'), next),
+    onError: (cause) => {
+      setShopError(cause instanceof Error ? cause.message : 'Lokasi gagal disimpan.');
+      void preview.refetch();
+    },
   });
 
   const submit = useMutation({
@@ -84,6 +98,8 @@ export function DraftPreviewPage() {
   const fallbackCode =
     classification && 'fallbackCode' in classification ? classification.fallbackCode : null;
   const isIncomplete = data.locationReview?.completeness === 'INCOMPLETE';
+  const shop = data.shopResolution ?? null;
+  const shopPending = !!shop?.applies && shop.status === 'NEEDS_CONFIRMATION';
   const routeLabel = readiness.ready
     ? (data.routeTarget ?? readiness.targetLabel ?? 'Akan ditentukan')
     : 'Akan ditentukan';
@@ -110,9 +126,13 @@ export function DraftPreviewPage() {
         routeLabel={
           data.visibility === 'PRIVATE'
             ? PRIVATE_ROUTE_LABEL
-            : readiness.ready
-              ? GENERAL_ROUTE_LABEL
-              : routeLabel
+            : shopPending
+              ? 'Menunggu konfirmasi lokasi'
+              : shop?.applies && shop.status === 'RESOLVED' && shop.shop
+                ? `Manager ${shop.shop.department}`
+                : readiness.ready
+                  ? GENERAL_ROUTE_LABEL
+                  : routeLabel
         }
         showIdentity={data.showReporterIdentity ?? null}
         fallbackCode={source === 'MANUAL_FALLBACK' ? fallbackCode : null}
@@ -125,6 +145,17 @@ export function DraftPreviewPage() {
         detail={data.detail}
         attachments={data.attachments ?? []}
       />
+
+      {shop ? (
+        <ShopClarification
+          resolution={shop}
+          areaLabel={AREA_LABELS[data.area] ?? data.area}
+          locationDetail={data.locationDetail}
+          pending={confirmShop.isPending}
+          error={shopError}
+          onConfirm={(shopLocationId) => confirmShop.mutate(shopLocationId)}
+        />
+      ) : null}
 
       <ReviewMetaBar completeness={data.locationReview?.completeness ?? null} />
 
@@ -157,6 +188,8 @@ export function DraftPreviewPage() {
           className="wizard-actionsbar__primary"
           loading={submit.isPending}
           disabled={
+            shopPending ||
+            confirmShop.isPending ||
             (isIncomplete && !ack) ||
             (data.visibility === 'PRIVATE' && data.privateContactConsent !== true)
           }

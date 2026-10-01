@@ -14,6 +14,8 @@ export type SessionAccount = components['schemas']['SessionAccount'];
 export type Capability = components['schemas']['Capability'];
 export type VoiceDraft = components['schemas']['VoiceDraftResponse'];
 export type VoiceDraftPreview = components['schemas']['VoiceDraftPreview'];
+export type ShopResolution = components['schemas']['ShopResolutionPreview'];
+export type ShopOption = components['schemas']['ShopOption'];
 export type DraftListItem = components['schemas']['DraftListItem'];
 export type DraftList = components['schemas']['DraftListResponse'];
 export type MemberDashboard = components['schemas']['MemberDashboard'];
@@ -150,6 +152,13 @@ export function createWorkforceApi(transport: CareTransport) {
     previewDraft: (id: string) =>
       dataOrThrow<VoiceDraftPreview>(
         client.GET('/api/v1/drafts/{id}/preview', { params: { path: { id } } }),
+      ),
+    confirmShop: (id: string, body: components['schemas']['ShopConfirmationRequest']) =>
+      dataOrThrow<VoiceDraftPreview>(
+        client.PUT('/api/v1/drafts/{id}/shop-confirmation', {
+          params: { path: { id }, header: csrfHeader() },
+          body,
+        }),
       ),
     classify: (id: string) =>
       dataOrThrow<ClassificationPreview>(

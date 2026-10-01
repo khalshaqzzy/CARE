@@ -212,6 +212,9 @@ const idempotentOperations = new Set([
   'AdminCategoriesController_create',
   'AdminCategoriesController_update',
   'AdminCategoriesController_status',
+  'AdminShopLocationsController_create',
+  'AdminShopLocationsController_update',
+  'AdminShopLocationsController_status',
   'ImportsController_confirm',
 ]);
 
@@ -351,6 +354,11 @@ function successSchema(operationId: string) {
     AdminCategoriesController_create: 'GeneralVoiceCategoryAdmin',
     AdminCategoriesController_update: 'GeneralVoiceCategoryAdmin',
     AdminCategoriesController_status: 'GeneralVoiceCategoryAdmin',
+    AdminShopLocationsController_list: 'ShopLocationAdminList',
+    AdminShopLocationsController_unmatched: 'ShopLocationUnmatchedList',
+    AdminShopLocationsController_create: 'ShopLocationAdmin',
+    AdminShopLocationsController_update: 'ShopLocationAdmin',
+    AdminShopLocationsController_status: 'ShopLocationAdmin',
     AuthController_changePassword: 'SuccessResponse',
     AuthController_deferPasswordChange: 'SessionResponse',
     AuthController_startLogin: 'LoginStartResponse',
@@ -400,6 +408,7 @@ function successSchema(operationId: string) {
     VoicesController_messages: 'MessagePage',
     VoicesController_myHandovers: 'MyHandoverPage',
     VoicesController_previewDraft: 'VoiceDraftPreview',
+    VoicesController_confirmShop: 'VoiceDraftPreview',
     VoicesController_proceed: 'VoiceMutationResponse',
     VoicesController_rate: 'RatingResponse',
     VoicesController_reassign: 'VoiceMutationResponse',
@@ -434,6 +443,10 @@ function requestSchema(operationId: string) {
     AdminCategoriesController_create: 'GeneralVoiceCategoryCreateRequest',
     AdminCategoriesController_update: 'GeneralVoiceCategoryUpdateRequest',
     AdminCategoriesController_status: 'GeneralVoiceCategoryStatusRequest',
+    AdminShopLocationsController_create: 'ShopLocationCreateRequest',
+    AdminShopLocationsController_update: 'ShopLocationUpdateRequest',
+    AdminShopLocationsController_status: 'ShopLocationStatusRequest',
+    VoicesController_confirmShop: 'ShopConfirmationRequest',
     ImportsController_confirm: 'ConfirmImportRequest',
     AuthController_login: 'LoginRequest',
     AuthController_changePassword: 'ChangePasswordRequest',
@@ -538,6 +551,22 @@ const baseVoiceProperties = {
   },
 };
 
+const shopVoiceProperties = {
+  shopLocation: {
+    type: 'object',
+    nullable: true,
+    required: ['department', 'source'],
+    properties: {
+      department: { type: 'string' },
+      source: {
+        type: 'string',
+        nullable: true,
+        enum: ['ALIAS', 'AI', 'REPORTER_CONFIRMED', 'REPORTER_NOT_SHOP', 'NO_MATCH', null],
+      },
+    },
+  },
+};
+
 const sessionBaseSchema = {
   type: 'object',
   additionalProperties: false,
@@ -600,7 +629,10 @@ const schemas: Record<string, any> = {
     required: ['mode'],
     additionalProperties: false,
     properties: {
-      mode: { type: 'string', enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'] },
+      mode: {
+        type: 'string',
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT', 'LOCATION_OWNER_DEPARTMENT'],
+      },
       organizationUnitId: { type: 'string', format: 'uuid' },
     },
   },
@@ -808,6 +840,7 @@ const schemas: Record<string, any> = {
         displayName: { type: 'string' },
         slot: { type: 'string', enum: ['OFFICER_1', 'OFFICER_2'] },
         structuralPosition: { type: 'string' },
+        section: { type: 'string', nullable: true },
         // Active voices currently handled by this candidate (assignment sheet
         // workload subtitle).
         activeCount: { type: 'integer', minimum: 0 },
@@ -1088,7 +1121,7 @@ const schemas: Record<string, any> = {
       category: { $ref: '#/components/schemas/HandoverCategory' },
       routeMode: {
         type: 'string',
-        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'],
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT', 'LOCATION_OWNER_DEPARTMENT'],
         nullable: true,
       },
       department: {
@@ -1148,7 +1181,7 @@ const schemas: Record<string, any> = {
       },
       routeMode: {
         type: 'string',
-        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT'],
+        enum: ['FIXED_DEPARTMENT', 'RELATED_REPORTER_DEPARTMENT', 'LOCATION_OWNER_DEPARTMENT'],
       },
       isReporterDepartment: { type: 'boolean' },
       createdAt: { type: 'string', format: 'date-time' },
@@ -1546,6 +1579,7 @@ const schemas: Record<string, any> = {
     required: [...Object.keys(baseVoiceProperties), 'reporter'],
     properties: {
       ...baseVoiceProperties,
+      ...shopVoiceProperties,
       audience: { type: 'string', enum: ['REPORTER_SELF'] },
       privateContactConsent: { type: 'boolean', nullable: true },
       privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
@@ -1562,6 +1596,7 @@ const schemas: Record<string, any> = {
     required: [...Object.keys(baseVoiceProperties), 'reporter'],
     properties: {
       ...baseVoiceProperties,
+      ...shopVoiceProperties,
       audience: { type: 'string', enum: ['GENERAL_RESPONDER'] },
       reporter: {
         type: 'object',
@@ -1580,6 +1615,7 @@ const schemas: Record<string, any> = {
     required: [...Object.keys(baseVoiceProperties), 'reporter'],
     properties: {
       ...baseVoiceProperties,
+      ...shopVoiceProperties,
       audience: { type: 'string', enum: ['LEADERSHIP_GENERAL_READ_ONLY'] },
       reporter: { type: 'object', additionalProperties: true },
     },
@@ -1589,6 +1625,7 @@ const schemas: Record<string, any> = {
     required: [...Object.keys(baseVoiceProperties), 'anonymousReporter'],
     properties: {
       ...baseVoiceProperties,
+      ...shopVoiceProperties,
       audience: { type: 'string', enum: ['UNION_ANONYMOUS'] },
       anonymousReporter: {
         type: 'object',
@@ -1602,6 +1639,7 @@ const schemas: Record<string, any> = {
     required: [...Object.keys(baseVoiceProperties), 'reporter'],
     properties: {
       ...baseVoiceProperties,
+      ...shopVoiceProperties,
       audience: { type: 'string', enum: ['UNION_IDENTIFIED'] },
       reporter: {
         type: 'object',
@@ -1621,6 +1659,7 @@ const schemas: Record<string, any> = {
     additionalProperties: false,
     properties: {
       ...baseVoiceProperties,
+      ...shopVoiceProperties,
       audience: { type: 'string', enum: ['ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY'] },
       privateContactConsent: { type: 'boolean', nullable: true },
       privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
@@ -2585,9 +2624,146 @@ const schemas: Record<string, any> = {
             },
           },
           routeTarget: { type: 'string', nullable: true },
+          shopResolution: {
+            allOf: [{ $ref: '#/components/schemas/ShopResolutionPreview' }],
+            nullable: true,
+          },
         },
       },
     ],
+  },
+  ShopOption: {
+    type: 'object',
+    required: ['id', 'department'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      department: { type: 'string' },
+    },
+  },
+  ShopResolutionPreview: {
+    type: 'object',
+    required: ['applies', 'status', 'source', 'shop', 'candidates', 'areaShops'],
+    additionalProperties: false,
+    properties: {
+      applies: {
+        type: 'boolean',
+        description: 'True when the classified category routes by incident location owner.',
+      },
+      status: { type: 'string', enum: ['RESOLVED', 'NOT_SHOP', 'NEEDS_CONFIRMATION'] },
+      source: {
+        type: 'string',
+        nullable: true,
+        enum: ['ALIAS', 'AI', 'REPORTER_CONFIRMED', 'REPORTER_NOT_SHOP', 'NO_MATCH', null],
+      },
+      shop: { allOf: [{ $ref: '#/components/schemas/ShopOption' }], nullable: true },
+      candidates: { type: 'array', items: { $ref: '#/components/schemas/ShopOption' } },
+      areaShops: { type: 'array', items: { $ref: '#/components/schemas/ShopOption' } },
+    },
+  },
+  ShopConfirmationRequest: {
+    type: 'object',
+    required: ['shopLocationId', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      shopLocationId: {
+        type: 'string',
+        format: 'uuid',
+        nullable: true,
+        description: 'Confirmed incident shop, or null when the incident is not in a shop.',
+      },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  ShopLocationCreateRequest: {
+    type: 'object',
+    required: ['organizationUnitId', 'areas', 'aliases'],
+    additionalProperties: false,
+    properties: {
+      organizationUnitId: { type: 'string', format: 'uuid' },
+      areas: { type: 'array', minItems: 1, items: baseVoiceProperties.area },
+      aliases: { type: 'array', maxItems: 30, items: { type: 'string', maxLength: 60 } },
+    },
+  },
+  ShopLocationUpdateRequest: {
+    type: 'object',
+    required: ['areas', 'aliases', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      areas: { type: 'array', minItems: 1, items: baseVoiceProperties.area },
+      aliases: { type: 'array', maxItems: 30, items: { type: 'string', maxLength: 60 } },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  ShopLocationStatusRequest: {
+    type: 'object',
+    required: ['status', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  ShopLocationAdmin: {
+    type: 'object',
+    required: [
+      'id',
+      'status',
+      'version',
+      'updatedAt',
+      'areas',
+      'aliases',
+      'organizationUnit',
+      'pic',
+      'health',
+    ],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: { type: 'string', enum: ['ACTIVE', 'ARCHIVED'] },
+      version: { type: 'integer' },
+      updatedAt: { type: 'string', format: 'date-time' },
+      areas: { type: 'array', items: baseVoiceProperties.area },
+      aliases: { type: 'array', items: { type: 'string' } },
+      organizationUnit: {
+        type: 'object',
+        required: ['id', 'directorate', 'division', 'department'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          directorate: { type: 'string' },
+          division: { type: 'string' },
+          department: { type: 'string' },
+        },
+      },
+      pic: {
+        type: 'object',
+        nullable: true,
+        required: ['id', 'name', 'noReg'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          name: { type: 'string' },
+          noReg: { type: 'string', nullable: true },
+        },
+      },
+      health: { type: 'string', enum: ['HEALTHY', 'GAP'] },
+    },
+  },
+  ShopLocationAdminList: {
+    type: 'array',
+    items: { $ref: '#/components/schemas/ShopLocationAdmin' },
+  },
+  ShopLocationUnmatchedList: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['area', 'locationDetail', 'count'],
+      additionalProperties: false,
+      properties: {
+        area: baseVoiceProperties.area,
+        locationDetail: { type: 'string' },
+        count: { type: 'integer', minimum: 1 },
+      },
+    },
   },
   VoiceSubmittedResponse: {
     type: 'object',

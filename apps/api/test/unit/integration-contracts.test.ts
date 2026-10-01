@@ -604,3 +604,104 @@ describe('DeepSeek Chat Completions adapter', () => {
     }
   });
 });
+
+describe('Location review shop matching', () => {
+  async function reviewWith(value: Record<string, unknown>, shops: Array<{ id: string }>) {
+    const requests: any[] = [];
+    const server = createServer((request, response) => {
+      let raw = '';
+      request.on('data', (chunk) => (raw += chunk));
+      request.on('end', () => {
+        const body = JSON.parse(raw);
+        requests.push(body);
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            id: 'chatcmpl_shop',
+            object: 'chat.completion',
+            created: 1,
+            model: body.model,
+            choices: [
+              {
+                index: 0,
+                finish_reason: 'tool_calls',
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: {
+                        name: body.tools[0].function.name,
+                        arguments: JSON.stringify(value),
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Server address missing');
+      Object.assign(process.env, {
+        OPENAI_API_KEY: 'test-openai-key-that-is-long-enough',
+        OPENAI_MODEL: 'test-model',
+        OPENAI_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+        OPENAI_REASONING_EFFORT: 'none',
+      });
+      resetConfigForTests();
+      const result = await new AiService().reviewLocation({
+        area: 'KARAWANG_1',
+        locationDetail: 'asy line 2',
+        shops: shops.map((shop) => ({ ...shop, name: 'Assembly #1 Dept', aliases: ['assy'] })),
+      });
+      return { result, request: requests[0] };
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  }
+  const review = { completeness: 'COMPLETE', warning: null, questions: [] };
+
+  it('sends the area shop catalog and returns a known shop suggestion', async () => {
+    const { result, request } = await reviewWith(
+      { ...review, shopId: 'shop-assy-1', shopConfidence: 0.88 },
+      [{ id: 'shop-assy-1' }],
+    );
+    expect(request.tools[0].function.parameters.required).toEqual([
+      'completeness',
+      'warning',
+      'questions',
+      'shopId',
+      'shopConfidence',
+    ]);
+    expect(request.messages[1].content).toContain('shopContext');
+    expect(result).toMatchObject({ shopLocationId: 'shop-assy-1', shopConfidence: 0.88 });
+  });
+
+  it('discards a shop id outside the supplied catalog', async () => {
+    const { result } = await reviewWith(
+      { ...review, shopId: 'invented-shop', shopConfidence: 0.99 },
+      [{ id: 'shop-assy-1' }],
+    );
+    expect(result).toMatchObject({ completeness: 'COMPLETE', shopLocationId: null });
+  });
+
+  it('keeps the original schema when the area has no shops', async () => {
+    const { result, request } = await reviewWith(review, []);
+    expect(request.tools[0].function.parameters.required).toEqual([
+      'completeness',
+      'warning',
+      'questions',
+    ]);
+    expect(request.messages[1].content).not.toContain('shopContext');
+    expect(result).toMatchObject({ shopLocationId: null, shopConfidence: null });
+  });
+});

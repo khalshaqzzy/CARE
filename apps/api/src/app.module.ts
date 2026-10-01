@@ -12,6 +12,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { MetricsController } from './metrics.controller';
 import { AiModule } from './ai/ai.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ShopsModule } from './shops/shops.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CategoriesModule } from './categories/categories.module';
     ImportsModule,
     VoicesModule,
     NotificationsModule,
+    ShopsModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [PrismaService, { provide: APP_FILTER, useClass: HttpErrorFilter }],

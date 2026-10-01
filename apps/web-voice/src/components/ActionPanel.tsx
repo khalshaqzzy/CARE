@@ -5,6 +5,7 @@ import {
   Check,
   ImagePlus,
   Lock,
+  MapPin,
   MessageCircle,
   Play,
   Send,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ACTION_LABELS } from '../lib/formatters';
+import { ACTION_LABELS, AREA_LABELS } from '../lib/formatters';
 import { formatTargetDate, previewHandlingTarget } from '../lib/handling-target';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
@@ -355,6 +356,19 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   );
 }
 
+/**
+ * Workload first so it never truncates, then the Section name, which often
+ * hints where the Section Head works; the person's name stays the card title.
+ */
+function candidateDescription(candidate: { activeCount?: number; section?: string | null }) {
+  return [
+    candidate.activeCount !== undefined ? `${candidate.activeCount} Voice aktif` : null,
+    candidate.section ?? null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function AssignDialog({
   open,
   reassign,
@@ -391,7 +405,9 @@ function AssignDialog({
   }, [open]);
   const all = candidates.data ?? [];
   const visible = all.filter((candidate) =>
-    candidate.displayName.toLocaleLowerCase('id').includes(search.trim().toLocaleLowerCase('id')),
+    `${candidate.displayName} ${candidate.section ?? ''}`
+      .toLocaleLowerCase('id')
+      .includes(search.trim().toLocaleLowerCase('id')),
   );
   const selectedCandidate = all.find((candidate) => candidate.id === selected);
   return (
@@ -435,6 +451,20 @@ function AssignDialog({
       }
     >
       <Stack gap="md">
+        {detail.visibility === 'GENERAL' ? (
+          // Incident location helps the Manager pick the Section Head on duty there.
+          <div className="assign-location" aria-label="Lokasi kejadian">
+            <MapPin size={18} aria-hidden="true" />
+            <div>
+              <strong>
+                {[AREA_LABELS[detail.area] ?? detail.area, detail.shopLocation?.department]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </strong>
+              {detail.locationDetail ? <small>“{detail.locationDetail}”</small> : null}
+            </div>
+          </div>
+        ) : null}
         {detail.status === 'OPEN' ? (
           <p className="dialog-copy">
             Setelah memilih PIC, isi keterangan penanganan untuk membuka percakapan. Penugasan
@@ -450,7 +480,7 @@ function AssignDialog({
           <Input
             label="Cari penanggung"
             placeholder={
-              detail.visibility === 'PRIVATE' ? 'Cari nama petugas' : 'Cari nama Section Head'
+              detail.visibility === 'PRIVATE' ? 'Cari nama petugas' : 'Cari nama atau section'
             }
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -489,8 +519,8 @@ function AssignDialog({
               options={visible.map((candidate) => ({
                 value: candidate.id,
                 label: candidate.displayName,
-                ...(candidate.activeCount !== undefined
-                  ? { description: `${candidate.activeCount} Voice aktif` }
+                ...(candidateDescription(candidate)
+                  ? { description: candidateDescription(candidate) }
                   : {}),
                 icon: <UserRound size={18} />,
               }))}

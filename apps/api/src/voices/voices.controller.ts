@@ -9,6 +9,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Put,
   Post,
   Query,
   Res,
@@ -59,6 +60,13 @@ export class VoicesController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.voices.previewDraft(a, id);
+  }
+  @Put('drafts/:id/shop-confirmation') confirmShop(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+  ) {
+    return this.voices.confirmShop(a, id, b);
   }
   @Post('drafts/:id/classify') classify(
     @Actor() a: AuthActor,

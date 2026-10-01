@@ -58,6 +58,26 @@ enum GeneralVoiceCategoryStatus {
 enum GeneralVoiceCategoryRouteMode {
   FIXED_DEPARTMENT
   RELATED_REPORTER_DEPARTMENT
+  LOCATION_OWNER_DEPARTMENT
+}
+
+enum ShopLocationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+// How the incident shop of a General Voice was determined at submit.
+enum ShopResolutionSource {
+  ALIAS
+  AI
+  REPORTER_CONFIRMED
+  REPORTER_NOT_SHOP
+  NO_MATCH
+}
+
+enum ShopConfirmation {
+  SHOP
+  NOT_SHOP
 }
 
 // Transitional storage vocabulary retained for rollback/read compatibility.
@@ -202,7 +222,7 @@ enum AdminHandoverStatus {
 model Employee {
   id          String                   @id @default(uuid()) @db.Uuid
   noReg       String                   @unique @db.VarChar(64)
-  birthDate   DateTime?                 @db.Date
+  birthDate   DateTime?                @db.Date
   name        String                   @db.VarChar(200)
   active      Boolean                  @default(true)
   createdAt   DateTime                 @default(now())
@@ -324,6 +344,7 @@ model OrganizationUnit {
   drafts         VoiceDraft[]                @relation("DraftOrganizationUnit")
   importIssues   ImportIssue[]
   categoryRoutes GeneralVoiceCategoryRoute[]
+  shopLocation   ShopLocation?
 
   @@unique([directorate, division, department])
   @@index([division, department])
@@ -382,6 +403,23 @@ model GeneralVoiceCategoryRoute {
 
   @@index([categoryId, effectiveTo])
   @@index([organizationUnitId, effectiveTo])
+}
+
+// A production department (shop) and the plant areas where it operates. General
+// Voices whose category routes by location owner are sent to this department.
+model ShopLocation {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationUnitId String             @unique @db.Uuid
+  areas              Area[]
+  aliases            String[]
+  status             ShopLocationStatus @default(ACTIVE)
+  version            Int                @default(1)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  organizationUnit   OrganizationUnit   @relation(fields: [organizationUnitId], references: [id])
+  voices             Voice[]
+
+  @@index([status])
 }
 
 model OrganizationMembership {
@@ -538,6 +576,8 @@ model VoiceDraft {
   organizationUnitId        String?                 @db.Uuid
   privateContactConsent     Boolean?
   showReporterIdentity      Boolean?
+  shopConfirmation          ShopConfirmation?
+  confirmedShopLocationId   String?                 @db.Uuid
   classificationContentHash String                  @db.Char(64)
   locationContentHash       String                  @db.Char(64)
   version                   Int                     @default(1)
@@ -599,6 +639,10 @@ model Voice {
   handlerType                     HandlerType
   anonymousAlias                  String                  @db.VarChar(80)
   locationWarningAcknowledgedAt   DateTime?
+  shopLocationId                  String?                 @db.Uuid
+  shopOrganizationUnitId          String?                 @db.Uuid
+  shopDepartmentSnapshot          String?                 @db.VarChar(200)
+  shopResolutionSource            ShopResolutionSource?
   version                         Int                     @default(1)
   submittedAt                     DateTime                @default(now())
   updatedAt                       DateTime                @updatedAt
@@ -610,6 +654,7 @@ model Voice {
   routeMapping                    RouteMapping?           @relation(fields: [routeMappingId], references: [id])
   categoryRecord                  GeneralVoiceCategory?   @relation(fields: [categoryId], references: [id])
   currentCategoryRecord           GeneralVoiceCategory?   @relation("VoiceCurrentCategory", fields: [currentCategoryId], references: [id])
+  shopLocation                    ShopLocation?           @relation(fields: [shopLocationId], references: [id])
   classification                  AIClassification?
   locationReview                  LocationReviewSnapshot?
   attachments                     Attachment[]
@@ -669,21 +714,24 @@ model AIClassification {
 }
 
 model LocationReviewSnapshot {
-  id            String               @id @default(uuid()) @db.Uuid
-  draftId       String?              @unique @db.Uuid
-  voiceId       String?              @unique @db.Uuid
-  model         String?              @db.VarChar(100)
-  promptVersion String               @db.VarChar(40)
-  completeness  LocationCompleteness
-  warning       String?              @db.VarChar(500)
-  questions     Json
-  contentHash   String               @db.Char(64)
-  responseId    String?              @db.VarChar(200)
-  latencyMs     Int?
-  fallbackCode  String?              @db.VarChar(80)
-  createdAt     DateTime             @default(now())
-  draft         VoiceDraft?          @relation(fields: [draftId], references: [id])
-  voice         Voice?               @relation(fields: [voiceId], references: [id])
+  id             String               @id @default(uuid()) @db.Uuid
+  draftId        String?              @unique @db.Uuid
+  voiceId        String?              @unique @db.Uuid
+  model          String?              @db.VarChar(100)
+  promptVersion  String               @db.VarChar(40)
+  completeness   LocationCompleteness
+  warning        String?              @db.VarChar(500)
+  questions      Json
+  contentHash    String               @db.Char(64)
+  responseId     String?              @db.VarChar(200)
+  latencyMs      Int?
+  fallbackCode   String?              @db.VarChar(80)
+  // Advisory AI shop suggestion from the area's active shop catalog.
+  shopLocationId String?              @db.Uuid
+  shopConfidence Float?
+  createdAt      DateTime             @default(now())
+  draft          VoiceDraft?          @relation(fields: [draftId], references: [id])
+  voice          Voice?               @relation(fields: [voiceId], references: [id])
 }
 
 model Attachment {
@@ -768,28 +816,28 @@ model VoiceHandover {
 }
 
 model AdminHandover {
-  id                       String              @id @default(uuid()) @db.Uuid
-  voiceId                  String              @db.Uuid
-  managerId                String              @db.Uuid
-  adminId                  String              @db.Uuid
-  status                   AdminHandoverStatus @default(PENDING)
-  managerDetail            String              @db.VarChar(4000)
-  adminDetail              String?             @db.VarChar(4000)
-  sourceRouteMappingId     String?             @db.Uuid
-  sourceOrganizationUnitId String?             @db.Uuid
-  destinationUnitId        String?             @db.Uuid
-  destinationRouteMappingId String?            @db.Uuid
-  destinationPicId         String?             @db.Uuid
-  categoryId               String?             @db.Uuid
-  categoryKey              String?             @db.VarChar(80)
-  categoryNameSnapshot     String?             @db.VarChar(160)
-  resolvedById             String?             @db.Uuid
-  createdAt                DateTime            @default(now())
-  resolvedAt               DateTime?
-  voice                    Voice               @relation(fields: [voiceId], references: [id])
-  manager                  UserAccount         @relation("AdminHandoverManager", fields: [managerId], references: [id])
-  admin                    UserAccount         @relation("AdminHandoverAdmin", fields: [adminId], references: [id])
-  resolvedBy               UserAccount?        @relation("AdminHandoverResolver", fields: [resolvedById], references: [id])
+  id                        String              @id @default(uuid()) @db.Uuid
+  voiceId                   String              @db.Uuid
+  managerId                 String              @db.Uuid
+  adminId                   String              @db.Uuid
+  status                    AdminHandoverStatus @default(PENDING)
+  managerDetail             String              @db.VarChar(4000)
+  adminDetail               String?             @db.VarChar(4000)
+  sourceRouteMappingId      String?             @db.Uuid
+  sourceOrganizationUnitId  String?             @db.Uuid
+  destinationUnitId         String?             @db.Uuid
+  destinationRouteMappingId String?             @db.Uuid
+  destinationPicId          String?             @db.Uuid
+  categoryId                String?             @db.Uuid
+  categoryKey               String?             @db.VarChar(80)
+  categoryNameSnapshot      String?             @db.VarChar(160)
+  resolvedById              String?             @db.Uuid
+  createdAt                 DateTime            @default(now())
+  resolvedAt                DateTime?
+  voice                     Voice               @relation(fields: [voiceId], references: [id])
+  manager                   UserAccount         @relation("AdminHandoverManager", fields: [managerId], references: [id])
+  admin                     UserAccount         @relation("AdminHandoverAdmin", fields: [adminId], references: [id])
+  resolvedBy                UserAccount?        @relation("AdminHandoverResolver", fields: [resolvedById], references: [id])
 
   @@index([status, createdAt, id])
   @@index([voiceId, createdAt, id])
@@ -965,15 +1013,15 @@ model LegacyVoiceAccess {
 }
 
 model VoiceHandlingTarget {
-  id                String   @id @default(uuid()) @db.Uuid
-  voiceId           String   @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  voiceId           String    @db.Uuid
   cycleNumber       Int
   days              Int
-  setById           String   @db.Uuid
-  setAt             DateTime @default(now())
+  setById           String    @db.Uuid
+  setAt             DateTime  @default(now())
   dueAt             DateTime
   overdueNotifiedAt DateTime?
-  voice             Voice    @relation(fields: [voiceId], references: [id])
+  voice             Voice     @relation(fields: [voiceId], references: [id])
 
   @@unique([voiceId, cycleNumber])
   @@index([overdueNotifiedAt, dueAt])

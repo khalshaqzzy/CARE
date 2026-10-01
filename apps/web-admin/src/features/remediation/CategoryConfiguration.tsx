@@ -18,11 +18,17 @@ type RouteView = {
   pic?: { name: string; noReg: string | null } | null;
   health?: string;
 };
+type RouteMode = 'FIXED_DEPARTMENT' | 'RELATED_REPORTER_DEPARTMENT' | 'LOCATION_OWNER_DEPARTMENT';
+const ROUTE_MODE_LABELS: Record<RouteMode, string> = {
+  RELATED_REPORTER_DEPARTMENT: 'Related Dept (department reporter)',
+  LOCATION_OWNER_DEPARTMENT: 'Pemilik lokasi (shop kejadian)',
+  FIXED_DEPARTMENT: 'Fixed department',
+};
 type Form = {
   name: string;
   definition: string;
   examples: string[];
-  mode: 'FIXED_DEPARTMENT' | 'RELATED_REPORTER_DEPARTMENT';
+  mode: RouteMode;
   organizationUnitId: string;
   organizationUnitLabel: string;
   routeHealth: string;
@@ -135,8 +141,8 @@ export function CategoryConfiguration() {
             definition: category.definition,
             examples: [...category.examples],
             mode:
-              route.mode === 'FIXED_DEPARTMENT'
-                ? 'FIXED_DEPARTMENT'
+              route.mode === 'FIXED_DEPARTMENT' || route.mode === 'LOCATION_OWNER_DEPARTMENT'
+                ? route.mode
                 : 'RELATED_REPORTER_DEPARTMENT',
             organizationUnitId: route.organizationUnit?.id ?? '',
             organizationUnitLabel: route.organizationUnit
@@ -206,8 +212,9 @@ export function CategoryConfiguration() {
                 header: 'Departemen',
                 cell: (row: GeneralVoiceCategoryAdmin) => {
                   const route = row.route as RouteView;
-                  return route.mode === 'RELATED_REPORTER_DEPARTMENT'
-                    ? 'Related Dept (department reporter)'
+                  return route.mode === 'RELATED_REPORTER_DEPARTMENT' ||
+                    route.mode === 'LOCATION_OWNER_DEPARTMENT'
+                    ? ROUTE_MODE_LABELS[route.mode]
                     : route.organizationUnit
                       ? `${route.organizationUnit.directorate} / ${route.organizationUnit.division} / ${route.organizationUnit.department}`
                       : 'Belum dikonfigurasi';
@@ -220,9 +227,11 @@ export function CategoryConfiguration() {
                   const route = row.route as RouteView;
                   return route.mode === 'RELATED_REPORTER_DEPARTMENT'
                     ? 'Mengikuti PIC department reporter'
-                    : route.pic
-                      ? `${route.pic.name}${route.pic.noReg ? ` (${route.pic.noReg})` : ''}`
-                      : 'Belum tersedia';
+                    : route.mode === 'LOCATION_OWNER_DEPARTMENT'
+                      ? 'Mengikuti PIC shop kejadian'
+                      : route.pic
+                        ? `${route.pic.name}${route.pic.noReg ? ` (${route.pic.noReg})` : ''}`
+                        : 'Belum tersedia';
                 },
               },
               {
@@ -354,13 +363,14 @@ export function CategoryConfiguration() {
               setForm({
                 ...form,
                 mode: value as Form['mode'],
-                organizationUnitId:
-                  value === 'RELATED_REPORTER_DEPARTMENT' ? '' : form.organizationUnitId,
+                organizationUnitId: value === 'FIXED_DEPARTMENT' ? form.organizationUnitId : '',
               })
             }
             options={[
-              { value: 'RELATED_REPORTER_DEPARTMENT', label: 'Related Dept (department reporter)' },
-              { value: 'FIXED_DEPARTMENT', label: 'Fixed department' },
+              ...(Object.keys(ROUTE_MODE_LABELS) as RouteMode[]).map((value) => ({
+                value,
+                label: ROUTE_MODE_LABELS[value],
+              })),
             ]}
           />
           {form.mode === 'FIXED_DEPARTMENT' ? (
@@ -457,6 +467,11 @@ export function CategoryConfiguration() {
                 </Alert>
               ) : null}
             </>
+          ) : form.mode === 'LOCATION_OWNER_DEPARTMENT' ? (
+            <Alert tone="info" title="Pemilik lokasi">
+              Voice yang terjadi di shop dikirim ke PIC department shop tersebut (lihat Lokasi
+              shop). Di luar shop, Voice dikirim ke PIC department reporter.
+            </Alert>
           ) : (
             <Alert tone="info" title="Related Dept">
               Department reporter dan PIC aktif department tersebut akan di-resolve saat submit.

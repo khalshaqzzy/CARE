@@ -21,6 +21,7 @@ import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type RemediationList } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 import { CategoryConfiguration } from './CategoryConfiguration';
+import { ShopLocationConfiguration } from './ShopLocationConfiguration';
 type Issue = RemediationList['items'][number];
 
 const ISSUE_META: Record<
@@ -270,8 +271,9 @@ export function RemediationPage() {
       </div>
 
       <div className="care-grid admin-stack-split" style={{ gap: '1rem' }}>
-        <div>
+        <div style={{ display: 'grid', gap: '1rem', alignContent: 'start' }}>
           <CategoryConfiguration />
+          <ShopLocationConfiguration />
         </div>
 
         <section className="admin-table-card admin-card--lift" aria-label="Antrian remediation">
