@@ -20,7 +20,7 @@ import {
   CLASSIFICATION_TOOL_DESCRIPTION,
   CLASSIFICATION_TOOL_NAME,
   LOCATION_PROMPT_VERSION,
-  LOCATION_SCHEMA,
+  locationSchema,
   LOCATION_SYSTEM_PROMPT,
   LOCATION_TOOL_DESCRIPTION,
   LOCATION_TOOL_NAME,
@@ -75,8 +75,12 @@ const locationOutput = z
     completeness: z.nativeEnum(LocationCompleteness),
     warning: z.string().max(500).nullable(),
     questions: z.array(z.string().min(1).max(250)).max(3),
+    shopId: z.string().max(80).nullable().optional(),
+    shopConfidence: z.number().min(0).max(1).optional(),
   })
   .strict();
+
+export type LocationShopContext = { id: string; name: string; aliases: string[] };
 
 export type ClassificationInput = {
   visibility: VoiceVisibility;
@@ -184,20 +188,31 @@ export class AiService {
     };
   }
 
-  async reviewLocation(input: { area: string; locationDetail: string }) {
+  async reviewLocation(input: {
+    area: string;
+    locationDetail: string;
+    shops?: LocationShopContext[];
+  }) {
+    const shops = input.shops ?? [];
     const response = await this.request(
       'care_location_review',
       LOCATION_TOOL_NAME,
       LOCATION_TOOL_DESCRIPTION,
-      LOCATION_SCHEMA,
+      locationSchema(shops.map((shop) => shop.id)),
       LOCATION_SYSTEM_PROMPT,
-      input,
+      {
+        area: input.area,
+        locationDetail: input.locationDetail,
+        ...(shops.length ? { shopContext: shops } : {}),
+      },
     );
+    const noShop = { shopLocationId: null, shopConfidence: null };
     if (!response.ok)
       return {
         completeness: LocationCompleteness.UNKNOWN,
         warning: null,
         questions: [],
+        ...noShop,
         model: null,
         promptVersion: LOCATION_PROMPT_VERSION,
         responseId: null,
@@ -211,6 +226,7 @@ export class AiService {
         completeness: LocationCompleteness.UNKNOWN,
         warning: null,
         questions: [],
+        ...noShop,
         model: response.model,
         promptVersion: LOCATION_PROMPT_VERSION,
         responseId: response.responseId,
@@ -218,8 +234,13 @@ export class AiService {
         fallbackCode: 'INVALID_SCHEMA',
       };
     }
+    const { shopId, shopConfidence, ...review } = parsed.data;
+    // An id outside the supplied catalog is discarded rather than trusted.
+    const knownShop = shopId && shops.some((shop) => shop.id === shopId) ? shopId : null;
     return {
-      ...parsed.data,
+      ...review,
+      shopLocationId: knownShop,
+      shopConfidence: knownShop ? (shopConfidence ?? 0) : null,
       model: response.model,
       promptVersion: LOCATION_PROMPT_VERSION,
       responseId: response.responseId,

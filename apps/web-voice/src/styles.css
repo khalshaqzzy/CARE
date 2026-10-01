@@ -6925,3 +6925,109 @@
     margin-top: 8px;
   }
 }
+
+/* Draft review — incident shop confirmation card */
+.shop-clarify {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1.5px solid var(--action-primary-bg);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: 0 10px 26px rgb(0 41 123 / 10%);
+}
+.shop-clarify__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.shop-clarify__head h2 {
+  margin: 0;
+  font-size: var(--font-size-md, 1rem);
+  line-height: var(--line-tight);
+}
+.shop-clarify__head p {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-relaxed);
+  overflow-wrap: anywhere;
+}
+.shop-clarify__icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--text-inverse);
+  background: var(--action-primary-bg);
+}
+.shop-clarify__icon--ok {
+  background: var(--state-success);
+}
+.shop-clarify__question {
+  margin: 0;
+  line-height: var(--line-relaxed);
+}
+.shop-clarify__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.shop-clarify--done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-color: var(--border-subtle);
+  box-shadow: none;
+}
+.shop-clarify--done[data-state='not-shop'] .shop-clarify__icon {
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+}
+.shop-clarify__done-body {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.shop-clarify__done-body small {
+  color: var(--text-secondary);
+}
+
+/* Assignment sheet — incident location strip and section-aware candidates */
+.assign-location {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+}
+.assign-location > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--action-primary-bg);
+}
+.assign-location div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.assign-location small {
+  color: var(--text-secondary);
+}
+.assignment-dialog .care-choice-card__text {
+  min-width: 0;
+}
+.assignment-dialog .care-choice-card__text small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-snug, 1.35);
+}

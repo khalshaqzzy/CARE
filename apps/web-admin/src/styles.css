@@ -2208,3 +2208,42 @@ button.admin-rows > li:hover,
     grid-template-columns: minmax(220px, 0.85fr) minmax(310px, 1.2fr) minmax(250px, 1fr);
   }
 }
+
+/* Remediation — shop location editor */
+.admin-fieldset {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.admin-fieldset legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-weight: var(--weight-semibold);
+}
+.admin-fieldset small {
+  color: var(--text-secondary);
+}
+.admin-pill--removable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.admin-inline-add {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.admin-inline-add > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.admin-unmatched-list {
+  margin: 0 0 var(--space-2);
+  padding-left: 1.1rem;
+}

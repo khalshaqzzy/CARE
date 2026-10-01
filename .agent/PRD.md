@@ -513,7 +513,8 @@ Preview menampilkan:
 - kategori routing untuk General;
 - pilihan tampil/sembunyikan identitas dan status kesediaan komunikasi pribadi untuk Private;
 - hasil location review dan warning terbaru;
-- status kelengkapan lokasi; sumber klasifikasi AI/Manual Fallback tidak ditampilkan pada kartu konfirmasi.
+- status kelengkapan lokasi; sumber klasifikasi AI/Manual Fallback tidak ditampilkan pada kartu konfirmasi;
+- lokasi kejadian (shop) untuk kategori berbasis pemilik lokasi (§14.5): kartu **Konfirmasi lokasi kejadian** bila shop belum pasti, atau baris **Lokasi kejadian** yang dapat diubah bila shop sudah terdeteksi.
 
 Hasil AI confidence tinggi bersifat read-only. Reporter dapat memilih **Kembali** untuk mengubah input; perubahan area, detail lokasi, judul, detail, visibility, consent identity, atau organization master reporter membatalkan snapshot yang content hash-nya terpengaruh dan mewajibkan review/klasifikasi ulang.
 
@@ -526,7 +527,7 @@ Button **Kirim Voice**:
 1. memvalidasi draft ownership/version secara atomik dan kesediaan komunikasi pribadi pada Private;
 2. memvalidasi classification masih cocok dengan content hash;
 3. memvalidasi location-review acknowledgment bila snapshot terbaru `INCOMPLETE`;
-4. memvalidasi route owner masih aktif/eligible dan unik;
+4. memvalidasi route owner masih aktif/eligible dan unik, termasuk konfirmasi shop yang wajib bila lokasi kejadian ambigu (§14.5);
 5. membuat Voice, immutable organization/identity/classification/location snapshots, attachment link, route owner, event `SUBMITTED`, dan notification dalam satu transaction;
 6. mengubah status menjadi `OPEN`;
 7. menampilkan halaman konfirmasi **Terima kasih** tanpa app chrome. Halaman ini
@@ -571,6 +572,9 @@ interface LocationReviewResult {
   completeness: 'COMPLETE' | 'INCOMPLETE' | 'UNKNOWN';
   warning: string | null;
   questions: string[]; // 0..3 advisory questions
+  // Hanya diminta bila area memiliki shop aktif (General draft):
+  shopId?: string | null; // id dari shopContext, bukan PIC/account
+  shopConfidence?: number; // 0..1
 }
 ```
 
@@ -587,7 +591,7 @@ Payload AI hanya boleh memuat:
 - detail teks;
 - prompt/rubric versi aktif.
 
-Dedicated location review hanya mengirim area dan detail lokasi. Payload dilarang memuat nama, no.reg, account ID, Voice ID, IP, foto, filename, metadata perangkat, chat, atau identifier lain. Logging tidak boleh menyimpan prompt lengkap; log hanya metadata request yang disanitasi.
+Dedicated location review hanya mengirim area, detail lokasi, dan—untuk General draft—`shopContext` berisi id, nama department, dan alias shop aktif pada area tersebut (data konfigurasi, bukan data personal). Payload dilarang memuat nama, no.reg, account ID, Voice ID, IP, foto, filename, metadata perangkat, chat, atau identifier lain. Logging tidak boleh menyimpan prompt lengkap; log hanya metadata request yang disanitasi.
 
 ### 13.3 Routing Classification
 
@@ -676,8 +680,9 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 - Safety, Environment, dan Fasilitas Umum seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Plant GA & SHE Dept`.
 - Facility Repair seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Smart Plant Facility Mfg Dept`.
-- Fasilitas Kerja / Kesulitan Kerja dan Kesejahteraan seed memakai `RELATED_REPORTER_DEPARTMENT`.
-- Fixed route memilih tepat satu Department Head/default PIC aktif pada organization unit target. Related route memilih route aktif organization unit reporter.
+- Fasilitas Kerja / Kesulitan Kerja memakai `LOCATION_OWNER_DEPARTMENT` (§14.5): kejadian di shop menuju department pemilik shop; di luar shop tetap department reporter. Migration hanya mengganti route seed yang masih `RELATED_REPORTER_DEPARTMENT`; route yang telah dikustomisasi Admin dipertahankan.
+- Kesejahteraan seed memakai `RELATED_REPORTER_DEPARTMENT` karena menyangkut orangnya, bukan tempat kejadian.
+- Fixed route memilih tepat satu Department Head/default PIC aktif pada organization unit target. Related route memilih route aktif organization unit reporter. Location-owner route memilih route aktif department shop kejadian, atau organization unit reporter bila kejadian tidak di shop.
 - Bila exact seed unit belum tersedia, kategori tetap ada, route berstatus gap, dan remediation issue dibuka; sistem tidak menebak unit dari nama parsial.
 - Reporter dengan `Department = 14` tidak mempunyai General route; submission ditolak dan hanya Private yang dapat dibuat.
 
@@ -696,6 +701,19 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 - Route owner, organization unit reporter, structural position actor, assignment, dan consent identity disnapshot pada Voice/event terkait agar monthly update tidak mengubah history.
 - Route change berlaku hanya untuk Voice baru. PIC lama mempertahankan legacy access hanya kepada active/historical Voice miliknya sampai ownership aktif selesai; ia tidak masuk route candidate baru.
 - Invalid route mapping setelah import menjadi remediation issue dan memblokir submission baru pada scope terkait tanpa mengubah Voice lama.
+
+### 14.5 Lokasi Shop dan Route Pemilik Lokasi
+
+- Admin mengelola **Lokasi shop** pada halaman Remediation & Route: satu department (organization unit) dapat ditandai sebagai shop dengan satu atau lebih Area (mis. Logistic Operation Unit Dept pada Karawang 3, Sunter 1, Sunter 2) serta alias sebutan yang biasa diketik member. Alias dinormalisasi (huruf kecil, tanda baca/`#` dihapus, huruf-angka dipisah) sehingga "Assy #1", "assy1", dan "assy 1" setara. Shop dapat diarsipkan; tidak ada hard delete. Penerima adalah Department Head/default PIC aktif department tersebut; Admin melihat status HEALTHY/GAP.
+- Organization import tidak memuat area; pemetaan department→area hanya berasal dari konfigurasi Lokasi shop.
+- Reporter tidak mengisi field tambahan. Area yang dipilih reporter menjadi filter kandidat shop; shop di area lain tidak pernah dicocokkan.
+- Resolusi shop pada preview dan submit berurutan: (1) konfirmasi reporter untuk shop aktif di area tersebut atau jawaban "Bukan di shop"; (2) kecocokan alias utuh pada Detail Lokasi—alias paling spesifik menang, dan bila beberapa shop tetap setara, shop milik department reporter dipilih; (3) saran AI dari location review dengan confidence ≥ threshold klasifikasi; (4) selain itu dianggap tidak di shop.
+- Kecocokan alias yang ambigu atau saran AI dengan confidence rendah menghasilkan `NEEDS_CONFIRMATION`. Untuk kategori `LOCATION_OWNER_DEPARTMENT` preview menampilkan kartu **Konfirmasi lokasi kejadian** (“Pilih Shop agar Voice diterima oleh PIC yang tepat”) dengan satu kandidat (Ya, benar / Pilih shop lain / Bukan di shop) atau daftar kandidat, dan submit ditolak `SHOP_CONFIRMATION_REQUIRED` sampai reporter menjawab. Kategori lain tidak pernah meminta konfirmasi.
+- `PUT /api/v1/drafts/:id/shop-confirmation` menerima `shopLocationId` (null = bukan di shop) dan `expectedVersion`, menaikkan versi draft, dan mengembalikan preview terbaru. Perubahan area/Detail Lokasi menghapus konfirmasi.
+- Voice General menyimpan snapshot `shopLocationId`, `shopOrganizationUnitId`, `shopDepartmentSnapshot`, dan `shopResolutionSource` (`ALIAS`, `AI`, `REPORTER_CONFIRMED`, `REPORTER_NOT_SHOP`, `NO_MATCH`) untuk semua kategori; Voice lama bernilai null dan diperlakukan sebagai tidak di shop.
+- Handover (Manager maupun Admin) ke kategori location-owner menuju department shop snapshot Voice, atau department reporter bila tidak ada.
+- Sheet **Tugaskan Penanggung** menampilkan Area, department shop, dan Detail Lokasi. Kandidat Section Head menampilkan jumlah Voice aktif lalu nama Section (dari organization import) di bawah nama; pencarian mencakup nama dan Section. Daftar tidak difilter per area karena data area per Section belum tersedia.
+- Admin melihat daftar Detail Lokasi dari Voice location-owner 30 hari terakhir yang tidak cocok dengan shop mana pun sebagai bahan menambah alias.
 
 ---
 
@@ -2022,7 +2040,9 @@ currentCategoryNameSnapshot` adalah kategori operasional, diinisialisasi
 - Fixed route memakai exact configured organization unit.
   `RELATED_REPORTER_DEPARTMENT` selalu memakai immutable
   `reporterOrganizationUnitId` Voice dan wajib diberi badge ikon+teks
-  “Department Reporter”. Destination harus memiliki tepat satu active
+  “Department Reporter”. `LOCATION_OWNER_DEPARTMENT` memakai department shop
+  snapshot Voice bila ada, selain itu `reporterOrganizationUnitId` (§14.5).
+  Destination harus memiliki tepat satu active
   Department Head/default PIC dan tidak boleh current PIC.
 
 ### 41.3 Persistence, Privacy, Audit, dan Notification

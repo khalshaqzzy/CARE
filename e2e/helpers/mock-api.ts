@@ -169,6 +169,9 @@ export type MockVoice = {
   currentHandlerName?: string | null;
   /** Per-Voice alias on Union private list items. */
   reporterAlias?: string | null;
+  locationDetail?: string;
+  /** Incident shop snapshot on General detail. */
+  shopLocation?: { department: string; source: string | null } | null;
 };
 
 const voiceDetail = (voice: MockVoice): VoiceDetail => ({
@@ -684,6 +687,8 @@ export async function mockAdminApi(
     release?: Release;
     aiConfiguration?: AiConfiguration;
     categories?: GeneralVoiceCategoryAdmin[];
+    shopLocations?: components['schemas']['ShopLocationAdminList'];
+    unmatchedShopLocations?: components['schemas']['ShopLocationUnmatchedList'];
     adminHandovers?: components['schemas']['AdminHandoverQueue'];
     adminHandoverDetail?: components['schemas']['AdminHandoverDetail'];
     adminHandoverOptions?: components['schemas']['AdminHandoverOptions'];
@@ -736,6 +741,10 @@ export async function mockAdminApi(
       });
     if (method === 'GET' && path === '/api/v1/admin/general-voice-categories')
       return fulfill(200, override('categories') ?? [categoryFixture()]);
+    if (method === 'GET' && path === '/api/v1/admin/shop-locations')
+      return fulfill(200, override('shopLocations') ?? []);
+    if (method === 'GET' && path === '/api/v1/admin/shop-locations/unmatched')
+      return fulfill(200, override('unmatchedShopLocations') ?? []);
     if (method === 'POST' && path === '/api/v1/admin/general-voice-categories') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       return fulfill(201, {
@@ -1040,7 +1049,8 @@ function detail(voice: MockVoice) {
     audience: voice.audience,
     visibility: voice.visibility,
     area: voice.area,
-    locationDetail: 'Lantai 3, dekat mesin produksi',
+    locationDetail: voice.locationDetail ?? 'Lantai 3, dekat mesin produksi',
+    ...(voice.shopLocation ? { shopLocation: voice.shopLocation } : {}),
     title: voice.title,
     detail: voice.detail,
     category: 'SAFETY',

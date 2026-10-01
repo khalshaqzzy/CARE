@@ -32,6 +32,9 @@ export type AiConfigurationTest = components['schemas']['AiConfigurationTestResp
 export type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCategoryAdmin'];
 export type GeneralVoiceCategoryAdminList = components['schemas']['GeneralVoiceCategoryAdminList'];
 export type OrganizationUnitList = components['schemas']['OrganizationUnitList'];
+export type ShopLocationAdmin = components['schemas']['ShopLocationAdmin'];
+export type ShopLocationUnmatched = components['schemas']['ShopLocationUnmatchedList'][number];
+export type AreaKey = ShopLocationAdmin['areas'][number];
 export type AdminHandoverQueue = components['schemas']['AdminHandoverQueue'];
 export type AdminHandoverDetail = components['schemas']['AdminHandoverDetail'];
 export type AdminHandoverOptions = components['schemas']['AdminHandoverOptions'];
@@ -96,6 +99,39 @@ export function createAdminApi(transport: CareTransport) {
     ) =>
       dataOrThrow<GeneralVoiceCategoryAdmin>(
         client.PUT('/api/v1/admin/general-voice-categories/{id}/status', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    shopLocations: () =>
+      dataOrThrow<ShopLocationAdmin[]>(client.GET('/api/v1/admin/shop-locations')),
+    unmatchedShopLocations: () =>
+      dataOrThrow<ShopLocationUnmatched[]>(client.GET('/api/v1/admin/shop-locations/unmatched')),
+    createShopLocation: (body: components['schemas']['ShopLocationCreateRequest'], key: string) =>
+      dataOrThrow<ShopLocationAdmin>(
+        client.POST('/api/v1/admin/shop-locations', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    updateShopLocation: (
+      id: string,
+      body: components['schemas']['ShopLocationUpdateRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<ShopLocationAdmin>(
+        client.PUT('/api/v1/admin/shop-locations/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    setShopLocationStatus: (
+      id: string,
+      body: components['schemas']['ShopLocationStatusRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<ShopLocationAdmin>(
+        client.PUT('/api/v1/admin/shop-locations/{id}/status', {
           params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
           body,
         }),

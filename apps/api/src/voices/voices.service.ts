@@ -3,6 +3,7 @@ import {
   AccountKind,
   AccountStatus,
   AdminHandoverStatus,
+  Area,
   AttachmentPurpose,
   AttachmentState,
   ClassificationSource,
@@ -14,6 +15,8 @@ import {
   Prisma,
   RouteKind,
   Severity,
+  ShopConfirmation,
+  ShopResolutionSource,
   UnionSlot,
   VoiceEventType,
   VoiceStatus,
@@ -38,6 +41,8 @@ import {
 import { loadConfig } from '../config';
 import { MediaService } from '../media/media.service';
 import { CategoriesService } from '../categories/categories.service';
+import { ShopLocationsService } from '../shops/shop-locations.service';
+import { resolveShop, type ShopResolution } from '../shops/shop-matching';
 import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
@@ -84,6 +89,23 @@ type VoiceListQuery = {
   from?: string;
   to?: string;
   sort?: string;
+};
+
+// Draft fields needed to resolve a General route, including the incident shop.
+type ShopDraft = {
+  visibility: VoiceVisibility;
+  organizationUnitId: string | null;
+  area: Area;
+  locationDetail: string;
+  locationContentHash: string;
+  shopConfirmation: ShopConfirmation | null;
+  confirmedShopLocationId: string | null;
+  locationReview?: {
+    contentHash: string;
+    shopLocationId: string | null;
+    shopConfidence: number | null;
+  } | null;
+  classification?: { categoryKey: string | null } | null;
 };
 
 const draftSchema = z
@@ -157,6 +179,12 @@ const submitSchema = z
     locationReviewId: z.string().uuid().nullable().optional(),
     locationContentHash: z.string().length(64).nullable().optional(),
     acknowledgeIncompleteLocation: z.boolean().optional(),
+  })
+  .strict();
+const shopConfirmationSchema = z
+  .object({
+    shopLocationId: z.string().uuid().nullable(),
+    expectedVersion: z.number().int().positive(),
   })
   .strict();
 const assignmentSchema = z
@@ -261,10 +289,17 @@ export class VoicesService {
     @Optional()
     @Inject(CategoriesService)
     private readonly categories?: CategoriesService,
+    @Optional()
+    @Inject(ShopLocationsService)
+    private readonly shops?: ShopLocationsService,
   ) {}
 
   private get categoryCatalog() {
     return this.categories ?? new CategoriesService(this.prisma);
+  }
+
+  private get shopCatalog() {
+    return this.shops ?? new ShopLocationsService(this.prisma);
   }
 
   async createDraft(actor: AuthActor, input: unknown) {
@@ -328,6 +363,8 @@ export class VoicesService {
       ...(visibility === VoiceVisibility.GENERAL
         ? { showReporterIdentity: null, privateContactConsent: null }
         : {}),
+      // A shop confirmation answers the previous location text only.
+      ...(locationChanged ? { shopConfirmation: null, confirmedShopLocationId: null } : {}),
     };
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -470,9 +507,16 @@ export class VoicesService {
       draft.locationReview.promptVersion === LOCATION_PROMPT_VERSION
     )
       return draft.locationReview;
+    // General drafts also let the AI match the text against the area's shops;
+    // only catalog names and aliases are sent, never reporter data.
+    const shops =
+      draft.visibility === VoiceVisibility.GENERAL
+        ? await this.shopCatalog.activeForArea(draft.area)
+        : [];
     const result = await this.ai.reviewLocation({
       area: draft.area,
       locationDetail: draft.locationDetail,
+      shops: shops.map((shop) => ({ id: shop.id, name: shop.department, aliases: shop.aliases })),
     });
     return this.prisma.locationReviewSnapshot.upsert({
       where: { draftId: id },
@@ -489,10 +533,42 @@ export class VoicesService {
     const draft = await this.ownedDraft(actor, id);
     return draft.locationReview;
   }
+  async confirmShop(actor: AuthActor, id: string, input: unknown) {
+    const data = parse(shopConfirmationSchema, input);
+    const draft = await this.ownedDraft(actor, id);
+    if (draft.submittedAt) throw conflict('DRAFT_SUBMITTED', 'Draft was already submitted');
+    if (draft.visibility !== VoiceVisibility.GENERAL)
+      throw badRequest('SHOP_CONFIRMATION_FORBIDDEN', 'Private Voice does not use a shop');
+    if (draft.version !== data.expectedVersion)
+      throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
+    if (
+      data.shopLocationId &&
+      !(await this.shopCatalog.activeForArea(draft.area)).some(
+        (shop) => shop.id === data.shopLocationId,
+      )
+    )
+      throw conflict(
+        'SHOP_LOCATION_UNAVAILABLE',
+        'Shop tidak lagi tersedia di area ini; muat ulang pratinjau',
+      );
+    const claimed = await this.prisma.voiceDraft.updateMany({
+      where: { id, version: draft.version, submittedAt: null },
+      data: {
+        shopConfirmation: data.shopLocationId ? ShopConfirmation.SHOP : ShopConfirmation.NOT_SHOP,
+        confirmedShopLocationId: data.shopLocationId,
+        version: { increment: 1 },
+      },
+    });
+    if (claimed.count !== 1)
+      throw conflict('DRAFT_VERSION_CONFLICT', 'Draft berubah; muat ulang sebelum menyimpan.');
+    return this.previewDraft(actor, id);
+  }
+
   async previewDraft(actor: AuthActor, id: string) {
     const draft = await this.ownedDraft(actor, id);
     return {
       ...this.publicDraft(draft),
+      shopResolution: await this.shopResolutionView(draft),
       categoryNameSnapshot: draft.classification?.categoryRevisionId
         ? ((
             await this.prisma.generalVoiceCategoryRevision.findUnique({
@@ -588,6 +664,7 @@ export class VoicesService {
       );
     const classification = draft.classification;
     const route = await this.resolveRoute(draft, classification.categoryKey);
+    const shop = await this.shopSnapshot(draft);
     const categoryConfig = classification.categoryKey
       ? await this.categoryCatalog.byKey(classification.categoryKey)
       : null;
@@ -661,6 +738,7 @@ export class VoicesService {
           anonymousAlias: `Reporter-${displayId.slice(-6)}`,
           locationWarningAcknowledgedAt:
             draft.locationReview?.completeness === LocationCompleteness.INCOMPLETE ? now : null,
+          ...shop,
         },
       });
       await tx.aIClassification.update({
@@ -1121,6 +1199,7 @@ export class VoicesService {
       displayName: string;
       slot?: UnionSlot;
       structuralPosition?: string;
+      section?: string | null;
     }>;
     if (voice.visibility === VoiceVisibility.PRIVATE) {
       const terms = await this.prisma.unionAccountTerm.findMany({
@@ -1172,6 +1251,8 @@ export class VoicesService {
           id: membership.employee.account!.id,
           displayName: membership.employee.account!.displayName,
           structuralPosition: membership.structuralPosition,
+          // Section name helps the Manager match a Section Head to the incident area.
+          section: membership.section?.trim() || null,
         }));
     }
     if (!candidates.length) return [];
@@ -1243,11 +1324,7 @@ export class VoicesService {
         if (voice.version !== data.expectedVersion)
           throw conflict('VERSION_CONFLICT', 'Voice version changed');
 
-        const destination = await this.resolveHandoverDestination(
-          tx,
-          voice.reporterOrganizationUnitId,
-          data.targetCategoryId,
-        );
+        const destination = await this.resolveHandoverDestination(tx, voice, data.targetCategoryId);
         if (destination.pic.id === actor.accountId)
           throw conflict(
             'HANDOVER_DESTINATION_SELF',
@@ -1548,7 +1625,15 @@ export class VoicesService {
     this.policy.require(actor, 'CARE_ADMIN');
     const row = await this.prisma.adminHandover.findFirst({
       where: { id: handoverId, adminId: actor.accountId, status: AdminHandoverStatus.PENDING },
-      include: { voice: { select: { reporterOrganizationUnitId: true, currentCategoryId: true } } },
+      include: {
+        voice: {
+          select: {
+            reporterOrganizationUnitId: true,
+            shopOrganizationUnitId: true,
+            currentCategoryId: true,
+          },
+        },
+      },
     });
     if (!row) throw forbiddenAsNotFound();
     const units = await this.prisma.organizationUnit.findMany({
@@ -1593,7 +1678,7 @@ export class VoicesService {
               category.routes.length === 1 &&
               (category.routes[0]!.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT
                 ? category.routes[0]!.organizationUnitId === unit.id
-                : row.voice.reporterOrganizationUnitId === unit.id),
+                : this.categoryOwnerUnit(category.routes[0]!.mode, row.voice) === unit.id),
           )
           .filter((category) => category.revisions.length === 1)
           .map((category) => ({
@@ -1665,7 +1750,7 @@ export class VoicesService {
             category.routes.length === 1 &&
             (category.routes[0]!.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT
               ? category.routes[0]!.organizationUnitId === unit.id
-              : row.voice.reporterOrganizationUnitId === unit.id) &&
+              : this.categoryOwnerUnit(category.routes[0]!.mode, row.voice) === unit.id) &&
             category.revisions.length === 1,
         );
         const preservedCategoryId = matched.some((item) => item.id === row.voice.currentCategoryId)
@@ -3018,7 +3103,11 @@ export class VoicesService {
         await tx.locationReviewSnapshot.deleteMany({ where: { draftId: draft.id } });
       return tx.voiceDraft.update({
         where: { id: draft.id },
-        data: { ...hashes, version: { increment: 1 } },
+        data: {
+          ...hashes,
+          version: { increment: 1 },
+          ...(locationChanged ? { shopConfirmation: null, confirmedShopLocationId: null } : {}),
+        },
         include: { classification: true, locationReview: true, attachments: true },
       });
     }) as Promise<T>;
@@ -3040,11 +3129,7 @@ export class VoicesService {
       where: { employee: { account: { id: accountId } }, snapshot: { status: 'ACTIVE' } },
     });
   }
-  private async routeReadiness(draft: {
-    visibility: VoiceVisibility;
-    organizationUnitId: string | null;
-    classification?: { categoryKey: string | null } | null;
-  }) {
+  private async routeReadiness(draft: ShopDraft) {
     if (draft.visibility === VoiceVisibility.PRIVATE)
       return {
         ready:
@@ -3075,11 +3160,7 @@ export class VoicesService {
       };
     }
   }
-  private async routeTargetLabel(draft: {
-    visibility: VoiceVisibility;
-    organizationUnitId: string | null;
-    classification?: { categoryKey: string | null } | null;
-  }) {
+  private async routeTargetLabel(draft: ShopDraft) {
     if (draft.visibility === VoiceVisibility.PRIVATE) return 'Union Head';
     if (!draft.organizationUnitId || !draft.classification) return null;
     try {
@@ -3090,7 +3171,7 @@ export class VoicesService {
     }
   }
   private async resolveRoute(
-    draft: { visibility: VoiceVisibility; organizationUnitId: string | null },
+    draft: ShopDraft,
     category: string | null,
   ): Promise<{ id: string | null; ownerAccountId: string; kind?: RouteKind }> {
     if (draft.visibility === VoiceVisibility.PRIVATE) {
@@ -3120,10 +3201,25 @@ export class VoicesService {
     const categoryConfig = await this.categoryCatalog.byKey(category);
     if (!categoryConfig.route)
       throw conflict('GENERAL_ROUTE_UNAVAILABLE', 'Kategori belum memiliki konfigurasi route');
-    const targetUnitId =
-      categoryConfig.route.mode === 'FIXED_DEPARTMENT'
-        ? categoryConfig.route.organizationUnitId
-        : draft.organizationUnitId;
+    let targetUnitId: string | null = draft.organizationUnitId;
+    if (categoryConfig.route.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT)
+      targetUnitId = categoryConfig.route.organizationUnitId;
+    else if (
+      categoryConfig.route.mode === GeneralVoiceCategoryRouteMode.LOCATION_OWNER_DEPARTMENT
+    ) {
+      // The incident shop owns the Voice; outside a shop the reporter's
+      // department remains the owner, as with the reporter-department mode.
+      const { shops, resolution } = await this.shopContext(draft);
+      if (resolution.status === 'NEEDS_CONFIRMATION')
+        throw conflict(
+          'SHOP_CONFIRMATION_REQUIRED',
+          'Konfirmasi lokasi shop sebelum mengirim Voice',
+        );
+      if (resolution.status === 'RESOLVED')
+        targetUnitId = shops.find(
+          (shop) => shop.id === resolution.shopLocationId,
+        )!.organizationUnitId;
+    }
     if (!targetUnitId)
       throw conflict('GENERAL_ROUTE_UNAVAILABLE', 'Department tujuan kategori belum dikonfigurasi');
     const route = await this.prisma.routeMapping.findFirst({
@@ -3142,6 +3238,96 @@ export class VoicesService {
       );
     return route;
   }
+  /** Active shops of the draft area and the incident-shop resolution for its text. */
+  private async shopContext(draft: ShopDraft) {
+    const shops = await this.shopCatalog.activeForArea(draft.area);
+    const config = this.aiRuntimeConfig
+      ? await this.aiRuntimeConfig.effective()
+      : environmentAiConfig();
+    // Only a review of the current location text may contribute a suggestion.
+    const review =
+      draft.locationReview?.contentHash === draft.locationContentHash ? draft.locationReview : null;
+    const resolution: ShopResolution = resolveShop({
+      shops,
+      locationDetail: draft.locationDetail,
+      reporterOrganizationUnitId: draft.organizationUnitId,
+      confirmation:
+        draft.shopConfirmation === ShopConfirmation.NOT_SHOP
+          ? { kind: 'NOT_SHOP' }
+          : draft.shopConfirmation === ShopConfirmation.SHOP && draft.confirmedShopLocationId
+            ? { kind: 'SHOP', shopLocationId: draft.confirmedShopLocationId }
+            : null,
+      aiSuggestion: review?.shopLocationId
+        ? { shopLocationId: review.shopLocationId, confidence: review.shopConfidence ?? 0 }
+        : null,
+      confidenceThreshold: config.confidenceThreshold,
+    });
+    return { shops, resolution };
+  }
+
+  /** Reporter-facing preview of the incident shop, only for General drafts. */
+  private async shopResolutionView(draft: ShopDraft) {
+    if (draft.visibility !== VoiceVisibility.GENERAL) return null;
+    const { shops, resolution } = await this.shopContext(draft);
+    let applies = false;
+    if (draft.classification?.categoryKey) {
+      try {
+        const category = await this.categoryCatalog.byKey(draft.classification.categoryKey);
+        applies = category.route?.mode === GeneralVoiceCategoryRouteMode.LOCATION_OWNER_DEPARTMENT;
+      } catch {
+        applies = false;
+      }
+    }
+    const shape = (shop: (typeof shops)[number]) => ({ id: shop.id, department: shop.department });
+    const shop =
+      resolution.status === 'RESOLVED'
+        ? (shops.find((item) => item.id === resolution.shopLocationId) ?? null)
+        : null;
+    return {
+      applies,
+      status: resolution.status,
+      source: resolution.status === 'NEEDS_CONFIRMATION' ? null : resolution.source,
+      shop: shop ? shape(shop) : null,
+      candidates:
+        resolution.status === 'NEEDS_CONFIRMATION'
+          ? shops.filter((item) => resolution.candidateIds.includes(item.id)).map(shape)
+          : [],
+      areaShops: shops.map(shape),
+    };
+  }
+
+  /** Voice fields that snapshot the incident shop at submit. */
+  private async shopSnapshot(draft: ShopDraft) {
+    const empty = {
+      shopLocationId: null,
+      shopOrganizationUnitId: null,
+      shopDepartmentSnapshot: null,
+      shopResolutionSource: null,
+    };
+    if (draft.visibility !== VoiceVisibility.GENERAL) return empty;
+    const { shops, resolution } = await this.shopContext(draft);
+    if (resolution.status === 'NEEDS_CONFIRMATION') return empty;
+    if (resolution.status === 'NOT_SHOP')
+      return { ...empty, shopResolutionSource: ShopResolutionSource[resolution.source] };
+    const shop = shops.find((item) => item.id === resolution.shopLocationId)!;
+    return {
+      shopLocationId: shop.id,
+      shopOrganizationUnitId: shop.organizationUnitId,
+      shopDepartmentSnapshot: shop.department,
+      shopResolutionSource: ShopResolutionSource[resolution.source],
+    };
+  }
+
+  /** Destination department of a non-fixed category for an existing Voice. */
+  private categoryOwnerUnit(
+    mode: GeneralVoiceCategoryRouteMode,
+    voice: { reporterOrganizationUnitId: string | null; shopOrganizationUnitId?: string | null },
+  ) {
+    return mode === GeneralVoiceCategoryRouteMode.LOCATION_OWNER_DEPARTMENT
+      ? (voice.shopOrganizationUnitId ?? voice.reporterOrganizationUnitId)
+      : voice.reporterOrganizationUnitId;
+  }
+
   private async nextDisplayId(tx: Prisma.TransactionClient) {
     const period = new Date().toISOString().slice(0, 7).replace('-', '');
     const sequence = await tx.humanVoiceSequence.upsert({
@@ -3250,11 +3436,14 @@ export class VoicesService {
       categories.map(async (category) => {
         const revision = category.revisions[0];
         const categoryRoute = category.routes[0];
+        const fixedRoute = categoryRoute?.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT;
+        const targetUnitId = !categoryRoute
+          ? undefined
+          : fixedRoute
+            ? categoryRoute.organizationUnitId
+            : this.categoryOwnerUnit(categoryRoute.mode, voice);
         const reporterRoute =
-          categoryRoute?.mode === GeneralVoiceCategoryRouteMode.RELATED_REPORTER_DEPARTMENT;
-        const targetUnitId = reporterRoute
-          ? voice.reporterOrganizationUnitId
-          : categoryRoute?.organizationUnitId;
+          !!categoryRoute && !fixedRoute && targetUnitId === voice.reporterOrganizationUnitId;
         const department = targetUnitId
           ? await db.organizationUnit.findUnique({ where: { id: targetUnitId } })
           : null;
@@ -3315,7 +3504,7 @@ export class VoicesService {
 
   private async resolveHandoverDestination(
     db: Prisma.TransactionClient,
-    reporterOrganizationUnitId: string | null,
+    voice: { reporterOrganizationUnitId: string | null; shopOrganizationUnitId: string | null },
     categoryId: string,
   ) {
     const category = await db.generalVoiceCategory.findUnique({
@@ -3338,11 +3527,11 @@ export class VoicesService {
     const categoryRoute = category.routes[0];
     if (!categoryRoute)
       throw conflict('HANDOVER_DESTINATION_UNAVAILABLE', 'Kategori tujuan belum memiliki route');
-    const isReporterDepartment =
-      categoryRoute.mode === GeneralVoiceCategoryRouteMode.RELATED_REPORTER_DEPARTMENT;
-    const targetUnitId = isReporterDepartment
-      ? reporterOrganizationUnitId
-      : categoryRoute.organizationUnitId;
+    const fixedRoute = categoryRoute.mode === GeneralVoiceCategoryRouteMode.FIXED_DEPARTMENT;
+    const targetUnitId = fixedRoute
+      ? categoryRoute.organizationUnitId
+      : this.categoryOwnerUnit(categoryRoute.mode, voice);
+    const isReporterDepartment = !fixedRoute && targetUnitId === voice.reporterOrganizationUnitId;
     if (!targetUnitId)
       throw conflict(
         'HANDOVER_DESTINATION_UNAVAILABLE',
@@ -3562,6 +3751,10 @@ export class VoicesService {
       visibility: voice.visibility,
       area: voice.area,
       locationDetail: voice.locationDetail,
+      shopLocation:
+        voice.visibility === VoiceVisibility.GENERAL && voice.shopDepartmentSnapshot
+          ? { department: voice.shopDepartmentSnapshot, source: voice.shopResolutionSource }
+          : null,
       title: voice.title,
       detail: voice.detail,
       category: voice.currentCategoryKey ?? voice.categoryKey,

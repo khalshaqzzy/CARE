@@ -724,6 +724,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drafts/{id}/shop-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["VoicesController_confirmShop"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drafts/{id}/classify": {
         parameters: {
             query?: never;
@@ -1380,6 +1396,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/shop-locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminShopLocationsController_list"];
+        put?: never;
+        post: operations["AdminShopLocationsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shop-locations/unmatched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminShopLocationsController_unmatched"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shop-locations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminShopLocationsController_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shop-locations/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminShopLocationsController_status"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -1522,7 +1602,7 @@ export interface components {
         GeneralVoiceCategoryPublicList: components["schemas"]["GeneralVoiceCategoryPublic"][];
         GeneralVoiceCategoryRouteInput: {
             /** @enum {string} */
-            mode: "FIXED_DEPARTMENT" | "RELATED_REPORTER_DEPARTMENT";
+            mode: "FIXED_DEPARTMENT" | "RELATED_REPORTER_DEPARTMENT" | "LOCATION_OWNER_DEPARTMENT";
             /** Format: uuid */
             organizationUnitId?: string;
         };
@@ -1656,6 +1736,7 @@ export interface components {
             /** @enum {string} */
             slot?: "OFFICER_1" | "OFFICER_2";
             structuralPosition?: string;
+            section?: string | null;
             activeCount: number;
         }[];
         HandoverRequest: {
@@ -1798,7 +1879,7 @@ export interface components {
         HandoverOption: {
             category: components["schemas"]["HandoverCategory"];
             /** @enum {string|null} */
-            routeMode: "FIXED_DEPARTMENT" | "RELATED_REPORTER_DEPARTMENT" | null;
+            routeMode: "FIXED_DEPARTMENT" | "RELATED_REPORTER_DEPARTMENT" | "LOCATION_OWNER_DEPARTMENT" | null;
             department: components["schemas"]["HandoverDepartment"] | null;
             pic: components["schemas"]["HandoverPic"] | null;
             isReporterDepartment: boolean;
@@ -1828,7 +1909,7 @@ export interface components {
                 pic: components["schemas"]["HandoverPic"];
             };
             /** @enum {string} */
-            routeMode: "FIXED_DEPARTMENT" | "RELATED_REPORTER_DEPARTMENT";
+            routeMode: "FIXED_DEPARTMENT" | "RELATED_REPORTER_DEPARTMENT" | "LOCATION_OWNER_DEPARTMENT";
             isReporterDepartment: boolean;
             /** Format: date-time */
             createdAt: string;
@@ -2114,6 +2195,11 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
             privateContactConsent?: boolean | null;
             /** Format: date-time */
             privateContactConsentRecordedAt?: string | null;
@@ -2176,6 +2262,11 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
             reporter: {
                 noReg: string;
                 name: string;
@@ -2236,6 +2327,11 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
             reporter: {
                 [key: string]: unknown;
             };
@@ -2293,6 +2389,11 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
             anonymousReporter: {
                 /** @example Reporter Biru 47 */
                 alias: string;
@@ -2351,6 +2452,11 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
             reporter: {
                 noReg: string;
                 name: string;
@@ -2411,6 +2517,11 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
             privateContactConsent?: boolean | null;
             /** Format: date-time */
             privateContactConsentRecordedAt?: string | null;
@@ -3184,7 +3295,81 @@ export interface components {
                 remediationCode?: string;
             };
             routeTarget?: string | null;
+            shopResolution?: components["schemas"]["ShopResolutionPreview"] | null;
         };
+        ShopOption: {
+            /** Format: uuid */
+            id: string;
+            department: string;
+        };
+        ShopResolutionPreview: {
+            /** @description True when the classified category routes by incident location owner. */
+            applies: boolean;
+            /** @enum {string} */
+            status: "RESOLVED" | "NOT_SHOP" | "NEEDS_CONFIRMATION";
+            /** @enum {string|null} */
+            source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            shop: components["schemas"]["ShopOption"] | null;
+            candidates: components["schemas"]["ShopOption"][];
+            areaShops: components["schemas"]["ShopOption"][];
+        };
+        ShopConfirmationRequest: {
+            /**
+             * Format: uuid
+             * @description Confirmed incident shop, or null when the incident is not in a shop.
+             */
+            shopLocationId: string | null;
+            expectedVersion: number;
+        };
+        ShopLocationCreateRequest: {
+            /** Format: uuid */
+            organizationUnitId: string;
+            areas: ("KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2")[];
+            aliases: string[];
+        };
+        ShopLocationUpdateRequest: {
+            areas: ("KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2")[];
+            aliases: string[];
+            expectedVersion: number;
+        };
+        ShopLocationStatusRequest: {
+            /** @enum {string} */
+            status: "ACTIVE" | "ARCHIVED";
+            expectedVersion: number;
+        };
+        ShopLocationAdmin: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "ARCHIVED";
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+            areas: ("KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2")[];
+            aliases: string[];
+            organizationUnit: {
+                /** Format: uuid */
+                id: string;
+                directorate: string;
+                division: string;
+                department: string;
+            };
+            pic: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                noReg: string | null;
+            } | null;
+            /** @enum {string} */
+            health: "HEALTHY" | "GAP";
+        };
+        ShopLocationAdminList: components["schemas"]["ShopLocationAdmin"][];
+        ShopLocationUnmatchedList: {
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            count: number;
+        }[];
         VoiceSubmittedResponse: {
             /** Format: uuid */
             id: string;
@@ -9834,6 +10019,136 @@ export interface operations {
             };
         };
     };
+    VoicesController_confirmShop: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopConfirmationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceDraftPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     VoicesController_classify: {
         parameters: {
             query?: never;
@@ -15398,6 +15713,642 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaBinary"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminShopLocationsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopLocationAdminList"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminShopLocationsController_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopLocationCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopLocationAdmin"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminShopLocationsController_unmatched: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopLocationUnmatchedList"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminShopLocationsController_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopLocationUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopLocationAdmin"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminShopLocationsController_status: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShopLocationStatusRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopLocationAdmin"];
                 };
             };
             /** @description Request validation failed */

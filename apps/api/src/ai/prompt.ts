@@ -1,5 +1,5 @@
 export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.7';
-export const LOCATION_PROMPT_VERSION = 'care-location-v1.2';
+export const LOCATION_PROMPT_VERSION = 'care-location-v1.3';
 
 export const CLASSIFICATION_TOOL_NAME = 'submit_care_classification';
 export const LOCATION_TOOL_NAME = 'submit_care_location_review';
@@ -132,6 +132,8 @@ An actionable location normally combines the supplied area with enough specific 
 
 For INCOMPLETE, write a concise Indonesian warning and ask zero to three concise advisory questions that request only missing location details. Do not repeat information already supplied, request identity, or request unrelated sensitive data. For COMPLETE, warning must be null and questions should be empty. For UNKNOWN, use a short Indonesian warning only when it helps the reporter understand the limitation. Never provide more than three questions.
 
+Shop matching. When the input contains shopContext, it is a server-provided list of production shops (department name and common aliases) that operate in the supplied area. Decide whether locationDetail refers to one of those shops, tolerating typos, abbreviations, informal Indonesian, spacing, and numbering variants such as "asy", "assy1", or "Assy #1". Set shopId to the id of that shop, or null when the location is an office, a shared area, another place, or cannot be tied to one listed shop. Never invent an id outside shopContext. Set shopConfidence from 0 to 1; use a low value when the text is vague or several listed shops are plausible. Shop matching does not change completeness.
+
 Call ${LOCATION_TOOL_NAME} exactly once with the complete review. Do not answer with prose, markdown, or a second tool call.`;
 
 export function classificationSchema(categoryKeys: string[], isPrivate: boolean) {
@@ -189,3 +191,25 @@ export const LOCATION_SCHEMA = {
     },
   },
 } as const;
+
+/** Location review schema extended with shop matching against the area's shops. */
+export function locationSchema(shopIds: string[]) {
+  if (!shopIds.length) return LOCATION_SCHEMA;
+  return {
+    ...LOCATION_SCHEMA,
+    required: [...LOCATION_SCHEMA.required, 'shopId', 'shopConfidence'],
+    properties: {
+      ...LOCATION_SCHEMA.properties,
+      shopId: {
+        description: 'Id of the shopContext shop the location refers to, or null.',
+        anyOf: [{ type: 'string', enum: shopIds }, { type: 'null' }],
+      },
+      shopConfidence: {
+        type: 'number',
+        description: 'Calibrated confidence from 0 to 1 for the shopId decision.',
+        minimum: 0,
+        maximum: 1,
+      },
+    },
+  };
+}

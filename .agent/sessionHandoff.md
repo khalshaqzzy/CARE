@@ -1,5 +1,44 @@
 # CARE Session Handoff
 
+## Incident shop routing for location-owned categories — 30 September 2026
+
+**Objective:** route Voices by the owner of the incident location instead of the reporter's department where that is the right owner. Before this change, Fasilitas Kerja / Kesulitan Kerja and Kesejahteraan went to the reporter's Department Head, and Safety, Environment, Fasilitas Umum, and Facility Repair went to fixed PIC departments. So an office member reporting a machine problem in a production shop reached their own office Manager. Decisions confirmed with the product owner:
+
+- Option A: only Fasilitas Kerja moves to the new `LOCATION_OWNER_DEPARTMENT` mode. Kesejahteraan stays with the reporter's department, and fixed categories stay fixed even inside a shop.
+- The receiver is the single Department Head of the shop department, including multi-area departments.
+- No new form fields. The selected Area filters candidate shops, and the shop is inferred from Detail Lokasi.
+- When the shop is uncertain, the reporter answers a one-tap card on the review screen (variant A, copy "Pilih Shop agar Voice diterima oleh PIC yang tepat").
+- The assignment sheet shows the incident location plus each candidate's Section name ("tingkat 1"). A per-Section area filter waits for an Area column the product owner will add to the organization data.
+
+Phase 13 remains `in_progress`. PRD §12.2/§12.3/§13.1/§13.2/§14.2/§14.5 (new)/§41.2 and ADR-0058 record the design.
+
+**Files changed:**
+
+- API: `apps/api/prisma/schema.prisma` and two migrations (`20260930090000_shop_location_routing`, `20260930090100_work_difficulty_location_owner_route`); `apps/api/src/shops/*` (new: matching, service, Admin controller, module); `voices.service.ts` / `voices.controller.ts` / `voices.module.ts`; `ai/ai.service.ts` and `ai/prompt.ts` (`care-location-v1.3`); `categories.service.ts`; `app.module.ts`; `scripts/enrich-openapi.ts`; regenerated `openapi.json` and `packages/contracts/src/generated.ts`.
+- Web: `web-voice` `ShopClarification.tsx` (new), `DraftPreviewPage.tsx`, `ActionPanel.tsx`, `workforce-api.ts`, `styles.css`; `web-admin` `ShopLocationConfiguration.tsx` (new), `RemediationPage.tsx`, `CategoryConfiguration.tsx`, `admin-api.ts`, `styles.css`.
+- Tests: `apps/api/test/unit/shop-matching.test.ts` (new), `apps/api/test/unit/integration-contracts.test.ts`, `apps/api/test/integration/shop-location-routing.integration.test.ts` (new), `e2e/shop-routing.visual.spec.ts` (new), `e2e/helpers/mock-api.ts`, and `scripts/validation/*` (browser inventory 407 → 415, capture scenarios 173 → 181), `scripts/test-shop-routing-migration-upgrade.mjs` (new) and `package.json` (`test:migration:upgrade`).
+- Docs: `.agent/PRD.md`, `.agent/implementationPhases.md`, `docs/adr/0058-…`.
+
+**Validation (Windows host, scratchpad Node 22.23.2 / pnpm 11.8.0, no Docker):**
+
+- Passed: Prisma validate/generate, API/workforce/Admin typecheck, `test:unit` (includes new shop-matching and AI location contract tests), ESLint on changed files, Prettier on changed files (`--end-of-line auto`), `git diff --check`, and web-voice/web-admin production builds.
+- Browser: the full Chromium + visual suite passed 389/390. The one failure was an unrelated admin error-state journey that passed 16/16 serially. Legacy WebKit passed 5/6; the forced-password test passed serially.
+- `shop-routing.visual.spec.ts` passed 8/8. The inventory partition test passes with 415.
+- Screenshots were inspected: confirmation card and confirmed row at 360/1440 px, assignment sheet at 360/1440 px, Admin table and drawer.
+- Repository-wide `format:check`, full `eslint .` (out of memory from the stray `.claude/worktrees` copy), and `test:validation` sealed-build/CRLF cases fail only for the known Windows environment reasons.
+- Database jobs (Docker Desktop with WSL 2 enabled on 1 October 2026; the runner's steps were run manually because `verify:local` stops at the Windows CRLF `format:check` and `db:test:reset` quoting fails in the Windows shell):
+  - Fresh `prisma migrate deploy` applied both new migrations.
+  - Integration 114/115. `shop-location-routing` passed 8/8. The single failure is `admin-safety` password-reset replay with a Prisma "Unable to start a transaction in the given time"; it reproduced in isolation, and that code is untouched.
+  - Security 14/14, organization 5/5, fullstack 6/6.
+  - `test:migration:upgrade` passed, including the new `scripts/test-shop-routing-migration-upgrade.mjs`. It covers seeded `WORK_DIFFICULTY` → `LOCATION_OWNER_DEPARTMENT` with a version bump and closed history, Kesejahteraan unchanged, historical Voice untouched, and an Admin-customized route preserved.
+  - Performance: organization dashboard p95 3,373 ms against the 3,000 ms hosted threshold on this laptop. Dashboard code is unchanged and the threshold is authoritative only on the hosted runner.
+  - The Docker stack was stopped (`db:down`).
+- Not run locally: native capture refresh and Gitleaks (the image is not yet pulled). The staging VPS is down (subscription not renewed), so "Deploy staging" is expected to fail.
+
+**Open items:** Admin must enter the shop list and aliases (none seeded). Once the organization import carries an Area column, rank/label assignment candidates by incident area (ADR-0058 follow-up).
+
+**Delivery:** branch `feat/voice-shop-manager-routing` from `staging`. Next action: commit, push, open a PR to `staging`, and confirm the hosted gates, especially the new integration test and migrations.
+
 ## PR #60 runtime OpenSSL repair — 30 September 2026
 
 **Status:** after b7c64a12, run 36684901612 passed dependency security and every
