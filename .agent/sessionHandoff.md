@@ -1,5 +1,39 @@
 # CARE Session Handoff
 
+## Staging deployment helper path repair — 1 October 2026
+
+Latest staging run `36852300089` at `f3901573` passed all 20 validation jobs,
+including container cleanup, security and the release candidate gate, but failed
+deployment before building the candidate. `remote-entrypoint.sh` executes from
+`incoming`; promotion moves that directory into `releases`, leaving `SCRIPT_DIR`
+pointing at a missing `build-cache.sh`. The deployment harness previously executed
+from the repository checkout and therefore missed this production path.
+
+Pulled `origin/staging` at `f3901573` and created
+`fix/staging-release-helper-path`. Rebind the helper directory to the candidate's
+retained release immediately after promotion or same-SHA retry removal. Keep
+current-generation helpers for rebuilding older rollback source. The harness now
+executes the actual copied incoming script for fresh deploys, repeat deploys and
+automatic rollback; it reproduced the missing-helper failure before the repair.
+The repaired native and Linux/real-flock harnesses pass, as do Actionlint,
+ShellCheck and directory Gitleaks. Full local validation passed static, build,
+integration/security, organization, performance (p95 481 ms), migrations,
+fullstack (6), Chromium/PWA/push (222) and legacy WebKit (6). Capture passed
+180/181; the unchanged shop-not-in-area test twice checked its request array
+before the asynchronous mock handler received the request. Make that assertion
+poll for the same exact payload without changing application behavior or test
+thresholds. Final capture validation passes all 181 scenarios with two workers. Generated
+native references were restored because no UI changed. Hosted delivery remains
+pending; no VM deployment or Actions rerun was triggered by this inspection.
+
+Read-only VM verification after the failed run confirms all five app services
+healthy at `a35ad0c9`. Automatic rollback succeeded and its cleanup reports
+7.157 GB dedicated cache plus 63.69 GB attributable legacy cache removed. The
+filesystem now reports 19 GB used (19%), 79 GB available; residual default build
+cache is approximately 13.5 GB. Persisted media and database were not targeted.
+The earlier staging run `36842629034` failed the unchanged dashboard performance
+check at 3006 ms against 3000 ms; that check passes in the latest run.
+
 ## Per-deploy CARE build-cache cleanup — 1 October 2026
 
 **Objective:** reduce deployment disk growth while preserving other applications

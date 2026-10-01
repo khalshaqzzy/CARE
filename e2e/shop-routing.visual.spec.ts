@@ -131,7 +131,7 @@ test('reporter picks among ambiguous shops or answers not in a shop', async ({ p
   await expect(page.getByRole('region', { name: 'Lokasi kejadian' })).toContainText(
     'Bukan di area shop',
   );
-  expect(confirmations).toEqual([{ shopLocationId: null, expectedVersion: 1 }]);
+  await expect.poll(() => confirmations).toEqual([{ shopLocationId: null, expectedVersion: 1 }]);
 });
 
 test('a resolved shop can be changed from the full area list', async ({ page }) => {

@@ -91,7 +91,7 @@ prepare_candidate() {
   local base="$1" sha="$2" run="$3" smoke="${4:-0}" incoming="${1}/incoming/${2}.${3}.1" runtime="${1}/incoming/${2}.${3}.env" archive="${1}/incoming/${2}.${3}.tar.gz"
   mkdir -p "${incoming}/deploy/scripts" "${incoming}/deploy/buildkit"
   cp "${ROOT}/deploy/buildkit/"* "${incoming}/deploy/buildkit/"
-  cp "${SCRIPTS}/lib.sh" "${SCRIPTS}/cleanup-images.sh" "${SCRIPTS}/build-cache.sh" "${SCRIPTS}/remote-rollback.sh" "${incoming}/deploy/scripts/"
+  cp "${SCRIPTS}/lib.sh" "${SCRIPTS}/cleanup-images.sh" "${SCRIPTS}/build-cache.sh" "${SCRIPTS}/remote-deploy.sh" "${SCRIPTS}/remote-rollback.sh" "${incoming}/deploy/scripts/"
   # shellcheck disable=SC2016
   printf '#!/usr/bin/env bash\nexit "${TEST_PREFLIGHT_EXIT:-0}"\n' >"${incoming}/deploy/scripts/remote-preflight.sh"
   printf '#!/usr/bin/env bash\nexit %s\n' "${smoke}" >"${incoming}/deploy/scripts/smoke-check.sh"
@@ -102,7 +102,9 @@ prepare_candidate() {
 run_candidate() {
   local base="$1" sha="$2" run="$3" smoke="${4:-0}" incoming runtime archive checksum
   IFS='|' read -r incoming runtime archive checksum < <(prepare_candidate "${base}" "${sha}" "${run}" "${smoke}")
-  TEST_CACHE_BUILD_STATE="${base}/shared/deployment-state/.fake-builder" PATH="${fake_bin}:${PATH}" "${SCRIPTS}/remote-deploy.sh" staging "${sha}" "${run}" "${base}" "${incoming}" "${runtime}" "${archive}" "${checksum}" 127.0.0.1
+  # Match remote-entrypoint: execute the script inside incoming, which deployment
+  # moves (or removes on a retry) before building and automatic rollback.
+  TEST_CACHE_BUILD_STATE="${base}/shared/deployment-state/.fake-builder" PATH="${fake_bin}:${PATH}" bash "${incoming}/deploy/scripts/remote-deploy.sh" staging "${sha}" "${run}" "${base}" "${incoming}" "${runtime}" "${archive}" "${checksum}" 127.0.0.1
 }
 
 success="${DEPLOY_TEST_BASE}/success"; prepare_base "${success}"
