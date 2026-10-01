@@ -24,6 +24,9 @@ Use one copy of this checklist per staging candidate/rehearsal. Record links, ti
 - [ ] Mocked Playwright and serial full-stack Playwright green.
 - [ ] actionlint, ShellCheck, Hadolint, bash syntax, bootstrap check, and deployment harness green.
 - [ ] Production Compose/routing/non-root/persistence acceptance green.
+- [ ] Build uses the owned per-environment CARE builder and exported images remain runnable after cache cleanup.
+- [ ] Success cleanup removes unused dedicated cache and attributable private legacy cache; unknown/shared/active/foreign cache and database/media/Caddy state remain protected.
+- [ ] First deployment records before/after free disk and Buildx cache usage; remaining unattributed cache is reported explicitly.
 - [ ] Gitleaks, dependency audit/review, CodeQL, Trivy filesystem, and every runtime image green with no unresolved High/Critical finding.
 - [ ] `release-gate` is `success`; no required job is failed, cancelled, or skipped.
 - [ ] Candidate remained branch HEAD at both freshness checks.

@@ -55,6 +55,16 @@ cat >"${fake_bin}/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ -z "${TEST_DOCKER_LOG:-}" ]] || printf '%s\n' "$*" >>"${TEST_DOCKER_LOG}"
+if [[ "${1:-}" == info ]]; then echo x86_64; exit 0; fi
+if [[ "${1:-}" == buildx ]]; then
+  if [[ "${2:-}" == inspect ]]; then
+    [[ -f "${TEST_CACHE_BUILD_STATE}" ]] || exit 1
+    echo 'Driver: docker-container'
+  fi
+  if [[ "${2:-}" == create ]]; then touch "${TEST_CACHE_BUILD_STATE}"; fi
+  [[ "${2:-}" != prune || "${TEST_CACHE_CLEANUP_FAIL:-false}" != true ]] || exit 1
+  exit 0
+fi
 if [[ "${1:-}" == inspect ]]; then echo healthy; exit 0; fi
 if [[ "${1:-}" == image ]]; then
   [[ "${2:-}" != inspect ]] || exit 1
@@ -79,8 +89,9 @@ if ! command -v flock >/dev/null 2>&1; then printf '#!/usr/bin/env bash\nexit 0\
 prepare_base() { mkdir -p "$1"/{releases,incoming,shared/deployment-state,shared/postgres-data,shared/media,shared/caddy-data,shared/caddy-config}; }
 prepare_candidate() {
   local base="$1" sha="$2" run="$3" smoke="${4:-0}" incoming="${1}/incoming/${2}.${3}.1" runtime="${1}/incoming/${2}.${3}.env" archive="${1}/incoming/${2}.${3}.tar.gz"
-  mkdir -p "${incoming}/deploy/scripts"
-  cp "${SCRIPTS}/lib.sh" "${SCRIPTS}/cleanup-images.sh" "${SCRIPTS}/remote-rollback.sh" "${incoming}/deploy/scripts/"
+  mkdir -p "${incoming}/deploy/scripts" "${incoming}/deploy/buildkit"
+  cp "${ROOT}/deploy/buildkit/"* "${incoming}/deploy/buildkit/"
+  cp "${SCRIPTS}/lib.sh" "${SCRIPTS}/cleanup-images.sh" "${SCRIPTS}/build-cache.sh" "${SCRIPTS}/remote-rollback.sh" "${incoming}/deploy/scripts/"
   # shellcheck disable=SC2016
   printf '#!/usr/bin/env bash\nexit "${TEST_PREFLIGHT_EXIT:-0}"\n' >"${incoming}/deploy/scripts/remote-preflight.sh"
   printf '#!/usr/bin/env bash\nexit %s\n' "${smoke}" >"${incoming}/deploy/scripts/smoke-check.sh"
@@ -91,7 +102,7 @@ prepare_candidate() {
 run_candidate() {
   local base="$1" sha="$2" run="$3" smoke="${4:-0}" incoming runtime archive checksum
   IFS='|' read -r incoming runtime archive checksum < <(prepare_candidate "${base}" "${sha}" "${run}" "${smoke}")
-  PATH="${fake_bin}:${PATH}" "${SCRIPTS}/remote-deploy.sh" staging "${sha}" "${run}" "${base}" "${incoming}" "${runtime}" "${archive}" "${checksum}" 127.0.0.1
+  TEST_CACHE_BUILD_STATE="${base}/shared/deployment-state/.fake-builder" PATH="${fake_bin}:${PATH}" "${SCRIPTS}/remote-deploy.sh" staging "${sha}" "${run}" "${base}" "${incoming}" "${runtime}" "${archive}" "${checksum}" 127.0.0.1
 }
 
 success="${DEPLOY_TEST_BASE}/success"; prepare_base "${success}"
@@ -100,6 +111,8 @@ TEST_DOCKER_LOG="${TEST_ROOT}/docker.log"; export TEST_DOCKER_LOG
 sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; run_candidate "${success}" "${sha}" 10 >/dev/null
 [[ "$(<"${success}/current_release")" == "${sha}" && "$(readlink "${success}/current")" == "${success}/releases/${sha}" ]] || fail "Atomic activation failed"
 [[ "$(find "${success}/releases" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')" == 5 ]] || fail "Retention failed"
+grep -q '^buildx prune --builder care-staging-deploy --all --force$' "${TEST_DOCKER_LOG}" || fail "Success did not clean its dedicated cache"
+grep -q 'build --builder care-staging-deploy --pull' "${TEST_DOCKER_LOG}" || fail "Build escaped dedicated CARE builder"
 grep -q '^image prune --force --filter label=com.satucare.application=care$' "${TEST_DOCKER_LOG}" || fail "Success did not clean images"
 ! grep -Eq '^(system prune|volume|builder prune)' "${TEST_DOCKER_LOG}" || fail "Cleanup escaped CARE image scope"
 next_sha=abababababababababababababababababababab; run_candidate "${success}" "${next_sha}" 11 >/dev/null
@@ -132,6 +145,7 @@ if TEST_MIGRATE_FAIL=true run_candidate "${migration}" 3333333333333333333333333
 [[ ! -f "${migration}/current_release" && -d "${migration}/shared/postgres-data" ]] || fail "Migration failure changed pointer or database path"
 
 ! grep -q '^image prune' "${TEST_DOCKER_LOG}" || fail "Failed deployment cleaned images"
+! grep -q '^buildx prune' "${TEST_DOCKER_LOG}" || fail "Failed deployment cleaned build cache"
 provider_smoke="${DEPLOY_TEST_BASE}/provider-smoke"; prepare_base "${provider_smoke}"
 TEST_PROVIDER_SMOKE_FAIL=true run_candidate "${provider_smoke}" 4444444444444444444444444444444444444444 34 >/dev/null
 [[ "$(<"${provider_smoke}/current_release")" == 4444444444444444444444444444444444444444 ]] || fail "Provider smoke failure blocked activation"
@@ -145,7 +159,7 @@ printf '%s\n' "${previous}" >"${rollback}/current_release"
 : >"${TEST_DOCKER_LOG}"
 if run_candidate "${rollback}" ffffffffffffffffffffffffffffffffffffffff 40 1 >/dev/null 2>&1; then fail "Failed smoke returned success"; fi
 [[ "$(<"${rollback}/current_release")" == "${previous}" ]] || fail "Automatic rollback did not restore previous SHA"
-grep -q "releases/${previous}/deploy/compose/docker-compose.remote.yml build --pull" "${TEST_DOCKER_LOG}" || fail "Rollback did not rebuild deleted images"
+grep -q "releases/${previous}/deploy/compose/docker-compose.remote.yml build --builder care-staging-deploy --pull" "${TEST_DOCKER_LOG}" || fail "Rollback did not rebuild deleted images"
 ! grep -q '^image prune' "${TEST_DOCKER_LOG}" || fail "Failed smoke cleaned images"
 
 cleanup_failure="${DEPLOY_TEST_BASE}/cleanup-failure"; prepare_base "${cleanup_failure}"
@@ -158,5 +172,9 @@ if command -v flock >/dev/null 2>&1; then
   if run_candidate "${lock}" 1111111111111111111111111111111111111111 50 >/dev/null 2>&1; then fail "Concurrent deploy acquired lock"; fi
   wait "${lock_pid}"
 else echo "flock unavailable; contention remains mandatory in Linux CI."; fi
+cache_failure="${DEPLOY_TEST_BASE}/cache-failure"; prepare_base "${cache_failure}"
+if TEST_CACHE_CLEANUP_FAIL=true run_candidate "${cache_failure}" 6666666666666666666666666666666666666666 42 >/dev/null 2>&1; then fail "Cache cleanup failure was hidden"; fi
+[[ "$(<"${cache_failure}/current_release")" == 6666666666666666666666666666666666666666 ]] || fail "Cache cleanup rolled back healthy activation"
 bash "${ROOT}/deploy/tests/image-cleanup.sh"
+bash "${ROOT}/deploy/tests/build-cache.sh"
 echo "Deployment env, topology, archive safety, failure stages, stale/equal-run, idempotency, lock, rollback, activation, and retention tests passed."

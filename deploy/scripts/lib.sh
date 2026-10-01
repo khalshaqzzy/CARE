@@ -38,6 +38,14 @@ compose_for() {
     -f "${release_dir}/deploy/compose/docker-compose.remote.yml" "$@"
 }
 
+# Use the current-generation helper even when rebuilding retained older source.
+build_for() {
+  local release_dir="$1" runtime_env="$2" base_dir="$3" app_env
+  app_env="$(require_env_value "${runtime_env}" APP_ENV)"
+  "${SCRIPT_DIR}/build-cache.sh" prepare "${app_env}" "${base_dir}" || return 1
+  compose_for "${release_dir}" "${runtime_env}" build --builder "care-${app_env}-deploy" --pull postgres api workforce-web admin-web caddy
+}
+
 wait_for_service() {
   local release_dir="$1" runtime_env="$2" service="$3" timeout_seconds="${4:-240}"
   local started_at container_id='' status

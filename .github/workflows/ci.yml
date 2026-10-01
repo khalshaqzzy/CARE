@@ -325,11 +325,16 @@ jobs:
           sudo chown 70:70 /tmp/care-staging/shared/postgres-data
           sudo chmod 0700 /tmp/care-staging/shared/postgres-data
           chmod 0777 /tmp/care-staging/shared/{media,caddy-data,caddy-config}
+          cache_base="$(mktemp -d /tmp/care-deployment-test-ci-cache-XXXXXX)"
+          mkdir -p "$cache_base/shared/deployment-state"
+          echo "CARE_BUILD_CACHE_BASE=$cache_base" >> "$GITHUB_ENV"
       - name: Build and start production-like stack
         run: |
           compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")
           "${compose[@]}" --profile operations config --quiet
-          "${compose[@]}" build --pull postgres api workforce-web admin-web caddy
+          SCRIPT_DIR="$PWD/deploy/scripts"
+          source deploy/scripts/lib.sh
+          build_for "$PWD" "$RUNTIME_ENV" "$CARE_BUILD_CACHE_BASE"
           "${compose[@]}" up -d --no-deps postgres
           "${compose[@]}" --profile operations run --rm migrate
           "${compose[@]}" --profile operations run --rm bootstrap-admin
@@ -418,8 +423,24 @@ jobs:
             ignore-unfixed: false,
             exit-code: '1',
           }
+      - name: Verify scoped post-success build cache cleanup
+        run: |
+          deploy/scripts/build-cache.sh clean staging "$CARE_BUILD_CACHE_BASE"
+          compose=(docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE")
+          "${compose[@]}" restart api workforce-web admin-web
+          "${compose[@]}" up --wait --wait-timeout 240 api workforce-web admin-web caddy postgres
+          test -f /tmp/care-staging/shared/media/ci-persistence
+          curl -fsS -H 'Host: satucare.com' http://127.0.0.1:18080/ready | jq -e '.status=="ready"'
+          curl -fsS -H 'Host: satucare.com' http://127.0.0.1:18080/release.json | jq -e '.application=="care-web-voice"'
+          curl -fsS -H 'Host: admin-pad.satucare.com' http://127.0.0.1:18080/release.json | jq -e '.application=="care-web-admin"'
+
       - if: always()
-        run: docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE" --profile operations down --remove-orphans
+        run: |
+          docker compose --env-file "$RUNTIME_ENV" -f "$REMOTE_COMPOSE" --profile operations down --remove-orphans
+          docker buildx rm care-staging-deploy || true
+          if [[ -n "${CARE_BUILD_CACHE_BASE:-}" && "$CARE_BUILD_CACHE_BASE" == /tmp/care-deployment-test-ci-cache-* ]]; then
+            rm -rf -- "$CARE_BUILD_CACHE_BASE"
+          fi
 
   dependency-security:
     name: Dependency security

@@ -326,10 +326,27 @@ agar penggantian tag PostgreSQL tidak kehilangan identitas image lama. Inventory
 Build baru memakai label `com.satucare.application=care`, sehingga dangling image berikutnya
 bisa dibersihkan. Stopped container hanya dihapus untuk Compose project environment aktif;
 image yang direferensikan container mana pun atau memiliki tag aplikasi lain dilindungi.
-Tidak ada `image rm --force`, global image/system/container/volume prune, atau build-cache prune.
-Dangling image lama tanpa tag/label/inventory tidak dapat diatribusikan dengan aman ke CARE;
-build cache lama yang dipakai bersama juga dipertahankan. Keduanya memerlukan audit operator,
-bukan penghapusan otomatis yang bisa mengganggu aplikasi lain.
+Tidak ada `image rm --force` atau global image/system/container/volume prune.
+Dangling image lama tanpa tag/label/inventory tetap membutuhkan audit operator.
+
+Build deployment dan rollback memakai builder `care-staging-deploy` atau
+`care-production-deploy` dengan driver `docker-container`, image BuildKit pinned,
+dan `default-load=true` agar image tetap tersedia pada Docker Engine untuk Compose.
+State `shared/deployment-state/build-cache-owner` mencatat kepemilikan. Builder
+bernama sama yang sudah ada tanpa state kepemilikan tidak diadopsi atau dibersihkan.
+Compose wajib mendukung `build --builder`; Buildx minimal 0.14 untuk default-load.
+GC builder khusus memakai budget 5 GB untuk cache dari build yang gagal; cleanup
+setelah deploy/rollback sukses menghapus seluruh cache unused builder tersebut.
+Image runtime yang sudah diekspor dan seluruh persistent bind mount tetap tersedia.
+
+Pada deployment pertama, cache default builder lama diinventarisasi melalui JSON
+Buildx: perintah pnpm dengan target `@care/api`, `@care/contracts`, `@care/web-voice`,
+atau `@care/web-admin` menjadi seed kepemilikan. Record turunannya juga dipilih
+agar snapshot dependency tidak tertahan oleh layer COPY/build. Cleanup memakai
+exact ID regex dan filter tambahan `private=""` (BuildKit melindungi record in-use); hanya record
+private/reclaimable yang dihapus. Source/context/base ancestors tanpa atribusi,
+cache aplikasi lain dan shared cache tetap dipertahankan. Sisa cache tak teratribusi
+memerlukan audit operator; total disk host tidak dijanjikan menjadi nol.
 
 Cleanup tidak berjalan pada candidate gagal. Error cleanup menggagalkan hasil command deployment
 setelah aktivasi, tanpa rollback release sehat. Log mencatat penghapusan dan `docker system df`;
