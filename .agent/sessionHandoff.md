@@ -19,7 +19,7 @@ Phase 13 remains `in_progress`. PRD §12.2/§12.3/§13.1/§13.2/§14.2/§14.5 (n
 - Tests: `apps/api/test/unit/shop-matching.test.ts` (new), `apps/api/test/unit/integration-contracts.test.ts`, `apps/api/test/integration/shop-location-routing.integration.test.ts` (new), `e2e/shop-routing.visual.spec.ts` (new), `e2e/helpers/mock-api.ts`, and `scripts/validation/*` (browser inventory 407 → 415, capture scenarios 173 → 181), `scripts/test-shop-routing-migration-upgrade.mjs` (new) and `package.json` (`test:migration:upgrade`).
 - Docs: `.agent/PRD.md`, `.agent/implementationPhases.md`, `docs/adr/0058-…`.
 
-**Validation (Windows host, scratchpad Node 22.23.2 / pnpm 11.8.0, no Docker):**
+**Validation (Windows host, scratchpad Node 22.23.2 / pnpm 11.8.0; Docker Desktop enabled midway, see the database jobs below):**
 
 - Passed: Prisma validate/generate, API/workforce/Admin typecheck, `test:unit` (includes new shop-matching and AI location contract tests), ESLint on changed files, Prettier on changed files (`--end-of-line auto`), `git diff --check`, and web-voice/web-admin production builds.
 - Browser: the full Chromium + visual suite passed 389/390. The one failure was an unrelated admin error-state journey that passed 16/16 serially. Legacy WebKit passed 5/6; the forced-password test passed serially.
@@ -33,11 +33,22 @@ Phase 13 remains `in_progress`. PRD §12.2/§12.3/§13.1/§13.2/§14.2/§14.5 (n
   - `test:migration:upgrade` passed, including the new `scripts/test-shop-routing-migration-upgrade.mjs`. It covers seeded `WORK_DIFFICULTY` → `LOCATION_OWNER_DEPARTMENT` with a version bump and closed history, Kesejahteraan unchanged, historical Voice untouched, and an Admin-customized route preserved.
   - Performance: organization dashboard p95 3,373 ms against the 3,000 ms hosted threshold on this laptop. Dashboard code is unchanged and the threshold is authoritative only on the hosted runner.
   - The Docker stack was stopped (`db:down`).
-- Not run locally: native capture refresh and Gitleaks (the image is not yet pulled). The staging VPS is down (subscription not renewed), so "Deploy staging" is expected to fail.
+- Gitleaks v8.24.3 found no leaks in the directory scan or in the scans of the feature and merge commits. The native capture refresh was not run.
 
-**Open items:** Admin must enter the shop list and aliases (none seeded). Once the organization import carries an Area column, rank/label assignment candidates by incident area (ADR-0058 follow-up).
+**Correction:** an earlier draft of this entry said the staging VPS was down and "Deploy staging" would fail. That was wrong. The VPS had been renewed on 30 September 2026 (until 2027-09-30) and was healthy. Since PR #60 staging is served at `satucare.com` (workforce) and `admin-pad.satucare.com` (Admin); `care.qd-tmmin.site` no longer answers. Before assuming an outage, check `https://satucare.com/ready`.
 
-**Delivery:** branch `feat/voice-shop-manager-routing` from `staging`. Next action: commit, push, open a PR to `staging`, and confirm the hosted gates, especially the new integration test and migrations.
+**Open items:**
+
+- Admin must enter the shop list and aliases on Remediation & Route → Lokasi shop; none are seeded. Until then, Fasilitas Kerja keeps routing to the reporter's department.
+- Once the organization import carries an Area column, rank or label assignment candidates by incident area (ADR-0058 follow-up).
+
+**Delivery (completed):**
+
+- Commit `2d1caa8` on `feat/voice-shop-manager-routing`. PR #62 targeted `staging`; PR #61, opened by mistake against `main`, was closed.
+- `staging` had gained PR #60, so PR #62 had conflicts. Commit `5f4f911` merged `origin/staging`, kept both new roadmap/handoff entries, and renumbered this ADR from 0057 to 0058 because ADR-0057 is the OpenSSL runtime record.
+- PR #62 was merged into `staging` as `a35ad0c`.
+- The PR #62 run (`36824268444`) failed only API (performance), with organization dashboard p95 at 3,009.85 ms against the 3,000 ms threshold, plus the dependent Release candidate gate. Dashboard code is unchanged, and the same code passed performance on the staging push run.
+- The staging push run (`36824457091`) passed all 22 jobs, including Release candidate gate and Deploy staging. `https://satucare.com/ready` and `https://admin-pad.satucare.com/release.json` report `releaseSha` `a35ad0c`, with database, migrations, outbox, and storage `ok`, so both shop-routing migrations are applied on staging.
 
 ## PR #60 runtime OpenSSL repair — 30 September 2026
 
