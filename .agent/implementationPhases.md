@@ -17,6 +17,16 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 5a — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: tiered categories now start at the nearest leader above the reporter (GL → SH → Manager → DDH/DH).
+
+- Only the holder acts.
+- The Manager reads the Voice but cannot act until it reaches them.
+- Outsider shop reports go straight to the shop Manager with a badge.
+
+Next: 5b (Naikkan, Tugaskan, Ingatkan) and 5c (Tim Saya visibility, stage timeline, chat avatars). See PRD §43.5 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 4 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: TM (vocational) reporters fill in **Lengkapi posisi kamu** on every Voice.

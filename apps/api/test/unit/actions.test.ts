@@ -44,6 +44,23 @@ describe('computeAvailableActions', () => {
     expect(result).not.toContain('HANDOVER');
   });
 
+  it('lets only the tier holders act on a tiered Voice below the Manager', () => {
+    const atGroupLeader = voice({ tierLevel: 'GROUP_LEADER', tierHolderIds: ['leader'] });
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), atGroupLeader)).toEqual([
+      'RESPOND',
+    ]);
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atGroupLeader)).toEqual([]);
+    const atManager = voice({ tierLevel: 'MANAGER', tierHolderIds: ['owner'] });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atManager)).toEqual(
+      expect.arrayContaining(['RESPOND', 'ASSIGN', 'HANDOVER']),
+    );
+    const atDivision = voice({ tierLevel: 'DIVISION', tierHolderIds: ['ddh', 'dh'] });
+    expect(computeAvailableActions(actor(['DIVISION_LEADERSHIP'], 'dh'), atDivision)).toEqual([
+      'RESPOND',
+    ]);
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atDivision)).toEqual([]);
+  });
+
   it('keeps handover available after the response until someone processes or is assigned', () => {
     const responded = computeAvailableActions(
       actor(['MANAGER'], 'owner'),

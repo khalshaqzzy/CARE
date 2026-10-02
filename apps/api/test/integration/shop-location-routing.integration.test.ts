@@ -402,4 +402,31 @@ describe('Incident shop routing', () => {
       ]),
     );
   });
+  it('starts a tiered outsider report at the shop Manager with the outside badge', async () => {
+    await prisma.generalVoiceCategory.update({
+      where: { key: 'SHOP_WORK_DIFFICULTY' },
+      data: { tiered: true },
+    });
+    try {
+      const id = await draft(officeReporter, 'KARAWANG_1', 'asy line 2 dekat pos 4');
+      const voice = await submit(officeReporter, id);
+      const manager = heads['Assembly & PIO Production #1 Dept']!;
+      expect(voice).toMatchObject({
+        outsideReporter: true,
+        tierLevel: 'MANAGER',
+        tierHolderIds: [manager.accountId],
+        routeOwnerId: manager.accountId,
+      });
+      const detail = await voices.detail(manager, voice.id);
+      expect(detail).toMatchObject({ outsideReporter: true, tierLevel: 'MANAGER' });
+      expect(detail.availableActions).toEqual(
+        expect.arrayContaining(['RESPOND', 'ASSIGN', 'HANDOVER']),
+      );
+    } finally {
+      await prisma.generalVoiceCategory.update({
+        where: { key: 'SHOP_WORK_DIFFICULTY' },
+        data: { tiered: false },
+      });
+    }
+  });
 });

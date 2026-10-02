@@ -1,4 +1,4 @@
-import type { HandlerType, VoiceStatus, VoiceVisibility } from '@prisma/client';
+import type { HandlerType, TierLevel, VoiceStatus, VoiceVisibility } from '@prisma/client';
 
 export type ActionableVoice = {
   reporterId: string;
@@ -11,6 +11,9 @@ export type ActionableVoice = {
   hasHandlingTarget?: boolean;
   /** The current PIC account is no longer active (deactivated or legacy). */
   handlerInactive?: boolean;
+  /** Tiered categories: the level holding the Voice and who may act on it. */
+  tierLevel?: TierLevel | null;
+  tierHolderIds?: string[];
   closureCycles?: Array<{
     reopenedAt: Date | null;
     reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
@@ -31,7 +34,11 @@ export type ActionActor = {
  */
 export function computeAvailableActions(actor: ActionActor, voice: ActionableVoice): string[] {
   const isReporter = voice.reporterId === actor.accountId;
-  const isRouteOwner = voice.routeOwnerId === actor.accountId;
+  // A tiered Voice is owned by its current holders; the route Manager acts
+  // only once it reaches them (then they are the holder).
+  const isRouteOwner = voice.tierLevel
+    ? (voice.tierHolderIds ?? []).includes(actor.accountId)
+    : voice.routeOwnerId === actor.accountId;
   const isHandler = voice.currentHandlerId === actor.accountId;
   const isPrivate = voice.visibility === 'PRIVATE';
   const canAssign = !isPrivate
@@ -46,7 +53,11 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
   // Only the route Manager hands a General Voice sideways, and only until
   // someone processes or is assigned it; a handover counts as the response.
   const canHandover =
-    !isPrivate && actor.capabilities.includes('MANAGER') && isRouteOwner && !voice.currentHandlerId;
+    !isPrivate &&
+    actor.capabilities.includes('MANAGER') &&
+    isRouteOwner &&
+    !voice.currentHandlerId &&
+    (!voice.tierLevel || voice.tierLevel === 'MANAGER');
   const actions: string[] = [];
   if (canOperate) {
     if (voice.status === 'OPEN') {

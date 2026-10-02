@@ -279,8 +279,10 @@ function participantRole(role: string): string {
     (
       {
         REPORTER: 'Pelapor',
+        GROUP_LEADER: 'Group Leader',
         DEPARTMENT_HEAD: 'Dept Head',
         SECTION_HEAD: 'Section Head',
+        DIVISION_LEADER: 'Division',
         COMMITTEE: 'Komite',
       } as Record<string, string>
     )[role] ?? 'Responder'

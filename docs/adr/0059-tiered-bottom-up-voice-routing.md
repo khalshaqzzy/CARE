@@ -131,6 +131,38 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Browser: prefill, the "Tidak di Line" request, and the gating.
   - The browser inventory grows from 422 to 423.
 
+## Implementation (stage 2, increment 5a — not released)
+
+- **Schema.** Migration `20261003130000_tiered_routing_core` adds:
+  - `TierLevel` (`GROUP_LEADER`, `SECTION_HEAD`, `MANAGER`, `DIVISION`) and `HandlerType.GROUP_LEADER`;
+  - `GeneralVoiceCategory.tiered`, seeded true for `WORK_DIFFICULTY` and `WELFARE`;
+  - on `Voice`: `tierLevel`, `tierPath`, `tierHolderIds` (GIN index), and `outsideReporter`.
+
+  Existing Voices keep `tierLevel = null` and the classic route.
+
+- **Chain.** `src/voices/tier-chain.ts` `resolveTierChain` builds the chain from the active snapshot:
+  - the Group Leader of the reporter's Line and the Section Head of their Section (each exactly one active person; skipped for outside reporters);
+  - the route-owning Manager;
+  - every active Deputy/Division Head of the handling division.
+
+  Levels at or below the reporter's own position are dropped. TM reporters use their chosen Section/Line.
+
+- **Submit.** It stores the first level as the holder and the levels found as `tierPath`, and notifies the holders instead of the Manager. `outsideReporter` is set when a tiered Voice's handling department differs from the reporter's department.
+- **Authorization.**
+  - `computeAvailableActions` treats the holders as the owner of a tiered Voice. Handover is allowed only at the Manager tier.
+  - `mayAct` admits holders.
+  - `workItemScope` lists Voices the actor holds and drops tiered Voices from the route Manager's list until they hold them.
+  - Processing records the PIC type of the processing tier.
+  - Handover to a tiered category restarts at the destination Manager (`tierPath` Manager → Division). Handover to a classic category clears the tier.
+- **Detail.** Detail exposes `tierLevel` and `outsideReporter`. Chat participants list the holders with roles from their position (`GROUP_LEADER`, `SECTION_HEAD`, `DEPARTMENT_HEAD`, `DIVISION_LEADER`). Message notifications go to the holders.
+- **Web.** The hero shows **Pelapor dari luar department** to responders. Chat role labels cover Group Leader and Division. The Respons sheet for a Group Leader or Section Head offers Balas pesan and Proses sendiri.
+- **Validation.**
+  - Unit: tier ownership in actions, policy scopes, `nextTierLevel`.
+  - Integration: Group Leader start, Section Head when the Line has no leader, a Group Leader's own Voice starting at the Section Head, the Manager being read-only and excluded from work items, the Group Leader processing as PIC, and the outsider shop Voice starting at the shop Manager with the badge.
+  - Browser: the holder's sheet and the badge.
+  - Inventory 423 → 424.
+  - The local organization dashboard p95 (3.4–3.6 s) is the same on the previous commit, so it is host load rather than this change.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

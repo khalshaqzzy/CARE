@@ -40,11 +40,15 @@ describe('Authorization scopes', () => {
         { visibility: 'GENERAL', reporterOrganizationUnitId: 'unit' },
       ],
     });
+    // Tiered Voices reach the Manager only while they hold them.
     expect(policy.workItemScope(manager)).toEqual({
-      OR: [{ visibility: 'GENERAL', routeOwnerId: 'account' }],
+      OR: [
+        { visibility: 'GENERAL', routeOwnerId: 'account', tierLevel: null },
+        { visibility: 'GENERAL', tierHolderIds: { has: 'account' } },
+      ],
     });
   });
-  it('grants leadership/Director/Union read scopes without route-action work items', async () => {
+  it('grants leadership/Director/Union read scopes with work items only for held tiered Voices', async () => {
     const leadership = principal(['MEMBER', 'DIVISION_LEADERSHIP']);
     expect(await policy.browseScope(leadership)).toEqual({
       OR: [
@@ -56,7 +60,10 @@ describe('Authorization scopes', () => {
         },
       ],
     });
-    expect(policy.workItemScope(leadership)).toEqual({ id: { in: [] } });
+    // Leadership acts only on tiered Voices that reached the division level.
+    expect(policy.workItemScope(leadership)).toEqual({
+      OR: [{ visibility: 'GENERAL', tierHolderIds: { has: 'account' } }],
+    });
     expect(await policy.browseScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({
       OR: [{ reporterId: 'account' }, { visibility: 'GENERAL' }],
     });
@@ -67,7 +74,10 @@ describe('Authorization scopes', () => {
   it('keeps Section Head operational access assignment-specific and Admin detail unrestricted', async () => {
     const sectionHead = principal(['MEMBER', 'SECTION_HEAD']);
     expect(policy.workItemScope(sectionHead)).toEqual({
-      OR: [{ visibility: 'GENERAL', currentHandlerId: 'account' }],
+      OR: [
+        { visibility: 'GENERAL', currentHandlerId: 'account' },
+        { visibility: 'GENERAL', tierHolderIds: { has: 'account' } },
+      ],
     });
     expect(
       await policy.browseScope(

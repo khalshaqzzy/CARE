@@ -565,6 +565,14 @@ const baseVoiceProperties = {
 };
 
 const shopVoiceProperties = {
+  // Tiered categories (ADR-0059): the level holding the Voice; null on the classic route.
+  tierLevel: {
+    type: 'string',
+    enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'],
+    nullable: true,
+  },
+  // Fasilitas Kerja reported from another department's shop.
+  outsideReporter: { type: 'boolean' },
   unreadMessages: {
     type: 'integer',
     minimum: 0,
@@ -861,7 +869,17 @@ const schemas: Record<string, any> = {
     properties: {
       id: { type: 'string' },
       displayName: { type: 'string' },
-      role: { type: 'string', enum: ['REPORTER', 'DEPARTMENT_HEAD', 'SECTION_HEAD', 'COMMITTEE'] },
+      role: {
+        type: 'string',
+        enum: [
+          'REPORTER',
+          'GROUP_LEADER',
+          'SECTION_HEAD',
+          'DEPARTMENT_HEAD',
+          'DIVISION_LEADER',
+          'COMMITTEE',
+        ],
+      },
     },
   },
   AssignmentRequest: {

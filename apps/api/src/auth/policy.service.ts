@@ -156,10 +156,24 @@ export class PolicyService {
 
   workItemScope(actor: Principal): Prisma.VoiceWhereInput {
     const scopes: Prisma.VoiceWhereInput[] = [];
+    // A tiered Voice reaches the route Manager only once they hold it.
     if (actor.capabilities.includes('MANAGER'))
-      scopes.push({ visibility: VoiceVisibility.GENERAL, routeOwnerId: actor.accountId });
+      scopes.push({
+        visibility: VoiceVisibility.GENERAL,
+        routeOwnerId: actor.accountId,
+        tierLevel: null,
+      });
     if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)))
       scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: actor.accountId });
+    if (
+      actor.capabilities.some((c) =>
+        ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(c),
+      )
+    )
+      scopes.push({
+        visibility: VoiceVisibility.GENERAL,
+        tierHolderIds: { has: actor.accountId },
+      });
     if (actor.capabilities.includes('UNION_HEAD'))
       scopes.push({ visibility: VoiceVisibility.PRIVATE });
     if (actor.capabilities.includes('UNION_OFFICER'))

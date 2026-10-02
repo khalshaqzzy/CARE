@@ -1,6 +1,38 @@
 # CARE Session Handoff
 
-## Tiered routing stage 2, increment 4 — 2 October 2026
+## Tiered routing stage 2, increment 5a — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Tiered categories:** `GeneralVoiceCategory.tiered` is true for `WORK_DIFFICULTY` and `WELFARE`. These Voices start at the nearest leader above the reporter (`resolveTierChain`).
+- **New Voice fields:** `tierLevel`, `tierPath`, `tierHolderIds`, and `outsideReporter` (migration `20261003130000_tiered_routing_core`).
+- **Behavior:**
+  - Holders act and are notified.
+  - The route Manager is read-only and kept out of their work items until they hold the Voice.
+  - Handover is allowed only at the Manager tier.
+  - Outsider shop Voices start at the shop Manager with the **Pelapor dari luar department** badge.
+  - Chat lists holders with their roles.
+
+**Files:**
+
+- **API:** `src/voices/tier-chain.ts` (new); `src/voices/{actions,voices.service}.ts`; `src/auth/policy.service.ts`; schema and migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/VoiceHero.tsx`, `features/voice/ConversationPage.tsx`, `styles.css`.
+- **Tests:**
+  - `test/unit/{actions,policy,tier-chain}.test.ts`;
+  - `test/integration/{tiered-routing-foundation,shop-location-routing}.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 423 → 424.
+
+**Validation:**
+
+- **Unit:** API 152/152.
+- **Integration and security:** 144/146; the two failures are the known admin-safety and push-subscription flakes.
+- **Performance:** the organization dashboard p95 was 3.4–3.6 s against the 3 s budget. The previous commit measured 3.42/3.48 s on the same host and database, so this is host load, not a regression. The inbox performance test passes.
+- **Browser:** the full mocked run passed 417/418. Auth recovery at 390 is a known load flake and passed alone.
+
+**Next:** 5b (Naikkan ke atasan with a reason, Tugaskan by upper levels including skipped people, Ingatkan once per working day per person).
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
 

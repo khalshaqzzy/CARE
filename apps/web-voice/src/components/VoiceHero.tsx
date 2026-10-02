@@ -116,6 +116,9 @@ export function VoiceHero({
             <span className="voice-reopened">Dibuka kembali</span>
           ) : null}
           {overdue ? <OverdueBadge /> : null}
+          {voice.outsideReporter && voice.audience !== 'REPORTER_SELF' ? (
+            <span className="voice-outside">Pelapor dari luar department</span>
+          ) : null}
           {closed ? (
             <>
               <div className="voice-hero__closedhead">

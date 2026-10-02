@@ -18019,8 +18019,10 @@
             "type": "string",
             "enum": [
               "REPORTER",
-              "DEPARTMENT_HEAD",
+              "GROUP_LEADER",
               "SECTION_HEAD",
+              "DEPARTMENT_HEAD",
+              "DIVISION_LEADER",
               "COMMITTEE"
             ]
           }
@@ -20002,6 +20004,19 @@
             ],
             "nullable": true
           },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
           "unreadMessages": {
             "type": "integer",
             "minimum": 0,
@@ -20279,6 +20294,19 @@
             ],
             "nullable": true
           },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
           "unreadMessages": {
             "type": "integer",
             "minimum": 0,
@@ -20552,6 +20580,19 @@
             ],
             "nullable": true
           },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
           "unreadMessages": {
             "type": "integer",
             "minimum": 0,
@@ -20805,6 +20846,19 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
           },
           "unreadMessages": {
             "type": "integer",
@@ -21067,6 +21121,19 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
           },
           "unreadMessages": {
             "type": "integer",
@@ -21341,6 +21408,19 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
           },
           "unreadMessages": {
             "type": "integer",

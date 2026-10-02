@@ -6247,6 +6247,16 @@
   font-weight: 600;
   white-space: nowrap;
 }
+.voice-outside {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-selected);
+  color: var(--action-primary-bg);
+  font-size: 12px;
+  font-weight: 600;
+}
 .action-panel__waiting {
   color: #536176;
   font-size: 13px;

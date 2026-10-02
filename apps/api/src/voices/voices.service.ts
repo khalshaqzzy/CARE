@@ -16,6 +16,7 @@ import {
   Prisma,
   RouteKind,
   Severity,
+  TierLevel,
   ShopConfirmation,
   ShopResolutionSource,
   UnionSlot,
@@ -48,6 +49,8 @@ import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
 import { isValidPosition, positionArea, positionOptions } from './tm-position';
+import { resolveTierChain } from './tier-chain';
+import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
 import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
 
@@ -729,6 +732,27 @@ export class VoicesService {
     const unit = await this.prisma.organizationUnit.findUniqueOrThrow({
       where: { id: current.organizationUnitId },
     });
+    // Tiered categories start with the reporter's nearest leader (ADR-0059).
+    const routeUnitId =
+      (route as { organizationUnitId?: string | null }).organizationUnitId ?? null;
+    const outsideReporter = Boolean(
+      categoryConfig?.tiered && routeUnitId && routeUnitId !== current.organizationUnitId,
+    );
+    const chain =
+      draft.visibility === VoiceVisibility.GENERAL && categoryConfig?.tiered
+        ? await resolveTierChain(this.prisma, {
+            snapshotId: current.snapshotId,
+            reporterOrganizationUnitId: current.organizationUnitId,
+            section: tmChoice?.section ?? current.section,
+            line: tmChoice ? tmChoice.line : current.lineName,
+            reporterAccountId: actor.accountId,
+            reporterPosition: current.structuralPosition,
+            managerAccountId: route.ownerAccountId,
+            handlingOrganizationUnitId: routeUnitId,
+            outsideReporter,
+          })
+        : [];
+    const firstTier = chain[0] ?? null;
     const response = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.voiceDraft.updateMany({
         where: { id, version: body.version, submittedAt: null },
@@ -793,6 +817,14 @@ export class VoicesService {
               ? HandlerType.UNION_HEAD
               : HandlerType.MANAGER,
           anonymousAlias: `Reporter-${displayId.slice(-6)}`,
+          ...(firstTier
+            ? {
+                tierLevel: firstTier.level,
+                tierPath: chain.map((step) => step.level),
+                tierHolderIds: firstTier.accountIds,
+                outsideReporter,
+              }
+            : {}),
           locationWarningAcknowledgedAt:
             draft.locationReview?.completeness === LocationCompleteness.INCOMPLETE ? now : null,
           ...shop,
@@ -833,13 +865,16 @@ export class VoicesService {
           expiresAt: new Date(Date.now() + 86_400_000),
         },
       });
-      await this.notify(
-        tx,
-        route.ownerAccountId,
-        voice.id,
-        NotificationType.VOICE_SUBMITTED,
-        voice.visibility === VoiceVisibility.PRIVATE ? 'Private Voice baru' : 'General Voice baru',
-      );
+      for (const recipientId of firstTier?.accountIds ?? [route.ownerAccountId])
+        await this.notify(
+          tx,
+          recipientId,
+          voice.id,
+          NotificationType.VOICE_SUBMITTED,
+          voice.visibility === VoiceVisibility.PRIVATE
+            ? 'Private Voice baru'
+            : 'General Voice baru',
+        );
       return shaped;
     });
     return response;
@@ -1062,12 +1097,50 @@ export class VoicesService {
     if (!voice) throw forbiddenAsNotFound();
     if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
+    const tierHolders = voice.tierHolderIds.length
+      ? await this.tierHolders(voice.tierHolderIds)
+      : [];
     return {
-      ...this.serialize(actor, voice),
+      ...this.serialize(actor, { ...voice, tierHolders }),
       unreadMessages: voice.conversation
         ? await this.unreadMessageCount(voice.conversation.id, actor.accountId)
         : 0,
     };
+  }
+
+  /** Holder names with a chat role taken from their structural position. */
+  private async tierHolders(ids: string[]) {
+    const accounts = await this.prisma.userAccount.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        displayName: true,
+        employee: {
+          select: {
+            memberships: {
+              where: { snapshot: { status: 'ACTIVE' } },
+              select: { structuralPosition: true },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+    return accounts.map((account) => {
+      const position = normalizedPosition(account.employee?.memberships[0]?.structuralPosition);
+      return {
+        id: account.id,
+        displayName: account.displayName,
+        role:
+          position === 'group leader'
+            ? 'GROUP_LEADER'
+            : position === 'section head'
+              ? 'SECTION_HEAD'
+              : position && divisionLeadershipPositions.has(position)
+                ? 'DIVISION_LEADER'
+                : 'DEPARTMENT_HEAD',
+      };
+    });
   }
 
   /** Messages from others since the actor last opened the conversation. */
@@ -1554,6 +1627,14 @@ export class VoicesService {
             currentHandlerId: null,
             handlerType: HandlerType.MANAGER,
             status: VoiceStatus.RESPONDED,
+            // A tiered destination continues from its Manager upward.
+            ...(destination.category.tiered
+              ? {
+                  tierLevel: TierLevel.MANAGER,
+                  tierPath: [TierLevel.MANAGER, TierLevel.DIVISION],
+                  tierHolderIds: [destination.pic.id],
+                }
+              : { tierLevel: null, tierPath: [], tierHolderIds: [] }),
             version: { increment: 1 },
           },
         });
@@ -2320,6 +2401,7 @@ export class VoicesService {
       currentHandlerId: string | null;
       visibility: VoiceVisibility;
       handlingCycleNumber: number;
+      tierLevel?: TierLevel | null;
     },
     days: number,
     proceeding: boolean,
@@ -2347,7 +2429,11 @@ export class VoicesService {
               handlerType:
                 current.visibility === VoiceVisibility.PRIVATE
                   ? HandlerType.UNION_HEAD
-                  : HandlerType.MANAGER,
+                  : current.tierLevel === TierLevel.GROUP_LEADER
+                    ? HandlerType.GROUP_LEADER
+                    : current.tierLevel === TierLevel.SECTION_HEAD
+                      ? HandlerType.SECTION_HEAD
+                      : HandlerType.MANAGER,
             }
           : {}),
       },
@@ -3276,11 +3362,19 @@ export class VoicesService {
     });
     const voice = await tx.voice.findUnique({
       where: { id },
-      select: { reporterId: true, currentHandlerId: true, routeOwnerId: true },
+      select: {
+        reporterId: true,
+        currentHandlerId: true,
+        routeOwnerId: true,
+        tierLevel: true,
+        tierHolderIds: true,
+      },
     });
     if (voice && notifyRecipient) {
+      // Below the Manager tier the Manager is not yet part of the chat.
+      const owners = voice.tierLevel ? voice.tierHolderIds : [voice.routeOwnerId];
       for (const recipientId of new Set(
-        [voice.reporterId, voice.routeOwnerId, voice.currentHandlerId].filter(
+        [voice.reporterId, ...owners, voice.currentHandlerId].filter(
           (value): value is string => Boolean(value) && value !== actor.accountId,
         ),
       )) {
@@ -3679,10 +3773,15 @@ export class VoicesService {
   }
 
   /** Handover stays available until someone processes or is assigned the Voice. */
-  private handoverAllowed(voice: { status: VoiceStatus; currentHandlerId: string | null }) {
+  private handoverAllowed(voice: {
+    status: VoiceStatus;
+    currentHandlerId: string | null;
+    tierLevel?: TierLevel | null;
+  }) {
     return (
       (voice.status === VoiceStatus.OPEN || voice.status === VoiceStatus.RESPONDED) &&
-      voice.currentHandlerId === null
+      voice.currentHandlerId === null &&
+      (!voice.tierLevel || voice.tierLevel === TierLevel.MANAGER)
     );
   }
 
@@ -3830,6 +3929,7 @@ export class VoicesService {
         id: category.id,
         key: category.key,
         name: category.revisions[0]!.name,
+        tiered: category.tiered,
       },
       department,
       pic: mapping.owner,
@@ -3885,15 +3985,29 @@ export class VoicesService {
   private async actionVoice(actor: AuthActor, id: string) {
     if (actor.capabilities.includes('CARE_ADMIN')) throw forbiddenAsNotFound();
     const voice = await this.authorizedVoice(actor, id);
+    if (!this.mayAct(actor, voice)) throw forbiddenAsNotFound();
+    return voice;
+  }
+  private mayAct(
+    actor: AuthActor,
+    voice: {
+      visibility: VoiceVisibility;
+      routeOwnerId: string;
+      currentHandlerId: string | null;
+      reporterId: string;
+      tierHolderIds?: string[];
+    },
+  ) {
     const allowed =
       (voice.visibility === VoiceVisibility.GENERAL &&
-        (voice.routeOwnerId === actor.accountId || voice.currentHandlerId === actor.accountId)) ||
+        (voice.routeOwnerId === actor.accountId ||
+          voice.currentHandlerId === actor.accountId ||
+          (voice.tierHolderIds ?? []).includes(actor.accountId))) ||
       (voice.visibility === VoiceVisibility.PRIVATE &&
         (actor.capabilities.includes('UNION_HEAD') ||
           voice.currentHandlerId === actor.accountId)) ||
       actor.accountStatus === AccountStatus.LEGACY_HANDLER;
-    if (!allowed || voice.reporterId === actor.accountId) throw forbiddenAsNotFound();
-    return voice;
+    return allowed && voice.reporterId !== actor.accountId;
   }
   private async lockedActionVoice(
     tx: Prisma.TransactionClient,
@@ -3910,14 +4024,7 @@ export class VoicesService {
     if (!voice) throw forbiddenAsNotFound();
     if (voice.version !== expectedVersion)
       throw conflict('VERSION_CONFLICT', 'Voice version changed');
-    const allowed =
-      (voice.visibility === VoiceVisibility.GENERAL &&
-        (voice.routeOwnerId === actor.accountId || voice.currentHandlerId === actor.accountId)) ||
-      (voice.visibility === VoiceVisibility.PRIVATE &&
-        (actor.capabilities.includes('UNION_HEAD') ||
-          voice.currentHandlerId === actor.accountId)) ||
-      actor.accountStatus === AccountStatus.LEGACY_HANDLER;
-    if (!allowed || voice.reporterId === actor.accountId) throw forbiddenAsNotFound();
+    if (!this.mayAct(actor, voice)) throw forbiddenAsNotFound();
     return voice;
   }
   private actionSet(
@@ -3937,6 +4044,8 @@ export class VoicesService {
       handlingTargets?: Array<{ cycleNumber: number }>;
       conversation?: { id: string } | null;
       currentHandler?: { status?: AccountStatus } | null;
+      tierLevel?: TierLevel | null;
+      tierHolderIds?: string[];
     },
   ) {
     return computeAvailableActions(
@@ -3985,11 +4094,19 @@ export class VoicesService {
         displayName: hiddenReporter ? voice.anonymousAlias : voice.reporterNameSnapshot,
         role: 'REPORTER',
       },
-      {
-        accountId: voice.routeOwnerId,
-        displayName: privateVoice ? 'Komite' : voice.routeOwner.displayName,
-        role: 'DEPARTMENT_HEAD',
-      },
+      ...(voice.tierLevel && voice.tierHolders
+        ? voice.tierHolders.map((holder: { id: string; displayName: string; role: string }) => ({
+            accountId: holder.id,
+            displayName: holder.displayName,
+            role: holder.role,
+          }))
+        : [
+            {
+              accountId: voice.routeOwnerId,
+              displayName: privateVoice ? 'Komite' : voice.routeOwner.displayName,
+              role: 'DEPARTMENT_HEAD',
+            },
+          ]),
       ...(voice.currentHandler
         ? [
             {
@@ -4076,6 +4193,8 @@ export class VoicesService {
             : null,
         };
       }),
+      tierLevel: voice.tierLevel ?? null,
+      outsideReporter: voice.outsideReporter ?? false,
       availableActions: this.actionSet(actor, voice),
       conversationState: this.conversationState(actor, voice),
       participants: this.conversationParticipants(actor, voice),

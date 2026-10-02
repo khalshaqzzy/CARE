@@ -125,6 +125,34 @@ test('Respons sheet processes in one step or leads to handover', async ({ page }
   expect(requests[0]?.body).toMatchObject({ text: 'Saya cek langsung siang ini.', days: 3 });
 });
 
+test('a Group Leader holding a tiered Voice answers or processes it, and outsiders are badged', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'GROUP_LEADER'] }),
+    voice: {
+      id: 'tier-voice',
+      displayId: 'CARE-202610-000007',
+      visibility: 'GENERAL',
+      status: 'OPEN',
+      area: 'KARAWANG_1',
+      title: 'Insentif kehadiran belum dibayar',
+      detail: 'Insentif kehadiran bulan lalu belum dibayarkan.',
+      tierLevel: 'GROUP_LEADER',
+      outsideReporter: true,
+      availableActions: ['RESPOND'],
+    },
+  });
+  await page.goto('/voices/tier-voice');
+  await expect(page.locator('.voice-hero').getByText('Pelapor dari luar department')).toBeVisible();
+  await page.getByRole('button', { name: 'Respons', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Respons' }).getByRole('radio')).toHaveText([
+    'Balas pesan',
+    'Proses sendiri',
+  ]);
+});
+
 test('an overdue target is flagged on the work card, the detail, and in the chat', async ({
   page,
 }) => {

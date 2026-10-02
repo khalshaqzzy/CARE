@@ -162,6 +162,8 @@ export type MockVoice = {
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
   currentHandler?: { id: string; displayName: string };
   targetOverdue?: boolean;
+  tierLevel?: 'GROUP_LEADER' | 'SECTION_HEAD' | 'MANAGER' | 'DIVISION' | null;
+  outsideReporter?: boolean;
   unreadMessages?: number;
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: string | null;
@@ -1071,6 +1073,8 @@ function detail(voice: MockVoice) {
     routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
     currentHandler: voice.currentHandler ?? { id: 'handler-1', displayName: 'Manager PIC' },
     unreadMessages: voice.unreadMessages ?? 0,
+    tierLevel: voice.tierLevel ?? null,
+    outsideReporter: voice.outsideReporter ?? false,
     attachments: voice.attachments ?? [],
     locationReview: {
       id: 'lr-1',

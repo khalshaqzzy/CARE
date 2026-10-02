@@ -286,6 +286,99 @@ describe('Tiered routing foundation', () => {
     });
   });
 
+  it('starts tiered Voices at the nearest leader above the reporter', async () => {
+    await prisma.generalVoiceCategory.update({
+      where: { key: 'TIER_WELFARE' },
+      data: { tiered: true },
+    });
+    const submitAs = async (username: string, key: string) => {
+      const reporter = await principal(username);
+      const draft = await voices.createDraft(reporter, {
+        visibility: 'GENERAL',
+        area: 'KARAWANG_1',
+        locationDetail: 'Line pos 3',
+        title: 'Insentif kehadiran belum dibayar',
+        detail: 'Insentif kehadiran bulan lalu belum dibayarkan.',
+      });
+      await voices.manualClassification(reporter, draft.id, {
+        category: 'TIER_WELFARE',
+        severity: Severity.MEDIUM,
+      });
+      const preview = await voices.previewDraft(reporter, draft.id);
+      const submitted = (await voices.submit(
+        reporter,
+        draft.id,
+        { version: preview.version },
+        key,
+      )) as { id: string };
+      return prisma.voice.findUniqueOrThrow({ where: { id: submitted.id } });
+    };
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+
+    // Line A has a Group Leader, so the Voice starts there.
+    const lineA = await submitAs('700004', 'tier-line-a');
+    expect(lineA).toMatchObject({
+      tierLevel: 'GROUP_LEADER',
+      tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'],
+      tierHolderIds: [groupLeader.accountId],
+      routeOwnerId: manager.accountId,
+      outsideReporter: false,
+    });
+    expect(
+      await prisma.notification.findMany({
+        where: { voiceId: lineA.id, type: 'VOICE_SUBMITTED' },
+        select: { recipientId: true },
+      }),
+    ).toEqual([{ recipientId: groupLeader.accountId }]);
+    const leaderView = await voices.detail(groupLeader, lineA.id);
+    expect(leaderView.availableActions).toEqual(['RESPOND']);
+    expect(leaderView.tierLevel).toBe('GROUP_LEADER');
+    expect(leaderView.participants.map((item) => item.role)).toEqual(['REPORTER', 'GROUP_LEADER']);
+    // The Manager can read the team Voice but cannot act on it yet.
+    expect((await voices.detail(manager, lineA.id)).availableActions).toEqual([]);
+    expect((await voices.workItems(groupLeader, {})).items.map((item) => item.id)).toContain(
+      lineA.id,
+    );
+    expect((await voices.workItems(manager, {})).items.map((item) => item.id)).not.toContain(
+      lineA.id,
+    );
+    await expect(
+      voices.respond(manager, lineA.id, { text: 'Saya cek', version: 1 }, 'tier-manager-respond'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await expect(voices.handoverOptions(manager, lineA.id)).rejects.toMatchObject({
+      code: 'HANDOVER_INVALID_STATE',
+    });
+
+    // The Group Leader processes it and becomes the PIC who closes it.
+    const processed = await voices.respond(
+      groupLeader,
+      lineA.id,
+      { text: 'Saya tangani.', version: 1, days: 1 },
+      'tier-gl-process',
+    );
+    expect(processed).toMatchObject({
+      status: 'IN_PROGRESS',
+      currentHandlerId: groupLeader.accountId,
+      handlerType: 'GROUP_LEADER',
+    });
+    expect((await voices.detail(groupLeader, lineA.id)).availableActions).toContain('CLOSE');
+
+    // Line B has no Group Leader, so the Section Head receives it.
+    const lineB = await submitAs('700005', 'tier-line-b');
+    expect(lineB).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+    });
+    // A Group Leader never handles their own Voice: it starts one level up.
+    const ownVoice = await submitAs('700003', 'tier-gl-own');
+    expect(ownVoice).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierPath: ['SECTION_HEAD', 'MANAGER'],
+    });
+  });
+
   it('exposes seeded defaults and edits the working calendar with versions', async () => {
     const initial = await settings.get();
     expect(initial.deadlines).toEqual([

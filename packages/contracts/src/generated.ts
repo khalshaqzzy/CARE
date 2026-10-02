@@ -1862,7 +1862,7 @@ export interface components {
             id: string;
             displayName: string;
             /** @enum {string} */
-            role: "REPORTER" | "DEPARTMENT_HEAD" | "SECTION_HEAD" | "COMMITTEE";
+            role: "REPORTER" | "GROUP_LEADER" | "SECTION_HEAD" | "DEPARTMENT_HEAD" | "DIVISION_LEADER" | "COMMITTEE";
         };
         AssignmentRequest: {
             /** Format: uuid */
@@ -2346,6 +2346,9 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2415,6 +2418,9 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2482,6 +2488,9 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2546,6 +2555,9 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2611,6 +2623,9 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2678,6 +2693,9 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {

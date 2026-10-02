@@ -121,9 +121,17 @@ enum ClosureReviewState {
   REJECTED
 }
 
+enum TierLevel {
+  GROUP_LEADER
+  SECTION_HEAD
+  MANAGER
+  DIVISION
+}
+
 enum HandlerType {
   MANAGER
   ADMIN_TRIAGE
+  GROUP_LEADER
   SECTION_HEAD
   UNION_HEAD
   UNION_OFFICER
@@ -378,6 +386,8 @@ model GeneralVoiceCategory {
   createdAt         DateTime                       @default(now())
   updatedAt         DateTime                       @updatedAt
   archivedAt        DateTime?
+  /// Bottom-up routing (Group Leader → Section Head → Manager → Division), ADR-0059.
+  tiered            Boolean                        @default(false)
   createdBy         UserAccount?                   @relation("CategoryCreator", fields: [createdById], references: [id])
   revisions         GeneralVoiceCategoryRevision[]
   routes            GeneralVoiceCategoryRoute[]
@@ -667,6 +677,13 @@ model Voice {
   reporterPositionSnapshot        String?                 @db.VarChar(200)
   reporterLineSnapshot            String?                 @db.VarChar(200)
   reporterAreaSnapshot            Area?
+  /// Tiered categories only: the level holding the Voice, the levels found at
+  /// submit, and who may act now. Null level means the classic route.
+  tierLevel                       TierLevel?
+  tierPath                        TierLevel[]             @default([])
+  tierHolderIds                   String[]                @default([]) @db.Uuid
+  /// Fasilitas Kerja reported from another department's shop.
+  outsideReporter                 Boolean                 @default(false)
   handlingOrganizationUnitId      String?                 @db.Uuid
   handlingDirectorateSnapshot     String?                 @db.VarChar(200)
   handlingDivisionSnapshot        String?                 @db.VarChar(200)
@@ -732,6 +749,7 @@ model Voice {
   @@index([area, categoryKey, status], map: "Voice_area_categoryKey_status_idx")
   @@index([area, currentCategoryKey, status], map: "Voice_area_currentCategoryKey_status_idx")
   @@index([reporterOrganizationUnitId, visibility, status])
+  @@index([tierHolderIds], type: Gin)
   @@index([severity, submittedAt])
   @@index([title, displayId])
 }
