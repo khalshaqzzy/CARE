@@ -88,6 +88,8 @@ export const VOICE_ACTION_LABELS: Record<string, string> = {
   ADMIN_HANDOVER_ROUTED: 'Tujuan ditentukan Admin',
   ADMIN_HANDOVER_RETURNED: 'Dikembalikan oleh Admin',
   MONITORED: 'Dimonitor',
+  ESCALATED: 'Dinaikkan ke atasan',
+  REMINDED: 'Diingatkan',
   TARGET_SET: 'Target penyelesaian ditetapkan',
   TARGET_OVERDUE: 'Target terlewati',
   PROCEEDED: 'Diproses',

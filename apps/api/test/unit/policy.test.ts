@@ -44,6 +44,7 @@ describe('Authorization scopes', () => {
     expect(policy.workItemScope(manager)).toEqual({
       OR: [
         { visibility: 'GENERAL', routeOwnerId: 'account', tierLevel: null },
+        { visibility: 'GENERAL', currentHandlerId: 'account' },
         { visibility: 'GENERAL', tierHolderIds: { has: 'account' } },
       ],
     });

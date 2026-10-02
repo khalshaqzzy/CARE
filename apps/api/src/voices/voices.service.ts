@@ -49,7 +49,14 @@ import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
 import { isValidPosition, positionArea, positionOptions } from './tm-position';
-import { resolveTierChain } from './tier-chain';
+import {
+  chainForVoice,
+  resolveTierChain,
+  sectionHasGroupLeader,
+  TIER_ORDER,
+  tierAssignees,
+} from './tier-chain';
+import { jakartaDateKey } from '../escalation/working-time';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
 import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
@@ -191,6 +198,18 @@ const submitSchema = z
   })
   .strict();
 const versionSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
+const escalateSchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
+const TIER_LABELS: Record<TierLevel, string> = {
+  GROUP_LEADER: 'Group Leader',
+  SECTION_HEAD: 'Section Head',
+  MANAGER: 'Manager',
+  DIVISION: 'Deputy/Division Head',
+};
 const shopConfirmationSchema = z
   .object({
     shopLocationId: z.string().uuid().nullable(),
@@ -753,6 +772,14 @@ export class VoicesService {
           })
         : [];
     const firstTier = chain[0] ?? null;
+    const leaderInSection = firstTier
+      ? await sectionHasGroupLeader(
+          this.prisma,
+          current.snapshotId,
+          current.organizationUnitId,
+          tmChoice?.section ?? current.section,
+        )
+      : false;
     const response = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.voiceDraft.updateMany({
         where: { id, version: body.version, submittedAt: null },
@@ -823,6 +850,7 @@ export class VoicesService {
                 tierPath: chain.map((step) => step.level),
                 tierHolderIds: firstTier.accountIds,
                 outsideReporter,
+                sectionHasGroupLeader: leaderInSection,
               }
             : {}),
           locationWarningAcknowledgedAt:
@@ -1126,6 +1154,8 @@ export class VoicesService {
         },
       },
     });
+    // Keep the chain order (lower tier first) rather than the database order.
+    accounts.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
     return accounts.map((account) => {
       const position = normalizedPosition(account.employee?.memberships[0]?.structuralPosition);
       return {
@@ -1303,7 +1333,11 @@ export class VoicesService {
     // assign/reassign; a Section Head handler must not be able to assign.
     const authorizedAssigner =
       voice.visibility === VoiceVisibility.GENERAL
-        ? actor.capabilities.includes('MANAGER') && voice.routeOwnerId === actor.accountId
+        ? voice.tierLevel
+          ? this.actionSet(actor, voice).some(
+              (action) => action === 'ASSIGN' || action === 'REASSIGN',
+            )
+          : actor.capabilities.includes('MANAGER') && voice.routeOwnerId === actor.accountId
         : actor.capabilities.includes('UNION_HEAD');
     if (!authorizedAssigner) throw forbiddenAsNotFound();
     if (data.expectedVersion !== undefined && data.expectedVersion !== voice.version)
@@ -1330,6 +1364,17 @@ export class VoicesService {
       )
         throw forbiddenAsNotFound();
       handlerType = HandlerType.UNION_OFFICER;
+    } else if (voice.tierLevel) {
+      const eligible = await tierAssignees(this.prisma, voice.tierLevel, voice);
+      const match = eligible.find((item) => item.id === candidate.id);
+      if (!match || match.id === actor.accountId) throw forbiddenAsNotFound();
+      const position = normalizedPosition(match.structuralPosition);
+      handlerType =
+        position === 'group leader'
+          ? HandlerType.GROUP_LEADER
+          : position === 'section head'
+            ? HandlerType.SECTION_HEAD
+            : HandlerType.MANAGER;
     } else {
       const membership = candidate.employee?.memberships[0];
       const route = voice.routeMappingId
@@ -1436,6 +1481,155 @@ export class VoicesService {
       },
     );
   }
+  /**
+   * Naikkan ke atasan: an unanswered Voice moves up with full ownership and the
+   * previous holder keeps a read-only view; an answered one brings the upper
+   * tier into the chat beside the holder who answered.
+   */
+  async escalate(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(escalateSchema, input);
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `escalate:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const current = await this.lockedActionVoice(tx, actor, id, data.expectedVersion);
+        if (!this.actionSet(actor, current).includes('ESCALATE') || !current.tierLevel)
+          throw invalidTransition('Voice tidak dapat dinaikkan.');
+        const from = current.tierLevel;
+        const step = (await chainForVoice(tx, current)).find(
+          (item) => TIER_ORDER.indexOf(item.level) > TIER_ORDER.indexOf(from),
+        );
+        if (!step)
+          throw conflict(
+            'ESCALATION_UNAVAILABLE',
+            'Tidak ada atasan yang dapat menerima Voice ini.',
+          );
+        const answered = current.status === VoiceStatus.RESPONDED;
+        const unique = (ids: string[]) => [...new Set(ids)];
+        const updated = await tx.voice.update({
+          where: { id },
+          data: {
+            tierLevel: step.level,
+            tierHolderIds: answered
+              ? unique([...current.tierHolderIds, ...step.accountIds])
+              : step.accountIds,
+            tierLowerHolderIds: answered
+              ? unique([...current.tierLowerHolderIds, ...current.tierHolderIds])
+              : [],
+            tierObserverIds: answered
+              ? current.tierObserverIds
+              : unique([...current.tierObserverIds, ...current.tierHolderIds]),
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.ESCALATED,
+            payload: { from, to: step.level, reason: data.reason, holders: step.accountIds },
+          },
+        });
+        if (answered && current.conversation)
+          await this.createMessageWithin(
+            tx,
+            actor,
+            id,
+            `Diteruskan ke ${TIER_LABELS[step.level]}`,
+            [],
+            false,
+            MessageKind.SYSTEM,
+          );
+        for (const recipientId of step.accountIds)
+          await this.notify(
+            tx,
+            recipientId,
+            id,
+            NotificationType.ESCALATED,
+            'Voice dinaikkan kepada Anda',
+            `Alasan: ${data.reason}`,
+          );
+        await this.notify(
+          tx,
+          current.reporterId,
+          id,
+          NotificationType.STATUS_CHANGED,
+          'Voice Anda diteruskan ke atasan',
+        );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+        };
+      },
+    );
+  }
+
+  /** Ingatkan: notify-only, at most once per WIB day for each reminded person. */
+  async remind(actor: AuthActor, id: string, key: string) {
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `remind:${id}`,
+      key,
+      canonicalHash({ id }),
+      200,
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const current = await tx.voice.findUniqueOrThrow({
+          where: { id },
+          include: { conversation: { select: { id: true } }, handlingTargets: true },
+        });
+        if (!this.actionSet(actor, current).includes('REMIND'))
+          throw invalidTransition('Pengingat tidak tersedia untuk Voice ini.');
+        const targets =
+          current.currentHandlerId && current.currentHandlerId !== actor.accountId
+            ? [current.currentHandlerId]
+            : current.tierLowerHolderIds.filter((target) => target !== actor.accountId);
+        const dayKey = jakartaDateKey(new Date());
+        const fresh: string[] = [];
+        for (const targetId of targets) {
+          const created = await tx.voiceReminder.createMany({
+            data: [{ voiceId: id, actorId: actor.accountId, targetId, dayKey }],
+            skipDuplicates: true,
+          });
+          if (created.count) fresh.push(targetId);
+        }
+        if (!fresh.length) throw conflict('REMINDER_LIMIT', 'Pengingat sudah dikirim hari ini.');
+        const sender = await tx.userAccount.findUniqueOrThrow({
+          where: { id: actor.accountId },
+          select: { displayName: true },
+        });
+        for (const recipientId of fresh)
+          await this.notify(
+            tx,
+            recipientId,
+            id,
+            NotificationType.REMINDER,
+            'Pengingat Voice',
+            `${sender.displayName} meminta Voice ini segera diproses.`,
+          );
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.REMINDED,
+            payload: { targets: fresh },
+          },
+        });
+        return { success: true, reminded: fresh.length };
+      },
+    );
+  }
   reassign(actor: AuthActor, id: string, input: unknown, key: string) {
     return this.assign(actor, id, input, key, true);
   }
@@ -1463,6 +1657,13 @@ export class VoicesService {
           id: term.account.id,
           displayName: term.account.displayName,
           slot: term.slot,
+        }));
+    } else if (voice.tierLevel) {
+      candidates = (await tierAssignees(this.prisma, voice.tierLevel, voice))
+        .filter((item) => item.id !== actor.accountId && item.id !== voice.currentHandlerId)
+        .map(({ line, ...item }) => ({
+          ...item,
+          section: [item.section, line].filter(Boolean).join(' · ') || null,
         }));
     } else {
       const route = voice.routeMappingId
@@ -4046,6 +4247,9 @@ export class VoicesService {
       currentHandler?: { status?: AccountStatus } | null;
       tierLevel?: TierLevel | null;
       tierHolderIds?: string[];
+      tierPath?: TierLevel[];
+      tierLowerHolderIds?: string[];
+      sectionHasGroupLeader?: boolean;
     },
   ) {
     return computeAvailableActions(

@@ -270,6 +270,19 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    escalate: (id: string, body: components['schemas']['EscalateRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/escalate', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    remind: (id: string, key: string) =>
+      dataOrThrow<components['schemas']['RemindResponse']>(
+        client.POST('/api/v1/voices/{id}/remind', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+        }),
+      ),
     markConversationRead: (id: string) =>
       dataOrThrow(
         client.POST('/api/v1/voices/{id}/conversation/read', {

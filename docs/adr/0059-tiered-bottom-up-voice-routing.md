@@ -163,6 +163,36 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Inventory 423 → 424.
   - The local organization dashboard p95 (3.4–3.6 s) is the same on the previous commit, so it is host load rather than this change.
 
+## Implementation (stage 2, increment 5b — not released)
+
+- **Schema.** Migration `20261003140000_tiered_actions` adds:
+  - `Voice.tierLowerHolderIds`;
+  - `Voice.tierObserverIds` (GIN index);
+  - `Voice.sectionHasGroupLeader`;
+  - the `ESCALATED`/`REMINDED` events and `ESCALATED`/`REMINDER` notifications;
+  - `VoiceReminder`, unique per Voice, actor, target, and WIB day.
+- **Actions.**
+  - `ESCALATE` goes to the newest holder while `tierPath` has a later level, no PIC is assigned, and no lower holder is waiting.
+  - `REMIND` goes to the newest holder when a PIC is assigned or lower holders exist.
+  - Tiered `ASSIGN` is available at the Manager and division levels, and at the Section Head level only when `sectionHasGroupLeader`.
+- **Escalate.** `POST /voices/:id/escalate` (reason 1–500 characters, version-checked, idempotent) re-resolves the chain on the active snapshot and takes the next present level.
+  - An unanswered Voice moves the holders up and records the former holders as observers.
+  - An answered Voice adds the new level to the holders, keeps the previous ones as lower holders, and posts a SYSTEM chat note.
+  - It notifies the new holders with the reason and the reporter generically.
+- **Remind.** `POST /voices/:id/remind` targets the assigned PIC or the lower holders and inserts `VoiceReminder` rows (duplicates skipped). It rejects with `REMINDER_LIMIT` when everyone was already reminded that day. It sends notifications only and records a `REMINDED` event.
+- **Assignees.** `tierAssignees` lists the people a holder may assign (the same rules as `ASSIGN` above). Assignment validates against that list and records the PIC type from the assignee's position. `workItemScope` also lists Voices assigned to a Manager.
+- **Read access.** `detailScope` lets former holders (`tierObserverIds`) read, and returns the match-all scope unchanged for CARE Admin.
+- **Web.**
+  - The Respons sheet gains **Naikkan ke atasan** (reason). It is ordered before Proses for Group Leaders and Section Heads and last for upper tiers.
+  - After Direspons the panel shows **Naikkan** (reason dialog) and **Ingatkan**.
+  - The timeline labels "Dinaikkan ke atasan" and "Diingatkan".
+  - The panel keeps its confirmation when an action leaves no further actions.
+- **Validation.**
+  - Unit: escalate and remind rules, and Section Head assignment gating.
+  - Integration: unanswered and answered escalation, observer read-only, Section Head assigning the Group Leader, remind limit, Manager assigning skipped levels, top of chain.
+  - Browser: Naikkan from the sheet with a reason, and Ingatkan.
+  - Inventory 424 → 426.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

@@ -35,6 +35,30 @@ async function principal(username: string) {
   return policy.resolvePrincipal(account, { id: crypto.randomUUID(), passwordRestricted: false });
 }
 
+/** Submits a tiered Kesejahteraan Voice as the given employee. */
+async function submitAs(username: string, key: string) {
+  const reporter = await principal(username);
+  const draft = await voices.createDraft(reporter, {
+    visibility: 'GENERAL',
+    area: 'KARAWANG_1',
+    locationDetail: 'Line pos 3',
+    title: 'Insentif kehadiran belum dibayar',
+    detail: 'Insentif kehadiran bulan lalu belum dibayarkan.',
+  });
+  await voices.manualClassification(reporter, draft.id, {
+    category: 'TIER_WELFARE',
+    severity: Severity.MEDIUM,
+  });
+  const preview = await voices.previewDraft(reporter, draft.id);
+  const submitted = (await voices.submit(
+    reporter,
+    draft.id,
+    { version: preview.version },
+    key,
+  )) as { id: string };
+  return prisma.voice.findUniqueOrThrow({ where: { id: submitted.id } });
+}
+
 describe('Tiered routing foundation', () => {
   beforeAll(async () => {
     await prisma.$connect();
@@ -291,28 +315,6 @@ describe('Tiered routing foundation', () => {
       where: { key: 'TIER_WELFARE' },
       data: { tiered: true },
     });
-    const submitAs = async (username: string, key: string) => {
-      const reporter = await principal(username);
-      const draft = await voices.createDraft(reporter, {
-        visibility: 'GENERAL',
-        area: 'KARAWANG_1',
-        locationDetail: 'Line pos 3',
-        title: 'Insentif kehadiran belum dibayar',
-        detail: 'Insentif kehadiran bulan lalu belum dibayarkan.',
-      });
-      await voices.manualClassification(reporter, draft.id, {
-        category: 'TIER_WELFARE',
-        severity: Severity.MEDIUM,
-      });
-      const preview = await voices.previewDraft(reporter, draft.id);
-      const submitted = (await voices.submit(
-        reporter,
-        draft.id,
-        { version: preview.version },
-        key,
-      )) as { id: string };
-      return prisma.voice.findUniqueOrThrow({ where: { id: submitted.id } });
-    };
     const groupLeader = await principal('700003');
     const sectionHead = await principal('700002');
     const manager = await principal('700001');
@@ -333,7 +335,7 @@ describe('Tiered routing foundation', () => {
       }),
     ).toEqual([{ recipientId: groupLeader.accountId }]);
     const leaderView = await voices.detail(groupLeader, lineA.id);
-    expect(leaderView.availableActions).toEqual(['RESPOND']);
+    expect(leaderView.availableActions).toEqual(['RESPOND', 'ESCALATE']);
     expect(leaderView.tierLevel).toBe('GROUP_LEADER');
     expect(leaderView.participants.map((item) => item.role)).toEqual(['REPORTER', 'GROUP_LEADER']);
     // The Manager can read the team Voice but cannot act on it yet.
@@ -377,6 +379,159 @@ describe('Tiered routing foundation', () => {
       tierLevel: 'SECTION_HEAD',
       tierPath: ['SECTION_HEAD', 'MANAGER'],
     });
+  });
+
+  it('moves an unanswered Voice up, assigns down, and reminds the assignee once a day', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const reporter = await principal('700004');
+    const voice = await submitAs('700004', 'tier-escalate-open');
+    await expect(
+      voices.escalate(groupLeader, voice.id, { expectedVersion: 1, reason: '' }, 'esc-empty'),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    const escalated = await voices.escalate(
+      groupLeader,
+      voice.id,
+      { expectedVersion: 1, reason: 'Perlu keputusan Section.' },
+      'esc-gl',
+    );
+    expect(escalated).toMatchObject({ status: 'OPEN', version: 2 });
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+      tierObserverIds: [groupLeader.accountId],
+      tierLowerHolderIds: [],
+      sectionHasGroupLeader: true,
+    });
+    // The Group Leader keeps a read-only view; the Section Head now owns it.
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual([]);
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual([
+      'RESPOND',
+      'ASSIGN',
+      'ESCALATE',
+    ]);
+    expect(
+      await prisma.notification.findFirstOrThrow({
+        where: { voiceId: voice.id, type: 'ESCALATED' },
+      }),
+    ).toMatchObject({
+      recipientId: sectionHead.accountId,
+      body: 'Alasan: Perlu keputusan Section.',
+    });
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: reporter.accountId, type: 'STATUS_CHANGED' },
+      }),
+    ).toBe(1);
+
+    // Tugaskan: the Section Head assigns the Section's Group Leader.
+    expect((await voices.assignmentCandidates(sectionHead, voice.id)).map((c) => c.id)).toEqual([
+      groupLeader.accountId,
+    ]);
+    const assigned = await voices.assign(
+      sectionHead,
+      voice.id,
+      {
+        handlerAccountId: groupLeader.accountId,
+        text: 'Mohon dicek ke line.',
+        expectedVersion: 2,
+      },
+      'tier-assign-gl',
+    );
+    expect(assigned).toMatchObject({
+      status: 'RESPONDED',
+      currentHandlerId: groupLeader.accountId,
+      handlerType: 'GROUP_LEADER',
+    });
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toContain('PROCEED');
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toContain('REMIND');
+    expect(await voices.remind(sectionHead, voice.id, 'remind-1')).toEqual({
+      success: true,
+      reminded: 1,
+    });
+    await expect(voices.remind(sectionHead, voice.id, 'remind-2')).rejects.toMatchObject({
+      code: 'REMINDER_LIMIT',
+    });
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: groupLeader.accountId, type: 'REMINDER' },
+      }),
+    ).toBe(1);
+  });
+
+  it('brings the upper tier into the chat when an answered Voice goes up', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const voice = await submitAs('700004', 'tier-escalate-answered');
+    await voices.respond(groupLeader, voice.id, { text: 'Kami cek dulu.', version: 1 }, 'tier-r');
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual([
+      'PROCEED',
+      'ESCALATE',
+      'MESSAGE',
+    ]);
+    await voices.escalate(
+      groupLeader,
+      voice.id,
+      { expectedVersion: 2, reason: 'Butuh persetujuan Section.' },
+      'esc-answered',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [groupLeader.accountId, sectionHead.accountId],
+      tierLowerHolderIds: [groupLeader.accountId],
+      tierObserverIds: [],
+    });
+    // Both may process; the upper tier also reminds and assigns, but cannot go up again.
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual([
+      'PROCEED',
+      'MESSAGE',
+    ]);
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'REMIND',
+      'MESSAGE',
+    ]);
+    const thread = await voices.messages(manager, voice.id, {}).catch(() => null);
+    expect(thread).toBeTruthy();
+    const reporterThread = await voices.messages(await principal('700004'), voice.id, {});
+    expect(reporterThread.items.at(-1)).toMatchObject({
+      kind: 'SYSTEM',
+      text: 'Diteruskan ke Section Head',
+    });
+    expect((await voices.detail(sectionHead, voice.id)).participants.map((p) => p.role)).toEqual([
+      'REPORTER',
+      'GROUP_LEADER',
+      'SECTION_HEAD',
+    ]);
+    await voices.remind(sectionHead, voice.id, 'remind-answered');
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: groupLeader.accountId, type: 'REMINDER' },
+      }),
+    ).toBe(1);
+  });
+
+  it('lets a Manager holder assign skipped levels and stops at the top of the chain', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    // Line B has no Group Leader: Section Head first, then Manager.
+    const voice = await submitAs('700005', 'tier-to-manager');
+    await voices.escalate(
+      sectionHead,
+      voice.id,
+      { expectedVersion: 1, reason: 'Wewenang Manager.' },
+      'esc-sh',
+    );
+    const managerView = await voices.detail(manager, voice.id);
+    expect(managerView.tierLevel).toBe('MANAGER');
+    expect(managerView.availableActions).toEqual(['RESPOND', 'ASSIGN', 'HANDOVER']);
+    expect((await voices.assignmentCandidates(manager, voice.id)).map((c) => c.id).sort()).toEqual(
+      [groupLeader.accountId, sectionHead.accountId].sort(),
+    );
+    expect((await voices.workItems(manager, {})).items.map((item) => item.id)).toContain(voice.id);
   });
 
   it('exposes seeded defaults and edits the working calendar with versions', async () => {

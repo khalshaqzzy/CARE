@@ -1462,6 +1462,20 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       if (voice) voice.unreadMessages = 0;
       return satisfy(200, { success: true });
     }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/escalate$/.test(path)) {
+      // The Voice moves up: the former holder keeps a read-only view.
+      if (voice) voice.availableActions = [];
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'OPEN',
+        version: 4,
+        currentHandlerId: null,
+        handlerType: 'MANAGER',
+      });
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/remind$/.test(path))
+      return satisfy(200, { success: true, reminded: 1 });
     if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/take-over$/.test(path)) {
       if (voice) {
         voice.currentHandler = {

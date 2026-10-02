@@ -153,6 +153,72 @@ test('a Group Leader holding a tiered Voice answers or processes it, and outside
   ]);
 });
 
+test('a Group Leader sends an open Voice up with a reason', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const sent: Record<string, unknown>[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/escalate'))
+      sent.push(request.postDataJSON() as Record<string, unknown>);
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'GROUP_LEADER'] }),
+    voice: {
+      id: 'up-voice',
+      displayId: 'CARE-202610-000008',
+      visibility: 'GENERAL',
+      status: 'OPEN',
+      area: 'KARAWANG_1',
+      title: 'Jadwal lembur tidak adil',
+      detail: 'Pembagian lembur di line kami tidak merata.',
+      tierLevel: 'GROUP_LEADER',
+      availableActions: ['RESPOND', 'ESCALATE'],
+    },
+  });
+  await page.goto('/voices/up-voice');
+  await page.getByRole('button', { name: 'Respons', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Respons' });
+  await expect(sheet.getByRole('radio')).toHaveText([
+    'Balas pesan',
+    'Naikkan ke atasan',
+    'Proses sendiri',
+  ]);
+  await sheet.getByRole('radio', { name: 'Naikkan ke atasan' }).click();
+  const submit = sheet.getByRole('button', { name: 'Naikkan ke atasan', exact: true });
+  await expect(submit).toBeDisabled();
+  await sheet.getByRole('textbox', { name: 'Alasan' }).fill('Perlu keputusan Section Head.');
+  await submit.click();
+  await expect(page.getByText('Voice dinaikkan ke atasan.')).toBeVisible();
+  expect(sent[0]).toMatchObject({ reason: 'Perlu keputusan Section Head.' });
+});
+
+test('an upper tier reminds the holder below after an answered Voice went up', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  let reminded = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/remind'))
+      reminded += 1;
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'SECTION_HEAD'] }),
+    voice: {
+      id: 'remind-voice',
+      displayId: 'CARE-202610-000009',
+      visibility: 'GENERAL',
+      status: 'RESPONDED',
+      area: 'KARAWANG_1',
+      title: 'Jadwal lembur tidak adil',
+      detail: 'Pembagian lembur di line kami tidak merata.',
+      tierLevel: 'SECTION_HEAD',
+      availableActions: ['PROCEED', 'ASSIGN', 'REMIND', 'MESSAGE'],
+    },
+  });
+  await page.goto('/voices/remind-voice');
+  await expect(page.getByRole('button', { name: 'Naikkan', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ingatkan', exact: true }).click();
+  await expect(page.getByText('Pengingat terkirim.')).toBeVisible();
+  expect(reminded).toBe(1);
+});
+
 test('an overdue target is flagged on the work card, the detail, and in the chat', async ({
   page,
 }) => {

@@ -220,6 +220,7 @@ const idempotentOperations = new Set([
 
 const noBodyOperations = new Set([
   'VoicesController_markConversationRead',
+  'VoicesController_remind',
   'AuthController_logout',
   'AuthController_deferPasswordChange',
   'VoicesController_classify',
@@ -391,6 +392,8 @@ function successSchema(operationId: string) {
     VoicesController_assign: 'VoiceMutationResponse',
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
     VoicesController_takeOver: 'VoiceMutationResponse',
+    VoicesController_escalate: 'VoiceMutationResponse',
+    VoicesController_remind: 'RemindResponse',
     VoicesController_markConversationRead: 'SuccessResponse',
     VoicesController_monitoringOptions: 'MonitoringOptions',
     VoicesController_close: 'ClosureResponse',
@@ -441,6 +444,7 @@ function requestSchema(operationId: string) {
     VoicesController_assign: 'AssignmentRequest',
     VoicesController_reassign: 'AssignmentRequest',
     VoicesController_takeOver: 'TakeOverRequest',
+    VoicesController_escalate: 'EscalateRequest',
     VoicesController_handover: 'HandoverRequest',
     VoicesController_requestAdminHandover: 'AdminHandoverNoteRequest',
     VoicesController_resolveAdminHandover: 'AdminHandoverDecisionRequest',
@@ -1362,6 +1366,20 @@ const schemas: Record<string, any> = {
       // Present for "Proses sendiri": respond and start handling in one step.
       days: { type: 'integer', minimum: 0, maximum: 365 },
     },
+  },
+  EscalateRequest: {
+    type: 'object',
+    required: ['expectedVersion', 'reason'],
+    additionalProperties: false,
+    properties: {
+      expectedVersion: { type: 'integer', minimum: 1 },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+    },
+  },
+  RemindResponse: {
+    type: 'object',
+    required: ['success', 'reminded'],
+    properties: { success: { type: 'boolean' }, reminded: { type: 'integer', minimum: 1 } },
   },
   TakeOverRequest: {
     type: 'object',

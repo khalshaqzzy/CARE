@@ -107,3 +107,117 @@ export function nextTierLevel(path: TierLevel[], current: TierLevel | null): Tie
   const index = path.indexOf(current);
   return index >= 0 && index + 1 < path.length ? path[index + 1]! : null;
 }
+
+type VoiceForChain = {
+  reporterId: string;
+  reporterOrganizationUnitId: string | null;
+  reporterSectionSnapshot: string | null;
+  reporterLineSnapshot: string | null;
+  reporterPositionSnapshot: string | null;
+  routeOwnerId: string;
+  handlingOrganizationUnitId: string | null;
+  outsideReporter: boolean;
+};
+
+/** The chain as the active organization snapshot sees it today. */
+export async function chainForVoice(db: Db, voice: VoiceForChain) {
+  const snapshot = await db.organizationSnapshot.findFirst({
+    where: { status: 'ACTIVE' },
+    select: { id: true },
+  });
+  return resolveTierChain(db, {
+    snapshotId: snapshot?.id ?? null,
+    reporterOrganizationUnitId: voice.reporterOrganizationUnitId,
+    section: voice.reporterSectionSnapshot,
+    line: voice.reporterLineSnapshot,
+    reporterAccountId: voice.reporterId,
+    reporterPosition: voice.reporterPositionSnapshot,
+    managerAccountId: voice.routeOwnerId,
+    handlingOrganizationUnitId: voice.handlingOrganizationUnitId,
+    outsideReporter: voice.outsideReporter,
+  });
+}
+
+/** Whether the Section has any active Group Leader a Section Head could assign. */
+export async function sectionHasGroupLeader(
+  db: Db,
+  snapshotId: string | null,
+  organizationUnitId: string | null,
+  section: string | null,
+) {
+  if (!snapshotId || !organizationUnitId || !section) return false;
+  return Boolean(
+    await db.organizationMembership.findFirst({
+      where: {
+        snapshotId,
+        organizationUnitId,
+        section,
+        structuralPosition: { equals: 'Group Leader', mode: 'insensitive' },
+        employee: { account: { is: { status: AccountStatus.ACTIVE } } },
+      },
+      select: { id: true },
+    }),
+  );
+}
+
+/**
+ * Who a tier holder may assign: a Section Head assigns the Group Leaders of
+ * the Section; a Manager assigns Group Leaders and Section Heads of the
+ * handling department (including levels the chain skipped); the division
+ * level also reaches Department Heads across the division.
+ */
+export async function tierAssignees(
+  db: Db,
+  level: TierLevel,
+  voice: VoiceForChain & {
+    handlingDivisionSnapshot: string | null;
+    handlingDirectorateSnapshot: string | null;
+  },
+) {
+  const positions =
+    level === 'SECTION_HEAD'
+      ? ['group leader']
+      : level === 'MANAGER'
+        ? ['group leader', 'section head']
+        : ['group leader', 'section head', 'department head'];
+  const where: Prisma.OrganizationMembershipWhereInput =
+    level === 'SECTION_HEAD'
+      ? {
+          organizationUnitId: voice.reporterOrganizationUnitId ?? '__none__',
+          section: voice.reporterSectionSnapshot ?? '__none__',
+        }
+      : level === 'MANAGER'
+        ? {
+            organizationUnitId:
+              voice.handlingOrganizationUnitId ?? voice.reporterOrganizationUnitId ?? '__none__',
+          }
+        : {
+            organizationUnit: {
+              directorate: voice.handlingDirectorateSnapshot ?? '__none__',
+              division: voice.handlingDivisionSnapshot ?? '__none__',
+            },
+          };
+  const rows = await db.organizationMembership.findMany({
+    where: {
+      snapshot: { status: 'ACTIVE' },
+      employee: { account: { is: { status: AccountStatus.ACTIVE } } },
+      ...where,
+    },
+    select: {
+      structuralPosition: true,
+      section: true,
+      lineName: true,
+      employee: { select: { account: { select: { id: true, displayName: true } } } },
+    },
+  });
+  return rows
+    .filter((row) => positions.includes(normalizedPosition(row.structuralPosition) ?? ''))
+    .filter((row) => row.employee.account && row.employee.account.id !== voice.reporterId)
+    .map((row) => ({
+      id: row.employee.account!.id,
+      displayName: row.employee.account!.displayName,
+      structuralPosition: row.structuralPosition,
+      section: row.section?.trim() || null,
+      line: row.lineName?.trim() || null,
+    }));
+}

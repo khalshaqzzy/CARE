@@ -57,8 +57,59 @@ describe('computeAvailableActions', () => {
     const atDivision = voice({ tierLevel: 'DIVISION', tierHolderIds: ['ddh', 'dh'] });
     expect(computeAvailableActions(actor(['DIVISION_LEADERSHIP'], 'dh'), atDivision)).toEqual([
       'RESPOND',
+      'ASSIGN',
     ]);
     expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atDivision)).toEqual([]);
+  });
+
+  it('offers Naikkan to the newest tier while a later level exists and nobody is assigned', () => {
+    const tiered = (overrides: Partial<ActionableVoice> = {}) =>
+      voice({
+        tierLevel: 'GROUP_LEADER',
+        tierHolderIds: ['leader'],
+        tierPath: ['GROUP_LEADER', 'SECTION_HEAD'],
+        ...overrides,
+      });
+    const leader = actor(['GROUP_LEADER'], 'leader');
+    expect(computeAvailableActions(leader, tiered())).toContain('ESCALATE');
+    expect(computeAvailableActions(leader, tiered({ tierPath: ['GROUP_LEADER'] }))).not.toContain(
+      'ESCALATE',
+    );
+    expect(
+      computeAvailableActions(
+        leader,
+        tiered({ status: 'RESPONDED' as VoiceStatus, currentHandlerId: 'other' }),
+      ),
+    ).not.toContain('ESCALATE');
+  });
+
+  it('lets the upper tier remind the holder below and assign, without going up again', () => {
+    const joined = voice({
+      status: 'RESPONDED' as VoiceStatus,
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: ['leader', 'head'],
+      tierLowerHolderIds: ['leader'],
+      tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'],
+      sectionHasGroupLeader: true,
+      hasConversation: true,
+    });
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'head'), joined)).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'REMIND',
+      'MESSAGE',
+    ]);
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), joined)).toEqual([
+      'PROCEED',
+      'MESSAGE',
+    ]);
+    // A Section Head only assigns when their Section has a Group Leader.
+    expect(
+      computeAvailableActions(actor(['SECTION_HEAD'], 'head'), {
+        ...joined,
+        sectionHasGroupLeader: false,
+      }),
+    ).not.toContain('ASSIGN');
   });
 
   it('keeps handover available after the response until someone processes or is assigned', () => {

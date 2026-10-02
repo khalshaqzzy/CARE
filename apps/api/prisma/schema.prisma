@@ -205,6 +205,8 @@ enum VoiceEventType {
   RESPONDED
   TARGET_SET
   TARGET_OVERDUE
+  ESCALATED
+  REMINDED
   MESSAGE_SENT
   ASSIGNED
   REASSIGNED
@@ -232,6 +234,8 @@ enum NotificationType {
   TARGET_SET
   TARGET_REMINDER
   TARGET_OVERDUE
+  ESCALATED
+  REMINDER
   CLOSED
   RATED
   REOPENED
@@ -682,6 +686,12 @@ model Voice {
   tierLevel                       TierLevel?
   tierPath                        TierLevel[]             @default([])
   tierHolderIds                   String[]                @default([]) @db.Uuid
+  /// Holders who answered before the Voice went up; the upper tier reminds them.
+  tierLowerHolderIds              String[]                @default([]) @db.Uuid
+  /// Former holders keep a read-only view after an unanswered Voice moved up.
+  tierObserverIds                 String[]                @default([]) @db.Uuid
+  /// The reporter's Section has a Group Leader the Section Head may assign.
+  sectionHasGroupLeader           Boolean                 @default(false)
   /// Fasilitas Kerja reported from another department's shop.
   outsideReporter                 Boolean                 @default(false)
   handlingOrganizationUnitId      String?                 @db.Uuid
@@ -741,6 +751,7 @@ model Voice {
   legacyAccess                    LegacyVoiceAccess[]
   handovers                       VoiceHandover[]
   adminHandovers                  AdminHandover[]
+  reminders                       VoiceReminder[]
 
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
@@ -750,6 +761,7 @@ model Voice {
   @@index([area, currentCategoryKey, status], map: "Voice_area_currentCategoryKey_status_idx")
   @@index([reporterOrganizationUnitId, visibility, status])
   @@index([tierHolderIds], type: Gin)
+  @@index([tierObserverIds], type: Gin)
   @@index([severity, submittedAt])
   @@index([title, displayId])
 }
@@ -944,6 +956,19 @@ model Conversation {
 }
 
 // Last time a participant opened the conversation; drives unread badges.
+/// Ingatkan: at most one reminder per actor, target and WIB day for a Voice.
+model VoiceReminder {
+  id        String   @id @default(uuid()) @db.Uuid
+  voiceId   String   @db.Uuid
+  actorId   String   @db.Uuid
+  targetId  String   @db.Uuid
+  dayKey    String   @db.VarChar(10)
+  createdAt DateTime @default(now())
+  voice     Voice    @relation(fields: [voiceId], references: [id])
+
+  @@unique([voiceId, actorId, targetId, dayKey])
+}
+
 model ConversationReadState {
   conversationId String       @db.Uuid
   accountId      String       @db.Uuid

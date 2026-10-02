@@ -174,6 +174,21 @@ export class VoicesController {
   ) {
     return this.voices.takeOver(a, id, b, key);
   }
+  @Post('voices/:id/escalate') escalate(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') k = '',
+  ) {
+    return this.voices.escalate(a, id, b, k);
+  }
+  @Post('voices/:id/remind') remind(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('idempotency-key') k = '',
+  ) {
+    return this.voices.remind(a, id, k);
+  }
   @Post('voices/:id/conversation/read') markConversationRead(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

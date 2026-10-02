@@ -163,7 +163,8 @@ export class PolicyService {
         routeOwnerId: actor.accountId,
         tierLevel: null,
       });
-    if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)))
+    // Tiered Voices can be assigned to Group Leaders, Section Heads and Managers.
+    if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER', 'MANAGER'].includes(c)))
       scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: actor.accountId });
     if (
       actor.capabilities.some((c) =>
@@ -188,6 +189,8 @@ export class PolicyService {
 
   async detailScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     const browse = await this.browseScope(actor);
+    // A match-all browse scope (CARE Admin) already covers every clause below.
+    if (!Object.keys(browse).length) return browse;
     const work = this.workItemScope(actor);
     // `workItemScope` yields `{ id: { in: [] } }` when the actor has no work-item
     // scope. OR-ing a never-true clause is a no-op (and when `browse` is the whole
@@ -199,6 +202,11 @@ export class PolicyService {
       'id' in work &&
       Array.isArray((work as { id: { in?: unknown[] } }).id?.in) &&
       (work as { id: { in?: unknown[] } }).id.in?.length === 0;
+    // Former tier holders keep reading a Voice that moved up without them.
+    const observed: Prisma.VoiceWhereInput = {
+      visibility: VoiceVisibility.GENERAL,
+      tierObserverIds: { has: actor.accountId },
+    };
     // A Manager who handed a General Voice over keeps read-only access to it.
     const handedOver: Prisma.VoiceWhereInput[] = actor.capabilities.includes('MANAGER')
       ? [
@@ -208,7 +216,7 @@ export class PolicyService {
           },
         ]
       : [];
-    const clauses = [...(isEmptyWork ? [] : [work]), ...handedOver];
+    const clauses = [...(isEmptyWork ? [] : [work]), ...handedOver, observed];
     return clauses.length ? { OR: [browse, ...clauses] } : browse;
   }
 }

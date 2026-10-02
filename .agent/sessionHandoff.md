@@ -1,6 +1,36 @@
 # CARE Session Handoff
 
-## Tiered routing stage 2, increment 5a — 2 October 2026
+## Tiered routing stage 2, increment 5b — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Naikkan:** `POST /voices/:id/escalate` (reason required).
+- **Ingatkan:** `POST /voices/:id/remind` (once per WIB day per target).
+- **Tugaskan for tier holders:** via `tierAssignees`.
+- **Read access:** observer read-only for former holders.
+- **Migration:** `20261003140000_tiered_actions`.
+- **Web:** a Naikkan choice in the Respons sheet, and Naikkan/Ingatkan buttons after Direspons.
+
+**Files:**
+
+- **API:** `src/voices/{tier-chain,actions,voices.service,voices.controller}.ts`; `src/auth/policy.service.ts`; schema and migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/ActionPanel.tsx`, `lib/formatters.ts`, `workforce-api.ts`.
+- **Tests:**
+  - `test/unit/{actions,policy}.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 424 → 426.
+
+**Validation:**
+
+- **Unit:** API 154/154; web-voice 127/127.
+- **Integration and security:** 147/149; the two failures are the known admin-safety and push-subscription flakes.
+- **Found and fixed during validation:** a CARE Admin detail regression (an OR-wrapped match-all scope).
+- **Browser:** the full mocked run passed 420/420.
+
+**Next:** 5c (Tim Saya read-only visibility for upper levels with a GL limited to their Line, stage timeline, chat avatars + Detail).
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
 

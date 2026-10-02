@@ -2,6 +2,8 @@ import { Alert, Button, ChoiceCardGroup, Dialog, Input, Stack, Textarea } from '
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
+  ArrowUpCircle,
+  BellRing,
   Check,
   ImagePlus,
   Lock,
@@ -31,15 +33,21 @@ type Action =
   | 'reassign'
   | 'assignment-note'
   | 'take-over'
+  | 'escalate'
+  | 'remind'
   | 'none';
 type Assignment = { handlerAccountId: string; reason?: string };
-type ResponseChoice = 'reply' | 'assign' | 'handover' | 'process';
+type ResponseChoice = 'reply' | 'assign' | 'handover' | 'process' | 'escalate';
 
 const RESPONSE_CHOICES: Record<ResponseChoice, { label: string; icon: ReactNode }> = {
   reply: { label: 'Balas pesan', icon: <MessageCircle size={18} aria-hidden="true" /> },
   assign: { label: 'Tugaskan PIC', icon: <UserRoundCheck size={18} aria-hidden="true" /> },
   handover: { label: 'Handover', icon: <ArrowLeftRight size={18} aria-hidden="true" /> },
   process: { label: 'Proses sendiri', icon: <Play size={18} aria-hidden="true" /> },
+  escalate: {
+    label: 'Naikkan ke atasan',
+    icon: <ArrowUpCircle size={18} aria-hidden="true" />,
+  },
 };
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
@@ -93,6 +101,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         );
       if (action === 'close') return api.close(detail.id, { note: note!, version }, key);
       if (action === 'take-over') return api.takeOver(detail.id, { expectedVersion: version }, key);
+      if (action === 'escalate')
+        return api.escalate(detail.id, { expectedVersion: version, reason: note! }, key);
+      if (action === 'remind') return api.remind(detail.id, key);
       return (action === 'reassign' ? api.reassign : api.assign)(
         detail.id,
         { ...assignmentBody!, ...(note ? { text: note } : {}), expectedVersion: version },
@@ -124,7 +135,11 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               ? 'Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.'
               : variables.action === 'take-over'
                 ? 'Anda sekarang PIC Voice ini.'
-                : 'PIC berhasil diperbarui.',
+                : variables.action === 'escalate'
+                  ? 'Voice dinaikkan ke atasan.'
+                  : variables.action === 'remind'
+                    ? 'Pengingat terkirim.'
+                    : 'PIC berhasil diperbarui.',
         );
     },
     onError: (cause) => {
@@ -148,15 +163,28 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       setError(null);
     }
   };
-  if (!actions.length) return null;
+  // An action that hands the Voice on (e.g. Naikkan) leaves nothing to do but
+  // still confirms what happened.
+  if (!actions.length)
+    return notice ? (
+      <Alert tone="success" title="Perubahan tersimpan">
+        {notice}
+      </Alert>
+    ) : null;
   // While the Voice is still open, every way of answering lives in one sheet.
   const responding = actions.includes('RESPOND');
+  // Group Leaders and Section Heads usually go up before processing; upper
+  // tiers lead with assigning and keep going up as the last resort.
+  const escalateFirst = detail.tierLevel === 'GROUP_LEADER' || detail.tierLevel === 'SECTION_HEAD';
+  const canEscalate = actions.includes('ESCALATE');
   const choices: ResponseChoice[] = responding
     ? [
         'reply',
         ...(actions.includes('ASSIGN') ? (['assign'] as const) : []),
         ...(actions.includes('HANDOVER') ? (['handover'] as const) : []),
+        ...(canEscalate && escalateFirst ? (['escalate'] as const) : []),
         'process',
+        ...(canEscalate && !escalateFirst ? (['escalate'] as const) : []),
       ]
     : [];
   return (
@@ -191,6 +219,29 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               <Button variant="secondary" onClick={() => open('reassign')}>
                 <ArrowLeftRight size={18} aria-hidden="true" />
                 {ACTION_LABELS.REASSIGN}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {!responding && actions.some((action) => ['ESCALATE', 'REMIND'].includes(action)) ? (
+          <div className="action-row action-row--secondary" role="group" aria-label="Atasan">
+            {actions.includes('ESCALATE') ? (
+              <Button variant="secondary" onClick={() => open('escalate')}>
+                <ArrowUpCircle size={18} aria-hidden="true" />
+                Naikkan
+              </Button>
+            ) : null}
+            {actions.includes('REMIND') ? (
+              <Button
+                variant="secondary"
+                loading={pending && active === 'remind'}
+                onClick={() => {
+                  open('remind');
+                  mutation.mutate({ action: 'remind' });
+                }}
+              >
+                <BellRing size={18} aria-hidden="true" />
+                Ingatkan
               </Button>
             ) : null}
           </div>
@@ -252,6 +303,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           const note = text.trim();
           if (choice === 'reply') mutation.mutate({ action: 'respond', note });
           else if (choice === 'process') mutation.mutate({ action: 'respond-process', note });
+          else if (choice === 'escalate') mutation.mutate({ action: 'escalate', note });
           else if (choice === 'assign' && handlerAccountId)
             mutation.mutate({
               action: 'assignment-note',
@@ -318,6 +370,46 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             Target tidak dapat diubah dalam siklus ini. Pelapor dan penanggung jawab menerima
             notifikasi; pengingat dikirim sekali jika target terlewati.
           </p>
+        </Stack>
+      </Dialog>
+      <Dialog
+        open={active === 'escalate'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title="Naikkan ke atasan"
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              disabled={!text.trim() || pending}
+              onClick={() => mutation.mutate({ action: 'escalate', note: text.trim() })}
+            >
+              Naikkan
+            </Button>
+          </div>
+        }
+      >
+        <Stack gap="md">
+          {error ? (
+            <Alert tone="danger" title="Belum tersimpan">
+              {error}
+            </Alert>
+          ) : null}
+          <Textarea
+            label="Alasan"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            rows={3}
+            maxLength={500}
+            required
+            disabled={pending}
+          />
         </Stack>
       </Dialog>
       <Dialog
@@ -458,6 +550,7 @@ function RespondSheet({
     choice === 'handover' ||
     (hasMessage &&
       (choice === 'reply' ||
+        choice === 'escalate' ||
         (choice === 'assign' && Boolean(handler)) ||
         (choice === 'process' && validDays)));
   return (
@@ -516,13 +609,16 @@ function RespondSheet({
           <p className="dialog-copy">Pilih kategori tujuan di langkah berikutnya.</p>
         ) : (
           <Textarea
-            label="Pesan"
-            placeholder="Tulis pesan untuk pelapor"
+            key={choice === 'escalate' ? 'reason' : 'message'}
+            label={choice === 'escalate' ? 'Alasan' : 'Pesan'}
+            placeholder={
+              choice === 'escalate' ? 'Kenapa perlu atasan?' : 'Tulis pesan untuk pelapor'
+            }
             value={text}
             onChange={(event) => onText(event.target.value)}
             rows={3}
-            maxLength={4000}
-            counter={`${text.length}/4000`}
+            maxLength={choice === 'escalate' ? 500 : 4000}
+            counter={`${text.length}/${choice === 'escalate' ? 500 : 4000}`}
             required
             disabled={loading}
           />
