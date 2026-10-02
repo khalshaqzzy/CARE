@@ -175,10 +175,20 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - `ESCALATE` goes to the newest holder while `tierPath` has a later level, no PIC is assigned, and no lower holder is waiting.
   - `REMIND` goes to the newest holder when a PIC is assigned or lower holders exist.
   - Tiered `ASSIGN` is available at the Manager and division levels, and at the Section Head level only when `sectionHasGroupLeader`.
-- **Escalate.** `POST /voices/:id/escalate` (reason 1–500 characters, version-checked, idempotent) re-resolves the chain on the active snapshot and takes the next present level.
-  - An unanswered Voice moves the holders up and records the former holders as observers.
-  - An answered Voice adds the new level to the holders, keeps the previous ones as lower holders, and posts a SYSTEM chat note.
-  - It notifies the new holders with the reason and the reporter generically.
+- **Escalate.** `POST /voices/:id/escalate` (reason 1–500 characters, version-checked, idempotent) re-resolves the chain on the active snapshot and takes the next present level. It is the manual Naikkan, and it counts as a response:
+  - the status becomes `RESPONDED` (with a `RESPONDED` event when the Voice was open);
+  - the chat opens with a SYSTEM note "Diteruskan ke [Level]";
+  - the new level becomes the only holder;
+  - the former holders join `tierParticipantIds` (migration `20261003150000_tier_chat_participants`): they may read and message but have no lifecycle actions.
+
+  It notifies the new holders with the reason and the reporter with the destination level only.
+
+- **Lower holders and observers.** `tierLowerHolderIds` (Ingatkan) and `tierObserverIds` (read-only) are reserved for the stage 3 automatic escalations:
+  - **answered but unprocessed:** the upper tier joins beside the responder;
+  - **unanswered:** the Voice stays open and the former holder becomes an observer.
+
+  A manually raised Voice that times out moves up again with a chat note and keeps its `RESPONDED` status.
+
 - **Remind.** `POST /voices/:id/remind` targets the assigned PIC or the lower holders and inserts `VoiceReminder` rows (duplicates skipped). It rejects with `REMINDER_LIMIT` when everyone was already reminded that day. It sends notifications only and records a `REMINDED` event.
 - **Assignees.** `tierAssignees` lists the people a holder may assign (the same rules as `ASSIGN` above). Assignment validates against that list and records the PIC type from the assignee's position. `workItemScope` also lists Voices assigned to a Manager.
 - **Read access.** `detailScope` lets former holders (`tierObserverIds`) read, and returns the match-all scope unchanged for CARE Admin.

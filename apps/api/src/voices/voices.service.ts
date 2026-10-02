@@ -1125,9 +1125,8 @@ export class VoicesService {
     if (!voice) throw forbiddenAsNotFound();
     if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
-    const tierHolders = voice.tierHolderIds.length
-      ? await this.tierHolders(voice.tierHolderIds)
-      : [];
+    const chatMembers = [...voice.tierParticipantIds, ...voice.tierHolderIds];
+    const tierHolders = chatMembers.length ? await this.tierHolders(chatMembers) : [];
     return {
       ...this.serialize(actor, { ...voice, tierHolders }),
       ...(voice.tierLevel && voice.reporterId !== actor.accountId
@@ -1541,21 +1540,20 @@ export class VoicesService {
             'ESCALATION_UNAVAILABLE',
             'Tidak ada atasan yang dapat menerima Voice ini.',
           );
-        const answered = current.status === VoiceStatus.RESPONDED;
+        const wasOpen = current.status === VoiceStatus.OPEN;
         const unique = (ids: string[]) => [...new Set(ids)];
         const updated = await tx.voice.update({
           where: { id },
           data: {
+            status: VoiceStatus.RESPONDED,
             tierLevel: step.level,
-            tierHolderIds: answered
-              ? unique([...current.tierHolderIds, ...step.accountIds])
-              : step.accountIds,
-            tierLowerHolderIds: answered
-              ? unique([...current.tierLowerHolderIds, ...current.tierHolderIds])
-              : [],
-            tierObserverIds: answered
-              ? current.tierObserverIds
-              : unique([...current.tierObserverIds, ...current.tierHolderIds]),
+            tierHolderIds: step.accountIds,
+            tierLowerHolderIds: [],
+            tierParticipantIds: unique([
+              ...current.tierParticipantIds,
+              ...current.tierHolderIds,
+              ...current.tierLowerHolderIds,
+            ]).filter((accountId) => !step.accountIds.includes(accountId)),
             version: { increment: 1 },
           },
         });
@@ -1565,19 +1563,34 @@ export class VoicesService {
             actorId: actor.accountId,
             ...this.policy.actorSnapshot(actor),
             type: VoiceEventType.ESCALATED,
-            payload: { from, to: step.level, reason: data.reason, holders: step.accountIds },
+            payload: {
+              from,
+              to: step.level,
+              reason: data.reason,
+              holders: step.accountIds,
+              manual: true,
+            },
           },
         });
-        if (answered && current.conversation)
-          await this.createMessageWithin(
-            tx,
-            actor,
-            id,
-            `Diteruskan ke ${TIER_LABELS[step.level]}`,
-            [],
-            false,
-            MessageKind.SYSTEM,
-          );
+        const note = await this.createMessageWithin(
+          tx,
+          actor,
+          id,
+          `Diteruskan ke ${TIER_LABELS[step.level]}`,
+          [],
+          false,
+          MessageKind.SYSTEM,
+        );
+        if (wasOpen)
+          await tx.voiceEvent.create({
+            data: {
+              voiceId: id,
+              actorId: actor.accountId,
+              ...this.policy.actorSnapshot(actor),
+              type: VoiceEventType.RESPONDED,
+              payload: { via: 'ESCALATION', messageId: note.id },
+            },
+          });
         for (const recipientId of step.accountIds)
           await this.notify(
             tx,
@@ -1592,7 +1605,8 @@ export class VoicesService {
           current.reporterId,
           id,
           NotificationType.STATUS_CHANGED,
-          'Voice Anda diteruskan ke atasan',
+          wasOpen ? 'Voice Anda telah direspons' : 'Voice Anda diteruskan ke atasan',
+          `Diteruskan ke ${TIER_LABELS[step.level]}.`,
         );
         return {
           id: updated.id,
@@ -3602,11 +3616,14 @@ export class VoicesService {
         routeOwnerId: true,
         tierLevel: true,
         tierHolderIds: true,
+        tierParticipantIds: true,
       },
     });
     if (voice && notifyRecipient) {
       // Below the Manager tier the Manager is not yet part of the chat.
-      const owners = voice.tierLevel ? voice.tierHolderIds : [voice.routeOwnerId];
+      const owners = voice.tierLevel
+        ? [...voice.tierParticipantIds, ...voice.tierHolderIds]
+        : [voice.routeOwnerId];
       for (const recipientId of new Set(
         [voice.reporterId, ...owners, voice.currentHandlerId].filter(
           (value): value is string => Boolean(value) && value !== actor.accountId,
@@ -4230,13 +4247,15 @@ export class VoicesService {
       currentHandlerId: string | null;
       reporterId: string;
       tierHolderIds?: string[];
+      tierParticipantIds?: string[];
     },
   ) {
     const allowed =
       (voice.visibility === VoiceVisibility.GENERAL &&
         (voice.routeOwnerId === actor.accountId ||
           voice.currentHandlerId === actor.accountId ||
-          (voice.tierHolderIds ?? []).includes(actor.accountId))) ||
+          (voice.tierHolderIds ?? []).includes(actor.accountId) ||
+          (voice.tierParticipantIds ?? []).includes(actor.accountId))) ||
       (voice.visibility === VoiceVisibility.PRIVATE &&
         (actor.capabilities.includes('UNION_HEAD') ||
           voice.currentHandlerId === actor.accountId)) ||
@@ -4283,6 +4302,7 @@ export class VoicesService {
       tierPath?: TierLevel[];
       tierLowerHolderIds?: string[];
       sectionHasGroupLeader?: boolean;
+      tierParticipantIds?: string[];
     },
   ) {
     return computeAvailableActions(

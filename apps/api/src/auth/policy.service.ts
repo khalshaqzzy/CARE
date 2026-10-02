@@ -223,7 +223,10 @@ export class PolicyService {
     // Former tier holders keep reading a Voice that moved up without them.
     const observed: Prisma.VoiceWhereInput = {
       visibility: VoiceVisibility.GENERAL,
-      tierObserverIds: { has: actor.accountId },
+      OR: [
+        { tierObserverIds: { has: actor.accountId } },
+        { tierParticipantIds: { has: actor.accountId } },
+      ],
     };
     // A Manager who handed a General Voice over keeps read-only access to it.
     const handedOver: Prisma.VoiceWhereInput[] = actor.capabilities.includes('MANAGER')

@@ -1,5 +1,27 @@
 # CARE Session Handoff
 
+## Manual Naikkan counts as a response — 2 October 2026
+
+**Product-owner decision:** a manual Naikkan is a response, like Handover.
+
+- **Status and chat:** the Voice becomes Direspons and the chat opens with "Diteruskan ke [Level]".
+- **New holder:** the upper level holds the Voice, with Naikkan lagi / Tugaskan PIC / Proses sendiri.
+- **The one who raised it:** stays in the chat (`tierParticipantIds`, migration `20261003150000_tier_chat_participants`) with messages only.
+- **Reporter:** notified with the destination level; the reason stays internal.
+
+**Stage 3 rules recorded in PRD §43.5:**
+
+- **Manual escalation, then a missed deadline:** the Voice goes up again automatically with a chat note and stays Direspons.
+- **Automatic escalation of a Voice nobody answered:** it stays Terbuka and the former holder becomes read-only.
+- **Answered but unprocessed:** the upper tier joins beside the responder with Ingatkan / Tugaskan / Proses.
+
+**Validation:**
+
+- **Unit:** API 156/156.
+- **Integration and security:** 148/150; the two failures are the known admin-safety and push-subscription flakes. The tiered suite passes 10/10.
+- **Browser:** the lifecycle and handover specs pass 20/20 (frontend unchanged).
+- **Other:** no schema drift; Gitleaks clean.
+
 ## Tiered routing stage 2, increment 5c — 2 October 2026
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.

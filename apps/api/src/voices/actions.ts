@@ -19,6 +19,8 @@ export type ActionableVoice = {
   /** Holders who answered before the Voice went up (the upper tier reminds them). */
   tierLowerHolderIds?: string[];
   sectionHasGroupLeader?: boolean;
+  /** Former holders who raised the Voice by hand: they keep the chat only. */
+  tierParticipantIds?: string[];
   closureCycles?: Array<{
     reopenedAt: Date | null;
     reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
@@ -131,6 +133,12 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       (voice.status === 'RESPONDED' || voice.status === 'IN_PROGRESS')
     )
       actions.push('TAKE_OVER');
+  } else if (
+    (voice.tierParticipantIds ?? []).includes(actor.accountId) &&
+    ['RESPONDED', 'IN_PROGRESS'].includes(voice.status) &&
+    voice.hasConversation
+  ) {
+    actions.push('MESSAGE');
   } else if (isReporter) {
     if (['RESPONDED', 'IN_PROGRESS'].includes(voice.status) && voice.hasConversation)
       actions.push('MESSAGE');

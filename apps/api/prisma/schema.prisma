@@ -690,6 +690,8 @@ model Voice {
   tierLowerHolderIds              String[]                @default([]) @db.Uuid
   /// Former holders keep a read-only view after an unanswered Voice moved up.
   tierObserverIds                 String[]                @default([]) @db.Uuid
+  /// Holders who raised the Voice by hand stay in the chat (messages only).
+  tierParticipantIds              String[]                @default([]) @db.Uuid
   /// The reporter's Section has a Group Leader the Section Head may assign.
   sectionHasGroupLeader           Boolean                 @default(false)
   /// Fasilitas Kerja reported from another department's shop.
@@ -762,6 +764,7 @@ model Voice {
   @@index([reporterOrganizationUnitId, visibility, status])
   @@index([tierHolderIds], type: Gin)
   @@index([tierObserverIds], type: Gin)
+  @@index([tierParticipantIds], type: Gin)
   @@index([severity, submittedAt])
   @@index([title, displayId])
 }

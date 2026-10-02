@@ -112,6 +112,23 @@ describe('computeAvailableActions', () => {
     ).not.toContain('ASSIGN');
   });
 
+  it('keeps a leader who raised the Voice by hand in the chat without lifecycle actions', () => {
+    const raised = voice({
+      status: 'RESPONDED' as VoiceStatus,
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: ['head'],
+      tierParticipantIds: ['leader'],
+      hasConversation: true,
+    });
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), raised)).toEqual(['MESSAGE']);
+    expect(
+      computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), {
+        ...raised,
+        status: 'CLOSED' as VoiceStatus,
+      }),
+    ).toEqual([]);
+  });
+
   it('keeps handover available after the response until someone processes or is assigned', () => {
     const responded = computeAvailableActions(
       actor(['MANAGER'], 'owner'),

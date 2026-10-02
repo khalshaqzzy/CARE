@@ -381,7 +381,7 @@ describe('Tiered routing foundation', () => {
     });
   });
 
-  it('moves an unanswered Voice up, assigns down, and reminds the assignee once a day', async () => {
+  it('treats a manual Naikkan as a response, assigns down, and reminds the assignee once a day', async () => {
     const groupLeader = await principal('700003');
     const sectionHead = await principal('700002');
     const reporter = await principal('700004');
@@ -395,21 +395,32 @@ describe('Tiered routing foundation', () => {
       { expectedVersion: 1, reason: 'Perlu keputusan Section.' },
       'esc-gl',
     );
-    expect(escalated).toMatchObject({ status: 'OPEN', version: 2 });
+    // Raising it by hand answers the Voice: Direspons, chat open, Section Head in charge.
+    expect(escalated).toMatchObject({ status: 'RESPONDED', version: 2 });
     expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
       tierLevel: 'SECTION_HEAD',
       tierHolderIds: [sectionHead.accountId],
-      tierObserverIds: [groupLeader.accountId],
+      tierParticipantIds: [groupLeader.accountId],
       tierLowerHolderIds: [],
       sectionHasGroupLeader: true,
     });
-    // The Group Leader keeps a read-only view; the Section Head now owns it.
-    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual([]);
+    // The Group Leader stays in the chat; the Section Head goes up, assigns, or processes.
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual(['MESSAGE']);
     expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual([
-      'RESPOND',
+      'PROCEED',
       'ASSIGN',
       'ESCALATE',
+      'MESSAGE',
     ]);
+    const thread = await voices.messages(reporter, voice.id, {});
+    expect(thread.items.map((item) => [item.kind, item.text])).toEqual([
+      ['SYSTEM', 'Diteruskan ke Section Head'],
+    ]);
+    expect(
+      await prisma.notification.findFirstOrThrow({
+        where: { voiceId: voice.id, recipientId: reporter.accountId, type: 'STATUS_CHANGED' },
+      }),
+    ).toMatchObject({ title: 'Voice Anda telah direspons', body: 'Diteruskan ke Section Head.' });
     expect(
       await prisma.notification.findFirstOrThrow({
         where: { voiceId: voice.id, type: 'ESCALATED' },
@@ -459,7 +470,7 @@ describe('Tiered routing foundation', () => {
     ).toBe(1);
   });
 
-  it('brings the upper tier into the chat when an answered Voice goes up', async () => {
+  it('keeps everyone who raised the Voice in the chat as it goes up again', async () => {
     const groupLeader = await principal('700003');
     const sectionHead = await principal('700002');
     const manager = await principal('700001');
@@ -477,40 +488,44 @@ describe('Tiered routing foundation', () => {
       'esc-answered',
     );
     expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      status: 'RESPONDED',
       tierLevel: 'SECTION_HEAD',
-      tierHolderIds: [groupLeader.accountId, sectionHead.accountId],
-      tierLowerHolderIds: [groupLeader.accountId],
-      tierObserverIds: [],
+      tierHolderIds: [sectionHead.accountId],
+      tierParticipantIds: [groupLeader.accountId],
     });
-    // Both may process; the upper tier also reminds and assigns, but cannot go up again.
-    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual([
-      'PROCEED',
-      'MESSAGE',
-    ]);
-    expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual([
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual(['MESSAGE']);
+    // Naikkan lagi: the Manager takes over and both leaders stay in the chat.
+    await voices.escalate(
+      sectionHead,
+      voice.id,
+      { expectedVersion: 3, reason: 'Perlu keputusan Manager.' },
+      'esc-again',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'MANAGER',
+      tierHolderIds: [manager.accountId],
+      tierParticipantIds: [groupLeader.accountId, sectionHead.accountId],
+    });
+    expect((await voices.detail(manager, voice.id)).availableActions).toEqual([
       'PROCEED',
       'ASSIGN',
-      'REMIND',
+      'HANDOVER',
       'MESSAGE',
     ]);
-    const thread = await voices.messages(manager, voice.id, {}).catch(() => null);
-    expect(thread).toBeTruthy();
-    const reporterThread = await voices.messages(await principal('700004'), voice.id, {});
-    expect(reporterThread.items.at(-1)).toMatchObject({
-      kind: 'SYSTEM',
-      text: 'Diteruskan ke Section Head',
-    });
-    expect((await voices.detail(sectionHead, voice.id)).participants.map((p) => p.role)).toEqual([
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual(['MESSAGE']);
+    expect((await voices.detail(manager, voice.id)).participants.map((p) => p.role)).toEqual([
       'REPORTER',
       'GROUP_LEADER',
       'SECTION_HEAD',
+      'DEPARTMENT_HEAD',
     ]);
-    await voices.remind(sectionHead, voice.id, 'remind-answered');
+    const reporterThread = await voices.messages(await principal('700004'), voice.id, {});
     expect(
-      await prisma.notification.count({
-        where: { voiceId: voice.id, recipientId: groupLeader.accountId, type: 'REMINDER' },
-      }),
-    ).toBe(1);
+      reporterThread.items.filter((item) => item.kind === 'SYSTEM').map((i) => i.text),
+    ).toEqual(['Diteruskan ke Section Head', 'Diteruskan ke Manager']);
+    // A Group Leader who stayed in the chat still talks with the reporter.
+    await voices.addMessage(groupLeader, voice.id, { text: 'Sudah saya teruskan.' }, [], 'gl-msg');
   });
 
   it('lets a Manager holder assign skipped levels and stops at the top of the chain', async () => {
@@ -527,7 +542,7 @@ describe('Tiered routing foundation', () => {
     );
     const managerView = await voices.detail(manager, voice.id);
     expect(managerView.tierLevel).toBe('MANAGER');
-    expect(managerView.availableActions).toEqual(['RESPOND', 'ASSIGN', 'HANDOVER']);
+    expect(managerView.availableActions).toEqual(['PROCEED', 'ASSIGN', 'HANDOVER', 'MESSAGE']);
     expect((await voices.assignmentCandidates(manager, voice.id)).map((c) => c.id).sort()).toEqual(
       [groupLeader.accountId, sectionHead.accountId].sort(),
     );
