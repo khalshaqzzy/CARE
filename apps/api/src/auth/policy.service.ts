@@ -10,6 +10,7 @@ import {
 import { forbiddenAsNotFound } from '../common/errors';
 import { PrismaService } from '../prisma.service';
 import { type Capability, divisionLeadershipPositions, normalizedPosition } from './capabilities';
+import { delegatorsFor } from '../away/away';
 
 export type Principal = {
   accountId: string;
@@ -28,6 +29,8 @@ export type Principal = {
   section: string | null;
   /** Production Line; a Group Leader's team is limited to it. */
   line?: string | null;
+  /** Accounts on "Sedang tidak masuk" that name this account as substitute today. */
+  actingFor?: string[];
   unionSlot: UnionSlot | null;
   capabilities: Capability[];
   routeUnitIds: string[];
@@ -95,6 +98,10 @@ export class PolicyService {
       department: membership?.organizationUnit.department ?? null,
       section: membership?.section ?? null,
       line: membership?.lineName ?? null,
+      actingFor:
+        account.accountKind === AccountKind.WORKFORCE
+          ? await delegatorsFor(this.prisma, account.id)
+          : [],
       unionSlot: unionTerm?.slot ?? null,
       capabilities: [...capabilitySet],
       routeUnitIds: routes
@@ -174,16 +181,20 @@ export class PolicyService {
 
   workItemScope(actor: Principal): Prisma.VoiceWhereInput {
     const scopes: Prisma.VoiceWhereInput[] = [];
+    // A substitute's work list includes what the away leader holds.
+    const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+    const mine = ids.length === 1 ? actor.accountId : { in: ids };
+    const held = ids.length === 1 ? { has: actor.accountId } : { hasSome: ids };
     // A tiered Voice reaches the route Manager only once they hold it.
     if (actor.capabilities.includes('MANAGER'))
       scopes.push({
         visibility: VoiceVisibility.GENERAL,
-        routeOwnerId: actor.accountId,
+        routeOwnerId: mine,
         tierLevel: null,
       });
     // Tiered Voices can be assigned to Group Leaders, Section Heads and Managers.
     if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER', 'MANAGER'].includes(c)))
-      scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: actor.accountId });
+      scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: mine });
     if (
       actor.capabilities.some((c) =>
         ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(c),
@@ -191,7 +202,7 @@ export class PolicyService {
     )
       scopes.push({
         visibility: VoiceVisibility.GENERAL,
-        tierHolderIds: { has: actor.accountId },
+        tierHolderIds: held,
       });
     if (actor.capabilities.includes('UNION_HEAD'))
       scopes.push({ visibility: VoiceVisibility.PRIVATE });

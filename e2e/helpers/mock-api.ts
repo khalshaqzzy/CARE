@@ -948,6 +948,13 @@ export type MockApiOptions = {
   unassignedVoiceList?: unknown;
   /** Override for `GET /drafts/position-options` (TM reporters). */
   positionOptions?: unknown;
+  /** Substitutes offered on `GET /me/away` ("Sedang tidak masuk"). */
+  awayCandidates?: Array<{
+    id: string;
+    displayName: string;
+    position: string;
+    upperLevel: boolean;
+  }>;
   /** Override for `GET /voices/{id}/assignment-candidates`. */
   assignmentCandidates?: unknown;
   /** Override for the Manager handover selection and restricted history surfaces. */
@@ -1177,6 +1184,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
   let session = opts.session ?? memberSession();
   const voice = opts.voice;
   let savedDraft: Record<string, unknown> | null = null;
+  let awayPeriod: Record<string, unknown> | null = null;
   // Messages the mocked composer sends; the GET echo merges them so the log
   // keeps showing a sent reply after the post-send refetch.
   const sentThreadMessages: Record<string, unknown[]> = {};
@@ -1614,6 +1622,34 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         state: 'READY',
         createdAt: new Date().toISOString(),
       });
+    }
+
+    // Sedang tidak masuk
+    const awayStatus = () => ({
+      eligible: true,
+      current: awayPeriod,
+      candidates: opts.awayCandidates ?? [],
+    });
+    if (method === 'GET' && path === '/api/v1/me/away') return satisfy(200, awayStatus());
+    if (method === 'POST' && path === '/api/v1/me/away') {
+      const body = route.request().postDataJSON() as {
+        startsOn: string;
+        endsOn: string;
+        substituteId: string;
+      };
+      const substitute = (opts.awayCandidates ?? []).find((item) => item.id === body.substituteId);
+      awayPeriod = {
+        id: '44444444-4444-4444-8444-444444444444',
+        startsOn: body.startsOn,
+        endsOn: body.endsOn,
+        active: true,
+        substitute: { id: body.substituteId, displayName: substitute?.displayName ?? 'Pengganti' },
+      };
+      return satisfy(200, awayStatus());
+    }
+    if (method === 'POST' && path === '/api/v1/me/away/end') {
+      awayPeriod = null;
+      return satisfy(200, awayStatus());
     }
 
     // Drafts

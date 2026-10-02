@@ -17760,6 +17760,400 @@
           }
         }
       }
+    },
+    "/api/v1/me/away": {
+      "get": {
+        "operationId": "AwayController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwayStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "workforce"
+        ]
+      },
+      "post": {
+        "operationId": "AwayController_set",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwayStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "workforce"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwayRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/away/end": {
+      "post": {
+        "operationId": "AwayController_end",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwayStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "workforce"
+        ]
+      }
     }
   },
   "info": {
@@ -19317,6 +19711,117 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 365
+          }
+        }
+      },
+      "AwayRequest": {
+        "type": "object",
+        "required": [
+          "startsOn",
+          "endsOn",
+          "substituteId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "startsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "substituteId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "AwayStatus": {
+        "type": "object",
+        "required": [
+          "eligible",
+          "current",
+          "candidates"
+        ],
+        "properties": {
+          "eligible": {
+            "type": "boolean"
+          },
+          "current": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "id",
+              "startsOn",
+              "endsOn",
+              "active",
+              "substitute"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "startsOn": {
+                "type": "string",
+                "format": "date"
+              },
+              "endsOn": {
+                "type": "string",
+                "format": "date"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "substitute": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "displayName"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "displayName",
+                "position",
+                "upperLevel"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "position": {
+                  "type": "string"
+                },
+                "section": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "upperLevel": {
+                  "type": "boolean"
+                }
+              }
+            }
           }
         }
       },

@@ -220,6 +220,28 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Browser: stages and the collapsed chat.
   - Inventory 426 → 427.
 
+## Implementation (stage 2, increment 6 — not released)
+
+- **Schema.** Migration `20261003160000_away_periods` adds `AwayPeriod` (account, substitute, `startsOn`/`endsOn` as WIB DATEs, `endedAt`) and `NotificationType.AWAY_SUBSTITUTE`.
+- **API.** `src/away` serves `GET/POST /me/away` and `POST /me/away/end` for Group Leaders and above.
+  - `substituteCandidates` lists the same level or one level up in the leader's unit.
+  - One open period at a time; a new one replaces it.
+  - The start date may not be in the past; the period is at most 60 days.
+  - Setting and ending a period are audited (`AWAY_PERIOD_SET`/`ENDED`), and the substitute is notified.
+- **Virtual delegation.** Nothing is reassigned.
+  - The principal carries `actingFor`: today's active periods naming the account as substitute.
+  - `computeAvailableActions`, `mayAct`, and `workItemScope` treat those accounts as the actor's own for route ownership, holding, chat participation, and PIC rights.
+  - The delegation ends by itself when the period ends or on "Aktif kembali".
+- **Notifications and routing.**
+  - `VoicesService.notify` and the handling-target worker also notify an away recipient's active substitute.
+  - `resolveTierChain` drops accounts that are away with an away substitute (`unreachableAccounts`), so their level is skipped.
+- **Web.** Account shows **Sedang tidak masuk** to leaders. `/account/away` has dates plus substitute cards, and the active or scheduled card offers **Aktif kembali** / **Batalkan**.
+- **Validation.**
+  - Unit: a substitute's actions, including closing as PIC.
+  - Integration: candidates and validation, substitute notice, the held Voice in the substitute's work items with actions and notifications, level skipped when both are away, Aktif kembali.
+  - Browser: set and end a period.
+  - Inventory 427 → 428.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

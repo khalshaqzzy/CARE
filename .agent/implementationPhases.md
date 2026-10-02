@@ -17,6 +17,16 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 6 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: "Sedang tidak masuk".
+
+- A leader names a substitute (same level or one up) for a WIB-day period.
+- The substitute acts for them, including Selesaikan as PIC, and receives their notices until the period ends or "Aktif kembali".
+- A level whose leader and substitute are both away is skipped.
+
+Stage 2 remaining: increment 7 (severity change with reason, AI Private guidance). See PRD §43.5 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 5c — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:

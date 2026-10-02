@@ -57,6 +57,7 @@ import {
   tierAssignees,
 } from './tier-chain';
 import { jakartaDateKey } from '../escalation/working-time';
+import { activeSubstitutes } from '../away/away';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
 import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
@@ -4250,15 +4251,17 @@ export class VoicesService {
       tierParticipantIds?: string[];
     },
   ) {
+    // A substitute acts with the rights of the away leader.
+    const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+    const isMe = (id: string | null) => !!id && ids.includes(id);
     const allowed =
       (voice.visibility === VoiceVisibility.GENERAL &&
-        (voice.routeOwnerId === actor.accountId ||
-          voice.currentHandlerId === actor.accountId ||
-          (voice.tierHolderIds ?? []).includes(actor.accountId) ||
-          (voice.tierParticipantIds ?? []).includes(actor.accountId))) ||
+        (isMe(voice.routeOwnerId) ||
+          isMe(voice.currentHandlerId) ||
+          (voice.tierHolderIds ?? []).some(isMe) ||
+          (voice.tierParticipantIds ?? []).some(isMe))) ||
       (voice.visibility === VoiceVisibility.PRIVATE &&
-        (actor.capabilities.includes('UNION_HEAD') ||
-          voice.currentHandlerId === actor.accountId)) ||
+        (actor.capabilities.includes('UNION_HEAD') || isMe(voice.currentHandlerId))) ||
       actor.accountStatus === AccountStatus.LEGACY_HANDLER;
     return allowed && voice.reporterId !== actor.accountId;
   }
@@ -4306,7 +4309,11 @@ export class VoicesService {
     },
   ) {
     return computeAvailableActions(
-      { accountId: actor.accountId, capabilities: actor.capabilities } satisfies ActionActor,
+      {
+        accountId: actor.accountId,
+        capabilities: actor.capabilities,
+        actingFor: actor.actingFor ?? [],
+      } satisfies ActionActor,
       {
         ...voice,
         handlerInactive:
@@ -4558,23 +4565,26 @@ export class VoicesService {
     title: string,
     body = 'Ada pembaruan Voice di CARE',
   ) {
-    const notification = await tx.notification.create({
-      data: {
-        recipientId,
-        voiceId,
-        type,
-        title,
-        body,
-        deepLink: `/voices/${voiceId}`,
-      },
-    });
-    await tx.outboxEvent.create({
-      data: {
-        topic: 'PUSH_NOTIFICATION',
-        dedupeKey: `${type}:${voiceId}:${recipientId}:${notification.id}`,
-        payload: { notificationId: notification.id },
-      },
-    });
+    const substitute = (await activeSubstitutes(tx, [recipientId])).get(recipientId);
+    for (const target of substitute ? [recipientId, substitute] : [recipientId]) {
+      const notification = await tx.notification.create({
+        data: {
+          recipientId: target,
+          voiceId,
+          type,
+          title,
+          body,
+          deepLink: `/voices/${voiceId}`,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          topic: 'PUSH_NOTIFICATION',
+          dedupeKey: `${type}:${voiceId}:${target}:${notification.id}`,
+          payload: { notificationId: notification.id },
+        },
+      });
+    }
   }
 
   /**

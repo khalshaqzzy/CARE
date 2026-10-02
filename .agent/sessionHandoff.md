@@ -1,5 +1,36 @@
 # CARE Session Handoff
 
+## Tiered routing stage 2, increment 6 — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Sedang tidak masuk:** `AwayPeriod` (migration `20261003160000_away_periods`), `GET/POST /me/away`, `POST /me/away/end`.
+- **Virtual delegation:** through `Principal.actingFor`, the substitute acts for the away leader (actions, work items, close as PIC) and receives their notifications.
+- **Routing:** a level is skipped when both the leader and the substitute are away.
+- **Web:** Account → `/account/away`.
+
+**Files:**
+
+- **API:** `src/away/{away,away.service,away.controller,away.module}.ts` (new); `src/app.module.ts`; `src/auth/policy.service.ts`; `src/voices/{actions,voices.service,handling-target.service,tier-chain}.ts`; schema and migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `features/account/{AwayPage (new),AccountPage}.tsx`, `App.tsx`, `workforce-api.ts`, `styles.css`.
+- **Tests:**
+  - `test/unit/actions.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/workforce-journeys.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 427 → 428.
+
+**Validation:**
+
+- **Unit:** API 157/157; web-voice 127/127.
+- **Integration and security:** 150/151; the one failure is the known admin-safety flake. No schema drift.
+- **Browser:** a single-worker full mocked run passed 421/422. The Union Head assignment test hit a 5 s navigation timeout under load and passed alone.
+- **Visual check:** the away page form and the active state were inspected at 390 px.
+- **Host note:** the Postgres container had stopped after the app restart; start it with `docker compose up -d postgres`.
+
+**Next:** increment 7 (severity change with a mandatory reason until Proses, recomputing the deadline; AI suggests Private Voice for complaints about superiors), then stage 3.
+
 ## Manual Naikkan counts as a response — 2 October 2026
 
 **Product-owner decision:** a manual Naikkan is a response, like Handover.

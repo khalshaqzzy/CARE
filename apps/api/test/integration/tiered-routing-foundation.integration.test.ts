@@ -8,12 +8,16 @@ import {
   ORGANIZATION_TIER_HEADERS,
 } from '../../src/imports/imports.service';
 import { VoicesService } from '../../src/voices/voices.service';
+import { AwayService } from '../../src/away/away.service';
+import { jakartaDateKey } from '../../src/escalation/working-time';
 
 const prisma = new PrismaClient();
 const policy = new PolicyService(prisma as never);
 const imports = new ImportsService(prisma as never);
 const settings = new EscalationSettingsService(prisma as never);
 const voices = new VoicesService(prisma as never, {} as never, {} as never, policy);
+const away = new AwayService(prisma as never, policy);
+const dayKey = (offset: number) => jakartaDateKey(new Date(Date.now() + offset * 86_400_000));
 let admin: Principal;
 
 const csvFile = (rows: string[][]) => {
@@ -569,6 +573,91 @@ describe('Tiered routing foundation', () => {
       code: 'NOT_FOUND',
     });
     expect((await voices.detail(sectionHead, lineB.id)).tierLevel).toBe('SECTION_HEAD');
+  });
+
+  it('lets a substitute act for an away leader and skips a level nobody can reach', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const setup = await away.get(groupLeader);
+    expect(setup).toMatchObject({ eligible: true, current: null });
+    expect(setup.candidates.map((c) => c.id)).toEqual([sectionHead.accountId]);
+    expect((await away.get(await principal('700004'))).eligible).toBe(false);
+    await expect(
+      away.set(groupLeader, {
+        startsOn: dayKey(-1),
+        endsOn: dayKey(1),
+        substituteId: sectionHead.accountId,
+      }),
+    ).rejects.toMatchObject({ code: 'AWAY_PERIOD_INVALID' });
+    await expect(
+      away.set(groupLeader, {
+        startsOn: dayKey(0),
+        endsOn: dayKey(1),
+        substituteId: manager.accountId,
+      }),
+    ).rejects.toMatchObject({ code: 'AWAY_SUBSTITUTE_INVALID' });
+
+    const set = await away.set(groupLeader, {
+      startsOn: dayKey(0),
+      endsOn: dayKey(2),
+      substituteId: sectionHead.accountId,
+    });
+    expect(set.current).toMatchObject({
+      active: true,
+      startsOn: dayKey(0),
+      substitute: { id: sectionHead.accountId },
+    });
+    expect(
+      await prisma.notification.count({
+        where: { recipientId: sectionHead.accountId, type: 'AWAY_SUBSTITUTE' },
+      }),
+    ).toBe(1);
+
+    // The Group Leader still holds the Voice; the Section Head acts for them.
+    const voice = await submitAs('700004', 'away-held');
+    expect(voice).toMatchObject({
+      tierLevel: 'GROUP_LEADER',
+      tierHolderIds: [groupLeader.accountId],
+    });
+    const substitute = await principal('700002');
+    expect(substitute.actingFor).toEqual([groupLeader.accountId]);
+    expect((await voices.workItems(substitute, {})).items.map((item) => item.id)).toContain(
+      voice.id,
+    );
+    expect((await voices.detail(substitute, voice.id)).availableActions).toEqual([
+      'RESPOND',
+      'ESCALATE',
+    ]);
+    expect(
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: voice.id, type: 'VOICE_SUBMITTED' },
+          select: { recipientId: true },
+        })
+      )
+        .map((row) => row.recipientId)
+        .sort(),
+    ).toEqual([groupLeader.accountId, sectionHead.accountId].sort());
+
+    // With the Section Head away as well, nobody can act at the Group Leader level.
+    await away.set(sectionHead, {
+      startsOn: dayKey(0),
+      endsOn: dayKey(1),
+      substituteId: manager.accountId,
+    });
+    const skipped = await submitAs('700004', 'away-skipped');
+    expect(skipped).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+    });
+
+    // Aktif kembali ends the delegation at once.
+    expect((await away.end(groupLeader)).current).toBeNull();
+    await away.end(sectionHead);
+    expect((await principal('700002')).actingFor).toEqual([]);
+    expect((await voices.detail(await principal('700002'), voice.id)).availableActions).toEqual([]);
+    await expect(away.end(groupLeader)).rejects.toMatchObject({ code: 'AWAY_PERIOD_NOT_FOUND' });
   });
 
   it('exposes seeded defaults and edits the working calendar with versions', async () => {

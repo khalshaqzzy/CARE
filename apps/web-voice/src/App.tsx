@@ -45,6 +45,7 @@ import authHeroAsset from './assets/auth-hero-asset.png';
 import { registerCareServiceWorker } from './register-sw.js';
 import { getBrowserCapabilities } from './lib/browser-capabilities';
 import { AccountPage } from './features/account/AccountPage';
+import { AwayPage } from './features/account/AwayPage';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
 import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
@@ -111,6 +112,7 @@ export function App() {
           <Route path="voices/:id/handover-history" element={<HandoverHistoryPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
+          <Route path="account/away" element={<AwayPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -129,6 +129,28 @@ describe('computeAvailableActions', () => {
     ).toEqual([]);
   });
 
+  it('gives a substitute the away leader’s actions, including closing as PIC', () => {
+    const substitute = { ...actor(['SECTION_HEAD'], 'head'), actingFor: ['leader'] };
+    expect(
+      computeAvailableActions(
+        substitute,
+        voice({ tierLevel: 'GROUP_LEADER', tierHolderIds: ['leader'] }),
+      ),
+    ).toEqual(['RESPOND']);
+    expect(
+      computeAvailableActions(
+        substitute,
+        voice({ status: 'IN_PROGRESS' as VoiceStatus, currentHandlerId: 'leader' }),
+      ),
+    ).toContain('CLOSE');
+    expect(
+      computeAvailableActions(
+        actor(['SECTION_HEAD'], 'head'),
+        voice({ currentHandlerId: 'leader' }),
+      ),
+    ).toEqual([]);
+  });
+
   it('keeps handover available after the response until someone processes or is assigned', () => {
     const responded = computeAvailableActions(
       actor(['MANAGER'], 'owner'),

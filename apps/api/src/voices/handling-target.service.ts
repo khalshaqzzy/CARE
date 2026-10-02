@@ -3,6 +3,7 @@ import { MessageKind, NotificationType, Prisma, VoiceEventType } from '@prisma/c
 import { PrismaService } from '../prisma.service';
 import { loadConfig } from '../config';
 import { formatHandlingDueAt, handlingReminderAt } from './handling-target';
+import { activeSubstitutes } from '../away/away';
 
 type Tx = Prisma.TransactionClient;
 type CurrentVoice = {
@@ -169,15 +170,19 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
     body: string,
     dedupeKey: string,
   ) {
-    const notification = await tx.notification.create({
-      data: { recipientId, voiceId, type, title, body, deepLink: `/voices/${voiceId}` },
-    });
-    await tx.outboxEvent.create({
-      data: {
-        topic: 'PUSH_NOTIFICATION',
-        dedupeKey,
-        payload: { notificationId: notification.id },
-      },
-    });
+    // An away recipient's substitute gets the same notice.
+    const substitute = (await activeSubstitutes(tx, [recipientId])).get(recipientId);
+    for (const target of substitute ? [recipientId, substitute] : [recipientId]) {
+      const notification = await tx.notification.create({
+        data: { recipientId: target, voiceId, type, title, body, deepLink: `/voices/${voiceId}` },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          topic: 'PUSH_NOTIFICATION',
+          dedupeKey: target === recipientId ? dedupeKey : `${dedupeKey}:substitute`,
+          payload: { notificationId: notification.id },
+        },
+      });
+    }
   }
 }

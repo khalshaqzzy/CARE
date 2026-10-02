@@ -2338,7 +2338,7 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap 2 — inkremen 1–5c (diimplementasikan, belum dirilis)
+### 43.5 Tahap 2 — inkremen 1–6 (diimplementasikan, belum dirilis)
 
 - **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
 - **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
@@ -2369,6 +2369,19 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
   - Manager dan pimpinan divisi tetap memakai cakupan department/divisi.
   - Detail Voice bertingkat menampilkan **Tahap penanganan** kepada responder (bukan pelapor): setiap level beserta nama, ditandai selesai, sedang ditangani, atau berikutnya.
   - Chat dengan lebih dari tiga peserta menampilkan maksimal lima avatar, sisanya sebagai "+N", dan tombol **Detail** untuk daftar lengkap.
+- **Sedang tidak masuk (6):** GL ke atas membuka Akun → **Sedang tidak masuk**, memilih periode (hari WIB, mulai hari ini, maksimal 60 hari) dan pengganti.
+  - **Pengganti yang dapat dipilih:** level sama atau satu level di atas dalam unitnya:
+    - GL → GL Section yang sama atau SH Section;
+    - SH → SH department atau Manager;
+    - Manager → Manager divisi atau DDH/DH;
+    - DDH/DH → DDH/DH divisi.
+  - **Selama periode aktif:**
+    - pengganti bertindak dengan hak orang yang tidak masuk atas Voice yang dipegang, ditugaskan, atau menjadi PIC-nya (termasuk Selesaikan);
+    - Voice tersebut tampil di Voice Untuk Saya pengganti;
+    - notifikasi ikut dikirim ke pengganti.
+  - **Penugasan tetap:** Voice tetap tercatat pada pemegang aslinya dan otomatis kembali ketika periode selesai atau **Aktif kembali** ditekan.
+  - **Pengganti juga tidak masuk:** jika pengganti juga sedang tidak masuk, level tersebut dilewati saat routing.
+  - Pengganti menerima notifikasi saat ditunjuk.
 
 ### 43.6 Tahap berikutnya
 

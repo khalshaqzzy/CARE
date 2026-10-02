@@ -270,6 +270,15 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    away: () => dataOrThrow<components['schemas']['AwayStatus']>(client.GET('/api/v1/me/away')),
+    setAway: (body: components['schemas']['AwayRequest']) =>
+      dataOrThrow<components['schemas']['AwayStatus']>(
+        client.POST('/api/v1/me/away', { params: { header: csrfHeader() }, body }),
+      ),
+    endAway: () =>
+      dataOrThrow<components['schemas']['AwayStatus']>(
+        client.POST('/api/v1/me/away/end', { params: { header: csrfHeader() } }),
+      ),
     escalate: (id: string, body: components['schemas']['EscalateRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(
         client.POST('/api/v1/voices/{id}/escalate', {

@@ -236,6 +236,7 @@ enum NotificationType {
   TARGET_OVERDUE
   ESCALATED
   REMINDER
+  AWAY_SUBSTITUTE
   CLOSED
   RATED
   REOPENED
@@ -303,6 +304,9 @@ model UserAccount {
   adminHandoversRequested  AdminHandover[]                @relation("AdminHandoverManager")
   adminHandoversOwned      AdminHandover[]                @relation("AdminHandoverAdmin")
   adminHandoversResolved   AdminHandover[]                @relation("AdminHandoverResolver")
+
+  awayPeriods       AwayPeriod[] @relation("AwayAccount")
+  awaySubstitutions AwayPeriod[] @relation("AwaySubstitute")
 
   @@index([accountKind, status])
   @@index([username, displayName])
@@ -959,6 +963,23 @@ model Conversation {
 }
 
 // Last time a participant opened the conversation; drives unread badges.
+/// "Sedang tidak masuk": while active (WIB days, inclusive) the substitute acts
+/// for the account; "Aktif kembali" ends it early.
+model AwayPeriod {
+  id           String      @id @default(uuid()) @db.Uuid
+  accountId    String      @db.Uuid
+  substituteId String      @db.Uuid
+  startsOn     DateTime    @db.Date
+  endsOn       DateTime    @db.Date
+  endedAt      DateTime?
+  createdAt    DateTime    @default(now())
+  account      UserAccount @relation("AwayAccount", fields: [accountId], references: [id])
+  substitute   UserAccount @relation("AwaySubstitute", fields: [substituteId], references: [id])
+
+  @@index([accountId, endedAt, endsOn])
+  @@index([substituteId, endedAt, endsOn])
+}
+
 /// Ingatkan: at most one reminder per actor, target and WIB day for a Voice.
 model VoiceReminder {
   id        String   @id @default(uuid()) @db.Uuid

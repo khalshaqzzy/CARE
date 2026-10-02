@@ -220,6 +220,7 @@ const idempotentOperations = new Set([
 
 const noBodyOperations = new Set([
   'VoicesController_markConversationRead',
+  'AwayController_end',
   'VoicesController_remind',
   'AuthController_logout',
   'AuthController_deferPasswordChange',
@@ -362,6 +363,9 @@ function successSchema(operationId: string) {
     AdminShopLocationsController_update: 'ShopLocationAdmin',
     AdminShopLocationsController_status: 'ShopLocationAdmin',
     AdminEscalationSettingsController_get: 'EscalationSettings',
+    AwayController_get: 'AwayStatus',
+    AwayController_set: 'AwayStatus',
+    AwayController_end: 'AwayStatus',
     AdminEscalationSettingsController_calendar: 'EscalationSettings',
     AdminEscalationSettingsController_addException: 'EscalationSettings',
     AdminEscalationSettingsController_removeException: 'EscalationSettings',
@@ -461,6 +465,7 @@ function requestSchema(operationId: string) {
     AdminShopLocationsController_update: 'ShopLocationUpdateRequest',
     AdminShopLocationsController_status: 'ShopLocationStatusRequest',
     AdminEscalationSettingsController_calendar: 'WorkingCalendarUpdateRequest',
+    AwayController_set: 'AwayRequest',
     AdminEscalationSettingsController_addException: 'CalendarExceptionRequest',
     AdminEscalationSettingsController_deadlines: 'EscalationDeadlinesRequest',
     VoicesController_confirmShop: 'ShopConfirmationRequest',
@@ -1378,6 +1383,57 @@ const schemas: Record<string, any> = {
       version: { type: 'integer', minimum: 1 },
       // Present for "Proses sendiri": respond and start handling in one step.
       days: { type: 'integer', minimum: 0, maximum: 365 },
+    },
+  },
+  // "Sedang tidak masuk" (ADR-0059): WIB days, inclusive.
+  AwayRequest: {
+    type: 'object',
+    required: ['startsOn', 'endsOn', 'substituteId'],
+    additionalProperties: false,
+    properties: {
+      startsOn: { type: 'string', format: 'date' },
+      endsOn: { type: 'string', format: 'date' },
+      substituteId: { type: 'string', format: 'uuid' },
+    },
+  },
+  AwayStatus: {
+    type: 'object',
+    required: ['eligible', 'current', 'candidates'],
+    properties: {
+      eligible: { type: 'boolean' },
+      current: {
+        type: 'object',
+        nullable: true,
+        required: ['id', 'startsOn', 'endsOn', 'active', 'substitute'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          startsOn: { type: 'string', format: 'date' },
+          endsOn: { type: 'string', format: 'date' },
+          active: { type: 'boolean' },
+          substitute: {
+            type: 'object',
+            required: ['id', 'displayName'],
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              displayName: { type: 'string' },
+            },
+          },
+        },
+      },
+      candidates: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'displayName', 'position', 'upperLevel'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            displayName: { type: 'string' },
+            position: { type: 'string' },
+            section: { type: 'string', nullable: true },
+            upperLevel: { type: 'boolean' },
+          },
+        },
+      },
     },
   },
   EscalateRequest: {

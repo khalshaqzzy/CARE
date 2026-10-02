@@ -31,6 +31,8 @@ export type ActionableVoice = {
 export type ActionActor = {
   accountId: string;
   capabilities: string[];
+  /** Away leaders this actor substitutes for today. */
+  actingFor?: string[];
 };
 
 /**
@@ -41,17 +43,19 @@ export type ActionActor = {
  */
 export function computeAvailableActions(actor: ActionActor, voice: ActionableVoice): string[] {
   const isReporter = voice.reporterId === actor.accountId;
+  // A substitute acts with the rights of the away leader.
+  const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+  const isMe = (id: string | null | undefined) => !!id && ids.includes(id);
   // A tiered Voice is owned by its current holders; the route Manager acts
   // only once it reaches them (then they are the holder).
   const isRouteOwner = voice.tierLevel
-    ? (voice.tierHolderIds ?? []).includes(actor.accountId)
-    : voice.routeOwnerId === actor.accountId;
-  const isHandler = voice.currentHandlerId === actor.accountId;
+    ? (voice.tierHolderIds ?? []).some(isMe)
+    : isMe(voice.routeOwnerId);
+  const isHandler = isMe(voice.currentHandlerId);
   const isPrivate = voice.visibility === 'PRIVATE';
   const tierLevel = voice.tierLevel ?? null;
   // The newest tier acts in full; holders below it keep Proses and the chat.
-  const isTopHolder =
-    !!tierLevel && isRouteOwner && !(voice.tierLowerHolderIds ?? []).includes(actor.accountId);
+  const isTopHolder = !!tierLevel && isRouteOwner && !(voice.tierLowerHolderIds ?? []).some(isMe);
   const path = voice.tierPath ?? [];
   const hasNextTier = !!tierLevel && path.indexOf(tierLevel) + 1 < path.length;
   const canAssign = isPrivate
@@ -134,7 +138,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     )
       actions.push('TAKE_OVER');
   } else if (
-    (voice.tierParticipantIds ?? []).includes(actor.accountId) &&
+    (voice.tierParticipantIds ?? []).some(isMe) &&
     ['RESPONDED', 'IN_PROGRESS'].includes(voice.status) &&
     voice.hasConversation
   ) {

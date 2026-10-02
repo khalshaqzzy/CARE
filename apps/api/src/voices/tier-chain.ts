@@ -1,5 +1,6 @@
 import { AccountStatus, type Prisma, type PrismaClient, type TierLevel } from '@prisma/client';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
+import { unreachableAccounts } from '../away/away';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -92,11 +93,18 @@ export async function resolveTierChain(db: Db, input: TierChainInput): Promise<T
     if (ids.length) steps.push({ level: 'DIVISION', accountIds: [...new Set(ids)].sort() });
   }
   const floor = reporterLevel(input.reporterPosition);
+  // Away leaders whose substitute is away too cannot be reached: skip them.
+  const unreachable = await unreachableAccounts(
+    db,
+    steps.flatMap((step) => step.accountIds),
+  );
   return steps
     .filter((step) => TIER_ORDER.indexOf(step.level) > floor)
     .map((step) => ({
       ...step,
-      accountIds: step.accountIds.filter((id) => id !== input.reporterAccountId),
+      accountIds: step.accountIds.filter(
+        (id) => id !== input.reporterAccountId && !unreachable.has(id),
+      ),
     }))
     .filter((step) => step.accountIds.length > 0);
 }

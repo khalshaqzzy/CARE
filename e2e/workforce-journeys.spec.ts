@@ -27,6 +27,46 @@ const generalVoice = {
 };
 
 test.describe('workforce journeys (mocked contract)', () => {
+  test('a leader sets "Sedang tidak masuk" with a substitute and returns early', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const sent: Record<string, unknown>[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/me/away')
+        sent.push(request.postDataJSON() as Record<string, unknown>);
+    });
+    await mockWorkforceApi(page, {
+      session: memberSession({ capabilities: ['MEMBER', 'GROUP_LEADER'] }),
+      awayCandidates: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          displayName: 'Agus Pratama',
+          position: 'Group Leader',
+          upperLevel: false,
+        },
+        {
+          id: '66666666-6666-4666-8666-666666666666',
+          displayName: 'Rahmat Hidayat',
+          position: 'Section Head',
+          upperLevel: true,
+        },
+      ],
+    });
+    await page.goto('/account');
+    await page.getByText('Sedang tidak masuk', { exact: true }).click();
+    await expect(page).toHaveURL(/\/account\/away$/);
+    const activate = page.getByRole('button', { name: 'Aktifkan' });
+    await expect(activate).toBeDisabled();
+    await page.getByRole('radio', { name: /Rahmat Hidayat/ }).click();
+    await activate.click();
+    await expect(page.getByText('Anda sedang tidak masuk')).toBeVisible();
+    await expect(page.getByText('Rahmat Hidayat')).toBeVisible();
+    expect(sent[0]).toMatchObject({ substituteId: '66666666-6666-4666-8666-666666666666' });
+    await page.getByRole('button', { name: 'Aktif kembali' }).click();
+    await expect(page.getByRole('button', { name: 'Aktifkan' })).toBeVisible();
+  });
+
   test('member home renders an actionable empty state and recent voice', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { voice: generalVoice });
