@@ -181,6 +181,11 @@ enum LocationCompleteness {
   UNKNOWN
 }
 
+enum MessageKind {
+  USER
+  SYSTEM
+}
+
 enum VoiceEventType {
   SUBMITTED
   HANDOVER_COMPLETED
@@ -935,6 +940,8 @@ model Message {
   senderCapabilities       Json
   senderNameSnapshot       String?      @db.VarChar(200)
   text                     String?      @db.VarChar(4000)
+  /// SYSTEM marks lifecycle notes posted into the chat (handover, reminders).
+  kind                     MessageKind  @default(USER)
   createdAt                DateTime     @default(now())
   conversation             Conversation @relation(fields: [conversationId], references: [id])
   sender                   UserAccount  @relation(fields: [senderId], references: [id])

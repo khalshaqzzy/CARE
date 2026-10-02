@@ -75,6 +75,25 @@ Delivery is split into three stages so that real Line and Group Leader data can 
 - **Web.** The detail page is reordered (detail card, conversation with unread badge, handling section, timeline), the hero is simplified, the metadata rows are removed, and an **Ambil alih** alert with a confirmation dialog is added. The chat page marks the conversation read when the newest message changes.
 - **Validation.** Unit tests for the close and take-over rules; integration tests for unread counts, take-over, and PIC-only close; a browser test for the badge and take-over flow. The browser inventory grows from 419 to 420.
 
+## Implementation (stage 2, increment 2 — not released)
+
+- **Schema.** Migration `20261003100000_system_message_kind` adds `MessageKind` (`USER`, `SYSTEM`) and `Message.kind` (default `USER`). Messages expose `kind`.
+- **Respond.** `POST /voices/:id/respond` accepts an optional `days`. With it, the response message, the `RESPONDED` event, the handling target, `PROCEEDED`, and the actor as PIC are written in one transaction. The shared `applyHandlingTarget` also backs Proceed and Set target.
+- **Handover.**
+  - Handover is allowed from `OPEN` or `RESPONDED` while no PIC is assigned (`HANDOVER` action and `handoverAllowed`).
+  - It sets `RESPONDED`, posts a `SYSTEM` message "Diteruskan ke [Department]", records `RESPONDED` on the first answer, and notifies the reporter generically.
+  - `PolicyService.detailScope` lets a Manager keep reading a General Voice they handed over. It is not added to work lists, and they get no actions, so the conversation is read-only.
+  - Admin handover requests remain `OPEN`-only, and the workforce handover page hides that option after a response.
+- **Web.**
+  - While `RESPOND` is available, the action panel shows one **Respons** button. The sheet offers Balas pesan / Tugaskan PIC / Handover / Proses sendiri, filtered by the available actions.
+  - `CandidatePicker` and `TargetPresets` are shared with the assignment and target dialogs.
+  - Chat renders `SYSTEM` messages as a centered note.
+- **Validation.**
+  - Unit: the handover action rules.
+  - Integration: handover as a response (status, system messages, events, notifications, former-PIC read-only, pairwise note redaction) and the atomic Proses sendiri.
+  - Browser: Respons sheet choices, handover routing, Proses sendiri request, Private sheet without Handover.
+  - The browser inventory grows from 420 to 421.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

@@ -200,11 +200,12 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
     };
     await login(managerPage, '000003', '00000003');
     await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
-    await managerPage.getByRole('button', { name: 'Respons Voice' }).click();
-    await managerPage
-      .getByRole('textbox', { name: 'Keterangan penanganan' })
+    await managerPage.getByRole('button', { name: 'Respons', exact: true }).click();
+    const sheet = managerPage.getByRole('dialog', { name: 'Respons' });
+    await sheet
+      .getByRole('textbox', { name: 'Pesan' })
       .fill('PIC memeriksa kondisi langsung di lokasi.');
-    await managerPage.getByRole('button', { name: 'Respons & buka chat' }).click();
+    await sheet.getByRole('button', { name: 'Balas pesan', exact: true }).click();
     await expect(managerPage).toHaveURL(new RegExp(`/voices/${voiceId}/chat$`));
     await expect(managerPage.getByText('PIC memeriksa kondisi langsung di lokasi.')).toBeVisible();
     expect(await db.message.count({ where: { conversation: { voiceId } } })).toBe(1);

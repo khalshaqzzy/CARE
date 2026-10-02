@@ -320,7 +320,7 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
-    respond: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
+    respond: (id: string, body: components['schemas']['VoiceRespondRequest'], key: string) =>
       dataOrThrow(
         client.POST('/api/v1/voices/{id}/respond', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },

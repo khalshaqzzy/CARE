@@ -11,6 +11,7 @@ import {
   GeneralVoiceCategoryRouteMode,
   HandlerType,
   LocationCompleteness,
+  MessageKind,
   NotificationType,
   Prisma,
   RouteKind,
@@ -221,8 +222,14 @@ const adminHandoverDecisionSchema = z
   .refine((value) => !(value.categoryId && value.customCategory), {
     message: 'Pilih kategori katalog atau label khusus Voice, bukan keduanya.',
   });
-const textSchema = z
-  .object({ text: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
+const HANDOVER_INVALID_STATE_MESSAGE =
+  'Handover hanya tersedia sebelum Voice diproses atau ditugaskan';
+const respondSchema = z
+  .object({
+    text: z.string().trim().min(1).max(4000),
+    version: z.number().int().positive(),
+    days: z.number().int().min(0).max(365).optional(),
+  })
   .strict();
 const targetSchema = z
   .object({ days: z.number().int().min(0).max(365), version: z.number().int().positive() })
@@ -1432,15 +1439,8 @@ export class VoicesService {
           },
         });
         if (!voice || voice.routeOwnerId !== actor.accountId) throw forbiddenAsNotFound();
-        if (
-          voice.visibility !== VoiceVisibility.GENERAL ||
-          voice.status !== VoiceStatus.OPEN ||
-          voice.currentHandlerId !== null
-        )
-          throw conflict(
-            'HANDOVER_INVALID_STATE',
-            'Handover hanya tersedia untuk General Voice berstatus Open yang belum ditugaskan',
-          );
+        if (voice.visibility !== VoiceVisibility.GENERAL || !this.handoverAllowed(voice))
+          throw conflict('HANDOVER_INVALID_STATE', HANDOVER_INVALID_STATE_MESSAGE);
         if (voice.version !== data.expectedVersion)
           throw conflict('VERSION_CONFLICT', 'Voice version changed');
 
@@ -1506,9 +1506,42 @@ export class VoicesService {
             handlingOrganizationSource: 'HANDOVER',
             currentHandlerId: null,
             handlerType: HandlerType.MANAGER,
+            status: VoiceStatus.RESPONDED,
             version: { increment: 1 },
           },
         });
+        // A handover is a response: the chat opens with a system note and the
+        // reporter learns where the Voice went.
+        const destinationLabel = record.toDepartmentSnapshot ?? record.toCategoryNameSnapshot;
+        const note = await this.createMessageWithin(
+          tx,
+          actor,
+          id,
+          `Diteruskan ke ${destinationLabel}`,
+          [],
+          false,
+          MessageKind.SYSTEM,
+        );
+        if (voice.status === VoiceStatus.OPEN)
+          await tx.voiceEvent.create({
+            data: {
+              voiceId: id,
+              actorId: actor.accountId,
+              ...this.policy.actorSnapshot(actor),
+              type: VoiceEventType.RESPONDED,
+              payload: { messageId: note.id, handoverId: record.id },
+            },
+          });
+        await this.notify(
+          tx,
+          voice.reporterId,
+          id,
+          NotificationType.STATUS_CHANGED,
+          voice.status === VoiceStatus.OPEN
+            ? 'Voice Anda telah direspons'
+            : 'Voice Anda diteruskan',
+          `Diteruskan ke ${destinationLabel}.`,
+        );
         await tx.voiceEvent.create({
           data: {
             voiceId: id,
@@ -2163,7 +2196,7 @@ export class VoicesService {
     );
   }
   async respond(actor: AuthActor, id: string, input: unknown, key: string) {
-    const data = parse(textSchema, input);
+    const data = parse(respondSchema, input);
     await this.actionVoice(actor, id);
     return this.idempotentMutation(
       actor,
@@ -2176,6 +2209,19 @@ export class VoicesService {
         if (!this.actionSet(actor, current).includes('RESPOND'))
           throw invalidTransition('Voice tidak dapat direspons');
         const message = await this.createMessageWithin(tx, actor, id, data.text, [], false);
+        if (data.days !== undefined) {
+          // "Proses sendiri": the response and the start of handling land together.
+          await tx.voiceEvent.create({
+            data: {
+              voiceId: id,
+              actorId: actor.accountId,
+              ...this.policy.actorSnapshot(actor),
+              type: VoiceEventType.RESPONDED,
+              payload: { messageId: message.id },
+            },
+          });
+          return this.applyHandlingTarget(tx, actor, current, data.days, true);
+        }
         return this.transitionStatus(
           tx,
           actor,
@@ -2212,72 +2258,90 @@ export class VoicesService {
         const current = await this.lockedActionVoice(tx, actor, id, data.version);
         if (!this.actionSet(actor, current).includes(proceeding ? 'PROCEED' : 'SET_TARGET'))
           throw invalidTransition('Hanya PIC aktif yang dapat menetapkan target penanganan.');
-        const setAt = new Date();
-        const target = await tx.voiceHandlingTarget.create({
-          data: {
-            voiceId: id,
-            cycleNumber: current.handlingCycleNumber,
-            days: data.days,
-            setById: actor.accountId,
-            setAt,
-            dueAt: handlingDueAt(setAt, data.days),
-          },
-        });
-        const updated = await tx.voice.update({
-          where: { id },
-          data: {
-            status: VoiceStatus.IN_PROGRESS,
-            version: { increment: 1 },
-            ...(!current.currentHandlerId
-              ? {
-                  currentHandlerId: actor.accountId,
-                  handlerType:
-                    current.visibility === VoiceVisibility.PRIVATE
-                      ? HandlerType.UNION_HEAD
-                      : HandlerType.MANAGER,
-                }
-              : {}),
-          },
-        });
-        await tx.voiceEvent.create({
-          data: {
-            voiceId: id,
-            actorId: actor.accountId,
-            ...this.policy.actorSnapshot(actor),
-            type: proceeding ? VoiceEventType.PROCEEDED : VoiceEventType.TARGET_SET,
-            payload: {
-              targetId: target.id,
-              days: data.days,
-              dueAt: target.dueAt.toISOString(),
-              cycleNumber: target.cycleNumber,
-            },
-          },
-        });
-        for (const recipient of new Set([current.reporterId, current.routeOwnerId]))
-          await this.notify(
-            tx,
-            recipient,
-            id,
-            NotificationType.TARGET_SET,
-            proceeding ? 'Voice mulai diproses' : 'Target penyelesaian ditetapkan',
-            `Target penyelesaian: ${formatHandlingDueAt(target.dueAt)}.`,
-          );
-        return {
-          id: updated.id,
-          displayId: updated.displayId,
-          status: updated.status,
-          version: updated.version,
-          currentHandlerId: updated.currentHandlerId,
-          handlerType: updated.handlerType,
-          handlingTarget: {
-            ...target,
-            setAt: target.setAt.toISOString(),
-            dueAt: target.dueAt.toISOString(),
-            overdueNotifiedAt: target.overdueNotifiedAt?.toISOString() ?? null,
-          },
-        };
+        return this.applyHandlingTarget(tx, actor, current, data.days, proceeding);
       },
     );
+  }
+
+  private async applyHandlingTarget(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    current: {
+      id: string;
+      reporterId: string;
+      routeOwnerId: string;
+      currentHandlerId: string | null;
+      visibility: VoiceVisibility;
+      handlingCycleNumber: number;
+    },
+    days: number,
+    proceeding: boolean,
+  ) {
+    const id = current.id;
+    const setAt = new Date();
+    const target = await tx.voiceHandlingTarget.create({
+      data: {
+        voiceId: id,
+        cycleNumber: current.handlingCycleNumber,
+        days,
+        setById: actor.accountId,
+        setAt,
+        dueAt: handlingDueAt(setAt, days),
+      },
+    });
+    const updated = await tx.voice.update({
+      where: { id },
+      data: {
+        status: VoiceStatus.IN_PROGRESS,
+        version: { increment: 1 },
+        ...(!current.currentHandlerId
+          ? {
+              currentHandlerId: actor.accountId,
+              handlerType:
+                current.visibility === VoiceVisibility.PRIVATE
+                  ? HandlerType.UNION_HEAD
+                  : HandlerType.MANAGER,
+            }
+          : {}),
+      },
+    });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: id,
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        type: proceeding ? VoiceEventType.PROCEEDED : VoiceEventType.TARGET_SET,
+        payload: {
+          targetId: target.id,
+          days,
+          dueAt: target.dueAt.toISOString(),
+          cycleNumber: target.cycleNumber,
+        },
+      },
+    });
+    for (const recipient of new Set([current.reporterId, current.routeOwnerId]))
+      await this.notify(
+        tx,
+        recipient,
+        id,
+        NotificationType.TARGET_SET,
+        proceeding ? 'Voice mulai diproses' : 'Target penyelesaian ditetapkan',
+        `Target penyelesaian: ${formatHandlingDueAt(target.dueAt)}.`,
+      );
+    return {
+      id: updated.id,
+      displayId: updated.displayId,
+      status: updated.status,
+      version: updated.version,
+      currentHandlerId: updated.currentHandlerId,
+      handlerType: updated.handlerType,
+      handlingTarget: {
+        ...target,
+        setAt: target.setAt.toISOString(),
+        dueAt: target.dueAt.toISOString(),
+        overdueNotifiedAt: target.overdueNotifiedAt?.toISOString() ?? null,
+      },
+    };
   }
 
   async messages(
@@ -2302,6 +2366,7 @@ export class VoicesService {
       select: {
         id: true,
         text: true,
+        kind: true,
         createdAt: true,
         senderId: true,
         senderAccountKind: true,
@@ -3126,6 +3191,7 @@ export class VoicesService {
     text: string,
     attachmentIds: string[],
     notifyRecipient = true,
+    kind: MessageKind = MessageKind.USER,
   ) {
     const conversation = await tx.conversation.upsert({
       where: { voiceId: id },
@@ -3144,6 +3210,7 @@ export class VoicesService {
           })
         ).displayName,
         text,
+        kind,
       },
     });
     if (attachmentIds.length)
@@ -3539,12 +3606,17 @@ export class VoicesService {
       },
     });
     if (!voice) throw forbiddenAsNotFound();
-    if (voice.status !== VoiceStatus.OPEN || voice.currentHandlerId !== null)
-      throw conflict(
-        'HANDOVER_INVALID_STATE',
-        'Handover hanya tersedia untuk General Voice berstatus Open yang belum ditugaskan',
-      );
+    if (!this.handoverAllowed(voice))
+      throw conflict('HANDOVER_INVALID_STATE', HANDOVER_INVALID_STATE_MESSAGE);
     return voice;
+  }
+
+  /** Handover stays available until someone processes or is assigned the Voice. */
+  private handoverAllowed(voice: { status: VoiceStatus; currentHandlerId: string | null }) {
+    return (
+      (voice.status === VoiceStatus.OPEN || voice.status === VoiceStatus.RESPONDED) &&
+      voice.currentHandlerId === null
+    );
   }
 
   private async buildHandoverOptions(db: PrismaService | Prisma.TransactionClient, voice: any) {

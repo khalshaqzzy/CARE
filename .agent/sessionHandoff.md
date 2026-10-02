@@ -1,6 +1,38 @@
 # CARE Session Handoff
 
-## Tiered routing stage 2, increment 1 — 2 October 2026
+## Tiered routing stage 2, increment 2 — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released (stage 2 and 3 ship together after product-owner approval).
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **One Respons button** for an open Voice. The sheet offers Balas pesan / Tugaskan PIC / Handover / Proses sendiri.
+- **Proses sendiri** is `respond` with `days`, written atomically.
+- **Handover as a response:**
+  - allowed from Terbuka or Direspons while no PIC is assigned;
+  - sets Direspons and posts the SYSTEM chat note "Diteruskan ke [Department]";
+  - notifies the reporter;
+  - leaves the source Manager with read-only access through `detailScope`.
+- **Admin handover** stays Terbuka-only.
+- **Schema:** `MessageKind` (migration `20261003100000_system_message_kind`).
+
+**Files:**
+
+- **API:** `prisma/schema.prisma` and the migration; `src/voices/{actions,voices.service}.ts`; `src/auth/policy.service.ts`; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/ActionPanel.tsx` (RespondSheet, CandidatePicker, TargetPresets); `features/voice/{ConversationPage,HandoverPage}.tsx`; `workforce-api.ts`; `styles.css`.
+- **Tests:**
+  - `test/unit/actions.test.ts`;
+  - `test/integration/{voice-handover,voice-lifecycle}.integration.test.ts`;
+  - `e2e/{voice-lifecycle,assignment-scroll,workforce-handover,workforce-journeys,voice-lifecycle.visual,a-workforce-fullstack}.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 420 → 421.
+
+**Validation:**
+
+- **Unit:** API 147/147 and web-voice 127/127.
+- **Integration and security:** 139/141. The two failures are the known admin-safety and push-subscription flakes.
+- **Browser:** the full mocked run (Chromium + visual + PWA + push + legacy) passed 415/415. Respons sheet screens and the chat system note were inspected at 390 px.
+
+**Next:** increment 3 (target-day 08:00 reminder, overdue fan-out to PIC, upper levels and reporter, chat system note, overdue badge).
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Do not merge or release: the product owner wants stage 2 and 3 released together after further discussion.
 

@@ -44,6 +44,26 @@ describe('computeAvailableActions', () => {
     expect(result).not.toContain('HANDOVER');
   });
 
+  it('keeps handover available after the response until someone processes or is assigned', () => {
+    const responded = computeAvailableActions(
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'RESPONDED' as VoiceStatus, hasConversation: true }),
+    );
+    expect(responded).toEqual(expect.arrayContaining(['PROCEED', 'ASSIGN', 'HANDOVER', 'MESSAGE']));
+    expect(
+      computeAvailableActions(
+        actor(['MANAGER'], 'owner'),
+        voice({ status: 'IN_PROGRESS' as VoiceStatus, currentHandlerId: 'owner' }),
+      ),
+    ).not.toContain('HANDOVER');
+    expect(
+      computeAvailableActions(
+        actor(['SECTION_HEAD'], 'owner'),
+        voice({ status: 'RESPONDED' as VoiceStatus }),
+      ),
+    ).not.toContain('HANDOVER');
+  });
+
   it('offers close to the processing PIC and message when a conversation exists', () => {
     const result = computeAvailableActions(
       actor(['MANAGER'], 'owner'),
@@ -117,9 +137,9 @@ describe('computeAvailableActions', () => {
     ['reporter', actor(['MEMBER'], 'reporter'), voice()],
     ['unrelated Manager', actor(['MANAGER'], 'other'), voice()],
     [
-      'Manager after verification',
+      'Manager once a PIC is assigned',
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'RESPONDED' as VoiceStatus }),
+      voice({ status: 'RESPONDED' as VoiceStatus, currentHandlerId: 'handler' }),
     ],
     [
       'Manager while in progress',

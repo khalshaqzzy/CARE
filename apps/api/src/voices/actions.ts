@@ -43,13 +43,16 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     (isPrivate
       ? actor.capabilities.includes('UNION_HEAD') || isHandler
       : isRouteOwner || isHandler);
+  // Only the route Manager hands a General Voice sideways, and only until
+  // someone processes or is assigned it; a handover counts as the response.
+  const canHandover =
+    !isPrivate && actor.capabilities.includes('MANAGER') && isRouteOwner && !voice.currentHandlerId;
   const actions: string[] = [];
   if (canOperate) {
     if (voice.status === 'OPEN') {
       actions.push('RESPOND');
       if (canAssign) actions.push('ASSIGN');
-      if (!isPrivate && actor.capabilities.includes('MANAGER') && isRouteOwner)
-        actions.push('HANDOVER');
+      if (canHandover) actions.push('HANDOVER');
     } else if (voice.status === 'RESPONDED') {
       if (
         isHandler ||
@@ -58,6 +61,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       )
         actions.push('PROCEED');
       if (canAssign) actions.push(voice.currentHandlerId ? 'REASSIGN' : 'ASSIGN');
+      if (canHandover) actions.push('HANDOVER');
       if (voice.hasConversation) actions.push('MESSAGE');
     } else if (voice.status === 'IN_PROGRESS') {
       if (

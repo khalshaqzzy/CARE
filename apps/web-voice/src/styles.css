@@ -7119,3 +7119,62 @@
 .voice-handling > .voice-detail__heading {
   margin: 0;
 }
+
+/* Lifecycle notes posted into the chat, e.g. a handover. */
+.chat-system {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: var(--space-2) auto;
+  max-width: 85%;
+  border-radius: var(--radius-card);
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-secondary);
+  background: var(--surface-selected);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+.chat-system span {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* Unified Respons sheet: one choice per way of answering an open Voice. */
+.respond-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.respond-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 3rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+.respond-choice svg {
+  flex: 0 0 auto;
+  color: var(--action-primary-bg);
+}
+.respond-choice[aria-checked='true'] {
+  border-color: var(--action-primary-bg);
+  color: var(--text-inverse);
+  background: var(--action-primary-bg);
+}
+.respond-choice[aria-checked='true'] svg {
+  color: var(--text-inverse);
+}
+.respond-choice:focus-visible {
+  outline: 2px solid var(--action-primary-bg);
+  outline-offset: 2px;
+}

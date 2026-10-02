@@ -35,14 +35,22 @@ for (const width of [360, 390, 768, 1440]) {
     await page.goto('/voices/lifecycle-voice');
     expect(mutations).toHaveLength(0);
     await expect(page.getByRole('button', { name: 'Proses Voice', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Respons Voice' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Keterangan penanganan' });
-    const submit = dialog.getByRole('button', { name: 'Respons & buka chat' });
+    await expect(page.getByRole('button', { name: 'Handover', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Respons', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Respons' });
+    await expect(dialog.getByRole('radio')).toHaveText([
+      'Balas pesan',
+      'Tugaskan PIC',
+      'Handover',
+      'Proses sendiri',
+    ]);
+    await expect(dialog.getByRole('radio', { name: 'Balas pesan' })).toBeChecked();
+    const submit = dialog.getByRole('button', { name: 'Balas pesan', exact: true });
     await expect(submit).toBeDisabled();
-    await dialog.getByRole('textbox', { name: 'Keterangan penanganan' }).fill('   ');
+    await dialog.getByRole('textbox', { name: 'Pesan' }).fill('   ');
     await expect(submit).toBeDisabled();
     await dialog
-      .getByRole('textbox', { name: 'Keterangan penanganan' })
+      .getByRole('textbox', { name: 'Pesan' })
       .fill('Tim akan memeriksa lampu pada shift pagi.');
     await expect(submit).toBeInViewport();
     expect(
@@ -69,6 +77,53 @@ for (const width of [360, 390, 768, 1440]) {
     );
   });
 }
+
+test('Respons sheet processes in one step or leads to handover', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/respond$/.test(new URL(request.url()).pathname))
+      requests.push({ path: new URL(request.url()).pathname, body: request.postDataJSON() });
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'MANAGER'],
+      structuralPosition: 'Department Head',
+    }),
+    voice: {
+      id: 'sheet-voice',
+      displayId: 'CARE-202610-000002',
+      visibility: 'GENERAL',
+      status: 'OPEN',
+      area: 'KARAWANG_1',
+      title: 'Kran air bocor',
+      detail: 'Kran di area istirahat bocor.',
+      availableActions: ['RESPOND', 'ASSIGN', 'HANDOVER'],
+    },
+  });
+  await page.goto('/voices/sheet-voice');
+  await page.getByRole('button', { name: 'Respons', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Respons' });
+  await sheet.getByRole('radio', { name: 'Handover' }).click();
+  await expect(sheet.getByRole('textbox', { name: 'Pesan' })).toHaveCount(0);
+  await sheet.getByRole('button', { name: 'Handover', exact: true }).click();
+  await expect(page).toHaveURL(/\/voices\/sheet-voice\/handover$/);
+  await page.goto('/voices/sheet-voice');
+  await page.getByRole('button', { name: 'Respons', exact: true }).click();
+  await sheet.getByRole('radio', { name: 'Proses sendiri' }).click();
+  const submit = sheet.getByRole('button', { name: 'Proses sendiri', exact: true });
+  await sheet.getByRole('textbox', { name: 'Pesan' }).fill('Saya cek langsung siang ini.');
+  await expect(submit).toBeDisabled();
+  await sheet.getByRole('button', { name: '3 hari', exact: true }).click();
+  await expect(sheet.locator('.target-preview')).toContainText('WIB');
+  expect((await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations).toEqual(
+    [],
+  );
+  await submit.click();
+  await expect(page).toHaveURL(/\/voices\/sheet-voice\/chat$/);
+  expect(requests).toHaveLength(1);
+  expect(requests[0]?.body).toMatchObject({ text: 'Saya cek langsung siang ini.', days: 3 });
+});
 
 test('unread chat badge clears after opening chat and a superior takes over from an inactive PIC', async ({
   page,
@@ -215,10 +270,14 @@ test('cancelling the assignment note leaves assignment and response untouched', 
     assignmentCandidates: [{ id: 'section-1', displayName: 'Section Head Satu', activeCount: 0 }],
   });
   await page.goto('/voices/cancel-assignment');
-  await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
-  await page.getByRole('radio', { name: /Section Head Satu/ }).click();
-  await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Keterangan penanganan' })).toBeVisible();
+  await page.getByRole('button', { name: 'Respons', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Respons' });
+  await sheet.getByRole('radio', { name: 'Tugaskan PIC' }).click();
+  await sheet.getByRole('radio', { name: /Section Head Satu/ }).click();
+  const submit = sheet.getByRole('button', { name: 'Tugaskan PIC', exact: true });
+  await expect(submit).toBeDisabled();
+  await sheet.getByRole('textbox', { name: 'Pesan' }).fill('Mohon dicek.');
+  await expect(submit).toBeEnabled();
   expect(mutations).toHaveLength(0);
   await page.getByRole('button', { name: 'Batal', exact: true }).click();
   await expect(page.locator('[aria-current="step"]')).toHaveText('Terbuka');

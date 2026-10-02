@@ -745,7 +745,7 @@ bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 - Assignment pada Terbuka melalui pilihan PIC, tombol Tugaskan, lalu sheet keterangan. Tidak ada mutation sampai konfirmasi keterangan; pembatalan tidak menyimpan assignment.
 - Respons menyimpan room, pesan, status, event dan notifikasi dalam transaksi yang sama.
 - Setelah assignment, hanya PIC aktif dapat memulai proses dan menetapkan target. Route owner tetap dapat chat dan close sesuai scope.
-- Assign/reassign hanya Terbuka/Direspons. Handover hanya General Terbuka tanpa assignment.
+- Assign/reassign hanya Terbuka/Direspons. Handover hanya General Terbuka/Direspons tanpa assignment (§43.5).
 - Reporter tidak menjalankan responder action atas laporannya sendiri. Version, row lock, dan idempotency tetap wajib.
 - Endpoint Monitor dan Ask lama menolak dengan `CLIENT_UPDATE_REQUIRED`.
 - Migrasi mengubah Dimonitor menjadi Direspons, membuat room kosong yang hilang, dan tidak memalsukan pesan atau notifikasi historis. Event MONITORED lama tetap utuh; KPI respons mengakui MONITORED/RESPONDED pertama.
@@ -1989,9 +1989,9 @@ V1 siap production bila:
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
 - Empat status saja; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
-- Handover hanya untuk current route-owning Manager pada General Voice `OPEN` yang belum ditugaskan; dapat berulang, tidak mengubah status, dan memindahkan operational category + route owner tanpa mengubah immutable submission classification.
-- Detail tiap handover Manager dapat dibaca PIC sumber, PIC tujuan, dan CARE Admin; reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
-- Manager atau current handler dapat close dari In Progress; closure note wajib dan foto opsional.
+- Handover hanya untuk current route-owning Manager pada General Voice `OPEN` atau `RESPONDED` yang belum ditugaskan; dapat berulang dan memindahkan operational category + route owner tanpa mengubah immutable submission classification. Handover dihitung sebagai respons: status menjadi Direspons, chat dibuka dengan pesan sistem "Diteruskan ke [Department]", dan pelapor diberi notifikasi. Manager sumber tetap dapat membaca Voice (baca-saja). Serah ke CARE Admin tetap hanya dari Terbuka (§43.5).
+- Detail tiap handover Manager dapat dibaca PIC sumber, PIC tujuan, dan CARE Admin; reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. PIC baru menerima notifikasi handover; pelapor menerima notifikasi generik tanpa catatan handover.
+- Hanya PIC (yang menekan Proses atau ditugaskan) yang dapat close dari In Progress; Voice lama tanpa PIC tetap dapat ditutup route owner. Closure note wajib dan foto opsional (§43.5).
 - Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
 - Gambar saja; media authorized dan sanitized.
@@ -2338,12 +2338,15 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap 2 — inkremen 1 (diimplementasikan, belum dirilis)
+### 43.5 Tahap 2 — inkremen 1–2 (diimplementasikan, belum dirilis)
 
 - **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
 - **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
 - **Selesaikan hanya oleh PIC:** hanya PIC yang menekan Proses (atau menerima tugas) yang dapat menyelesaikan Voice, di semua kategori. Voice lama yang belum pernah mencatat PIC tetap dapat diselesaikan oleh route owner.
 - **Ambil alih:** jika akun PIC sudah tidak aktif, atasan yang berwenang menugaskan melihat peringatan **PIC sudah tidak aktif** dan tombol **Ambil alih** (`POST /api/v1/voices/:id/take-over`). Atasan menjadi PIC; target tidak berubah; pelapor diberi notifikasi.
+- **Satu tombol Respons:** selama Voice Terbuka, semua cara menjawab ada dalam satu sheet **Respons**: Balas pesan, Tugaskan PIC (pilih PIC + pesan), Handover (lanjut ke halaman pilih tujuan), dan Proses sendiri (pesan + target). Setiap pilihan kecuali Handover mengirim pesan pertama dan membuka chat. Proses sendiri merespons dan memulai penanganan dalam satu langkah (`POST /voices/:id/respond` dengan `days`). Private Voice tidak menampilkan Handover.
+- **Handover = respons:** Handover tersedia sampai Voice Diproses atau ditugaskan. Status menjadi Direspons, chat dibuka dengan pesan sistem "Diteruskan ke [Department]", pelapor diberi notifikasi, dan Manager sumber menjadi baca-saja. Manager tujuan dapat Balas pesan, Tugaskan PIC, Proses, atau Handover lagi. Serah ke CARE Admin tetap hanya dari Terbuka.
+- **Pesan sistem:** pesan memiliki jenis `USER` atau `SYSTEM`; pesan sistem tampil di tengah chat tanpa avatar.
 
 ### 43.6 Tahap berikutnya
 

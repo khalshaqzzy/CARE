@@ -652,6 +652,30 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
     expect(reopened.handlingSectionSnapshot).toBeNull();
   });
+  it('responds and starts handling in one step for Proses sendiri', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    const body = { text: 'Saya tangani langsung.', version: 1, days: 3 };
+    const result = await voices.respond(manager, voice.id, body, 'respond-process');
+    expect(result).toMatchObject({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: manager.accountId,
+      version: 2,
+      handlingTarget: { days: 3 },
+    });
+    expect(await voices.respond(manager, voice.id, body, 'respond-process')).toEqual(result);
+    const events = await prisma.voiceEvent.findMany({ where: { voiceId: voice.id } });
+    expect(events.map((event) => event.type).sort()).toEqual(
+      ['MESSAGE_SENT', 'PROCEEDED', 'RESPONDED'].sort(),
+    );
+    const reporterNotices = await prisma.notification.findMany({
+      where: { voiceId: voice.id, recipientId: reporter.accountId },
+    });
+    expect(reporterNotices.map((item) => item.title)).toEqual(['Voice mulai diproses']);
+    const detail = await voices.detail(manager, voice.id);
+    expect(detail.availableActions).toEqual(expect.arrayContaining(['CLOSE', 'MESSAGE']));
+    expect(detail.conversationState).toBe('ACTIVE');
+  });
+
   it('counts unread chat messages per viewer until the conversation is opened', async () => {
     const voice = await createVoice({ status: VoiceStatus.RESPONDED });
     await prisma.conversation.create({ data: { voiceId: voice.id } });

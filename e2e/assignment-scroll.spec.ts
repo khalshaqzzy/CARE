@@ -11,7 +11,8 @@ async function openAssignment(page: Page, count = 30) {
       audience: 'GENERAL_RESPONDER',
       visibility: 'GENERAL',
       area: 'KARAWANG_1',
-      status: 'OPEN',
+      // Open Voices assign through the Respons sheet; this dialog serves Direspons.
+      status: 'RESPONDED',
       title: 'Perbaikan fasilitas',
       detail: 'Perbaikan fasilitas',
       availableActions: ['ASSIGN'],
@@ -60,12 +61,6 @@ for (const [width, height] of [
       (r) => r.method() === 'POST' && r.url().endsWith('/assignments'),
     );
     await footer.getByRole('button', { name: 'Tugaskan' }).click();
-    const note = page.getByRole('dialog', { name: 'Keterangan penanganan' });
-    await expect(note.getByRole('button', { name: 'Tugaskan & buka chat' })).toBeDisabled();
-    await note
-      .getByRole('textbox', { name: 'Keterangan penanganan' })
-      .fill('PIC akan memeriksa lokasi.');
-    await note.getByRole('button', { name: 'Tugaskan & buka chat' }).click();
     expect((await sent).postDataJSON()).toMatchObject({
       handlerAccountId: 'sh-30',
       reason: 'Mohon lanjutkan penanganan.',

@@ -2079,6 +2079,11 @@ export interface components {
             text: string;
             version: number;
         };
+        VoiceRespondRequest: {
+            text: string;
+            version: number;
+            days?: number;
+        };
         TakeOverRequest: {
             expectedVersion: number;
         };
@@ -3622,6 +3627,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             text?: string | null;
+            /** @enum {string} */
+            kind?: "USER" | "SYSTEM";
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -14198,7 +14205,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoiceTextMutationRequest"];
+                "application/json": components["schemas"]["VoiceRespondRequest"];
             };
         };
         responses: {

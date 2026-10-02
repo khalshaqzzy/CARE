@@ -467,7 +467,7 @@ function requestSchema(operationId: string) {
     VoicesController_monitor: 'VersionedMutationRequest',
     VoicesController_proceed: 'HandlingTargetRequest',
     VoicesController_setTarget: 'HandlingTargetRequest',
-    VoicesController_respond: 'VoiceTextMutationRequest',
+    VoicesController_respond: 'VoiceRespondRequest',
     VoicesController_close: 'CloseVoiceRequest',
     VoicesController_rate: 'RatingRequest',
   };
@@ -1298,6 +1298,17 @@ const schemas: Record<string, any> = {
     properties: {
       text: { type: 'string', minLength: 1, maxLength: 4000 },
       version: { type: 'integer', minimum: 1 },
+    },
+  },
+  VoiceRespondRequest: {
+    type: 'object',
+    required: ['text', 'version'],
+    additionalProperties: false,
+    properties: {
+      text: { type: 'string', minLength: 1, maxLength: 4000 },
+      version: { type: 'integer', minimum: 1 },
+      // Present for "Proses sendiri": respond and start handling in one step.
+      days: { type: 'integer', minimum: 0, maximum: 365 },
     },
   },
   TakeOverRequest: {
@@ -2991,6 +3002,7 @@ const schemas: Record<string, any> = {
     properties: {
       id: { type: 'string', format: 'uuid' },
       text: { type: 'string', nullable: true },
+      kind: { type: 'string', enum: ['USER', 'SYSTEM'] },
       createdAt: { type: 'string', format: 'date-time' },
       senderId: { type: 'string', format: 'uuid', nullable: true },
       senderAccountKind: { type: 'string' },

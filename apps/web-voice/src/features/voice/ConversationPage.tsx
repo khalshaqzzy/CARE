@@ -308,6 +308,13 @@ function ChatMessage({ message, voice }: { message: Message; voice: VoiceDetail 
         ? 'Komite'
         : (message.sender?.displayName ?? session?.account.displayName ?? 'Anda')
       : senderLabel(message, voice));
+  if (message.kind === 'SYSTEM')
+    return (
+      <p className="chat-system" role="note">
+        <span>{message.text}</span>
+        <time dateTime={message.createdAt}>{formatNotificationTime(message.createdAt)}</time>
+      </p>
+    );
   return (
     <article className={`chat-msg ${isMine ? 'is-mine' : 'is-theirs'}`}>
       {!isMine ? (

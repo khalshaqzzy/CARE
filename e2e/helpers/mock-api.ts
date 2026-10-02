@@ -1519,7 +1519,9 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       if (voice) {
         voice.status = path.endsWith('/close')
           ? 'CLOSED'
-          : path.endsWith('/proceed') || path.endsWith('/target')
+          : path.endsWith('/proceed') ||
+              path.endsWith('/target') ||
+              (path.endsWith('/respond') && body.days !== undefined)
             ? 'IN_PROGRESS'
             : 'RESPONDED';
         voice.conversationState = voice.status === 'CLOSED' ? 'READ_ONLY' : 'ACTIVE';

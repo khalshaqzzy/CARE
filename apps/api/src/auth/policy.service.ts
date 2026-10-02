@@ -185,6 +185,16 @@ export class PolicyService {
       'id' in work &&
       Array.isArray((work as { id: { in?: unknown[] } }).id?.in) &&
       (work as { id: { in?: unknown[] } }).id.in?.length === 0;
-    return isEmptyWork ? browse : { OR: [browse, work] };
+    // A Manager who handed a General Voice over keeps read-only access to it.
+    const handedOver: Prisma.VoiceWhereInput[] = actor.capabilities.includes('MANAGER')
+      ? [
+          {
+            visibility: VoiceVisibility.GENERAL,
+            handovers: { some: { fromPicId: actor.accountId } },
+          },
+        ]
+      : [];
+    const clauses = [...(isEmptyWork ? [] : [work]), ...handedOver];
+    return clauses.length ? { OR: [browse, ...clauses] } : browse;
   }
 }

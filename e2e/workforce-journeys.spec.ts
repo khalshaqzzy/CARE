@@ -651,7 +651,7 @@ test.describe('workforce journeys (mocked contract)', () => {
         area: 'KARAWANG_2',
         title: 'Laporan papan nama rusak',
         detail: 'Papan nama area shift 3 tergantung satu baut saja.',
-        availableActions: ['PROCEED', 'ASSIGN', 'MESSAGE'],
+        availableActions: ['RESPOND', 'ASSIGN'],
         identified: false,
         alias: 'Reporter Biru 47',
       }),
@@ -666,20 +666,23 @@ test.describe('workforce journeys (mocked contract)', () => {
     // Localized status in the meta grid.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    await expect(page.getByText('Pilih Union Officer untuk menangani Voice ini.')).toBeVisible();
+    await page.getByRole('button', { name: 'Respons', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Respons' });
+    // Private Voices never offer a sideways handover.
+    await expect(dialog.getByRole('radio')).toHaveText([
+      'Balas pesan',
+      'Tugaskan PIC',
+      'Proses sendiri',
+    ]);
+    await dialog.getByRole('radio', { name: 'Tugaskan PIC' }).click();
+    await expect(dialog.getByText('Hanya Union Officer yang dapat ditugaskan.')).toBeVisible();
     // Candidate cards are a radio group with workload subtitles, not a select.
     await dialog.getByRole('radio', { name: /Union Officer 1/ }).click();
     await expect(dialog.getByRole('radio', { name: /Union Officer 1/ })).toBeChecked();
     await expect(dialog.getByText('3 Voice aktif')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Tugaskan', exact: true }).click();
-    await page
-      .getByRole('textbox', { name: 'Keterangan penanganan' })
-      .fill('Komite akan menindaklanjuti.');
-    await page.getByRole('button', { name: 'Tugaskan & buka chat' }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await dialog.getByRole('textbox', { name: 'Pesan' }).fill('Komite akan menindaklanjuti.');
+    await dialog.getByRole('button', { name: 'Tugaskan PIC', exact: true }).click();
+    await expect(page).toHaveURL(/\/voices\/voice-p1\/chat$/);
   });
 
   test('union identified detail shows the consented reporter snapshot', async ({ page }) => {

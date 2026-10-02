@@ -17,6 +17,17 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 2 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- the unified **Respons** sheet (Balas pesan / Tugaskan PIC / Handover / Proses sendiri);
+- an atomic respond-and-process step;
+- handover counted as a response, with a chat system message, a reporter notification, and read-only access for the source Manager;
+- the `USER`/`SYSTEM` message kind.
+
+See PRD §43.5 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 1 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. On branch `feat/voice-tiered-routing-stage2` (not released; stage 2 and 3 ship together after product-owner approval):

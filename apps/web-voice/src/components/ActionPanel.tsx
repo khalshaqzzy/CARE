@@ -12,7 +12,7 @@ import {
   UserRound,
   UserRoundCheck,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ACTION_LABELS, AREA_LABELS } from '../lib/formatters';
 import { formatTargetDate, previewHandlingTarget } from '../lib/handling-target';
@@ -21,7 +21,9 @@ import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
 
 type Action =
+  | 'respond-sheet'
   | 'respond'
+  | 'respond-process'
   | 'proceed'
   | 'target'
   | 'close'
@@ -31,6 +33,14 @@ type Action =
   | 'take-over'
   | 'none';
 type Assignment = { handlerAccountId: string; reason?: string };
+type ResponseChoice = 'reply' | 'assign' | 'handover' | 'process';
+
+const RESPONSE_CHOICES: Record<ResponseChoice, { label: string; icon: ReactNode }> = {
+  reply: { label: 'Balas pesan', icon: <MessageCircle size={18} aria-hidden="true" /> },
+  assign: { label: 'Tugaskan PIC', icon: <UserRoundCheck size={18} aria-hidden="true" /> },
+  handover: { label: 'Handover', icon: <ArrowLeftRight size={18} aria-hidden="true" /> },
+  process: { label: 'Proses sendiri', icon: <Play size={18} aria-hidden="true" /> },
+};
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const api = useApi();
@@ -43,7 +53,6 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [days, setDays] = useState('');
-  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const mutationKey = useMutationKey('voice-action');
   const request = useRef<{ signature: string; version: number } | null>(null);
   const validDays = /^\d+$/.test(days) && Number(days) <= 365;
@@ -74,6 +83,8 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       const version = request.current.version;
       const key = mutationKey.key();
       if (action === 'respond') return api.respond(detail.id, { text: note!, version }, key);
+      if (action === 'respond-process')
+        return api.respond(detail.id, { text: note!, version, days: Number(days) }, key);
       if (action === 'proceed' || action === 'target')
         return (action === 'target' ? api.setTarget : api.proceed)(
           detail.id,
@@ -99,7 +110,11 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         staleTime: 0,
       });
       setActive('none');
-      if (variables.action === 'respond' || variables.action === 'assignment-note')
+      if (
+        variables.action === 'respond' ||
+        variables.action === 'respond-process' ||
+        variables.action === 'assignment-note'
+      )
         void navigate(`/voices/${detail.id}/chat`);
       else
         setNotice(
@@ -130,11 +145,20 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const cancel = () => {
     if (!pending) {
       setActive('none');
-      setAssignment(null);
       setError(null);
     }
   };
   if (!actions.length) return null;
+  // While the Voice is still open, every way of answering lives in one sheet.
+  const responding = actions.includes('RESPOND');
+  const choices: ResponseChoice[] = responding
+    ? [
+        'reply',
+        ...(actions.includes('ASSIGN') ? (['assign'] as const) : []),
+        ...(actions.includes('HANDOVER') ? (['handover'] as const) : []),
+        'process',
+      ]
+    : [];
   return (
     <>
       {detail.status === 'RESPONDED' && detail.currentHandler && !actions.includes('PROCEED') ? (
@@ -151,7 +175,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         </Alert>
       ) : null}
       <div className="action-panel" role="group" aria-label="Tindakan">
-        {actions.some((action) => ['ASSIGN', 'REASSIGN'].includes(action)) ? (
+        {!responding && actions.some((action) => ['ASSIGN', 'REASSIGN'].includes(action)) ? (
           <div
             className="action-row action-row--secondary"
             role="group"
@@ -172,7 +196,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           </div>
         ) : null}
         <div className="action-row action-row--primary" role="group" aria-label="Keputusan Voice">
-          {actions.includes('HANDOVER') ? (
+          {!responding && actions.includes('HANDOVER') ? (
             <Button
               variant="secondary"
               onClick={() => void navigate(`/voices/${detail.id}/handover`)}
@@ -181,10 +205,10 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               {ACTION_LABELS.HANDOVER}
             </Button>
           ) : null}
-          {actions.includes('RESPOND') ? (
-            <Button variant="primary" onClick={() => open('respond')}>
+          {responding ? (
+            <Button variant="primary" onClick={() => open('respond-sheet')}>
               <MessageCircle size={18} aria-hidden="true" />
-              Respons Voice
+              Respons
             </Button>
           ) : null}
           {actions.includes('PROCEED') ? (
@@ -211,6 +235,31 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           {notice}
         </Alert>
       ) : null}
+      <RespondSheet
+        open={active === 'respond-sheet'}
+        detail={detail}
+        choices={choices}
+        text={text}
+        onText={setText}
+        days={days}
+        onDays={setDays}
+        validDays={validDays}
+        loading={pending}
+        error={error}
+        onCancel={cancel}
+        onHandover={() => void navigate(`/voices/${detail.id}/handover`)}
+        onConfirm={(choice, handlerAccountId) => {
+          const note = text.trim();
+          if (choice === 'reply') mutation.mutate({ action: 'respond', note });
+          else if (choice === 'process') mutation.mutate({ action: 'respond-process', note });
+          else if (choice === 'assign' && handlerAccountId)
+            mutation.mutate({
+              action: 'assignment-note',
+              note,
+              assignmentBody: { handlerAccountId },
+            });
+        }}
+      />
       <AssignDialog
         open={active === 'assign' || active === 'reassign'}
         reassign={active === 'reassign'}
@@ -218,64 +267,8 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         onCancel={cancel}
         loading={pending}
         error={error}
-        onConfirm={(body) => {
-          if (detail.status === 'OPEN') {
-            setAssignment(body);
-            setActive('assignment-note');
-            setError(null);
-          } else mutation.mutate({ action: active, assignmentBody: body });
-        }}
+        onConfirm={(body) => mutation.mutate({ action: active, assignmentBody: body })}
       />
-      <Dialog
-        open={active === 'respond' || active === 'assignment-note'}
-        onOpenChange={(value) => {
-          if (!value) cancel();
-        }}
-        mobileSheet
-        className="assignment-dialog process-dialog"
-        title="Keterangan penanganan"
-        description="Keterangan ini menjadi pesan pertama kepada pelapor dan membuka percakapan."
-        footer={
-          <div className="dialog-actions">
-            <Button variant="ghost" disabled={pending} onClick={cancel}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              loading={pending}
-              disabled={!text.trim() || pending}
-              onClick={() =>
-                mutation.mutate({
-                  action: active,
-                  note: text.trim(),
-                  ...(assignment ? { assignmentBody: assignment } : {}),
-                })
-              }
-            >
-              {active === 'assignment-note' ? 'Tugaskan & buka chat' : 'Respons & buka chat'}
-            </Button>
-          </div>
-        }
-      >
-        <Stack gap="md">
-          {error ? (
-            <Alert tone="danger" title="Respons belum tersimpan">
-              {error}
-            </Alert>
-          ) : null}
-          <Textarea
-            label="Keterangan penanganan"
-            placeholder="Jelaskan tindak lanjut yang akan dilakukan"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            rows={5}
-            maxLength={4000}
-            counter={`${text.length}/4000`}
-            required
-            disabled={pending}
-          />
-        </Stack>
-      </Dialog>
       <Dialog
         open={active === 'proceed' || active === 'target'}
         onOpenChange={(value) => {
@@ -320,31 +313,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             disabled={pending}
             placeholder="Masukkan jumlah hari"
           />
-          <div className="target-presets" role="group" aria-label="Pilihan jumlah hari">
-            {[0, 1, 3, 7, 14].map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={days === String(value)}
-                disabled={pending}
-                onClick={() => setDays(String(value))}
-              >
-                {value === 0 ? 'Hari ini' : `${value} hari`}
-              </button>
-            ))}
-          </div>
-          <div className="target-preview" role="status">
-            <span>Target penyelesaian</span>
-            <strong>
-              {validDays
-                ? formatTargetDate(previewHandlingTarget(Number(days)))
-                : 'Pilih jumlah hari'}
-            </strong>
-            <p>
-              Dihitung dari hari ini, sampai pukul 23.59 WIB. Target final mengikuti waktu saat
-              disimpan.
-            </p>
-          </div>
+          <TargetPresets days={days} onDays={setDays} disabled={pending} validDays={validDays} />
           <p className="dialog-copy">
             Target tidak dapat diubah dalam siklus ini. Pelapor dan penanggung jawab menerima
             notifikasi; pengingat dikirim sekali jika target terlewati.
@@ -405,6 +374,167 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   );
 }
 
+/** Day presets plus the resulting due date; shared by the target dialog and the Respons sheet. */
+function TargetPresets({
+  days,
+  onDays,
+  disabled,
+  validDays,
+}: {
+  days: string;
+  onDays: (value: string) => void;
+  disabled: boolean;
+  validDays: boolean;
+}) {
+  return (
+    <>
+      <div className="target-presets" role="group" aria-label="Pilihan jumlah hari">
+        {[0, 1, 3, 7, 14].map((value) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={days === String(value)}
+            disabled={disabled}
+            onClick={() => onDays(String(value))}
+          >
+            {value === 0 ? 'Hari ini' : `${value} hari`}
+          </button>
+        ))}
+      </div>
+      <div className="target-preview" role="status">
+        <span>Target penyelesaian</span>
+        <strong>
+          {validDays ? formatTargetDate(previewHandlingTarget(Number(days))) : 'Pilih jumlah hari'}
+        </strong>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The single answer sheet for an open Voice: reply, assign a PIC, hand over,
+ * or process it yourself. Every option except handover sends the message as
+ * the first chat message.
+ */
+function RespondSheet({
+  open,
+  detail,
+  choices,
+  text,
+  onText,
+  days,
+  onDays,
+  validDays,
+  loading,
+  error,
+  onCancel,
+  onHandover,
+  onConfirm,
+}: {
+  open: boolean;
+  detail: VoiceDetail;
+  choices: ResponseChoice[];
+  text: string;
+  onText: (value: string) => void;
+  days: string;
+  onDays: (value: string) => void;
+  validDays: boolean;
+  loading: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onHandover: () => void;
+  onConfirm: (choice: ResponseChoice, handlerAccountId?: string) => void;
+}) {
+  const [choice, setChoice] = useState<ResponseChoice>('reply');
+  const [handler, setHandler] = useState('');
+  useEffect(() => {
+    if (open) {
+      setChoice('reply');
+      setHandler('');
+    }
+  }, [open]);
+  const hasMessage = text.trim().length > 0;
+  const ready =
+    choice === 'handover' ||
+    (hasMessage &&
+      (choice === 'reply' ||
+        (choice === 'assign' && Boolean(handler)) ||
+        (choice === 'process' && validDays)));
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !loading) onCancel();
+      }}
+      mobileSheet
+      className="assignment-dialog respond-dialog"
+      title="Respons"
+      footer={
+        <div className="dialog-actions">
+          <Button variant="ghost" disabled={loading} onClick={onCancel}>
+            Batal
+          </Button>
+          <Button
+            variant="primary"
+            loading={loading}
+            disabled={!ready || loading}
+            onClick={() =>
+              choice === 'handover' ? onHandover() : onConfirm(choice, handler || undefined)
+            }
+          >
+            {RESPONSE_CHOICES[choice].label}
+          </Button>
+        </div>
+      }
+    >
+      <Stack gap="md">
+        <div className="respond-choices" role="radiogroup" aria-label="Pilihan respons">
+          {choices.map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="radio"
+              aria-checked={choice === item}
+              className="respond-choice"
+              disabled={loading}
+              onClick={() => setChoice(item)}
+            >
+              {RESPONSE_CHOICES[item].icon}
+              <span>{RESPONSE_CHOICES[item].label}</span>
+            </button>
+          ))}
+        </div>
+        {error ? (
+          <Alert tone="danger" title="Respons belum tersimpan">
+            {error}
+          </Alert>
+        ) : null}
+        {choice === 'assign' ? (
+          <CandidatePicker detail={detail} open={open} selected={handler} onSelect={setHandler} />
+        ) : null}
+        {choice === 'handover' ? (
+          <p className="dialog-copy">Pilih kategori tujuan di langkah berikutnya.</p>
+        ) : (
+          <Textarea
+            label="Pesan"
+            placeholder="Tulis pesan untuk pelapor"
+            value={text}
+            onChange={(event) => onText(event.target.value)}
+            rows={3}
+            maxLength={4000}
+            counter={`${text.length}/4000`}
+            required
+            disabled={loading}
+          />
+        )}
+        {choice === 'process' ? (
+          <TargetPresets days={days} onDays={onDays} disabled={loading} validDays={validDays} />
+        ) : null}
+      </Stack>
+    </Dialog>
+  );
+}
+
 /**
  * Workload first so it never truncates, then the Section name, which often
  * hints where the Section Head works; the person's name stays the card title.
@@ -416,6 +546,109 @@ function candidateDescription(candidate: { activeCount?: number; section?: strin
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+/** Searchable PIC list with the incident location, shared by assignment surfaces. */
+function CandidatePicker({
+  detail,
+  open,
+  selected,
+  onSelect,
+}: {
+  detail: VoiceDetail;
+  open: boolean;
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const api = useApi();
+  const sessionId = useSessionId();
+  const candidates = useQuery({
+    queryKey: voiceQuery(sessionId, 'assign-candidates', detail.id),
+    queryFn: () => api.assignmentCandidates(detail.id),
+    enabled: open,
+  });
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    if (!open) setSearch('');
+  }, [open]);
+  const all = candidates.data ?? [];
+  const visible = all.filter((candidate) =>
+    `${candidate.displayName} ${candidate.section ?? ''}`
+      .toLocaleLowerCase('id')
+      .includes(search.trim().toLocaleLowerCase('id')),
+  );
+  return (
+    <>
+      {detail.visibility === 'GENERAL' ? (
+        // Incident location helps the Manager pick the Section Head on duty there.
+        <div className="assign-location" aria-label="Lokasi kejadian">
+          <MapPin size={18} aria-hidden="true" />
+          <div>
+            <strong>
+              {[AREA_LABELS[detail.area] ?? detail.area, detail.shopLocation?.department]
+                .filter(Boolean)
+                .join(' · ')}
+            </strong>
+            {detail.locationDetail ? <small>“{detail.locationDetail}”</small> : null}
+          </div>
+        </div>
+      ) : null}
+      {all.length > 5 ? (
+        <Input
+          label="Cari penanggung"
+          placeholder={
+            detail.visibility === 'PRIVATE' ? 'Cari nama petugas' : 'Cari nama atau section'
+          }
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      ) : null}
+      {candidates.isLoading ? (
+        <p className="dialog-copy">Memuat penanggung yang tersedia…</p>
+      ) : candidates.isError ? (
+        <Alert tone="danger" title="Kandidat gagal dimuat">
+          <Button variant="secondary" onClick={() => void candidates.refetch()}>
+            Coba lagi
+          </Button>
+        </Alert>
+      ) : all.length === 0 ? (
+        <Alert tone="warning" title="Tidak ada penanggung">
+          Tidak ada penanggung yang tersedia untuk Voice ini.
+        </Alert>
+      ) : visible.length === 0 ? (
+        <p className="dialog-copy" role="status">
+          Tidak ada nama yang cocok. Coba kata pencarian lain.
+        </p>
+      ) : (
+        <>
+          {all.length > 5 ? (
+            <p className="assignment-count" role="status">
+              {visible.length} dari {all.length} penanggung
+            </p>
+          ) : null}
+          <ChoiceCardGroup
+            label="Penanggung"
+            value={selected}
+            onValueChange={onSelect}
+            columns={1}
+            indicator="radio"
+            appearance="brand"
+            options={visible.map((candidate) => ({
+              value: candidate.id,
+              label: candidate.displayName,
+              ...(candidateDescription(candidate)
+                ? { description: candidateDescription(candidate) }
+                : {}),
+              icon: <UserRound size={18} />,
+            }))}
+          />
+        </>
+      )}
+      {detail.visibility === 'PRIVATE' ? (
+        <p className="dialog-copy">Hanya Union Officer yang dapat ditugaskan.</p>
+      ) : null}
+    </>
+  );
 }
 
 function AssignDialog({
@@ -444,21 +677,13 @@ function AssignDialog({
   });
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
-  const [search, setSearch] = useState('');
   useEffect(() => {
     if (!open) {
       setSelected('');
       setReason('');
-      setSearch('');
     }
   }, [open]);
-  const all = candidates.data ?? [];
-  const visible = all.filter((candidate) =>
-    `${candidate.displayName} ${candidate.section ?? ''}`
-      .toLocaleLowerCase('id')
-      .includes(search.trim().toLocaleLowerCase('id')),
-  );
-  const selectedCandidate = all.find((candidate) => candidate.id === selected);
+  const selectedCandidate = (candidates.data ?? []).find((candidate) => candidate.id === selected);
   return (
     <Dialog
       open={open}
@@ -500,85 +725,12 @@ function AssignDialog({
       }
     >
       <Stack gap="md">
-        {detail.visibility === 'GENERAL' ? (
-          // Incident location helps the Manager pick the Section Head on duty there.
-          <div className="assign-location" aria-label="Lokasi kejadian">
-            <MapPin size={18} aria-hidden="true" />
-            <div>
-              <strong>
-                {[AREA_LABELS[detail.area] ?? detail.area, detail.shopLocation?.department]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </strong>
-              {detail.locationDetail ? <small>“{detail.locationDetail}”</small> : null}
-            </div>
-          </div>
-        ) : null}
-        {detail.status === 'OPEN' ? (
-          <p className="dialog-copy">
-            Setelah memilih PIC, isi keterangan penanganan untuk membuka percakapan. Penugasan
-            disimpan pada langkah berikutnya.
-          </p>
-        ) : null}
         {error ? (
           <Alert tone="danger" title="Penugasan belum tersimpan">
             {error}
           </Alert>
         ) : null}
-        {all.length > 5 ? (
-          <Input
-            label="Cari penanggung"
-            placeholder={
-              detail.visibility === 'PRIVATE' ? 'Cari nama petugas' : 'Cari nama atau section'
-            }
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        ) : null}
-        {candidates.isLoading ? (
-          <p className="dialog-copy">Memuat penanggung yang tersedia…</p>
-        ) : candidates.isError ? (
-          <Alert tone="danger" title="Kandidat gagal dimuat">
-            <Button variant="secondary" onClick={() => void candidates.refetch()}>
-              Coba lagi
-            </Button>
-          </Alert>
-        ) : all.length === 0 ? (
-          <Alert tone="warning" title="Tidak ada penanggung">
-            Tidak ada penanggung yang tersedia untuk Voice ini.
-          </Alert>
-        ) : visible.length === 0 ? (
-          <p className="dialog-copy" role="status">
-            Tidak ada nama yang cocok. Coba kata pencarian lain.
-          </p>
-        ) : (
-          <>
-            {all.length > 5 ? (
-              <p className="assignment-count" role="status">
-                {visible.length} dari {all.length} penanggung
-              </p>
-            ) : null}
-            <ChoiceCardGroup
-              label="Penanggung"
-              value={selected}
-              onValueChange={setSelected}
-              columns={1}
-              indicator="radio"
-              appearance="brand"
-              options={visible.map((candidate) => ({
-                value: candidate.id,
-                label: candidate.displayName,
-                ...(candidateDescription(candidate)
-                  ? { description: candidateDescription(candidate) }
-                  : {}),
-                icon: <UserRound size={18} />,
-              }))}
-            />
-          </>
-        )}
-        {detail.visibility === 'PRIVATE' ? (
-          <p className="dialog-copy">Hanya Union Officer yang dapat ditugaskan.</p>
-        ) : null}
+        <CandidatePicker detail={detail} open={open} selected={selected} onSelect={setSelected} />
         <Textarea
           label="Alasan (opsional)"
           value={reason}
