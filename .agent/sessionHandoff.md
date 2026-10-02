@@ -1,6 +1,37 @@
 # CARE Session Handoff
 
-## Tiered routing stage 2, increment 3 — 2 October 2026
+## Tiered routing stage 2, increment 4 — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Detection:** TM reporters are identified by the noReg prefix `TM`. They see the **Lengkapi posisi kamu** card (variant B) on the create form.
+- **Choices:** Section and Line selects list the department's permanent placements, plus "Tidak di Line". They are prefilled from the last Voice.
+- **Gating and API:**
+  - The position is required for "Simpan & Analisis" and for submit.
+  - New endpoint `GET /drafts/position-options`.
+  - Drafts gain `positionSection`/`positionLine` (migration `20261003120000_draft_tm_position`).
+- **Snapshot:** the Voice stores the chosen Section, Line, and Area in place of the organization file's values.
+
+**Files:**
+
+- **API:** `src/voices/tm-position.ts` (new); `src/voices/{voices.service,voices.controller}.ts`; `prisma/schema.prisma` and the migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `features/create/{TmPositionCard (new),CreateVoicePage,useDraftWizard}.tsx/ts`, `workforce-api.ts`, `styles.css`.
+- **Tests:**
+  - `test/unit/tm-position.test.ts` (new);
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/workforce-journeys.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 422 → 423.
+
+**Validation:**
+
+- **Unit:** API 150/150; web-voice 127/127.
+- **Integration and security:** 142/144. The failures are the known admin-safety flake and the organization 7,018-row timing budget, which ran while the browser suite loaded the CPU; it passed 5/5 alone.
+- **Browser:** the full mocked run passed 416/417. Auth recovery at 768 is a known load flake and passed alone.
+- **Visual check:** the TM card was inspected at 360 px.
+
+**Next:** increment 5, the tiered routing core (chain resolution GL → SH → Manager → DDH/DH, outsider badge, multi-participant chat, read-only Tim Saya visibility, tier timeline, Naikkan/Tugaskan/Ingatkan).
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
 

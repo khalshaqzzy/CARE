@@ -208,6 +208,53 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
   });
 
+  test('TM reporters confirm their Section and Line before analysis', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const drafts: Record<string, unknown>[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/drafts')
+        drafts.push(request.postDataJSON() as Record<string, unknown>);
+    });
+    await mockWorkforceApi(page, {
+      positionOptions: {
+        required: true,
+        sections: [
+          { name: 'Assy Line Sect', lines: ['Line A', 'Line B'] },
+          { name: 'Quality Sect', lines: [] },
+        ],
+        last: { section: 'Assy Line Sect', line: 'Line B' },
+      },
+    });
+    await page.goto('/voices/new');
+    await page.getByRole('radio', { name: /General Voice/ }).click();
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    const card = page.getByRole('region', { name: 'Posisi kamu' });
+    await expect(card.getByText('Lengkapi posisi kamu')).toBeVisible();
+    await expect(card.getByRole('combobox', { name: 'Section' })).toContainText('Assy Line Sect');
+    await expect(card.getByRole('combobox', { name: 'Line' })).toContainText('Line B');
+    await card.getByRole('combobox', { name: 'Section' }).click();
+    await page.getByRole('option', { name: 'Quality Sect' }).click();
+    // A Section without Lines settles on "Tidak di Line".
+    await expect(card.getByRole('combobox', { name: 'Line' })).toContainText('Tidak di Line');
+    await card.getByRole('combobox', { name: 'Section' }).click();
+    await page.getByRole('option', { name: 'Assy Line Sect' }).click();
+    const analyse = page.getByRole('button', { name: 'Simpan & Analisis' });
+    await expect(analyse).toBeDisabled();
+    await card.getByRole('combobox', { name: 'Line' }).click();
+    await page.getByRole('option', { name: 'Tidak di Line' }).click();
+    await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await page.getByRole('textbox', { name: /Detail Lokasi/ }).fill('Pos inspeksi akhir');
+    await page.getByRole('textbox', { name: /Judul Voice/ }).fill('Uang makan magang terlambat');
+    await page
+      .getByRole('textbox', { name: /Detail Voice/ })
+      .fill('Uang makan magang bulan ini belum dibayarkan.');
+    await expect(analyse).toBeEnabled();
+    await analyse.click();
+    await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
+    expect(drafts[0]).toMatchObject({ positionSection: 'Assy Line Sect', positionLine: null });
+  });
+
   test('successful submit opens the immersive receipt and history action', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { voice: generalVoice });

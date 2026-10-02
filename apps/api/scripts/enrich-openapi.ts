@@ -399,6 +399,7 @@ function successSchema(operationId: string) {
     VoicesController_deleteDraft: 'SuccessResponse',
     VoicesController_evidence: 'AttachmentResponse',
     VoicesController_getDraft: 'VoiceDraftResponse',
+    VoicesController_draftPositionOptions: 'DraftPositionOptions',
     VoicesController_handover: 'VoiceMutationResponse',
     VoicesController_requestAdminHandover: 'VoiceMutationResponse',
     VoicesController_adminHandoverQueue: 'AdminHandoverQueue',
@@ -760,6 +761,9 @@ const schemas: Record<string, any> = {
         type: 'boolean',
         description: 'Private only; must be true before submission',
       },
+      // TM (vocational) reporters only: where they work today; null line = "Tidak di Line".
+      positionSection: { type: 'string', minLength: 1, maxLength: 200 },
+      positionLine: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
     },
   },
   VoiceDraftPatchRequest: {
@@ -773,7 +777,37 @@ const schemas: Record<string, any> = {
       visibility: baseVoiceProperties.visibility,
       showReporterIdentity: { type: 'boolean' },
       privateContactConsent: { type: 'boolean' },
+      // TM (vocational) reporters only: where they work today; null line = "Tidak di Line".
+      positionSection: { type: 'string', minLength: 1, maxLength: 200 },
+      positionLine: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
       expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  DraftPositionOptions: {
+    type: 'object',
+    required: ['required', 'sections', 'last'],
+    properties: {
+      required: { type: 'boolean' },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['name', 'lines'],
+          properties: {
+            name: { type: 'string' },
+            lines: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+      last: {
+        type: 'object',
+        nullable: true,
+        required: ['section', 'line'],
+        properties: {
+          section: { type: 'string' },
+          line: { type: 'string', nullable: true },
+        },
+      },
     },
   },
   ManualClassificationRequest: {
@@ -2670,6 +2704,8 @@ const schemas: Record<string, any> = {
     type: 'object',
     required: ['id', 'visibility', 'area', 'locationDetail', 'title', 'detail', 'version'],
     properties: {
+      positionSection: { type: 'string', nullable: true },
+      positionLine: { type: 'string', nullable: true },
       id: { type: 'string', format: 'uuid' },
       visibility: baseVoiceProperties.visibility,
       area: baseVoiceProperties.area,

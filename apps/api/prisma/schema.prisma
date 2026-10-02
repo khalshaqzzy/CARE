@@ -629,6 +629,9 @@ model VoiceDraft {
   showReporterIdentity      Boolean?
   shopConfirmation          ShopConfirmation?
   confirmedShopLocationId   String?                 @db.Uuid
+  /// TM (vocational) reporters pick where they work now; a null line means "Tidak di Line".
+  positionSection           String?                 @db.VarChar(200)
+  positionLine              String?                 @db.VarChar(200)
   classificationContentHash String                  @db.Char(64)
   locationContentHash       String                  @db.Char(64)
   version                   Int                     @default(1)

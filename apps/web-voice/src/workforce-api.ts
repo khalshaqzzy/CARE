@@ -13,6 +13,7 @@ export type Session = components['schemas']['SessionResponse'];
 export type SessionAccount = components['schemas']['SessionAccount'];
 export type Capability = components['schemas']['Capability'];
 export type VoiceDraft = components['schemas']['VoiceDraftResponse'];
+export type DraftPositionOptions = components['schemas']['DraftPositionOptions'];
 export type VoiceDraftPreview = components['schemas']['VoiceDraftPreview'];
 export type ShopResolution = components['schemas']['ShopResolutionPreview'];
 export type ShopOption = components['schemas']['ShopOption'];
@@ -132,6 +133,8 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<DraftList>(
         client.GET('/api/v1/drafts', { params: { query: compactQuery(query) } }),
       ),
+    draftPositionOptions: () =>
+      dataOrThrow<DraftPositionOptions>(client.GET('/api/v1/drafts/position-options')),
     getDraft: (id: string) =>
       dataOrThrow<VoiceDraft>(client.GET('/api/v1/drafts/{id}', { params: { path: { id } } })),
     updateDraft: (id: string, body: DraftPatch) =>

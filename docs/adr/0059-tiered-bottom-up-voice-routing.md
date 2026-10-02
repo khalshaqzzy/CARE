@@ -110,6 +110,27 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Browser: the badge on the card and detail and the system note in chat.
   - The browser inventory grows from 421 to 422.
 
+## Implementation (stage 2, increment 4 — not released)
+
+- **Schema.** Migration `20261003120000_draft_tm_position` adds `VoiceDraft.positionSection` and `positionLine` (null means "Tidak di Line").
+- **Module.** `src/voices/tm-position.ts` holds the TM rules:
+  - `isTmNoReg` detects TM members by the `TM` noReg prefix (case-insensitive).
+  - `positionOptions` lists the department's Sections and Lines from non-TM memberships in the active snapshot, plus the last valid choice from the reporter's most recent Voice.
+  - `isValidPosition` checks a choice against those options.
+  - `positionArea` takes the area from the chosen Line's members, falling back to the Section's.
+- **API.**
+  - `GET /drafts/position-options` returns `required` (false for non-TM members), `sections`, and `last`.
+  - Draft create and patch accept the position only from TM members and only when it is valid (`POSITION_INVALID`).
+  - Submit rejects a TM draft without a valid position (`POSITION_REQUIRED`, 422). It snapshots the chosen Section and Line, with the area from that placement, instead of the file values. The department snapshot is unchanged.
+- **Web.**
+  - `TmPositionCard` (variant B) sits under the location card. Its Section and Line selects are prefilled from `last`. A Section without Lines settles on "Tidak di Line".
+  - "Simpan & Analisis" stays disabled until the position is complete. The fields stack below 480 px.
+- **Validation.**
+  - Unit: the TM prefix and position validity.
+  - Integration (foundation suite): options for TM and non-TM members, rejected invalid positions, `POSITION_REQUIRED` on submit, the snapshot, and the last choice.
+  - Browser: prefill, the "Tidak di Line" request, and the gating.
+  - The browser inventory grows from 422 to 423.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

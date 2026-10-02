@@ -194,6 +194,98 @@ describe('Tiered routing foundation', () => {
     });
   });
 
+  it('asks TM members for their current Section and Line and snapshots the choice', async () => {
+    const placed = await prisma.organizationMembership.findFirstOrThrow({
+      where: { employee: { noReg: '700004' }, snapshot: { status: 'ACTIVE' } },
+    });
+    const employee = await prisma.employee.create({
+      data: { noReg: 'TM0001', name: 'Magang Satu' },
+    });
+    await prisma.userAccount.create({
+      data: {
+        username: 'TM0001',
+        displayName: 'Magang Satu',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: {
+        snapshotId: placed.snapshotId,
+        employeeId: employee.id,
+        organizationUnitId: placed.organizationUnitId,
+        employeeName: 'Magang Satu',
+        structuralPosition: 'Member',
+        section: 'TM Pool',
+        sourceRow: 999,
+      },
+    });
+    const tm = await principal('TM0001');
+    const member = await principal('700004');
+    expect(await voices.draftPositionOptions(member)).toEqual({
+      required: false,
+      sections: [],
+      last: null,
+    });
+    // Sections come from permanent staff only, so the TM pool never appears.
+    expect(await voices.draftPositionOptions(tm)).toEqual({
+      required: true,
+      sections: [
+        { name: 'Line Sect', lines: ['Line A', 'Line B'] },
+        { name: 'Office', lines: [] },
+      ],
+      last: null,
+    });
+    const content = {
+      visibility: 'GENERAL',
+      area: 'KARAWANG_1',
+      locationDetail: 'Line B pos 1',
+      title: 'Uang makan magang terlambat',
+      detail: 'Uang makan magang bulan ini belum dibayarkan.',
+    };
+    await expect(
+      voices.createDraft(tm, { ...content, positionSection: 'Gudang', positionLine: null }),
+    ).rejects.toMatchObject({ code: 'POSITION_INVALID' });
+    await expect(
+      voices.createDraft(member, { ...content, positionSection: 'Line Sect', positionLine: null }),
+    ).rejects.toMatchObject({ code: 'POSITION_INVALID' });
+
+    const draft = await voices.createDraft(tm, content);
+    await voices.manualClassification(tm, draft.id, {
+      category: 'TIER_WELFARE',
+      severity: Severity.MEDIUM,
+    });
+    const unplaced = await voices.previewDraft(tm, draft.id);
+    await expect(
+      voices.submit(tm, draft.id, { version: unplaced.version }, 'tm-submit-missing'),
+    ).rejects.toMatchObject({ code: 'POSITION_REQUIRED' });
+    const placedDraft = await voices.updateDraft(tm, draft.id, {
+      positionSection: 'Line Sect',
+      positionLine: 'Line B',
+      expectedVersion: unplaced.version,
+    });
+    expect(placedDraft).toMatchObject({ positionSection: 'Line Sect', positionLine: 'Line B' });
+    const preview = await voices.previewDraft(tm, draft.id);
+    const submitted = (await voices.submit(
+      tm,
+      draft.id,
+      { version: preview.version },
+      'tm-submit',
+    )) as { id: string };
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: submitted.id } })).toMatchObject({
+      reporterSectionSnapshot: 'Line Sect',
+      reporterLineSnapshot: 'Line B',
+      reporterAreaSnapshot: 'KARAWANG_1',
+      reporterDepartmentSnapshot: 'Assy 1',
+    });
+    expect((await voices.draftPositionOptions(tm)).last).toEqual({
+      section: 'Line Sect',
+      line: 'Line B',
+    });
+  });
+
   it('exposes seeded defaults and edits the working calendar with versions', async () => {
     const initial = await settings.get();
     expect(initial.deadlines).toEqual([

@@ -2338,7 +2338,7 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap 2 — inkremen 1–3 (diimplementasikan, belum dirilis)
+### 43.5 Tahap 2 — inkremen 1–4 (diimplementasikan, belum dirilis)
 
 - **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
 - **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
@@ -2349,6 +2349,7 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - **Pesan sistem:** pesan memiliki jenis `USER` atau `SYSTEM`; pesan sistem tampil di tengah chat tanpa avatar.
 - **Pengingat target:** PIC menerima satu notifikasi **Target penyelesaian hari ini** pukul 08.00 WIB pada hari target; target "Hari ini" tidak diberi pengingat.
 - **Target terlewati:** satu kali per target, PIC, level di atasnya sampai Manager (saat ini: Manager route owner; level GL/SH ditambahkan bersama rantai bertingkat), dan pelapor menerima notifikasi. Chat menerima pesan sistem "Target penyelesaian terlewati", timeline mencatat Target terlewati, dan kartu Voice serta header detail menampilkan badge **Terlambat** selama Voice masih Diproses.
+- **Posisi anggota TM:** pelapor dengan noReg berawalan `TM` (anggota vokasi) melihat kartu **Lengkapi posisi kamu** pada form Voice (General dan Private): dropdown Section dan Line dari department mereka, ditambah pilihan **Tidak di Line**, terisi dari posisi Voice terakhir. Pilihan Section/Line diambil dari anggota tetap department (bukan baris TM). "Simpan & Analisis" dan pengiriman memerlukan posisi yang valid; Voice menyimpan Section/Line pilihan sebagai snapshot pelapor (area mengikuti Line/Section tersebut). Department TM tidak berubah, dan TM tidak pernah menjadi GL/SH. API: `GET /api/v1/drafts/position-options`; draft menerima `positionSection`/`positionLine` (null = Tidak di Line).
 
 ### 43.6 Tahap berikutnya
 

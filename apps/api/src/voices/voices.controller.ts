@@ -42,6 +42,9 @@ export class VoicesController {
   ) {
     return this.voices.listDrafts(a, q ?? {});
   }
+  @Get('drafts/position-options') draftPositionOptions(@Actor() a: AuthActor) {
+    return this.voices.draftPositionOptions(a);
+  }
   @Get('drafts/:id') getDraft(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
     return this.voices.getDraft(a, id);
   }

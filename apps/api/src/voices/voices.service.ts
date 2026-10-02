@@ -47,6 +47,7 @@ import { resolveShop, type ShopResolution } from '../shops/shop-matching';
 import { PrismaService } from '../prisma.service';
 import { computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
+import { isValidPosition, positionArea, positionOptions } from './tm-position';
 import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
 
@@ -118,6 +119,8 @@ const draftSchema = z
     visibility: z.nativeEnum(VoiceVisibility),
     showReporterIdentity: z.boolean().optional(),
     privateContactConsent: z.boolean().optional(),
+    positionSection: z.string().trim().min(1).max(200).optional(),
+    positionLine: z.string().trim().min(1).max(200).nullable().optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -146,6 +149,8 @@ const draftPatchSchema = z
     visibility: z.nativeEnum(VoiceVisibility).optional(),
     showReporterIdentity: z.boolean().optional(),
     privateContactConsent: z.boolean().optional(),
+    positionSection: z.string().trim().min(1).max(200).optional(),
+    positionLine: z.string().trim().min(1).max(200).nullable().optional(),
     expectedVersion: z.number().int().positive().optional(),
   })
   .strict()
@@ -314,6 +319,7 @@ export class VoicesService {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
     const data = parse(draftSchema, input);
     const organization = await this.currentOrganization(actor);
+    await this.assertPosition(actor, data.positionSection, data.positionLine);
     const hashes = await this.hashes(data);
     return this.prisma.voiceDraft.create({
       data: {
@@ -328,6 +334,25 @@ export class VoicesService {
   }
   async getDraft(actor: AuthActor, id: string) {
     return this.publicDraft(await this.ownedDraft(actor, id));
+  }
+  /** Section and Line choices for TM reporters; `required` is false for everyone else. */
+  async draftPositionOptions(actor: AuthActor) {
+    if (!actor.capabilities.includes('MEMBER') || !actor.employeeId) throw forbiddenAsNotFound();
+    return positionOptions(this.prisma, actor.employeeId, actor.accountId);
+  }
+  private async assertPosition(
+    actor: AuthActor,
+    section: string | undefined,
+    line: string | null | undefined,
+  ) {
+    if (section === undefined && line === undefined) return;
+    const options = await positionOptions(this.prisma, actor.employeeId!, actor.accountId);
+    if (
+      !options.required ||
+      section === undefined ||
+      !isValidPosition(options.sections, { section, line: line ?? null })
+    )
+      throw badRequest('POSITION_INVALID', 'Pilih Section dan Line yang tersedia.');
   }
   async listDrafts(actor: AuthActor, query: { limit?: string; cursor?: string }) {
     if (!actor.capabilities.includes('MEMBER')) throw forbiddenAsNotFound();
@@ -351,6 +376,12 @@ export class VoicesService {
     if (draft.submittedAt) throw conflict('DRAFT_SUBMITTED', 'Draft was already submitted');
     if (expectedVersion !== undefined && expectedVersion !== draft.version)
       throw conflict('DRAFT_VERSION_CONFLICT', 'Draft version changed');
+    if (patch.positionSection !== undefined || patch.positionLine !== undefined)
+      await this.assertPosition(
+        actor,
+        patch.positionSection ?? draft.positionSection ?? undefined,
+        patch.positionLine !== undefined ? patch.positionLine : draft.positionLine,
+      );
     const { visibility, area, locationDetail, title, detail } = { ...draft, ...patch };
     if (
       visibility === VoiceVisibility.GENERAL &&
@@ -670,6 +701,22 @@ export class VoicesService {
           warning: locationWarning,
         },
       );
+    // TM reporters must say where they work today; that choice replaces the
+    // file's Section/Line for this Voice.
+    const position = await positionOptions(this.prisma, actor.employeeId!, actor.accountId);
+    const tmChoice =
+      position.required && draft.positionSection
+        ? { section: draft.positionSection, line: draft.positionLine }
+        : null;
+    if (position.required && (!tmChoice || !isValidPosition(position.sections, tmChoice)))
+      throw new AppError(
+        'POSITION_REQUIRED',
+        'Lengkapi posisi kamu sebelum mengirim.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    const tmArea = tmChoice
+      ? await positionArea(this.prisma, current.snapshotId, current.organizationUnitId, tmChoice)
+      : null;
     const classification = draft.classification;
     const route = await this.resolveRoute(draft, classification.categoryKey);
     const shop = await this.shopSnapshot(draft);
@@ -711,10 +758,10 @@ export class VoicesService {
           reporterDirectorateSnapshot: unit.directorate,
           reporterDivisionSnapshot: unit.division,
           reporterDepartmentSnapshot: unit.department,
-          reporterSectionSnapshot: current.section,
+          reporterSectionSnapshot: tmChoice?.section ?? current.section,
           reporterPositionSnapshot: current.structuralPosition,
-          reporterLineSnapshot: current.lineName,
-          reporterAreaSnapshot: current.area,
+          reporterLineSnapshot: tmChoice ? tmChoice.line : current.lineName,
+          reporterAreaSnapshot: tmChoice ? (tmArea ?? current.area) : current.area,
           ...(draft.visibility === VoiceVisibility.GENERAL
             ? await this.handlingProjection(tx, route.id)
             : {}),

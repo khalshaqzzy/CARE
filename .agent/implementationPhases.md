@@ -17,6 +17,17 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 4 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: TM (vocational) reporters fill in **Lengkapi posisi kamu** on every Voice.
+
+- They choose a Section and a Line from their department, or "Tidak di Line".
+- The choice is prefilled from their last Voice.
+- It is required to analyse and submit.
+- It is stored as the Voice's reporter Section, Line, and Area snapshot.
+
+See PRD §43.5 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 3 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:

@@ -943,6 +943,8 @@ export type MockApiOptions = {
   myVoiceList?: unknown;
   /** Voice list response when `/work-items` is called with `unassigned=true`. */
   unassignedVoiceList?: unknown;
+  /** Override for `GET /drafts/position-options` (TM reporters). */
+  positionOptions?: unknown;
   /** Override for `GET /voices/{id}/assignment-candidates`. */
   assignmentCandidates?: unknown;
   /** Override for the Manager handover selection and restricted history surfaces. */
@@ -1591,6 +1593,8 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     }
 
     // Drafts
+    if (method === 'GET' && path === '/api/v1/drafts/position-options')
+      return satisfy(200, opts.positionOptions ?? { required: false, sections: [], last: null });
     if (method === 'GET' && path === '/api/v1/drafts')
       return satisfy(200, { items: [draftFixture(voice)], nextCursor: null });
     if (method === 'POST' && path === '/api/v1/drafts') {
