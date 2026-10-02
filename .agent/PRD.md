@@ -2338,7 +2338,7 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap 2 — inkremen 1–5b (diimplementasikan, belum dirilis)
+### 43.5 Tahap 2 — inkremen 1–5c (diimplementasikan, belum dirilis)
 
 - **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
 - **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
@@ -2357,6 +2357,11 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
   - **Tugaskan PIC** untuk Voice bertingkat: SH ke GL Section-nya (hanya bila Section punya GL); Manager ke GL/SH department (termasuk level yang dilewati); level divisi ke GL/SH/Manager di divisi.
   - **Ingatkan** hanya notifikasi kepada PIC yang ditugaskan atau pemegang di bawahnya, maksimal satu kali per hari (WIB) per orang per Voice.
   - Respons sheet GL/SH: Balas pesan / (Tugaskan PIC) / Naikkan ke atasan / Proses sendiri. Atasan: Balas pesan / Tugaskan PIC / Proses sendiri / Naikkan ke atasan. Setelah Direspons: tombol Naikkan atau Ingatkan.
+- **Voice Tim Saya dan tahap (5c):**
+  - Section Head dapat membaca (baca-saja) General Voice yang dilaporkan anggota Section-nya; Group Leader hanya Line-nya. Dashboard basis Voice Tim Saya untuk GL juga dibatasi Line.
+  - Manager dan pimpinan divisi tetap memakai cakupan department/divisi.
+  - Detail Voice bertingkat menampilkan **Tahap penanganan** kepada responder (bukan pelapor): setiap level beserta nama, ditandai selesai, sedang ditangani, atau berikutnya.
+  - Chat dengan lebih dari tiga peserta menampilkan maksimal lima avatar, sisanya sebagai "+N", dan tombol **Detail** untuk daftar lengkap.
 
 ### 43.6 Tahap berikutnya
 

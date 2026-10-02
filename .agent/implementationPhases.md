@@ -17,6 +17,16 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 5c — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- Voice Tim Saya read access for Section Heads (their Section) and Group Leaders (their Line);
+- the Tahap penanganan timeline on tiered Voices;
+- collapsed chat avatars with a Detail button.
+
+Stage 2 remaining: away delegation, severity edits with AI Private guidance. See PRD §43.5 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 5b — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:

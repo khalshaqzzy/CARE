@@ -219,6 +219,55 @@ test('an upper tier reminds the holder below after an answered Voice went up', a
   expect(reminded).toBe(1);
 });
 
+test('upper levels follow a team Voice through its stages and a large chat collapses to avatars', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'MANAGER'] }),
+    voice: {
+      id: 'stage-voice',
+      displayId: 'CARE-202610-000010',
+      visibility: 'GENERAL',
+      status: 'RESPONDED',
+      area: 'KARAWANG_1',
+      title: 'Jadwal lembur tidak adil',
+      detail: 'Pembagian lembur di line kami tidak merata.',
+      tierLevel: 'SECTION_HEAD',
+      availableActions: [],
+      conversationState: 'READ_ONLY',
+      tierStages: [
+        { level: 'GROUP_LEADER', state: 'DONE', names: ['Budi Santoso'] },
+        { level: 'SECTION_HEAD', state: 'CURRENT', names: ['Rahmat Hidayat'] },
+        { level: 'MANAGER', state: 'NEXT', names: ['Dedi Slamet'] },
+        { level: 'DIVISION', state: 'NEXT', names: ['Ani Wijaya', 'Joko Purnomo'] },
+      ],
+      participants: [
+        { id: 'r', displayName: 'Sari Dewi', role: 'REPORTER' },
+        { id: 'g', displayName: 'Budi Santoso', role: 'GROUP_LEADER' },
+        { id: 's', displayName: 'Rahmat Hidayat', role: 'SECTION_HEAD' },
+        { id: 'm', displayName: 'Dedi Slamet', role: 'DEPARTMENT_HEAD' },
+        { id: 'd1', displayName: 'Ani Wijaya', role: 'DIVISION_LEADER' },
+        { id: 'd2', displayName: 'Joko Purnomo', role: 'DIVISION_LEADER' },
+      ],
+    },
+  });
+  await page.goto('/voices/stage-voice');
+  const stages = page.getByRole('list', { name: 'Tahap penanganan' });
+  await expect(stages.getByRole('listitem')).toHaveCount(4);
+  await expect(stages.locator('[data-state="CURRENT"]')).toContainText('Rahmat Hidayat');
+  await expect(stages.locator('[data-state="DONE"]')).toContainText('Group Leader');
+  await page.goto('/voices/stage-voice/chat');
+  const people = page.getByRole('button', { name: 'Lihat peserta percakapan' });
+  await expect(people.locator('.chat-avatars .chat-participant__avatar')).toHaveCount(5);
+  await expect(people.getByText('+1')).toBeVisible();
+  await expect(people.getByText('Detail')).toBeVisible();
+  await people.click();
+  await expect(
+    page.getByRole('dialog', { name: 'Peserta percakapan' }).getByRole('listitem'),
+  ).toHaveCount(6);
+});
+
 test('an overdue target is flagged on the work card, the detail, and in the chat', async ({
   page,
 }) => {

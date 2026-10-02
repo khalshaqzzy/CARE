@@ -1,6 +1,33 @@
 # CARE Session Handoff
 
-## Tiered routing stage 2, increment 5b — 2 October 2026
+## Tiered routing stage 2, increment 5c — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Team read access:** Section Heads read their Section's General Voices and Group Leaders their Line's (read-only browse). A GL's Tim Saya dashboard is limited to their Line.
+- **Stages:** `tierStages` on detail renders as **Tahap penanganan**.
+- **Chat:** collapses to five avatars plus "+N" and **Detail** when more than three people take part.
+
+**Files:**
+
+- **API:** `src/auth/policy.service.ts`, `src/voices/{dashboard,voices.service}.ts`, `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/TierStages.tsx` (new), `features/voice/{VoiceDetailPage,ConversationPage}.tsx`, `styles.css`.
+- **Tests:**
+  - `test/unit/policy.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 426 → 427.
+
+**Validation:**
+
+- **Unit:** API 155/155.
+- **Integration and security:** 149/150; the one failure is the known admin-safety flake.
+- **Browser:** a single-worker full mocked run (two workers crashed from memory pressure on this host) passed 420/421. Auth recovery at 360 is a known flake and passed alone.
+- **Visual check:** stages and the collapsed chat were inspected at 390 px.
+
+**Next:** increment 6 (away delegation "Sedang tidak masuk"), then 7 (severity change with reason, AI Private guidance), then stage 3.
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
 

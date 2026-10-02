@@ -7218,3 +7218,84 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
 }
+
+/* Tahap penanganan for tiered Voices (variant A). */
+.tier-timeline {
+  display: grid;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  list-style: none;
+}
+.tier-timeline li {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+.tier-timeline li:last-child {
+  padding-bottom: 0;
+}
+.tier-timeline li:not(:last-child)::before {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  left: 10px;
+  width: 2px;
+  background: var(--border-subtle);
+  content: '';
+}
+.tier-timeline__dot {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  color: var(--text-inverse);
+  background: var(--surface-raised);
+}
+.tier-timeline li[data-state='DONE'] .tier-timeline__dot {
+  border-color: var(--state-success);
+  background: var(--state-success);
+}
+.tier-timeline li[data-state='CURRENT'] .tier-timeline__dot {
+  border-color: var(--action-primary-bg);
+  background: var(--action-primary-bg);
+  box-shadow: 0 0 0 4px rgb(10 92 255 / 18%);
+}
+.tier-timeline__body {
+  display: grid;
+  gap: 2px;
+}
+.tier-timeline__body small {
+  color: var(--text-secondary);
+}
+.tier-timeline li[data-state='NEXT'] .tier-timeline__body {
+  color: var(--text-secondary);
+}
+.tier-timeline li[data-state='CURRENT'] .tier-timeline__body small {
+  color: var(--action-primary-bg);
+  font-weight: var(--weight-semibold);
+}
+
+/* Chat with more than three people: overlapping avatars. */
+.chat-avatars {
+  display: flex;
+  align-items: center;
+}
+.chat-avatars .chat-participant__avatar {
+  border: 2px solid #fff;
+}
+.chat-avatars .chat-participant__avatar + .chat-participant__avatar {
+  margin-left: -8px;
+}
+.chat-avatars__more {
+  margin-left: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+}

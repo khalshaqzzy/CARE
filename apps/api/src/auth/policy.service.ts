@@ -26,6 +26,8 @@ export type Principal = {
   division: string | null;
   department: string | null;
   section: string | null;
+  /** Production Line; a Group Leader's team is limited to it. */
+  line?: string | null;
   unionSlot: UnionSlot | null;
   capabilities: Capability[];
   routeUnitIds: string[];
@@ -92,6 +94,7 @@ export class PolicyService {
       division: membership?.organizationUnit.division ?? null,
       department: membership?.organizationUnit.department ?? null,
       section: membership?.section ?? null,
+      line: membership?.lineName ?? null,
       unionSlot: unionTerm?.slot ?? null,
       capabilities: [...capabilitySet],
       routeUnitIds: routes
@@ -148,6 +151,21 @@ export class PolicyService {
           {
             visibility: VoiceVisibility.GENERAL,
             reporterOrganizationUnitId: actor.organizationUnitId,
+          },
+        ],
+      };
+    // Voice Tim Saya: a Section Head reads their Section, a Group Leader their Line.
+    const sectionHead = actor.capabilities.includes('SECTION_HEAD');
+    const groupLeader = actor.capabilities.includes('GROUP_LEADER');
+    if ((sectionHead || (groupLeader && actor.line)) && actor.organizationUnitId && actor.section)
+      return {
+        OR: [
+          own,
+          {
+            visibility: VoiceVisibility.GENERAL,
+            reporterOrganizationUnitId: actor.organizationUnitId,
+            reporterSectionSnapshot: actor.section,
+            ...(sectionHead ? {} : { reporterLineSnapshot: actor.line }),
           },
         ],
       };

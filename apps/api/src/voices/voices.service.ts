@@ -1130,10 +1130,43 @@ export class VoicesService {
       : [];
     return {
       ...this.serialize(actor, { ...voice, tierHolders }),
+      ...(voice.tierLevel && voice.reporterId !== actor.accountId
+        ? { tierStages: await this.tierStages(voice) }
+        : {}),
       unreadMessages: voice.conversation
         ? await this.unreadMessageCount(voice.conversation.id, actor.accountId)
         : 0,
     };
+  }
+
+  /**
+   * Tahap penanganan for responders: every level found at submit, marked done,
+   * current or next, with who sits there in the active organization.
+   */
+  private async tierStages(
+    voice: Parameters<typeof chainForVoice>[1] & {
+      tierLevel: TierLevel | null;
+      tierPath: TierLevel[];
+    },
+  ) {
+    const chain = await chainForVoice(this.prisma, voice);
+    const ids = [...new Set(chain.flatMap((step) => step.accountIds))];
+    const names = new Map(
+      (
+        await this.prisma.userAccount.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, displayName: true },
+        })
+      ).map((account) => [account.id, account.displayName]),
+    );
+    const current = voice.tierLevel ? voice.tierPath.indexOf(voice.tierLevel) : -1;
+    return voice.tierPath.map((level, index) => ({
+      level,
+      state: index < current ? 'DONE' : index === current ? 'CURRENT' : 'NEXT',
+      names: (chain.find((step) => step.level === level)?.accountIds ?? [])
+        .map((id) => names.get(id))
+        .filter((name): name is string => Boolean(name)),
+    }));
   }
 
   /** Holder names with a chat role taken from their structural position. */

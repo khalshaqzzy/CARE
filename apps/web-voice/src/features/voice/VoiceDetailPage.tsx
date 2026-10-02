@@ -20,6 +20,7 @@ import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
 import { VoiceProgress } from '../../components/VoiceProgress';
+import { TierStages } from '../../components/TierStages';
 import { VoiceHero } from '../../components/VoiceHero';
 import { HandoverHistoryList } from '../../components/HandoverHistoryList';
 import {
@@ -107,6 +108,7 @@ export function VoiceDetailPage() {
       <section className="voice-handling" aria-label="Penanganan">
         <h2 className="voice-detail__heading">Penanganan</h2>
         <VoiceProgress status={voice.status} />
+        {voice.tierStages?.length ? <TierStages stages={voice.tierStages} /> : null}
         <HandlingTargetCard voice={voice} />
         <ActionPanel detail={voice} />
       </section>

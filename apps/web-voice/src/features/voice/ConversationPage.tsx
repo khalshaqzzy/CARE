@@ -152,27 +152,46 @@ function ConversationSurface({
           <span className="chat-participants__heading">
             <strong>Peserta percakapan</strong>
             <span>
-              Lihat semua <ChevronRight size={15} aria-hidden="true" />
+              {participants.length > 3 ? 'Detail' : 'Lihat semua'}{' '}
+              <ChevronRight size={15} aria-hidden="true" />
             </span>
           </span>
-          <span className="chat-participants__people">
-            {participants.map((participant) => (
-              <span
-                key={participant.id}
-                className="chat-participant"
-                aria-label={participant.displayName}
-                title={participant.displayName}
-              >
-                <span className="chat-participant__avatar" aria-hidden="true">
+          {participants.length > 3 ? (
+            <span className="chat-avatars">
+              {participants.slice(0, 5).map((participant) => (
+                <span
+                  key={participant.id}
+                  className="chat-participant__avatar"
+                  aria-label={participant.displayName}
+                  title={participant.displayName}
+                >
                   {participant.displayName.slice(0, 1)}
                 </span>
-                <span>
-                  <strong>{participant.displayName}</strong>
-                  <small>{participantRole(participant.role)}</small>
+              ))}
+              {participants.length > 5 ? (
+                <span className="chat-avatars__more">+{participants.length - 5}</span>
+              ) : null}
+            </span>
+          ) : (
+            <span className="chat-participants__people">
+              {participants.map((participant) => (
+                <span
+                  key={participant.id}
+                  className="chat-participant"
+                  aria-label={participant.displayName}
+                  title={participant.displayName}
+                >
+                  <span className="chat-participant__avatar" aria-hidden="true">
+                    {participant.displayName.slice(0, 1)}
+                  </span>
+                  <span>
+                    <strong>{participant.displayName}</strong>
+                    <small>{participantRole(participant.role)}</small>
+                  </span>
                 </span>
-              </span>
-            ))}
-          </span>
+              ))}
+            </span>
+          )}
         </button>
         <Dialog
           open={showParticipants}

@@ -239,10 +239,17 @@ export class OrganizationDashboard {
           ? forPath(unitParts(defaultUnit!).slice(0, 2))
           : { OR: allowedUnits.map((u) => forPath(unitParts(u))) };
     else
-      scope = forPath([
-        ...unitParts(defaultUnit!),
-        ...(scopeMode === 'OWN' ? [actor.section!] : []),
-      ]);
+      scope = {
+        ...forPath([...unitParts(defaultUnit!), ...(scopeMode === 'OWN' ? [actor.section!] : [])]),
+        // A Group Leader's Voice Tim Saya is their own Line.
+        ...(q.basis === 'REPORTER' &&
+        scopeMode === 'OWN' &&
+        caps.includes('GROUP_LEADER') &&
+        !caps.includes('SECTION_HEAD') &&
+        actor.line
+          ? { reporterLineSnapshot: actor.line }
+          : {}),
+      };
     const selections: Partial<Record<Level, string>> = {};
     for (const l of levels)
       if (q[l]) {

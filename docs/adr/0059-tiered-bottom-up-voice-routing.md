@@ -193,6 +193,23 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Browser: Naikkan from the sheet with a reason, and Ingatkan.
   - Inventory 424 → 426.
 
+## Implementation (stage 2, increment 5c — not released)
+
+- **Principal.** The principal carries `line` from the active membership.
+- **Browse scope.** `browseScope` adds team reads:
+  - Section Head: General Voices with the same reporter department and Section;
+  - Group Leader with a Line: the same department, Section, and Line.
+- **Dashboard.** The Group Leader's REPORTER-basis dashboard in OWN scope adds `reporterLineSnapshot`.
+- **Stages.** Detail adds `tierStages` for non-reporters on tiered Voices: one entry per `tierPath` level, with `DONE`/`CURRENT`/`NEXT` and the names resolved on the active snapshot (`chainForVoice`).
+- **Web.**
+  - `TierStages` (variant A vertical list) sits in Penanganan.
+  - Chats with more than three participants collapse to up to five avatars, "+N", and **Detail**. Smaller chats keep the named participant row.
+- **Validation.**
+  - Unit: team browse scopes.
+  - Integration: the Section Head reads a team Voice without actions, with stages; the reporter gets no stages; a Group Leader cannot read another Line's Voice.
+  - Browser: stages and the collapsed chat.
+  - Inventory 426 → 427.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

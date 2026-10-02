@@ -28,6 +28,35 @@ const principal = (
 });
 
 describe('Authorization scopes', () => {
+  it('lets Section Heads read their Section and Group Leaders their Line (Voice Tim Saya)', async () => {
+    expect(await policy.browseScope(principal(['MEMBER', 'SECTION_HEAD']))).toEqual({
+      OR: [
+        { reporterId: 'account' },
+        {
+          visibility: 'GENERAL',
+          reporterOrganizationUnitId: 'unit',
+          reporterSectionSnapshot: 'Section A',
+        },
+      ],
+    });
+    expect(
+      await policy.browseScope(principal(['MEMBER', 'GROUP_LEADER'], { line: 'Line A' })),
+    ).toEqual({
+      OR: [
+        { reporterId: 'account' },
+        {
+          visibility: 'GENERAL',
+          reporterOrganizationUnitId: 'unit',
+          reporterSectionSnapshot: 'Section A',
+          reporterLineSnapshot: 'Line A',
+        },
+      ],
+    });
+    // Without a Line a Group Leader keeps only their own Voices.
+    expect(await policy.browseScope(principal(['MEMBER', 'GROUP_LEADER']))).toEqual({
+      reporterId: 'account',
+    });
+  });
   const policy = new PolicyService({} as never);
   it('separates Manager department browse from route work-items and division aggregate metadata', async () => {
     const manager = principal(['MEMBER', 'MANAGER'], {

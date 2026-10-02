@@ -577,6 +577,19 @@ const shopVoiceProperties = {
   },
   // Fasilitas Kerja reported from another department's shop.
   outsideReporter: { type: 'boolean' },
+  // Tahap penanganan for responders on tiered Voices.
+  tierStages: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['level', 'state', 'names'],
+      properties: {
+        level: { type: 'string', enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'] },
+        state: { type: 'string', enum: ['DONE', 'CURRENT', 'NEXT'] },
+        names: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  },
   unreadMessages: {
     type: 'integer',
     minimum: 0,

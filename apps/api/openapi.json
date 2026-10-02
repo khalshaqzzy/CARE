@@ -20360,6 +20360,42 @@
           "outsideReporter": {
             "type": "boolean"
           },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "unreadMessages": {
             "type": "integer",
             "minimum": 0,
@@ -20650,6 +20686,42 @@
           "outsideReporter": {
             "type": "boolean"
           },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "unreadMessages": {
             "type": "integer",
             "minimum": 0,
@@ -20936,6 +21008,42 @@
           "outsideReporter": {
             "type": "boolean"
           },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "unreadMessages": {
             "type": "integer",
             "minimum": 0,
@@ -21202,6 +21310,42 @@
           },
           "outsideReporter": {
             "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           },
           "unreadMessages": {
             "type": "integer",
@@ -21477,6 +21621,42 @@
           },
           "outsideReporter": {
             "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           },
           "unreadMessages": {
             "type": "integer",
@@ -21764,6 +21944,42 @@
           },
           "outsideReporter": {
             "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           },
           "unreadMessages": {
             "type": "integer",

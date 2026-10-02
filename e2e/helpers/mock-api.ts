@@ -164,6 +164,7 @@ export type MockVoice = {
   targetOverdue?: boolean;
   tierLevel?: 'GROUP_LEADER' | 'SECTION_HEAD' | 'MANAGER' | 'DIVISION' | null;
   outsideReporter?: boolean;
+  tierStages?: VoiceDetail['tierStages'];
   unreadMessages?: number;
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: string | null;
@@ -1075,6 +1076,7 @@ function detail(voice: MockVoice) {
     unreadMessages: voice.unreadMessages ?? 0,
     tierLevel: voice.tierLevel ?? null,
     outsideReporter: voice.outsideReporter ?? false,
+    ...(voice.tierStages ? { tierStages: voice.tierStages } : {}),
     attachments: voice.attachments ?? [],
     locationReview: {
       id: 'lr-1',

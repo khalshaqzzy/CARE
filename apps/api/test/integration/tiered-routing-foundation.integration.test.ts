@@ -534,6 +534,28 @@ describe('Tiered routing foundation', () => {
     expect((await voices.workItems(manager, {})).items.map((item) => item.id)).toContain(voice.id);
   });
 
+  it('shows team Voices read-only with the handling stages, Group Leaders per Line', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const voice = await submitAs('700004', 'tier-team-read');
+    // The Section Head reads the Section's Voice without acting on it.
+    const teamView = await voices.detail(sectionHead, voice.id);
+    expect(teamView.availableActions).toEqual([]);
+    expect(teamView.tierStages).toEqual([
+      { level: 'GROUP_LEADER', state: 'CURRENT', names: ['GL A'] },
+      { level: 'SECTION_HEAD', state: 'NEXT', names: ['SH Line'] },
+      { level: 'MANAGER', state: 'NEXT', names: ['Head Assy'] },
+    ]);
+    // The reporter never sees the internal stages.
+    expect((await voices.detail(await principal('700004'), voice.id)).tierStages).toBeUndefined();
+    // A Group Leader's team is their Line: Line B is outside it.
+    const lineB = await submitAs('700005', 'tier-team-line-b');
+    await expect(voices.detail(groupLeader, lineB.id)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    expect((await voices.detail(sectionHead, lineB.id)).tierLevel).toBe('SECTION_HEAD');
+  });
+
   it('exposes seeded defaults and edits the working calendar with versions', async () => {
     const initial = await settings.get();
     expect(initial.deadlines).toEqual([

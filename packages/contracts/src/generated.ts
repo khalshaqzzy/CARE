@@ -2389,6 +2389,13 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2461,6 +2468,13 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2531,6 +2545,13 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2598,6 +2619,13 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2666,6 +2694,13 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
@@ -2736,6 +2771,13 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
             /** @description Messages from others since the viewer last opened the conversation. */
             unreadMessages?: number;
             shopLocation?: {
