@@ -2308,7 +2308,7 @@ Default rentang dan Reset adalah **Semua waktu**, menggantikan default 30 hari s
 
 ## 43. Routing bertingkat (bawah ke atas) — 2 Oktober 2026
 
-Status: **Tahap 1 diimplementasikan; Tahap 2 dan 3 direncanakan.** ADR-0059 mencatat keputusan lengkap.
+Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); Tahap 3 direncanakan.** ADR-0059 mencatat keputusan lengkap.
 
 ### 43.1 Cakupan
 
@@ -2338,7 +2338,14 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 dan 3 direncanakan.** ADR-0059 menc
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap berikutnya
+### 43.5 Tahap 2 — inkremen 1 (diimplementasikan, belum dirilis)
+
+- **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
+- **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
+- **Selesaikan hanya oleh PIC:** hanya PIC yang menekan Proses (atau menerima tugas) yang dapat menyelesaikan Voice, di semua kategori. Voice lama yang belum pernah mencatat PIC tetap dapat diselesaikan oleh route owner.
+- **Ambil alih:** jika akun PIC sudah tidak aktif, atasan yang berwenang menugaskan melihat peringatan **PIC sudah tidak aktif** dan tombol **Ambil alih** (`POST /api/v1/voices/:id/take-over`). Atasan menjadi PIC; target tidak berubah; pelapor diberi notifikasi.
+
+### 43.6 Tahap berikutnya
 
 - **Tahap 2:** Voice mulai di GL/SH, visibilitas baca-saja dan pemisahan Voice Untuk Saya/Tim Saya, aksi Naikkan/Tugaskan/Ingatkan/Proses di chat bertingkat, badge pelapor dari luar, handover Manager yang dilonggarkan, Sedang tidak masuk, ubah severity, dan saran AI ke Private Voice.
 - **Tahap 3:** worker eskalasi otomatis berbasis kalender kerja, notifikasi eskalasi, dan notifikasi Critical. Setelah Tahap 3, aturan §15.4 "tanpa eskalasi otomatis" tidak lagi berlaku untuk kategori bertingkat.

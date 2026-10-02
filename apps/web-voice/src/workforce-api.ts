@@ -260,6 +260,19 @@ export function createWorkforceApi(transport: CareTransport) {
           params: { query: compactQuery(query) },
         }),
       ),
+    takeOver: (id: string, body: components['schemas']['TakeOverRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/take-over', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    markConversationRead: (id: string) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/conversation/read', {
+          params: { path: { id }, header: csrfIdempotentHeader(crypto.randomUUID()) },
+        }),
+      ),
     assign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(
         client.POST('/api/v1/voices/{id}/assignments', {

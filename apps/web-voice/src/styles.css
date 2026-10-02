@@ -7031,3 +7031,91 @@
   font-size: var(--font-size-xs);
   line-height: var(--line-snug, 1.35);
 }
+
+/* Voice detail — compact hero meta, detail card, conversation unread badge */
+.voice-hero__place {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-relaxed);
+  overflow-wrap: anywhere;
+}
+.voice-hero__place svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.voice-hero__place strong {
+  color: var(--text-primary);
+}
+.voice-hero__people {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
+}
+.voice-hero__people div {
+  display: grid;
+  min-width: 0;
+}
+.voice-hero__people dt {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+.voice-hero__people dd {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-detail--card {
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: 0 6px 18px rgb(0 41 123 / 6%);
+}
+.voice-detail--card .voice-detail__heading {
+  margin-top: 0;
+}
+.voice-detail__submitted {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+.voice-conversation {
+  position: relative;
+}
+.voice-conversation__unread {
+  position: absolute;
+  top: 14px;
+  left: 50px;
+  display: grid;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  place-items: center;
+  border: 2px solid var(--surface-raised);
+  border-radius: var(--radius-pill);
+  padding: 0 4px;
+  color: #fff;
+  background: var(--state-danger);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  pointer-events: none;
+}
+.voice-handling {
+  display: grid;
+  gap: var(--space-3);
+}
+.voice-handling > .voice-detail__heading {
+  margin: 0;
+}

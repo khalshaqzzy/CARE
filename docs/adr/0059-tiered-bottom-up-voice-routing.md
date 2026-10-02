@@ -64,6 +64,17 @@ Delivery is split into three stages so that real Line and Group Leader data can 
 - **Admin settings.** `EscalationSettingsService` and `AdminEscalationSettingsController` serve `/api/v1/admin/escalation-settings`. The Admin page is **Kalender & Eskalasi**, and the import preview shows an Area & Line readiness panel.
 - **Contracts.** OpenAPI and contracts are regenerated. The browser inventory grows from 415 to 419 tests, and capture scenarios from 181 to 184.
 
+## Implementation (stage 2, increment 1 — not released)
+
+- **Schema.** Migration `20261003090000_conversation_read_state` adds `ConversationReadState` (conversation × account → `lastReadAt`).
+- **API.**
+  - Voice detail returns `unreadMessages`: messages from other senders after the viewer's `lastReadAt`.
+  - `POST /voices/:id/conversation/read` upserts the read state.
+  - `computeAvailableActions` grants `CLOSE` only to the current handler, or to the route destination for older Voices that never recorded a handler.
+  - `TAKE_OVER` is available to an assigning superior when the handler account is no longer `ACTIVE`. `POST /voices/:id/take-over` is idempotent and version-checked; it ends the active assignment, makes the actor PIC, writes `REASSIGNED` with `takeOver: true`, and notifies the reporter.
+- **Web.** The detail page is reordered (detail card, conversation with unread badge, handling section, timeline), the hero is simplified, the metadata rows are removed, and an **Ambil alih** alert with a confirmation dialog is added. The chat page marks the conversation read when the newest message changes.
+- **Validation.** Unit tests for the close and take-over rules; integration tests for unread counts, take-over, and PIC-only close; a browser test for the badge and take-over flow. The browser inventory grows from 419 to 420.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

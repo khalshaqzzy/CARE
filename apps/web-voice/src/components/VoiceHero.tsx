@@ -1,11 +1,9 @@
 import { IconButton } from '@care/ui';
 import {
   AudioWaveform,
-  Building2,
   Check,
   ChevronLeft,
   Clock,
-  FileText,
   MapPin,
   ShieldCheck,
   UserRound,
@@ -16,7 +14,6 @@ import {
   formatDate,
   PRIVATE_ROUTE_LABEL,
   SEVERITY_LABELS,
-  VISIBILITY_LABELS,
   voiceStatusDisplay,
 } from '../lib/formatters';
 import { categoryIcon, SEVERITY_FLAG_TONES, statusFlagTone } from '../lib/voice-visuals';
@@ -247,12 +244,6 @@ export function VoiceHero({
             <>
               <h1 className="voice-hero__title">{voice.title}</h1>
               <div className="voice-hero__chips">
-                {variant === 'full' ? (
-                  <span className="voice-hero__chip">
-                    <FileText size={15} aria-hidden="true" />
-                    {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility} Voice
-                  </span>
-                ) : null}
                 <span className="voice-hero__chip">
                   <i
                     data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
@@ -260,22 +251,10 @@ export function VoiceHero({
                   />
                   {SEVERITY_LABELS[voice.severity] ?? voice.severity}
                 </span>
-                {variant === 'full' ? (
-                  <span className="voice-hero__chip">
-                    <i data-tone={statusFlagTone(voice.status, reviewState)} aria-hidden="true" />
-                    {statusLabel}
-                  </span>
-                ) : null}
                 {variant === 'full' && categoryName ? (
                   <span className="voice-hero__chip">
                     <CategoryIcon size={15} aria-hidden="true" />
                     {categoryName}
-                  </span>
-                ) : null}
-                {variant === 'full' && responderAudience ? (
-                  <span className="voice-hero__chip">
-                    <MapPin size={15} aria-hidden="true" />
-                    {`Area: ${area}`}
                   </span>
                 ) : null}
                 {variant === 'compact' ? (
@@ -293,35 +272,25 @@ export function VoiceHero({
               </div>
               {variant === 'full' ? (
                 <>
-                  <div className="voice-hero__grid">
-                    {responderAudience ? (
-                      <>
-                        <span>
-                          <UserRound size={17} aria-hidden="true" />
-                          {`PIC: ${pic}`}
-                        </span>
-                        <span>
-                          <UserRound size={17} aria-hidden="true" />
-                          {`Pelapor: ${responderReporterName}`}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span>
-                          <MapPin size={17} aria-hidden="true" />
-                          {area}
-                        </span>
-                        <span>
-                          <UserRound size={17} aria-hidden="true" />
-                          {personLabel}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <p className="voice-hero__location">
-                    <Building2 size={17} aria-hidden="true" />
-                    {voice.locationDetail}
+                  <p className="voice-hero__place">
+                    <MapPin size={15} aria-hidden="true" />
+                    <span>
+                      <strong>{area}</strong>
+                      {voice.locationDetail ? ` · ${voice.locationDetail}` : ''}
+                    </span>
                   </p>
+                  <dl className="voice-hero__people">
+                    <div>
+                      <dt>PIC</dt>
+                      <dd>{pic}</dd>
+                    </div>
+                    {responderAudience ? (
+                      <div>
+                        <dt>Pelapor</dt>
+                        <dd>{responderReporterName}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
                 </>
               ) : null}
             </>

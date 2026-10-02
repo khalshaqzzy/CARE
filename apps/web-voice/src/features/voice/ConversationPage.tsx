@@ -1,5 +1,5 @@
 import { Alert, Button, Dialog, IconButton, Skeleton, Stack, Textarea, EmptyState } from '@care/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, ImagePlus, Send, UserRound } from 'lucide-react';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -83,6 +83,21 @@ function ConversationSurface({
   const nearBottomRef = useRef(true);
   const previousRef = useRef<{ first: string; last: string; height: number } | null>(null);
   const participants = voice.participants ?? [];
+  const api = useApi();
+  const sessionId = useSessionId();
+  const queryClient = useQueryClient();
+  const latestId = items.at(-1)?.id;
+
+  // Opening the room (and every newly arrived message) clears the unread badge.
+  useEffect(() => {
+    if (!latestId || document.visibilityState !== 'visible') return;
+    void api
+      .markConversationRead(voice.id)
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', voice.id) }),
+      )
+      .catch(() => undefined);
+  }, [api, latestId, queryClient, sessionId, voice.id]);
 
   useEffect(() => {
     const setHeight = () => {

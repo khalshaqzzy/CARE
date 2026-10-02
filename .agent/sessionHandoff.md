@@ -1,6 +1,41 @@
 # CARE Session Handoff
 
-## Staging deployment helper path repair — 1 October 2026
+## Tiered routing stage 2, increment 1 — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Do not merge or release: the product owner wants stage 2 and 3 released together after further discussion.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Detail redesign:** Header → Detail Voice card → Percakapan with an unread badge → Penanganan → Timeline.
+- **Unread counts:** `ConversationReadState`, `unreadMessages` on detail, and `POST /voices/:id/conversation/read`.
+- **PIC-only close:** older Voices that never recorded a PIC stay closable by the route owner.
+- **Ambil alih** (`POST /voices/:id/take-over`) when the PIC account is inactive.
+
+**Files:**
+
+- **API:**
+  - `prisma/schema.prisma` and migration `20261003090000_conversation_read_state`;
+  - `src/voices/{actions,voices.service,voices.controller}.ts`;
+  - `scripts/enrich-openapi.ts`, plus regenerated OpenAPI and contracts.
+- **Web:** `components/{VoiceHero,ActionPanel}.tsx`, `features/voice/{VoiceDetailPage,ConversationPage}.tsx`, `workforce-api.ts`, `styles.css`.
+- **Tests:**
+  - `test/unit/actions.test.ts`;
+  - `test/integration/{voice-lifecycle,responder-matrix}.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts`, `e2e/voice-consent.visual.spec.ts`, `e2e/helpers/mock-api.ts`;
+  - inventory 419 → 420.
+
+**Validation (Windows host, Docker PostgreSQL):**
+
+- **Static and unit:** typecheck passed; API unit 146/146; web-voice unit 127/127.
+- **Integration and security:** 137/140. The failures:
+  - the known `admin-safety` transaction timeout;
+  - the `push-subscription` race;
+  - `tiered-routing-foundation`, which passes on a fresh DB but not when re-run on the same DB (a stage-1 test that does not reset its settings; CI always uses a fresh DB).
+- **Browser:** Chromium + visual + PWA + push + legacy passed 413/414. The single `auth reset-union 360` visual failure passed in isolation.
+- **Build caveat:** build `web-voice` without `dbenv.sh` sourced. Its `NODE_ENV` changes the PWA build and breaks the push-notice e2e. Also rebuild before e2e, because `vite preview` serves `dist`.
+- **Validation scripts:** the inventory contract passes. Two validation contracts (`real build verification` and `Compose fixtures` / `missing job quality`) fail only on this Windows host because they parse CI/Compose files, which this change does not touch.
+
+**Next:** increment 2, the unified **Respons** sheet (Balas pesan / Tugaskan PIC / Handover / Proses sendiri; handover counts as a response; Proses from Open is an atomic respond and proceed).
 
 Latest staging run `36852300089` at `f3901573` passed all 20 validation jobs,
 including container cleanup, security and the release candidate gate, but failed

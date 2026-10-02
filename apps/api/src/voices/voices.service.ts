@@ -181,6 +181,7 @@ const submitSchema = z
     acknowledgeIncompleteLocation: z.boolean().optional(),
   })
   .strict();
+const versionSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
 const shopConfirmationSchema = z
   .object({
     shopLocationId: z.string().uuid().nullable(),
@@ -988,7 +989,7 @@ export class VoicesService {
       where: { id, AND: [scope] },
       include: {
         routeOwner: { select: { id: true, displayName: true } },
-        currentHandler: { select: { id: true, displayName: true } },
+        currentHandler: { select: { id: true, displayName: true, status: true } },
         handlingTargets: { orderBy: { cycleNumber: 'asc' } },
         classification: true,
         locationReview: true,
@@ -1007,7 +1008,122 @@ export class VoicesService {
     if (!voice) throw forbiddenAsNotFound();
     if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
-    return this.serialize(actor, voice);
+    return {
+      ...this.serialize(actor, voice),
+      unreadMessages: voice.conversation
+        ? await this.unreadMessageCount(voice.conversation.id, actor.accountId)
+        : 0,
+    };
+  }
+
+  /** Messages from others since the actor last opened the conversation. */
+  private async unreadMessageCount(conversationId: string, accountId: string) {
+    const state = await this.prisma.conversationReadState.findUnique({
+      where: { conversationId_accountId: { conversationId, accountId } },
+    });
+    return this.prisma.message.count({
+      where: {
+        conversationId,
+        senderId: { not: accountId },
+        ...(state ? { createdAt: { gt: state.lastReadAt } } : {}),
+      },
+    });
+  }
+
+  /** Records that the actor has seen the conversation up to now. */
+  async markConversationRead(actor: AuthActor, id: string) {
+    const voice = await this.authorizedVoice(actor, id);
+    if (!voice.conversation || this.conversationState(actor, voice) === 'UNAVAILABLE')
+      throw forbiddenAsNotFound();
+    const now = new Date();
+    await this.prisma.conversationReadState.upsert({
+      where: {
+        conversationId_accountId: {
+          conversationId: voice.conversation.id,
+          accountId: actor.accountId,
+        },
+      },
+      create: {
+        conversationId: voice.conversation.id,
+        accountId: actor.accountId,
+        lastReadAt: now,
+      },
+      update: { lastReadAt: now },
+    });
+    return { success: true };
+  }
+
+  /**
+   * The assigning superior becomes PIC when the current PIC's account is no
+   * longer active, so the Voice can still be processed and closed.
+   */
+  async takeOver(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(versionSchema, input);
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `take-over:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const current = await this.lockedActionVoice(tx, actor, id, data.expectedVersion);
+        const handler = current.currentHandlerId
+          ? await tx.userAccount.findUnique({
+              where: { id: current.currentHandlerId },
+              select: { status: true },
+            })
+          : null;
+        if (!this.actionSet(actor, { ...current, currentHandler: handler }).includes('TAKE_OVER'))
+          throw invalidTransition('Ambil alih hanya tersedia jika PIC sudah tidak aktif.');
+        const handlerType =
+          current.visibility === VoiceVisibility.PRIVATE
+            ? HandlerType.UNION_HEAD
+            : HandlerType.MANAGER;
+        await tx.voiceAssignment.updateMany({
+          where: { voiceId: id, endedAt: null },
+          data: { endedAt: new Date() },
+        });
+        const assignment = await tx.voiceAssignment.create({
+          data: { voiceId: id, handlerId: actor.accountId, handlerType, actorId: actor.accountId },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: { currentHandlerId: actor.accountId, handlerType, version: { increment: 1 } },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.REASSIGNED,
+            payload: {
+              assignmentId: assignment.id,
+              handlerType,
+              takeOver: true,
+              previousHandlerId: current.currentHandlerId,
+            },
+          },
+        });
+        await this.notify(
+          tx,
+          current.reporterId,
+          id,
+          NotificationType.STATUS_CHANGED,
+          current.visibility === VoiceVisibility.PRIVATE
+            ? 'Ada pembaruan Private Voice'
+            : 'PIC Voice berganti',
+        );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+        };
+      },
+    );
   }
   async timeline(
     actor: AuthActor,
@@ -2305,6 +2421,10 @@ export class VoicesService {
           transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
         )
           throw invalidTransition('Voice cannot close from its current state');
+        if (!this.actionSet(actor, voice).includes('CLOSE'))
+          throw invalidTransition(
+            'Hanya PIC yang memproses Voice ini yang dapat menyelesaikannya.',
+          );
         const staged = await tx.attachment.findMany({
           where: {
             voiceId: id,
@@ -3677,12 +3797,16 @@ export class VoicesService {
       handlingCycleNumber?: number;
       handlingTargets?: Array<{ cycleNumber: number }>;
       conversation?: { id: string } | null;
+      currentHandler?: { status?: AccountStatus } | null;
     },
   ) {
     return computeAvailableActions(
       { accountId: actor.accountId, capabilities: actor.capabilities } satisfies ActionActor,
       {
         ...voice,
+        handlerInactive:
+          voice.currentHandler?.status !== undefined &&
+          voice.currentHandler.status !== AccountStatus.ACTIVE,
         hasConversation: Boolean(voice.conversation),
         hasHandlingTarget: voice.handlingTargets?.some(
           (target) => target.cycleNumber === voice.handlingCycleNumber,
@@ -3776,10 +3900,15 @@ export class VoicesService {
         voice.visibility === VoiceVisibility.PRIVATE
           ? { ...voice.routeOwner, displayName: 'Komite' }
           : voice.routeOwner,
-      currentHandler:
-        voice.visibility === VoiceVisibility.PRIVATE && voice.currentHandler
-          ? { ...voice.currentHandler, displayName: 'Komite' }
-          : voice.currentHandler,
+      currentHandler: voice.currentHandler
+        ? {
+            id: voice.currentHandler.id,
+            displayName:
+              voice.visibility === VoiceVisibility.PRIVATE
+                ? 'Komite'
+                : voice.currentHandler.displayName,
+          }
+        : null,
       attachments: voice.attachments,
       locationReview: voice.locationReview,
       closureCycles: (voice.closureCycles ?? []).map((cycle: any) => {

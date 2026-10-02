@@ -160,6 +160,8 @@ export type MockVoice = {
   handlingCycleNumber?: number;
   handlingTargets?: VoiceDetail['handlingTargets'];
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
+  currentHandler?: { id: string; displayName: string };
+  unreadMessages?: number;
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: string | null;
   attachments?: { id: string; mimeType: string; purpose?: string }[];
@@ -1063,7 +1065,8 @@ function detail(voice: MockVoice) {
     classificationSource: 'AI',
     classificationCategory: { key: 'SAFETY', name: 'Safety' },
     routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
-    currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
+    currentHandler: voice.currentHandler ?? { id: 'handler-1', displayName: 'Manager PIC' },
+    unreadMessages: voice.unreadMessages ?? 0,
     attachments: voice.attachments ?? [],
     locationReview: {
       id: 'lr-1',
@@ -1446,6 +1449,27 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     const voiceDetailMatch = path.match(/^\/api\/v1\/voices\/([^/]+)$/);
     if (method === 'GET' && voiceDetailMatch) {
       return satisfy(200, opts.voiceDetail ?? (voice ? detail(voice) : {}));
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/conversation\/read$/.test(path)) {
+      if (voice) voice.unreadMessages = 0;
+      return satisfy(200, { success: true });
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/take-over$/.test(path)) {
+      if (voice) {
+        voice.currentHandler = {
+          id: session.account.id,
+          displayName: session.account.displayName,
+        };
+        voice.availableActions = ['MESSAGE', 'CLOSE'];
+      }
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'IN_PROGRESS',
+        version: 4,
+        currentHandlerId: session.account.id,
+        handlerType: 'MANAGER',
+      });
     }
     // Lifecycle mutations
     // The rate endpoint is stateful: it records the rating on the latest

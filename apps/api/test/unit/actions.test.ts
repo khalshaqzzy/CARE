@@ -44,14 +44,62 @@ describe('computeAvailableActions', () => {
     expect(result).not.toContain('HANDOVER');
   });
 
-  it('offers close and message from IN_PROGRESS only when a conversation exists', () => {
+  it('offers close to the processing PIC and message when a conversation exists', () => {
     const result = computeAvailableActions(
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'IN_PROGRESS' as VoiceStatus, hasConversation: true }),
+      voice({
+        status: 'IN_PROGRESS' as VoiceStatus,
+        currentHandlerId: 'owner',
+        hasConversation: true,
+      }),
     );
     expect(result).toContain('CLOSE');
     expect(result).toContain('MESSAGE');
     expect(result).not.toContain('PROCEED');
+  });
+
+  it('keeps close away from a superior when a Section Head is the PIC', () => {
+    const inProgress = voice({
+      status: 'IN_PROGRESS' as VoiceStatus,
+      currentHandlerId: 'handler',
+      handlerType: 'SECTION_HEAD' as HandlerType,
+      hasConversation: true,
+    });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), inProgress)).not.toContain('CLOSE');
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'handler'), inProgress)).toContain(
+      'CLOSE',
+    );
+  });
+
+  it('keeps older Voices without a recorded PIC closable by the route owner', () => {
+    const legacy = voice({ status: 'IN_PROGRESS' as VoiceStatus });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), legacy)).toContain('CLOSE');
+    expect(computeAvailableActions(actor(['MANAGER'], 'other'), legacy)).not.toContain('CLOSE');
+  });
+
+  it('lets the assigning superior take over only from an inactive PIC', () => {
+    const assigned = (handlerInactive: boolean, status = 'IN_PROGRESS') =>
+      voice({
+        status: status as VoiceStatus,
+        currentHandlerId: 'handler',
+        handlerType: 'SECTION_HEAD' as HandlerType,
+        handlerInactive,
+      });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(true))).toContain(
+      'TAKE_OVER',
+    );
+    expect(
+      computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(true, 'RESPONDED')),
+    ).toContain('TAKE_OVER');
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(false))).not.toContain(
+      'TAKE_OVER',
+    );
+    expect(
+      computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(true, 'CLOSED')),
+    ).not.toContain('TAKE_OVER');
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'other'), assigned(true))).not.toContain(
+      'TAKE_OVER',
+    );
   });
 
   it('denies action to a manager who is not route owner or handler', () => {

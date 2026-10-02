@@ -219,6 +219,7 @@ const idempotentOperations = new Set([
 ]);
 
 const noBodyOperations = new Set([
+  'VoicesController_markConversationRead',
   'AuthController_logout',
   'AuthController_deferPasswordChange',
   'VoicesController_classify',
@@ -389,6 +390,8 @@ function successSchema(operationId: string) {
     VoicesController_setTarget: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
+    VoicesController_takeOver: 'VoiceMutationResponse',
+    VoicesController_markConversationRead: 'SuccessResponse',
     VoicesController_monitoringOptions: 'MonitoringOptions',
     VoicesController_close: 'ClosureResponse',
     VoicesController_conversations: 'ConversationList',
@@ -436,6 +439,7 @@ function requestSchema(operationId: string) {
     VoicesController_submit: 'SubmitVoiceRequest',
     VoicesController_assign: 'AssignmentRequest',
     VoicesController_reassign: 'AssignmentRequest',
+    VoicesController_takeOver: 'TakeOverRequest',
     VoicesController_handover: 'HandoverRequest',
     VoicesController_requestAdminHandover: 'AdminHandoverNoteRequest',
     VoicesController_resolveAdminHandover: 'AdminHandoverDecisionRequest',
@@ -560,6 +564,11 @@ const baseVoiceProperties = {
 };
 
 const shopVoiceProperties = {
+  unreadMessages: {
+    type: 'integer',
+    minimum: 0,
+    description: 'Messages from others since the viewer last opened the conversation.',
+  },
   shopLocation: {
     type: 'object',
     nullable: true,
@@ -1290,6 +1299,12 @@ const schemas: Record<string, any> = {
       text: { type: 'string', minLength: 1, maxLength: 4000 },
       version: { type: 'integer', minimum: 1 },
     },
+  },
+  TakeOverRequest: {
+    type: 'object',
+    required: ['expectedVersion'],
+    additionalProperties: false,
+    properties: { expectedVersion: { type: 'integer', minimum: 1 } },
   },
   VersionedMutationRequest: {
     type: 'object',

@@ -635,7 +635,7 @@ describe('Voice lifecycle backend completion', () => {
       currentHandlerId: staleHandler.accountId,
       handlerType: HandlerType.SECTION_HEAD,
     });
-    await voices.close(manager, voice.id, { note: 'done', version: 1 }, 'close-k4');
+    await voices.close(staleHandler, voice.id, { note: 'done', version: 1 }, 'close-k4');
     await prisma.userAccount.update({
       where: { id: staleHandler.accountId },
       data: { status: 'INACTIVE' },
@@ -651,5 +651,68 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.currentHandlerId).toBe(manager.accountId);
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
     expect(reopened.handlingSectionSnapshot).toBeNull();
+  });
+  it('counts unread chat messages per viewer until the conversation is opened', async () => {
+    const voice = await createVoice({ status: VoiceStatus.RESPONDED });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+    await voices.addMessage(reporter, voice.id, { text: 'Halo' }, [], 'unread-1');
+    await voices.addMessage(reporter, voice.id, { text: 'Masih ada?' }, [], 'unread-2');
+    expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(2);
+    expect((await voices.detail(reporter, voice.id)).unreadMessages).toBe(0);
+    await voices.markConversationRead(manager, voice.id);
+    expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(0);
+    await voices.addMessage(reporter, voice.id, { text: 'Satu lagi' }, [], 'unread-3');
+    expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(1);
+  });
+
+  it('lets the route Manager take over only once the PIC account is inactive', async () => {
+    const voice = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    expect((await voices.detail(manager, voice.id)).availableActions).not.toContain('TAKE_OVER');
+    await expect(
+      voices.takeOver(manager, voice.id, { expectedVersion: 1 }, 'take-over-active'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+
+    const inactive = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: staleHandler.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    await prisma.userAccount.update({
+      where: { id: staleHandler.accountId },
+      data: { status: 'INACTIVE' },
+    });
+    const detail = await voices.detail(manager, inactive.id);
+    expect(detail.availableActions).toContain('TAKE_OVER');
+    expect(detail.availableActions).not.toContain('CLOSE');
+    expect(detail.currentHandler).toEqual({
+      id: staleHandler.accountId,
+      displayName: 'Section Head Stale',
+    });
+    const taken = await voices.takeOver(
+      manager,
+      inactive.id,
+      { expectedVersion: 1 },
+      'take-over-1',
+    );
+    expect(taken).toMatchObject({ currentHandlerId: manager.accountId, handlerType: 'MANAGER' });
+    const replay = await voices.takeOver(
+      manager,
+      inactive.id,
+      { expectedVersion: 1 },
+      'take-over-1',
+    );
+    expect(replay.version).toBe(taken.version);
+    expect((await voices.detail(manager, inactive.id)).availableActions).toContain('CLOSE');
+    const event = await prisma.voiceEvent.findFirstOrThrow({
+      where: { voiceId: inactive.id, type: 'REASSIGNED' },
+    });
+    expect(event.payload).toMatchObject({
+      takeOver: true,
+      previousHandlerId: staleHandler.accountId,
+    });
   });
 });

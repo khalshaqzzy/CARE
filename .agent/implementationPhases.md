@@ -17,6 +17,17 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 1 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. On branch `feat/voice-tiered-routing-stage2` (not released; stage 2 and 3 ship together after product-owner approval):
+
+- the Voice detail redesign;
+- an unread-message badge on the conversation card;
+- PIC-only close (older Voices without a PIC stay closable by the route owner);
+- **Ambil alih** when the PIC account is inactive.
+
+See PRD §43.5 and ADR-0059. The remaining stage 2 increments are the unified Respons sheet, target reminders and overdue fan-out, the TM position card, chain routing and visibility, away delegation, and severity edits with AI Private guidance.
+
 ## Tiered bottom-up routing, stage 1 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase.

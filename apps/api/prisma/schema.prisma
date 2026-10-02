@@ -908,11 +908,22 @@ model VoiceEvent {
 }
 
 model Conversation {
-  id        String    @id @default(uuid()) @db.Uuid
-  voiceId   String    @unique @db.Uuid
-  createdAt DateTime  @default(now())
-  voice     Voice     @relation(fields: [voiceId], references: [id])
-  messages  Message[]
+  id         String                  @id @default(uuid()) @db.Uuid
+  voiceId    String                  @unique @db.Uuid
+  createdAt  DateTime                @default(now())
+  voice      Voice                   @relation(fields: [voiceId], references: [id])
+  messages   Message[]
+  readStates ConversationReadState[]
+}
+
+// Last time a participant opened the conversation; drives unread badges.
+model ConversationReadState {
+  conversationId String       @db.Uuid
+  accountId      String       @db.Uuid
+  lastReadAt     DateTime
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  @@id([conversationId, accountId])
 }
 
 model Message {

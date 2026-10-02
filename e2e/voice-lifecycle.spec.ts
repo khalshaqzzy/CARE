@@ -70,6 +70,48 @@ for (const width of [360, 390, 768, 1440]) {
   });
 }
 
+test('unread chat badge clears after opening chat and a superior takes over from an inactive PIC', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const posts: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST') posts.push(new URL(request.url()).pathname);
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'MANAGER'],
+      structuralPosition: 'Department Head',
+    }),
+    voice: {
+      id: 'takeover-voice',
+      displayId: 'CARE-202610-000001',
+      visibility: 'GENERAL',
+      status: 'IN_PROGRESS',
+      area: 'KARAWANG_1',
+      title: 'Kipas angin mati',
+      detail: 'Kipas di line 2 tidak berputar.',
+      conversationState: 'ACTIVE',
+      currentHandler: { id: 'sh-inactive', displayName: 'Budi Santoso' },
+      unreadMessages: 3,
+      availableActions: ['MESSAGE', 'TAKE_OVER'],
+    },
+  });
+  await page.goto('/voices/takeover-voice');
+  await expect(page.getByLabel('3 pesan belum dibaca')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Selesaikan', exact: false })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ambil alih' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ambil alih Voice ini?' });
+  await dialog.getByRole('button', { name: 'Ambil alih' }).click();
+  await expect(page.getByText('Anda sekarang PIC Voice ini.')).toBeVisible();
+  expect(posts).toContain('/api/v1/voices/takeover-voice/take-over');
+  await page.getByText('Buka Chat').click();
+  await expect(page).toHaveURL(/\/voices\/takeover-voice\/chat$/);
+  await expect.poll(() => posts).toContain('/api/v1/voices/takeover-voice/conversation/read');
+  await page.goto('/voices/takeover-voice');
+  await expect(page.getByLabel('3 pesan belum dibaca')).toHaveCount(0);
+});
+
 test('processing failure retains the target and retries with the same idempotency key', async ({
   page,
 }) => {

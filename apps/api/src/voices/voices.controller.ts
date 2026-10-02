@@ -163,6 +163,20 @@ export class VoicesController {
   ) {
     return this.voices.reassign(a, id, b, key);
   }
+  @Post('voices/:id/take-over') takeOver(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.takeOver(a, id, b, key);
+  }
+  @Post('voices/:id/conversation/read') markConversationRead(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.markConversationRead(a, id);
+  }
   @Get('voices/:id/assignment-candidates') assignmentCandidates(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

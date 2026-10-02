@@ -106,18 +106,14 @@ for (const audience of ['GENERAL_RESPONDER', 'REPORTER_SELF']) {
       },
     });
     await page.goto('/voices/voice-1');
-    await expect(
-      page.getByText(
-        audience === 'GENERAL_RESPONDER'
-          ? 'Pelapor: Muhammad Budi Santoso Pratama Wicaksono'
-          : 'PIC: Manager PIC',
-        { exact: true },
-      ),
-    ).toBeVisible();
-    if (audience === 'GENERAL_RESPONDER') {
-      await expect(page.getByText('PIC: Manager PIC', { exact: true })).toBeVisible();
-      await expect(page.getByText('Area: Karawang 1', { exact: true })).toBeVisible();
-    }
+    const people = page.locator('.voice-hero__people');
+    await expect(people.getByText('Manager PIC', { exact: true })).toBeVisible();
+    await expect(page.getByText('Karawang 1', { exact: true })).toBeVisible();
+    if (audience === 'GENERAL_RESPONDER')
+      await expect(
+        people.getByText('Muhammad Budi Santoso Pratama Wicaksono', { exact: true }),
+      ).toBeVisible();
+    else await expect(people.getByText('Pelapor', { exact: true })).toHaveCount(0);
     await capture(page, `detail-identity-${audience}-360-${visualPlatform}.png`, screenshot);
   });
 }

@@ -9,6 +9,8 @@ export type ActionableVoice = {
   handlerType: HandlerType;
   hasConversation?: boolean;
   hasHandlingTarget?: boolean;
+  /** The current PIC account is no longer active (deactivated or legacy). */
+  handlerInactive?: boolean;
   closureCycles?: Array<{
     reopenedAt: Date | null;
     reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
@@ -65,9 +67,26 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
             (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD')))))
       )
         actions.push('SET_TARGET');
-      actions.push('CLOSE');
+      // Only the PIC who started handling closes the Voice. Older Voices that
+      // never recorded a PIC stay closable by their route destination.
+      if (
+        isHandler ||
+        (!voice.currentHandlerId &&
+          (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD'))))
+      )
+        actions.push('CLOSE');
       if (voice.hasConversation) actions.push('MESSAGE');
     }
+    // The superior who can assign may take over from a PIC whose account is no
+    // longer active, so the Voice can still be completed.
+    if (
+      canAssign &&
+      voice.currentHandlerId &&
+      !isHandler &&
+      voice.handlerInactive &&
+      (voice.status === 'RESPONDED' || voice.status === 'IN_PROGRESS')
+    )
+      actions.push('TAKE_OVER');
   } else if (isReporter) {
     if (['RESPONDED', 'IN_PROGRESS'].includes(voice.status) && voice.hasConversation)
       actions.push('MESSAGE');

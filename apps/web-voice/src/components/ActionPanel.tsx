@@ -10,6 +10,7 @@ import {
   Play,
   Send,
   UserRound,
+  UserRoundCheck,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +21,15 @@ import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
 
 type Action =
-  'respond' | 'proceed' | 'target' | 'close' | 'assign' | 'reassign' | 'assignment-note' | 'none';
+  | 'respond'
+  | 'proceed'
+  | 'target'
+  | 'close'
+  | 'assign'
+  | 'reassign'
+  | 'assignment-note'
+  | 'take-over'
+  | 'none';
 type Assignment = { handlerAccountId: string; reason?: string };
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
@@ -72,6 +81,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           key,
         );
       if (action === 'close') return api.close(detail.id, { note: note!, version }, key);
+      if (action === 'take-over') return api.takeOver(detail.id, { expectedVersion: version }, key);
       return (action === 'reassign' ? api.reassign : api.assign)(
         detail.id,
         { ...assignmentBody!, ...(note ? { text: note } : {}), expectedVersion: version },
@@ -97,7 +107,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             ? 'Target penyelesaian tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
             : variables.action === 'close'
               ? 'Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.'
-              : 'PIC berhasil diperbarui.',
+              : variables.action === 'take-over'
+                ? 'Anda sekarang PIC Voice ini.'
+                : 'PIC berhasil diperbarui.',
         );
     },
     onError: (cause) => {
@@ -129,6 +141,14 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         <p className="action-panel__waiting">
           Menunggu PIC memulai penanganan. Percakapan tetap tersedia.
         </p>
+      ) : null}
+      {actions.includes('TAKE_OVER') ? (
+        <Alert tone="warning" title="PIC sudah tidak aktif">
+          <Button variant="primary" onClick={() => open('take-over')}>
+            <UserRoundCheck size={18} aria-hidden="true" />
+            Ambil alih
+          </Button>
+        </Alert>
       ) : null}
       <div className="action-panel" role="group" aria-label="Tindakan">
         {actions.some((action) => ['ASSIGN', 'REASSIGN'].includes(action)) ? (
@@ -330,6 +350,35 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             notifikasi; pengingat dikirim sekali jika target terlewati.
           </p>
         </Stack>
+      </Dialog>
+      <Dialog
+        open={active === 'take-over'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title="Ambil alih Voice ini?"
+        description="Anda menjadi PIC. Target tidak berubah."
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              onClick={() => mutation.mutate({ action: 'take-over' })}
+            >
+              Ambil alih
+            </Button>
+          </div>
+        }
+      >
+        {error ? (
+          <Alert tone="danger" title="Belum tersimpan">
+            {error}
+          </Alert>
+        ) : null}
       </Dialog>
       <Dialog
         open={active === 'close'}
