@@ -3549,6 +3549,13 @@ export class VoicesService {
         take: 1,
         select: { reviewState: true, reviewDeadline: true },
       },
+      // Latest target only; it is overdue when it belongs to the live cycle.
+      handlingCycleNumber: true,
+      handlingTargets: {
+        orderBy: { cycleNumber: 'desc' },
+        take: 1,
+        select: { cycleNumber: true, dueAt: true },
+      },
       // PIC display name for operational inbox cards; only joined for responder/
       // leadership/union lists, never for reporter-facing payloads.
       ...(includeHandler ? { currentHandler: { select: { displayName: true } } } : {}),
@@ -3565,6 +3572,9 @@ export class VoicesService {
         reviewState: ClosureReviewState;
         reviewDeadline: Date | null;
       }> | null;
+      status?: VoiceStatus;
+      handlingCycleNumber?: number;
+      handlingTargets?: Array<{ cycleNumber: number; dueAt: Date }>;
     },
   >(row: T) {
     const {
@@ -3574,8 +3584,17 @@ export class VoicesService {
       categoryNameSnapshot,
       currentCategoryNameSnapshot,
       closureCycles,
+      handlingCycleNumber,
+      handlingTargets,
       ...rest
     } = row;
+    const target = handlingTargets?.[0];
+    const targetOverdue = Boolean(
+      row.status === VoiceStatus.IN_PROGRESS &&
+      target &&
+      target.cycleNumber === handlingCycleNumber &&
+      target.dueAt < new Date(),
+    );
     const latestReview = closureCycles?.[0];
     const closureReviewState = this.effectiveReviewState(latestReview);
     return {
@@ -3585,6 +3604,7 @@ export class VoicesService {
       currentHandlerName: currentHandler?.displayName ?? null,
       closureReviewState,
       closureReviewDeadline: latestReview?.reviewDeadline ?? null,
+      targetOverdue,
     };
   }
   private async authorizedVoice(actor: AuthActor, id: string) {

@@ -94,6 +94,22 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Browser: Respons sheet choices, handover routing, Proses sendiri request, Private sheet without Handover.
   - The browser inventory grows from 420 to 421.
 
+## Implementation (stage 2, increment 3 — not released)
+
+- **Schema.** Migration `20261003110000_handling_target_reminder` adds `NotificationType.TARGET_REMINDER`, `VoiceHandlingTarget.reminderSentAt`, and an index on `(reminderSentAt, dueAt)`.
+- **Worker.** `HandlingTargetService.tick` now runs two guarded passes under the Voice row lock.
+  - **Reminder:** at `handlingReminderAt(dueAt)` (08:00 WIB on the target day), it sends one `TARGET_REMINDER` to the PIC, or to the route owner when no PIC is recorded. Targets with `days = 0` are skipped, as are targets that are already overdue.
+  - **Overdue:**
+    - It sends one `TARGET_OVERDUE` to the PIC, `levelsAbove` (currently the route-owning Manager; stage 2 chain routing will add the GL/SH levels), and the reporter.
+    - It writes a `TARGET_OVERDUE` Voice event and a `SYSTEM` chat message, both carried by the account that set the target and marked `system: true` in the event payload.
+- **Lists.** `VoiceListItem.targetOverdue` is true when the latest target belongs to the live cycle, the Voice is `IN_PROGRESS`, and `dueAt` has passed. The list select reads only the latest target. The local performance suite stays within budget (dashboard p95 2.84 s).
+- **Web.** `OverdueBadge` ("Terlambat") appears on the inbox, member, and history cards and in the detail hero.
+- **Validation.**
+  - Unit: the 08:00 WIB reminder time.
+  - Integration: reminder once to the PIC across concurrent workers; same-day targets skipped; overdue fan-out to PIC, Manager, and reporter; the system chat note, the event, and the list flag.
+  - Browser: the badge on the card and detail and the system note in chat.
+  - The browser inventory grows from 421 to 422.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

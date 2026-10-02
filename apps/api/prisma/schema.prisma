@@ -222,6 +222,7 @@ enum NotificationType {
   MESSAGE
   STATUS_CHANGED
   TARGET_SET
+  TARGET_REMINDER
   TARGET_OVERDUE
   CLOSED
   RATED
@@ -1085,9 +1086,12 @@ model VoiceHandlingTarget {
   setById           String    @db.Uuid
   setAt             DateTime  @default(now())
   dueAt             DateTime
+  /// 08:00 WIB on the target day; skipped for same-day targets.
+  reminderSentAt    DateTime?
   overdueNotifiedAt DateTime?
   voice             Voice     @relation(fields: [voiceId], references: [id])
 
   @@unique([voiceId, cycleNumber])
   @@index([overdueNotifiedAt, dueAt])
+  @@index([reminderSentAt, dueAt])
 }

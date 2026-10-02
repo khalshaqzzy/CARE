@@ -17,6 +17,17 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 3 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- an 08:00 WIB target-day reminder to the PIC (not for same-day targets);
+- a one-time overdue notice to the PIC, the Manager, and the reporter;
+- a system chat note and timeline event when the target passes;
+- the **Terlambat** badge on cards and detail.
+
+See PRD §15.4, §43.5, and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 2 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:

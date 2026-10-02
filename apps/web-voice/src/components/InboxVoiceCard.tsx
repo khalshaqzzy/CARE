@@ -11,6 +11,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import type { VoiceListItem } from '../workforce-api';
+import { OverdueBadge } from './OverdueBadge';
 import {
   AREA_LABELS,
   formatCategoryName,
@@ -137,6 +138,7 @@ export function InboxVoiceCard({
                 <span className="voice-reopened">Dibuka kembali</span>
               ) : null}
             </span>
+            {voice.targetOverdue ? <OverdueBadge /> : null}
             <span className="inbox-card__time">
               <Clock3 size={12} aria-hidden="true" />
               {formatRelative(voice.updatedAt)}

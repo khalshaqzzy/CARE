@@ -2652,6 +2652,8 @@ const schemas: Record<string, any> = {
         nullable: true,
       },
       closureReviewDeadline: { type: 'string', format: 'date-time', nullable: true },
+      // The live handling target has passed while the Voice is still Diproses.
+      targetOverdue: { type: 'boolean' },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },

@@ -125,6 +125,67 @@ test('Respons sheet processes in one step or leads to handover', async ({ page }
   expect(requests[0]?.body).toMatchObject({ text: 'Saya cek langsung siang ini.', days: 3 });
 });
 
+test('an overdue target is flagged on the work card, the detail, and in the chat', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'MANAGER'],
+      structuralPosition: 'Department Head',
+    }),
+    voice: {
+      id: 'overdue-voice',
+      displayId: 'CARE-202610-000005',
+      visibility: 'GENERAL',
+      status: 'IN_PROGRESS',
+      area: 'KARAWANG_1',
+      title: 'Lampu gudang mati',
+      detail: 'Lampu di gudang belakang mati.',
+      availableActions: ['MESSAGE', 'CLOSE'],
+      targetOverdue: true,
+      handlingTargets: [
+        {
+          id: 'target-overdue',
+          cycleNumber: 1,
+          days: 1,
+          setAt: '2026-10-01T02:00:00.000Z',
+          dueAt: '2026-10-02T16:59:59.999Z',
+          state: 'OVERDUE',
+        },
+      ],
+    },
+  });
+  await page.route('**/api/v1/voices/overdue-voice/messages**', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({
+          json: {
+            items: [
+              {
+                id: '33333333-3333-4333-8333-333333333333',
+                text: 'Target penyelesaian terlewati',
+                kind: 'SYSTEM',
+                createdAt: '2026-10-03T00:00:00.000Z',
+                senderId: 'handler-1',
+                senderAccountKind: 'WORKFORCE',
+                sender: { kind: 'WORKFORCE', displayName: 'Manager PIC' },
+                attachments: [],
+              },
+            ],
+            nextCursor: null,
+          },
+        })
+      : route.fallback(),
+  );
+  await page.goto('/work-items');
+  const card = page.getByRole('button', { name: 'Buka CARE-202610-000005' });
+  await expect(card.getByText('Terlambat')).toBeVisible();
+  await card.click();
+  await expect(page.locator('.voice-hero').getByText('Terlambat')).toBeVisible();
+  await page.goto('/voices/overdue-voice/chat');
+  await expect(page.getByRole('note')).toContainText('Target penyelesaian terlewati');
+});
+
 test('unread chat badge clears after opening chat and a superior takes over from an inactive PIC', async ({
   page,
 }) => {

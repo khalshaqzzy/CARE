@@ -1,6 +1,34 @@
 # CARE Session Handoff
 
-## Tiered routing stage 2, increment 2 — 2 October 2026
+## Tiered routing stage 2, increment 3 — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §15.4, §43.5, ADR-0059):**
+
+- **Target-day reminder:** sent at 08:00 WIB to the PIC (`TARGET_REMINDER`, `reminderSentAt`); skipped for "Hari ini".
+- **Overdue fan-out:** goes to the PIC, the Manager, and the reporter. Upper GL/SH levels join with chain routing in increment 5 through `HandlingTargetService.levelsAbove`.
+- **When the target passes:** a SYSTEM chat note "Target penyelesaian terlewati" and a `TARGET_OVERDUE` timeline event are written.
+- **Badge:** `targetOverdue` on list items, and the **Terlambat** badge on the cards and the detail hero.
+
+**Files:**
+
+- **API:** `prisma/schema.prisma` and migration `20261003110000_handling_target_reminder`; `src/voices/{handling-target.service,handling-target,voices.service}.ts`; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/{OverdueBadge (new),InboxVoiceCard,VoiceCard,HistoryVoiceCard,VoiceHero}.tsx` and `styles.css`.
+- **Tests:**
+  - `test/unit/handling-target.test.ts`;
+  - `test/integration/voice-lifecycle.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 421 → 422.
+
+**Validation:**
+
+- **Unit:** API 148/148; web-voice 127/127.
+- **Integration and security:** all pass except the known admin-safety and push-subscription flakes.
+- **Performance:** passed 2/2 after `pnpm seed:performance` (dashboard p95 2840 ms). Seed first, or the suite fails on fixture size.
+- **Browser:** the full mocked run passed 416/416. Card and detail badges were inspected at 390 px.
+
+**Next:** increment 4, the TM position card (variant B, Section + Line, prefilled from the last choice).
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released (stage 2 and 3 ship together after product-owner approval).
 

@@ -6233,6 +6233,20 @@
   font-size: 12px;
   font-weight: 600;
 }
+.voice-overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fbe9e9;
+  background: color-mix(in srgb, var(--state-danger) 10%, white);
+  color: var(--text-danger);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .action-panel__waiting {
   color: #536176;
   font-size: 13px;

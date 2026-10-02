@@ -759,7 +759,7 @@ bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 - Detail menampilkan target, Dalam target/Target terlewati/Selesai sesuai target/Selesai melewati target, serta riwayat siklus. Data lama tanpa target menampilkan Belum ditetapkan, tanpa backfill target fiktif.
 - Reopen mempertahankan room dan fallback PIC existing, membuka siklus baru tanpa target. PIC menetapkan target baru tanpa menutup chat.
 - Penetapan target mengirim notifikasi ke reporter dan route-owning Department Head (Union Head pada Private), penerima dideduplikasi meskipun penetap adalah penerima.
-- Keterlambatan tidak mengubah status atau memblokir chat. Indikator dihitung saat read; worker mengirim satu notifikasi per target/penerima melalui outbox, tanpa pengingat harian atau eskalasi otomatis.
+- Keterlambatan tidak mengubah status atau memblokir chat. Indikator dihitung saat read. Worker mengirim satu pengingat kepada PIC pukul 08.00 WIB pada hari target (tidak untuk target "Hari ini"), lalu satu notifikasi keterlambatan per target kepada PIC, level di atasnya sampai Manager, dan pelapor, disertai pesan sistem "Target penyelesaian terlewati" di chat dan badge **Terlambat** pada kartu dan detail (§43.5). Tanpa pengingat harian berulang.
 - Worker memakai lock Voice yang sama dengan close/reopen. Target siklus lama dan Voice yang telah ditutup tidak mengirim pengingat keterlambatan baru.
 - Notifikasi in-app mencantumkan target tanggal/jam. Push Private tetap generik sesuai kebijakan privasi.
 
@@ -2338,7 +2338,7 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap 2 — inkremen 1–2 (diimplementasikan, belum dirilis)
+### 43.5 Tahap 2 — inkremen 1–3 (diimplementasikan, belum dirilis)
 
 - **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
 - **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
@@ -2347,6 +2347,8 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
 - **Satu tombol Respons:** selama Voice Terbuka, semua cara menjawab ada dalam satu sheet **Respons**: Balas pesan, Tugaskan PIC (pilih PIC + pesan), Handover (lanjut ke halaman pilih tujuan), dan Proses sendiri (pesan + target). Setiap pilihan kecuali Handover mengirim pesan pertama dan membuka chat. Proses sendiri merespons dan memulai penanganan dalam satu langkah (`POST /voices/:id/respond` dengan `days`). Private Voice tidak menampilkan Handover.
 - **Handover = respons:** Handover tersedia sampai Voice Diproses atau ditugaskan. Status menjadi Direspons, chat dibuka dengan pesan sistem "Diteruskan ke [Department]", pelapor diberi notifikasi, dan Manager sumber menjadi baca-saja. Manager tujuan dapat Balas pesan, Tugaskan PIC, Proses, atau Handover lagi. Serah ke CARE Admin tetap hanya dari Terbuka.
 - **Pesan sistem:** pesan memiliki jenis `USER` atau `SYSTEM`; pesan sistem tampil di tengah chat tanpa avatar.
+- **Pengingat target:** PIC menerima satu notifikasi **Target penyelesaian hari ini** pukul 08.00 WIB pada hari target; target "Hari ini" tidak diberi pengingat.
+- **Target terlewati:** satu kali per target, PIC, level di atasnya sampai Manager (saat ini: Manager route owner; level GL/SH ditambahkan bersama rantai bertingkat), dan pelapor menerima notifikasi. Chat menerima pesan sistem "Target penyelesaian terlewati", timeline mencatat Target terlewati, dan kartu Voice serta header detail menampilkan badge **Terlambat** selama Voice masih Diproses.
 
 ### 43.6 Tahap berikutnya
 

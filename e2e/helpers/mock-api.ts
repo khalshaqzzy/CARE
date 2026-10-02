@@ -161,6 +161,7 @@ export type MockVoice = {
   handlingTargets?: VoiceDetail['handlingTargets'];
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
   currentHandler?: { id: string; displayName: string };
+  targetOverdue?: boolean;
   unreadMessages?: number;
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: string | null;
@@ -265,6 +266,7 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
     ? { currentHandlerName: voice.currentHandlerName }
     : {}),
   ...(voice.reporterAlias !== undefined ? { reporterAlias: voice.reporterAlias } : {}),
+  ...(voice.targetOverdue !== undefined ? { targetOverdue: voice.targetOverdue } : {}),
 });
 
 /**

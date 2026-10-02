@@ -495,6 +495,76 @@ describe('Voice lifecycle backend completion', () => {
     ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
   });
 
+  it('reminds the PIC on the target day and fans overdue out to PIC, Manager and reporter', async () => {
+    const voice = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+    // Target day has started (past 08:00 WIB) but the deadline is still ahead.
+    const target = await prisma.voiceHandlingTarget.create({
+      data: {
+        voiceId: voice.id,
+        cycleNumber: 1,
+        days: 2,
+        setById: sectionHead.accountId,
+        dueAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    const worker = new HandlingTargetService(prisma as never);
+    await Promise.all([worker.tick(), new HandlingTargetService(prisma as never).tick()]);
+    await worker.tick();
+    const reminders = await prisma.notification.findMany({
+      where: { voiceId: voice.id, type: 'TARGET_REMINDER' },
+    });
+    expect(reminders.map((item) => item.recipientId)).toEqual([sectionHead.accountId]);
+    expect(
+      await prisma.notification.count({ where: { voiceId: voice.id, type: 'TARGET_OVERDUE' } }),
+    ).toBe(0);
+    const listed = await voices.workItems(sectionHead, {});
+    expect(listed.items.find((item) => item.id === voice.id)?.targetOverdue).toBe(false);
+
+    await prisma.voiceHandlingTarget.update({
+      where: { id: target.id },
+      data: { dueAt: new Date(Date.now() - 60000) },
+    });
+    await Promise.all([worker.tick(), new HandlingTargetService(prisma as never).tick()]);
+    await worker.tick();
+    const overdue = await prisma.notification.findMany({
+      where: { voiceId: voice.id, type: 'TARGET_OVERDUE' },
+    });
+    expect(overdue.map((item) => item.recipientId).sort()).toEqual(
+      [sectionHead.accountId, manager.accountId, reporter.accountId].sort(),
+    );
+    const thread = await voices.messages(reporter, voice.id, {});
+    expect(thread.items.map((item) => [item.kind, item.text])).toEqual([
+      ['SYSTEM', 'Target penyelesaian terlewati'],
+    ]);
+    expect(
+      await prisma.voiceEvent.count({ where: { voiceId: voice.id, type: 'TARGET_OVERDUE' } }),
+    ).toBe(1);
+    const relisted = await voices.workItems(sectionHead, {});
+    expect(relisted.items.find((item) => item.id === voice.id)?.targetOverdue).toBe(true);
+  });
+
+  it('skips the target-day reminder when the target is today', async () => {
+    const voice = await createVoice({ status: VoiceStatus.IN_PROGRESS });
+    await prisma.voiceHandlingTarget.create({
+      data: {
+        voiceId: voice.id,
+        cycleNumber: 1,
+        days: 0,
+        setById: manager.accountId,
+        dueAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    await new HandlingTargetService(prisma as never).tick();
+    expect(
+      await prisma.notification.count({ where: { voiceId: voice.id, type: 'TARGET_REMINDER' } }),
+    ).toBe(0);
+  });
+
   it('does not emit overdue notifications after closure wins the lock', async () => {
     const voice = await createVoice();
     await voices.respond(manager, voice.id, { text: 'Respons', version: 1 }, 'race-target-respond');

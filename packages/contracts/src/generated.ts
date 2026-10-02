@@ -3408,6 +3408,7 @@ export interface components {
             closureReviewState?: "PENDING" | "ACCEPTED" | "REJECTED" | null;
             /** Format: date-time */
             closureReviewDeadline?: string | null;
+            targetOverdue?: boolean;
             /** Format: date-time */
             updatedAt: string;
         };
