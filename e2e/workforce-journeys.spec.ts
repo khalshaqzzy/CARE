@@ -800,8 +800,11 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(dialog.getByRole('radio', { name: /Union Officer 1/ })).toBeChecked();
     await expect(dialog.getByText('3 Voice aktif')).toBeVisible();
     await dialog.getByRole('textbox', { name: 'Pesan' }).fill('Komite akan menindaklanjuti.');
+    // The static detail mock keeps the chat unavailable, so the chat page bounces
+    // back; catch the navigation itself instead of sampling the final URL.
+    const toChat = page.waitForURL(/\/voices\/voice-p1\/chat$/);
     await dialog.getByRole('button', { name: 'Tugaskan PIC', exact: true }).click();
-    await expect(page).toHaveURL(/\/voices\/voice-p1\/chat$/);
+    await toChat;
   });
 
   test('union identified detail shows the consented reporter snapshot', async ({ page }) => {
