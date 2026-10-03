@@ -167,9 +167,9 @@ const tierKey = (row: ImportRow, ...parts: string[]) =>
 const positionOf = (row: ImportRow) => normalize(row.structuralPosition).toLocaleLowerCase('en-US');
 
 /**
- * Advisory checks for tiered routing: each Section should have one Section
- * Head and each Line one Group Leader. Gaps and duplicates do not block the
- * import; routing skips a level it cannot resolve to exactly one person.
+ * Informational counts for tiered routing. Several leaders of a Section or Line
+ * hold that level together, and a Line without a Group Leader goes to the
+ * Section Head, so none of this blocks the import.
  */
 export function tierSummary(rows: ImportRow[]) {
   const columnsPresent = rows.some((row) => row.area !== undefined || row.line !== undefined);

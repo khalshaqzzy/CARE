@@ -386,6 +386,69 @@ describe('Tiered routing foundation', () => {
     });
   });
 
+  it('gives a Line with two Group Leaders to both; whoever presses Proses becomes the PIC', async () => {
+    const placed = await prisma.organizationMembership.findFirstOrThrow({
+      where: { employee: { noReg: '700003' }, snapshot: { status: 'ACTIVE' } },
+    });
+    const employee = await prisma.employee.create({ data: { noReg: '700009', name: 'GL A2' } });
+    const second = await prisma.userAccount.create({
+      data: {
+        username: '700009',
+        displayName: 'GL A2',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: {
+        snapshotId: placed.snapshotId,
+        employeeId: employee.id,
+        organizationUnitId: placed.organizationUnitId,
+        employeeName: 'GL A2',
+        structuralPosition: 'Group Leader',
+        section: 'Line Sect',
+        lineName: 'Line A',
+        sourceRow: 998,
+      },
+    });
+    try {
+      const first = await principal('700003');
+      const other = await principal('700009');
+      const voice = await submitAs('700004', 'tier-two-leaders');
+      expect(voice).toMatchObject({
+        tierLevel: 'GROUP_LEADER',
+        tierHolderIds: [first.accountId, other.accountId].sort(),
+      });
+      const notified = await prisma.notification.findMany({
+        where: { voiceId: voice.id, type: 'VOICE_SUBMITTED' },
+        select: { recipientId: true },
+      });
+      expect(notified.map((row) => row.recipientId).sort()).toEqual(
+        [first.accountId, other.accountId].sort(),
+      );
+      expect((await voices.detail(first, voice.id)).availableActions).toContain('RESPOND');
+      expect((await voices.detail(other, voice.id)).availableActions).toContain('RESPOND');
+
+      const processed = await voices.respond(
+        other,
+        voice.id,
+        { text: 'Saya tangani.', version: 1, days: 1 },
+        'tier-two-leaders-process',
+      );
+      expect(processed).toMatchObject({ status: 'IN_PROGRESS', currentHandlerId: other.accountId });
+      expect((await voices.detail(other, voice.id)).availableActions).toContain('CLOSE');
+      // The other Group Leader keeps the chat but cannot close.
+      expect((await voices.detail(first, voice.id)).availableActions).toEqual(['MESSAGE']);
+    } finally {
+      await prisma.userAccount.update({
+        where: { id: second.id },
+        data: { status: 'INACTIVE' },
+      });
+    }
+  });
+
   it('treats a manual Naikkan as a response, assigns down, and reminds the assignee once a day', async () => {
     const groupLeader = await principal('700003');
     const sectionHead = await principal('700002');

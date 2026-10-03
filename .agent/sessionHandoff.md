@@ -1,5 +1,20 @@
 # CARE Session Handoff
 
+## Several leaders share a tier level — 3 October 2026
+
+After the September organization import on staging, the product owner decided:
+
+- A Section with two Section Heads, or a Line with two Group Leaders: all of them receive the Voice. Whoever presses Proses becomes the PIC, and the Voice counts for them.
+- A Line without a Group Leader goes straight to the Section Head (unchanged).
+
+**Changes on `feat/tier-multiple-holders`:**
+
+- **Chain:** `resolveTierChain` puts every active leader of the Line or Section in `tierHolderIds`. Before, a level with more than one leader was skipped. The rest of the flow already handled several holders, as on the division level: Proses sets `currentHandlerId`, only the PIC closes, and the other holders keep the chat.
+- **Admin import panel:** the duplicate-leader and missing-Group-Leader warnings are gone; the panel shows only the counts. The API summary still returns those lists.
+- **Docs:** PRD §43.2 and ADR-0059 amended.
+
+**Validation:** tiered routing integration 14/14, including a new two-Group-Leader case; API unit 160/160; API and web-admin typecheck pass.
+
 ## Monthly organization file format — 3 October 2026
 
 The product owner's monthly HR file is:

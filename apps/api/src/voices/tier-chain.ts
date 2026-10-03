@@ -37,8 +37,9 @@ function reporterLevel(position: string | null): number {
 /**
  * Bottom-up chain for tiered categories: Group Leader of the reporter's Line,
  * Section Head of their Section, the route-owning Manager, then every
- * Deputy/Division Head of the handling division together. A level is skipped
- * when it is not exactly one active person (the division level takes all).
+ * Deputy/Division Head of the handling division together. Every active leader
+ * of a level holds it together (whoever presses Proses becomes the PIC); a
+ * level with nobody is skipped.
  */
 export async function resolveTierChain(db: Db, input: TierChainInput): Promise<TierStep[]> {
   const steps: TierStep[] = [];
@@ -55,10 +56,9 @@ export async function resolveTierChain(db: Db, input: TierChainInput): Promise<T
         ...extra,
       },
       select: { employee: { select: { account: { select: { id: true } } } } },
-      take: 2,
     });
     const ids = rows.map((row) => row.employee.account?.id).filter((id): id is string => !!id);
-    return ids.length === 1 ? ids : [];
+    return [...new Set(ids)].sort();
   };
   if (!input.outsideReporter) {
     if (input.line) {
