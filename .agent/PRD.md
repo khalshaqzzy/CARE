@@ -334,18 +334,20 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 9.1 Authoritative Organization File Contract
 
-Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format menerima tujuh header legacy berikut, atau delapan header dengan `Birth Date` tepat setelah `Posisi (struktural)`. Setiap format juga boleh diakhiri kolom `Area` lalu `Line` setelah `Section` (9 atau 10 kolom) untuk routing bertingkat (§43):
+Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX memakai sheet bulanan `CARE_ORG DATA_[Bulan]` (misalnya `CARE_ORG DATA_SEP`); sheet lama `MFG + QD` tetap diterima, dan workbook harus memiliki tepat satu sheet tersebut. CSV tidak mempunyai kontrak sheet. Format bulanan HR:
 
 ```text
-Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
+Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division, Department, Section, Line, Tgl Lahir
 ```
+
+Kolom dibaca berdasarkan nama, bukan urutan; huruf besar/kecil dan spasi berlebih diabaikan. Tujuh kolom wajib: Noreg, Nama, Posisi (Struktural), Directorat, Division, Department, Section. Kolom opsional: `Pers Area` (alias `Area`) bersama `Line` untuk routing bertingkat (§43), dan `Tgl Lahir` (alias `Birth Date`). Format lama tujuh, delapan, sembilan, atau sepuluh kolom tetap diterima.
 
 Aturan:
 
 - satu row merepresentasikan satu workforce account; `Noreg` diperlakukan sebagai text agar leading zero terjaga;
 - Header wajib sesuai salah satu format yang didukung; kolom tambahan lainnya, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak. Section kosong tetap didukung; tidak dibuat Section sintetis.
-- XLSX memakai plain string atau blank, kecuali Birth Date yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. DOB teks wajib `YYYY-MM-DD`, valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. Format tujuh kolom mempertahankan DOB existing; format delapan kolom memperbarui DOB termasuk blank menjadi null.
-- `Area` menerima Karawang 1–3 dan Sunter 1–2 (huruf besar/kecil, spasi, atau garis bawah tidak berpengaruh) atau kosong; nilai lain menolak file. `Line` adalah teks bebas; Line kosong berarti member tidak memiliki Group Leader. Format tanpa kedua kolom ini mengosongkan Area dan Line seluruh karyawan, dan preview menampilkan peringatan;
+- XLSX memakai plain string atau blank, kecuali Tgl Lahir yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. Tgl Lahir teks memakai `dd/mm/yyyy` (atau `YYYY-MM-DD`), valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. File tanpa kolom tanggal lahir mempertahankan DOB existing; file dengan kolom tersebut memperbarui DOB termasuk blank menjadi null.
+- `Pers Area` menerima Head Office (disimpan tanpa area pabrik), Karawang 1–3, dan Sunter 1–2 (huruf besar/kecil, spasi, atau garis bawah tidak berpengaruh) atau kosong; nilai lain menolak file. `Line` adalah teks bebas; Line kosong berarti member tidak memiliki Group Leader. Format tanpa kedua kolom ini mengosongkan Area dan Line seluruh karyawan, dan preview menampilkan peringatan;
 - `Noreg` unik setelah trim; password existing tidak berubah akibat import;
 - organization unit memakai key komposit `Directorat + Division + Department`;
 - posisi mentah disimpan, tetapi hanya `Group Leader`, `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability; `Group Leader` adalah ketua Line dan memberi capability `GROUP_LEADER`;
@@ -745,7 +747,7 @@ bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 - Assignment pada Terbuka melalui pilihan PIC, tombol Tugaskan, lalu sheet keterangan. Tidak ada mutation sampai konfirmasi keterangan; pembatalan tidak menyimpan assignment.
 - Respons menyimpan room, pesan, status, event dan notifikasi dalam transaksi yang sama.
 - Setelah assignment, hanya PIC aktif dapat memulai proses dan menetapkan target. Route owner tetap dapat chat dan close sesuai scope.
-- Assign/reassign hanya Terbuka/Direspons. Handover hanya General Terbuka tanpa assignment.
+- Assign/reassign hanya Terbuka/Direspons. Handover hanya General Terbuka/Direspons tanpa assignment (§43.5).
 - Reporter tidak menjalankan responder action atas laporannya sendiri. Version, row lock, dan idempotency tetap wajib.
 - Endpoint Monitor dan Ask lama menolak dengan `CLIENT_UPDATE_REQUIRED`.
 - Migrasi mengubah Dimonitor menjadi Direspons, membuat room kosong yang hilang, dan tidak memalsukan pesan atau notifikasi historis. Event MONITORED lama tetap utuh; KPI respons mengakui MONITORED/RESPONDED pertama.
@@ -759,7 +761,7 @@ bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 - Detail menampilkan target, Dalam target/Target terlewati/Selesai sesuai target/Selesai melewati target, serta riwayat siklus. Data lama tanpa target menampilkan Belum ditetapkan, tanpa backfill target fiktif.
 - Reopen mempertahankan room dan fallback PIC existing, membuka siklus baru tanpa target. PIC menetapkan target baru tanpa menutup chat.
 - Penetapan target mengirim notifikasi ke reporter dan route-owning Department Head (Union Head pada Private), penerima dideduplikasi meskipun penetap adalah penerima.
-- Keterlambatan tidak mengubah status atau memblokir chat. Indikator dihitung saat read; worker mengirim satu notifikasi per target/penerima melalui outbox, tanpa pengingat harian atau eskalasi otomatis.
+- Keterlambatan tidak mengubah status atau memblokir chat. Indikator dihitung saat read. Worker mengirim satu pengingat kepada PIC pukul 08.00 WIB pada hari target (tidak untuk target "Hari ini"), lalu satu notifikasi keterlambatan per target kepada PIC, level di atasnya sampai Manager, dan pelapor, disertai pesan sistem "Target penyelesaian terlewati" di chat dan badge **Terlambat** pada kartu dan detail (§43.5). Tanpa pengingat harian berulang.
 - Worker memakai lock Voice yang sama dengan close/reopen. Target siklus lama dan Voice yang telah ditutup tidak mengirim pengingat keterlambatan baru.
 - Notifikasi in-app mencantumkan target tanggal/jam. Push Private tetap generik sesuai kebijakan privasi.
 
@@ -1989,9 +1991,9 @@ V1 siap production bila:
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
 - Empat status saja; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
-- Handover hanya untuk current route-owning Manager pada General Voice `OPEN` yang belum ditugaskan; dapat berulang, tidak mengubah status, dan memindahkan operational category + route owner tanpa mengubah immutable submission classification.
-- Detail tiap handover Manager dapat dibaca PIC sumber, PIC tujuan, dan CARE Admin; reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. Hanya PIC baru yang menerima notifikasi.
-- Manager atau current handler dapat close dari In Progress; closure note wajib dan foto opsional.
+- Handover hanya untuk current route-owning Manager pada General Voice `OPEN` atau `RESPONDED` yang belum ditugaskan; dapat berulang dan memindahkan operational category + route owner tanpa mengubah immutable submission classification. Handover dihitung sebagai respons: status menjadi Direspons, chat dibuka dengan pesan sistem "Diteruskan ke [Department]", dan pelapor diberi notifikasi. Manager sumber tetap dapat membaca Voice (baca-saja). Serah ke CARE Admin tetap hanya dari Terbuka (§43.5).
+- Detail tiap handover Manager dapat dibaca PIC sumber, PIC tujuan, dan CARE Admin; reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. PIC baru menerima notifikasi handover; pelapor menerima notifikasi generik tanpa catatan handover.
+- Hanya PIC (yang menekan Proses atau ditugaskan) yang dapat close dari In Progress; Voice lama tanpa PIC tetap dapat ditutup route owner. Closure note wajib dan foto opsional (§43.5).
 - Rating disimpan per closure cycle; rating 1–2 wajib feedback dan dapat reopen hanya dalam jendela review 2 hari setelah close; lewat jendela tanpa rating, Voice diterima otomatis (worker) dan rating terlambat masih dapat dikirim sebagai masukan tanpa reopen (§17.4).
 - Notification Center authoritative; Web Push best-effort.
 - Gambar saja; media authorized dan sanitized.
@@ -2308,7 +2310,7 @@ Default rentang dan Reset adalah **Semua waktu**, menggantikan default 30 hari s
 
 ## 43. Routing bertingkat (bawah ke atas) — 2 Oktober 2026
 
-Status: **Tahap 1 diimplementasikan; Tahap 2 dan 3 direncanakan.** ADR-0059 mencatat keputusan lengkap.
+Status: **Tahap 1 diimplementasikan dan dirilis ke staging; Tahap 2 dan 3 diimplementasikan di branch, belum dirilis.** ADR-0059 mencatat keputusan lengkap.
 
 ### 43.1 Cakupan
 
@@ -2338,7 +2340,80 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 dan 3 direncanakan.** ADR-0059 menc
 - Admin **Kalender & Eskalasi**: kalender standar Senin–Jumat (default) atau kalender khusus dengan hari libur/masuk tambahan, serta tabel batas respons/proses per severity dengan satuan hari kerja atau jam kalender. Perubahan memakai versi optimistik, diaudit, dan hanya berlaku untuk batas yang dihitung setelah disimpan. Hari kerja dihitung di WIB; Voice yang masuk pada hari non-kerja dihitung mulai 00.00 hari kerja berikutnya.
 - API: `GET /api/v1/admin/escalation-settings`, `PUT …/calendar`, `POST …/calendar/exceptions`, `DELETE …/calendar/exceptions/:id`, `PUT …/deadlines`.
 
-### 43.5 Tahap berikutnya
+### 43.5 Tahap 2 — inkremen 1–7 (diimplementasikan, belum dirilis)
+
+- **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
+- **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
+- **Selesaikan hanya oleh PIC:** hanya PIC yang menekan Proses (atau menerima tugas) yang dapat menyelesaikan Voice, di semua kategori. Voice lama yang belum pernah mencatat PIC tetap dapat diselesaikan oleh route owner.
+- **Ambil alih:** jika akun PIC sudah tidak aktif, atasan yang berwenang menugaskan melihat peringatan **PIC sudah tidak aktif** dan tombol **Ambil alih** (`POST /api/v1/voices/:id/take-over`). Atasan menjadi PIC; target tidak berubah; pelapor diberi notifikasi.
+- **Satu tombol Respons:** selama Voice Terbuka, semua cara menjawab ada dalam satu sheet **Respons**: Balas pesan, Tugaskan PIC (pilih PIC + pesan), Handover (lanjut ke halaman pilih tujuan), dan Proses sendiri (pesan + target). Setiap pilihan kecuali Handover mengirim pesan pertama dan membuka chat. Proses sendiri merespons dan memulai penanganan dalam satu langkah (`POST /voices/:id/respond` dengan `days`). Private Voice tidak menampilkan Handover.
+- **Handover = respons:** Handover tersedia sampai Voice Diproses atau ditugaskan. Status menjadi Direspons, chat dibuka dengan pesan sistem "Diteruskan ke [Department]", pelapor diberi notifikasi, dan Manager sumber menjadi baca-saja. Manager tujuan dapat Balas pesan, Tugaskan PIC, Proses, atau Handover lagi. Serah ke CARE Admin tetap hanya dari Terbuka.
+- **Pesan sistem:** pesan memiliki jenis `USER` atau `SYSTEM`; pesan sistem tampil di tengah chat tanpa avatar.
+- **Pengingat target:** PIC menerima satu notifikasi **Target penyelesaian hari ini** pukul 08.00 WIB pada hari target; target "Hari ini" tidak diberi pengingat.
+- **Target terlewati:** satu kali per target, PIC, level di atasnya sampai Manager (saat ini: Manager route owner; level GL/SH ditambahkan bersama rantai bertingkat), dan pelapor menerima notifikasi. Chat menerima pesan sistem "Target penyelesaian terlewati", timeline mencatat Target terlewati, dan kartu Voice serta header detail menampilkan badge **Terlambat** selama Voice masih Diproses.
+- **Posisi anggota TM:** pelapor dengan noReg berawalan `TM` (anggota vokasi) melihat kartu **Lengkapi posisi kamu** pada form Voice (General dan Private): dropdown Section dan Line dari department mereka, ditambah pilihan **Tidak di Line**, terisi dari posisi Voice terakhir. Pilihan Section/Line diambil dari anggota tetap department (bukan baris TM). "Simpan & Analisis" dan pengiriman memerlukan posisi yang valid; Voice menyimpan Section/Line pilihan sebagai snapshot pelapor (area mengikuti Line/Section tersebut). Department TM tidak berubah, dan TM tidak pernah menjadi GL/SH. API: `GET /api/v1/drafts/position-options`; draft menerima `positionSection`/`positionLine` (null = Tidak di Line).
+- **Awal rantai (5a):** kategori dengan penanda `tiered` (seed: Fasilitas Kerja / Kesulitan Kerja dan Kesejahteraan) dimulai pada level terdekat di atas pelapor: GL Line pelapor → SH Section pelapor → Manager route → semua DDH/DH divisi department penanganan. Level yang bukan tepat satu orang aktif dilewati (level divisi mengambil semuanya). Hanya pemegang level saat ini yang dapat merespons/memproses; Manager route hanya membaca sampai Voice mencapainya, dan Voice tersebut tidak masuk Voice Untuk Saya Manager. Pemegang yang memproses menjadi PIC (GL tercatat sebagai PIC Group Leader). Handover hanya pada level Manager; handover ke kategori bertingkat dimulai pada Manager tujuan. Fasilitas Kerja di shop department lain langsung ke Manager shop dengan badge **Pelapor dari luar department**. Chat menampilkan pemegang level beserta perannya. Voice lama tetap memakai route klasik.
+- **Naikkan, Tugaskan, Ingatkan (5b):**
+  - **Naikkan ke atasan manual** (alasan wajib) tersedia untuk level terbaru selama ada level berikutnya, belum ada PIC yang ditugaskan, dan belum ada level bawah yang menunggu. Naikkan manual dihitung sebagai respons, sama seperti Handover:
+    - status menjadi Direspons dan chat terbuka dengan pesan sistem "Diteruskan ke [Level]";
+    - atasan menjadi pemegang dengan aksi Naikkan lagi / Tugaskan PIC / Proses sendiri;
+    - yang menaikkan tetap berada di chat dan dapat mengirim pesan, tanpa aksi penanganan.
+  - Atasan yang baru menerima menerima notifikasi berisi alasan. Pelapor menerima notifikasi "Voice Anda telah direspons" (atau "diteruskan ke atasan" bila sudah Direspons) beserta level tujuan; alasan tetap internal.
+  - **Pembeda naik manual dan otomatis (untuk Tahap 3):**
+    - Voice yang dinaikkan manual lalu tidak diproses atasan dalam batas waktu naik otomatis lagi: chat mendapat pesan sistem bahwa Voice naik ke level berikutnya, dan status tetap Direspons.
+    - Voice yang naik otomatis karena tidak pernah direspons tetap Terbuka, dan pemegang sebelumnya hanya dapat membaca.
+    - Voice yang sudah direspons tetapi tidak diproses dalam batas waktu membawa atasan ke chat dengan Ingatkan / Tugaskan PIC / Proses.
+  - **Tugaskan PIC** untuk Voice bertingkat: SH ke GL Section-nya (hanya bila Section punya GL); Manager ke GL/SH department (termasuk level yang dilewati); level divisi ke GL/SH/Manager di divisi.
+  - **Ingatkan** hanya notifikasi kepada PIC yang ditugaskan atau pemegang di bawahnya, maksimal satu kali per hari (WIB) per orang per Voice.
+  - Respons sheet GL/SH: Balas pesan / (Tugaskan PIC) / Naikkan ke atasan / Proses sendiri. Atasan: Balas pesan / Tugaskan PIC / Proses sendiri / Naikkan ke atasan. Setelah Direspons: tombol Naikkan atau Ingatkan.
+- **Voice Tim Saya dan tahap (5c):**
+  - Section Head dapat membaca (baca-saja) General Voice yang dilaporkan anggota Section-nya; Group Leader hanya Line-nya. Dashboard basis Voice Tim Saya untuk GL juga dibatasi Line.
+  - Manager dan pimpinan divisi tetap memakai cakupan department/divisi.
+  - Detail Voice bertingkat menampilkan **Tahap penanganan** kepada responder (bukan pelapor): setiap level beserta nama, ditandai selesai, sedang ditangani, atau berikutnya.
+  - Chat dengan lebih dari tiga peserta menampilkan maksimal lima avatar, sisanya sebagai "+N", dan tombol **Detail** untuk daftar lengkap.
+- **Sedang tidak masuk (6):** GL ke atas membuka Akun → **Sedang tidak masuk**, memilih periode (hari WIB, mulai hari ini, maksimal 60 hari) dan pengganti.
+  - **Pengganti yang dapat dipilih:** level sama atau satu level di atas dalam unitnya:
+    - GL → GL Section yang sama atau SH Section;
+    - SH → SH department atau Manager;
+    - Manager → Manager divisi atau DDH/DH;
+    - DDH/DH → DDH/DH divisi.
+  - **Selama periode aktif:**
+    - pengganti bertindak dengan hak orang yang tidak masuk atas Voice yang dipegang, ditugaskan, atau menjadi PIC-nya (termasuk Selesaikan);
+    - Voice tersebut tampil di Voice Untuk Saya pengganti;
+    - notifikasi ikut dikirim ke pengganti.
+  - **Penugasan tetap:** Voice tetap tercatat pada pemegang aslinya dan otomatis kembali ketika periode selesai atau **Aktif kembali** ditekan.
+  - **Pengganti juga tidak masuk:** jika pengganti juga sedang tidak masuk, level tersebut dilewati saat routing.
+  - Pengganti menerima notifikasi saat ditunjuk.
+- **Ubah severity (7):**
+  - Responder yang dapat menangani Voice dapat **Ubah severity** selama Voice Terbuka atau Direspons, dengan alasan wajib.
+  - Perubahan tercatat di timeline (Severity diubah); alasan tetap internal.
+  - Setelah Diproses, severity tidak dapat diubah.
+  - Batas waktu eskalasi Tahap 3 dihitung ulang sejak perubahan terakhir. Kenaikan ke Kritis memicu notifikasi Kritis Tahap 3.
+- **Saran Private Voice (7):**
+  - Klasifikasi AI (care-classification-v1.8) menandai General Voice yang pokoknya keluhan tentang atasan pelapor sendiri.
+  - Halaman Tinjau menampilkan **Keluhan tentang atasan?** dengan tombol **Ubah ke Private Voice**, yang membawa pelapor kembali ke form dengan isi yang sama sebagai Private Voice.
+  - Saran ini tidak memaksa: pelapor tetap dapat mengirim sebagai General Voice.
+
+### 43.6 Tahap 3 — eskalasi otomatis (diimplementasikan, belum dirilis)
+
+- **Batas waktu per pemegang.** Setiap pemegang mendapat batas waktu sesuai severity dari tabel Admin (§43.4) dan kalender kerja:
+  - Voice baru: batas respons.
+  - Setelah pemegang merespons: batas proses.
+  - Voice yang diterima sudah Direspons (Naikkan manual, Handover ke kategori bertingkat, atau Tugaskan): batas respons + proses.
+  - Ubah severity menghitung ulang batas yang berjalan; Proses menghentikannya.
+- **Saat batas terlewati, worker menaikkan Voice:**
+  - **Tidak pernah direspons:** level berikutnya memegang Voice, status tetap Terbuka, dan pemegang sebelumnya hanya dapat membaca.
+  - **Diterima sudah Direspons lalu tidak diproses:** level berikutnya memegang Voice, status tetap Direspons, chat mendapat pesan "Diteruskan ke [Level]", dan pemegang sebelumnya tetap di chat.
+  - **Direspons atau ditugaskan oleh pemegang tetapi tidak diproses:** level berikutnya bergabung ke chat ("[Level] bergabung ke percakapan") dengan Ingatkan / Tugaskan PIC / Proses, sementara pemegang bawah tetap dapat Proses.
+  - **Puncak rantai:** tidak ada kenaikan lagi.
+  - **Notifikasi:** penerima baru, pemegang sebelumnya, dan pelapor (teks generik).
+- **Kategori fixed:** PIC yang ditugaskan dan tidak memproses dalam batas waktu menyerahkan Voice ke Manager route, dengan Ingatkan / Tugaskan ulang / Proses. Jika masih terlewati, DDH/DH divisi bergabung (SH → Manager → DDH/DH).
+- **Voice Kritis:**
+  - Kategori bertingkat memberi notifikasi **Voice Kritis** ke semua level rantai sejak dikirim, atau sejak dinaikkan ke Kritis.
+  - Kategori fixed hanya memberi notifikasi baca-saja ke Manager department pelapor.
+- Notifikasi juga dikirim ke pengganti bila penerima sedang tidak masuk (§43.5).
+
+### 43.7 Tahap berikutnya
 
 - **Tahap 2:** Voice mulai di GL/SH, visibilitas baca-saja dan pemisahan Voice Untuk Saya/Tim Saya, aksi Naikkan/Tugaskan/Ingatkan/Proses di chat bertingkat, badge pelapor dari luar, handover Manager yang dilonggarkan, Sedang tidak masuk, ubah severity, dan saran AI ke Private Voice.
 - **Tahap 3:** worker eskalasi otomatis berbasis kalender kerja, notifikasi eskalasi, dan notifikasi Critical. Setelah Tahap 3, aturan §15.4 "tanpa eskalasi otomatis" tidak lagi berlaku untuk kategori bertingkat.

@@ -11,6 +11,7 @@ import {
 import {
   BadgeCheck,
   Bell,
+  CalendarOff,
   Briefcase,
   Building2,
   Fingerprint,
@@ -139,6 +140,16 @@ export function AccountPage() {
             ))}
           </div>
         </DisclosureRow>
+        {session.capabilities.some((capability) =>
+          ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(capability),
+        ) ? (
+          <SettingsRow
+            icon={<CalendarOff size={15} />}
+            title="Sedang tidak masuk"
+            description="Atur pengganti selama Anda tidak bekerja"
+            onClick={() => void navigate('/account/away')}
+          />
+        ) : null}
         <SettingsRow
           icon={<Bell size={15} />}
           title="Notifikasi push"

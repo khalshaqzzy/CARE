@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { DotLabel } from '@care/ui';
 import type { VoiceListItem } from '../workforce-api';
+import { OverdueBadge } from './OverdueBadge';
 import {
   formatRelative,
   SEVERITY_LABELS,
@@ -62,6 +63,7 @@ export function HistoryVoiceCard({ voice, onOpen }: { voice: VoiceListItem; onOp
               <span className="voice-reopened">Dibuka kembali</span>
             ) : null}
           </DotLabel>
+          {voice.targetOverdue ? <OverdueBadge /> : null}
         </span>
         <span className="history-card__time">Diperbarui {formatRelative(voice.updatedAt)}</span>
       </span>

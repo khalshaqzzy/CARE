@@ -692,6 +692,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drafts/position-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["VoicesController_draftPositionOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drafts/{id}": {
         parameters: {
             query?: never;
@@ -958,6 +974,86 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["VoicesController_reassign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/take-over": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_takeOver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_escalate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/severity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_changeSeverity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_remind"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/voices/{id}/conversation/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["VoicesController_markConversationRead"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1668,6 +1764,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/away": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AwayController_get"];
+        put?: never;
+        post: operations["AwayController_set"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/away/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AwayController_end"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1754,6 +1882,8 @@ export interface components {
             showReporterIdentity?: boolean;
             /** @description Private only; must be true before submission */
             privateContactConsent?: boolean;
+            positionSection?: string;
+            positionLine?: string | null;
         };
         VoiceDraftPatchRequest: {
             /** @enum {string} */
@@ -1765,7 +1895,20 @@ export interface components {
             visibility?: "GENERAL" | "PRIVATE";
             showReporterIdentity?: boolean;
             privateContactConsent?: boolean;
+            positionSection?: string;
+            positionLine?: string | null;
             expectedVersion?: number;
+        };
+        DraftPositionOptions: {
+            required: boolean;
+            sections: {
+                name: string;
+                lines: string[];
+            }[];
+            last: {
+                section: string;
+                line: string | null;
+            } | null;
         };
         ManualClassificationRequest: {
             category?: string | null;
@@ -1799,7 +1942,7 @@ export interface components {
             id: string;
             displayName: string;
             /** @enum {string} */
-            role: "REPORTER" | "DEPARTMENT_HEAD" | "SECTION_HEAD" | "COMMITTEE";
+            role: "REPORTER" | "GROUP_LEADER" | "SECTION_HEAD" | "DEPARTMENT_HEAD" | "DIVISION_LEADER" | "COMMITTEE";
         };
         AssignmentRequest: {
             /** Format: uuid */
@@ -2047,6 +2190,61 @@ export interface components {
             text: string;
             version: number;
         };
+        VoiceRespondRequest: {
+            text: string;
+            version: number;
+            days?: number;
+        };
+        AwayRequest: {
+            /** Format: date */
+            startsOn: string;
+            /** Format: date */
+            endsOn: string;
+            /** Format: uuid */
+            substituteId: string;
+        };
+        AwayStatus: {
+            eligible: boolean;
+            current: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date */
+                startsOn: string;
+                /** Format: date */
+                endsOn: string;
+                active: boolean;
+                substitute: {
+                    /** Format: uuid */
+                    id: string;
+                    displayName: string;
+                };
+            } | null;
+            candidates: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+                position: string;
+                section?: string | null;
+                upperLevel: boolean;
+            }[];
+        };
+        SeverityChangeRequest: {
+            expectedVersion: number;
+            /** @enum {string} */
+            severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            reason: string;
+        };
+        EscalateRequest: {
+            expectedVersion: number;
+            reason: string;
+        };
+        RemindResponse: {
+            success: boolean;
+            reminded: number;
+        };
+        TakeOverRequest: {
+            expectedVersion: number;
+        };
         VersionedMutationRequest: {
             version: number;
         };
@@ -2217,6 +2415,7 @@ export interface components {
             severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
             confidence: number;
             rationaleCode: string;
+            privateSuggested?: boolean;
         } | {
             /** @enum {string} */
             source: "MANUAL_FALLBACK";
@@ -2275,6 +2474,18 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
             shopLocation?: {
                 department: string;
                 /** @enum {string|null} */
@@ -2342,6 +2553,18 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
             shopLocation?: {
                 department: string;
                 /** @enum {string|null} */
@@ -2407,6 +2630,18 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
             shopLocation?: {
                 department: string;
                 /** @enum {string|null} */
@@ -2469,6 +2704,18 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
             shopLocation?: {
                 department: string;
                 /** @enum {string|null} */
@@ -2532,6 +2779,18 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
             shopLocation?: {
                 department: string;
                 /** @enum {string|null} */
@@ -2597,6 +2856,18 @@ export interface components {
             } | null;
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
             shopLocation?: {
                 department: string;
                 /** @enum {string|null} */
@@ -3356,6 +3627,7 @@ export interface components {
             closureReviewState?: "PENDING" | "ACCEPTED" | "REJECTED" | null;
             /** Format: date-time */
             closureReviewDeadline?: string | null;
+            targetOverdue?: boolean;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -3365,6 +3637,8 @@ export interface components {
             nextCursor: string | null;
         };
         VoiceDraftResponse: {
+            positionSection?: string | null;
+            positionLine?: string | null;
             /** Format: uuid */
             id: string;
             /** @enum {string} */
@@ -3575,6 +3849,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             text?: string | null;
+            /** @enum {string} */
+            kind?: "USER" | "SYSTEM";
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -9667,6 +9943,127 @@ export interface operations {
             };
         };
     };
+    VoicesController_draftPositionOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftPositionOptions"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     VoicesController_getDraft: {
         parameters: {
             query?: never;
@@ -12232,6 +12629,658 @@ export interface operations {
             };
         };
     };
+    VoicesController_takeOver: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeOverRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_escalate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EscalateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_changeSeverity: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeverityChangeRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceMutationResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_remind: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemindResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    VoicesController_markConversationRead: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+                /** @description Unique key for safe mutation retries */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     VoicesController_assignmentCandidates: {
         parameters: {
             query?: never;
@@ -13891,7 +14940,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoiceTextMutationRequest"];
+                "application/json": components["schemas"]["VoiceRespondRequest"];
             };
         };
         responses: {
@@ -18121,6 +19170,379 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EscalationSettings"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AwayController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwayStatus"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AwayController_set: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AwayRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwayStatus"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AwayController_end: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AwayStatus"];
                 };
             };
             /** @description Request validation failed */

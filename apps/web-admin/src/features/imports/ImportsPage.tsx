@@ -240,10 +240,9 @@ export function ImportsPage() {
             <CloudUpload size={18} aria-hidden="true" /> Upload CSV
           </h2>
           <p className="admin-card__subtitle">
-            Unggah file .xlsx (sheet “MFG + QD”) atau .csv UTF-8, maksimal 10 MB. Header wajib:
-            Noreg, Nama, Posisi (struktural), Birth Date (opsional), Directorat, Division,
-            Department, Section. Tanggal lahir teks menggunakan YYYY-MM-DD; tanggal Excel juga
-            didukung.
+            Unggah file .xlsx (sheet “CARE_ORG DATA_[Bulan]”) atau .csv UTF-8, maksimal 10 MB.
+            Kolom: Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division, Department,
+            Section, Line, Tgl Lahir (dd/mm/yyyy). Urutan kolom bebas.
           </p>
           <FileUpload
             label="Unggah file organisasi"

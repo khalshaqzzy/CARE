@@ -25,7 +25,13 @@ export type DraftForm = {
   detail: string;
   showReporterIdentity: boolean | null;
   privateContactConsent: boolean;
+  /** TM reporters only: current Section and Line ('' until chosen). */
+  positionSection: string;
+  positionLine: string;
 };
+
+/** Select value for "Tidak di Line"; sent to the API as a null line. */
+export const NO_LINE = '__NONE__';
 
 const EMPTY_FORM: DraftForm = {
   visibility: 'GENERAL',
@@ -35,6 +41,8 @@ const EMPTY_FORM: DraftForm = {
   detail: '',
   showReporterIdentity: null,
   privateContactConsent: false,
+  positionSection: '',
+  positionLine: '',
 };
 
 export function useDraftWizard(draftId?: string) {
@@ -59,6 +67,13 @@ export function useDraftWizard(draftId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [ackDisabled, setAckDisabled] = useState(false);
 
+  const positionOptions = useQuery({
+    queryKey: voiceQuery(sessionId, 'draft-position-options'),
+    queryFn: () => api.draftPositionOptions(),
+    enabled: !!session,
+  });
+  const positionRequired = positionOptions.data?.required === true;
+
   const loaded = useQuery({
     queryKey: voiceQuery(sessionId, 'draft', draftId ?? 'none'),
     queryFn: () => api.getDraft(draftId!),
@@ -75,6 +90,8 @@ export function useDraftWizard(draftId?: string) {
       detail: loaded.data.detail,
       showReporterIdentity: loaded.data.showReporterIdentity ?? null,
       privateContactConsent: loaded.data.privateContactConsent === true,
+      positionSection: loaded.data.positionSection ?? '',
+      positionLine: loaded.data.positionSection ? (loaded.data.positionLine ?? NO_LINE) : '',
     });
     setAttachments(loaded.data.attachments ?? []);
     setDraft(loaded.data);
@@ -85,6 +102,21 @@ export function useDraftWizard(draftId?: string) {
   useEffect(() => {
     syncLoaded();
   }, [syncLoaded]);
+
+  // New drafts start from the TM reporter's last position.
+  const lastPosition = positionOptions.data?.last ?? null;
+  useEffect(() => {
+    if (isEdit || !lastPosition) return;
+    setForm((current) =>
+      current.positionSection
+        ? current
+        : {
+            ...current,
+            positionSection: lastPosition.section,
+            positionLine: lastPosition.line ?? NO_LINE,
+          },
+    );
+  }, [isEdit, lastPosition]);
 
   const persist = useMutation({
     mutationFn: async (patch: Partial<DraftForm>) => {
@@ -99,6 +131,12 @@ export function useDraftWizard(draftId?: string) {
           ? {
               showReporterIdentity: next.showReporterIdentity ?? false,
               privateContactConsent: next.privateContactConsent,
+            }
+          : {}),
+        ...(positionRequired && next.positionSection && next.positionLine
+          ? {
+              positionSection: next.positionSection,
+              positionLine: next.positionLine === NO_LINE ? null : next.positionLine,
             }
           : {}),
       };
@@ -214,6 +252,10 @@ export function useDraftWizard(draftId?: string) {
       setError('Centang persetujuan komunikasi pribadi untuk melanjutkan analisis.');
       return;
     }
+    if (positionRequired && (!form.positionSection || !form.positionLine)) {
+      setError('Lengkapi posisi kamu.');
+      return;
+    }
     try {
       setStep('processing');
       const saved = await persist.mutateAsync({});
@@ -238,7 +280,7 @@ export function useDraftWizard(draftId?: string) {
       setError(cause instanceof Error ? cause.message : 'Draft tidak dapat disimpan.');
       setStep('form');
     }
-  }, [form, persist, classifyMutation, reviewLocationMutation]);
+  }, [form, persist, classifyMutation, reviewLocationMutation, positionRequired]);
 
   const saveOnly = useCallback(async () => {
     setError(null);
@@ -319,7 +361,9 @@ export function useDraftWizard(draftId?: string) {
           draft.area !== form.area ||
           draft.visibility !== form.visibility ||
           draft.showReporterIdentity !== form.showReporterIdentity ||
-          (draft.privateContactConsent === true) !== form.privateContactConsent
+          (draft.privateContactConsent === true) !== form.privateContactConsent ||
+          (draft.positionSection ?? '') !== form.positionSection ||
+          (draft.positionSection ? (draft.positionLine ?? NO_LINE) : '') !== form.positionLine
         : true,
     [draft, form],
   );
@@ -351,6 +395,8 @@ export function useDraftWizard(draftId?: string) {
     dirty,
     loaded,
     zoneLabel,
+    position: positionOptions.data ?? null,
+    positionComplete: !positionRequired || Boolean(form.positionSection && form.positionLine),
     categories: categoryCatalog.data ?? [],
     categoriesLoading: categoryCatalog.isLoading,
     stages,

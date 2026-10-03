@@ -2,6 +2,7 @@ import { Button, Card } from '@care/ui';
 import { Activity, ArrowRight, Flag, Layers, MapPin } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { VoiceListItem } from '../workforce-api';
+import { OverdueBadge } from './OverdueBadge';
 import {
   AREA_LABELS,
   formatCategoryName,
@@ -75,6 +76,7 @@ export function VoiceCard({
       {voice.status === 'IN_PROGRESS' && voice.closureReviewState === 'REJECTED' ? (
         <span className="voice-reopened">Dibuka kembali</span>
       ) : null}
+      {voice.targetOverdue ? <OverdueBadge /> : null}
       <h3 className="voice-card__title">{voice.title}</h3>
       <div className="voice-card__panel">
         <ValueRow

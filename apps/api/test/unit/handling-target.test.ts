@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { handlingDueAt, handlingTargetState } from '../../src/voices/handling-target';
+import {
+  handlingDueAt,
+  handlingReminderAt,
+  handlingTargetState,
+} from '../../src/voices/handling-target';
 
 describe('Jakarta calendar target', () => {
   it.each([
@@ -9,6 +13,11 @@ describe('Jakarta calendar target', () => {
     ['2028-02-28T12:00:00Z', 1, '2028-02-29T16:59:59.999Z'],
   ])('%s + %s days ends at %s', (start, days, expected) => {
     expect(handlingDueAt(new Date(start), days).toISOString()).toBe(expected);
+  });
+  it('reminds at 08:00 WIB on the target day', () => {
+    const due = handlingDueAt(new Date('2026-09-21T03:00:00Z'), 2);
+    // 23 Sep 2026 08:00 WIB is 01:00 UTC.
+    expect(handlingReminderAt(due).toISOString()).toBe('2026-09-23T01:00:00.000Z');
   });
   it('uses closure time rather than current time for completed commitments', () => {
     const due = new Date('2026-09-21T16:59:59.999Z');

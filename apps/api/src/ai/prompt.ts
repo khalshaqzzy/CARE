@@ -1,4 +1,4 @@
-export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.7';
+export const CLASSIFICATION_PROMPT_VERSION = 'care-classification-v1.8';
 export const LOCATION_PROMPT_VERSION = 'care-location-v1.3';
 
 export const CLASSIFICATION_TOOL_NAME = 'submit_care_classification';
@@ -119,6 +119,8 @@ Rubrik severity. Tentukan severity secara terpisah dari category berdasarkan dam
 
 Confidence. Kalibrasi confidence dari 0 sampai 1. Nilai di bawah threshold fallback server (default sekitar 0,75) memicu Manual Fallback, jadi gunakan nilai rendah ketika konteks esensial hilang, beberapa kategori sama-sama masuk akal, atau severity bergantung pada asumsi yang tidak didukung laporan. Gunakan nilai tinggi hanya ketika laporan jelas cocok dengan satu kategori dan severity didukung fakta. Do not inflate confidence merely to avoid fallback.
 
+Saran Private Voice. Untuk visibility GENERAL, isi privateSuggested true hanya jika pokok Voice adalah keluhan tentang atasan atau pimpinan pelapor sendiri, misalnya perlakuan tidak adil, bullying, harassment, diskriminasi, ancaman, retaliation, atau konflik pribadi dengan atasan, sehingga pelapor lebih aman memakai Private Voice. Keluhan tentang kebijakan umum, fasilitas, atau proses kerja bukan alasan untuk true. Untuk visibility PRIVATE selalu false.
+
 Call ${CLASSIFICATION_TOOL_NAME} exactly once with the complete result. Do not answer with prose, markdown, or a second tool call.`;
 
 export const LOCATION_SYSTEM_PROMPT = `You review whether a CARE workplace location is actionable for a responder.
@@ -140,7 +142,7 @@ export function classificationSchema(categoryKeys: string[], isPrivate: boolean)
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['category', 'severity', 'confidence'],
+    required: ['category', 'severity', 'confidence', 'privateSuggested'],
     properties: {
       category: {
         description:
@@ -158,6 +160,11 @@ export function classificationSchema(categoryKeys: string[], isPrivate: boolean)
           'Calibrated confidence from 0 to 1; lower when context is missing or ambiguous.',
         minimum: 0,
         maximum: 1,
+      },
+      privateSuggested: {
+        type: 'boolean',
+        description:
+          "True when a GENERAL Voice is mainly a complaint about the reporter's own superior.",
       },
     },
   } as const;

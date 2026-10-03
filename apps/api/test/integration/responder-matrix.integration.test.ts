@@ -321,18 +321,21 @@ describe('Responder and leadership permission matrix', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
-  it('lets a route Manager close a General voice even when a Section Head is the handler', async () => {
+  it('lets only the processing PIC close a General voice', async () => {
     const voice = await seedVoice({
       status: VoiceStatus.IN_PROGRESS,
       currentHandlerId: sectionHead.accountId,
       handlerType: HandlerType.SECTION_HEAD,
     });
-    await evidence(voice.id, manager.accountId, 'close-mgr');
+    await expect(
+      voices.close(manager, voice.id, { note: 'resolved by manager', version: 1 }, 'close-mgr-k'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await evidence(voice.id, sectionHead.accountId, 'close-sh');
     const closure = await voices.close(
-      manager,
+      sectionHead,
       voice.id,
-      { note: 'resolved by manager', version: 1 },
-      'close-mgr-k',
+      { note: 'resolved by section head', version: 1 },
+      'close-sh-k',
     );
     expect(closure.cycleNumber).toBe(1);
   });

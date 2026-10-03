@@ -86,9 +86,10 @@ for (const width of [360, 768, 1440]) {
         await page.getByRole('spinbutton', { name: 'Target penyelesaian (hari)' }).fill('3');
       }
       if (state === 'RESPONSE_FORM') {
-        await page.getByRole('button', { name: 'Respons Voice' }).click();
+        await page.getByRole('button', { name: 'Respons', exact: true }).click();
         await page
-          .getByRole('textbox', { name: 'Keterangan penanganan' })
+          .getByRole('dialog', { name: 'Respons' })
+          .getByRole('textbox', { name: 'Pesan' })
           .fill('Tim akan memeriksa lokasi dan mengabari perkembangan melalui percakapan ini.');
       }
       if (state === 'CHAT_3') await page.goto('/voices/lifecycle-visual/chat');

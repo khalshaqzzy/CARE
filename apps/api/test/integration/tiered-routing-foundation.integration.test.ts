@@ -8,12 +8,17 @@ import {
   ORGANIZATION_TIER_HEADERS,
 } from '../../src/imports/imports.service';
 import { VoicesService } from '../../src/voices/voices.service';
+import { AwayService } from '../../src/away/away.service';
+import { TierEscalationService } from '../../src/voices/tier-escalation.service';
+import { jakartaDateKey } from '../../src/escalation/working-time';
 
 const prisma = new PrismaClient();
 const policy = new PolicyService(prisma as never);
 const imports = new ImportsService(prisma as never);
 const settings = new EscalationSettingsService(prisma as never);
 const voices = new VoicesService(prisma as never, {} as never, {} as never, policy);
+const away = new AwayService(prisma as never, policy);
+const dayKey = (offset: number) => jakartaDateKey(new Date(Date.now() + offset * 86_400_000));
 let admin: Principal;
 
 const csvFile = (rows: string[][]) => {
@@ -33,6 +38,30 @@ const csvFile = (rows: string[][]) => {
 async function principal(username: string) {
   const account = await prisma.userAccount.findUniqueOrThrow({ where: { username } });
   return policy.resolvePrincipal(account, { id: crypto.randomUUID(), passwordRestricted: false });
+}
+
+/** Submits a tiered Kesejahteraan Voice as the given employee. */
+async function submitAs(username: string, key: string, severity: Severity = Severity.MEDIUM) {
+  const reporter = await principal(username);
+  const draft = await voices.createDraft(reporter, {
+    visibility: 'GENERAL',
+    area: 'KARAWANG_1',
+    locationDetail: 'Line pos 3',
+    title: 'Insentif kehadiran belum dibayar',
+    detail: 'Insentif kehadiran bulan lalu belum dibayarkan.',
+  });
+  await voices.manualClassification(reporter, draft.id, {
+    category: 'TIER_WELFARE',
+    severity,
+  });
+  const preview = await voices.previewDraft(reporter, draft.id);
+  const submitted = (await voices.submit(
+    reporter,
+    draft.id,
+    { version: preview.version },
+    key,
+  )) as { id: string };
+  return prisma.voice.findUniqueOrThrow({ where: { id: submitted.id } });
 }
 
 describe('Tiered routing foundation', () => {
@@ -192,6 +221,583 @@ describe('Tiered routing foundation', () => {
       reporterLineSnapshot: 'Line A',
       reporterAreaSnapshot: 'KARAWANG_1',
     });
+  });
+
+  it('asks TM members for their current Section and Line and snapshots the choice', async () => {
+    const placed = await prisma.organizationMembership.findFirstOrThrow({
+      where: { employee: { noReg: '700004' }, snapshot: { status: 'ACTIVE' } },
+    });
+    const employee = await prisma.employee.create({
+      data: { noReg: 'TM0001', name: 'Magang Satu' },
+    });
+    await prisma.userAccount.create({
+      data: {
+        username: 'TM0001',
+        displayName: 'Magang Satu',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: {
+        snapshotId: placed.snapshotId,
+        employeeId: employee.id,
+        organizationUnitId: placed.organizationUnitId,
+        employeeName: 'Magang Satu',
+        structuralPosition: 'Member',
+        section: 'TM Pool',
+        sourceRow: 999,
+      },
+    });
+    const tm = await principal('TM0001');
+    const member = await principal('700004');
+    expect(await voices.draftPositionOptions(member)).toEqual({
+      required: false,
+      sections: [],
+      last: null,
+    });
+    // Sections come from permanent staff only, so the TM pool never appears.
+    expect(await voices.draftPositionOptions(tm)).toEqual({
+      required: true,
+      sections: [
+        { name: 'Line Sect', lines: ['Line A', 'Line B'] },
+        { name: 'Office', lines: [] },
+      ],
+      last: null,
+    });
+    const content = {
+      visibility: 'GENERAL',
+      area: 'KARAWANG_1',
+      locationDetail: 'Line B pos 1',
+      title: 'Uang makan magang terlambat',
+      detail: 'Uang makan magang bulan ini belum dibayarkan.',
+    };
+    await expect(
+      voices.createDraft(tm, { ...content, positionSection: 'Gudang', positionLine: null }),
+    ).rejects.toMatchObject({ code: 'POSITION_INVALID' });
+    await expect(
+      voices.createDraft(member, { ...content, positionSection: 'Line Sect', positionLine: null }),
+    ).rejects.toMatchObject({ code: 'POSITION_INVALID' });
+
+    const draft = await voices.createDraft(tm, content);
+    await voices.manualClassification(tm, draft.id, {
+      category: 'TIER_WELFARE',
+      severity: Severity.MEDIUM,
+    });
+    const unplaced = await voices.previewDraft(tm, draft.id);
+    await expect(
+      voices.submit(tm, draft.id, { version: unplaced.version }, 'tm-submit-missing'),
+    ).rejects.toMatchObject({ code: 'POSITION_REQUIRED' });
+    const placedDraft = await voices.updateDraft(tm, draft.id, {
+      positionSection: 'Line Sect',
+      positionLine: 'Line B',
+      expectedVersion: unplaced.version,
+    });
+    expect(placedDraft).toMatchObject({ positionSection: 'Line Sect', positionLine: 'Line B' });
+    const preview = await voices.previewDraft(tm, draft.id);
+    const submitted = (await voices.submit(
+      tm,
+      draft.id,
+      { version: preview.version },
+      'tm-submit',
+    )) as { id: string };
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: submitted.id } })).toMatchObject({
+      reporterSectionSnapshot: 'Line Sect',
+      reporterLineSnapshot: 'Line B',
+      reporterAreaSnapshot: 'KARAWANG_1',
+      reporterDepartmentSnapshot: 'Assy 1',
+    });
+    expect((await voices.draftPositionOptions(tm)).last).toEqual({
+      section: 'Line Sect',
+      line: 'Line B',
+    });
+  });
+
+  it('starts tiered Voices at the nearest leader above the reporter', async () => {
+    await prisma.generalVoiceCategory.update({
+      where: { key: 'TIER_WELFARE' },
+      data: { tiered: true },
+    });
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+
+    // Line A has a Group Leader, so the Voice starts there.
+    const lineA = await submitAs('700004', 'tier-line-a');
+    expect(lineA).toMatchObject({
+      tierLevel: 'GROUP_LEADER',
+      tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'],
+      tierHolderIds: [groupLeader.accountId],
+      routeOwnerId: manager.accountId,
+      outsideReporter: false,
+    });
+    expect(
+      await prisma.notification.findMany({
+        where: { voiceId: lineA.id, type: 'VOICE_SUBMITTED' },
+        select: { recipientId: true },
+      }),
+    ).toEqual([{ recipientId: groupLeader.accountId }]);
+    const leaderView = await voices.detail(groupLeader, lineA.id);
+    expect(leaderView.availableActions).toEqual(['RESPOND', 'ESCALATE', 'CHANGE_SEVERITY']);
+    expect(leaderView.tierLevel).toBe('GROUP_LEADER');
+    expect(leaderView.participants.map((item) => item.role)).toEqual(['REPORTER', 'GROUP_LEADER']);
+    // The Manager can read the team Voice but cannot act on it yet.
+    expect((await voices.detail(manager, lineA.id)).availableActions).toEqual([]);
+    expect((await voices.workItems(groupLeader, {})).items.map((item) => item.id)).toContain(
+      lineA.id,
+    );
+    expect((await voices.workItems(manager, {})).items.map((item) => item.id)).not.toContain(
+      lineA.id,
+    );
+    await expect(
+      voices.respond(manager, lineA.id, { text: 'Saya cek', version: 1 }, 'tier-manager-respond'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await expect(voices.handoverOptions(manager, lineA.id)).rejects.toMatchObject({
+      code: 'HANDOVER_INVALID_STATE',
+    });
+
+    // The Group Leader processes it and becomes the PIC who closes it.
+    const processed = await voices.respond(
+      groupLeader,
+      lineA.id,
+      { text: 'Saya tangani.', version: 1, days: 1 },
+      'tier-gl-process',
+    );
+    expect(processed).toMatchObject({
+      status: 'IN_PROGRESS',
+      currentHandlerId: groupLeader.accountId,
+      handlerType: 'GROUP_LEADER',
+    });
+    expect((await voices.detail(groupLeader, lineA.id)).availableActions).toContain('CLOSE');
+
+    // Line B has no Group Leader, so the Section Head receives it.
+    const lineB = await submitAs('700005', 'tier-line-b');
+    expect(lineB).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+    });
+    // A Group Leader never handles their own Voice: it starts one level up.
+    const ownVoice = await submitAs('700003', 'tier-gl-own');
+    expect(ownVoice).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierPath: ['SECTION_HEAD', 'MANAGER'],
+    });
+  });
+
+  it('treats a manual Naikkan as a response, assigns down, and reminds the assignee once a day', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const reporter = await principal('700004');
+    const voice = await submitAs('700004', 'tier-escalate-open');
+    await expect(
+      voices.escalate(groupLeader, voice.id, { expectedVersion: 1, reason: '' }, 'esc-empty'),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    const escalated = await voices.escalate(
+      groupLeader,
+      voice.id,
+      { expectedVersion: 1, reason: 'Perlu keputusan Section.' },
+      'esc-gl',
+    );
+    // Raising it by hand answers the Voice: Direspons, chat open, Section Head in charge.
+    expect(escalated).toMatchObject({ status: 'RESPONDED', version: 2 });
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+      tierParticipantIds: [groupLeader.accountId],
+      tierLowerHolderIds: [],
+      sectionHasGroupLeader: true,
+    });
+    // The Group Leader stays in the chat; the Section Head goes up, assigns, or processes.
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual(['MESSAGE']);
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'ESCALATE',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
+    const thread = await voices.messages(reporter, voice.id, {});
+    expect(thread.items.map((item) => [item.kind, item.text])).toEqual([
+      ['SYSTEM', 'Diteruskan ke Section Head'],
+    ]);
+    expect(
+      await prisma.notification.findFirstOrThrow({
+        where: { voiceId: voice.id, recipientId: reporter.accountId, type: 'STATUS_CHANGED' },
+      }),
+    ).toMatchObject({ title: 'Voice Anda telah direspons', body: 'Diteruskan ke Section Head.' });
+    expect(
+      await prisma.notification.findFirstOrThrow({
+        where: { voiceId: voice.id, type: 'ESCALATED' },
+      }),
+    ).toMatchObject({
+      recipientId: sectionHead.accountId,
+      body: 'Alasan: Perlu keputusan Section.',
+    });
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: reporter.accountId, type: 'STATUS_CHANGED' },
+      }),
+    ).toBe(1);
+
+    // Tugaskan: the Section Head assigns the Section's Group Leader.
+    expect((await voices.assignmentCandidates(sectionHead, voice.id)).map((c) => c.id)).toEqual([
+      groupLeader.accountId,
+    ]);
+    const assigned = await voices.assign(
+      sectionHead,
+      voice.id,
+      {
+        handlerAccountId: groupLeader.accountId,
+        text: 'Mohon dicek ke line.',
+        expectedVersion: 2,
+      },
+      'tier-assign-gl',
+    );
+    expect(assigned).toMatchObject({
+      status: 'RESPONDED',
+      currentHandlerId: groupLeader.accountId,
+      handlerType: 'GROUP_LEADER',
+    });
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toContain('PROCEED');
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toContain('REMIND');
+    expect(await voices.remind(sectionHead, voice.id, 'remind-1')).toEqual({
+      success: true,
+      reminded: 1,
+    });
+    await expect(voices.remind(sectionHead, voice.id, 'remind-2')).rejects.toMatchObject({
+      code: 'REMINDER_LIMIT',
+    });
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: groupLeader.accountId, type: 'REMINDER' },
+      }),
+    ).toBe(1);
+  });
+
+  it('keeps everyone who raised the Voice in the chat as it goes up again', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const voice = await submitAs('700004', 'tier-escalate-answered');
+    await voices.respond(groupLeader, voice.id, { text: 'Kami cek dulu.', version: 1 }, 'tier-r');
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual([
+      'PROCEED',
+      'ESCALATE',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
+    await voices.escalate(
+      groupLeader,
+      voice.id,
+      { expectedVersion: 2, reason: 'Butuh persetujuan Section.' },
+      'esc-answered',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+      tierParticipantIds: [groupLeader.accountId],
+    });
+    expect((await voices.detail(groupLeader, voice.id)).availableActions).toEqual(['MESSAGE']);
+    // Naikkan lagi: the Manager takes over and both leaders stay in the chat.
+    await voices.escalate(
+      sectionHead,
+      voice.id,
+      { expectedVersion: 3, reason: 'Perlu keputusan Manager.' },
+      'esc-again',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'MANAGER',
+      tierHolderIds: [manager.accountId],
+      tierParticipantIds: [groupLeader.accountId, sectionHead.accountId],
+    });
+    expect((await voices.detail(manager, voice.id)).availableActions).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'HANDOVER',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
+    expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual(['MESSAGE']);
+    expect((await voices.detail(manager, voice.id)).participants.map((p) => p.role)).toEqual([
+      'REPORTER',
+      'GROUP_LEADER',
+      'SECTION_HEAD',
+      'DEPARTMENT_HEAD',
+    ]);
+    const reporterThread = await voices.messages(await principal('700004'), voice.id, {});
+    expect(
+      reporterThread.items.filter((item) => item.kind === 'SYSTEM').map((i) => i.text),
+    ).toEqual(['Diteruskan ke Section Head', 'Diteruskan ke Manager']);
+    // A Group Leader who stayed in the chat still talks with the reporter.
+    await voices.addMessage(groupLeader, voice.id, { text: 'Sudah saya teruskan.' }, [], 'gl-msg');
+  });
+
+  it('lets a Manager holder assign skipped levels and stops at the top of the chain', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    // Line B has no Group Leader: Section Head first, then Manager.
+    const voice = await submitAs('700005', 'tier-to-manager');
+    await voices.escalate(
+      sectionHead,
+      voice.id,
+      { expectedVersion: 1, reason: 'Wewenang Manager.' },
+      'esc-sh',
+    );
+    const managerView = await voices.detail(manager, voice.id);
+    expect(managerView.tierLevel).toBe('MANAGER');
+    expect(managerView.availableActions).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'HANDOVER',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
+    expect((await voices.assignmentCandidates(manager, voice.id)).map((c) => c.id).sort()).toEqual(
+      [groupLeader.accountId, sectionHead.accountId].sort(),
+    );
+    expect((await voices.workItems(manager, {})).items.map((item) => item.id)).toContain(voice.id);
+  });
+
+  it('shows team Voices read-only with the handling stages, Group Leaders per Line', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const voice = await submitAs('700004', 'tier-team-read');
+    // The Section Head reads the Section's Voice without acting on it.
+    const teamView = await voices.detail(sectionHead, voice.id);
+    expect(teamView.availableActions).toEqual([]);
+    expect(teamView.tierStages).toEqual([
+      { level: 'GROUP_LEADER', state: 'CURRENT', names: ['GL A'] },
+      { level: 'SECTION_HEAD', state: 'NEXT', names: ['SH Line'] },
+      { level: 'MANAGER', state: 'NEXT', names: ['Head Assy'] },
+    ]);
+    // The reporter never sees the internal stages.
+    expect((await voices.detail(await principal('700004'), voice.id)).tierStages).toBeUndefined();
+    // A Group Leader's team is their Line: Line B is outside it.
+    const lineB = await submitAs('700005', 'tier-team-line-b');
+    await expect(voices.detail(groupLeader, lineB.id)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    expect((await voices.detail(sectionHead, lineB.id)).tierLevel).toBe('SECTION_HEAD');
+  });
+
+  it('lets a substitute act for an away leader and skips a level nobody can reach', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const setup = await away.get(groupLeader);
+    expect(setup).toMatchObject({ eligible: true, current: null });
+    expect(setup.candidates.map((c) => c.id)).toEqual([sectionHead.accountId]);
+    expect((await away.get(await principal('700004'))).eligible).toBe(false);
+    await expect(
+      away.set(groupLeader, {
+        startsOn: dayKey(-1),
+        endsOn: dayKey(1),
+        substituteId: sectionHead.accountId,
+      }),
+    ).rejects.toMatchObject({ code: 'AWAY_PERIOD_INVALID' });
+    await expect(
+      away.set(groupLeader, {
+        startsOn: dayKey(0),
+        endsOn: dayKey(1),
+        substituteId: manager.accountId,
+      }),
+    ).rejects.toMatchObject({ code: 'AWAY_SUBSTITUTE_INVALID' });
+
+    const set = await away.set(groupLeader, {
+      startsOn: dayKey(0),
+      endsOn: dayKey(2),
+      substituteId: sectionHead.accountId,
+    });
+    expect(set.current).toMatchObject({
+      active: true,
+      startsOn: dayKey(0),
+      substitute: { id: sectionHead.accountId },
+    });
+    expect(
+      await prisma.notification.count({
+        where: { recipientId: sectionHead.accountId, type: 'AWAY_SUBSTITUTE' },
+      }),
+    ).toBe(1);
+
+    // The Group Leader still holds the Voice; the Section Head acts for them.
+    const voice = await submitAs('700004', 'away-held');
+    expect(voice).toMatchObject({
+      tierLevel: 'GROUP_LEADER',
+      tierHolderIds: [groupLeader.accountId],
+    });
+    const substitute = await principal('700002');
+    expect(substitute.actingFor).toEqual([groupLeader.accountId]);
+    expect((await voices.workItems(substitute, {})).items.map((item) => item.id)).toContain(
+      voice.id,
+    );
+    expect((await voices.detail(substitute, voice.id)).availableActions).toEqual([
+      'RESPOND',
+      'ESCALATE',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: voice.id, type: 'VOICE_SUBMITTED' },
+          select: { recipientId: true },
+        })
+      )
+        .map((row) => row.recipientId)
+        .sort(),
+    ).toEqual([groupLeader.accountId, sectionHead.accountId].sort());
+
+    // With the Section Head away as well, nobody can act at the Group Leader level.
+    await away.set(sectionHead, {
+      startsOn: dayKey(0),
+      endsOn: dayKey(1),
+      substituteId: manager.accountId,
+    });
+    const skipped = await submitAs('700004', 'away-skipped');
+    expect(skipped).toMatchObject({
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+    });
+
+    // Aktif kembali ends the delegation at once.
+    expect((await away.end(groupLeader)).current).toBeNull();
+    await away.end(sectionHead);
+    expect((await principal('700002')).actingFor).toEqual([]);
+    expect((await voices.detail(await principal('700002'), voice.id)).availableActions).toEqual([]);
+    await expect(away.end(groupLeader)).rejects.toMatchObject({ code: 'AWAY_PERIOD_NOT_FOUND' });
+  });
+
+  it('escalates automatically when a tier window passes', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const worker = new TierEscalationService(prisma as never);
+    const past = new Date(Date.now() - 60_000);
+    const expire = (id: string) =>
+      prisma.voice.update({ where: { id }, data: { tierDueAt: past } });
+    const thread = async (id: string) =>
+      (await prisma.message.findMany({ where: { conversation: { voiceId: id } } }))
+        .filter((message) => message.kind === 'SYSTEM')
+        .map((message) => message.text);
+
+    // 1. Nobody answered: the Section Head takes over and it stays Terbuka.
+    const open = await submitAs('700004', 'auto-open');
+    expect(open).toMatchObject({ tierDueKind: 'RESPOND', tierHolderResponded: false });
+    expect(open.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
+    await expire(open.id);
+    await Promise.all([worker.tick(), new TierEscalationService(prisma as never).tick()]);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: open.id } })).toMatchObject({
+      status: 'OPEN',
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+      tierObserverIds: [groupLeader.accountId],
+      tierDueKind: 'RESPOND',
+    });
+    expect(await prisma.voiceEvent.count({ where: { voiceId: open.id, type: 'ESCALATED' } })).toBe(
+      1,
+    );
+    expect(
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: open.id, type: 'ESCALATED' },
+          select: { recipientId: true },
+        })
+      )
+        .map((row) => row.recipientId)
+        .sort(),
+    ).toEqual([groupLeader.accountId, sectionHead.accountId].sort());
+    expect(await worker.tick()).toBe(0);
+
+    // 2. Raised by hand and not processed: up again, stays Direspons, chat note.
+    const raised = await submitAs('700004', 'auto-raised');
+    await voices.escalate(
+      groupLeader,
+      raised.id,
+      { expectedVersion: 1, reason: 'Perlu Section Head.' },
+      'auto-raise',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
+      tierDueKind: 'PROCESS',
+      tierHolderResponded: false,
+    });
+    await expire(raised.id);
+    await worker.tick();
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'MANAGER',
+      tierHolderIds: [manager.accountId],
+      tierParticipantIds: [groupLeader.accountId, sectionHead.accountId],
+    });
+    expect(await thread(raised.id)).toEqual([
+      'Diteruskan ke Section Head',
+      'Diteruskan ke Manager',
+    ]);
+
+    // 3. Answered but not processed: the Manager joins beside the Section Head.
+    const answered = await submitAs('700005', 'auto-answered');
+    await voices.respond(sectionHead, answered.id, { text: 'Kami cek.', version: 1 }, 'auto-r');
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).toMatchObject({
+      tierDueKind: 'PROCESS',
+      tierHolderResponded: true,
+    });
+    await expire(answered.id);
+    await worker.tick();
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'MANAGER',
+      tierHolderIds: [sectionHead.accountId, manager.accountId],
+      tierLowerHolderIds: [sectionHead.accountId],
+    });
+    expect(await thread(answered.id)).toEqual(['Manager bergabung ke percakapan']);
+    expect((await voices.detail(manager, answered.id)).availableActions).toEqual(
+      expect.arrayContaining(['PROCEED', 'ASSIGN', 'REMIND']),
+    );
+
+    // Processing stops the clock; the top of the chain stops it too.
+    const current = await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } });
+    await voices.proceed(manager, answered.id, { days: 1, version: current.version }, 'auto-p');
+    expect(
+      (await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).tierDueAt,
+    ).toBeNull();
+    await expire(raised.id);
+    expect(await worker.tick()).toBe(0);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
+      tierLevel: 'MANAGER',
+      tierDueAt: null,
+    });
+  });
+
+  it('alerts the whole chain at once for a Critical tiered Voice', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const critical = await submitAs('700004', 'critical-tiered', Severity.CRITICAL);
+    expect(critical.tierHolderIds).toEqual([groupLeader.accountId]);
+    expect(
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: critical.id, type: 'CRITICAL_VOICE' },
+          select: { recipientId: true },
+        })
+      )
+        .map((row) => row.recipientId)
+        .sort(),
+    ).toEqual([sectionHead.accountId, manager.accountId].sort());
+    // Raising a Voice to Kritis alerts the chain the same way.
+    const raised = await submitAs('700004', 'critical-raised');
+    await voices.changeSeverity(
+      groupLeader,
+      raised.id,
+      { expectedVersion: 1, severity: Severity.CRITICAL, reason: 'Ada ancaman.' },
+      'critical-change',
+    );
+    expect(
+      await prisma.notification.count({ where: { voiceId: raised.id, type: 'CRITICAL_VOICE' } }),
+    ).toBe(2);
   });
 
   it('exposes seeded defaults and edits the working calendar with versions', async () => {

@@ -160,6 +160,12 @@ export type MockVoice = {
   handlingCycleNumber?: number;
   handlingTargets?: VoiceDetail['handlingTargets'];
   conversationState?: 'UNAVAILABLE' | 'ACTIVE' | 'READ_ONLY';
+  currentHandler?: { id: string; displayName: string };
+  targetOverdue?: boolean;
+  tierLevel?: 'GROUP_LEADER' | 'SECTION_HEAD' | 'MANAGER' | 'DIVISION' | null;
+  outsideReporter?: boolean;
+  tierStages?: VoiceDetail['tierStages'];
+  unreadMessages?: number;
   severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   category?: string | null;
   attachments?: { id: string; mimeType: string; purpose?: string }[];
@@ -263,6 +269,7 @@ const baseVoiceItem = (voice: MockVoice): VoiceListItem => ({
     ? { currentHandlerName: voice.currentHandlerName }
     : {}),
   ...(voice.reporterAlias !== undefined ? { reporterAlias: voice.reporterAlias } : {}),
+  ...(voice.targetOverdue !== undefined ? { targetOverdue: voice.targetOverdue } : {}),
 });
 
 /**
@@ -939,6 +946,15 @@ export type MockApiOptions = {
   myVoiceList?: unknown;
   /** Voice list response when `/work-items` is called with `unassigned=true`. */
   unassignedVoiceList?: unknown;
+  /** Override for `GET /drafts/position-options` (TM reporters). */
+  positionOptions?: unknown;
+  /** Substitutes offered on `GET /me/away` ("Sedang tidak masuk"). */
+  awayCandidates?: Array<{
+    id: string;
+    displayName: string;
+    position: string;
+    upperLevel: boolean;
+  }>;
   /** Override for `GET /voices/{id}/assignment-candidates`. */
   assignmentCandidates?: unknown;
   /** Override for the Manager handover selection and restricted history surfaces. */
@@ -1063,7 +1079,11 @@ function detail(voice: MockVoice) {
     classificationSource: 'AI',
     classificationCategory: { key: 'SAFETY', name: 'Safety' },
     routeOwner: { id: 'handler-1', displayName: 'Manager PIC' },
-    currentHandler: { id: 'handler-1', displayName: 'Manager PIC' },
+    currentHandler: voice.currentHandler ?? { id: 'handler-1', displayName: 'Manager PIC' },
+    unreadMessages: voice.unreadMessages ?? 0,
+    tierLevel: voice.tierLevel ?? null,
+    outsideReporter: voice.outsideReporter ?? false,
+    ...(voice.tierStages ? { tierStages: voice.tierStages } : {}),
     attachments: voice.attachments ?? [],
     locationReview: {
       id: 'lr-1',
@@ -1164,6 +1184,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
   let session = opts.session ?? memberSession();
   const voice = opts.voice;
   let savedDraft: Record<string, unknown> | null = null;
+  let awayPeriod: Record<string, unknown> | null = null;
   // Messages the mocked composer sends; the GET echo merges them so the log
   // keeps showing a sent reply after the post-send refetch.
   const sentThreadMessages: Record<string, unknown[]> = {};
@@ -1447,6 +1468,57 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     if (method === 'GET' && voiceDetailMatch) {
       return satisfy(200, opts.voiceDetail ?? (voice ? detail(voice) : {}));
     }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/conversation\/read$/.test(path)) {
+      if (voice) voice.unreadMessages = 0;
+      return satisfy(200, { success: true });
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/escalate$/.test(path)) {
+      // A manual Naikkan answers the Voice; the one who raised it keeps the chat.
+      if (voice) {
+        voice.status = 'RESPONDED';
+        voice.conversationState = 'ACTIVE';
+        voice.availableActions = ['MESSAGE'];
+      }
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: 'RESPONDED',
+        version: 4,
+        currentHandlerId: null,
+        handlerType: 'MANAGER',
+      });
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/severity$/.test(path)) {
+      const body = route.request().postDataJSON() as { severity: MockVoice['severity'] };
+      if (voice) voice.severity = body.severity;
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'OPEN',
+        version: 4,
+        currentHandlerId: null,
+        handlerType: 'MANAGER',
+      });
+    }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/remind$/.test(path))
+      return satisfy(200, { success: true, reminded: 1 });
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/take-over$/.test(path)) {
+      if (voice) {
+        voice.currentHandler = {
+          id: session.account.id,
+          displayName: session.account.displayName,
+        };
+        voice.availableActions = ['MESSAGE', 'CLOSE'];
+      }
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'IN_PROGRESS',
+        version: 4,
+        currentHandlerId: session.account.id,
+        handlerType: 'MANAGER',
+      });
+    }
     // Lifecycle mutations
     // The rate endpoint is stateful: it records the rating on the latest
     // closure cycle, resolves the review state, and on reopen flips the voice
@@ -1495,7 +1567,9 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       if (voice) {
         voice.status = path.endsWith('/close')
           ? 'CLOSED'
-          : path.endsWith('/proceed') || path.endsWith('/target')
+          : path.endsWith('/proceed') ||
+              path.endsWith('/target') ||
+              (path.endsWith('/respond') && body.days !== undefined)
             ? 'IN_PROGRESS'
             : 'RESPONDED';
         voice.conversationState = voice.status === 'CLOSED' ? 'READ_ONLY' : 'ACTIVE';
@@ -1562,7 +1636,37 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       });
     }
 
+    // Sedang tidak masuk
+    const awayStatus = () => ({
+      eligible: true,
+      current: awayPeriod,
+      candidates: opts.awayCandidates ?? [],
+    });
+    if (method === 'GET' && path === '/api/v1/me/away') return satisfy(200, awayStatus());
+    if (method === 'POST' && path === '/api/v1/me/away') {
+      const body = route.request().postDataJSON() as {
+        startsOn: string;
+        endsOn: string;
+        substituteId: string;
+      };
+      const substitute = (opts.awayCandidates ?? []).find((item) => item.id === body.substituteId);
+      awayPeriod = {
+        id: '44444444-4444-4444-8444-444444444444',
+        startsOn: body.startsOn,
+        endsOn: body.endsOn,
+        active: true,
+        substitute: { id: body.substituteId, displayName: substitute?.displayName ?? 'Pengganti' },
+      };
+      return satisfy(200, awayStatus());
+    }
+    if (method === 'POST' && path === '/api/v1/me/away/end') {
+      awayPeriod = null;
+      return satisfy(200, awayStatus());
+    }
+
     // Drafts
+    if (method === 'GET' && path === '/api/v1/drafts/position-options')
+      return satisfy(200, opts.positionOptions ?? { required: false, sections: [], last: null });
     if (method === 'GET' && path === '/api/v1/drafts')
       return satisfy(200, { items: [draftFixture(voice)], nextCursor: null });
     if (method === 'POST' && path === '/api/v1/drafts') {

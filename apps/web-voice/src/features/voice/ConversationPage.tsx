@@ -1,5 +1,5 @@
 import { Alert, Button, Dialog, IconButton, Skeleton, Stack, Textarea, EmptyState } from '@care/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, ImagePlus, Send, UserRound } from 'lucide-react';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -83,6 +83,21 @@ function ConversationSurface({
   const nearBottomRef = useRef(true);
   const previousRef = useRef<{ first: string; last: string; height: number } | null>(null);
   const participants = voice.participants ?? [];
+  const api = useApi();
+  const sessionId = useSessionId();
+  const queryClient = useQueryClient();
+  const latestId = items.at(-1)?.id;
+
+  // Opening the room (and every newly arrived message) clears the unread badge.
+  useEffect(() => {
+    if (!latestId || document.visibilityState !== 'visible') return;
+    void api
+      .markConversationRead(voice.id)
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', voice.id) }),
+      )
+      .catch(() => undefined);
+  }, [api, latestId, queryClient, sessionId, voice.id]);
 
   useEffect(() => {
     const setHeight = () => {
@@ -137,27 +152,46 @@ function ConversationSurface({
           <span className="chat-participants__heading">
             <strong>Peserta percakapan</strong>
             <span>
-              Lihat semua <ChevronRight size={15} aria-hidden="true" />
+              {participants.length > 3 ? 'Detail' : 'Lihat semua'}{' '}
+              <ChevronRight size={15} aria-hidden="true" />
             </span>
           </span>
-          <span className="chat-participants__people">
-            {participants.map((participant) => (
-              <span
-                key={participant.id}
-                className="chat-participant"
-                aria-label={participant.displayName}
-                title={participant.displayName}
-              >
-                <span className="chat-participant__avatar" aria-hidden="true">
+          {participants.length > 3 ? (
+            <span className="chat-avatars">
+              {participants.slice(0, 5).map((participant) => (
+                <span
+                  key={participant.id}
+                  className="chat-participant__avatar"
+                  aria-label={participant.displayName}
+                  title={participant.displayName}
+                >
                   {participant.displayName.slice(0, 1)}
                 </span>
-                <span>
-                  <strong>{participant.displayName}</strong>
-                  <small>{participantRole(participant.role)}</small>
+              ))}
+              {participants.length > 5 ? (
+                <span className="chat-avatars__more">+{participants.length - 5}</span>
+              ) : null}
+            </span>
+          ) : (
+            <span className="chat-participants__people">
+              {participants.map((participant) => (
+                <span
+                  key={participant.id}
+                  className="chat-participant"
+                  aria-label={participant.displayName}
+                  title={participant.displayName}
+                >
+                  <span className="chat-participant__avatar" aria-hidden="true">
+                    {participant.displayName.slice(0, 1)}
+                  </span>
+                  <span>
+                    <strong>{participant.displayName}</strong>
+                    <small>{participantRole(participant.role)}</small>
+                  </span>
                 </span>
-              </span>
-            ))}
-          </span>
+              ))}
+            </span>
+          )}
         </button>
         <Dialog
           open={showParticipants}
@@ -264,8 +298,10 @@ function participantRole(role: string): string {
     (
       {
         REPORTER: 'Pelapor',
+        GROUP_LEADER: 'Group Leader',
         DEPARTMENT_HEAD: 'Dept Head',
         SECTION_HEAD: 'Section Head',
+        DIVISION_LEADER: 'Division',
         COMMITTEE: 'Komite',
       } as Record<string, string>
     )[role] ?? 'Responder'
@@ -293,6 +329,13 @@ function ChatMessage({ message, voice }: { message: Message; voice: VoiceDetail 
         ? 'Komite'
         : (message.sender?.displayName ?? session?.account.displayName ?? 'Anda')
       : senderLabel(message, voice));
+  if (message.kind === 'SYSTEM')
+    return (
+      <p className="chat-system" role="note">
+        <span>{message.text}</span>
+        <time dateTime={message.createdAt}>{formatNotificationTime(message.createdAt)}</time>
+      </p>
+    );
   return (
     <article className={`chat-msg ${isMine ? 'is-mine' : 'is-theirs'}`}>
       {!isMine ? (

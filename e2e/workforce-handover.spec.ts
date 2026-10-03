@@ -67,9 +67,10 @@ test.describe('Manager handover', () => {
     });
 
     await page.goto('/voices/voice-1');
-    const actions = page.getByRole('group', { name: 'Keputusan Voice' });
-    await expect(actions.getByRole('button', { name: 'Handover' })).toBeVisible();
-    await actions.getByRole('button', { name: 'Handover' }).click();
+    await page.getByRole('button', { name: 'Respons', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: 'Respons' });
+    await sheet.getByRole('radio', { name: 'Handover' }).click();
+    await sheet.getByRole('button', { name: 'Handover', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Handover Voice' })).toBeVisible();
     await expect(page.getByText('Department Reporter')).toBeVisible();
     await expect(page.getByText('Rute belum tersedia')).toBeVisible();

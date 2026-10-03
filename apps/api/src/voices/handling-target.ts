@@ -7,6 +7,10 @@ export function handlingDueAt(now: Date, days: number): Date {
       1,
   );
 }
+/** 08:00 WIB on the day a target falls due (dueAt is 23:59:59.999 WIB that day). */
+export function handlingReminderAt(dueAt: Date): Date {
+  return new Date(dueAt.getTime() + 1 - 16 * 60 * 60 * 1000);
+}
 export function formatHandlingDueAt(date: Date): string {
   return (
     new Intl.DateTimeFormat('id-ID', {

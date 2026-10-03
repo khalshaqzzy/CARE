@@ -232,14 +232,14 @@ describe('Manager Voice handover', () => {
     );
   });
 
-  it('supports A → B → C, preserves OPEN and original classification, and redacts notes pairwise', async () => {
+  it('supports A → B → C as a response, keeps the original classification, and redacts notes pairwise', async () => {
     const first = await voices.handover(
       managerA,
       voiceId,
       { targetCategoryId: categoryBId, detail: noteAB, expectedVersion: 1 },
       'handover-a-b',
     );
-    expect(first).toMatchObject({ status: VoiceStatus.OPEN, version: 2 });
+    expect(first).toMatchObject({ status: VoiceStatus.RESPONDED, version: 2 });
     const replay = await voices.handover(
       managerA,
       voiceId,
@@ -255,10 +255,10 @@ describe('Manager Voice handover', () => {
       { targetCategoryId: categoryCId, detail: noteBC, expectedVersion: 2 },
       'handover-b-c',
     );
-    expect(second).toMatchObject({ status: VoiceStatus.OPEN, version: 3 });
+    expect(second).toMatchObject({ status: VoiceStatus.RESPONDED, version: 3 });
     const stored = await prisma.voice.findUniqueOrThrow({ where: { id: voiceId } });
     expect(stored).toMatchObject({
-      status: VoiceStatus.OPEN,
+      status: VoiceStatus.RESPONDED,
       categoryKey: 'ASSEMBLY_HANDOVER',
       categoryNameSnapshot: 'Assembly',
       currentCategoryKey: 'REPORTER_HANDOVER',
@@ -276,12 +276,26 @@ describe('Manager Voice handover', () => {
     const historyC = await voices.handovers(managerC, voiceId);
     const historyReporter = await voices.handovers(reporter, voiceId);
     const historyAdmin = await voices.handovers(admin, voiceId);
-    expect(historyA).toMatchObject({ accessMode: 'PARTICIPANT_ONLY', items: [{ detail: noteAB }] });
+    // The former PIC now reads the Voice, but notes stay redacted pairwise.
+    expect(historyA.accessMode).toBe('VOICE_READER');
+    expect(historyA.items.map((item) => item.detail)).toEqual([noteAB, undefined]);
     expect(historyB.items.map((item) => item.detail)).toEqual([noteAB, noteBC]);
     expect(historyC.items.map((item) => item.detail)).toEqual([undefined, noteBC]);
     expect(historyReporter.items.every((item) => item.detail === undefined)).toBe(true);
     expect(historyAdmin.items.map((item) => item.detail)).toEqual([noteAB, noteBC]);
-    await expect(voices.detail(managerA, voiceId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    // The source Manager keeps a read-only view of what they handed over.
+    const formerView = await voices.detail(managerA, voiceId);
+    expect(formerView.availableActions).toEqual([]);
+    expect(formerView.conversationState).toBe('READ_ONLY');
+    const currentView = await voices.detail(managerC, voiceId);
+    expect(currentView.availableActions).toEqual(
+      expect.arrayContaining(['PROCEED', 'HANDOVER', 'MESSAGE']),
+    );
+    const thread = await voices.messages(reporter, voiceId, {});
+    expect(thread.items.map((item) => [item.kind, item.text])).toEqual([
+      ['SYSTEM', `Diteruskan ke ${managerB.department}`],
+      ['SYSTEM', `Diteruskan ke ${managerC.department}`],
+    ]);
 
     const mine = await voices.myHandovers(managerA, {});
     expect(mine.items).toHaveLength(1);
@@ -290,11 +304,19 @@ describe('Manager Voice handover', () => {
 
     const events = await prisma.voiceEvent.findMany({ where: { voiceId } });
     const notifications = await prisma.notification.findMany({ where: { voiceId } });
-    expect(events).toHaveLength(2);
+    expect(events.map((event) => event.type).sort()).toEqual(
+      [
+        'HANDOVER_COMPLETED',
+        'HANDOVER_COMPLETED',
+        'MESSAGE_SENT',
+        'MESSAGE_SENT',
+        'RESPONDED',
+      ].sort(),
+    );
     expect(JSON.stringify(events)).not.toContain(noteAB);
     expect(JSON.stringify(events)).not.toContain(noteBC);
     expect(notifications.map((item) => item.recipientId).sort()).toEqual(
-      [managerB.accountId, managerC.accountId].sort(),
+      [managerB.accountId, managerC.accountId, reporter.accountId, reporter.accountId].sort(),
     );
     expect(JSON.stringify(notifications)).not.toContain(noteAB);
     expect(JSON.stringify(notifications)).not.toContain(noteBC);
@@ -376,8 +398,7 @@ describe('Manager Voice handover', () => {
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
     const stored = await prisma.voice.findUniqueOrThrow({ where: { id: competing.id } });
-    expect(stored.version).toBe(2);
-    expect(await prisma.voiceEvent.count({ where: { voiceId: competing.id } })).toBe(1);
+    expect(stored).toMatchObject({ version: 2, status: VoiceStatus.RESPONDED });
     expect(
       await prisma.voiceHandover.count({ where: { voiceId: competing.id } }),
     ).toBeLessThanOrEqual(1);

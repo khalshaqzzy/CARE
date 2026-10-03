@@ -68,6 +68,7 @@ const classificationOutput = z
     category: z.string().max(80).nullable(),
     severity: z.nativeEnum(Severity),
     confidence: z.number().min(0).max(1),
+    privateSuggested: z.boolean().optional(),
   })
   .strict();
 const locationOutput = z

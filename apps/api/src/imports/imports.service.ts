@@ -44,7 +44,74 @@ export const ORGANIZATION_BIRTH_DATE_HEADERS = [
 ] as const;
 // Optional trailing columns for tiered routing: plant area and production line.
 export const ORGANIZATION_TIER_HEADERS = ['Area', 'Line'] as const;
-type HeaderLayout = { birthDate: boolean; tier: boolean };
+/** The monthly HR file: Noreg, Nama, Posisi (Struktural), Pers Area, ..., Line, Tgl Lahir. */
+export const ORGANIZATION_MONTHLY_HEADERS = [
+  'Noreg',
+  'Nama',
+  'Posisi (Struktural)',
+  'Pers Area',
+  'Directorat',
+  'Division',
+  'Department',
+  'Section',
+  'Line',
+  'Tgl Lahir',
+] as const;
+type ImportField =
+  | 'noReg'
+  | 'name'
+  | 'structuralPosition'
+  | 'directorate'
+  | 'division'
+  | 'department'
+  | 'section'
+  | 'area'
+  | 'line'
+  | 'birthDate';
+/**
+ * Columns are found by name (case and spacing ignored), so the monthly file
+ * and the older fixed layouts both import. Unknown columns are rejected.
+ */
+const HEADER_ALIASES: Record<string, ImportField> = {
+  noreg: 'noReg',
+  nama: 'name',
+  'posisi (struktural)': 'structuralPosition',
+  directorat: 'directorate',
+  division: 'division',
+  department: 'department',
+  section: 'section',
+  area: 'area',
+  'pers area': 'area',
+  line: 'line',
+  'birth date': 'birthDate',
+  'tgl lahir': 'birthDate',
+};
+const REQUIRED_FIELDS: ImportField[] = [
+  'noReg',
+  'name',
+  'structuralPosition',
+  'directorate',
+  'division',
+  'department',
+  'section',
+];
+type HeaderLayout = {
+  birthDate: boolean;
+  tier: boolean;
+  columns: Partial<Record<ImportField, number>>;
+  count: number;
+};
+/** XLSX sheet: "CARE_ORG DATA_<Bulan>" (monthly HR file) or the older "MFG + QD". */
+const isOrganizationSheet = (name: string) =>
+  /^care_org data/i.test(name.trim()) || name.trim() === 'MFG + QD';
+/** Tgl Lahir as dd/mm/yyyy (monthly file) or YYYY-MM-DD. */
+export function organizationBirthDate(value: string): string | null {
+  const local = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
+  const iso = local
+    ? `${local[3]}-${local[2]!.padStart(2, '0')}-${local[1]!.padStart(2, '0')}`
+    : value;
+  return parseBirthDate(iso);
+}
 const AREA_VALUES: Record<string, Area> = {
   'karawang 1': Area.KARAWANG_1,
   'karawang 2': Area.KARAWANG_2,
@@ -52,9 +119,13 @@ const AREA_VALUES: Record<string, Area> = {
   'sunter 1': Area.SUNTER_1,
   'sunter 2': Area.SUNTER_2,
 };
-/** Accepts "Karawang 1", "KARAWANG_1", "karawang1"; blank means unknown. */
+/**
+ * Accepts "Karawang 1", "KARAWANG_1", "karawang1"; blank means unknown and
+ * "Head Office" has no plant area.
+ */
 export function parseArea(value: string): Area | null | undefined {
   if (!value) return null;
+  if (/^head\s*office$/i.test(value.trim())) return null;
   const key = value
     .toLocaleLowerCase('en-US')
     .replace(/[_-]+/g, ' ')
@@ -1123,15 +1194,22 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     } catch {
       throw badRequest('XLSX_INVALID', 'XLSX file is malformed or unsupported');
     }
-    const sheet = workbook.getWorksheet('MFG + QD');
-    if (!sheet) throw badRequest('XLSX_SHEET_INVALID', 'Sheet MFG + QD is required');
+    const sheets = workbook.worksheets.filter((item) => isOrganizationSheet(item.name));
+    if (sheets.length !== 1)
+      throw badRequest(
+        'XLSX_SHEET_INVALID',
+        sheets.length
+          ? 'Workbook has more than one CARE_ORG DATA sheet'
+          : 'Sheet CARE_ORG DATA_<Bulan> is required',
+      );
+    const sheet = sheets[0]!;
     const headerRow = sheet.getRow(1);
     const headers = Array.from(
       { length: headerRow.cellCount },
       (_, i) => headerRow.getCell(i + 1).value,
     );
     const layout = this.validateHeaders(headers, 'XLSX');
-    const hasBirthDate = layout.birthDate;
+    const birthDateColumn = layout.columns.birthDate;
     if (sheet.actualRowCount - 1 > 10_000)
       throw badRequest('XLSX_ROW_LIMIT', 'Workbook exceeds 10,000 data rows');
     const values: string[][] = [];
@@ -1145,7 +1223,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       values.push(
         cells.map((value, index) => {
           if (value === null || value === '') return '';
-          if (hasBirthDate && index === 3 && value instanceof Date) {
+          if (index === birthDateColumn && value instanceof Date) {
             if (!Number.isFinite(value.getTime()))
               throw badRequest('XLSX_BIRTH_DATE_INVALID', `Invalid birth date at row ${rowNumber}`);
             return value.toISOString().slice(0, 10);
@@ -1164,19 +1242,27 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private validateHeaders(headers: unknown[], source: 'XLSX' | 'CSV'): HeaderLayout {
-    const match = (expected: readonly string[]) =>
-      headers.length === expected.length &&
-      headers.every((value, index) => value === expected[index]);
-    for (const birthDate of [true, false])
-      for (const tier of [true, false]) {
-        const base = birthDate ? ORGANIZATION_BIRTH_DATE_HEADERS : ORGANIZATION_HEADERS;
-        if (match(tier ? [...base, ...ORGANIZATION_TIER_HEADERS] : base))
-          return { birthDate, tier };
-      }
-    throw badRequest(
-      `${source}_HEADERS_INVALID`,
-      'Use the seven organization headers, optionally with Birth Date after Posisi (struktural) and Area, Line after Section',
-    );
+    const columns: Partial<Record<ImportField, number>> = {};
+    const invalid = () =>
+      badRequest(
+        `${source}_HEADERS_INVALID`,
+        'Gunakan kolom Noreg, Nama, Posisi (Struktural), Directorat, Division, Department, Section; opsional Pers Area + Line dan Tgl Lahir',
+      );
+    headers.forEach((header, index) => {
+      if (typeof header !== 'string') throw invalid();
+      const field = HEADER_ALIASES[header.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US')];
+      if (!field || columns[field] !== undefined) throw invalid();
+      columns[field] = index;
+    });
+    if (REQUIRED_FIELDS.some((field) => columns[field] === undefined)) throw invalid();
+    // Area and Line describe tiered placement together.
+    if ((columns.area === undefined) !== (columns.line === undefined)) throw invalid();
+    return {
+      birthDate: columns.birthDate !== undefined,
+      tier: columns.area !== undefined,
+      columns,
+      count: headers.length,
+    };
   }
 
   private parseCsv(buffer: Buffer): ImportRow[] {
@@ -1204,7 +1290,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     sourceRows?: number[],
   ): ImportRow[] {
     const hasBirthDate = layout.birthDate;
-    const columnCount = 7 + (hasBirthDate ? 1 : 0) + (layout.tier ? 2 : 0);
+    const columnCount = layout.count;
     if (values.length > 10_000)
       throw badRequest(`${source}_ROW_LIMIT`, 'Organization file exceeds 10,000 data rows');
     const rows: ImportRow[] = [];
@@ -1219,34 +1305,36 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         );
       if (cells.every((value) => value === '')) continue;
       const normalized = cells.map(normalize);
+      const cell = (field: ImportField) => {
+        const index = layout.columns[field];
+        return index === undefined ? '' : (normalized[index] ?? '');
+      };
       let birthDate: string | null | undefined;
       if (hasBirthDate) {
-        const rawDate = normalized.splice(3, 1)[0]!;
-        birthDate = rawDate === '' ? null : parseBirthDate(rawDate);
+        const rawDate = cell('birthDate');
+        birthDate = rawDate === '' ? null : organizationBirthDate(rawDate);
         if (rawDate && !birthDate)
           throw badRequest(
             `${source}_BIRTH_DATE_INVALID`,
-            `Invalid birth date at row ${rowNumber}; use YYYY-MM-DD`,
+            `Invalid birth date at row ${rowNumber}; use dd/mm/yyyy`,
           );
       }
-      const [
-        noReg,
-        name,
-        structuralPosition,
-        directorate,
-        division,
-        rawDepartment,
-        section,
-        rawArea,
-        rawLine,
-      ] = normalized;
+      const noReg = cell('noReg');
+      const name = cell('name');
+      const structuralPosition = cell('structuralPosition');
+      const directorate = cell('directorate');
+      const division = cell('division');
+      const rawDepartment = cell('department');
+      const section = cell('section');
+      const rawArea = cell('area');
+      const rawLine = cell('line');
       let area: Area | null | undefined;
       if (layout.tier) {
         area = parseArea(rawArea ?? '');
         if (area === undefined)
           throw badRequest(
             `${source}_AREA_INVALID`,
-            `Invalid Area at row ${rowNumber}; use Karawang 1-3 or Sunter 1-2`,
+            `Invalid Area at row ${rowNumber}; use Head Office, Karawang 1-3 or Sunter 1-2`,
           );
       }
       const department = rawDepartment || '14';

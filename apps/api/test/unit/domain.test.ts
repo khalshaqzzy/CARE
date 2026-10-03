@@ -38,7 +38,7 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.7');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.8');
     for (const value of [
       'SAFETY',
       'ENVIRONMENT',
@@ -105,7 +105,12 @@ describe('CARE domain contracts', () => {
         'Primary GENERAL category, or null when visibility is PRIVATE. Never identifies a route or person.',
       anyOf: [{ type: 'string', enum: ['CUSTOM_ONE', 'CUSTOM_TWO'] }],
     });
-    expect(generalSchema.required).toEqual(['category', 'severity', 'confidence']);
+    expect(generalSchema.required).toEqual([
+      'category',
+      'severity',
+      'confidence',
+      'privateSuggested',
+    ]);
     expect(generalSchema.properties).not.toHaveProperty('rationaleCode');
     expect(CLASSIFICATION_SYSTEM_PROMPT).not.toContain('rationaleCode');
     expect(classificationSchema(['CUSTOM_ONE'], true).properties.category.anyOf).toEqual([

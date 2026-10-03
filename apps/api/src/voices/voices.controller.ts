@@ -42,6 +42,9 @@ export class VoicesController {
   ) {
     return this.voices.listDrafts(a, q ?? {});
   }
+  @Get('drafts/position-options') draftPositionOptions(@Actor() a: AuthActor) {
+    return this.voices.draftPositionOptions(a);
+  }
   @Get('drafts/:id') getDraft(@Actor() a: AuthActor, @Param('id', ParseUUIDPipe) id: string) {
     return this.voices.getDraft(a, id);
   }
@@ -162,6 +165,43 @@ export class VoicesController {
     @Headers('idempotency-key') key = '',
   ) {
     return this.voices.reassign(a, id, b, key);
+  }
+  @Post('voices/:id/take-over') takeOver(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.takeOver(a, id, b, key);
+  }
+  @Post('voices/:id/escalate') escalate(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') k = '',
+  ) {
+    return this.voices.escalate(a, id, b, k);
+  }
+  @Post('voices/:id/severity') changeSeverity(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') k = '',
+  ) {
+    return this.voices.changeSeverity(a, id, b, k);
+  }
+  @Post('voices/:id/remind') remind(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('idempotency-key') k = '',
+  ) {
+    return this.voices.remind(a, id, k);
+  }
+  @Post('voices/:id/conversation/read') markConversationRead(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.markConversationRead(a, id);
   }
   @Get('voices/:id/assignment-candidates') assignmentCandidates(
     @Actor() a: AuthActor,

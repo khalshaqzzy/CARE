@@ -209,24 +209,27 @@ export function HandoverPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <button
-            type="button"
-            className="handover-admin-option"
-            aria-pressed={selectedAdmin}
-            onClick={() => {
-              setSelectedId('ADMIN');
-              setRecovery(null);
-            }}
-          >
-            <span className="handover-admin-option__icon">
-              <Building2 size={20} aria-hidden="true" />
-            </span>
-            <span>
-              <strong>Serahkan ke CARE Admin</strong>
-              <small>Admin akan memilih department aktif dan PIC tujuan.</small>
-            </span>
-            <span className="handover-admin-option__radio" aria-hidden="true" />
-          </button>
+          {/* Admin routing keeps the Voice Terbuka, so it is only offered before a response. */}
+          {voice.data?.status === 'OPEN' ? (
+            <button
+              type="button"
+              className="handover-admin-option"
+              aria-pressed={selectedAdmin}
+              onClick={() => {
+                setSelectedId('ADMIN');
+                setRecovery(null);
+              }}
+            >
+              <span className="handover-admin-option__icon">
+                <Building2 size={20} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>Serahkan ke CARE Admin</strong>
+                <small>Admin akan memilih department aktif dan PIC tujuan.</small>
+              </span>
+              <span className="handover-admin-option__radio" aria-hidden="true" />
+            </button>
+          ) : null}
           {filtered.length ? (
             <div
               className="handover-destination-list"

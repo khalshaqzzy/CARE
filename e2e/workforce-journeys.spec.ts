@@ -27,6 +27,46 @@ const generalVoice = {
 };
 
 test.describe('workforce journeys (mocked contract)', () => {
+  test('a leader sets "Sedang tidak masuk" with a substitute and returns early', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const sent: Record<string, unknown>[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/me/away')
+        sent.push(request.postDataJSON() as Record<string, unknown>);
+    });
+    await mockWorkforceApi(page, {
+      session: memberSession({ capabilities: ['MEMBER', 'GROUP_LEADER'] }),
+      awayCandidates: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          displayName: 'Agus Pratama',
+          position: 'Group Leader',
+          upperLevel: false,
+        },
+        {
+          id: '66666666-6666-4666-8666-666666666666',
+          displayName: 'Rahmat Hidayat',
+          position: 'Section Head',
+          upperLevel: true,
+        },
+      ],
+    });
+    await page.goto('/account');
+    await page.getByText('Sedang tidak masuk', { exact: true }).click();
+    await expect(page).toHaveURL(/\/account\/away$/);
+    const activate = page.getByRole('button', { name: 'Aktifkan' });
+    await expect(activate).toBeDisabled();
+    await page.getByRole('radio', { name: /Rahmat Hidayat/ }).click();
+    await activate.click();
+    await expect(page.getByText('Anda sedang tidak masuk')).toBeVisible();
+    await expect(page.getByText('Rahmat Hidayat')).toBeVisible();
+    expect(sent[0]).toMatchObject({ substituteId: '66666666-6666-4666-8666-666666666666' });
+    await page.getByRole('button', { name: 'Aktif kembali' }).click();
+    await expect(page.getByRole('button', { name: 'Aktifkan' })).toBeVisible();
+  });
+
   test('member home renders an actionable empty state and recent voice', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { voice: generalVoice });
@@ -206,6 +246,85 @@ test.describe('workforce journeys (mocked contract)', () => {
 
     await expect(page).toHaveURL(/\/voices\/submitted$/);
     await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
+  });
+
+  test('a complaint about a superior suggests switching to Private Voice', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      classification: {
+        source: 'AI',
+        category: 'WELFARE',
+        severity: 'HIGH',
+        confidence: 0.9,
+        rationaleCode: 'NOT_REQUESTED',
+        privateSuggested: true,
+      },
+    });
+    await page.goto('/voices/new');
+    await page.getByRole('radio', { name: /General Voice/ }).click();
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await page.getByRole('textbox', { name: /Detail Lokasi/ }).fill('Line 2, pos inspeksi');
+    await page.getByRole('textbox', { name: /Judul Voice/ }).fill('Atasan sering membentak');
+    await page
+      .getByRole('textbox', { name: /Detail Voice/ })
+      .fill('Atasan langsung sering membentak anggota di depan tim.');
+    await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+    await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
+    await expect(page.getByText('Keluhan tentang atasan?')).toBeVisible();
+    await page.getByRole('button', { name: 'Ubah ke Private Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Detail Voice Private' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toHaveValue(
+      'Atasan sering membentak',
+    );
+  });
+
+  test('TM reporters confirm their Section and Line before analysis', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const drafts: Record<string, unknown>[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/drafts')
+        drafts.push(request.postDataJSON() as Record<string, unknown>);
+    });
+    await mockWorkforceApi(page, {
+      positionOptions: {
+        required: true,
+        sections: [
+          { name: 'Assy Line Sect', lines: ['Line A', 'Line B'] },
+          { name: 'Quality Sect', lines: [] },
+        ],
+        last: { section: 'Assy Line Sect', line: 'Line B' },
+      },
+    });
+    await page.goto('/voices/new');
+    await page.getByRole('radio', { name: /General Voice/ }).click();
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    const card = page.getByRole('region', { name: 'Posisi kamu' });
+    await expect(card.getByText('Lengkapi posisi kamu')).toBeVisible();
+    await expect(card.getByRole('combobox', { name: 'Section' })).toContainText('Assy Line Sect');
+    await expect(card.getByRole('combobox', { name: 'Line' })).toContainText('Line B');
+    await card.getByRole('combobox', { name: 'Section' }).click();
+    await page.getByRole('option', { name: 'Quality Sect' }).click();
+    // A Section without Lines settles on "Tidak di Line".
+    await expect(card.getByRole('combobox', { name: 'Line' })).toContainText('Tidak di Line');
+    await card.getByRole('combobox', { name: 'Section' }).click();
+    await page.getByRole('option', { name: 'Assy Line Sect' }).click();
+    const analyse = page.getByRole('button', { name: 'Simpan & Analisis' });
+    await expect(analyse).toBeDisabled();
+    await card.getByRole('combobox', { name: 'Line' }).click();
+    await page.getByRole('option', { name: 'Tidak di Line' }).click();
+    await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await page.getByRole('textbox', { name: /Detail Lokasi/ }).fill('Pos inspeksi akhir');
+    await page.getByRole('textbox', { name: /Judul Voice/ }).fill('Uang makan magang terlambat');
+    await page
+      .getByRole('textbox', { name: /Detail Voice/ })
+      .fill('Uang makan magang bulan ini belum dibayarkan.');
+    await expect(analyse).toBeEnabled();
+    await analyse.click();
+    await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
+    expect(drafts[0]).toMatchObject({ positionSection: 'Assy Line Sect', positionLine: null });
   });
 
   test('successful submit opens the immersive receipt and history action', async ({ page }) => {
@@ -651,7 +770,7 @@ test.describe('workforce journeys (mocked contract)', () => {
         area: 'KARAWANG_2',
         title: 'Laporan papan nama rusak',
         detail: 'Papan nama area shift 3 tergantung satu baut saja.',
-        availableActions: ['PROCEED', 'ASSIGN', 'MESSAGE'],
+        availableActions: ['RESPOND', 'ASSIGN'],
         identified: false,
         alias: 'Reporter Biru 47',
       }),
@@ -666,20 +785,26 @@ test.describe('workforce journeys (mocked contract)', () => {
     // Localized status in the meta grid.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Assign PIC', exact: true }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    await expect(page.getByText('Pilih Union Officer untuk menangani Voice ini.')).toBeVisible();
+    await page.getByRole('button', { name: 'Respons', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Respons' });
+    // Private Voices never offer a sideways handover.
+    await expect(dialog.getByRole('radio')).toHaveText([
+      'Balas pesan',
+      'Tugaskan PIC',
+      'Proses sendiri',
+    ]);
+    await dialog.getByRole('radio', { name: 'Tugaskan PIC' }).click();
+    await expect(dialog.getByText('Hanya Union Officer yang dapat ditugaskan.')).toBeVisible();
     // Candidate cards are a radio group with workload subtitles, not a select.
     await dialog.getByRole('radio', { name: /Union Officer 1/ }).click();
     await expect(dialog.getByRole('radio', { name: /Union Officer 1/ })).toBeChecked();
     await expect(dialog.getByText('3 Voice aktif')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Tugaskan', exact: true }).click();
-    await page
-      .getByRole('textbox', { name: 'Keterangan penanganan' })
-      .fill('Komite akan menindaklanjuti.');
-    await page.getByRole('button', { name: 'Tugaskan & buka chat' }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await dialog.getByRole('textbox', { name: 'Pesan' }).fill('Komite akan menindaklanjuti.');
+    // The static detail mock keeps the chat unavailable, so the chat page bounces
+    // back; catch the navigation itself instead of sampling the final URL.
+    const toChat = page.waitForURL(/\/voices\/voice-p1\/chat$/);
+    await dialog.getByRole('button', { name: 'Tugaskan PIC', exact: true }).click();
+    await toChat;
   });
 
   test('union identified detail shows the consented reporter snapshot', async ({ page }) => {

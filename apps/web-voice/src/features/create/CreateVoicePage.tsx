@@ -53,6 +53,7 @@ import {
   ReviewMetaBar,
   ReviewSummary,
 } from './ReviewParts';
+import { TmPositionCard } from './TmPositionCard';
 import { useDraftWizard, type Category, type Severity, type Visibility } from './useDraftWizard';
 
 const AREA_OPTIONS = [
@@ -312,6 +313,15 @@ function FormStep({ wizard }: { wizard: Wizard }) {
           </section>
         </Card>
 
+        {wizard.position?.required ? (
+          <TmPositionCard
+            options={wizard.position}
+            section={form.positionSection}
+            line={form.positionLine}
+            onChange={setField}
+          />
+        ) : null}
+
         <Card
           variant="raised"
           padding="lg"
@@ -432,7 +442,7 @@ function FormStep({ wizard }: { wizard: Wizard }) {
               variant="primary"
               className="wizard-actionsbar__primary"
               loading={wizard.busy || uploading}
-              disabled={!privacyComplete}
+              disabled={!privacyComplete || !wizard.positionComplete}
               aria-describedby={privacyGate ? 'privacy-gate-hint' : undefined}
               onClick={() => void wizard.saveAndProcess()}
             >
@@ -826,6 +836,24 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
               : null
           }
         />
+
+        {!isPrivate &&
+        classification &&
+        'privateSuggested' in classification &&
+        classification.privateSuggested ? (
+          <Alert tone="warning" title="Keluhan tentang atasan?">
+            <p>Private Voice hanya dibaca Komite.</p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                wizard.setField({ visibility: 'PRIVATE' });
+                wizard.setStep('form');
+              }}
+            >
+              Ubah ke Private Voice
+            </Button>
+          </Alert>
+        ) : null}
 
         <ReviewContent
           title={form.title}

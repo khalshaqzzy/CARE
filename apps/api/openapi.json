@@ -6767,6 +6767,128 @@
         ]
       }
     },
+    "/api/v1/drafts/position-options": {
+      "get": {
+        "operationId": "VoicesController_draftPositionOptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftPositionOptions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
     "/api/v1/drafts/{id}": {
       "get": {
         "operationId": "VoicesController_getDraft",
@@ -9933,6 +10055,781 @@
         }
       }
     },
+    "/api/v1/voices/{id}/take-over": {
+      "post": {
+        "operationId": "VoicesController_takeOver",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakeOverRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voices/{id}/escalate": {
+      "post": {
+        "operationId": "VoicesController_escalate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voices/{id}/severity": {
+      "post": {
+        "operationId": "VoicesController_changeSeverity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeverityChangeRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voices/{id}/remind": {
+      "post": {
+        "operationId": "VoicesController_remind",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemindResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
+    "/api/v1/voices/{id}/conversation/read": {
+      "post": {
+        "operationId": "VoicesController_markConversationRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key for safe mutation retries",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "voices"
+        ]
+      }
+    },
     "/api/v1/voices/{id}/assignment-candidates": {
       "get": {
         "operationId": "VoicesController_assignmentCandidates",
@@ -11936,7 +12833,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VoiceTextMutationRequest"
+                "$ref": "#/components/schemas/VoiceRespondRequest"
               }
             }
           }
@@ -17022,6 +17919,400 @@
           }
         }
       }
+    },
+    "/api/v1/me/away": {
+      "get": {
+        "operationId": "AwayController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwayStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "workforce"
+        ]
+      },
+      "post": {
+        "operationId": "AwayController_set",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwayStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "workforce"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwayRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/away/end": {
+      "post": {
+        "operationId": "AwayController_end",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwayStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "workforce"
+        ]
+      }
     }
   },
   "info": {
@@ -17343,6 +18634,17 @@
           "privateContactConsent": {
             "type": "boolean",
             "description": "Private only; must be true before submission"
+          },
+          "positionSection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "positionLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "nullable": true
           }
         }
       },
@@ -17382,9 +18684,71 @@
           "privateContactConsent": {
             "type": "boolean"
           },
+          "positionSection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "positionLine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "nullable": true
+          },
           "expectedVersion": {
             "type": "integer",
             "minimum": 1
+          }
+        }
+      },
+      "DraftPositionOptions": {
+        "type": "object",
+        "required": [
+          "required",
+          "sections",
+          "last"
+        ],
+        "properties": {
+          "required": {
+            "type": "boolean"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "lines"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "last": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "section",
+              "line"
+            ],
+            "properties": {
+              "section": {
+                "type": "string"
+              },
+              "line": {
+                "type": "string",
+                "nullable": true
+              }
+            }
           }
         }
       },
@@ -17516,8 +18880,10 @@
             "type": "string",
             "enum": [
               "REPORTER",
-              "DEPARTMENT_HEAD",
+              "GROUP_LEADER",
               "SECTION_HEAD",
+              "DEPARTMENT_HEAD",
+              "DIVISION_LEADER",
               "COMMITTEE"
             ]
           }
@@ -18483,6 +19849,218 @@
           }
         }
       },
+      "VoiceRespondRequest": {
+        "type": "object",
+        "required": [
+          "text",
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365
+          }
+        }
+      },
+      "AwayRequest": {
+        "type": "object",
+        "required": [
+          "startsOn",
+          "endsOn",
+          "substituteId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "startsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "substituteId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "AwayStatus": {
+        "type": "object",
+        "required": [
+          "eligible",
+          "current",
+          "candidates"
+        ],
+        "properties": {
+          "eligible": {
+            "type": "boolean"
+          },
+          "current": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "id",
+              "startsOn",
+              "endsOn",
+              "active",
+              "substitute"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "startsOn": {
+                "type": "string",
+                "format": "date"
+              },
+              "endsOn": {
+                "type": "string",
+                "format": "date"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "substitute": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "displayName"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "displayName",
+                "position",
+                "upperLevel"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "position": {
+                  "type": "string"
+                },
+                "section": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "upperLevel": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SeverityChangeRequest": {
+        "type": "object",
+        "required": [
+          "expectedVersion",
+          "severity",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "EscalateRequest": {
+        "type": "object",
+        "required": [
+          "expectedVersion",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "RemindResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "reminded"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "reminded": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "TakeOverRequest": {
+        "type": "object",
+        "required": [
+          "expectedVersion"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
       "VersionedMutationRequest": {
         "type": "object",
         "required": [
@@ -19221,6 +20799,9 @@
               },
               "rationaleCode": {
                 "type": "string"
+              },
+              "privateSuggested": {
+                "type": "boolean"
               }
             }
           },
@@ -19461,6 +21042,60 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
           },
           "shopLocation": {
             "type": "object",
@@ -19734,6 +21369,60 @@
             ],
             "nullable": true
           },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
+          },
           "shopLocation": {
             "type": "object",
             "nullable": true,
@@ -20002,6 +21691,60 @@
             ],
             "nullable": true
           },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
+          },
           "shopLocation": {
             "type": "object",
             "nullable": true,
@@ -20250,6 +21993,60 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
           },
           "shopLocation": {
             "type": "object",
@@ -20507,6 +22304,60 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
           },
           "shopLocation": {
             "type": "object",
@@ -20776,6 +22627,60 @@
               }
             ],
             "nullable": true
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
           },
           "shopLocation": {
             "type": "object",
@@ -23708,6 +25613,9 @@
             "format": "date-time",
             "nullable": true
           },
+          "targetOverdue": {
+            "type": "boolean"
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -23747,6 +25655,14 @@
           "version"
         ],
         "properties": {
+          "positionSection": {
+            "type": "string",
+            "nullable": true
+          },
+          "positionLine": {
+            "type": "string",
+            "nullable": true
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -24600,6 +26516,13 @@
           "text": {
             "type": "string",
             "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "SYSTEM"
+            ]
           },
           "createdAt": {
             "type": "string",

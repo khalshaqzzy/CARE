@@ -17,6 +17,112 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 3 — 3 October 2026
+
+Phase 13 remains the only `in_progress` phase. Stages 2 and 3 are complete on `feat/voice-tiered-routing-stage2` and not released; the product owner decides the release.
+
+Stage 3 adds:
+
+- per-holder windows from the Admin deadline table and working calendar;
+- an automatic escalation worker covering unanswered, handed-up, and answered-but-unprocessed Voices;
+- missed-assignment escalation for fixed categories (SH → Manager → DDH/DH);
+- Critical notices.
+
+See PRD §43.6 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 7 — 3 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- severity change with a mandatory reason until the Voice is processed;
+- an AI classification flag (prompt v1.8) suggesting Private Voice for complaints about the reporter's superior, offered on the review step.
+
+Stage 2 is complete; stage 3 (automatic escalation worker and Critical notifications) is next. Nothing is released until the product owner approves. See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 6 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: "Sedang tidak masuk".
+
+- A leader names a substitute (same level or one up) for a WIB-day period.
+- The substitute acts for them, including Selesaikan as PIC, and receives their notices until the period ends or "Aktif kembali".
+- A level whose leader and substitute are both away is skipped.
+
+Stage 2 remaining: increment 7 (severity change with reason, AI Private guidance). See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 5c — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- Voice Tim Saya read access for Section Heads (their Section) and Group Leaders (their Line);
+- the Tahap penanganan timeline on tiered Voices;
+- collapsed chat avatars with a Detail button.
+
+Stage 2 remaining: away delegation, severity edits with AI Private guidance. See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 5b — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- Naikkan ke atasan with a reason (full move when unanswered, the upper tier joins the chat when answered);
+- Tugaskan by tier holders, including skipped levels;
+- Ingatkan (notify-only, once per day per person).
+
+Next: 5c (Tim Saya read-only visibility, stage timeline, chat avatars). See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 5a — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: tiered categories now start at the nearest leader above the reporter (GL → SH → Manager → DDH/DH).
+
+- Only the holder acts.
+- The Manager reads the Voice but cannot act until it reaches them.
+- Outsider shop reports go straight to the shop Manager with a badge.
+
+Next: 5b (Naikkan, Tugaskan, Ingatkan) and 5c (Tim Saya visibility, stage timeline, chat avatars). See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 4 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: TM (vocational) reporters fill in **Lengkapi posisi kamu** on every Voice.
+
+- They choose a Section and a Line from their department, or "Tidak di Line".
+- The choice is prefilled from their last Voice.
+- It is required to analyse and submit.
+- It is stored as the Voice's reporter Section, Line, and Area snapshot.
+
+See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 3 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- an 08:00 WIB target-day reminder to the PIC (not for same-day targets);
+- a one-time overdue notice to the PIC, the Manager, and the reporter;
+- a system chat note and timeline event when the target passes;
+- the **Terlambat** badge on cards and detail.
+
+See PRD §15.4, §43.5, and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 2 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- the unified **Respons** sheet (Balas pesan / Tugaskan PIC / Handover / Proses sendiri);
+- an atomic respond-and-process step;
+- handover counted as a response, with a chat system message, a reporter notification, and read-only access for the source Manager;
+- the `USER`/`SYSTEM` message kind.
+
+See PRD §43.5 and ADR-0059.
+
+## Tiered bottom-up routing, stage 2 increment 1 — 2 October 2026
+
+Phase 13 remains the only `in_progress` phase. On branch `feat/voice-tiered-routing-stage2` (not released; stage 2 and 3 ship together after product-owner approval):
+
+- the Voice detail redesign;
+- an unread-message badge on the conversation card;
+- PIC-only close (older Voices without a PIC stay closable by the route owner);
+- **Ambil alih** when the PIC account is inactive.
+
+See PRD §43.5 and ADR-0059. The remaining stage 2 increments are the unified Respons sheet, target reminders and overdue fan-out, the TM position card, chain routing and visibility, away delegation, and severity edits with AI Private guidance.
+
 ## Tiered bottom-up routing, stage 1 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase.

@@ -13,6 +13,7 @@ export type Session = components['schemas']['SessionResponse'];
 export type SessionAccount = components['schemas']['SessionAccount'];
 export type Capability = components['schemas']['Capability'];
 export type VoiceDraft = components['schemas']['VoiceDraftResponse'];
+export type DraftPositionOptions = components['schemas']['DraftPositionOptions'];
 export type VoiceDraftPreview = components['schemas']['VoiceDraftPreview'];
 export type ShopResolution = components['schemas']['ShopResolutionPreview'];
 export type ShopOption = components['schemas']['ShopOption'];
@@ -132,6 +133,8 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<DraftList>(
         client.GET('/api/v1/drafts', { params: { query: compactQuery(query) } }),
       ),
+    draftPositionOptions: () =>
+      dataOrThrow<DraftPositionOptions>(client.GET('/api/v1/drafts/position-options')),
     getDraft: (id: string) =>
       dataOrThrow<VoiceDraft>(client.GET('/api/v1/drafts/{id}', { params: { path: { id } } })),
     updateDraft: (id: string, body: DraftPatch) =>
@@ -260,6 +263,52 @@ export function createWorkforceApi(transport: CareTransport) {
           params: { query: compactQuery(query) },
         }),
       ),
+    takeOver: (id: string, body: components['schemas']['TakeOverRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/take-over', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    away: () => dataOrThrow<components['schemas']['AwayStatus']>(client.GET('/api/v1/me/away')),
+    setAway: (body: components['schemas']['AwayRequest']) =>
+      dataOrThrow<components['schemas']['AwayStatus']>(
+        client.POST('/api/v1/me/away', { params: { header: csrfHeader() }, body }),
+      ),
+    endAway: () =>
+      dataOrThrow<components['schemas']['AwayStatus']>(
+        client.POST('/api/v1/me/away/end', { params: { header: csrfHeader() } }),
+      ),
+    changeSeverity: (
+      id: string,
+      body: components['schemas']['SeverityChangeRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/severity', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    escalate: (id: string, body: components['schemas']['EscalateRequest'], key: string) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/escalate', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    remind: (id: string, key: string) =>
+      dataOrThrow<components['schemas']['RemindResponse']>(
+        client.POST('/api/v1/voices/{id}/remind', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+        }),
+      ),
+    markConversationRead: (id: string) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/conversation/read', {
+          params: { path: { id }, header: csrfIdempotentHeader(crypto.randomUUID()) },
+        }),
+      ),
     assign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(
         client.POST('/api/v1/voices/{id}/assignments', {
@@ -307,7 +356,7 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
-    respond: (id: string, body: components['schemas']['VoiceTextMutationRequest'], key: string) =>
+    respond: (id: string, body: components['schemas']['VoiceRespondRequest'], key: string) =>
       dataOrThrow(
         client.POST('/api/v1/voices/{id}/respond', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },

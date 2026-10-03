@@ -34,7 +34,7 @@ USER 0
 # Use a stable Alpine main mirror alongside the base repository to avoid stale
 # CDN indexes during patched-package rollovers; exact revisions still fail closed.
 RUN apk add --no-cache --repository https://dl-4.alpinelinux.org/v3.24/main \
-  libcrypto3=3.5.9-r0 libssl3=3.5.9-r0 libexpat=2.8.5-r0 libuuid=2.42.3-r1
+  libcrypto3=3.5.9-r0 libssl3=3.5.9-r0 libexpat=2.8.5-r0 libuuid=2.42.3-r1 pcre2=10.49-r0
 COPY deploy/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /workspace/apps/web-voice/dist/ /usr/share/nginx/html/
 USER 101

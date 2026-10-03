@@ -11,7 +11,7 @@ import {
   Textarea,
 } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Clock, Info, Map, MessageCircle, Sparkles, UserRound } from 'lucide-react';
+import { CalendarDays, Clock, Info, MessageCircle, UserRound } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
@@ -20,18 +20,17 @@ import { ActionPanel } from '../../components/ActionPanel';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
 import { VoiceProgress } from '../../components/VoiceProgress';
+import { TierStages } from '../../components/TierStages';
 import { VoiceHero } from '../../components/VoiceHero';
 import { HandoverHistoryList } from '../../components/HandoverHistoryList';
 import {
   CLOSURE_REVIEW_LABELS,
-  formatCategoryName,
   formatDate,
   formatDateTime,
   formatRemaining,
 } from '../../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../../lib/query';
 import { useConversation } from '../../lib/useConversation';
-import { categoryIcon } from '../../lib/voice-visuals';
 import { VOICE_ACTION_LABELS } from '../../lib/formatters';
 import { useCursorFeed } from '../../lib/useCursorFeed';
 import type { Attachment, TimelineEvent, VoiceDetail } from '../../workforce-api';
@@ -86,97 +85,37 @@ export function VoiceDetailPage() {
   }
   const voice = detail.data;
   const cycles = (voice.closureCycles ?? []) as ClosureCycle[];
-  const CategoryIcon = categoryIcon(voice.category);
 
   return (
     <Stack gap="lg">
       <VoiceHero voice={voice} variant="full" onBack={back} />
-      <VoiceProgress status={voice.status} />
-
       <ReporterCard voice={voice} />
 
-      <HandlingTargetCard voice={voice} />
-      <ActionPanel detail={voice} />
+      <section className="voice-detail voice-detail--card" aria-label="Detail Voice">
+        <h2 className="voice-detail__heading">Detail Voice</h2>
+        <p className="voice-detail__body">{voice.detail}</p>
+        {voice.attachments?.length ? (
+          <MediaGallery attachments={voice.attachments} variant="row" />
+        ) : null}
+        <p className="voice-detail__submitted">
+          <CalendarDays size={15} aria-hidden="true" />
+          {formatDateTime(voice.submittedAt)}
+        </p>
+      </section>
+
+      {voice.conversationState !== 'UNAVAILABLE' ? <ConversationLink voice={voice} /> : null}
+
+      <section className="voice-handling" aria-label="Penanganan">
+        <h2 className="voice-detail__heading">Penanganan</h2>
+        <VoiceProgress status={voice.status} />
+        {voice.tierStages?.length ? <TierStages stages={voice.tierStages} /> : null}
+        <HandlingTargetCard voice={voice} />
+        <ActionPanel detail={voice} />
+      </section>
 
       {voice.visibility === 'GENERAL' && voice.audience === 'GENERAL_RESPONDER' ? (
         <ParticipantHandovers voiceId={voice.id} />
       ) : null}
-
-      <section className="voice-detail" aria-label="Detail Voice">
-        <h2 className="voice-detail__heading">Detail Voice</h2>
-        <p className="voice-detail__body">{voice.detail}</p>
-        <ul className="voice-meta-list">
-          <li>
-            <CalendarDays size={17} aria-hidden="true" />
-            <span className="voice-meta-list__label">Diajukan</span>
-            <strong>{formatDateTime(voice.submittedAt)}</strong>
-          </li>
-          <li>
-            <Clock size={17} aria-hidden="true" />
-            <span className="voice-meta-list__label">Diperbarui</span>
-            <strong>{formatDateTime(voice.updatedAt)}</strong>
-          </li>
-          {/* Classification metadata is responder-facing; the reporter's own
-              detail keeps submission facts without AI/fallback bookkeeping. */}
-          {voice.audience !== 'REPORTER_SELF' ? (
-            <li>
-              <Sparkles size={17} aria-hidden="true" />
-              <span className="voice-meta-list__label">Klasifikasi</span>
-              <strong>
-                {voice.classificationSource === 'AI'
-                  ? 'AI'
-                  : voice.classificationSource
-                    ? 'Manual Fallback'
-                    : '—'}
-              </strong>
-            </li>
-          ) : null}
-          {voice.category ? (
-            <li>
-              <CategoryIcon size={17} aria-hidden="true" />
-              <span className="voice-meta-list__label">Kategori</span>
-              <strong>
-                {formatCategoryName(voice.category, voice.categoryNameSnapshot) ?? voice.category}
-              </strong>
-            </li>
-          ) : null}
-          {voice.audience !== 'REPORTER_SELF' &&
-          voice.classificationCategory?.key &&
-          voice.classificationCategory.key !== voice.category ? (
-            <li>
-              <Info size={17} aria-hidden="true" />
-              <span className="voice-meta-list__label">Klasifikasi awal</span>
-              <strong>
-                {formatCategoryName(
-                  voice.classificationCategory.key,
-                  voice.classificationCategory.name,
-                ) ?? voice.classificationCategory.key}
-              </strong>
-            </li>
-          ) : null}
-          {voice.locationReview ? (
-            <li>
-              <Map size={17} aria-hidden="true" />
-              <span className="voice-meta-list__label">Kelengkapan lokasi</span>
-              <strong>
-                {voice.locationReview.completeness === 'INCOMPLETE'
-                  ? 'Belum lengkap'
-                  : voice.locationReview.completeness === 'COMPLETE'
-                    ? 'Lengkap'
-                    : 'Tidak diketahui'}
-              </strong>
-            </li>
-          ) : null}
-        </ul>
-      </section>
-
-      {voice.attachments?.length ? (
-        <Card padding="md">
-          <MediaGallery attachments={voice.attachments} variant="row" />
-        </Card>
-      ) : null}
-
-      {voice.conversationState !== 'UNAVAILABLE' ? <ConversationLink voice={voice} /> : null}
 
       <ClosureSection cycles={cycles} />
 
@@ -213,14 +152,22 @@ function ConversationLink({ voice }: { voice: VoiceDetail }) {
   const { feed, items } = useConversation(voice.id);
   const subtitle =
     voice.conversationState === 'READ_ONLY' ? 'Hanya baca' : `${items.length} pesan · aktif`;
+  const unread = voice.unreadMessages ?? 0;
   return (
-    <LinkCard
-      icon={<MessageCircle size={20} />}
-      title="Percakapan"
-      description={feed.isLoading ? 'Memuat…' : subtitle}
-      trailing={<span className="link-card__cta">Buka Chat</span>}
-      onClick={() => void navigate(`/voices/${voice.id}/chat`)}
-    />
+    <div className="voice-conversation">
+      <LinkCard
+        icon={<MessageCircle size={20} />}
+        title="Percakapan"
+        description={feed.isLoading ? 'Memuat…' : subtitle}
+        trailing={<span className="link-card__cta">Buka Chat</span>}
+        onClick={() => void navigate(`/voices/${voice.id}/chat`)}
+      />
+      {unread ? (
+        <span className="voice-conversation__unread" aria-label={`${unread} pesan belum dibaca`}>
+          {unread > 99 ? '99+' : unread}
+        </span>
+      ) : null}
+    </div>
   );
 }
 

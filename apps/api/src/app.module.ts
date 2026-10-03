@@ -14,6 +14,7 @@ import { AiModule } from './ai/ai.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ShopsModule } from './shops/shops.module';
 import { EscalationModule } from './escalation/escalation.module';
+import { AwayModule } from './away/away.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { EscalationModule } from './escalation/escalation.module';
     NotificationsModule,
     ShopsModule,
     EscalationModule,
+    AwayModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [PrismaService, { provide: APP_FILTER, useClass: HttpErrorFilter }],

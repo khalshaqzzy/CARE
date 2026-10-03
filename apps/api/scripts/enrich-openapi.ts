@@ -219,6 +219,9 @@ const idempotentOperations = new Set([
 ]);
 
 const noBodyOperations = new Set([
+  'VoicesController_markConversationRead',
+  'AwayController_end',
+  'VoicesController_remind',
   'AuthController_logout',
   'AuthController_deferPasswordChange',
   'VoicesController_classify',
@@ -360,6 +363,9 @@ function successSchema(operationId: string) {
     AdminShopLocationsController_update: 'ShopLocationAdmin',
     AdminShopLocationsController_status: 'ShopLocationAdmin',
     AdminEscalationSettingsController_get: 'EscalationSettings',
+    AwayController_get: 'AwayStatus',
+    AwayController_set: 'AwayStatus',
+    AwayController_end: 'AwayStatus',
     AdminEscalationSettingsController_calendar: 'EscalationSettings',
     AdminEscalationSettingsController_addException: 'EscalationSettings',
     AdminEscalationSettingsController_removeException: 'EscalationSettings',
@@ -389,6 +395,11 @@ function successSchema(operationId: string) {
     VoicesController_setTarget: 'VoiceMutationResponse',
     VoicesController_assign: 'VoiceMutationResponse',
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
+    VoicesController_takeOver: 'VoiceMutationResponse',
+    VoicesController_escalate: 'VoiceMutationResponse',
+    VoicesController_changeSeverity: 'VoiceMutationResponse',
+    VoicesController_remind: 'RemindResponse',
+    VoicesController_markConversationRead: 'SuccessResponse',
     VoicesController_monitoringOptions: 'MonitoringOptions',
     VoicesController_close: 'ClosureResponse',
     VoicesController_conversations: 'ConversationList',
@@ -396,6 +407,7 @@ function successSchema(operationId: string) {
     VoicesController_deleteDraft: 'SuccessResponse',
     VoicesController_evidence: 'AttachmentResponse',
     VoicesController_getDraft: 'VoiceDraftResponse',
+    VoicesController_draftPositionOptions: 'DraftPositionOptions',
     VoicesController_handover: 'VoiceMutationResponse',
     VoicesController_requestAdminHandover: 'VoiceMutationResponse',
     VoicesController_adminHandoverQueue: 'AdminHandoverQueue',
@@ -436,6 +448,9 @@ function requestSchema(operationId: string) {
     VoicesController_submit: 'SubmitVoiceRequest',
     VoicesController_assign: 'AssignmentRequest',
     VoicesController_reassign: 'AssignmentRequest',
+    VoicesController_takeOver: 'TakeOverRequest',
+    VoicesController_escalate: 'EscalateRequest',
+    VoicesController_changeSeverity: 'SeverityChangeRequest',
     VoicesController_handover: 'HandoverRequest',
     VoicesController_requestAdminHandover: 'AdminHandoverNoteRequest',
     VoicesController_resolveAdminHandover: 'AdminHandoverDecisionRequest',
@@ -452,6 +467,7 @@ function requestSchema(operationId: string) {
     AdminShopLocationsController_update: 'ShopLocationUpdateRequest',
     AdminShopLocationsController_status: 'ShopLocationStatusRequest',
     AdminEscalationSettingsController_calendar: 'WorkingCalendarUpdateRequest',
+    AwayController_set: 'AwayRequest',
     AdminEscalationSettingsController_addException: 'CalendarExceptionRequest',
     AdminEscalationSettingsController_deadlines: 'EscalationDeadlinesRequest',
     VoicesController_confirmShop: 'ShopConfirmationRequest',
@@ -463,7 +479,7 @@ function requestSchema(operationId: string) {
     VoicesController_monitor: 'VersionedMutationRequest',
     VoicesController_proceed: 'HandlingTargetRequest',
     VoicesController_setTarget: 'HandlingTargetRequest',
-    VoicesController_respond: 'VoiceTextMutationRequest',
+    VoicesController_respond: 'VoiceRespondRequest',
     VoicesController_close: 'CloseVoiceRequest',
     VoicesController_rate: 'RatingRequest',
   };
@@ -560,6 +576,32 @@ const baseVoiceProperties = {
 };
 
 const shopVoiceProperties = {
+  // Tiered categories (ADR-0059): the level holding the Voice; null on the classic route.
+  tierLevel: {
+    type: 'string',
+    enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'],
+    nullable: true,
+  },
+  // Fasilitas Kerja reported from another department's shop.
+  outsideReporter: { type: 'boolean' },
+  // Tahap penanganan for responders on tiered Voices.
+  tierStages: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['level', 'state', 'names'],
+      properties: {
+        level: { type: 'string', enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'] },
+        state: { type: 'string', enum: ['DONE', 'CURRENT', 'NEXT'] },
+        names: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  },
+  unreadMessages: {
+    type: 'integer',
+    minimum: 0,
+    description: 'Messages from others since the viewer last opened the conversation.',
+  },
   shopLocation: {
     type: 'object',
     nullable: true,
@@ -751,6 +793,9 @@ const schemas: Record<string, any> = {
         type: 'boolean',
         description: 'Private only; must be true before submission',
       },
+      // TM (vocational) reporters only: where they work today; null line = "Tidak di Line".
+      positionSection: { type: 'string', minLength: 1, maxLength: 200 },
+      positionLine: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
     },
   },
   VoiceDraftPatchRequest: {
@@ -764,7 +809,37 @@ const schemas: Record<string, any> = {
       visibility: baseVoiceProperties.visibility,
       showReporterIdentity: { type: 'boolean' },
       privateContactConsent: { type: 'boolean' },
+      // TM (vocational) reporters only: where they work today; null line = "Tidak di Line".
+      positionSection: { type: 'string', minLength: 1, maxLength: 200 },
+      positionLine: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
       expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  DraftPositionOptions: {
+    type: 'object',
+    required: ['required', 'sections', 'last'],
+    properties: {
+      required: { type: 'boolean' },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['name', 'lines'],
+          properties: {
+            name: { type: 'string' },
+            lines: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+      last: {
+        type: 'object',
+        nullable: true,
+        required: ['section', 'line'],
+        properties: {
+          section: { type: 'string' },
+          line: { type: 'string', nullable: true },
+        },
+      },
     },
   },
   ManualClassificationRequest: {
@@ -818,7 +893,17 @@ const schemas: Record<string, any> = {
     properties: {
       id: { type: 'string' },
       displayName: { type: 'string' },
-      role: { type: 'string', enum: ['REPORTER', 'DEPARTMENT_HEAD', 'SECTION_HEAD', 'COMMITTEE'] },
+      role: {
+        type: 'string',
+        enum: [
+          'REPORTER',
+          'GROUP_LEADER',
+          'SECTION_HEAD',
+          'DEPARTMENT_HEAD',
+          'DIVISION_LEADER',
+          'COMMITTEE',
+        ],
+      },
     },
   },
   AssignmentRequest: {
@@ -1291,6 +1376,98 @@ const schemas: Record<string, any> = {
       version: { type: 'integer', minimum: 1 },
     },
   },
+  VoiceRespondRequest: {
+    type: 'object',
+    required: ['text', 'version'],
+    additionalProperties: false,
+    properties: {
+      text: { type: 'string', minLength: 1, maxLength: 4000 },
+      version: { type: 'integer', minimum: 1 },
+      // Present for "Proses sendiri": respond and start handling in one step.
+      days: { type: 'integer', minimum: 0, maximum: 365 },
+    },
+  },
+  // "Sedang tidak masuk" (ADR-0059): WIB days, inclusive.
+  AwayRequest: {
+    type: 'object',
+    required: ['startsOn', 'endsOn', 'substituteId'],
+    additionalProperties: false,
+    properties: {
+      startsOn: { type: 'string', format: 'date' },
+      endsOn: { type: 'string', format: 'date' },
+      substituteId: { type: 'string', format: 'uuid' },
+    },
+  },
+  AwayStatus: {
+    type: 'object',
+    required: ['eligible', 'current', 'candidates'],
+    properties: {
+      eligible: { type: 'boolean' },
+      current: {
+        type: 'object',
+        nullable: true,
+        required: ['id', 'startsOn', 'endsOn', 'active', 'substitute'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          startsOn: { type: 'string', format: 'date' },
+          endsOn: { type: 'string', format: 'date' },
+          active: { type: 'boolean' },
+          substitute: {
+            type: 'object',
+            required: ['id', 'displayName'],
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              displayName: { type: 'string' },
+            },
+          },
+        },
+      },
+      candidates: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'displayName', 'position', 'upperLevel'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            displayName: { type: 'string' },
+            position: { type: 'string' },
+            section: { type: 'string', nullable: true },
+            upperLevel: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  },
+  SeverityChangeRequest: {
+    type: 'object',
+    required: ['expectedVersion', 'severity', 'reason'],
+    additionalProperties: false,
+    properties: {
+      expectedVersion: { type: 'integer', minimum: 1 },
+      severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+    },
+  },
+  EscalateRequest: {
+    type: 'object',
+    required: ['expectedVersion', 'reason'],
+    additionalProperties: false,
+    properties: {
+      expectedVersion: { type: 'integer', minimum: 1 },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+    },
+  },
+  RemindResponse: {
+    type: 'object',
+    required: ['success', 'reminded'],
+    properties: { success: { type: 'boolean' }, reminded: { type: 'integer', minimum: 1 } },
+  },
+  TakeOverRequest: {
+    type: 'object',
+    required: ['expectedVersion'],
+    additionalProperties: false,
+    properties: { expectedVersion: { type: 'integer', minimum: 1 } },
+  },
   VersionedMutationRequest: {
     type: 'object',
     required: ['version'],
@@ -1571,6 +1748,8 @@ const schemas: Record<string, any> = {
           severity: baseVoiceProperties.severity,
           confidence: { type: 'number', minimum: 0, maximum: 1 },
           rationaleCode: { type: 'string' },
+          // General Voice about the reporter's superior: suggest Private Voice.
+          privateSuggested: { type: 'boolean' },
         },
       },
       {
@@ -2626,6 +2805,8 @@ const schemas: Record<string, any> = {
         nullable: true,
       },
       closureReviewDeadline: { type: 'string', format: 'date-time', nullable: true },
+      // The live handling target has passed while the Voice is still Diproses.
+      targetOverdue: { type: 'boolean' },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },
@@ -2642,6 +2823,8 @@ const schemas: Record<string, any> = {
     type: 'object',
     required: ['id', 'visibility', 'area', 'locationDetail', 'title', 'detail', 'version'],
     properties: {
+      positionSection: { type: 'string', nullable: true },
+      positionLine: { type: 'string', nullable: true },
       id: { type: 'string', format: 'uuid' },
       visibility: baseVoiceProperties.visibility,
       area: baseVoiceProperties.area,
@@ -2976,6 +3159,7 @@ const schemas: Record<string, any> = {
     properties: {
       id: { type: 'string', format: 'uuid' },
       text: { type: 'string', nullable: true },
+      kind: { type: 'string', enum: ['USER', 'SYSTEM'] },
       createdAt: { type: 'string', format: 'date-time' },
       senderId: { type: 'string', format: 'uuid', nullable: true },
       senderAccountKind: { type: 'string' },

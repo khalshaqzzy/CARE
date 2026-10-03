@@ -10,6 +10,7 @@ import {
 import { forbiddenAsNotFound } from '../common/errors';
 import { PrismaService } from '../prisma.service';
 import { type Capability, divisionLeadershipPositions, normalizedPosition } from './capabilities';
+import { delegatorsFor } from '../away/away';
 
 export type Principal = {
   accountId: string;
@@ -26,6 +27,10 @@ export type Principal = {
   division: string | null;
   department: string | null;
   section: string | null;
+  /** Production Line; a Group Leader's team is limited to it. */
+  line?: string | null;
+  /** Accounts on "Sedang tidak masuk" that name this account as substitute today. */
+  actingFor?: string[];
   unionSlot: UnionSlot | null;
   capabilities: Capability[];
   routeUnitIds: string[];
@@ -92,6 +97,11 @@ export class PolicyService {
       division: membership?.organizationUnit.division ?? null,
       department: membership?.organizationUnit.department ?? null,
       section: membership?.section ?? null,
+      line: membership?.lineName ?? null,
+      actingFor:
+        account.accountKind === AccountKind.WORKFORCE
+          ? await delegatorsFor(this.prisma, account.id)
+          : [],
       unionSlot: unionTerm?.slot ?? null,
       capabilities: [...capabilitySet],
       routeUnitIds: routes
@@ -151,15 +161,49 @@ export class PolicyService {
           },
         ],
       };
+    // Voice Tim Saya: a Section Head reads their Section, a Group Leader their Line.
+    const sectionHead = actor.capabilities.includes('SECTION_HEAD');
+    const groupLeader = actor.capabilities.includes('GROUP_LEADER');
+    if ((sectionHead || (groupLeader && actor.line)) && actor.organizationUnitId && actor.section)
+      return {
+        OR: [
+          own,
+          {
+            visibility: VoiceVisibility.GENERAL,
+            reporterOrganizationUnitId: actor.organizationUnitId,
+            reporterSectionSnapshot: actor.section,
+            ...(sectionHead ? {} : { reporterLineSnapshot: actor.line }),
+          },
+        ],
+      };
     return own;
   }
 
   workItemScope(actor: Principal): Prisma.VoiceWhereInput {
     const scopes: Prisma.VoiceWhereInput[] = [];
+    // A substitute's work list includes what the away leader holds.
+    const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+    const mine = ids.length === 1 ? actor.accountId : { in: ids };
+    const held = ids.length === 1 ? { has: actor.accountId } : { hasSome: ids };
+    // A tiered Voice reaches the route Manager only once they hold it.
     if (actor.capabilities.includes('MANAGER'))
-      scopes.push({ visibility: VoiceVisibility.GENERAL, routeOwnerId: actor.accountId });
-    if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)))
-      scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: actor.accountId });
+      scopes.push({
+        visibility: VoiceVisibility.GENERAL,
+        routeOwnerId: mine,
+        tierLevel: null,
+      });
+    // Tiered Voices can be assigned to Group Leaders, Section Heads and Managers.
+    if (actor.capabilities.some((c) => ['SECTION_HEAD', 'GROUP_LEADER', 'MANAGER'].includes(c)))
+      scopes.push({ visibility: VoiceVisibility.GENERAL, currentHandlerId: mine });
+    if (
+      actor.capabilities.some((c) =>
+        ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(c),
+      )
+    )
+      scopes.push({
+        visibility: VoiceVisibility.GENERAL,
+        tierHolderIds: held,
+      });
     if (actor.capabilities.includes('UNION_HEAD'))
       scopes.push({ visibility: VoiceVisibility.PRIVATE });
     if (actor.capabilities.includes('UNION_OFFICER'))
@@ -174,6 +218,8 @@ export class PolicyService {
 
   async detailScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     const browse = await this.browseScope(actor);
+    // A match-all browse scope (CARE Admin) already covers every clause below.
+    if (!Object.keys(browse).length) return browse;
     const work = this.workItemScope(actor);
     // `workItemScope` yields `{ id: { in: [] } }` when the actor has no work-item
     // scope. OR-ing a never-true clause is a no-op (and when `browse` is the whole
@@ -185,6 +231,24 @@ export class PolicyService {
       'id' in work &&
       Array.isArray((work as { id: { in?: unknown[] } }).id?.in) &&
       (work as { id: { in?: unknown[] } }).id.in?.length === 0;
-    return isEmptyWork ? browse : { OR: [browse, work] };
+    // Former tier holders keep reading a Voice that moved up without them.
+    const observed: Prisma.VoiceWhereInput = {
+      visibility: VoiceVisibility.GENERAL,
+      OR: [
+        { tierObserverIds: { has: actor.accountId } },
+        { tierParticipantIds: { has: actor.accountId } },
+      ],
+    };
+    // A Manager who handed a General Voice over keeps read-only access to it.
+    const handedOver: Prisma.VoiceWhereInput[] = actor.capabilities.includes('MANAGER')
+      ? [
+          {
+            visibility: VoiceVisibility.GENERAL,
+            handovers: { some: { fromPicId: actor.accountId } },
+          },
+        ]
+      : [];
+    const clauses = [...(isEmptyWork ? [] : [work]), ...handedOver, observed];
+    return clauses.length ? { OR: [browse, ...clauses] } : browse;
   }
 }

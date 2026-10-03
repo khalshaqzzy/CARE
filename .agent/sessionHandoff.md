@@ -1,6 +1,387 @@
 # CARE Session Handoff
 
-## Staging deployment helper path repair — 1 October 2026
+## Monthly organization file format — 3 October 2026
+
+The product owner's monthly HR file is:
+
+- **Sheet:** `CARE_ORG DATA_[Bulan]` (for example `CARE_ORG DATA_SEP`).
+- **Columns:** `Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division, Department, Section, Line, Tgl Lahir`.
+- **Values:** `Pers Area` is Head Office, Karawang 1–3, or Sunter 1–2. `Tgl Lahir` is `dd/mm/yyyy`.
+
+**Changes on `feat/voice-tiered-routing-stage2`, to release with stages 2 and 3:**
+
+- **Import parser:** `ImportsService` resolves columns by name (case and spacing ignored), with aliases `Pers Area`/`Area` and `Tgl Lahir`/`Birth Date`.
+  - Unknown or duplicate columns are rejected, the seven core columns are required, and Area and Line must appear together.
+  - It accepts the `CARE_ORG DATA_*` sheet or the older `MFG + QD` (exactly one).
+  - It parses `dd/mm/yyyy` (`organizationBirthDate`) and Excel date cells in the Tgl Lahir column, wherever it sits.
+  - It maps Head Office to no plant area.
+  - Older layouts keep working.
+- **Admin:** the import card states the new format.
+- **PRD:** §9.1 updated.
+
+**Validation:**
+
+- **Unit:** API 160/160, including the monthly CSV, reordered headers, the `CARE_ORG DATA_SEP` XLSX with a date cell, and the sheet-name rejection.
+- **Integration:** organization, birth-date, and tiered import suites pass 19/19.
+- **Browser:** the Admin specs pass 63/63.
+
+**After the release:** import the September file on staging and review the Area & Line readiness panel before enabling tiered routing for real users.
+
+## Tiered routing stage 3b — Critical notices and fixed-category escalation — 3 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released. **Stages 2 and 3 are complete.**
+
+**Delivered:**
+
+- **`CRITICAL_VOICE` notices** (migration `20261003190000_critical_voice_notice`):
+  - **Tiered:** the whole chain except the holder, at submit or when raised to Kritis.
+  - **Fixed categories:** only the reporter's Department Head, read-only.
+- **Missed assignment:** Tugaskan on any General Voice starts a window. A missed classic assignment moves the Voice onto the Manager tier (Manager holds, PIC below with Ingatkan). A further miss brings in DDH/DH.
+
+**Validation:**
+
+- **Unit:** API 158/158.
+- **Integration and security:** 154/156; the two failures are the known admin-safety and push-subscription flakes. No schema drift.
+- **Browser:** unchanged (no frontend change in stage 3).
+
+**Before release, the product owner should decide:**
+
+1. When to merge to `staging` (stages 2 and 3 together).
+2. Whether to enable tiered routing only after a real organization file with Area/Line is imported.
+3. Admin deadline values per severity.
+
+**Release notes:** PRD §43.5–§43.6 and ADR-0059 describe all behaviour.
+
+## Tiered routing stage 3a — escalation worker — 3 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered:**
+
+- **Windows:** `Voice.tierDueAt`, `tierDueKind` and `tierHolderResponded` (migration `20261003180000_tier_windows`) come from the Admin deadline table and working calendar (`src/escalation/tier-window.ts`). They are set on submit (respond), respond (process), Naikkan, handover and Tugaskan (respond + process), restarted on a severity change, and cleared on Proses.
+- **Worker:** `TierEscalationService` runs every 60 s when the outbox is enabled, under the Voice row lock.
+  - **Unanswered:** the next level takes over, the Voice stays Terbuka, and the former holders become observers.
+  - **Received answered and not processed:** the next level takes over, the Voice stays Direspons with the chat note "Diteruskan ke …", and the former holders stay in the chat.
+  - **Answered or assigned but not processed:** the next level joins with Ingatkan (chat note "… bergabung ke percakapan").
+  - **Top of the chain:** the clock stops.
+  - **Notifications:** the new holders, the former holders and the reporter (generic) are notified.
+
+**Validation:**
+
+- **Unit:** API 158/158.
+- **Integration and security:** 151/153; the two failures are the known admin-safety and push-subscription flakes. The tiered suite passes 12/12, including racing workers.
+- **Other:** no schema drift.
+
+**Next:** stage 3b (Critical notices; fixed-category missed assignment SH → Manager → DDH/DH).
+
+## Tiered routing stage 2, increment 7 — 3 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released. **Stage 2 is complete.**
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Ubah severity:** `POST /voices/:id/severity` (reason required, allowed until Proses, `SEVERITY_CHANGED` event).
+- **AI hint:** `AIClassification.privateSuggested` (prompt care-classification-v1.8), with a review-step hint **Keluhan tentang atasan?** → **Ubah ke Private Voice**.
+- **Migration:** `20261003170000_severity_change_private_hint`.
+
+**Files:**
+
+- **API:** `src/ai/{prompt,ai.service}.ts`, `src/voices/{actions,voices.service,voices.controller}.ts`, schema and migration, `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/ActionPanel.tsx`, `features/create/CreateVoicePage.tsx`, `lib/formatters.ts`, `workforce-api.ts`.
+- **Tests:**
+  - `test/unit/{actions,domain,integration-contracts}.test.ts`;
+  - `test/integration/{voice-lifecycle,tiered-routing-foundation}.integration.test.ts`;
+  - `e2e/{voice-lifecycle,workforce-journeys}.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 428 → 430.
+
+**Validation:**
+
+- **Unit:** API 158/158; web-voice 127/127.
+- **Integration and security:** 151/152 on a fresh DB; the one failure is the known admin-safety flake. No schema drift.
+- **Browser:** a single-worker full mocked run passed 424/424.
+- **Visual check:** the severity dialog and the Private hint were inspected at 390 px.
+
+**Prompt note:** the classification prompt version changed. Drafts classified with v1.7 show a stale-AI notice and are re-analysed on the next preview (existing behaviour).
+
+**Next:** stage 3. It covers:
+
+- a working-calendar escalation worker:
+  - unanswered Voices go up and stay Terbuka;
+  - manually raised or assigned Voices that time out go up and stay Direspons with a chat note;
+  - answered-but-unprocessed Voices bring the upper tier in with Ingatkan;
+- per-holder windows that restart on handover, assignment, and severity change;
+- Critical notifications to all upper levels;
+- read-only Critical notices to the reporter's Manager for fixed categories.
+
+## Tiered routing stage 2, increment 6 — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Sedang tidak masuk:** `AwayPeriod` (migration `20261003160000_away_periods`), `GET/POST /me/away`, `POST /me/away/end`.
+- **Virtual delegation:** through `Principal.actingFor`, the substitute acts for the away leader (actions, work items, close as PIC) and receives their notifications.
+- **Routing:** a level is skipped when both the leader and the substitute are away.
+- **Web:** Account → `/account/away`.
+
+**Files:**
+
+- **API:** `src/away/{away,away.service,away.controller,away.module}.ts` (new); `src/app.module.ts`; `src/auth/policy.service.ts`; `src/voices/{actions,voices.service,handling-target.service,tier-chain}.ts`; schema and migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `features/account/{AwayPage (new),AccountPage}.tsx`, `App.tsx`, `workforce-api.ts`, `styles.css`.
+- **Tests:**
+  - `test/unit/actions.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/workforce-journeys.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 427 → 428.
+
+**Validation:**
+
+- **Unit:** API 157/157; web-voice 127/127.
+- **Integration and security:** 150/151; the one failure is the known admin-safety flake. No schema drift.
+- **Browser:** a single-worker full mocked run passed 421/422. The Union Head assignment test hit a 5 s navigation timeout under load and passed alone.
+- **Visual check:** the away page form and the active state were inspected at 390 px.
+- **Host note:** the Postgres container had stopped after the app restart; start it with `docker compose up -d postgres`.
+
+**Next:** increment 7 (severity change with a mandatory reason until Proses, recomputing the deadline; AI suggests Private Voice for complaints about superiors), then stage 3.
+
+## Manual Naikkan counts as a response — 2 October 2026
+
+**Product-owner decision:** a manual Naikkan is a response, like Handover.
+
+- **Status and chat:** the Voice becomes Direspons and the chat opens with "Diteruskan ke [Level]".
+- **New holder:** the upper level holds the Voice, with Naikkan lagi / Tugaskan PIC / Proses sendiri.
+- **The one who raised it:** stays in the chat (`tierParticipantIds`, migration `20261003150000_tier_chat_participants`) with messages only.
+- **Reporter:** notified with the destination level; the reason stays internal.
+
+**Stage 3 rules recorded in PRD §43.5:**
+
+- **Manual escalation, then a missed deadline:** the Voice goes up again automatically with a chat note and stays Direspons.
+- **Automatic escalation of a Voice nobody answered:** it stays Terbuka and the former holder becomes read-only.
+- **Answered but unprocessed:** the upper tier joins beside the responder with Ingatkan / Tugaskan / Proses.
+
+**Validation:**
+
+- **Unit:** API 156/156.
+- **Integration and security:** 148/150; the two failures are the known admin-safety and push-subscription flakes. The tiered suite passes 10/10.
+- **Browser:** the lifecycle and handover specs pass 20/20 (frontend unchanged).
+- **Other:** no schema drift; Gitleaks clean.
+
+## Tiered routing stage 2, increment 5c — 2 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Team read access:** Section Heads read their Section's General Voices and Group Leaders their Line's (read-only browse). A GL's Tim Saya dashboard is limited to their Line.
+- **Stages:** `tierStages` on detail renders as **Tahap penanganan**.
+- **Chat:** collapses to five avatars plus "+N" and **Detail** when more than three people take part.
+
+**Files:**
+
+- **API:** `src/auth/policy.service.ts`, `src/voices/{dashboard,voices.service}.ts`, `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/TierStages.tsx` (new), `features/voice/{VoiceDetailPage,ConversationPage}.tsx`, `styles.css`.
+- **Tests:**
+  - `test/unit/policy.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 426 → 427.
+
+**Validation:**
+
+- **Unit:** API 155/155.
+- **Integration and security:** 149/150; the one failure is the known admin-safety flake.
+- **Browser:** a single-worker full mocked run (two workers crashed from memory pressure on this host) passed 420/421. Auth recovery at 360 is a known flake and passed alone.
+- **Visual check:** stages and the collapsed chat were inspected at 390 px.
+
+**Next:** increment 6 (away delegation "Sedang tidak masuk"), then 7 (severity change with reason, AI Private guidance), then stage 3.
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Naikkan:** `POST /voices/:id/escalate` (reason required).
+- **Ingatkan:** `POST /voices/:id/remind` (once per WIB day per target).
+- **Tugaskan for tier holders:** via `tierAssignees`.
+- **Read access:** observer read-only for former holders.
+- **Migration:** `20261003140000_tiered_actions`.
+- **Web:** a Naikkan choice in the Respons sheet, and Naikkan/Ingatkan buttons after Direspons.
+
+**Files:**
+
+- **API:** `src/voices/{tier-chain,actions,voices.service,voices.controller}.ts`; `src/auth/policy.service.ts`; schema and migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/ActionPanel.tsx`, `lib/formatters.ts`, `workforce-api.ts`.
+- **Tests:**
+  - `test/unit/{actions,policy}.test.ts`;
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 424 → 426.
+
+**Validation:**
+
+- **Unit:** API 154/154; web-voice 127/127.
+- **Integration and security:** 147/149; the two failures are the known admin-safety and push-subscription flakes.
+- **Found and fixed during validation:** a CARE Admin detail regression (an OR-wrapped match-all scope).
+- **Browser:** the full mocked run passed 420/420.
+
+**Next:** 5c (Tim Saya read-only visibility for upper levels with a GL limited to their Line, stage timeline, chat avatars + Detail).
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Tiered categories:** `GeneralVoiceCategory.tiered` is true for `WORK_DIFFICULTY` and `WELFARE`. These Voices start at the nearest leader above the reporter (`resolveTierChain`).
+- **New Voice fields:** `tierLevel`, `tierPath`, `tierHolderIds`, and `outsideReporter` (migration `20261003130000_tiered_routing_core`).
+- **Behavior:**
+  - Holders act and are notified.
+  - The route Manager is read-only and kept out of their work items until they hold the Voice.
+  - Handover is allowed only at the Manager tier.
+  - Outsider shop Voices start at the shop Manager with the **Pelapor dari luar department** badge.
+  - Chat lists holders with their roles.
+
+**Files:**
+
+- **API:** `src/voices/tier-chain.ts` (new); `src/voices/{actions,voices.service}.ts`; `src/auth/policy.service.ts`; schema and migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/VoiceHero.tsx`, `features/voice/ConversationPage.tsx`, `styles.css`.
+- **Tests:**
+  - `test/unit/{actions,policy,tier-chain}.test.ts`;
+  - `test/integration/{tiered-routing-foundation,shop-location-routing}.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 423 → 424.
+
+**Validation:**
+
+- **Unit:** API 152/152.
+- **Integration and security:** 144/146; the two failures are the known admin-safety and push-subscription flakes.
+- **Performance:** the organization dashboard p95 was 3.4–3.6 s against the 3 s budget. The previous commit measured 3.42/3.48 s on the same host and database, so this is host load, not a regression. The inbox performance test passes.
+- **Browser:** the full mocked run passed 417/418. Auth recovery at 390 is a known load flake and passed alone.
+
+**Next:** 5b (Naikkan ke atasan with a reason, Tugaskan by upper levels including skipped people, Ingatkan once per working day per person).
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Detection:** TM reporters are identified by the noReg prefix `TM`. They see the **Lengkapi posisi kamu** card (variant B) on the create form.
+- **Choices:** Section and Line selects list the department's permanent placements, plus "Tidak di Line". They are prefilled from the last Voice.
+- **Gating and API:**
+  - The position is required for "Simpan & Analisis" and for submit.
+  - New endpoint `GET /drafts/position-options`.
+  - Drafts gain `positionSection`/`positionLine` (migration `20261003120000_draft_tm_position`).
+- **Snapshot:** the Voice stores the chosen Section, Line, and Area in place of the organization file's values.
+
+**Files:**
+
+- **API:** `src/voices/tm-position.ts` (new); `src/voices/{voices.service,voices.controller}.ts`; `prisma/schema.prisma` and the migration; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `features/create/{TmPositionCard (new),CreateVoicePage,useDraftWizard}.tsx/ts`, `workforce-api.ts`, `styles.css`.
+- **Tests:**
+  - `test/unit/tm-position.test.ts` (new);
+  - `test/integration/tiered-routing-foundation.integration.test.ts`;
+  - `e2e/workforce-journeys.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 422 → 423.
+
+**Validation:**
+
+- **Unit:** API 150/150; web-voice 127/127.
+- **Integration and security:** 142/144. The failures are the known admin-safety flake and the organization 7,018-row timing budget, which ran while the browser suite loaded the CPU; it passed 5/5 alone.
+- **Browser:** the full mocked run passed 416/417. Auth recovery at 768 is a known load flake and passed alone.
+- **Visual check:** the TM card was inspected at 360 px.
+
+**Next:** increment 5, the tiered routing core (chain resolution GL → SH → Manager → DDH/DH, outsider badge, multi-participant chat, read-only Tim Saya visibility, tier timeline, Naikkan/Tugaskan/Ingatkan).
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered (PRD §15.4, §43.5, ADR-0059):**
+
+- **Target-day reminder:** sent at 08:00 WIB to the PIC (`TARGET_REMINDER`, `reminderSentAt`); skipped for "Hari ini".
+- **Overdue fan-out:** goes to the PIC, the Manager, and the reporter. Upper GL/SH levels join with chain routing in increment 5 through `HandlingTargetService.levelsAbove`.
+- **When the target passes:** a SYSTEM chat note "Target penyelesaian terlewati" and a `TARGET_OVERDUE` timeline event are written.
+- **Badge:** `targetOverdue` on list items, and the **Terlambat** badge on the cards and the detail hero.
+
+**Files:**
+
+- **API:** `prisma/schema.prisma` and migration `20261003110000_handling_target_reminder`; `src/voices/{handling-target.service,handling-target,voices.service}.ts`; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/{OverdueBadge (new),InboxVoiceCard,VoiceCard,HistoryVoiceCard,VoiceHero}.tsx` and `styles.css`.
+- **Tests:**
+  - `test/unit/handling-target.test.ts`;
+  - `test/integration/voice-lifecycle.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 421 → 422.
+
+**Validation:**
+
+- **Unit:** API 148/148; web-voice 127/127.
+- **Integration and security:** all pass except the known admin-safety and push-subscription flakes.
+- **Performance:** passed 2/2 after `pnpm seed:performance` (dashboard p95 2840 ms). Seed first, or the suite fails on fixture size.
+- **Browser:** the full mocked run passed 416/416. Card and detail badges were inspected at 390 px.
+
+**Next:** increment 4, the TM position card (variant B, Section + Line, prefilled from the last choice).
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released (stage 2 and 3 ship together after product-owner approval).
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **One Respons button** for an open Voice. The sheet offers Balas pesan / Tugaskan PIC / Handover / Proses sendiri.
+- **Proses sendiri** is `respond` with `days`, written atomically.
+- **Handover as a response:**
+  - allowed from Terbuka or Direspons while no PIC is assigned;
+  - sets Direspons and posts the SYSTEM chat note "Diteruskan ke [Department]";
+  - notifies the reporter;
+  - leaves the source Manager with read-only access through `detailScope`.
+- **Admin handover** stays Terbuka-only.
+- **Schema:** `MessageKind` (migration `20261003100000_system_message_kind`).
+
+**Files:**
+
+- **API:** `prisma/schema.prisma` and the migration; `src/voices/{actions,voices.service}.ts`; `src/auth/policy.service.ts`; `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/ActionPanel.tsx` (RespondSheet, CandidatePicker, TargetPresets); `features/voice/{ConversationPage,HandoverPage}.tsx`; `workforce-api.ts`; `styles.css`.
+- **Tests:**
+  - `test/unit/actions.test.ts`;
+  - `test/integration/{voice-handover,voice-lifecycle}.integration.test.ts`;
+  - `e2e/{voice-lifecycle,assignment-scroll,workforce-handover,workforce-journeys,voice-lifecycle.visual,a-workforce-fullstack}.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 420 → 421.
+
+**Validation:**
+
+- **Unit:** API 147/147 and web-voice 127/127.
+- **Integration and security:** 139/141. The two failures are the known admin-safety and push-subscription flakes.
+- **Browser:** the full mocked run (Chromium + visual + PWA + push + legacy) passed 415/415. Respons sheet screens and the chat system note were inspected at 390 px.
+
+**Next:** increment 3 (target-day 08:00 reminder, overdue fan-out to PIC, upper levels and reporter, chat system note, overdue badge).
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Do not merge or release: the product owner wants stage 2 and 3 released together after further discussion.
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Detail redesign:** Header → Detail Voice card → Percakapan with an unread badge → Penanganan → Timeline.
+- **Unread counts:** `ConversationReadState`, `unreadMessages` on detail, and `POST /voices/:id/conversation/read`.
+- **PIC-only close:** older Voices that never recorded a PIC stay closable by the route owner.
+- **Ambil alih** (`POST /voices/:id/take-over`) when the PIC account is inactive.
+
+**Files:**
+
+- **API:**
+  - `prisma/schema.prisma` and migration `20261003090000_conversation_read_state`;
+  - `src/voices/{actions,voices.service,voices.controller}.ts`;
+  - `scripts/enrich-openapi.ts`, plus regenerated OpenAPI and contracts.
+- **Web:** `components/{VoiceHero,ActionPanel}.tsx`, `features/voice/{VoiceDetailPage,ConversationPage}.tsx`, `workforce-api.ts`, `styles.css`.
+- **Tests:**
+  - `test/unit/actions.test.ts`;
+  - `test/integration/{voice-lifecycle,responder-matrix}.integration.test.ts`;
+  - `e2e/voice-lifecycle.spec.ts`, `e2e/voice-consent.visual.spec.ts`, `e2e/helpers/mock-api.ts`;
+  - inventory 419 → 420.
+
+**Validation (Windows host, Docker PostgreSQL):**
+
+- **Static and unit:** typecheck passed; API unit 146/146; web-voice unit 127/127.
+- **Integration and security:** 137/140. The failures:
+  - the known `admin-safety` transaction timeout;
+  - the `push-subscription` race;
+  - `tiered-routing-foundation`, which passes on a fresh DB but not when re-run on the same DB (a stage-1 test that does not reset its settings; CI always uses a fresh DB).
+- **Browser:** Chromium + visual + PWA + push + legacy passed 413/414. The single `auth reset-union 360` visual failure passed in isolation.
+- **Build caveat:** build `web-voice` without `dbenv.sh` sourced. Its `NODE_ENV` changes the PWA build and breaks the push-notice e2e. Also rebuild before e2e, because `vite preview` serves `dist`.
+- **Validation scripts:** the inventory contract passes. Two validation contracts (`real build verification` and `Compose fixtures` / `missing job quality`) fail only on this Windows host because they parse CI/Compose files, which this change does not touch.
+
+**Next:** increment 2, the unified **Respons** sheet (Balas pesan / Tugaskan PIC / Handover / Proses sendiri; handover counts as a response; Proses from Open is an atomic respond and proceed).
 
 Latest staging run `36852300089` at `f3901573` passed all 20 validation jobs,
 including container cleanup, security and the release candidate gate, but failed

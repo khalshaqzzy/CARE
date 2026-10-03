@@ -121,9 +121,23 @@ enum ClosureReviewState {
   REJECTED
 }
 
+/// RESPOND: answer by tierDueAt; PROCESS: start handling by tierDueAt.
+enum TierDueKind {
+  RESPOND
+  PROCESS
+}
+
+enum TierLevel {
+  GROUP_LEADER
+  SECTION_HEAD
+  MANAGER
+  DIVISION
+}
+
 enum HandlerType {
   MANAGER
   ADMIN_TRIAGE
+  GROUP_LEADER
   SECTION_HEAD
   UNION_HEAD
   UNION_OFFICER
@@ -181,6 +195,11 @@ enum LocationCompleteness {
   UNKNOWN
 }
 
+enum MessageKind {
+  USER
+  SYSTEM
+}
+
 enum VoiceEventType {
   SUBMITTED
   HANDOVER_COMPLETED
@@ -192,6 +211,9 @@ enum VoiceEventType {
   RESPONDED
   TARGET_SET
   TARGET_OVERDUE
+  ESCALATED
+  REMINDED
+  SEVERITY_CHANGED
   MESSAGE_SENT
   ASSIGNED
   REASSIGNED
@@ -217,7 +239,12 @@ enum NotificationType {
   MESSAGE
   STATUS_CHANGED
   TARGET_SET
+  TARGET_REMINDER
   TARGET_OVERDUE
+  ESCALATED
+  REMINDER
+  AWAY_SUBSTITUTE
+  CRITICAL_VOICE
   CLOSED
   RATED
   REOPENED
@@ -285,6 +312,9 @@ model UserAccount {
   adminHandoversRequested  AdminHandover[]                @relation("AdminHandoverManager")
   adminHandoversOwned      AdminHandover[]                @relation("AdminHandoverAdmin")
   adminHandoversResolved   AdminHandover[]                @relation("AdminHandoverResolver")
+
+  awayPeriods       AwayPeriod[] @relation("AwayAccount")
+  awaySubstitutions AwayPeriod[] @relation("AwaySubstitute")
 
   @@index([accountKind, status])
   @@index([username, displayName])
@@ -372,6 +402,8 @@ model GeneralVoiceCategory {
   createdAt         DateTime                       @default(now())
   updatedAt         DateTime                       @updatedAt
   archivedAt        DateTime?
+  /// Bottom-up routing (Group Leader → Section Head → Manager → Division), ADR-0059.
+  tiered            Boolean                        @default(false)
   createdBy         UserAccount?                   @relation("CategoryCreator", fields: [createdById], references: [id])
   revisions         GeneralVoiceCategoryRevision[]
   routes            GeneralVoiceCategoryRoute[]
@@ -623,6 +655,9 @@ model VoiceDraft {
   showReporterIdentity      Boolean?
   shopConfirmation          ShopConfirmation?
   confirmedShopLocationId   String?                 @db.Uuid
+  /// TM (vocational) reporters pick where they work now; a null line means "Tidak di Line".
+  positionSection           String?                 @db.VarChar(200)
+  positionLine              String?                 @db.VarChar(200)
   classificationContentHash String                  @db.Char(64)
   locationContentHash       String                  @db.Char(64)
   version                   Int                     @default(1)
@@ -658,6 +693,26 @@ model Voice {
   reporterPositionSnapshot        String?                 @db.VarChar(200)
   reporterLineSnapshot            String?                 @db.VarChar(200)
   reporterAreaSnapshot            Area?
+  /// Tiered categories only: the level holding the Voice, the levels found at
+  /// submit, and who may act now. Null level means the classic route.
+  tierLevel                       TierLevel?
+  tierPath                        TierLevel[]             @default([])
+  tierHolderIds                   String[]                @default([]) @db.Uuid
+  /// Holders who answered before the Voice went up; the upper tier reminds them.
+  tierLowerHolderIds              String[]                @default([]) @db.Uuid
+  /// Former holders keep a read-only view after an unanswered Voice moved up.
+  tierObserverIds                 String[]                @default([]) @db.Uuid
+  /// Holders who raised the Voice by hand stay in the chat (messages only).
+  tierParticipantIds              String[]                @default([]) @db.Uuid
+  /// Stage 3: end of the current holder's window and what they owe by then.
+  tierDueAt                       DateTime?
+  tierDueKind                     TierDueKind?
+  /// The current holder answered the Voice themselves (vs. received it answered).
+  tierHolderResponded             Boolean                 @default(false)
+  /// The reporter's Section has a Group Leader the Section Head may assign.
+  sectionHasGroupLeader           Boolean                 @default(false)
+  /// Fasilitas Kerja reported from another department's shop.
+  outsideReporter                 Boolean                 @default(false)
   handlingOrganizationUnitId      String?                 @db.Uuid
   handlingDirectorateSnapshot     String?                 @db.VarChar(200)
   handlingDivisionSnapshot        String?                 @db.VarChar(200)
@@ -715,6 +770,7 @@ model Voice {
   legacyAccess                    LegacyVoiceAccess[]
   handovers                       VoiceHandover[]
   adminHandovers                  AdminHandover[]
+  reminders                       VoiceReminder[]
 
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
@@ -723,6 +779,10 @@ model Voice {
   @@index([area, categoryKey, status], map: "Voice_area_categoryKey_status_idx")
   @@index([area, currentCategoryKey, status], map: "Voice_area_currentCategoryKey_status_idx")
   @@index([reporterOrganizationUnitId, visibility, status])
+  @@index([tierHolderIds], type: Gin)
+  @@index([tierObserverIds], type: Gin)
+  @@index([tierParticipantIds], type: Gin)
+  @@index([tierDueAt, status])
   @@index([severity, submittedAt])
   @@index([title, displayId])
 }
@@ -752,6 +812,8 @@ model AIClassification {
   inputTokens            Int?
   outputTokens           Int?
   fallbackCode           String?                       @db.VarChar(80)
+  /// General Voice about the reporter's superior: suggest Private Voice.
+  privateSuggested       Boolean                       @default(false)
   legacyProviderMetadata Json?
   createdAt              DateTime                      @default(now())
   draft                  VoiceDraft?                   @relation(fields: [draftId], references: [id])
@@ -908,11 +970,52 @@ model VoiceEvent {
 }
 
 model Conversation {
-  id        String    @id @default(uuid()) @db.Uuid
-  voiceId   String    @unique @db.Uuid
-  createdAt DateTime  @default(now())
-  voice     Voice     @relation(fields: [voiceId], references: [id])
-  messages  Message[]
+  id         String                  @id @default(uuid()) @db.Uuid
+  voiceId    String                  @unique @db.Uuid
+  createdAt  DateTime                @default(now())
+  voice      Voice                   @relation(fields: [voiceId], references: [id])
+  messages   Message[]
+  readStates ConversationReadState[]
+}
+
+// Last time a participant opened the conversation; drives unread badges.
+/// "Sedang tidak masuk": while active (WIB days, inclusive) the substitute acts
+/// for the account; "Aktif kembali" ends it early.
+model AwayPeriod {
+  id           String      @id @default(uuid()) @db.Uuid
+  accountId    String      @db.Uuid
+  substituteId String      @db.Uuid
+  startsOn     DateTime    @db.Date
+  endsOn       DateTime    @db.Date
+  endedAt      DateTime?
+  createdAt    DateTime    @default(now())
+  account      UserAccount @relation("AwayAccount", fields: [accountId], references: [id])
+  substitute   UserAccount @relation("AwaySubstitute", fields: [substituteId], references: [id])
+
+  @@index([accountId, endedAt, endsOn])
+  @@index([substituteId, endedAt, endsOn])
+}
+
+/// Ingatkan: at most one reminder per actor, target and WIB day for a Voice.
+model VoiceReminder {
+  id        String   @id @default(uuid()) @db.Uuid
+  voiceId   String   @db.Uuid
+  actorId   String   @db.Uuid
+  targetId  String   @db.Uuid
+  dayKey    String   @db.VarChar(10)
+  createdAt DateTime @default(now())
+  voice     Voice    @relation(fields: [voiceId], references: [id])
+
+  @@unique([voiceId, actorId, targetId, dayKey])
+}
+
+model ConversationReadState {
+  conversationId String       @db.Uuid
+  accountId      String       @db.Uuid
+  lastReadAt     DateTime
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  @@id([conversationId, accountId])
 }
 
 model Message {
@@ -924,6 +1027,8 @@ model Message {
   senderCapabilities       Json
   senderNameSnapshot       String?      @db.VarChar(200)
   text                     String?      @db.VarChar(4000)
+  /// SYSTEM marks lifecycle notes posted into the chat (handover, reminders).
+  kind                     MessageKind  @default(USER)
   createdAt                DateTime     @default(now())
   conversation             Conversation @relation(fields: [conversationId], references: [id])
   sender                   UserAccount  @relation(fields: [senderId], references: [id])
@@ -1067,9 +1172,12 @@ model VoiceHandlingTarget {
   setById           String    @db.Uuid
   setAt             DateTime  @default(now())
   dueAt             DateTime
+  /// 08:00 WIB on the target day; skipped for same-day targets.
+  reminderSentAt    DateTime?
   overdueNotifiedAt DateTime?
   voice             Voice     @relation(fields: [voiceId], references: [id])
 
   @@unique([voiceId, cycleNumber])
   @@index([overdueNotifiedAt, dueAt])
+  @@index([reminderSentAt, dueAt])
 }

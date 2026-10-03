@@ -44,14 +44,210 @@ describe('computeAvailableActions', () => {
     expect(result).not.toContain('HANDOVER');
   });
 
-  it('offers close and message from IN_PROGRESS only when a conversation exists', () => {
+  it('lets only the tier holders act on a tiered Voice below the Manager', () => {
+    const atGroupLeader = voice({ tierLevel: 'GROUP_LEADER', tierHolderIds: ['leader'] });
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), atGroupLeader)).toEqual([
+      'RESPOND',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atGroupLeader)).toEqual([]);
+    const atManager = voice({ tierLevel: 'MANAGER', tierHolderIds: ['owner'] });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atManager)).toEqual(
+      expect.arrayContaining(['RESPOND', 'ASSIGN', 'HANDOVER']),
+    );
+    const atDivision = voice({ tierLevel: 'DIVISION', tierHolderIds: ['ddh', 'dh'] });
+    expect(computeAvailableActions(actor(['DIVISION_LEADERSHIP'], 'dh'), atDivision)).toEqual([
+      'RESPOND',
+      'ASSIGN',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atDivision)).toEqual([]);
+  });
+
+  it('offers Naikkan to the newest tier while a later level exists and nobody is assigned', () => {
+    const tiered = (overrides: Partial<ActionableVoice> = {}) =>
+      voice({
+        tierLevel: 'GROUP_LEADER',
+        tierHolderIds: ['leader'],
+        tierPath: ['GROUP_LEADER', 'SECTION_HEAD'],
+        ...overrides,
+      });
+    const leader = actor(['GROUP_LEADER'], 'leader');
+    expect(computeAvailableActions(leader, tiered())).toContain('ESCALATE');
+    expect(computeAvailableActions(leader, tiered({ tierPath: ['GROUP_LEADER'] }))).not.toContain(
+      'ESCALATE',
+    );
+    expect(
+      computeAvailableActions(
+        leader,
+        tiered({ status: 'RESPONDED' as VoiceStatus, currentHandlerId: 'other' }),
+      ),
+    ).not.toContain('ESCALATE');
+  });
+
+  it('lets the upper tier remind the holder below and assign, without going up again', () => {
+    const joined = voice({
+      status: 'RESPONDED' as VoiceStatus,
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: ['leader', 'head'],
+      tierLowerHolderIds: ['leader'],
+      tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'],
+      sectionHasGroupLeader: true,
+      hasConversation: true,
+    });
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'head'), joined)).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'REMIND',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), joined)).toEqual([
+      'PROCEED',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
+    // A Section Head only assigns when their Section has a Group Leader.
+    expect(
+      computeAvailableActions(actor(['SECTION_HEAD'], 'head'), {
+        ...joined,
+        sectionHasGroupLeader: false,
+      }),
+    ).not.toContain('ASSIGN');
+  });
+
+  it('keeps a leader who raised the Voice by hand in the chat without lifecycle actions', () => {
+    const raised = voice({
+      status: 'RESPONDED' as VoiceStatus,
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: ['head'],
+      tierParticipantIds: ['leader'],
+      hasConversation: true,
+    });
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), raised)).toEqual(['MESSAGE']);
+    expect(
+      computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), {
+        ...raised,
+        status: 'CLOSED' as VoiceStatus,
+      }),
+    ).toEqual([]);
+  });
+
+  it('gives a substitute the away leader’s actions, including closing as PIC', () => {
+    const substitute = { ...actor(['SECTION_HEAD'], 'head'), actingFor: ['leader'] };
+    expect(
+      computeAvailableActions(
+        substitute,
+        voice({ tierLevel: 'GROUP_LEADER', tierHolderIds: ['leader'] }),
+      ),
+    ).toEqual(['RESPOND', 'CHANGE_SEVERITY']);
+    expect(
+      computeAvailableActions(
+        substitute,
+        voice({ status: 'IN_PROGRESS' as VoiceStatus, currentHandlerId: 'leader' }),
+      ),
+    ).toContain('CLOSE');
+    expect(
+      computeAvailableActions(
+        actor(['SECTION_HEAD'], 'head'),
+        voice({ currentHandlerId: 'leader' }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('allows a severity change only before the Voice is processed and never to the reporter', () => {
+    const owner = actor(['MANAGER'], 'owner');
+    expect(computeAvailableActions(owner, voice())).toContain('CHANGE_SEVERITY');
+    expect(computeAvailableActions(owner, voice({ status: 'RESPONDED' as VoiceStatus }))).toContain(
+      'CHANGE_SEVERITY',
+    );
+    expect(
+      computeAvailableActions(
+        owner,
+        voice({ status: 'IN_PROGRESS' as VoiceStatus, currentHandlerId: 'owner' }),
+      ),
+    ).not.toContain('CHANGE_SEVERITY');
+    expect(
+      computeAvailableActions(actor(['MEMBER'], 'reporter'), voice({ reporterId: 'reporter' })),
+    ).not.toContain('CHANGE_SEVERITY');
+  });
+
+  it('keeps handover available after the response until someone processes or is assigned', () => {
+    const responded = computeAvailableActions(
+      actor(['MANAGER'], 'owner'),
+      voice({ status: 'RESPONDED' as VoiceStatus, hasConversation: true }),
+    );
+    expect(responded).toEqual(expect.arrayContaining(['PROCEED', 'ASSIGN', 'HANDOVER', 'MESSAGE']));
+    expect(
+      computeAvailableActions(
+        actor(['MANAGER'], 'owner'),
+        voice({ status: 'IN_PROGRESS' as VoiceStatus, currentHandlerId: 'owner' }),
+      ),
+    ).not.toContain('HANDOVER');
+    expect(
+      computeAvailableActions(
+        actor(['SECTION_HEAD'], 'owner'),
+        voice({ status: 'RESPONDED' as VoiceStatus }),
+      ),
+    ).not.toContain('HANDOVER');
+  });
+
+  it('offers close to the processing PIC and message when a conversation exists', () => {
     const result = computeAvailableActions(
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'IN_PROGRESS' as VoiceStatus, hasConversation: true }),
+      voice({
+        status: 'IN_PROGRESS' as VoiceStatus,
+        currentHandlerId: 'owner',
+        hasConversation: true,
+      }),
     );
     expect(result).toContain('CLOSE');
     expect(result).toContain('MESSAGE');
     expect(result).not.toContain('PROCEED');
+  });
+
+  it('keeps close away from a superior when a Section Head is the PIC', () => {
+    const inProgress = voice({
+      status: 'IN_PROGRESS' as VoiceStatus,
+      currentHandlerId: 'handler',
+      handlerType: 'SECTION_HEAD' as HandlerType,
+      hasConversation: true,
+    });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), inProgress)).not.toContain('CLOSE');
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'handler'), inProgress)).toContain(
+      'CLOSE',
+    );
+  });
+
+  it('keeps older Voices without a recorded PIC closable by the route owner', () => {
+    const legacy = voice({ status: 'IN_PROGRESS' as VoiceStatus });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), legacy)).toContain('CLOSE');
+    expect(computeAvailableActions(actor(['MANAGER'], 'other'), legacy)).not.toContain('CLOSE');
+  });
+
+  it('lets the assigning superior take over only from an inactive PIC', () => {
+    const assigned = (handlerInactive: boolean, status = 'IN_PROGRESS') =>
+      voice({
+        status: status as VoiceStatus,
+        currentHandlerId: 'handler',
+        handlerType: 'SECTION_HEAD' as HandlerType,
+        handlerInactive,
+      });
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(true))).toContain(
+      'TAKE_OVER',
+    );
+    expect(
+      computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(true, 'RESPONDED')),
+    ).toContain('TAKE_OVER');
+    expect(computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(false))).not.toContain(
+      'TAKE_OVER',
+    );
+    expect(
+      computeAvailableActions(actor(['MANAGER'], 'owner'), assigned(true, 'CLOSED')),
+    ).not.toContain('TAKE_OVER');
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'other'), assigned(true))).not.toContain(
+      'TAKE_OVER',
+    );
   });
 
   it('denies action to a manager who is not route owner or handler', () => {
@@ -69,9 +265,9 @@ describe('computeAvailableActions', () => {
     ['reporter', actor(['MEMBER'], 'reporter'), voice()],
     ['unrelated Manager', actor(['MANAGER'], 'other'), voice()],
     [
-      'Manager after verification',
+      'Manager once a PIC is assigned',
       actor(['MANAGER'], 'owner'),
-      voice({ status: 'RESPONDED' as VoiceStatus }),
+      voice({ status: 'RESPONDED' as VoiceStatus, currentHandlerId: 'handler' }),
     ],
     [
       'Manager while in progress',

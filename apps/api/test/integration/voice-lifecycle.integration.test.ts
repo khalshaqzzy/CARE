@@ -16,6 +16,7 @@ import { dirname, resolve } from 'node:path';
 import { PolicyService, type Principal } from '../../src/auth/policy.service';
 import { MediaService } from '../../src/media/media.service';
 import { HandlingTargetService } from '../../src/voices/handling-target.service';
+import { TierEscalationService } from '../../src/voices/tier-escalation.service';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const prisma = new PrismaClient();
@@ -495,6 +496,76 @@ describe('Voice lifecycle backend completion', () => {
     ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
   });
 
+  it('reminds the PIC on the target day and fans overdue out to PIC, Manager and reporter', async () => {
+    const voice = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+    // Target day has started (past 08:00 WIB) but the deadline is still ahead.
+    const target = await prisma.voiceHandlingTarget.create({
+      data: {
+        voiceId: voice.id,
+        cycleNumber: 1,
+        days: 2,
+        setById: sectionHead.accountId,
+        dueAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    const worker = new HandlingTargetService(prisma as never);
+    await Promise.all([worker.tick(), new HandlingTargetService(prisma as never).tick()]);
+    await worker.tick();
+    const reminders = await prisma.notification.findMany({
+      where: { voiceId: voice.id, type: 'TARGET_REMINDER' },
+    });
+    expect(reminders.map((item) => item.recipientId)).toEqual([sectionHead.accountId]);
+    expect(
+      await prisma.notification.count({ where: { voiceId: voice.id, type: 'TARGET_OVERDUE' } }),
+    ).toBe(0);
+    const listed = await voices.workItems(sectionHead, {});
+    expect(listed.items.find((item) => item.id === voice.id)?.targetOverdue).toBe(false);
+
+    await prisma.voiceHandlingTarget.update({
+      where: { id: target.id },
+      data: { dueAt: new Date(Date.now() - 60000) },
+    });
+    await Promise.all([worker.tick(), new HandlingTargetService(prisma as never).tick()]);
+    await worker.tick();
+    const overdue = await prisma.notification.findMany({
+      where: { voiceId: voice.id, type: 'TARGET_OVERDUE' },
+    });
+    expect(overdue.map((item) => item.recipientId).sort()).toEqual(
+      [sectionHead.accountId, manager.accountId, reporter.accountId].sort(),
+    );
+    const thread = await voices.messages(reporter, voice.id, {});
+    expect(thread.items.map((item) => [item.kind, item.text])).toEqual([
+      ['SYSTEM', 'Target penyelesaian terlewati'],
+    ]);
+    expect(
+      await prisma.voiceEvent.count({ where: { voiceId: voice.id, type: 'TARGET_OVERDUE' } }),
+    ).toBe(1);
+    const relisted = await voices.workItems(sectionHead, {});
+    expect(relisted.items.find((item) => item.id === voice.id)?.targetOverdue).toBe(true);
+  });
+
+  it('skips the target-day reminder when the target is today', async () => {
+    const voice = await createVoice({ status: VoiceStatus.IN_PROGRESS });
+    await prisma.voiceHandlingTarget.create({
+      data: {
+        voiceId: voice.id,
+        cycleNumber: 1,
+        days: 0,
+        setById: manager.accountId,
+        dueAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    await new HandlingTargetService(prisma as never).tick();
+    expect(
+      await prisma.notification.count({ where: { voiceId: voice.id, type: 'TARGET_REMINDER' } }),
+    ).toBe(0);
+  });
+
   it('does not emit overdue notifications after closure wins the lock', async () => {
     const voice = await createVoice();
     await voices.respond(manager, voice.id, { text: 'Respons', version: 1 }, 'race-target-respond');
@@ -635,7 +706,7 @@ describe('Voice lifecycle backend completion', () => {
       currentHandlerId: staleHandler.accountId,
       handlerType: HandlerType.SECTION_HEAD,
     });
-    await voices.close(manager, voice.id, { note: 'done', version: 1 }, 'close-k4');
+    await voices.close(staleHandler, voice.id, { note: 'done', version: 1 }, 'close-k4');
     await prisma.userAccount.update({
       where: { id: staleHandler.accountId },
       data: { status: 'INACTIVE' },
@@ -651,5 +722,171 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.currentHandlerId).toBe(manager.accountId);
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
     expect(reopened.handlingSectionSnapshot).toBeNull();
+  });
+  it('hands a missed assignment of a fixed-route Voice to the Manager with Ingatkan', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    await voices.assign(
+      manager,
+      voice.id,
+      { handlerAccountId: sectionHead.accountId, text: 'Mohon dicek.', expectedVersion: 1 },
+      'missed-assign',
+    );
+    const assigned = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
+    expect(assigned).toMatchObject({ tierLevel: null, tierDueKind: 'PROCESS' });
+    expect(assigned.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
+    await prisma.voice.update({
+      where: { id: voice.id },
+      data: { tierDueAt: new Date(Date.now() - 60_000) },
+    });
+    expect(await new TierEscalationService(prisma as never).tick()).toBe(1);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      status: VoiceStatus.RESPONDED,
+      tierLevel: 'MANAGER',
+      tierHolderIds: [manager.accountId],
+      tierLowerHolderIds: [sectionHead.accountId],
+      currentHandlerId: sectionHead.accountId,
+    });
+    expect((await voices.detail(manager, voice.id)).availableActions).toEqual(
+      expect.arrayContaining(['REASSIGN', 'REMIND']),
+    );
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: manager.accountId, type: 'ESCALATED' },
+      }),
+    ).toBe(1);
+  });
+
+  it('changes severity with a reason until the Voice is processed', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN, severity: Severity.MEDIUM });
+    await expect(
+      voices.changeSeverity(
+        manager,
+        voice.id,
+        { expectedVersion: 1, severity: Severity.MEDIUM, reason: 'Sama' },
+        'sev-same',
+      ),
+    ).rejects.toMatchObject({ code: 'SEVERITY_UNCHANGED' });
+    await expect(
+      voices.changeSeverity(
+        reporter,
+        voice.id,
+        { expectedVersion: 1, severity: Severity.HIGH, reason: 'Naik' },
+        'sev-reporter',
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    const changed = await voices.changeSeverity(
+      manager,
+      voice.id,
+      { expectedVersion: 1, severity: Severity.CRITICAL, reason: 'Ada percikan listrik.' },
+      'sev-up',
+    );
+    expect(changed.version).toBe(2);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      severity: Severity.CRITICAL,
+    });
+    expect(
+      await prisma.voiceEvent.findFirstOrThrow({
+        where: { voiceId: voice.id, type: 'SEVERITY_CHANGED' },
+      }),
+    ).toMatchObject({
+      payload: { from: 'MEDIUM', to: 'CRITICAL', reason: 'Ada percikan listrik.' },
+    });
+    await voices.respond(manager, voice.id, { text: 'Ditangani.', version: 2, days: 1 }, 'sev-p');
+    await expect(
+      voices.changeSeverity(
+        manager,
+        voice.id,
+        { expectedVersion: 3, severity: Severity.LOW, reason: 'Turun' },
+        'sev-late',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+  });
+
+  it('responds and starts handling in one step for Proses sendiri', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    const body = { text: 'Saya tangani langsung.', version: 1, days: 3 };
+    const result = await voices.respond(manager, voice.id, body, 'respond-process');
+    expect(result).toMatchObject({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: manager.accountId,
+      version: 2,
+      handlingTarget: { days: 3 },
+    });
+    expect(await voices.respond(manager, voice.id, body, 'respond-process')).toEqual(result);
+    const events = await prisma.voiceEvent.findMany({ where: { voiceId: voice.id } });
+    expect(events.map((event) => event.type).sort()).toEqual(
+      ['MESSAGE_SENT', 'PROCEEDED', 'RESPONDED'].sort(),
+    );
+    const reporterNotices = await prisma.notification.findMany({
+      where: { voiceId: voice.id, recipientId: reporter.accountId },
+    });
+    expect(reporterNotices.map((item) => item.title)).toEqual(['Voice mulai diproses']);
+    const detail = await voices.detail(manager, voice.id);
+    expect(detail.availableActions).toEqual(expect.arrayContaining(['CLOSE', 'MESSAGE']));
+    expect(detail.conversationState).toBe('ACTIVE');
+  });
+
+  it('counts unread chat messages per viewer until the conversation is opened', async () => {
+    const voice = await createVoice({ status: VoiceStatus.RESPONDED });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+    await voices.addMessage(reporter, voice.id, { text: 'Halo' }, [], 'unread-1');
+    await voices.addMessage(reporter, voice.id, { text: 'Masih ada?' }, [], 'unread-2');
+    expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(2);
+    expect((await voices.detail(reporter, voice.id)).unreadMessages).toBe(0);
+    await voices.markConversationRead(manager, voice.id);
+    expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(0);
+    await voices.addMessage(reporter, voice.id, { text: 'Satu lagi' }, [], 'unread-3');
+    expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(1);
+  });
+
+  it('lets the route Manager take over only once the PIC account is inactive', async () => {
+    const voice = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    expect((await voices.detail(manager, voice.id)).availableActions).not.toContain('TAKE_OVER');
+    await expect(
+      voices.takeOver(manager, voice.id, { expectedVersion: 1 }, 'take-over-active'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+
+    const inactive = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: staleHandler.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    await prisma.userAccount.update({
+      where: { id: staleHandler.accountId },
+      data: { status: 'INACTIVE' },
+    });
+    const detail = await voices.detail(manager, inactive.id);
+    expect(detail.availableActions).toContain('TAKE_OVER');
+    expect(detail.availableActions).not.toContain('CLOSE');
+    expect(detail.currentHandler).toEqual({
+      id: staleHandler.accountId,
+      displayName: 'Section Head Stale',
+    });
+    const taken = await voices.takeOver(
+      manager,
+      inactive.id,
+      { expectedVersion: 1 },
+      'take-over-1',
+    );
+    expect(taken).toMatchObject({ currentHandlerId: manager.accountId, handlerType: 'MANAGER' });
+    const replay = await voices.takeOver(
+      manager,
+      inactive.id,
+      { expectedVersion: 1 },
+      'take-over-1',
+    );
+    expect(replay.version).toBe(taken.version);
+    expect((await voices.detail(manager, inactive.id)).availableActions).toContain('CLOSE');
+    const event = await prisma.voiceEvent.findFirstOrThrow({
+      where: { voiceId: inactive.id, type: 'REASSIGNED' },
+    });
+    expect(event.payload).toMatchObject({
+      takeOver: true,
+      previousHandlerId: staleHandler.accountId,
+    });
   });
 });
