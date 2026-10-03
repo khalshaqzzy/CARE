@@ -35,7 +35,7 @@ Delivery is split into three stages so that real Line and Group Leader data can 
 
 - **Organization data.** Line and Group Leader come from the authoritative monthly file. Admin-maintained mappings were rejected: they would drift from HR data.
 - **Column format.** The existing `Posisi (struktural)` column gains the value `Group Leader`, and `Area` and `Line` are appended after `Section`. Older 7- and 8-column files keep working.
-- **Leader gaps are advisory.** Duplicate or missing leaders are reported in the import preview but do not block the import, because the routing rule (skip a level that is not exactly one person) degrades safely.
+- **Leader gaps are advisory.** Duplicate or missing leaders are reported in the import preview but do not block the import, because routing handles both: several leaders hold a level together, and an empty level is skipped. (Amended 3 October 2026: duplicates were skipped before; the product owner decided they share the level.)
 - **Group Leader capability.** Group Leaders share the Section Head dashboard scope. A Line-level dashboard dimension is deferred until Group Leaders handle Voices.
 - **Calendar arithmetic.**
   - Working days are counted in WIB.
@@ -141,7 +141,7 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   Existing Voices keep `tierLevel = null` and the classic route.
 
 - **Chain.** `src/voices/tier-chain.ts` `resolveTierChain` builds the chain from the active snapshot:
-  - the Group Leader of the reporter's Line and the Section Head of their Section (each exactly one active person; skipped for outside reporters);
+  - the Group Leader of the reporter's Line and the Section Head of their Section (every active leader of that Line or Section holds the level together, and whoever presses Proses becomes the PIC; an empty level and outside reporters skip it);
   - the route-owning Manager;
   - every active Deputy/Division Head of the handling division.
 

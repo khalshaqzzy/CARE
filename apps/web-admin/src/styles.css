@@ -2252,13 +2252,6 @@ button.admin-rows > li:hover,
 .admin-tier-counts {
   margin: 0;
 }
-.admin-tier-issues {
-  margin-top: 0.5rem;
-}
-.admin-tier-issues ul {
-  margin: 0.25rem 0 0;
-  padding-left: 1.1rem;
-}
 
 /* Kalender & Eskalasi — working calendar and per-severity deadlines */
 .tierset {
