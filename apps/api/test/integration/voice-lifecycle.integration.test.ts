@@ -16,6 +16,7 @@ import { dirname, resolve } from 'node:path';
 import { PolicyService, type Principal } from '../../src/auth/policy.service';
 import { MediaService } from '../../src/media/media.service';
 import { HandlingTargetService } from '../../src/voices/handling-target.service';
+import { TierEscalationService } from '../../src/voices/tier-escalation.service';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const prisma = new PrismaClient();
@@ -722,6 +723,39 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
     expect(reopened.handlingSectionSnapshot).toBeNull();
   });
+  it('hands a missed assignment of a fixed-route Voice to the Manager with Ingatkan', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    await voices.assign(
+      manager,
+      voice.id,
+      { handlerAccountId: sectionHead.accountId, text: 'Mohon dicek.', expectedVersion: 1 },
+      'missed-assign',
+    );
+    const assigned = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
+    expect(assigned).toMatchObject({ tierLevel: null, tierDueKind: 'PROCESS' });
+    expect(assigned.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
+    await prisma.voice.update({
+      where: { id: voice.id },
+      data: { tierDueAt: new Date(Date.now() - 60_000) },
+    });
+    expect(await new TierEscalationService(prisma as never).tick()).toBe(1);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      status: VoiceStatus.RESPONDED,
+      tierLevel: 'MANAGER',
+      tierHolderIds: [manager.accountId],
+      tierLowerHolderIds: [sectionHead.accountId],
+      currentHandlerId: sectionHead.accountId,
+    });
+    expect((await voices.detail(manager, voice.id)).availableActions).toEqual(
+      expect.arrayContaining(['REASSIGN', 'REMIND']),
+    );
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: manager.accountId, type: 'ESCALATED' },
+      }),
+    ).toBe(1);
+  });
+
   it('changes severity with a reason until the Voice is processed', async () => {
     const voice = await createVoice({ status: VoiceStatus.OPEN, severity: Severity.MEDIUM });
     await expect(

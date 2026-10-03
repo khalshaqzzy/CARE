@@ -17,6 +17,19 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 3 — 3 October 2026
+
+Phase 13 remains the only `in_progress` phase. Stages 2 and 3 are complete on `feat/voice-tiered-routing-stage2` and not released; the product owner decides the release.
+
+Stage 3 adds:
+
+- per-holder windows from the Admin deadline table and working calendar;
+- an automatic escalation worker covering unanswered, handed-up, and answered-but-unprocessed Voices;
+- missed-assignment escalation for fixed categories (SH → Manager → DDH/DH);
+- Critical notices.
+
+See PRD §43.6 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 7 — 3 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:

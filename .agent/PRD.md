@@ -2308,7 +2308,7 @@ Default rentang dan Reset adalah **Semua waktu**, menggantikan default 30 hari s
 
 ## 43. Routing bertingkat (bawah ke atas) — 2 Oktober 2026
 
-Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); Tahap 3 direncanakan.** ADR-0059 mencatat keputusan lengkap.
+Status: **Tahap 1 diimplementasikan dan dirilis ke staging; Tahap 2 dan 3 diimplementasikan di branch, belum dirilis.** ADR-0059 mencatat keputusan lengkap.
 
 ### 43.1 Cakupan
 
@@ -2392,7 +2392,26 @@ Status: **Tahap 1 diimplementasikan; Tahap 2 sedang dikerjakan (belum dirilis); 
   - Halaman Tinjau menampilkan **Keluhan tentang atasan?** dengan tombol **Ubah ke Private Voice**, yang membawa pelapor kembali ke form dengan isi yang sama sebagai Private Voice.
   - Saran ini tidak memaksa: pelapor tetap dapat mengirim sebagai General Voice.
 
-### 43.6 Tahap berikutnya
+### 43.6 Tahap 3 — eskalasi otomatis (diimplementasikan, belum dirilis)
+
+- **Batas waktu per pemegang.** Setiap pemegang mendapat batas waktu sesuai severity dari tabel Admin (§43.4) dan kalender kerja:
+  - Voice baru: batas respons.
+  - Setelah pemegang merespons: batas proses.
+  - Voice yang diterima sudah Direspons (Naikkan manual, Handover ke kategori bertingkat, atau Tugaskan): batas respons + proses.
+  - Ubah severity menghitung ulang batas yang berjalan; Proses menghentikannya.
+- **Saat batas terlewati, worker menaikkan Voice:**
+  - **Tidak pernah direspons:** level berikutnya memegang Voice, status tetap Terbuka, dan pemegang sebelumnya hanya dapat membaca.
+  - **Diterima sudah Direspons lalu tidak diproses:** level berikutnya memegang Voice, status tetap Direspons, chat mendapat pesan "Diteruskan ke [Level]", dan pemegang sebelumnya tetap di chat.
+  - **Direspons atau ditugaskan oleh pemegang tetapi tidak diproses:** level berikutnya bergabung ke chat ("[Level] bergabung ke percakapan") dengan Ingatkan / Tugaskan PIC / Proses, sementara pemegang bawah tetap dapat Proses.
+  - **Puncak rantai:** tidak ada kenaikan lagi.
+  - **Notifikasi:** penerima baru, pemegang sebelumnya, dan pelapor (teks generik).
+- **Kategori fixed:** PIC yang ditugaskan dan tidak memproses dalam batas waktu menyerahkan Voice ke Manager route, dengan Ingatkan / Tugaskan ulang / Proses. Jika masih terlewati, DDH/DH divisi bergabung (SH → Manager → DDH/DH).
+- **Voice Kritis:**
+  - Kategori bertingkat memberi notifikasi **Voice Kritis** ke semua level rantai sejak dikirim, atau sejak dinaikkan ke Kritis.
+  - Kategori fixed hanya memberi notifikasi baca-saja ke Manager department pelapor.
+- Notifikasi juga dikirim ke pengganti bila penerima sedang tidak masuk (§43.5).
+
+### 43.7 Tahap berikutnya
 
 - **Tahap 2:** Voice mulai di GL/SH, visibilitas baca-saja dan pemisahan Voice Untuk Saya/Tim Saya, aksi Naikkan/Tugaskan/Ingatkan/Proses di chat bertingkat, badge pelapor dari luar, handover Manager yang dilonggarkan, Sedang tidak masuk, ubah severity, dan saran AI ke Private Voice.
 - **Tahap 3:** worker eskalasi otomatis berbasis kalender kerja, notifikasi eskalasi, dan notifikasi Critical. Setelah Tahap 3, aturan §15.4 "tanpa eskalasi otomatis" tidak lagi berlaku untuk kategori bertingkat.

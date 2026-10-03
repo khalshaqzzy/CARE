@@ -41,7 +41,7 @@ async function principal(username: string) {
 }
 
 /** Submits a tiered Kesejahteraan Voice as the given employee. */
-async function submitAs(username: string, key: string) {
+async function submitAs(username: string, key: string, severity: Severity = Severity.MEDIUM) {
   const reporter = await principal(username);
   const draft = await voices.createDraft(reporter, {
     visibility: 'GENERAL',
@@ -52,7 +52,7 @@ async function submitAs(username: string, key: string) {
   });
   await voices.manualClassification(reporter, draft.id, {
     category: 'TIER_WELFARE',
-    severity: Severity.MEDIUM,
+    severity,
   });
   const preview = await voices.previewDraft(reporter, draft.id);
   const submitted = (await voices.submit(
@@ -769,6 +769,35 @@ describe('Tiered routing foundation', () => {
       tierLevel: 'MANAGER',
       tierDueAt: null,
     });
+  });
+
+  it('alerts the whole chain at once for a Critical tiered Voice', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const critical = await submitAs('700004', 'critical-tiered', Severity.CRITICAL);
+    expect(critical.tierHolderIds).toEqual([groupLeader.accountId]);
+    expect(
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: critical.id, type: 'CRITICAL_VOICE' },
+          select: { recipientId: true },
+        })
+      )
+        .map((row) => row.recipientId)
+        .sort(),
+    ).toEqual([sectionHead.accountId, manager.accountId].sort());
+    // Raising a Voice to Kritis alerts the chain the same way.
+    const raised = await submitAs('700004', 'critical-raised');
+    await voices.changeSeverity(
+      groupLeader,
+      raised.id,
+      { expectedVersion: 1, severity: Severity.CRITICAL, reason: 'Ada ancaman.' },
+      'critical-change',
+    );
+    expect(
+      await prisma.notification.count({ where: { voiceId: raised.id, type: 'CRITICAL_VOICE' } }),
+    ).toBe(2);
   });
 
   it('exposes seeded defaults and edits the working calendar with versions', async () => {

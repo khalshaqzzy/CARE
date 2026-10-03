@@ -920,6 +920,7 @@ export class VoicesService {
             ? 'Private Voice baru'
             : 'General Voice baru',
         );
+      if (voice.severity === Severity.CRITICAL) await this.notifyCritical(tx, voice);
       return shaped;
     });
     return response;
@@ -1479,7 +1480,7 @@ export class VoicesService {
             handlerType,
             status: VoiceStatus.RESPONDED,
             version: { increment: 1 },
-            ...(current.tierLevel
+            ...(current.visibility === VoiceVisibility.GENERAL
               ? {
                   tierHolderResponded: true,
                   ...(await tierWindow(tx, current.severity, 'FULL')),
@@ -1688,6 +1689,7 @@ export class VoicesService {
             payload: { from: current.severity, to: data.severity, reason: data.reason },
           },
         });
+        if (data.severity === Severity.CRITICAL) await this.notifyCritical(tx, updated);
         return {
           id: updated.id,
           displayId: updated.displayId,
@@ -1698,6 +1700,58 @@ export class VoicesService {
         };
       },
     );
+  }
+
+  /**
+   * Critical Voice: a tiered Voice alerts every level of its chain at once; a
+   * fixed-category Voice alerts only the reporter's own Manager (read-only).
+   */
+  private async notifyCritical(
+    tx: Prisma.TransactionClient,
+    voice: {
+      id: string;
+      visibility: VoiceVisibility;
+      reporterId: string;
+      routeOwnerId: string;
+      reporterOrganizationUnitId: string | null;
+      reporterSectionSnapshot: string | null;
+      reporterLineSnapshot: string | null;
+      reporterPositionSnapshot: string | null;
+      handlingOrganizationUnitId: string | null;
+      outsideReporter: boolean;
+      tierLevel: TierLevel | null;
+      tierHolderIds: string[];
+    },
+  ) {
+    if (voice.visibility !== VoiceVisibility.GENERAL) return;
+    let recipients: string[];
+    if (voice.tierLevel) {
+      const chain = await chainForVoice(tx, voice);
+      recipients = chain.flatMap((step) => step.accountIds);
+    } else {
+      const managers = await tx.organizationMembership.findMany({
+        where: {
+          snapshot: { status: 'ACTIVE' },
+          organizationUnitId: voice.reporterOrganizationUnitId ?? '__none__',
+          structuralPosition: { equals: 'Department Head', mode: 'insensitive' },
+          employee: { account: { is: { status: AccountStatus.ACTIVE } } },
+        },
+        select: { employee: { select: { account: { select: { id: true } } } } },
+      });
+      recipients = managers
+        .map((row) => row.employee.account?.id)
+        .filter((id): id is string => !!id && id !== voice.routeOwnerId);
+    }
+    for (const recipientId of new Set(recipients))
+      if (recipientId !== voice.reporterId && !voice.tierHolderIds.includes(recipientId))
+        await this.notify(
+          tx,
+          recipientId,
+          voice.id,
+          NotificationType.CRITICAL_VOICE,
+          'Voice Kritis',
+          'Ada Voice Kritis dari tim Anda.',
+        );
   }
 
   /** Ingatkan: notify-only, at most once per WIB day for each reminded person. */

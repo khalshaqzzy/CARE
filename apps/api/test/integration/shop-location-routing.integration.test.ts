@@ -36,6 +36,7 @@ async function draft(
   area: 'KARAWANG_1' | 'KARAWANG_3' | 'SUNTER_1',
   locationDetail: string,
   category = 'SHOP_WORK_DIFFICULTY',
+  severity: Severity = Severity.MEDIUM,
 ) {
   const created = await voices.createDraft(reporter, {
     visibility: 'GENERAL',
@@ -46,7 +47,7 @@ async function draft(
   });
   await voices.manualClassification(reporter, created.id, {
     category,
-    severity: Severity.MEDIUM,
+    severity,
   });
   return created.id;
 }
@@ -428,5 +429,23 @@ describe('Incident shop routing', () => {
         data: { tiered: false },
       });
     }
+  });
+  it('alerts only the reporter Manager, read-only, for a Critical fixed-route Voice', async () => {
+    const id = await draft(
+      officeReporter,
+      'KARAWANG_1',
+      'asy line 2 dekat pos 5',
+      'SHOP_WORK_DIFFICULTY',
+      Severity.CRITICAL,
+    );
+    const voice = await submit(officeReporter, id);
+    expect(voice.tierLevel).toBeNull();
+    const alerts = await prisma.notification.findMany({
+      where: { voiceId: voice.id, type: 'CRITICAL_VOICE' },
+      select: { recipientId: true },
+    });
+    expect(alerts).toEqual([{ recipientId: heads['Office Dept X']!.accountId }]);
+    const view = await voices.detail(heads['Office Dept X']!, voice.id);
+    expect(view.availableActions).toEqual([]);
   });
 });

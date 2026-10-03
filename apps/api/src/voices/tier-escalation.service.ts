@@ -59,8 +59,12 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       const due = await this.prisma.voice.findMany({
         where: {
           tierDueAt: { lt: now },
-          tierLevel: { not: null },
           status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] },
+          OR: [
+            { tierLevel: { not: null } },
+            // Fixed categories: an assigned PIC who did not process in time.
+            { tierLevel: null, visibility: 'GENERAL', currentHandlerId: { not: null } },
+          ],
         },
         orderBy: { tierDueAt: 'asc' },
         take: 50,
@@ -81,12 +85,12 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       include: { conversation: { select: { id: true } } },
     });
     if (
-      !voice.tierLevel ||
       !voice.tierDueAt ||
       voice.tierDueAt >= now ||
       (voice.status !== VoiceStatus.OPEN && voice.status !== VoiceStatus.RESPONDED)
     )
       return false;
+    if (!voice.tierLevel) return this.escalateAssignment(tx, voice, now);
     const from = voice.tierLevel;
     const step = (await chainForVoice(tx, voice)).find(
       (item) => TIER_ORDER.indexOf(item.level) > TIER_ORDER.indexOf(from),
@@ -197,6 +201,84 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       NotificationType.STATUS_CHANGED,
       'Voice Anda diteruskan ke atasan',
       `Diteruskan ke ${TIER_LABELS[step.level]}.`,
+    );
+    return true;
+  }
+
+  /**
+   * Fixed categories (SH → Manager → DDH/DH): an assigned PIC who missed the
+   * window hands the Voice to the route Manager's tier. From then on it
+   * follows the tiered rules, so a further miss brings in the division.
+   */
+  private async escalateAssignment(
+    tx: Tx,
+    voice: {
+      id: string;
+      severity: Prisma.VoiceGetPayload<object>['severity'];
+      routeOwnerId: string;
+      reporterId: string;
+      currentHandlerId: string | null;
+    },
+    now: Date,
+  ) {
+    if (!voice.currentHandlerId || voice.currentHandlerId === voice.routeOwnerId) {
+      await tx.voice.update({
+        where: { id: voice.id },
+        data: { tierDueAt: null, tierDueKind: null },
+      });
+      return false;
+    }
+    const window = await tierWindow(tx, voice.severity, 'PROCESS', now);
+    await tx.voice.update({
+      where: { id: voice.id },
+      data: {
+        tierLevel: TierLevel.MANAGER,
+        tierPath: [TierLevel.MANAGER, TierLevel.DIVISION],
+        tierHolderIds: [voice.routeOwnerId],
+        tierLowerHolderIds: [voice.currentHandlerId],
+        tierHolderResponded: true,
+        tierDueAt: window?.tierDueAt ?? null,
+        tierDueKind: window?.tierDueKind ?? null,
+        version: { increment: 1 },
+      },
+    });
+    const carrier = await tx.userAccount.findUniqueOrThrow({
+      where: { id: voice.currentHandlerId },
+      select: { id: true, accountKind: true },
+    });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: voice.id,
+        type: VoiceEventType.ESCALATED,
+        actorId: carrier.id,
+        actorAccountKind: carrier.accountKind,
+        actorStructuralPosition: null,
+        actorCapabilities: [],
+        payload: {
+          from: 'ASSIGNEE',
+          to: TierLevel.MANAGER,
+          holders: [voice.routeOwnerId],
+          automatic: true,
+          mode: 'ASSIGNMENT_MISSED',
+          system: true,
+        },
+      },
+    });
+    await this.notify(
+      tx,
+      voice.routeOwnerId,
+      voice.id,
+      NotificationType.ESCALATED,
+      'PIC belum memproses Voice',
+      'Batas waktu terlewati. Ingatkan, tugaskan ulang, atau proses sendiri.',
+    );
+    await this.notify(
+      tx,
+      voice.currentHandlerId,
+      voice.id,
+      NotificationType.ESCALATED,
+      'Batas waktu Voice terlewati',
+      'Voice diteruskan ke Manager.',
     );
     return true;
   }

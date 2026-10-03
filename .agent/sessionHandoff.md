@@ -1,5 +1,30 @@
 # CARE Session Handoff
 
+## Tiered routing stage 3b — Critical notices and fixed-category escalation — 3 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released. **Stages 2 and 3 are complete.**
+
+**Delivered:**
+
+- **`CRITICAL_VOICE` notices** (migration `20261003190000_critical_voice_notice`):
+  - **Tiered:** the whole chain except the holder, at submit or when raised to Kritis.
+  - **Fixed categories:** only the reporter's Department Head, read-only.
+- **Missed assignment:** Tugaskan on any General Voice starts a window. A missed classic assignment moves the Voice onto the Manager tier (Manager holds, PIC below with Ingatkan). A further miss brings in DDH/DH.
+
+**Validation:**
+
+- **Unit:** API 158/158.
+- **Integration and security:** 154/156; the two failures are the known admin-safety and push-subscription flakes. No schema drift.
+- **Browser:** unchanged (no frontend change in stage 3).
+
+**Before release, the product owner should decide:**
+
+1. When to merge to `staging` (stages 2 and 3 together).
+2. Whether to enable tiered routing only after a real organization file with Area/Line is imported.
+3. Admin deadline values per severity.
+
+**Release notes:** PRD §43.5–§43.6 and ADR-0059 describe all behaviour.
+
 ## Tiered routing stage 3a — escalation worker — 3 October 2026
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.

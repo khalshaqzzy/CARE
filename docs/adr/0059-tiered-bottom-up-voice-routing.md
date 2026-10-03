@@ -1,6 +1,6 @@
 # ADR-0059: Tiered bottom-up routing for Kesulitan Kerja and Kesejahteraan
 
-- Status: Accepted (stage 1 implemented; stages 2 and 3 planned)
+- Status: Accepted (stage 1 released to staging; stages 2 and 3 implemented on a branch, not released)
 - Date: 2 October 2026
 - Related: PRD §9.1, §9.3, §14, §15.4, §43; ADR-0029, ADR-0033, ADR-0053, ADR-0055, ADR-0058
 
@@ -259,6 +259,31 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Integration: severity change with reason, unchanged rejection, reporter forbidden, locked after processing.
   - Browser: the severity dialog and the Private hint.
   - Inventory 428 → 430.
+
+## Implementation (stage 3 — not released)
+
+- **Windows.** Migration `20261003180000_tier_windows` adds:
+  - `Voice.tierDueAt`, `tierDueKind` (`RESPOND`/`PROCESS`), and `tierHolderResponded`;
+  - an index on `(tierDueAt, status)`.
+
+  `src/escalation/tier-window.ts` computes a window from the severity row of `EscalationDeadline` and the working calendar: `RESPOND`, `PROCESS`, or `FULL` (respond + process, stored as `PROCESS`).
+  - **Set on:** submit (RESPOND), own response (PROCESS, holder answered), manual Naikkan / tiered handover / Tugaskan (FULL).
+  - **Restarted on:** a severity change.
+  - **Cleared on:** Proses.
+
+- **Worker.** `TierEscalationService` ticks every 60 s when the outbox is enabled. It takes up to 50 overdue Voices and runs each under the shared row lock with a re-check.
+  - **Open:** the next present level (re-resolved on the active snapshot) takes over with a RESPOND window; the former holders become observers.
+  - **Answered by someone below, not processed:** the next level takes over with a FULL window; the former holders become chat participants; a SYSTEM chat note is posted; the status stays `RESPONDED`.
+  - **Holder answered or assigned, not processed:** the next level joins (holders plus lower holders) with a PROCESS window and a SYSTEM note.
+  - **Top of the chain:** the window is cleared.
+  - **Records:** each step writes an `ESCALATED` event marked `automatic` and `system`, carried by the former holder, and notifies the new holders, the former holders, and the reporter.
+- **Fixed categories.** Assigning a PIC on any General Voice starts a FULL window. When it passes on a classic Voice, the worker moves the Voice onto the Manager tier: route owner as holder, PIC as lower holder, `tierPath` Manager → Division. A further miss then brings in Deputy/Division Heads through the tiered rules.
+- **Critical.** Migration `20261003190000_critical_voice_notice` adds `NotificationType.CRITICAL_VOICE`. `notifyCritical` runs at submit and when severity is raised to Critical:
+  - for tiered Voices, every chain member except the holders;
+  - for fixed categories, the reporter's own Department Head(s) other than the route owner (read-only).
+- **Validation.**
+  - Integration, tiered: windows at submit and response; each automatic case; racing workers escalate once; Proses and the chain top stop the clock; Critical alerts on submit and on severity change.
+  - Integration, fixed categories: a missed assignment moves to the Manager tier; a Critical fixed-route Voice alerts only the reporter's Manager.
 
 ## Consequences
 
