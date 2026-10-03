@@ -339,7 +339,7 @@ describe('Tiered routing foundation', () => {
       }),
     ).toEqual([{ recipientId: groupLeader.accountId }]);
     const leaderView = await voices.detail(groupLeader, lineA.id);
-    expect(leaderView.availableActions).toEqual(['RESPOND', 'ESCALATE']);
+    expect(leaderView.availableActions).toEqual(['RESPOND', 'ESCALATE', 'CHANGE_SEVERITY']);
     expect(leaderView.tierLevel).toBe('GROUP_LEADER');
     expect(leaderView.participants.map((item) => item.role)).toEqual(['REPORTER', 'GROUP_LEADER']);
     // The Manager can read the team Voice but cannot act on it yet.
@@ -415,6 +415,7 @@ describe('Tiered routing foundation', () => {
       'ASSIGN',
       'ESCALATE',
       'MESSAGE',
+      'CHANGE_SEVERITY',
     ]);
     const thread = await voices.messages(reporter, voice.id, {});
     expect(thread.items.map((item) => [item.kind, item.text])).toEqual([
@@ -484,6 +485,7 @@ describe('Tiered routing foundation', () => {
       'PROCEED',
       'ESCALATE',
       'MESSAGE',
+      'CHANGE_SEVERITY',
     ]);
     await voices.escalate(
       groupLeader,
@@ -516,6 +518,7 @@ describe('Tiered routing foundation', () => {
       'ASSIGN',
       'HANDOVER',
       'MESSAGE',
+      'CHANGE_SEVERITY',
     ]);
     expect((await voices.detail(sectionHead, voice.id)).availableActions).toEqual(['MESSAGE']);
     expect((await voices.detail(manager, voice.id)).participants.map((p) => p.role)).toEqual([
@@ -546,7 +549,13 @@ describe('Tiered routing foundation', () => {
     );
     const managerView = await voices.detail(manager, voice.id);
     expect(managerView.tierLevel).toBe('MANAGER');
-    expect(managerView.availableActions).toEqual(['PROCEED', 'ASSIGN', 'HANDOVER', 'MESSAGE']);
+    expect(managerView.availableActions).toEqual([
+      'PROCEED',
+      'ASSIGN',
+      'HANDOVER',
+      'MESSAGE',
+      'CHANGE_SEVERITY',
+    ]);
     expect((await voices.assignmentCandidates(manager, voice.id)).map((c) => c.id).sort()).toEqual(
       [groupLeader.accountId, sectionHead.accountId].sort(),
     );
@@ -628,6 +637,7 @@ describe('Tiered routing foundation', () => {
     expect((await voices.detail(substitute, voice.id)).availableActions).toEqual([
       'RESPOND',
       'ESCALATE',
+      'CHANGE_SEVERITY',
     ]);
     expect(
       (

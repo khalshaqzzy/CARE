@@ -837,6 +837,24 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           }
         />
 
+        {!isPrivate &&
+        classification &&
+        'privateSuggested' in classification &&
+        classification.privateSuggested ? (
+          <Alert tone="warning" title="Keluhan tentang atasan?">
+            <p>Private Voice hanya dibaca Komite.</p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                wizard.setField({ visibility: 'PRIVATE' });
+                wizard.setStep('form');
+              }}
+            >
+              Ubah ke Private Voice
+            </Button>
+          </Alert>
+        ) : null}
+
         <ReviewContent
           title={form.title}
           areaLabel={form.area ? (AREA_LABELS[form.area] ?? form.area) : '—'}

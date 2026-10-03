@@ -1,5 +1,44 @@
 # CARE Session Handoff
 
+## Tiered routing stage 2, increment 7 — 3 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released. **Stage 2 is complete.**
+
+**Delivered (PRD §43.5, ADR-0059):**
+
+- **Ubah severity:** `POST /voices/:id/severity` (reason required, allowed until Proses, `SEVERITY_CHANGED` event).
+- **AI hint:** `AIClassification.privateSuggested` (prompt care-classification-v1.8), with a review-step hint **Keluhan tentang atasan?** → **Ubah ke Private Voice**.
+- **Migration:** `20261003170000_severity_change_private_hint`.
+
+**Files:**
+
+- **API:** `src/ai/{prompt,ai.service}.ts`, `src/voices/{actions,voices.service,voices.controller}.ts`, schema and migration, `scripts/enrich-openapi.ts` plus regenerated OpenAPI and contracts.
+- **Web:** `components/ActionPanel.tsx`, `features/create/CreateVoicePage.tsx`, `lib/formatters.ts`, `workforce-api.ts`.
+- **Tests:**
+  - `test/unit/{actions,domain,integration-contracts}.test.ts`;
+  - `test/integration/{voice-lifecycle,tiered-routing-foundation}.integration.test.ts`;
+  - `e2e/{voice-lifecycle,workforce-journeys}.spec.ts` and `e2e/helpers/mock-api.ts`;
+  - inventory 428 → 430.
+
+**Validation:**
+
+- **Unit:** API 158/158; web-voice 127/127.
+- **Integration and security:** 151/152 on a fresh DB; the one failure is the known admin-safety flake. No schema drift.
+- **Browser:** a single-worker full mocked run passed 424/424.
+- **Visual check:** the severity dialog and the Private hint were inspected at 390 px.
+
+**Prompt note:** the classification prompt version changed. Drafts classified with v1.7 show a stale-AI notice and are re-analysed on the next preview (existing behaviour).
+
+**Next:** stage 3. It covers:
+
+- a working-calendar escalation worker:
+  - unanswered Voices go up and stay Terbuka;
+  - manually raised or assigned Voices that time out go up and stay Direspons with a chat note;
+  - answered-but-unprocessed Voices bring the upper tier in with Ingatkan;
+- per-holder windows that restart on handover, assignment, and severity change;
+- Critical notifications to all upper levels;
+- read-only Critical notices to the reporter's Manager for fixed categories.
+
 ## Tiered routing stage 2, increment 6 — 2 October 2026
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.

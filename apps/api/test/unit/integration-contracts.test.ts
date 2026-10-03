@@ -261,6 +261,7 @@ describe('DeepSeek Chat Completions adapter', () => {
             'category',
             'severity',
             'confidence',
+            'privateSuggested',
           ]);
           expect(item.body.tools[0].function.parameters.properties).not.toHaveProperty(
             'rationaleCode',

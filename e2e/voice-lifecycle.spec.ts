@@ -153,6 +153,39 @@ test('a Group Leader holding a tiered Voice answers or processes it, and outside
   ]);
 });
 
+test('a responder changes severity with a reason before processing', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const sent: Record<string, unknown>[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/severity'))
+      sent.push(request.postDataJSON() as Record<string, unknown>);
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'MANAGER'] }),
+    voice: {
+      id: 'severity-voice',
+      displayId: 'CARE-202610-000012',
+      visibility: 'GENERAL',
+      status: 'OPEN',
+      area: 'KARAWANG_1',
+      severity: 'MEDIUM',
+      title: 'Panel listrik panas',
+      detail: 'Panel di line 3 terasa panas dan berbau.',
+      availableActions: ['RESPOND', 'CHANGE_SEVERITY'],
+    },
+  });
+  await page.goto('/voices/severity-voice');
+  await page.getByRole('button', { name: 'Ubah severity' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ubah severity' });
+  const save = dialog.getByRole('button', { name: 'Simpan' });
+  await dialog.getByRole('radio', { name: 'Kritis' }).click();
+  await expect(save).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Alasan' }).fill('Ada bau terbakar.');
+  await save.click();
+  await expect(page.getByText('Severity diperbarui.')).toBeVisible();
+  expect(sent[0]).toMatchObject({ severity: 'CRITICAL', reason: 'Ada bau terbakar.' });
+});
+
 test('a Group Leader sends an open Voice up with a reason', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const sent: Record<string, unknown>[] = [];

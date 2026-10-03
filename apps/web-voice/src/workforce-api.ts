@@ -279,6 +279,17 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<components['schemas']['AwayStatus']>(
         client.POST('/api/v1/me/away/end', { params: { header: csrfHeader() } }),
       ),
+    changeSeverity: (
+      id: string,
+      body: components['schemas']['SeverityChangeRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/voices/{id}/severity', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
     escalate: (id: string, body: components['schemas']['EscalateRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(
         client.POST('/api/v1/voices/{id}/escalate', {

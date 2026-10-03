@@ -248,6 +248,38 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
   });
 
+  test('a complaint about a superior suggests switching to Private Voice', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, {
+      classification: {
+        source: 'AI',
+        category: 'WELFARE',
+        severity: 'HIGH',
+        confidence: 0.9,
+        rationaleCode: 'NOT_REQUESTED',
+        privateSuggested: true,
+      },
+    });
+    await page.goto('/voices/new');
+    await page.getByRole('radio', { name: /General Voice/ }).click();
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    await page.getByRole('button', { name: 'Pilih area temuan' }).click();
+    await page.getByRole('radio', { name: 'Karawang 1' }).click();
+    await page.getByRole('textbox', { name: /Detail Lokasi/ }).fill('Line 2, pos inspeksi');
+    await page.getByRole('textbox', { name: /Judul Voice/ }).fill('Atasan sering membentak');
+    await page
+      .getByRole('textbox', { name: /Detail Voice/ })
+      .fill('Atasan langsung sering membentak anggota di depan tim.');
+    await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+    await expect(page.getByRole('heading', { name: 'Tinjau sebelum kirim' })).toBeVisible();
+    await expect(page.getByText('Keluhan tentang atasan?')).toBeVisible();
+    await page.getByRole('button', { name: 'Ubah ke Private Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Detail Voice Private' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toHaveValue(
+      'Atasan sering membentak',
+    );
+  });
+
   test('TM reporters confirm their Section and Line before analysis', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     const drafts: Record<string, unknown>[] = [];

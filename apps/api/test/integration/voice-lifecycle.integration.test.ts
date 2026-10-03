@@ -722,6 +722,52 @@ describe('Voice lifecycle backend completion', () => {
     expect(reopened.handlerType).toBe(HandlerType.MANAGER);
     expect(reopened.handlingSectionSnapshot).toBeNull();
   });
+  it('changes severity with a reason until the Voice is processed', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN, severity: Severity.MEDIUM });
+    await expect(
+      voices.changeSeverity(
+        manager,
+        voice.id,
+        { expectedVersion: 1, severity: Severity.MEDIUM, reason: 'Sama' },
+        'sev-same',
+      ),
+    ).rejects.toMatchObject({ code: 'SEVERITY_UNCHANGED' });
+    await expect(
+      voices.changeSeverity(
+        reporter,
+        voice.id,
+        { expectedVersion: 1, severity: Severity.HIGH, reason: 'Naik' },
+        'sev-reporter',
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    const changed = await voices.changeSeverity(
+      manager,
+      voice.id,
+      { expectedVersion: 1, severity: Severity.CRITICAL, reason: 'Ada percikan listrik.' },
+      'sev-up',
+    );
+    expect(changed.version).toBe(2);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      severity: Severity.CRITICAL,
+    });
+    expect(
+      await prisma.voiceEvent.findFirstOrThrow({
+        where: { voiceId: voice.id, type: 'SEVERITY_CHANGED' },
+      }),
+    ).toMatchObject({
+      payload: { from: 'MEDIUM', to: 'CRITICAL', reason: 'Ada percikan listrik.' },
+    });
+    await voices.respond(manager, voice.id, { text: 'Ditangani.', version: 2, days: 1 }, 'sev-p');
+    await expect(
+      voices.changeSeverity(
+        manager,
+        voice.id,
+        { expectedVersion: 3, severity: Severity.LOW, reason: 'Turun' },
+        'sev-late',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+  });
+
   it('responds and starts handling in one step for Proses sendiri', async () => {
     const voice = await createVoice({ status: VoiceStatus.OPEN });
     const body = { text: 'Saya tangani langsung.', version: 1, days: 3 };

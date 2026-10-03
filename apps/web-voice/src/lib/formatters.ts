@@ -89,6 +89,7 @@ export const VOICE_ACTION_LABELS: Record<string, string> = {
   ADMIN_HANDOVER_RETURNED: 'Dikembalikan oleh Admin',
   MONITORED: 'Dimonitor',
   ESCALATED: 'Dinaikkan ke atasan',
+  SEVERITY_CHANGED: 'Severity diubah',
   REMINDED: 'Diingatkan',
   TARGET_SET: 'Target penyelesaian ditetapkan',
   TARGET_OVERDUE: 'Target terlewati',

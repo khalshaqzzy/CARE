@@ -1488,6 +1488,18 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         handlerType: 'MANAGER',
       });
     }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/severity$/.test(path)) {
+      const body = route.request().postDataJSON() as { severity: MockVoice['severity'] };
+      if (voice) voice.severity = body.severity;
+      return satisfy(200, {
+        id: voice?.id ?? 'voice-1',
+        displayId: voice?.displayId ?? 'CARE-202608-000001',
+        status: voice?.status ?? 'OPEN',
+        version: 4,
+        currentHandlerId: null,
+        handlerType: 'MANAGER',
+      });
+    }
     if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/remind$/.test(path))
       return satisfy(200, { success: true, reminded: 1 });
     if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/take-over$/.test(path)) {

@@ -242,6 +242,24 @@ Delivery is split into three stages so that real Line and Group Leader data can 
   - Browser: set and end a period.
   - Inventory 427 → 428.
 
+## Implementation (stage 2, increment 7 — not released)
+
+- **Schema.** Migration `20261003170000_severity_change_private_hint` adds `VoiceEventType.SEVERITY_CHANGED` and `AIClassification.privateSuggested`.
+- **Severity.**
+  - `CHANGE_SEVERITY` is available to anyone who can operate an open or responded Voice.
+  - `POST /voices/:id/severity` (severity plus a reason of 1–500 characters, version-checked, idempotent) updates `Voice.severity` and records `{ from, to, reason }`. It rejects an unchanged value (`SEVERITY_UNCHANGED`) and any change after processing.
+  - The submission classification stays immutable.
+  - Stage 3 windows count from the latest change.
+- **AI hint.**
+  - The classification tool gains a required boolean `privateSuggested` (prompt v1.8). The parser stays tolerant.
+  - The flag is stored only for General drafts and exposed on the classification preview.
+  - The review step offers **Ubah ke Private Voice**, which switches visibility and returns to the form.
+- **Validation.**
+  - Unit: the severity rule, and the tool schema and wire contract with `privateSuggested`.
+  - Integration: severity change with reason, unchanged rejection, reporter forbidden, locked after processing.
+  - Browser: the severity dialog and the Private hint.
+  - Inventory 428 → 430.
+
 ## Consequences
 
 - Monthly organization files should add `Area` and `Line`. Uploading the old format clears both fields, and the preview warns about it.

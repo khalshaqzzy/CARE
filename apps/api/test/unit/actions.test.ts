@@ -48,6 +48,7 @@ describe('computeAvailableActions', () => {
     const atGroupLeader = voice({ tierLevel: 'GROUP_LEADER', tierHolderIds: ['leader'] });
     expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), atGroupLeader)).toEqual([
       'RESPOND',
+      'CHANGE_SEVERITY',
     ]);
     expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atGroupLeader)).toEqual([]);
     const atManager = voice({ tierLevel: 'MANAGER', tierHolderIds: ['owner'] });
@@ -58,6 +59,7 @@ describe('computeAvailableActions', () => {
     expect(computeAvailableActions(actor(['DIVISION_LEADERSHIP'], 'dh'), atDivision)).toEqual([
       'RESPOND',
       'ASSIGN',
+      'CHANGE_SEVERITY',
     ]);
     expect(computeAvailableActions(actor(['MANAGER'], 'owner'), atDivision)).toEqual([]);
   });
@@ -98,10 +100,12 @@ describe('computeAvailableActions', () => {
       'ASSIGN',
       'REMIND',
       'MESSAGE',
+      'CHANGE_SEVERITY',
     ]);
     expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), joined)).toEqual([
       'PROCEED',
       'MESSAGE',
+      'CHANGE_SEVERITY',
     ]);
     // A Section Head only assigns when their Section has a Group Leader.
     expect(
@@ -136,7 +140,7 @@ describe('computeAvailableActions', () => {
         substitute,
         voice({ tierLevel: 'GROUP_LEADER', tierHolderIds: ['leader'] }),
       ),
-    ).toEqual(['RESPOND']);
+    ).toEqual(['RESPOND', 'CHANGE_SEVERITY']);
     expect(
       computeAvailableActions(
         substitute,
@@ -149,6 +153,23 @@ describe('computeAvailableActions', () => {
         voice({ currentHandlerId: 'leader' }),
       ),
     ).toEqual([]);
+  });
+
+  it('allows a severity change only before the Voice is processed and never to the reporter', () => {
+    const owner = actor(['MANAGER'], 'owner');
+    expect(computeAvailableActions(owner, voice())).toContain('CHANGE_SEVERITY');
+    expect(computeAvailableActions(owner, voice({ status: 'RESPONDED' as VoiceStatus }))).toContain(
+      'CHANGE_SEVERITY',
+    );
+    expect(
+      computeAvailableActions(
+        owner,
+        voice({ status: 'IN_PROGRESS' as VoiceStatus, currentHandlerId: 'owner' }),
+      ),
+    ).not.toContain('CHANGE_SEVERITY');
+    expect(
+      computeAvailableActions(actor(['MEMBER'], 'reporter'), voice({ reporterId: 'reporter' })),
+    ).not.toContain('CHANGE_SEVERITY');
   });
 
   it('keeps handover available after the response until someone processes or is assigned', () => {

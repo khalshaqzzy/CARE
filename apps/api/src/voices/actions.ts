@@ -92,6 +92,8 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     (!voice.tierLevel || voice.tierLevel === 'MANAGER');
   const actions: string[] = [];
   if (canOperate) {
+    // Severity stays editable, with a reason, until someone processes the Voice.
+    const canChangeSeverity = voice.status === 'OPEN' || voice.status === 'RESPONDED';
     if (voice.status === 'OPEN') {
       actions.push('RESPOND');
       if (canAssign) actions.push('ASSIGN');
@@ -127,6 +129,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
         actions.push('CLOSE');
       if (voice.hasConversation) actions.push('MESSAGE');
     }
+    if (canChangeSeverity) actions.push('CHANGE_SEVERITY');
     // The superior who can assign may take over from a PIC whose account is no
     // longer active, so the Voice can still be completed.
     if (

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ACTION_LABELS, AREA_LABELS } from '../lib/formatters';
+import { ACTION_LABELS, AREA_LABELS, SEVERITY_LABELS } from '../lib/formatters';
 import { formatTargetDate, previewHandlingTarget } from '../lib/handling-target';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
@@ -35,6 +35,7 @@ type Action =
   | 'take-over'
   | 'escalate'
   | 'remind'
+  | 'severity'
   | 'none';
 type Assignment = { handlerAccountId: string; reason?: string };
 type ResponseChoice = 'reply' | 'assign' | 'handover' | 'process' | 'escalate';
@@ -61,6 +62,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [days, setDays] = useState('');
+  const [severity, setSeverity] = useState('');
   const mutationKey = useMutationKey('voice-action');
   const request = useRef<{ signature: string; version: number } | null>(null);
   const validDays = /^\d+$/.test(days) && Number(days) <= 365;
@@ -83,7 +85,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       assignmentBody?: Assignment;
       note?: string;
     }) => {
-      const signature = JSON.stringify({ action, assignmentBody, note, days });
+      const signature = JSON.stringify({ action, assignmentBody, note, days, severity });
       if (request.current?.signature !== signature) {
         mutationKey.reset();
         request.current = { signature, version: detail.version };
@@ -104,6 +106,16 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       if (action === 'escalate')
         return api.escalate(detail.id, { expectedVersion: version, reason: note! }, key);
       if (action === 'remind') return api.remind(detail.id, key);
+      if (action === 'severity')
+        return api.changeSeverity(
+          detail.id,
+          {
+            expectedVersion: version,
+            severity: severity as VoiceDetail['severity'],
+            reason: note!,
+          },
+          key,
+        );
       return (action === 'reassign' ? api.reassign : api.assign)(
         detail.id,
         { ...assignmentBody!, ...(note ? { text: note } : {}), expectedVersion: version },
@@ -139,7 +151,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
                   ? 'Voice dinaikkan ke atasan.'
                   : variables.action === 'remind'
                     ? 'Pengingat terkirim.'
-                    : 'PIC berhasil diperbarui.',
+                    : variables.action === 'severity'
+                      ? 'Severity diperbarui.'
+                      : 'PIC berhasil diperbarui.',
         );
     },
     onError: (cause) => {
@@ -221,6 +235,19 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
                 {ACTION_LABELS.REASSIGN}
               </Button>
             ) : null}
+          </div>
+        ) : null}
+        {actions.includes('CHANGE_SEVERITY') ? (
+          <div className="action-row action-row--secondary" role="group" aria-label="Severity">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                open('severity');
+                setSeverity(detail.severity);
+              }}
+            >
+              Ubah severity
+            </Button>
           </div>
         ) : null}
         {!responding && actions.some((action) => ['ESCALATE', 'REMIND'].includes(action)) ? (
@@ -370,6 +397,56 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             Target tidak dapat diubah dalam siklus ini. Pelapor dan penanggung jawab menerima
             notifikasi; pengingat dikirim sekali jika target terlewati.
           </p>
+        </Stack>
+      </Dialog>
+      <Dialog
+        open={active === 'severity'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title="Ubah severity"
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              disabled={!text.trim() || severity === detail.severity || pending}
+              onClick={() => mutation.mutate({ action: 'severity', note: text.trim() })}
+            >
+              Simpan
+            </Button>
+          </div>
+        }
+      >
+        <Stack gap="md">
+          {error ? (
+            <Alert tone="danger" title="Belum tersimpan">
+              {error}
+            </Alert>
+          ) : null}
+          <ChoiceCardGroup
+            label="Severity"
+            variant="chip"
+            value={severity}
+            onValueChange={setSeverity}
+            options={['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((value) => ({
+              value,
+              label: SEVERITY_LABELS[value] ?? value,
+            }))}
+          />
+          <Textarea
+            label="Alasan"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            rows={3}
+            maxLength={500}
+            required
+            disabled={pending}
+          />
         </Stack>
       </Dialog>
       <Dialog

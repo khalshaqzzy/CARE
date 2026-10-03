@@ -182,6 +182,14 @@ export class VoicesController {
   ) {
     return this.voices.escalate(a, id, b, k);
   }
+  @Post('voices/:id/severity') changeSeverity(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') k = '',
+  ) {
+    return this.voices.changeSeverity(a, id, b, k);
+  }
   @Post('voices/:id/remind') remind(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

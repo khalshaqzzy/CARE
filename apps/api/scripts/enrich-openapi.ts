@@ -397,6 +397,7 @@ function successSchema(operationId: string) {
     VoicesController_assignmentCandidates: 'AssignmentCandidateList',
     VoicesController_takeOver: 'VoiceMutationResponse',
     VoicesController_escalate: 'VoiceMutationResponse',
+    VoicesController_changeSeverity: 'VoiceMutationResponse',
     VoicesController_remind: 'RemindResponse',
     VoicesController_markConversationRead: 'SuccessResponse',
     VoicesController_monitoringOptions: 'MonitoringOptions',
@@ -449,6 +450,7 @@ function requestSchema(operationId: string) {
     VoicesController_reassign: 'AssignmentRequest',
     VoicesController_takeOver: 'TakeOverRequest',
     VoicesController_escalate: 'EscalateRequest',
+    VoicesController_changeSeverity: 'SeverityChangeRequest',
     VoicesController_handover: 'HandoverRequest',
     VoicesController_requestAdminHandover: 'AdminHandoverNoteRequest',
     VoicesController_resolveAdminHandover: 'AdminHandoverDecisionRequest',
@@ -1436,6 +1438,16 @@ const schemas: Record<string, any> = {
       },
     },
   },
+  SeverityChangeRequest: {
+    type: 'object',
+    required: ['expectedVersion', 'severity', 'reason'],
+    additionalProperties: false,
+    properties: {
+      expectedVersion: { type: 'integer', minimum: 1 },
+      severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+      reason: { type: 'string', minLength: 1, maxLength: 500 },
+    },
+  },
   EscalateRequest: {
     type: 'object',
     required: ['expectedVersion', 'reason'],
@@ -1736,6 +1748,8 @@ const schemas: Record<string, any> = {
           severity: baseVoiceProperties.severity,
           confidence: { type: 'number', minimum: 0, maximum: 1 },
           rationaleCode: { type: 'string' },
+          // General Voice about the reporter's superior: suggest Private Voice.
+          privateSuggested: { type: 'boolean' },
         },
       },
       {

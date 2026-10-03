@@ -207,6 +207,7 @@ enum VoiceEventType {
   TARGET_OVERDUE
   ESCALATED
   REMINDED
+  SEVERITY_CHANGED
   MESSAGE_SENT
   ASSIGNED
   REASSIGNED
@@ -798,6 +799,8 @@ model AIClassification {
   inputTokens            Int?
   outputTokens           Int?
   fallbackCode           String?                       @db.VarChar(80)
+  /// General Voice about the reporter's superior: suggest Private Voice.
+  privateSuggested       Boolean                       @default(false)
   legacyProviderMetadata Json?
   createdAt              DateTime                      @default(now())
   draft                  VoiceDraft?                   @relation(fields: [draftId], references: [id])

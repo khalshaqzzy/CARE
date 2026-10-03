@@ -199,6 +199,13 @@ const submitSchema = z
   })
   .strict();
 const versionSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
+const severitySchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+    severity: z.nativeEnum(Severity),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
 const escalateSchema = z
   .object({
     expectedVersion: z.number().int().positive(),
@@ -497,6 +504,8 @@ export class VoicesService {
           contentHash: draft.classificationContentHash,
           responseId: result.responseId,
           latencyMs: result.latencyMs,
+          privateSuggested:
+            draft.visibility === VoiceVisibility.GENERAL && result.result.privateSuggested === true,
         },
         update: {
           model: result.model,
@@ -512,6 +521,8 @@ export class VoicesService {
           responseId: result.responseId,
           latencyMs: result.latencyMs,
           fallbackCode: null,
+          privateSuggested:
+            draft.visibility === VoiceVisibility.GENERAL && result.result.privateSuggested === true,
         },
       });
       return this.publicClassification(record);
@@ -1609,6 +1620,50 @@ export class VoicesService {
           wasOpen ? 'Voice Anda telah direspons' : 'Voice Anda diteruskan ke atasan',
           `Diteruskan ke ${TIER_LABELS[step.level]}.`,
         );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+        };
+      },
+    );
+  }
+
+  /**
+   * Ubah severity: allowed with a reason until the Voice is processed. The
+   * escalation windows of stage 3 count from the latest change.
+   */
+  async changeSeverity(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(severitySchema, input);
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `severity:${id}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        const current = await this.lockedActionVoice(tx, actor, id, data.expectedVersion);
+        if (!this.actionSet(actor, current).includes('CHANGE_SEVERITY'))
+          throw invalidTransition('Severity hanya dapat diubah sebelum Voice diproses.');
+        if (current.severity === data.severity)
+          throw badRequest('SEVERITY_UNCHANGED', 'Pilih severity yang berbeda.');
+        const updated = await tx.voice.update({
+          where: { id },
+          data: { severity: data.severity, version: { increment: 1 } },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.SEVERITY_CHANGED,
+            payload: { from: current.severity, to: data.severity, reason: data.reason },
+          },
+        });
         return {
           id: updated.id,
           displayId: updated.displayId,

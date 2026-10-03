@@ -17,6 +17,15 @@ records. Source retention, image ownership and persistent data protection remain
 Validation and first-deployment reclaimed-disk evidence are recorded separately;
 no hosted deployment or phase completion is inferred.
 
+## Tiered bottom-up routing, stage 2 increment 7 — 3 October 2026
+
+Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch:
+
+- severity change with a mandatory reason until the Voice is processed;
+- an AI classification flag (prompt v1.8) suggesting Private Voice for complaints about the reporter's superior, offered on the review step.
+
+Stage 2 is complete; stage 3 (automatic escalation worker and Critical notifications) is next. Nothing is released until the product owner approves. See PRD §43.5 and ADR-0059.
+
 ## Tiered bottom-up routing, stage 2 increment 6 — 2 October 2026
 
 Phase 13 remains the only `in_progress` phase. This increment is on the same unreleased branch: "Sedang tidak masuk".
