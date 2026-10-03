@@ -58,6 +58,7 @@ import {
 } from './tier-chain';
 import { jakartaDateKey } from '../escalation/working-time';
 import { activeSubstitutes } from '../away/away';
+import { tierWindow } from '../escalation/tier-window';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
 import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
@@ -792,6 +793,9 @@ export class VoicesService {
           tmChoice?.section ?? current.section,
         )
       : false;
+    const firstWindow = firstTier
+      ? await tierWindow(this.prisma, classification.severity, 'RESPOND')
+      : null;
     const response = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.voiceDraft.updateMany({
         where: { id, version: body.version, submittedAt: null },
@@ -863,6 +867,7 @@ export class VoicesService {
                 tierHolderIds: firstTier.accountIds,
                 outsideReporter,
                 sectionHasGroupLeader: leaderInSection,
+                ...(firstWindow ?? {}),
               }
             : {}),
           locationWarningAcknowledgedAt:
@@ -1474,6 +1479,12 @@ export class VoicesService {
             handlerType,
             status: VoiceStatus.RESPONDED,
             version: { increment: 1 },
+            ...(current.tierLevel
+              ? {
+                  tierHolderResponded: true,
+                  ...(await tierWindow(tx, current.severity, 'FULL')),
+                }
+              : {}),
           },
         });
         await tx.voiceEvent.create({
@@ -1561,6 +1572,8 @@ export class VoicesService {
             tierLevel: step.level,
             tierHolderIds: step.accountIds,
             tierLowerHolderIds: [],
+            tierHolderResponded: false,
+            ...(await tierWindow(tx, current.severity, 'FULL')),
             tierParticipantIds: unique([
               ...current.tierParticipantIds,
               ...current.tierHolderIds,
@@ -1651,9 +1664,20 @@ export class VoicesService {
           throw invalidTransition('Severity hanya dapat diubah sebelum Voice diproses.');
         if (current.severity === data.severity)
           throw badRequest('SEVERITY_UNCHANGED', 'Pilih severity yang berbeda.');
+        const window = current.tierDueAt
+          ? await tierWindow(
+              tx,
+              data.severity,
+              current.tierDueKind === 'RESPOND'
+                ? 'RESPOND'
+                : current.tierHolderResponded
+                  ? 'PROCESS'
+                  : 'FULL',
+            )
+          : null;
         const updated = await tx.voice.update({
           where: { id },
-          data: { severity: data.severity, version: { increment: 1 } },
+          data: { severity: data.severity, version: { increment: 1 }, ...(window ?? {}) },
         });
         await tx.voiceEvent.create({
           data: {
@@ -1937,8 +1961,16 @@ export class VoicesService {
                   tierLevel: TierLevel.MANAGER,
                   tierPath: [TierLevel.MANAGER, TierLevel.DIVISION],
                   tierHolderIds: [destination.pic.id],
+                  tierHolderResponded: false,
+                  ...(await tierWindow(tx, voice.severity, 'FULL')),
                 }
-              : { tierLevel: null, tierPath: [], tierHolderIds: [] }),
+              : {
+                  tierLevel: null,
+                  tierPath: [],
+                  tierHolderIds: [],
+                  tierDueAt: null,
+                  tierDueKind: null,
+                }),
             version: { increment: 1 },
           },
         });
@@ -2654,6 +2686,14 @@ export class VoicesService {
           });
           return this.applyHandlingTarget(tx, actor, current, data.days, true);
         }
+        if (current.tierLevel)
+          await tx.voice.update({
+            where: { id },
+            data: {
+              tierHolderResponded: true,
+              ...(await tierWindow(tx, current.severity, 'PROCESS')),
+            },
+          });
         return this.transitionStatus(
           tx,
           actor,
@@ -2727,6 +2767,8 @@ export class VoicesService {
       data: {
         status: VoiceStatus.IN_PROGRESS,
         version: { increment: 1 },
+        tierDueAt: null,
+        tierDueKind: null,
         ...(!current.currentHandlerId
           ? {
               currentHandlerId: actor.accountId,

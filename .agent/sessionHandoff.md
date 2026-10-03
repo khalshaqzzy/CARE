@@ -1,5 +1,27 @@
 # CARE Session Handoff
 
+## Tiered routing stage 3a — escalation worker — 3 October 2026
+
+**Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released.
+
+**Delivered:**
+
+- **Windows:** `Voice.tierDueAt`, `tierDueKind` and `tierHolderResponded` (migration `20261003180000_tier_windows`) come from the Admin deadline table and working calendar (`src/escalation/tier-window.ts`). They are set on submit (respond), respond (process), Naikkan, handover and Tugaskan (respond + process), restarted on a severity change, and cleared on Proses.
+- **Worker:** `TierEscalationService` runs every 60 s when the outbox is enabled, under the Voice row lock.
+  - **Unanswered:** the next level takes over, the Voice stays Terbuka, and the former holders become observers.
+  - **Received answered and not processed:** the next level takes over, the Voice stays Direspons with the chat note "Diteruskan ke …", and the former holders stay in the chat.
+  - **Answered or assigned but not processed:** the next level joins with Ingatkan (chat note "… bergabung ke percakapan").
+  - **Top of the chain:** the clock stops.
+  - **Notifications:** the new holders, the former holders and the reporter (generic) are notified.
+
+**Validation:**
+
+- **Unit:** API 158/158.
+- **Integration and security:** 151/153; the two failures are the known admin-safety and push-subscription flakes. The tiered suite passes 12/12, including racing workers.
+- **Other:** no schema drift.
+
+**Next:** stage 3b (Critical notices; fixed-category missed assignment SH → Manager → DDH/DH).
+
 ## Tiered routing stage 2, increment 7 — 3 October 2026
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released. **Stage 2 is complete.**

@@ -9,6 +9,7 @@ import {
 } from '../../src/imports/imports.service';
 import { VoicesService } from '../../src/voices/voices.service';
 import { AwayService } from '../../src/away/away.service';
+import { TierEscalationService } from '../../src/voices/tier-escalation.service';
 import { jakartaDateKey } from '../../src/escalation/working-time';
 
 const prisma = new PrismaClient();
@@ -668,6 +669,106 @@ describe('Tiered routing foundation', () => {
     expect((await principal('700002')).actingFor).toEqual([]);
     expect((await voices.detail(await principal('700002'), voice.id)).availableActions).toEqual([]);
     await expect(away.end(groupLeader)).rejects.toMatchObject({ code: 'AWAY_PERIOD_NOT_FOUND' });
+  });
+
+  it('escalates automatically when a tier window passes', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const worker = new TierEscalationService(prisma as never);
+    const past = new Date(Date.now() - 60_000);
+    const expire = (id: string) =>
+      prisma.voice.update({ where: { id }, data: { tierDueAt: past } });
+    const thread = async (id: string) =>
+      (await prisma.message.findMany({ where: { conversation: { voiceId: id } } }))
+        .filter((message) => message.kind === 'SYSTEM')
+        .map((message) => message.text);
+
+    // 1. Nobody answered: the Section Head takes over and it stays Terbuka.
+    const open = await submitAs('700004', 'auto-open');
+    expect(open).toMatchObject({ tierDueKind: 'RESPOND', tierHolderResponded: false });
+    expect(open.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
+    await expire(open.id);
+    await Promise.all([worker.tick(), new TierEscalationService(prisma as never).tick()]);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: open.id } })).toMatchObject({
+      status: 'OPEN',
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+      tierObserverIds: [groupLeader.accountId],
+      tierDueKind: 'RESPOND',
+    });
+    expect(await prisma.voiceEvent.count({ where: { voiceId: open.id, type: 'ESCALATED' } })).toBe(
+      1,
+    );
+    expect(
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: open.id, type: 'ESCALATED' },
+          select: { recipientId: true },
+        })
+      )
+        .map((row) => row.recipientId)
+        .sort(),
+    ).toEqual([groupLeader.accountId, sectionHead.accountId].sort());
+    expect(await worker.tick()).toBe(0);
+
+    // 2. Raised by hand and not processed: up again, stays Direspons, chat note.
+    const raised = await submitAs('700004', 'auto-raised');
+    await voices.escalate(
+      groupLeader,
+      raised.id,
+      { expectedVersion: 1, reason: 'Perlu Section Head.' },
+      'auto-raise',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
+      tierDueKind: 'PROCESS',
+      tierHolderResponded: false,
+    });
+    await expire(raised.id);
+    await worker.tick();
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'MANAGER',
+      tierHolderIds: [manager.accountId],
+      tierParticipantIds: [groupLeader.accountId, sectionHead.accountId],
+    });
+    expect(await thread(raised.id)).toEqual([
+      'Diteruskan ke Section Head',
+      'Diteruskan ke Manager',
+    ]);
+
+    // 3. Answered but not processed: the Manager joins beside the Section Head.
+    const answered = await submitAs('700005', 'auto-answered');
+    await voices.respond(sectionHead, answered.id, { text: 'Kami cek.', version: 1 }, 'auto-r');
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).toMatchObject({
+      tierDueKind: 'PROCESS',
+      tierHolderResponded: true,
+    });
+    await expire(answered.id);
+    await worker.tick();
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).toMatchObject({
+      status: 'RESPONDED',
+      tierLevel: 'MANAGER',
+      tierHolderIds: [sectionHead.accountId, manager.accountId],
+      tierLowerHolderIds: [sectionHead.accountId],
+    });
+    expect(await thread(answered.id)).toEqual(['Manager bergabung ke percakapan']);
+    expect((await voices.detail(manager, answered.id)).availableActions).toEqual(
+      expect.arrayContaining(['PROCEED', 'ASSIGN', 'REMIND']),
+    );
+
+    // Processing stops the clock; the top of the chain stops it too.
+    const current = await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } });
+    await voices.proceed(manager, answered.id, { days: 1, version: current.version }, 'auto-p');
+    expect(
+      (await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).tierDueAt,
+    ).toBeNull();
+    await expire(raised.id);
+    expect(await worker.tick()).toBe(0);
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
+      tierLevel: 'MANAGER',
+      tierDueAt: null,
+    });
   });
 
   it('exposes seeded defaults and edits the working calendar with versions', async () => {

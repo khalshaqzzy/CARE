@@ -121,6 +121,12 @@ enum ClosureReviewState {
   REJECTED
 }
 
+/// RESPOND: answer by tierDueAt; PROCESS: start handling by tierDueAt.
+enum TierDueKind {
+  RESPOND
+  PROCESS
+}
+
 enum TierLevel {
   GROUP_LEADER
   SECTION_HEAD
@@ -697,6 +703,11 @@ model Voice {
   tierObserverIds                 String[]                @default([]) @db.Uuid
   /// Holders who raised the Voice by hand stay in the chat (messages only).
   tierParticipantIds              String[]                @default([]) @db.Uuid
+  /// Stage 3: end of the current holder's window and what they owe by then.
+  tierDueAt                       DateTime?
+  tierDueKind                     TierDueKind?
+  /// The current holder answered the Voice themselves (vs. received it answered).
+  tierHolderResponded             Boolean                 @default(false)
   /// The reporter's Section has a Group Leader the Section Head may assign.
   sectionHasGroupLeader           Boolean                 @default(false)
   /// Fasilitas Kerja reported from another department's shop.
@@ -770,6 +781,7 @@ model Voice {
   @@index([tierHolderIds], type: Gin)
   @@index([tierObserverIds], type: Gin)
   @@index([tierParticipantIds], type: Gin)
+  @@index([tierDueAt, status])
   @@index([severity, submittedAt])
   @@index([title, displayId])
 }
