@@ -239,7 +239,10 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
       await db.rating.deleteMany({ where: { closureCycle: { voiceId } } });
       await db.closureCycle.deleteMany({ where: { voiceId } });
       await db.message.deleteMany({ where: { conversation: { voiceId } } });
+      // Opening the chat records a read marker per viewer.
+      await db.conversationReadState.deleteMany({ where: { conversation: { voiceId } } });
       await db.conversation.deleteMany({ where: { voiceId } });
+      await db.voiceReminder.deleteMany({ where: { voiceId } });
       await db.notification.deleteMany({ where: { voiceId } });
       await db.voiceEvent.deleteMany({ where: { voiceId } });
       await db.voiceHandlingTarget.deleteMany({ where: { voiceId } });
