@@ -334,18 +334,20 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 ### 9.1 Authoritative Organization File Contract
 
-Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX wajib memakai sheet `MFG + QD`; CSV tidak mempunyai kontrak sheet. Kedua format menerima tujuh header legacy berikut, atau delapan header dengan `Birth Date` tepat setelah `Posisi (struktural)`. Setiap format juga boleh diakhiri kolom `Area` lalu `Line` setelah `Section` (9 atau 10 kolom) untuk routing bertingkat (§43):
+Admin mengunggah satu file authoritative berformat `.xlsx` atau UTF-8 `.csv`. XLSX memakai sheet bulanan `CARE_ORG DATA_[Bulan]` (misalnya `CARE_ORG DATA_SEP`); sheet lama `MFG + QD` tetap diterima, dan workbook harus memiliki tepat satu sheet tersebut. CSV tidak mempunyai kontrak sheet. Format bulanan HR:
 
 ```text
-Noreg, Nama, Posisi (struktural), Directorat, Division, Department, Section
+Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division, Department, Section, Line, Tgl Lahir
 ```
+
+Kolom dibaca berdasarkan nama, bukan urutan; huruf besar/kecil dan spasi berlebih diabaikan. Tujuh kolom wajib: Noreg, Nama, Posisi (Struktural), Directorat, Division, Department, Section. Kolom opsional: `Pers Area` (alias `Area`) bersama `Line` untuk routing bertingkat (§43), dan `Tgl Lahir` (alias `Birth Date`). Format lama tujuh, delapan, sembilan, atau sepuluh kolom tetap diterima.
 
 Aturan:
 
 - satu row merepresentasikan satu workforce account; `Noreg` diperlakukan sebagai text agar leading zero terjaga;
 - Header wajib sesuai salah satu format yang didukung; kolom tambahan lainnya, header asing, row dengan jumlah kolom berbeda, XLSX malformed, atau CSV malformed ditolak. Section kosong tetap didukung; tidak dibuat Section sintetis.
-- XLSX memakai plain string atau blank, kecuali Birth Date yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. DOB teks wajib `YYYY-MM-DD`, valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. Format tujuh kolom mempertahankan DOB existing; format delapan kolom memperbarui DOB termasuk blank menjadi null.
-- `Area` menerima Karawang 1–3 dan Sunter 1–2 (huruf besar/kecil, spasi, atau garis bawah tidak berpengaruh) atau kosong; nilai lain menolak file. `Line` adalah teks bebas; Line kosong berarti member tidak memiliki Group Leader. Format tanpa kedua kolom ini mengosongkan Area dan Line seluruh karyawan, dan preview menampilkan peringatan;
+- XLSX memakai plain string atau blank, kecuali Tgl Lahir yang juga menerima date cell Excel. Formula/rich-value dan numeric non-date ditolak. CSV mengikuti RFC-style quoting dan UTF-8 BOM. Tgl Lahir teks memakai `dd/mm/yyyy` (atau `YYYY-MM-DD`), valid sebagai kalender, dan disimpan sebagai nullable DATE tanpa pergeseran zona waktu. File tanpa kolom tanggal lahir mempertahankan DOB existing; file dengan kolom tersebut memperbarui DOB termasuk blank menjadi null.
+- `Pers Area` menerima Head Office (disimpan tanpa area pabrik), Karawang 1–3, dan Sunter 1–2 (huruf besar/kecil, spasi, atau garis bawah tidak berpengaruh) atau kosong; nilai lain menolak file. `Line` adalah teks bebas; Line kosong berarti member tidak memiliki Group Leader. Format tanpa kedua kolom ini mengosongkan Area dan Line seluruh karyawan, dan preview menampilkan peringatan;
 - `Noreg` unik setelah trim; password existing tidak berubah akibat import;
 - organization unit memakai key komposit `Directorat + Division + Department`;
 - posisi mentah disimpan, tetapi hanya `Group Leader`, `Section Head`, `Department Head`, `Division Head`, `Deputy Division Head`, `Deputy Division Head Pjt.`, dan `Director` memberi structural capability; `Group Leader` adalah ketua Line dan memberi capability `GROUP_LEADER`;

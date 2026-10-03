@@ -1,5 +1,32 @@
 # CARE Session Handoff
 
+## Monthly organization file format — 3 October 2026
+
+The product owner's monthly HR file is:
+
+- **Sheet:** `CARE_ORG DATA_[Bulan]` (for example `CARE_ORG DATA_SEP`).
+- **Columns:** `Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division, Department, Section, Line, Tgl Lahir`.
+- **Values:** `Pers Area` is Head Office, Karawang 1–3, or Sunter 1–2. `Tgl Lahir` is `dd/mm/yyyy`.
+
+**Changes on `feat/voice-tiered-routing-stage2`, to release with stages 2 and 3:**
+
+- **Import parser:** `ImportsService` resolves columns by name (case and spacing ignored), with aliases `Pers Area`/`Area` and `Tgl Lahir`/`Birth Date`.
+  - Unknown or duplicate columns are rejected, the seven core columns are required, and Area and Line must appear together.
+  - It accepts the `CARE_ORG DATA_*` sheet or the older `MFG + QD` (exactly one).
+  - It parses `dd/mm/yyyy` (`organizationBirthDate`) and Excel date cells in the Tgl Lahir column, wherever it sits.
+  - It maps Head Office to no plant area.
+  - Older layouts keep working.
+- **Admin:** the import card states the new format.
+- **PRD:** §9.1 updated.
+
+**Validation:**
+
+- **Unit:** API 160/160, including the monthly CSV, reordered headers, the `CARE_ORG DATA_SEP` XLSX with a date cell, and the sheet-name rejection.
+- **Integration:** organization, birth-date, and tiered import suites pass 19/19.
+- **Browser:** the Admin specs pass 63/63.
+
+**After the release:** import the September file on staging and review the Area & Line readiness panel before enabling tiered routing for real users.
+
 ## Tiered routing stage 3b — Critical notices and fixed-category escalation — 3 October 2026
 
 **Branch:** `feat/voice-tiered-routing-stage2`, committed locally. Not pushed and not released. **Stages 2 and 3 are complete.**

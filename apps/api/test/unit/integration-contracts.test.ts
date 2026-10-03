@@ -8,7 +8,9 @@ import {
   ImportsService,
   ORGANIZATION_BIRTH_DATE_HEADERS,
   ORGANIZATION_HEADERS,
+  ORGANIZATION_MONTHLY_HEADERS,
   ORGANIZATION_TIER_HEADERS,
+  organizationBirthDate,
   parseArea,
   tierSummary,
 } from '../../src/imports/imports.service';
@@ -90,7 +92,7 @@ describe('XLSX import contract', () => {
       service.parse(
         await workbook(
           ['000123', 'Employee', 'Member', 'D', 'V', 'Dept', 'S'],
-          ['NoReg', ...ORGANIZATION_HEADERS.slice(1)],
+          ['Nomor', ...ORGANIZATION_HEADERS.slice(1)],
         ),
       ),
     ).rejects.toMatchObject({ code: 'XLSX_HEADERS_INVALID' });
@@ -146,7 +148,7 @@ describe('CSV import contract', () => {
 
   it('rejects invalid headers, duplicate Noreg, and malformed column counts', async () => {
     await expect(
-      service.parse(Buffer.from(`NoReg,${ORGANIZATION_HEADERS.slice(1).join(',')}\n`), 'csv'),
+      service.parse(Buffer.from(`Nomor,${ORGANIZATION_HEADERS.slice(1).join(',')}\n`), 'csv'),
     ).rejects.toMatchObject({ code: 'CSV_HEADERS_INVALID' });
     await expect(
       service.parse(
@@ -802,6 +804,96 @@ describe('Area and Line import columns', () => {
         'csv',
       ),
     ).rejects.toMatchObject({ code: 'CSV_HEADERS_INVALID' });
+  });
+
+  it('imports the monthly HR file by column name, with dd/mm/yyyy and Head Office', async () => {
+    const row = [
+      'TM0001',
+      'Magang Satu',
+      'Member',
+      'Head Office',
+      'Mfg',
+      'Div A',
+      'Dept',
+      'S',
+      '',
+      '21/05/1999',
+    ];
+    const [parsed] = await service.parse(csv(ORGANIZATION_MONTHLY_HEADERS, [row]), 'csv');
+    expect(parsed).toMatchObject({
+      noReg: 'TM0001',
+      structuralPosition: 'Member',
+      directorate: 'Mfg',
+      section: 'S',
+      area: null,
+      line: null,
+      birthDate: '1999-05-21',
+    });
+    // The same columns in another order and spelling still resolve by name.
+    const reordered = await service.parse(
+      csv(
+        [
+          'NOREG',
+          'nama',
+          'Section',
+          'Line',
+          'Directorat',
+          'Division',
+          'Department',
+          'Posisi  (Struktural)',
+          'Pers Area',
+        ],
+        [
+          [
+            '000002',
+            'GL A',
+            'Line Sect',
+            'Line A',
+            'Mfg',
+            'Div A',
+            'Dept',
+            'Group Leader',
+            'Karawang 1',
+          ],
+        ],
+      ),
+      'csv',
+    );
+    expect(reordered[0]).toMatchObject({
+      noReg: '000002',
+      structuralPosition: 'Group Leader',
+      section: 'Line Sect',
+      line: 'Line A',
+      area: 'KARAWANG_1',
+    });
+    expect(organizationBirthDate('1/2/1990')).toBe('1990-02-01');
+    expect(organizationBirthDate('31/02/1990')).toBeNull();
+    expect(organizationBirthDate('1990-02-01')).toBe('1990-02-01');
+  });
+
+  it('reads the CARE_ORG DATA_<Bulan> sheet, including Excel date cells', async () => {
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('CARE_ORG DATA_SEP');
+    sheet.addRow([...ORGANIZATION_MONTHLY_HEADERS]);
+    sheet.addRow([
+      '000003',
+      'SH Line',
+      'Section Head',
+      'Sunter 2',
+      'Mfg',
+      'Div A',
+      'Dept',
+      'Line Sect',
+      '',
+      new Date('1985-12-03T00:00:00Z'),
+    ]);
+    const [parsed] = await service.parse(Buffer.from(await book.xlsx.writeBuffer()));
+    expect(parsed).toMatchObject({ area: 'SUNTER_2', birthDate: '1985-12-03' });
+    const wrong = new ExcelJS.Workbook();
+    wrong.addWorksheet('Sheet1').addRow([...ORGANIZATION_MONTHLY_HEADERS]);
+    await expect(service.parse(Buffer.from(await wrong.xlsx.writeBuffer()))).rejects.toMatchObject({
+      code: 'XLSX_SHEET_INVALID',
+    });
   });
 
   it('reports duplicate and missing leaders without blocking', () => {
