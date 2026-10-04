@@ -23,6 +23,8 @@ export type MemberDashboard = components['schemas']['MemberDashboard'];
 export type DashboardView = components['schemas']['DashboardView'];
 export type DashboardMetadata = components['schemas']['DashboardMetadata'];
 export type DashboardAggregate = components['schemas']['DashboardAggregate'];
+export type DashboardHandlers = components['schemas']['DashboardHandlers'];
+export type DashboardParticipation = components['schemas']['DashboardParticipation'];
 export type VoiceListItem = components['schemas']['VoiceListItem'];
 export type VoiceList = components['schemas']['VoiceListResponse'];
 export type Attachment = components['schemas']['AttachmentResponse'];
@@ -110,6 +112,20 @@ export function createWorkforceApi(transport: CareTransport) {
     dashboardPreview: (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) =>
       dataOrThrow<VoiceList>(
         client.GET('/api/v1/dashboard/preview', {
+          params: { query: compactQuery(query) },
+          signal: signal ?? null,
+        }),
+      ),
+    dashboardHandlers: (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) =>
+      dataOrThrow<DashboardHandlers>(
+        client.GET('/api/v1/dashboard/handlers', {
+          params: { query: compactQuery(query) },
+          signal: signal ?? null,
+        }),
+      ),
+    dashboardParticipation: (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) =>
+      dataOrThrow<DashboardParticipation>(
+        client.GET('/api/v1/dashboard/participation', {
           params: { query: compactQuery(query) },
           signal: signal ?? null,
         }),

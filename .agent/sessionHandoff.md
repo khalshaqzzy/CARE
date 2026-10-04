@@ -1,5 +1,71 @@
 # CARE Session Handoff
 
+## Unit-head operations dashboard and labelled navigation — 4 October 2026
+
+**Objective:** give unit heads an operations dashboard with handling performance and member participation, label the mobile dock, and add a Voice Saya summary. The product owner chose the design through several rendered prototypes: a separate section, sticky toggles, two HTML mockups, Voice Saya B vs C, three font candidates, and four icon sets. PRD §18.8.6, ADR-0060, and the roadmap record the decisions. `apps/web-voice/PRODUCT.md` holds the confirmed product context, including that performance figures may inform evaluation. Phase 13 remains `in_progress`.
+
+**Delivered on `feat/ops-dashboard`:**
+
+- **API:**
+  - `DashboardView` gains `statusToday`, `previousPerformance`, `onTime`, `reporterOrigins`, `teamOverdue`, and `otherBasisTotal`.
+  - New `GET /dashboard/handlers` and `GET /dashboard/participation` (in `dashboard-people.ts`), for Section Head, Manager, and Division leadership only.
+  - The General preview is ordered by `tierDueAt` and adds `tierDueAt`, `reporterName`, and `reporterDepartment`.
+  - Automatic escalations record `previousHolders`, mapped to the substitute when the holder is away.
+  - OpenAPI and contracts are regenerated.
+- **Workforce:**
+  - `OpsDashboard` for GL/SH/Manager/Division; Director and Union are unchanged.
+  - People cards with role tabs, the Top and Top Contributor labels, and search sheets.
+  - Butuh Tindakan tickets with remaining time; the Voice saya line; the Voice Saya summary card.
+  - Labelled dock (Home · [Voice Member] · Buat Voice · Voice Saya · Pengaturan). The "Lainnya" sheet and its unread note are removed, and the sidebar "Akun Saya" duplicate is gone.
+  - Self-hosted Plus Jakarta Sans.
+  - Contrast fixes found by axe.
+
+**Validation (Windows, scratchpad Node 22.23.2 / pnpm 11.8.0, Docker PostgreSQL):**
+
+- Lint passed. Unit tests passed (API 160, web 127, UI 26, frontend-core 15, Admin 2).
+- Integration: new `dashboard-people` suite and the extended escalation test pass; full run 142/143. The failure is `admin-safety`, a known local Prisma transaction-start timeout.
+- Security 14/14. Browser (chromium/pwa/push) all passing. Visual 184/184; Admin scenarios needed a rerun at lower parallelism. Fullstack 6/6.
+- Legacy WebKit 5/6: the forced-password gate test also fails on unmodified `staging` on this machine.
+- Inventory 436; the validation partition test passes with the Windows shim. Gitleaks found no leaks.
+- Not run locally: organization 10k import profile, performance gate, migration upgrade harness. Hosted CI is authoritative.
+
+**Design review:**
+
+- The Impeccable finish reviewer ran two rounds.
+- Applied:
+  - wrapping names at 390 px;
+  - a fade on the scrollable chip row;
+  - no nested card surfaces;
+  - per-column stacking on desktop (with an explicit phone order);
+  - the empty tickets state inside a card;
+  - neutral "+N hari ini" except Selesai;
+  - themed focus rings;
+  - aligned ticket buttons;
+  - removal of the duplicate sidebar Pengaturan.
+- Declined with the product owner's wording recorded: Tim Saya categories stay bars.
+- `apps/web-voice/DESIGN.md` and `.impeccable/design.json` record the operations world. Review captures stay local (gitignored).
+
+**Environment incident:**
+
+- Cause: removing a junction-linked comparison worktree with `rmdir /s` followed junctions and emptied part of the main checkout's `node_modules/.pnpm`.
+- Recovery: no source files were affected (tracked tree clean). The broken folders were moved aside, junctions were removed as links only, and `pnpm install --frozen-lockfile` restored the main checkout.
+- Root cause of the earlier pnpm "Worker exited with code 1" crashes: the corepack pnpm 11.8.0 download was missing `dist/worker.js`. Re-downloading fixed installs.
+- Rule going forward: never `rmdir /s` a tree containing junctions.
+
+**First hosted run (PR #70):** two checks failed.
+
+- **Typecheck:** a union-typed preview item in `dashboard-people.integration.test.ts`. Fixed.
+- **Organization dashboard performance gate:** p95 3.7 s against a 3 s limit. The new figures ran as six extra sequential queries.
+- **Second run:** p95 3.46 s; staging's own run measures 2.91 s on the hosted runner. A 10-way concurrent local check had understated the gap. The sequential per-request cost ratio matches the hosted ratio, so measure with that.
+- **Final structure** (see ADR-0060 Consequences):
+  - One Voice scan carries both bases.
+  - Summary, today, timeliness, and grouping sets run over the shared cohort; organization-wide scopes group from Voice.
+  - The trend rolls up from days.
+  - Custom category names are looked up lazily.
+- **Local sequential medians** (gate actor mix, 50k fixture): staging 172–181 ms, this branch 156–161 ms.
+
+**Next action:** confirm the hosted performance gate on the PR.
+
 ## Several leaders share a tier level — 3 October 2026
 
 After the September organization import on staging, the product owner decided:

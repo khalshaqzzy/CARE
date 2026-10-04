@@ -88,12 +88,14 @@ for (const width of [360, 768, 1440])
         return route.fulfill({ json: view });
       });
       await page.goto(`/?${scenario.query ?? ''}`);
-      await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+      // Unit heads use the operations dashboard; Director and Union keep the hero summary.
+      await expect(page.locator('.ops, .organization-home').first()).toBeVisible();
       if (scenario.id === 'error')
         await expect(page.getByText('Dashboard gagal dimuat')).toBeVisible();
       else if (scenario.id === 'loading')
         await expect(page.getByLabel('Memuat dashboard organisasi')).toBeVisible();
-      else await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
+      else
+        await expect(page.locator('.dashboard-summary__grid, .ops-status').first()).toBeVisible();
       if (scenario.id === 'filters') {
         await page.getByRole('button', { name: 'Filter lainnya, 2 aktif' }).click();
         await expect(page.getByRole('dialog')).toBeVisible();

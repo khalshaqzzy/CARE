@@ -1,5 +1,17 @@
 # CARE v1.1 Implementation Phases
 
+## Unit-head operations dashboard — 4 October 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/ops-dashboard`, not yet released:
+
+- Group Leader, Section Head, Manager, and Division leadership get the operations dashboard (status with today counts and trend, speed with previous-period comparison and timeliness, spread, Butuh Tindakan Saya).
+- Section Head and above also get people insights: Performa Responder, Partisipasi and Aktivitas Anggota.
+- New API: `GET /dashboard/handlers` and `GET /dashboard/participation`, plus new `DashboardView` fields, preview deadline ordering, and `previousHolders` on automatic escalations.
+- Voice Saya gets a summary card. The dock is labelled for every role, with Pengaturan replacing Akun and the "Lainnya" sheet removed.
+- Director and Union keep the hero dashboard.
+
+See PRD §18.8.6 and ADR-0060.
+
 ## Staging deployment helper path repair — 1 October 2026
 
 Phase 13 remains `in_progress`. Latest staging validation and release gate passed,

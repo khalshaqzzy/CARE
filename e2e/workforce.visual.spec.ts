@@ -245,7 +245,7 @@ test('workforce history visual at 360', async ({ page }) => {
   // Pin the clock so relative "updated" timestamps are deterministic.
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/history');
-  await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Voice Saya' })).toBeVisible();
   await capture(page, `workforce-history-360-${visualPlatform}.png`, screenshotOptions);
 });
 
@@ -272,7 +272,7 @@ test('workforce manager dashboard visual at 1440', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Status Voice', exact: true })).toBeVisible();
   await capture(page, 'workforce-manager-dashboard-1440.png', {
     animations: 'disabled',
   });
@@ -533,7 +533,7 @@ test('workforce manager home visual at 360', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Status Voice', exact: true })).toBeVisible();
   await scrollToTop(page);
   await capture(page, `workforce-manager-home-360-${visualPlatform}.png`, screenshotOptions);
 });

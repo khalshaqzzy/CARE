@@ -62,6 +62,7 @@ import { tierWindow } from '../escalation/tier-window';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
 import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
+import { DashboardPeople } from './dashboard-people';
 
 const attachmentResponseSelect = Prisma.validator<Prisma.AttachmentSelect>()({
   id: true,
@@ -3306,12 +3307,21 @@ export class VoicesService {
     return this.organizationDashboard.aggregate(actor, query);
   }
 
+  dashboardHandlers(actor: AuthActor, query: DashboardQuery = {}) {
+    return new DashboardPeople(this.prisma).handlers(actor, query);
+  }
+
+  dashboardParticipation(actor: AuthActor, query: DashboardQuery = {}) {
+    return new DashboardPeople(this.prisma).participation(actor, query);
+  }
+
   dashboardMetadata(actor: AuthActor, query: DashboardQuery = {}) {
     return this.organizationDashboard.metadata(actor, query);
   }
 
   async dashboardPreview(actor: AuthActor, query: DashboardQuery = {}) {
     const context = await this.organizationDashboard.context(actor, query);
+    const general = context.q.visibility === 'GENERAL';
     const rows = await this.prisma.voice.findMany({
       where: {
         AND: [
@@ -3320,15 +3330,42 @@ export class VoicesService {
           { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } },
         ],
       },
-      orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
+      // General: the deadline that applies first, then severity.
+      orderBy: [
+        ...(general ? [{ tierDueAt: { sort: 'asc' as const, nulls: 'last' as const } }] : []),
+        { severity: 'desc' },
+        { submittedAt: 'desc' },
+        { id: 'desc' },
+      ],
       take: 3,
-      select: { ...this.listSelect(true), anonymousAlias: true },
+      select: {
+        ...this.listSelect(true),
+        anonymousAlias: true,
+        tierDueAt: true,
+        reporterNameSnapshot: true,
+        reporterDepartmentSnapshot: true,
+      },
     });
     return {
-      items: rows.map(({ anonymousAlias, ...row }) => ({
-        ...this.toListItem(row),
-        ...(context.q.visibility === 'PRIVATE' ? { reporterAlias: anonymousAlias } : {}),
-      })),
+      items: rows.map(
+        ({
+          anonymousAlias,
+          tierDueAt,
+          reporterNameSnapshot,
+          reporterDepartmentSnapshot,
+          ...row
+        }) => ({
+          ...this.toListItem(row),
+          // Reporter identity is visible to authorized General responders only.
+          ...(general
+            ? {
+                tierDueAt: tierDueAt?.toISOString() ?? null,
+                reporterName: reporterNameSnapshot,
+                reporterDepartment: reporterDepartmentSnapshot,
+              }
+            : { reporterAlias: anonymousAlias }),
+        }),
+      ),
       nextCursor: null,
     };
   }

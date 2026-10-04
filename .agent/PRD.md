@@ -91,7 +91,7 @@ Menyediakan kanal member voice yang aman, responsif, transparan, dan dapat diper
 CARE v1 bukan:
 
 - feed sosial atau forum publik;
-- sistem HRIS, payroll, attendance, atau performance management;
+- sistem HRIS, payroll, atau attendance; CARE juga bukan sistem penilaian kinerja, tetapi angka Performa Responder dan Partisipasi Anggota (§18.8.6) boleh menjadi masukan penilaian kinerja dan wajib dapat ditelusuri ke event tercatat;
 - pengganti incident response darurat atau emergency hotline;
 - workflow multi-PIC paralel;
 - aplikasi mobile native;
@@ -2277,6 +2277,81 @@ Menggantikan primary action dan presentasi count pada §18.1. Kontrak API tidak 
   **Notifikasi** menampilkan label kecil **"N belum dibaca"** bila ada notifikasi belum dibaca.
 - Jumlah diperbarui setiap 5 detik dan berbagi cache dengan Pusat Notifikasi, sehingga menandai
   notifikasi sebagai dibaca langsung memperbarui badge.
+
+### 18.8.6 Dashboard Operasional Unit Head, Voice Saya, dan Navigasi Berlabel — 4 Oktober 2026
+
+Menggantikan presentasi §18.8.3–§18.8.5 untuk Group Leader, Section Head, Department
+Head/Default PIC, dan Deputy/Division Head (akun tanpa `DIRECTOR`/`UNION_*`). Director dan Union
+tetap memakai dashboard hero biru §18.8.3. Definisi basis, scope, filter URL, dan izin agregat
+§18.8–§18.8.4 tidak berubah.
+
+**Tampilan.** Papan operasional putih: kartu profil (inisial, sapaan, nama, jabatan, lonceng,
+chip **Leadership · Read-only** untuk pimpinan divisi), toggle **Voice Untuk Saya / Voice Tim Saya**
+dengan jumlah Voice masing-masing, baris **Voice saya** (§ di bawah), dan chip filter (unit
+organisasi, area, rentang, Filter lainnya, Refresh). Judul dan angka memakai Plus Jakarta Sans
+yang di-host sendiri (CSP `font-src 'self'`); teks isi memakai Inter.
+
+- **Status Voice** (Tim: **Status Voice Tim**): Total, empat status baku (Terbuka, Direspons,
+  Diproses, Selesai) dengan **+N hari ini** (WIB), bar proporsi, dan grafik tren di dalam kartu.
+- **Kecepatan Respons & Penanganan:** rata-rata respons dan selesai dengan pembanding periode
+  sebelumnya berdurasi sama (hanya bila rentang dipilih; tanpa rentang baris pembanding tidak
+  tampil), **Tepat waktu** (Voice tepat waktu / Voice yang sudah ditanggapi atau melewati batas),
+  dan Rating. Tidak ada target "SLA"; batas waktu mengikuti tabel severity per jenjang §43.4.
+- **Voice Untuk Saya:** **Sebaran Voice Masuk** (seluruh kategori katalog sebagai tile termasuk
+  nol, severity, asal pengirim maksimal lima department pelapor, penanganan per unit dengan tab
+  level), **Performa Responder**, dan **Butuh Tindakan Saya** (maksimal tiga Voice aktif dengan
+  chip severity, kategori, **Sisa …/Terlambat …** terhadap batas waktu pemegang, pelapor, dan satu
+  tombol **Respons**).
+- **Voice Tim Saya:** strip **N Voice tim lewat batas waktu · Pantau**, **Partisipasi Anggota**,
+  **Sebaran Voice Tim** (sub-tab Kategori / Severity / Unit pengirim; tab level selalu tampil), dan
+  **Aktivitas Anggota**.
+
+**Performa Responder** hanya untuk Section Head, Manager/Default PIC, dan Deputy/Division Head
+(bukan Group Leader, Director, Union). Baris per orang dari snapshot organisasi aktif dalam unit
+terpilih: Section Head melihat Group Leader Section-nya; Manager melihat Section Head dan Group
+Leader department; pimpinan divisi juga melihat Manager. Tab per peran, label **Top** pada orang
+dengan tepat waktu tertinggi, dan metrik Voice dipegang, rata-rata respons, tepat waktu, naik
+otomatis, terlambat, rating. Kartu tidak tampil bila tidak ada orang dalam cakupan. Atribusi:
+
+- **Dipegang:** Voice dalam cakupan penanganan yang pernah sampai kepadanya (pemegang/pengamat/
+  peserta jenjang, PIC, aktor respons/proses/selesai, atau penerima eskalasi).
+- **Naik otomatis:** eskalasi otomatis yang pemegang sebelumnya memuat orang tersebut. Event
+  `ESCALATED` otomatis menyimpan `previousHolders`; pemegang yang sedang tidak masuk diwakili
+  penggantinya. Event lama tanpa `previousHolders` diatribusikan ke aktor pembawanya.
+- **Pemegang bersama** ikut menanggung keterlambatan; **kategori fixed** dihitung ke PIC yang
+  ditugaskan; pekerjaan pengganti saat tidak masuk dihitung ke pengganti.
+- **Rata-rata respons** dihitung sejak Voice sampai kepadanya (submit atau eskalasi kepadanya).
+- **Terlambat:** Voice Diproses miliknya yang target hidupnya terlewati. **Tepat waktu** =
+  (dipegang − naik otomatis − terlambat) / dipegang.
+
+**Partisipasi dan Aktivitas Anggota** untuk peran yang sama: seluruh anggota unit pelapor terpilih
+(Section Head hanya Section-nya), jumlah Voice yang dikirim dalam rentang (General dan Private
+dihitung; isi Private tidak pernah dibuka), Voice terakhir, status aktivasi akun. Tab **Top
+kontributor** (label **Top Contributor** untuk peringkat pertama) dan **Belum kirim** (dipisah
+belum aktivasi dan aktif belum kirim). "Lihat semua" membuka sheet dengan pencarian nama.
+
+**Penilaian kinerja.** Angka Performa Responder dan Partisipasi boleh dipakai sebagai masukan
+penilaian kinerja; karena itu setiap angka wajib dapat ditelusuri ke event tercatat dengan aturan
+atribusi di atas.
+
+**API.** `DashboardView` menambah `statusToday`, `previousPerformance`, `onTime` (General),
+`reporterOrigins` (General penanganan), `teamOverdue` (General pelapor), dan `otherBasisTotal`
+(non-global). Endpoint baru `GET /api/v1/dashboard/handlers` dan
+`GET /api/v1/dashboard/participation` memakai parameter dashboard yang sama dan menolak Group
+Leader, Director, Union, dan Admin. Preview General diurutkan berdasarkan `tierDueAt` terdekat lalu
+severity (menggantikan urutan severity-lalu-submit §18.8 untuk General) dan menambah `tierDueAt`,
+`reporterName`, `reporterDepartment`; Private tetap memakai alias.
+
+**Voice Saya.** Baris **Voice saya · N aktif · N menunggu rating** di kartu profil membuka
+`/history`. Halaman **Voice Saya** diawali kartu **Ringkasan** (Total, empat status yang dapat
+diketuk sebagai filter, bar proporsi, strip **N Voice menunggu rating Anda**) dari ringkasan
+Voice pribadi yang sudah ada.
+
+**Navigasi.** Dock mobile seluruh peran berlabel. Member: **Home · Buat Voice · Voice Saya ·
+Pengaturan**; responder dan pimpinan: **Home · Voice Member · Buat Voice · Voice Saya ·
+Pengaturan**; Union mempertahankan tujuannya dengan label Home. Ikon: rumah, dua orang, plus,
+dokumen berjam, gerigi. Sheet **Lainnya** dihapus; notifikasi dibuka dari lonceng Home (badge
+belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengaturan**.
 
 ### Amandemen lifecycle — 9 September 2026
 

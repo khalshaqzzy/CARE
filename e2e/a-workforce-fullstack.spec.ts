@@ -72,8 +72,10 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   await page.getByLabel('No. Reg').fill('000003');
   await page.getByRole('button', { name: 'Lanjutkan' }).click();
   await page.getByRole('button', { name: 'Lain kali' }).click();
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Department A');
-  await expect(page.locator('.dashboard-summary__grid')).toHaveAttribute('data-total', '1');
+  await expect(page.getByRole('button', { name: 'Filter organisasi', exact: true })).toContainText(
+    'Department A',
+  );
+  await expect(page.locator('.ops-status').first()).toHaveAttribute('data-total', '1');
   const db = new PrismaClient();
   const ids: string[] = [];
   try {
@@ -106,7 +108,7 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
       });
       ids.push(row.id);
     }
-    const total = page.locator('.dashboard-summary__grid');
+    const total = page.locator('.ops-status').first();
     for (const basis of ['HANDLING', 'REPORTER']) {
       await page.goto(`/?basis=${basis}`);
       await expect(total).toHaveAttribute('data-total', '12');
@@ -129,12 +131,18 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   }
   await page.goto('/');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Division A');
-  const team = page
-    .getByRole('group', { name: 'Basis dashboard' })
-    .getByRole('button', { name: 'Voice Tim Saya', exact: true });
+  await expect(page.getByRole('button', { name: 'Filter organisasi', exact: true })).toContainText(
+    'Division A',
+  );
+  const basis = page.getByRole('group', { name: 'Basis dashboard' });
+  const team = basis.getByRole('button', { name: /^Voice Tim Saya/ });
   await team.click();
   await expect(team).toHaveAttribute('aria-pressed', 'true');
+  // The real people endpoints answer within the Manager's own scope.
+  for (const path of ['handlers', 'participation']) {
+    const people = await page.request.get(`${ORIGIN}/api/v1/dashboard/${path}`);
+    expect(people.ok()).toBe(true);
+  }
   const aggregate = await page.request.get(`${ORIGIN}/api/v1/dashboard/general?basis=HANDLING`);
   expect(aggregate.ok()).toBe(true);
   const payload = await aggregate.json();
@@ -142,7 +150,8 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   expect(JSON.stringify(payload)).not.toContain('Pencahayaan area produksi kurang');
   const preview = await page.request.get(`${ORIGIN}/api/v1/dashboard/preview?basis=HANDLING`);
   expect((await preview.json()).items).toHaveLength(1);
-  await page.locator('.dashboard-inbox').getByRole('button', { name: /Buka/ }).click();
+  await basis.getByRole('button', { name: /^Voice Untuk Saya/ }).click();
+  await page.locator('.ops-ticket').getByRole('button', { name: 'Respons', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
   ).toBeVisible();

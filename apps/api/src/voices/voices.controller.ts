@@ -419,6 +419,20 @@ export class VoicesController {
     return this.voices.dashboardMetadata(a, q ?? {});
   }
 
+  @Get('dashboard/handlers') dashboardHandlers(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardHandlers']>[1],
+  ) {
+    return this.voices.dashboardHandlers(a, q ?? {});
+  }
+
+  @Get('dashboard/participation') dashboardParticipation(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardParticipation']>[1],
+  ) {
+    return this.voices.dashboardParticipation(a, q ?? {});
+  }
+
   @Get('dashboard/preview') dashboardPreview(
     @Actor() a: AuthActor,
     @Query() q: Parameters<VoicesService['dashboardPreview']>[1],

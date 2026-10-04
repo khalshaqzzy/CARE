@@ -89,13 +89,15 @@ test.describe('workforce journeys (mocked contract)', () => {
     for (const label of ['Terbuka', 'Direspons', 'Diproses', 'Selesai'])
       await expect(summary.getByText(label, { exact: true })).toBeVisible();
     await expect(summary.locator('[data-status="IN_PROGRESS"] strong')).toHaveText('1');
-    await expect(page.getByRole('button', { name: /Buat Voice/ })).toHaveCount(0);
+    await expect(
+      page.locator('.care-app-shell__content').getByRole('button', { name: /Buat Voice/ }),
+    ).toHaveCount(0);
     await expect(
       page.getByLabel('Aksi cepat').getByRole('button', { name: 'Buat Voice' }),
     ).toHaveCount(0);
     await page
       .getByRole('navigation', { name: 'Navigasi utama' })
-      .getByRole('button', { name: 'Buat', exact: true })
+      .getByRole('button', { name: 'Buat Voice', exact: true })
       .click();
     await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
   });
@@ -121,15 +123,14 @@ test.describe('workforce journeys (mocked contract)', () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
         360,
       );
-      // The "Lainnya" sheet labels the Notifikasi entry with the same count.
-      if (persona !== 'Union Head') {
-        await page
+      // Notifications are reached from the bell; the dock has no "Lainnya" sheet.
+      await expect(
+        page
           .getByRole('navigation', { name: 'Navigasi utama' })
-          .getByRole('button', { name: 'Lainnya', exact: true })
-          .click();
-        const entry = page.getByRole('dialog').getByRole('button', { name: /Notifikasi/ });
-        await expect(entry.locator('.unread-note')).toHaveText('4 belum dibaca');
-      }
+          .getByRole('button', { name: 'Lainnya', exact: true }),
+      ).toHaveCount(0);
+      await bell.click();
+      await expect(page).toHaveURL(/\/notifications$/);
     });
   }
 
@@ -139,12 +140,6 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Lihat notifikasi', exact: true })).toBeVisible();
     await expect(page.locator('.unread-badge')).toHaveCount(0);
-    await page
-      .getByRole('navigation', { name: 'Navigasi utama' })
-      .getByRole('button', { name: 'Lainnya', exact: true })
-      .click();
-    await expect(page.getByRole('dialog').getByText('Notifikasi', { exact: true })).toBeVisible();
-    await expect(page.locator('.unread-note')).toHaveCount(0);
   });
 
   test('mobile dock navigates to history and the create wizard', async ({ page }) => {
@@ -162,10 +157,10 @@ test.describe('workforce journeys (mocked contract)', () => {
       await createHighlight.evaluate((node) => getComputedStyle(node, '::before').animationName),
     ).toBe('none');
     await dock.getByRole('button', { name: 'Voice Saya' }).click();
-    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Voice Saya' })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
-    await dock.getByRole('button', { name: 'Buat', exact: true }).click();
+    await dock.getByRole('button', { name: 'Buat Voice', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Mulai Voice baru' })).toBeVisible();
   });
 
@@ -177,7 +172,7 @@ test.describe('workforce journeys (mocked contract)', () => {
       });
       await page.goto('/');
       const dock = page.getByRole('navigation', { name: 'Navigasi utama' });
-      const create = dock.getByRole('button', { name: 'Buat', exact: true });
+      const create = dock.getByRole('button', { name: 'Buat Voice', exact: true });
       await expect(create.locator('.member-create-highlight')).toBeVisible();
       await expect(create).not.toHaveAttribute('aria-current', 'page');
       await create.click();
@@ -185,13 +180,65 @@ test.describe('workforce journeys (mocked contract)', () => {
     });
   }
 
+  for (const [persona, session, labels] of [
+    ['Member', memberSession(), ['Home', 'Buat Voice', 'Voice Saya', 'Pengaturan']],
+    ['Manager', responder, ['Home', 'Voice Member', 'Buat Voice', 'Voice Saya', 'Pengaturan']],
+  ] as const) {
+    test(`${persona} dock shows a label under every destination`, async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { session });
+      await page.goto('/');
+      const dock = page.getByRole('navigation', { name: 'Navigasi utama' });
+      await expect(dock.getByRole('button')).toHaveText([...labels]);
+      for (const label of labels)
+        await expect(dock.getByText(label, { exact: true })).toBeVisible();
+      await dock.getByRole('button', { name: 'Pengaturan', exact: true }).click();
+      await expect(page).toHaveURL(/\/account$/);
+    });
+  }
+
+  test('responder opens Voice Saya from the profile line and filters by summary', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: responder, voice: generalVoice });
+    await page.route('**/api/v1/dashboard/member', (route) =>
+      route.fulfill({
+        json: {
+          total: 5,
+          counts: { OPEN: 1, RESPONDED: 0, IN_PROGRESS: 1, CLOSED: 3 },
+          closedPendingReview: 1,
+          recent: [],
+          draft: null,
+          generatedAt: '2026-08-30T03:00:00Z',
+        },
+      }),
+    );
+    await page.goto('/');
+    const line = page.getByRole('button', { name: /^Voice saya/ });
+    await expect(line).toContainText('2 aktif');
+    await expect(line).toContainText('1 menunggu rating');
+    await line.click();
+    await expect(page).toHaveURL(/\/history$/);
+    await expect(page.getByRole('heading', { name: 'Voice Saya', exact: true })).toBeVisible();
+    const summary = page.locator('section[aria-labelledby="mine-summary"]');
+    await expect(summary.locator('.ops-chip')).toHaveText('Total 5');
+    await expect(summary.getByText('1 Voice menunggu rating Anda')).toBeVisible();
+    const open = summary.getByRole('button', { name: /Terbuka/ });
+    await open.click();
+    await expect(page).toHaveURL(/status=OPEN/);
+    await expect(open).toHaveAttribute('aria-pressed', 'true');
+    await open.click();
+    await expect(page).not.toHaveURL(/status=/);
+  });
+
   test('desktop sidebar navigates to member history', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await mockWorkforceApi(page, { voice: generalVoice });
     await page.goto('/');
     const sidebar = page.getByRole('navigation', { name: 'Navigasi aplikasi' });
     await sidebar.getByRole('button', { name: 'Voice Saya' }).click();
-    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Voice Saya' })).toBeVisible();
   });
 
   test('create wizard transitions from type choice to the detail form', async ({ page }) => {
@@ -343,7 +390,7 @@ test.describe('workforce journeys (mocked contract)', () => {
 
     await page.getByRole('button', { name: 'Lihat riwayat Voice' }).click();
     await expect(page).toHaveURL(/\/history$/);
-    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Voice Saya' })).toBeVisible();
     await expect(page.getByText(generalVoice.title)).toBeVisible();
   });
 
@@ -371,7 +418,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('heading', { name: 'Terima kasih' })).toBeVisible();
     await page.reload();
     await expect(page).toHaveURL(/\/history$/);
-    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Voice Saya' })).toBeVisible();
   });
 
   test('failed submit stays on preview and never renders a false receipt', async ({ page }) => {
@@ -400,7 +447,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { voice: generalVoice });
     await page.goto('/history');
-    await expect(page.getByRole('heading', { name: 'Voice milik Anda' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Voice Saya' })).toBeVisible();
     await expect(page.getByText('Pencahayaan area produksi kurang')).toBeVisible();
   });
 

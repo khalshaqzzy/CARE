@@ -6,6 +6,14 @@ const manager = memberSession({
   capabilities: ['MEMBER', 'MANAGER'],
   structuralPosition: 'Department Head',
 });
+// Unit heads use the operations dashboard: status grid, organization chip, basis switcher.
+const statusGrid = (page: Page) => page.locator('.ops-status').first();
+const orgChip = (page: Page) =>
+  page.getByRole('button', { name: 'Filter organisasi', exact: true });
+const basisButton = (page: Page, label: 'Voice Untuk Saya' | 'Voice Tim Saya') =>
+  page
+    .getByRole('group', { name: 'Basis dashboard' })
+    .getByRole('button', { name: new RegExp(`^${label}`) });
 // Clearing filters lives in the "Filter lainnya" sheet; the head action refreshes data.
 async function clearFilters(page: Page) {
   await page.getByRole('button', { name: /^Filter lainnya/ }).click();
@@ -19,8 +27,8 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   await page.goto('/');
   await expect(page.getByText('Lingkungan', { exact: true })).toBeVisible();
   await expect(page.getByText('Environment', { exact: true })).toHaveCount(0);
-  const summary = page.locator('.dashboard-summary__grid');
-  await expect(summary.locator('.dashboard-summary__metric')).toHaveCount(4);
+  const summary = statusGrid(page);
+  await expect(summary.locator('.ops-status__tile')).toHaveCount(4);
   for (const [status, label, count] of [
     ['OPEN', 'Terbuka', '6'],
     ['RESPONDED', 'Direspons', '0'],
@@ -29,36 +37,64 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   ]) {
     const metric = summary.locator(`[data-status="${status}"]`);
     await expect(metric.locator('strong')).toHaveText(count);
-    await expect(metric.locator('span')).toHaveText(label);
+    await expect(metric.locator('.ops-status__label')).toHaveText(label);
   }
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
+  await expect(orgChip(page)).toContainText('Production Control');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await expect(page).toHaveURL(/level=department/);
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
-  const basis = page.getByRole('group', { name: 'Basis dashboard' });
-  await expect(
-    basis.getByRole('button', { name: 'Voice Untuk Saya', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await basis.getByRole('button', { name: 'Voice Tim Saya', exact: true }).click();
+  await expect(orgChip(page)).toContainText('Production Division');
+  await expect(basisButton(page, 'Voice Untuk Saya')).toHaveAttribute('aria-pressed', 'true');
+  await basisButton(page, 'Voice Tim Saya').click();
   await expect(page).toHaveURL(/basis=REPORTER/);
   await expect(page).not.toHaveURL(/level=/);
   await page.goBack();
   await expect(page).toHaveURL(/level=department/);
   await page.reload();
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
+  await expect(orgChip(page)).toContainText('Production Division');
   await expect(page.getByRole('button', { name: 'Reset', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
   await expect(page).toHaveURL(/level=department/);
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
+  await expect(orgChip(page)).toContainText('Production Division');
   await clearFilters(page);
   await expect(page).not.toHaveURL(/level=|basis=/);
-  const summaryBox = await page.locator('.dashboard-summary').boundingBox();
-  const personal = await page.locator('.dashboard-personal').boundingBox();
-  expect(personal!.y).toBeGreaterThan(summaryBox!.y);
+  // The viewer's own Voices stay one tap away from the profile card.
+  await expect(page.getByRole('button', { name: /^Voice saya/ })).toBeVisible();
 });
 
+test('Manager sees status counts, today and the total on the operations dashboard', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await mockWorkforceApi(page, {
+    session: manager,
+    generalDashboard: {
+      total: 14,
+      otherBasisTotal: 9,
+      status: [
+        { label: 'OPEN', value: 2 },
+        { label: 'RESPONDED', value: 3 },
+        { label: 'IN_PROGRESS', value: 4 },
+        { label: 'CLOSED', value: 5 },
+      ],
+      statusToday: [{ label: 'OPEN', value: 1 }],
+    },
+  });
+  await page.goto('/');
+  const card = page.locator('section[aria-labelledby="ops-status"]');
+  await expect(card.getByRole('heading', { name: 'Status Voice', exact: true })).toBeVisible();
+  await expect(card.locator('.ops-chip')).toHaveText('Total 14');
+  await expect(statusGrid(page).locator('strong')).toHaveText(['2', '3', '4', '5']);
+  await expect(statusGrid(page).locator('small')).toHaveText([
+    '+1 hari ini',
+    '+0 hari ini',
+    '+0 hari ini',
+    '+0 hari ini',
+  ]);
+  await expect(basisButton(page, 'Voice Untuk Saya')).toContainText('14');
+  await expect(basisButton(page, 'Voice Tim Saya')).toContainText('9');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
 for (const [name, session] of [
-  ['Manager', manager],
   ['Director', memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] })],
   ['Union Head', unionSession({ slot: 'HEAD' })],
 ] as const) {
@@ -130,10 +166,8 @@ test('filters are keyboard accessible, show valid dates, and avoid overflow', as
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockWorkforceApi(page, { session: manager });
   await page.goto('/');
-  await expect(page.locator('.dashboard-filters')).toBeVisible();
-  const panel = await page.locator('.dashboard-filters').boundingBox();
-  expect(panel!.height).toBeLessThan(195);
-  const organization = page.getByRole('button', { name: 'Filter organisasi', exact: true });
+  await expect(statusGrid(page)).toBeVisible();
+  const organization = orgChip(page);
   await organization.focus();
   await page.keyboard.press('Enter');
   const sheet = page.getByRole('dialog', { name: 'Filter organisasi' });
@@ -153,7 +187,7 @@ test('filters are keyboard accessible, show valid dates, and avoid overflow', as
   await page.getByLabel('Dari tanggal').fill('2026-08-01');
   await page.getByLabel('Sampai tanggal').fill('2026-08-30');
   await expect(page.getByText('Periksa rentang tanggal')).toHaveCount(0);
-  await expect(page.locator('.dashboard-org-summary')).toBeVisible();
+  await expect(orgChip(page)).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -174,17 +208,18 @@ test('repeated level switches keep one unassigned row, filter zero severity, and
   await page.goto('/');
   for (let round = 0; round < 3; round++) {
     await page.getByRole('button', { name: 'Department', exact: true }).click();
-    await expect(page.locator('.dashboard-org-summary')).toContainText('Production Division');
+    await expect(orgChip(page)).toContainText('Production Division');
     await page.getByRole('button', { name: 'Section', exact: true }).click();
-    await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
+    await expect(orgChip(page)).toContainText('Production Control');
     const unassigned = page
-      .locator('.dashboard-organization .chart-card__row')
+      .locator('.ops-bars li')
       .filter({ hasText: 'Belum ditugaskan ke section' });
     await expect(unassigned).toHaveCount(1);
   }
   await page.goto('/?dashFrom=2026-08-01&dashTo=2026-08-30&range=custom');
-  const severityCard = page.locator('.chart-card').filter({ hasText: 'Voice menurut severity' });
-  await expect(severityCard.locator('.chart-card__row')).toHaveCount(2);
+  // Severity tiles always show all four levels, zeros included.
+  const severity = page.locator('.ops-severity');
+  await expect(severity.locator('strong')).toHaveText(['0', '5', '10', '0']);
   await expect(page.getByText('Belum ada Voice pada periode sebelumnya')).toHaveCount(0);
   await expect(page.getByText('Perbandingan periode belum tersedia')).toHaveCount(0);
   await expect(page.getByText('Tren menghitung Voice yang disubmit')).toHaveCount(0);
@@ -195,18 +230,17 @@ for (const basis of ['HANDLING', 'REPORTER']) {
   test(`restores 12 → 17 → 12 for ${basis}, including reload and navigation`, async ({ page }) => {
     await mockWorkforceApi(page, { session: manager });
     await page.goto(`/?basis=${basis}`);
-    const total = page.locator('.dashboard-summary__grid');
+    const total = statusGrid(page);
     await expect(total).toHaveAttribute('data-total', '12');
-    const initial = await page.locator('.dashboard-visual-grid').innerText();
+    const status = page.locator('section[aria-labelledby="ops-status"]');
+    const initial = await status.innerText();
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: 'Department', exact: true }).click();
       await expect(total).toHaveAttribute('data-total', '17');
       await expect(page).toHaveURL(/scopeMode=PARENT/);
       await page.getByRole('button', { name: 'Section', exact: true }).click();
       await expect(total).toHaveAttribute('data-total', '12');
-      await expect(page.locator('.dashboard-visual-grid')).toHaveText(initial, {
-        useInnerText: true,
-      });
+      await expect(status).toHaveText(initial, { useInnerText: true });
       await expect(page).not.toHaveURL(/[?&](department|division|section|directorate)=/);
     }
     await page.reload();
@@ -246,18 +280,14 @@ test('Refresh reloads the dashboard without clearing filters', async ({ page }) 
   });
   await mockWorkforceApi(page, { session: manager });
   await page.goto('/?dashArea=SUNTER_1&basis=REPORTER');
-  await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
+  await expect(statusGrid(page)).toBeVisible();
   await expect.poll(() => metadataRequests).toBeGreaterThan(0);
   const before = metadataRequests;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
   await expect.poll(() => metadataRequests).toBeGreaterThan(before);
   await expect(page).toHaveURL(/dashArea=SUNTER_1/);
   await expect(page).toHaveURL(/basis=REPORTER/);
-  await expect(
-    page
-      .getByRole('group', { name: 'Basis dashboard' })
-      .getByRole('button', { name: 'Voice Tim Saya', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(basisButton(page, 'Voice Tim Saya')).toHaveAttribute('aria-pressed', 'true');
 });
 test('Section Head can switch between own section and department overview', async ({ page }) => {
   await mockWorkforceApi(page, {
@@ -267,7 +297,7 @@ test('Section Head can switch between own section and department overview', asyn
     }),
   });
   await page.goto('/');
-  const total = page.locator('.dashboard-summary__grid');
+  const total = statusGrid(page);
   await expect(total).toHaveAttribute('data-total', '8');
   await page.getByRole('button', { name: 'Seluruh section di department', exact: true }).click();
   await expect(total).toHaveAttribute('data-total', '12');
@@ -285,7 +315,7 @@ test('relative range refresh shares timestamps between aggregate and preview', a
   });
   await mockWorkforceApi(page, { session: manager });
   await page.goto('/?range=30d');
-  await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
+  await expect(statusGrid(page)).toBeVisible();
   await page.clock.runFor(3500);
   await expect.poll(() => bounds.general!.length).toBeGreaterThan(1);
   await expect.poll(() => bounds.preview!.length).toBe(bounds.general!.length);
@@ -319,7 +349,7 @@ test('a delayed wider response cannot replace the restored own scope', async ({ 
     }
   });
   await page.goto('/');
-  const total = page.locator('.dashboard-summary__grid');
+  const total = statusGrid(page);
   await expect(total).toHaveAttribute('data-total', '12');
   await page.getByRole('button', { name: 'Department', exact: true }).click();
   await started;
@@ -335,8 +365,8 @@ test('preview failure does not hide a successful aggregate', async ({ page }) =>
     route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR', message: 'Unavailable' } }),
   );
   await page.goto('/');
-  await expect(page.locator('.dashboard-summary__grid')).toHaveAttribute('data-total', '12');
-  await expect(page.getByText('Inbox gagal dimuat')).toBeVisible();
+  await expect(statusGrid(page)).toHaveAttribute('data-total', '12');
+  await expect(page.getByText('Daftar belum tersedia.')).toBeVisible();
   await expect(page.getByText('Dashboard gagal dimuat')).toHaveCount(0);
 });
 
@@ -401,18 +431,21 @@ test('refreshes selector metadata when a master update changes the default depar
     return route.fulfill({ json: metadata ? fixture.metadata : fixture.view });
   });
   await page.goto('/');
-  await expect(page.locator('.dashboard-org-summary')).toContainText('Production Control');
+  await expect(orgChip(page)).toContainText('Production Control');
   expect(metadataReads).toBe(1);
   moved = true;
   await page.clock.runFor(3500);
-  await expect(page.locator('.dashboard-org-summary')).toContainText('New Department');
+  await expect(orgChip(page)).toContainText('New Department');
   await expect.poll(() => metadataReads).toBe(2);
-  await expect(page.getByRole('combobox', { name: 'Department', exact: true })).toContainText(
-    'New Department',
-  );
+  await orgChip(page).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Filter organisasi' })
+      .getByRole('combobox', { name: 'Department', exact: true }),
+  ).toContainText('New Department');
 });
 
-test('compact performance cards follow server scope targets and use all time by default', async ({
+test('speed card follows server scope targets and the range uses all time by default', async ({
   page,
 }) => {
   await mockWorkforceApi(page, { session: manager });
@@ -420,33 +453,26 @@ test('compact performance cards follow server scope targets and use all time by 
   await expect(page.getByRole('combobox', { name: 'Rentang', exact: true })).toContainText(
     'Semua waktu',
   );
-  await expect(page.getByRole('combobox', { name: 'Direktorat', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('combobox', { name: 'Division', exact: true })).toHaveCount(0);
-  const performance = page.getByRole('region', { name: 'Performa penanganan' });
-  await expect(performance).toContainText('4.00');
-  await expect(performance).toContainText('7.00');
-  await expect(performance).toContainText('3.50');
-  await page.getByRole('button', { name: 'Ubah satuan Average Response Time ke days' }).click();
-  await expect(performance).toContainText('0.17');
-  await expect(
-    page.getByRole('button', { name: 'Ubah satuan Average Completion Time ke days' }),
-  ).toBeVisible();
-  await page.getByRole('combobox', { name: 'Department', exact: true }).click();
+  const speed = page.locator('section[aria-labelledby="ops-speed"]');
+  await expect(speed).toContainText('4.0');
+  await expect(speed).toContainText('jam');
+  await expect(speed).toContainText('7.0');
+  await expect(speed).toContainText('3.5');
+  // Without a comparison window there is no comparison line.
+  await expect(speed.locator('.ops-compare')).toHaveCount(0);
+  const dialog = page.getByRole('dialog', { name: 'Filter organisasi' });
+  await orgChip(page).click();
+  await expect(dialog.getByRole('combobox', { name: 'Direktorat', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('combobox', { name: 'Division', exact: true })).toHaveCount(0);
+  await dialog.getByRole('combobox', { name: 'Department', exact: true }).click();
   await page.getByRole('option', { name: 'Semua department', exact: true }).click();
   await expect(page).toHaveURL(/scopeMode=PARENT/);
-  await expect(page.getByRole('combobox', { name: 'Department', exact: true })).toContainText(
-    'Semua department',
-  );
-  await page.getByRole('combobox', { name: 'Department', exact: true }).click();
+  await dialog.getByRole('combobox', { name: 'Department', exact: true }).click();
   await page.getByRole('option', { name: 'Production Control', exact: true }).click();
   await expect(page).toHaveURL(/scopeMode=OWN/);
-  await expect(performance).toContainText('0.17');
-  await page.getByRole('button', { name: 'Tentang Average Completion Time' }).click();
-  await expect(page.getByRole('dialog')).toContainText('per siklus');
-  await page.getByRole('button', { name: 'Mengerti' }).click();
+  await dialog.getByRole('button', { name: 'Selesai', exact: true }).click();
   await page.getByRole('combobox', { name: 'Rentang', exact: true }).click();
   await expect(page.getByRole('option', { name: '30 hari', exact: true })).toBeVisible();
-  await expect(page.getByRole('option', { name: '90 hari', exact: true })).toBeVisible();
   await page.getByRole('option', { name: '30 hari', exact: true }).click();
   await expect(page).toHaveURL(/range=30d/);
   await clearFilters(page);
@@ -455,13 +481,10 @@ test('compact performance cards follow server scope targets and use all time by 
   );
   for (const width of [360, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(performance).toContainText('0.17');
+    await expect(speed).toContainText('7.0');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    expect(
-      (await new AxeBuilder({ page }).include('.dashboard-performance').analyze()).violations,
-    ).toEqual([]);
   }
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
@@ -475,11 +498,123 @@ test('Group Leader gets the section-scoped responder dashboard and Voice Member'
     }),
   });
   await page.goto('/');
-  await expect(page.locator('.dashboard-summary__grid')).toBeVisible();
-  const basis = page.getByRole('group', { name: 'Basis dashboard' });
-  await expect(
-    basis.getByRole('button', { name: 'Voice Untuk Saya', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(basis.getByRole('button', { name: 'Voice Tim Saya', exact: true })).toBeVisible();
+  await expect(statusGrid(page)).toBeVisible();
+  await expect(basisButton(page, 'Voice Untuk Saya')).toHaveAttribute('aria-pressed', 'true');
+  await expect(basisButton(page, 'Voice Tim Saya')).toBeVisible();
   await expect(page.getByText('Voice Member', { exact: true }).first()).toBeAttached();
+  // Group Leaders do not get the people cards.
+  await expect(page.getByRole('heading', { name: 'Performa Responder' })).toHaveCount(0);
+  await basisButton(page, 'Voice Tim Saya').click();
+  await expect(page.getByRole('heading', { name: 'Sebaran Voice Tim' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Partisipasi Anggota' })).toHaveCount(0);
+});
+
+const handlers = {
+  items: [
+    ['Andi Pratama', 'SECTION_HEAD', 'Assembly 1', 14, 0.93, 0],
+    ['Rina Kusuma', 'SECTION_HEAD', 'Welding', 11, 0.64, 3],
+    ['Siti Rahma', 'GROUP_LEADER', 'Assembly 1 · Line A', 12, 0.92, 0],
+    ['Dedi Saputra', 'GROUP_LEADER', 'Welding · Line B', 9, 0.56, 4],
+  ].map(([name, role, unitLabel, held, onTimeRate, autoEscalated], index) => ({
+    accountId: `00000000-0000-4000-8000-00000000010${index}`,
+    name,
+    role,
+    unitLabel,
+    held,
+    onTimeRate,
+    autoEscalated,
+    averageResponseSeconds: 1800 * (index + 1),
+    overdue: 0,
+    averageRating: 4.5,
+    ratingCount: 3,
+  })),
+};
+const participation = {
+  memberCount: 4,
+  members: [
+    ['Agus Santoso', 7, true],
+    ['Budi Wibowo', 2, true],
+    ['Citra Putri', 0, true],
+    ['Dewi Hartono', 0, false],
+  ].map(([name, voiceCount, activated], index) => ({
+    id: `00000000-0000-4000-8000-00000000020${index}`,
+    name,
+    unitLabel: 'Assembly 1 · Line A',
+    voiceCount,
+    lastSubmittedAt: voiceCount ? '2026-08-28T03:00:00.000Z' : null,
+    activated,
+  })),
+};
+test('Manager sees responder performance with tabs and the Top label', async ({ page }) => {
+  await mockWorkforceApi(page, { session: manager, dashboardHandlers: handlers });
+  await page.goto('/');
+  const card = page.locator('section[aria-labelledby="ops-responders"]');
+  await expect(card.getByRole('heading', { name: 'Performa Responder' })).toBeVisible();
+  const roles = card.getByRole('group', { name: 'Peran responder' });
+  await expect(roles.getByRole('button', { name: /^Section Head/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  const rows = card.locator('.ops-person');
+  await expect(rows.first()).toContainText('Andi Pratama');
+  await expect(rows.first()).toContainText('Top');
+  await expect(rows.nth(1)).toContainText('Naik otomatis');
+  await roles.getByRole('button', { name: /^Group Leader/ }).click();
+  await expect(rows.first()).toContainText('Siti Rahma');
+  await expect(rows).toHaveCount(2);
+  expect((await new AxeBuilder({ page }).include('.ops').analyze()).violations).toEqual([]);
+});
+test('Voice Tim Saya shows participation, top contributor and members who never sent', async ({
+  page,
+}) => {
+  await mockWorkforceApi(page, { session: manager, dashboardParticipation: participation });
+  await page.goto('/?basis=REPORTER');
+  const summary = page.locator('section[aria-labelledby="ops-participation"]');
+  await expect(summary).toContainText('50% aktif');
+  await expect(summary).toContainText('4');
+  const activity = page.locator('section[aria-labelledby="ops-members"]');
+  await expect(activity.locator('.ops-person').first()).toContainText('Agus Santoso');
+  await expect(activity.locator('.ops-person').first()).toContainText('Top Contributor');
+  await activity.getByRole('button', { name: /^Belum kirim/ }).click();
+  await expect(activity).toContainText('1 belum aktivasi');
+  await expect(activity.locator('.ops-person').first()).toContainText('Dewi Hartono');
+  await expect(activity.locator('.ops-person').first()).toContainText('Belum aktivasi');
+});
+test('Butuh Tindakan Saya puts the nearest deadline first and opens the Voice', async ({
+  page,
+}) => {
+  const now = Date.now();
+  const item = (id: string, title: string, hours: number, severity: string) => ({
+    id,
+    displayId: `CARE-${id.slice(-3)}`,
+    visibility: 'GENERAL',
+    area: 'KARAWANG_1',
+    title,
+    category: 'SAFETY',
+    categoryNameSnapshot: 'Safety',
+    severity,
+    status: 'OPEN',
+    updatedAt: new Date(now).toISOString(),
+    tierDueAt: new Date(now + hours * 3_600_000).toISOString(),
+    reporterName: 'Irwan Setiawan',
+    reporterDepartment: 'Production Control',
+  });
+  await mockWorkforceApi(page, {
+    session: manager,
+    voiceList: {
+      items: [
+        item('00000000-0000-4000-8000-000000000301', 'Sensor cold storage berbunyi', 1, 'CRITICAL'),
+        item('00000000-0000-4000-8000-000000000302', 'Lampu jalur forklift redup', -3, 'MEDIUM'),
+      ],
+      nextCursor: null,
+    },
+  });
+  await page.goto('/');
+  const tickets = page.locator('.ops-ticket');
+  await expect(tickets.first()).toContainText('Lampu jalur forklift redup');
+  await expect(tickets.first()).toContainText('Terlambat 3 jam');
+  await expect(tickets.nth(1)).toContainText('Sisa 1 jam');
+  await expect(tickets.nth(1)).toContainText('Dari: Irwan Setiawan · Production Control');
+  await tickets.nth(1).getByRole('button', { name: 'Respons', exact: true }).click();
+  await expect(page).toHaveURL(/\/voices\/00000000-0000-4000-8000-000000000301$/);
 });
