@@ -124,13 +124,11 @@ function LoginPage() {
           <span className="admin-auth__mark" aria-hidden="true">
             <Building2 size={20} />
           </span>
-          <div className="admin-brand" style={{ color: '#fff' }}>
+          <div className="admin-brand">
             CARE <span>Admin</span>
           </div>
         </div>
-        <p className="care-eyebrow" style={{ color: '#7dd3fc' }}>
-          Operasional dan governance
-        </p>
+        <p className="care-eyebrow admin-auth__eyebrow">Operasional dan governance</p>
         <h1>Kelola fondasi CARE dari satu workspace.</h1>
         <p>
           Import organisasi, remediation, akun, route, audit, dan status sistem menggunakan akses
@@ -413,11 +411,11 @@ function AdminShell() {
       topbar={
         <div className="admin-topbar">
           <div className="admin-topbar__context">
-            <strong>Operational workspace</strong>
+            <strong>Workspace operasional</strong>
             <span className="admin-topbar__divider" aria-hidden="true" />
             <Badge tone="success">
               <span className="admin-live-dot" aria-hidden="true" />
-              Session active
+              Sesi aktif
             </Badge>
           </div>
           <div className="admin-topbar__user">

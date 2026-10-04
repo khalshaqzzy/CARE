@@ -22,7 +22,6 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminKpi } from '../../components/AdminKpi';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
-import { AdminSegmentBar } from '../../components/AdminSegmentBar';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi } from '../../admin-api';
 
@@ -43,6 +42,17 @@ type PriorityAction = {
   owner: string;
   to: string;
 };
+
+const IMPORT_STATUS_LABELS: Record<string, string> = {
+  PREVIEWED: 'Siap divalidasi',
+  QUEUED: 'Dalam antrean',
+  PROCESSING: 'Diproses',
+  CONFIRMED: 'Berhasil',
+  FAILED: 'Gagal',
+  EXPIRED: 'Kedaluwarsa',
+};
+
+const importStatusLabel = (status: string) => IMPORT_STATUS_LABELS[status] ?? status;
 
 function formatDateTime(value: string | number | null | undefined) {
   if (value == null) return '-';
@@ -74,8 +84,6 @@ export function OverviewPage() {
   const legacy = data?.accounts.legacy ?? 0;
   const inactive = data?.accounts.inactive ?? 0;
   const totalAccounts = active + legacy + inactive;
-  const activeShare = totalAccounts > 0 ? active / totalAccounts : 0;
-  const pct = Math.round(activeShare * 100);
   const remediation = data?.openRemediation ?? 0;
   const unionSlots = data?.unionSlots ?? 0;
   const latestImport = data?.latestImport ?? null;
@@ -125,7 +133,7 @@ export function OverviewPage() {
     });
   else if (latestImport.status !== 'CONFIRMED')
     priorities.push({
-      title: `Impor terakhir berstatus ${latestImport.status}`,
+      title: `Impor terakhir: ${importStatusLabel(latestImport.status).toLowerCase()}`,
       description: 'Tinjau pratinjau dan konfirmasi batch terbaru.',
       severity: 'Sedang',
       owner: 'Data Operator',
@@ -223,25 +231,29 @@ export function OverviewPage() {
               icon={<Archive size={20} />}
               iconTone="info"
               value={`${unionSlots} / 3`}
-              label="Union slots"
+              label="slot Union"
             />
             <AdminKpi
               icon={<CloudUpload size={20} />}
               iconTone="brand"
-              value={latestImport?.status ?? '-'}
-              label="Latest import"
+              value={latestImport ? importStatusLabel(latestImport.status) : '-'}
+              valueTone={
+                latestImport
+                  ? latestImport.status === 'CONFIRMED'
+                    ? 'success'
+                    : 'warning'
+                  : undefined
+              }
+              label="impor terakhir"
               sub={latestImport ? undefined : 'Belum ada impor'}
             />
             <AdminKpi
               icon={<CheckCircle2 size={20} />}
               iconTone="success"
-              value={readyOk ? 'Ready' : (ready.data?.status ?? '-')}
+              value={readyOk ? 'Siap' : (ready.data?.status ?? '-')}
               valueTone={readyOk ? 'success' : 'warning'}
-              label="Sistem siap"
+              label="status sistem"
             />
-          </div>
-          <div style={{ marginTop: '1rem' }}>
-            <AdminSegmentBar percent={pct} label="Persentase akun aktif" />
           </div>
         </section>
       ) : null}
@@ -251,7 +263,7 @@ export function OverviewPage() {
           <AdminKpi
             icon={<CheckCircle2 size={20} />}
             iconTone="success"
-            value={readyOk ? 'Ready' : (ready.data?.status ?? '-')}
+            value={readyOk ? 'Siap' : (ready.data?.status ?? '-')}
             valueTone={readyOk ? 'success' : 'warning'}
             label="Kesehatan sistem"
             sub="Semua layanan beroperasi normal"
@@ -333,11 +345,8 @@ export function OverviewPage() {
           {latestImport ? (
             <Stack gap="sm">
               <div className="admin-section__head">
-                <strong style={{ color: 'var(--raw-brand-700)', fontSize: '1.25rem' }}>
-                  {latestImport.status}
-                </strong>
                 <Badge tone={latestImport.status === 'CONFIRMED' ? 'success' : 'warning'}>
-                  {latestImport.status === 'CONFIRMED' ? 'Berhasil' : latestImport.status}
+                  {importStatusLabel(latestImport.status)}
                 </Badge>
               </div>
               <p className="admin-meta--xs">
