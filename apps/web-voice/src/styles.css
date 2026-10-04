@@ -5865,15 +5865,18 @@
   gap: 15px;
 }
 .organization-home .chart-card__row {
-  grid-template-columns: minmax(85px, 0.8fr) minmax(50px, 1.5fr) 32px;
+  /* The label column grows to its longest word so names wrap between words, never inside one. */
+  grid-template-columns: minmax(min-content, 0.8fr) minmax(50px, 1.5fr) 32px;
   gap: 14px;
 }
 .organization-home .chart-card__name {
+  min-width: 85px;
   font-size: 13px;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 .organization-home .chart-card__value {
   font-size: 14px;

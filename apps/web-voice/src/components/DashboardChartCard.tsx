@@ -18,9 +18,9 @@ const BUCKET_LABELS: Record<string, string> = {
 };
 
 function barColor(label: string): string {
-  if (label === 'CRITICAL') return 'var(--state-danger)';
-  if (label === 'MEDIUM') return '#f4bd12';
-  if (label === 'HIGH') return 'var(--state-warning)';
+  if (label === 'CRITICAL') return 'var(--chart-severity-critical)';
+  if (label === 'HIGH') return 'var(--chart-severity-high)';
+  if (label === 'MEDIUM') return 'var(--chart-severity-medium)';
   if (label === 'IN_PROGRESS') return 'var(--raw-brand-400)';
   if (label === 'CLOSED') return 'var(--state-success)';
   if (label === 'WORK_DIFFICULTY') return 'var(--action-accent-bg)';

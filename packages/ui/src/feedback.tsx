@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { choreographyTokens, durationTokens, springTokens } from './tokens.js';
 import { Button, IconButton, Surface } from './primitives.js';
 import { cn } from './utils.js';
@@ -130,7 +130,7 @@ export function Progress({
         aria-valuenow={safe}
         aria-label={label}
       >
-        <span style={{ width: `${safe}%` }} />
+        <span style={{ '--care-progress': `${safe}%` } as CSSProperties} />
       </div>
       {description ? <small>{description}</small> : null}
     </div>

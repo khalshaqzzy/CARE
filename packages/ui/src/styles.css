@@ -68,6 +68,16 @@
   --chart-warning: var(--raw-warning);
   --chart-danger: var(--raw-danger);
   --chart-muted: var(--raw-neutral-300);
+  /* Severity ramp for chart marks; each stop keeps ≥3:1 against white (WCAG 1.4.11). */
+  --chart-severity-critical: var(--raw-danger);
+  --chart-severity-high: #e8590c;
+  --chart-severity-medium: #b7791f;
+  --chart-severity-low: var(--raw-brand-600);
+  /* Tinted plates behind state-colored icons, pills, and marks. */
+  --surface-success: #ecfdf5;
+  --surface-warning: #fff7ed;
+  --surface-danger: #fff1f2;
+  --surface-info: var(--raw-brand-50);
 
   --font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
   --font-size-xs: 0.75rem;
@@ -1163,10 +1173,18 @@ select,
   overflow: hidden;
   border-right: 1px solid var(--border-default);
   background: var(--surface-raised);
-  transition: width var(--duration-slow) var(--ease-emphasized);
 }
 .care-sidebar.is-collapsed {
   width: 5rem;
+}
+/* Width snaps (animating it would reflow the whole workspace every frame); the labels fade in instead. */
+.care-sidebar nav button span {
+  animation: care-sidebar-label-in var(--duration-medium) var(--ease-enter);
+}
+@keyframes care-sidebar-label-in {
+  from {
+    opacity: 0;
+  }
 }
 .care-sidebar__header,
 .care-sidebar__footer {
@@ -1359,7 +1377,9 @@ select,
   height: 100%;
   border-radius: inherit;
   background: var(--action-primary-bg);
-  transition: width var(--duration-slow) var(--ease-emphasized);
+  /* Reveal by clipping, not width, so progress updates never trigger layout. */
+  clip-path: inset(0 calc(100% - var(--care-progress, 0%)) 0 0 round var(--radius-pill));
+  transition: clip-path var(--duration-slow) var(--ease-emphasized);
 }
 .care-progress small {
   color: var(--text-secondary);
@@ -1752,7 +1772,8 @@ select,
     scroll-behavior: auto !important;
     animation-duration: var(--duration-instant) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: var(--duration-instant) !important;
+    /* Movement snaps; existing color/opacity transitions keep their timing so state feedback survives. */
+    transition-property: opacity, color, background-color, border-color, outline-color !important;
   }
   .care-skeleton::after {
     display: none;
