@@ -72,6 +72,20 @@ function fields(basis: Query['basis']) {
   return levels.map((level) => `${prefix}${level[0]!.toUpperCase()}${level.slice(1)}Snapshot`);
 }
 const column = (name: string) => Prisma.raw(`v."${name}"`);
+// Trend labels are WIB calendar dates; weeks start on Monday as in date_trunc.
+const jakartaDay = (at: Date) => new Date(at.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
+function trendBucket(day: string, grain: 'day' | 'week' | 'month') {
+  const at = new Date(`${day}T00:00:00Z`);
+  if (grain === 'week') at.setUTCDate(at.getUTCDate() - ((at.getUTCDay() + 6) % 7));
+  if (grain === 'month') at.setUTCDate(1);
+  return at.toISOString().slice(0, 10);
+}
+function nextBucket(day: string, grain: 'day' | 'week' | 'month') {
+  const at = new Date(`${day}T00:00:00Z`);
+  if (grain === 'month') at.setUTCMonth(at.getUTCMonth() + 1);
+  else at.setUTCDate(at.getUTCDate() + (grain === 'week' ? 7 : 1));
+  return at.toISOString().slice(0, 10);
+}
 // Input to this serializer is exclusively the server-built scalar predicate below.
 export function dashboardSql(where: Prisma.VoiceWhereInput): Prisma.Sql {
   const result: Prisma.Sql[] = [];
@@ -128,8 +142,15 @@ export function dashboardSql(where: Prisma.VoiceWhereInput): Prisma.Sql {
 export class OrganizationDashboard {
   constructor(private readonly db: PrismaService | Prisma.TransactionClient) {}
 
-  /** `scopeOnly` resolves the Voice filter without loading category metadata. */
-  async context(actor: AuthActor, input: DashboardQuery = {}, scopeOnly = false) {
+  /**
+   * `catalog` skips the scan for custom category names (the aggregate resolves
+   * the ones present in its cohort); `scope` also skips the category catalog.
+   */
+  async context(
+    actor: AuthActor,
+    input: DashboardQuery = {},
+    load: 'all' | 'catalog' | 'scope' = 'all',
+  ) {
     const q = parse(input);
     const caps = actor.capabilities;
     const union = caps.includes('UNION_HEAD') || caps.includes('UNION_OFFICER');
@@ -387,7 +408,7 @@ export class OrganizationDashboard {
       ],
     };
     const categories =
-      q.visibility === 'GENERAL' && !scopeOnly
+      q.visibility === 'GENERAL' && load !== 'scope'
         ? await this.db.generalVoiceCategory.findMany({
             select: {
               key: true,
@@ -397,7 +418,7 @@ export class OrganizationDashboard {
           })
         : [];
     const customCategories =
-      q.visibility === 'GENERAL' && !scopeOnly
+      q.visibility === 'GENERAL' && load === 'all'
         ? await this.db.voice.findMany({
             where: { AND: [...clauses, { currentCategoryKey: { startsWith: 'ADMIN_CUSTOM_' } }] },
             distinct: ['currentCategoryKey'],
@@ -529,8 +550,25 @@ export class OrganizationDashboard {
   // left Terbuka or a deadline passed); it is late when a deadline moved it up
   // automatically or its handling target was missed. `overdue` counts Voices
   // still open past the deadline that applies to them. Both are skipped
-  // (zero) without `ops`, for views that do not show them.
-  private async performanceFor(sql: Prisma.Sql, { ops = false, overdue = false } = {}) {
+  // (zero) without `ops`, for views that do not show them. `metrics` groups
+  // the same materialized cohort (carrying `columns`) instead of rescanning Voice.
+  private async performanceFor(
+    sql: Prisma.Sql,
+    {
+      ops = false,
+      overdue = false,
+      metrics,
+      columns = [],
+      other,
+    }: {
+      ops?: boolean;
+      overdue?: boolean;
+      metrics?: Prisma.Sql;
+      columns?: string[];
+      other?: Prisma.Sql;
+    } = {},
+  ) {
+    const extra = [...new Set(columns)].map((name) => Prisma.sql`, ${column(name)}`);
     const operations = ops
       ? Prisma.sql`count(*) FILTER (WHERE "submittedAt" >= (SELECT t FROM bound)) AS "openedToday",
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM flags WHERE proceeded)) AS "proceededToday",
@@ -561,11 +599,16 @@ export class OrganizationDashboard {
           onTimeTotal: bigint;
           onTime: bigint;
           overdue: bigint;
+          metrics: Array<{ kind: string; label: string | null; value: number | bigint }> | null;
+          otherTotal: bigint | null;
         }>
       >(Prisma.sql`
-      WITH cohort AS MATERIALIZED (
+      WITH base AS MATERIALIZED (
         SELECT v.id, v."submittedAt", v."handlingOrganizationSource", v.status, v."tierDueAt",
-          v."handlingCycleNumber" FROM "Voice" v WHERE ${sql}),
+          v."handlingCycleNumber" ${extra.length ? Prisma.join(extra, '') : Prisma.empty},
+          ${other ? Prisma.sql`COALESCE((${sql}), false) AS mine, COALESCE((${other}), false) AS theirs` : Prisma.sql`true AS mine, false AS theirs`}
+        FROM "Voice" v WHERE ${other ? Prisma.sql`(${sql}) OR (${other})` : sql}),
+      cohort AS NOT MATERIALIZED (SELECT * FROM base WHERE mine),
       bound AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta') AS t),
       responses AS (
         SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted
@@ -588,7 +631,11 @@ export class OrganizationDashboard {
         LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
           AND previous."cycleNumber" = c."cycleNumber" - 1
       )
-      SELECT summary.*, response.*, completion.* FROM (
+      SELECT summary.*, response.*, completion.*, ${
+        other ? Prisma.sql`(SELECT count(*) FROM base WHERE theirs)` : Prisma.sql`NULL::bigint`
+      } AS "otherTotal", ${
+        metrics ? Prisma.sql`(SELECT json_agg(m) FROM (${metrics}) m)` : Prisma.sql`NULL::json`
+      } AS metrics FROM (
         SELECT count(*) AS total, min("submittedAt") AS first, max("submittedAt") AS last,
           count(*) FILTER (WHERE "handlingOrganizationSource" = 'UNKNOWN') AS missing,
           ${operations},
@@ -622,7 +669,7 @@ export class OrganizationDashboard {
   }
 
   private async aggregateSnapshot(actor: AuthActor, input: DashboardQuery) {
-    const c = await this.context(actor, input);
+    const c = await this.context(actor, input, 'catalog');
     const { q, where, col, level } = c;
     const sql = dashboardSql(where);
     const general = q.visibility === 'GENERAL';
@@ -631,20 +678,6 @@ export class OrganizationDashboard {
     const ops = general && !c.global;
     // Where a unit's incoming Voices come from; only meaningful on the handling basis.
     const origins = ops && q.basis === 'HANDLING';
-    const performanceRow = await this.performanceFor(sql, {
-      ops,
-      overdue: ops && q.basis === 'REPORTER',
-    });
-    const summary = performanceRow;
-    const performance = {
-      averageResponseSeconds: performanceRow.averageResponseSeconds,
-      averageCompletionSeconds: performanceRow.averageCompletionSeconds,
-      averageFeedbackScore: performanceRow.averageFeedbackScore,
-      responseSampleCount: Number(performanceRow.responseSampleCount),
-      completionSampleCount: Number(performanceRow.completionSampleCount),
-      feedbackSampleCount: Number(performanceRow.feedbackSampleCount),
-    };
-    const total = Number(summary.total);
     const orgN = levels.indexOf(level) + 1;
     // Group native scalar keys first; serialize one label per resulting bucket,
     // rather than allocating and hashing a JSON string for every Voice.
@@ -658,19 +691,44 @@ export class OrganizationDashboard {
                 ? Prisma.sql`COALESCE(v."handlingSectionSnapshot", CASE WHEN v."handlerType" = 'SECTION_HEAD' THEN '__UNKNOWN_SECTION__' END)`
                 : column(name),
             );
-    const from = q.from ? new Date(q.from) : summary.first;
-    const to = q.to ? new Date(q.to) : summary.last;
-    const days = from && to ? (to.getTime() - from.getTime()) / 86400000 : 0;
-    const grain = days > 730 ? 'month' : days > 100 ? 'week' : 'day';
-    // The trend groups in the same scan; GROUPING() needs the literal expression.
-    const trendKey = Prisma.sql`date_trunc('${Prisma.raw(grain)}', v."submittedAt" AT TIME ZONE 'Asia/Jakarta')`;
     const groupExpr =
       q.visibility === 'PRIVATE'
         ? Prisma.sql`v."currentHandlerId"::text`
         : Prisma.sql`jsonb_build_array(${Prisma.join(orgColumns)})::text`;
-    const metrics = await this.db.$queryRaw<
-      Array<{ kind: string; label: string | null; value: bigint }>
-    >(Prisma.sql`
+    // The basis switcher shows both totals; scope rules of the other basis apply,
+    // and its count rides on the same Voice scan.
+    let other: Prisma.Sql | undefined;
+    let otherUnavailable = false;
+    if (ops) {
+      try {
+        other = dashboardSql(
+          (
+            await this.context(
+              actor,
+              {
+                ...input,
+                basis: q.basis === 'HANDLING' ? 'REPORTER' : 'HANDLING',
+                level: undefined,
+                scopeMode: undefined,
+                directorate: undefined,
+                division: undefined,
+                department: undefined,
+                section: undefined,
+              },
+              'scope',
+            )
+          ).where,
+        );
+      } catch {
+        otherUnavailable = true;
+      }
+    }
+    // Unit scopes group the shared materialized cohort; organization-wide views
+    // group straight from Voice, which is cheaper than copying most of it.
+    const wide = c.global || actor.capabilities.includes('DIVISION_LEADERSHIP');
+    // Daily trend buckets; weeks and months roll up below once the range is known.
+    const day = Prisma.sql`date_trunc('day', v."submittedAt" AT TIME ZONE 'Asia/Jakarta')`;
+    const grouped = Prisma.sql`
       SELECT
         CASE
           WHEN GROUPING(v.status) = 0 THEN 'status'
@@ -678,7 +736,7 @@ export class OrganizationDashboard {
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN 'category'
           WHEN GROUPING(${orgColumns[0]!}) = 0 THEN 'organization'
           ${origins ? Prisma.sql`WHEN GROUPING(v."reporterDepartmentSnapshot") = 0 THEN 'origin'` : Prisma.empty}
-          WHEN GROUPING(${trendKey}) = 0 THEN 'trend'
+          WHEN GROUPING(${day}) = 0 THEN 'trend'
           ELSE 'area'
         END AS kind,
         CASE
@@ -687,18 +745,57 @@ export class OrganizationDashboard {
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN COALESCE(v."currentCategoryKey", v."categoryKey")
           WHEN GROUPING(${orgColumns[0]!}) = 0 THEN ${groupExpr}
           ${origins ? Prisma.sql`WHEN GROUPING(v."reporterDepartmentSnapshot") = 0 THEN v."reporterDepartmentSnapshot"` : Prisma.empty}
-          WHEN GROUPING(${trendKey}) = 0 THEN to_char(${trendKey}, 'YYYY-MM-DD')
+          WHEN GROUPING(${day}) = 0 THEN to_char(${day}, 'YYYY-MM-DD')
           ELSE v.area::text
         END AS label,
         count(*) AS value
-      FROM "Voice" v WHERE ${sql}
+      FROM ${wide ? Prisma.sql`"Voice" v WHERE ${sql}` : Prisma.sql`cohort v`}
       GROUP BY GROUPING SETS (
         (v.status), (v.severity),
         (COALESCE(v."currentCategoryKey", v."categoryKey")),
-        (${Prisma.join(orgColumns)}), (v.area)
+        (${Prisma.join(orgColumns)}), (v.area), (${day})
         ${origins ? Prisma.sql`, (v."reporterDepartmentSnapshot")` : Prisma.empty}
-        , (${trendKey})
-      )`);
+      )`;
+    const summary = await this.performanceFor(sql, {
+      ops,
+      other,
+      overdue: ops && q.basis === 'REPORTER',
+      columns: wide
+        ? []
+        : [
+            'severity',
+            'currentCategoryKey',
+            'categoryKey',
+            'area',
+            ...(q.visibility === 'PRIVATE'
+              ? ['currentHandlerId']
+              : orgN === 4 && q.basis === 'HANDLING'
+                ? [...col.slice(0, 3), 'handlingSectionSnapshot', 'handlerType']
+                : col.slice(0, orgN)),
+            ...(origins ? ['reporterDepartmentSnapshot'] : []),
+          ],
+      metrics: wide ? undefined : grouped,
+    });
+    const metrics =
+      summary.metrics ??
+      (wide
+        ? await this.db.$queryRaw<
+            Array<{ kind: string; label: string | null; value: number | bigint }>
+          >(grouped)
+        : []);
+    const performance = {
+      averageResponseSeconds: summary.averageResponseSeconds,
+      averageCompletionSeconds: summary.averageCompletionSeconds,
+      averageFeedbackScore: summary.averageFeedbackScore,
+      responseSampleCount: Number(summary.responseSampleCount),
+      completionSampleCount: Number(summary.completionSampleCount),
+      feedbackSampleCount: Number(summary.feedbackSampleCount),
+    };
+    const total = Number(summary.total);
+    const from = q.from ? new Date(q.from) : summary.first;
+    const to = q.to ? new Date(q.to) : summary.last;
+    const days = from && to ? (to.getTime() - from.getTime()) / 86400000 : 0;
+    const grain = days > 730 ? 'month' : days > 100 ? 'week' : 'day';
     const get = (kind: string): DashboardBucket[] =>
       count(metrics.filter((m) => m.kind === kind))
         .map((m) => ({
@@ -707,6 +804,24 @@ export class OrganizationDashboard {
         }))
         .sort((a, b) => a.label.localeCompare(b.label));
     const names = new Map(c.metadata.categories.map((cat) => [cat.id, cat.label]));
+    // Custom category names are snapshots on the Voices that carry them.
+    const custom = metrics
+      .filter((m) => m.kind === 'category' && m.label?.startsWith('ADMIN_CUSTOM_'))
+      .map((m) => m.label!)
+      .filter((key) => !names.has(key));
+    const customCategories = custom.length
+      ? (
+          await this.db.voice.findMany({
+            where: { AND: [where, { currentCategoryKey: { in: custom } }] },
+            distinct: ['currentCategoryKey'],
+            select: { currentCategoryKey: true, currentCategoryNameSnapshot: true },
+          })
+        ).map((v) => ({
+          id: v.currentCategoryKey!,
+          label: v.currentCategoryNameSnapshot ?? 'Kategori khusus',
+        }))
+      : [];
+    for (const cat of customCategories) names.set(cat.id, cat.label);
     const category = get('category').map((b) => ({
       ...b,
       key: b.label,
@@ -748,18 +863,20 @@ export class OrganizationDashboard {
     const organization = [...merged.values()].sort(
       (a, b) => b.value - a.value || a.label.localeCompare(b.label),
     );
-    const perBucket = new Map(
-      metrics.filter((m) => m.kind === 'trend').map((m) => [m.label, Number(m.value)]),
-    );
-    const trend: DashboardBucket[] =
-      !from || !to
-        ? []
-        : (
-            await this.db.$queryRaw<Array<{ label: string }>>(Prisma.sql`
-      SELECT to_char(d.day, 'YYYY-MM-DD') AS label
-      FROM generate_series(date_trunc(${grain}, ${from}::timestamptz AT TIME ZONE 'Asia/Jakarta'), date_trunc(${grain}, ${to}::timestamptz AT TIME ZONE 'Asia/Jakarta'), ('1 ' || ${grain})::interval) d(day)
-      ORDER BY d.day`)
-          ).map(({ label }) => ({ label, value: perBucket.get(label) ?? 0 }));
+    const perBucket = new Map<string, number>();
+    for (const m of metrics)
+      if (m.kind === 'trend') {
+        const bucket = trendBucket(m.label!, grain);
+        perBucket.set(bucket, (perBucket.get(bucket) ?? 0) + Number(m.value));
+      }
+    const trend: DashboardBucket[] = [];
+    if (from && to)
+      for (
+        let at = trendBucket(jakartaDay(from), grain), end = trendBucket(jakartaDay(to), grain);
+        at <= end;
+        at = nextBucket(at, grain)
+      )
+        trend.push({ label: at, value: perBucket.get(at) ?? 0 });
     let previousTotal: number | null = null;
     let previousPerformance: {
       averageResponseSeconds: number | null;
@@ -794,34 +911,12 @@ export class OrganizationDashboard {
           metrics
             .filter((m) => m.kind === 'origin')
             .map((m) => ({ label: m.label!, value: m.value }))
-            .sort((a, b) => Number(b.value - a.value) || a.label.localeCompare(b.label))
+            .sort((a, b) => Number(b.value) - Number(a.value) || a.label.localeCompare(b.label))
             .slice(0, 5),
         )
       : undefined;
     const teamOverdue = ops && q.basis === 'REPORTER' ? Number(summary.overdue) : undefined;
-    // The basis switcher shows both totals; scope rules of the other basis apply.
-    let otherBasisTotal: number | null | undefined;
-    if (ops) {
-      try {
-        const other = await this.context(
-          actor,
-          {
-            ...input,
-            basis: q.basis === 'HANDLING' ? 'REPORTER' : 'HANDLING',
-            level: undefined,
-            scopeMode: undefined,
-            directorate: undefined,
-            division: undefined,
-            department: undefined,
-            section: undefined,
-          },
-          true,
-        );
-        otherBasisTotal = await this.db.voice.count({ where: other.where });
-      } catch {
-        otherBasisTotal = null;
-      }
-    }
+    const otherBasisTotal = !ops ? undefined : otherUnavailable ? null : Number(summary.otherTotal);
     const missing =
       q.visibility === 'GENERAL' && q.basis === 'HANDLING' ? Number(summary.missing) : null;
     const pendingAssignment =
@@ -830,6 +925,7 @@ export class OrganizationDashboard {
         : undefined;
     return {
       ...c.metadata,
+      categories: [...c.metadata.categories, ...customCategories],
       total,
       performance,
       status: get('status'),

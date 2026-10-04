@@ -84,11 +84,11 @@ export class DashboardPeople {
    */
   async handlers(actor: AuthActor, input: DashboardQuery) {
     const { roles, sectionOnly } = viewer(actor);
-    const context = await new OrganizationDashboard(this.db).context(actor, {
-      ...input,
-      basis: 'HANDLING',
-      visibility: 'GENERAL',
-    });
+    const context = await new OrganizationDashboard(this.db).context(
+      actor,
+      { ...input, basis: 'HANDLING', visibility: 'GENERAL' },
+      'scope',
+    );
     const members = await membersInScope(this.db, actor, context.metadata.selected, sectionOnly);
     const people = new Map<
       string,
@@ -221,11 +221,11 @@ export class DashboardPeople {
    */
   async participation(actor: AuthActor, input: DashboardQuery) {
     const { sectionOnly } = viewer(actor);
-    const context = await new OrganizationDashboard(this.db).context(actor, {
-      ...input,
-      basis: 'REPORTER',
-      visibility: 'GENERAL',
-    });
+    const context = await new OrganizationDashboard(this.db).context(
+      actor,
+      { ...input, basis: 'REPORTER', visibility: 'GENERAL' },
+      'scope',
+    );
     const members = await membersInScope(this.db, actor, context.metadata.selected, sectionOnly);
     const unique = new Map<string, (typeof members)[number]>();
     for (const m of members)

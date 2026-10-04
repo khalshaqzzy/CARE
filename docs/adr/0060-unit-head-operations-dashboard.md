@@ -78,12 +78,16 @@ A labelled dock removes guesswork about icon meaning, a recurring issue for occa
 ## Consequences
 
 - Unit-head Home no longer shows the KPI card row, the separate chart cards, the Inbox section, Aksi cepat, or the personal Voice section. Their content moved into the operations cards, the Voice saya line, and the dock.
-- The aggregate cost stays close to its previous level:
-  - Today counts, timeliness, and team overdue are computed in the existing performance query over the same cohort.
-  - Origins and the trend are grouping sets of the metrics query, so the separate trend scan is gone.
-  - The Director and Union views skip all of these figures.
-  - The unit-head view adds one other-basis count, plus the previous-period performance when a range is set.
-  - The first version issued these as separate queries and failed the hosted 50k-Voice gate (p95 3.7 s).
+- The aggregate costs less than before. The first version issued the new figures as separate queries and failed the hosted 50k-Voice gate (p95 3.7 s against 3 s). It was restructured:
+  - **One Voice scan.** It reads the unit's scope and the other basis together; the other-basis total is counted from that same set.
+  - **Shared summary pass.** Today counts, timeliness, and team overdue are computed in the existing performance summary pass.
+  - **Grouping sets.** The breakdown buckets, origins, and the daily trend are grouping sets.
+    - Unit scopes group the shared cohort.
+    - Organization-wide views (Director, Union, Division leadership) group straight from Voice.
+    - Weeks and months roll up from days in code, so the separate trend query is gone.
+  - **Custom category names.** These are resolved only for the custom keys present in the cohort, instead of scanning every scoped Voice on each poll.
+  - **Director and Union.** These views skip the operations figures.
+  - **Previous-period performance.** This remains an extra query when a range is set.
 - Shared Default PIC or Section Head constellations that do not appear as leaders in the active snapshot are not listed as people rows.
 - Mobile notifications are reached from Home only.
 

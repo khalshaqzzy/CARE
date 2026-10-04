@@ -56,14 +56,13 @@
 
 - **Typecheck:** a union-typed preview item in `dashboard-people.integration.test.ts`. Fixed.
 - **Organization dashboard performance gate:** p95 3.7 s against a 3 s limit. The new figures ran as six extra sequential queries.
-  - Today counts, timeliness, and team overdue now come from the existing performance query, through hashed per-row checks.
-  - Origins and the trend are grouping sets of the metrics query.
-  - The other-basis scope skips category metadata.
-  - Director and Union skip these figures.
-- **Local relative check:** the gate test at 10 concurrent requests (the laptop cannot sustain 50) measured:
-  - staging: 2.64–2.68 s;
-  - first push: 3.09–3.17 s;
-  - fix: 2.74–2.85 s.
+- **Second run:** p95 3.46 s; staging's own run measures 2.91 s on the hosted runner. A 10-way concurrent local check had understated the gap. The sequential per-request cost ratio matches the hosted ratio, so measure with that.
+- **Final structure** (see ADR-0060 Consequences):
+  - One Voice scan carries both bases.
+  - Summary, today, timeliness, and grouping sets run over the shared cohort; organization-wide scopes group from Voice.
+  - The trend rolls up from days.
+  - Custom category names are looked up lazily.
+- **Local sequential medians** (gate actor mix, 50k fixture): staging 172–181 ms, this branch 156–161 ms.
 
 **Next action:** confirm the hosted performance gate on the PR.
 
