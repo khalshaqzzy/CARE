@@ -282,8 +282,8 @@ describe('Dashboard people: handling performance and member participation', () =
     await voice({ status: 'OPEN', tierDueAt: new Date(now.getTime() - hour) });
 
     const handling = await dashboard.aggregate(manager, { basis: 'HANDLING' });
-    expect(handling.statusToday.find((b) => b.label === 'OPEN')?.value).toBe(3);
-    expect(handling.statusToday.find((b) => b.label === 'RESPONDED')?.value).toBe(1);
+    expect(handling.statusToday?.find((b) => b.label === 'OPEN')?.value).toBe(3);
+    expect(handling.statusToday?.find((b) => b.label === 'RESPONDED')?.value).toBe(1);
     expect(handling.onTime).toEqual({ onTime: 1, total: 2 });
     expect(handling.reporterOrigins?.[0]).toMatchObject({ label: 'GA & SHE', value: 3 });
     expect(handling.reporterOrigins?.find((b) => b.label === 'Logistics')?.value).toBe(1);
@@ -321,10 +321,10 @@ describe('Dashboard people: handling performance and member participation', () =
       'Tanpa batas',
     ]);
     expect(preview.items[0]).toMatchObject({
+      tierDueAt: new Date(now + hour).toISOString(),
       reporterName: 'Rina Member',
       reporterDepartment: 'GA & SHE',
     });
-    expect(preview.items[0]!.tierDueAt).toBe(new Date(now + hour).toISOString());
     expect('reporterAlias' in preview.items[0]!).toBe(false);
   });
 });

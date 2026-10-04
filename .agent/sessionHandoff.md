@@ -52,7 +52,20 @@
 - Root cause of the earlier pnpm "Worker exited with code 1" crashes: the corepack pnpm 11.8.0 download was missing `dist/worker.js`. Re-downloading fixed installs.
 - Rule going forward: never `rmdir /s` a tree containing junctions.
 
-**Next action:** confirm hosted checks on the PR, especially the performance gate, since the aggregate now runs extra queries.
+**First hosted run (PR #70):** two checks failed.
+
+- **Typecheck:** a union-typed preview item in `dashboard-people.integration.test.ts`. Fixed.
+- **Organization dashboard performance gate:** p95 3.7 s against a 3 s limit. The new figures ran as six extra sequential queries.
+  - Today counts, timeliness, and team overdue now come from the existing performance query, through hashed per-row checks.
+  - Origins and the trend are grouping sets of the metrics query.
+  - The other-basis scope skips category metadata.
+  - Director and Union skip these figures.
+- **Local relative check:** the gate test at 10 concurrent requests (the laptop cannot sustain 50) measured:
+  - staging: 2.64–2.68 s;
+  - first push: 3.09–3.17 s;
+  - fix: 2.74–2.85 s.
+
+**Next action:** confirm the hosted performance gate on the PR.
 
 ## Several leaders share a tier level — 3 October 2026
 

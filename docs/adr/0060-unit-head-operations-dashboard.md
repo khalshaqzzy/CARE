@@ -78,7 +78,12 @@ A labelled dock removes guesswork about icon meaning, a recurring issue for occa
 ## Consequences
 
 - Unit-head Home no longer shows the KPI card row, the separate chart cards, the Inbox section, Aksi cepat, or the personal Voice section. Their content moved into the operations cards, the Voice saya line, and the dock.
-- The aggregate runs additional queries per poll: today counts, timeliness, origins or team overdue, the other-basis count, and the previous-period performance when a range is set. Hosted performance gates remain the authority for latency.
+- The aggregate cost stays close to its previous level:
+  - Today counts, timeliness, and team overdue are computed in the existing performance query over the same cohort.
+  - Origins and the trend are grouping sets of the metrics query, so the separate trend scan is gone.
+  - The Director and Union views skip all of these figures.
+  - The unit-head view adds one other-basis count, plus the previous-period performance when a range is set.
+  - The first version issued these as separate queries and failed the hosted 50k-Voice gate (p95 3.7 s).
 - Shared Default PIC or Section Head constellations that do not appear as leaders in the active snapshot are not listed as people rows.
 - Mobile notifications are reached from Home only.
 
