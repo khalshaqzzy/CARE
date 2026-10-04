@@ -19,7 +19,10 @@ test('renders the Member home hero and recent voice card', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible();
   // Create Voice is reachable only from the navigation dock.
-  await expect(page.getByRole('button', { name: /Buat Voice/ })).toHaveCount(0);
+  // Create lives in the labelled dock only, never in the page content.
+  await expect(
+    page.locator('.care-app-shell__content').getByRole('button', { name: /Buat Voice/ }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('button', { name: 'Buat' }),
   ).toBeVisible();

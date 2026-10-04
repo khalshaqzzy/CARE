@@ -60,6 +60,8 @@ function parts(id: string): string[] {
   }
   throw badRequest('INVALID_ORGANIZATION', 'Pilihan organisasi tidak valid');
 }
+/** Decode an opaque organization identifier into its directorate → section path. */
+export const decodeOrganization = (id: string) => parts(id);
 function parse(input: unknown): Query {
   const result = dashboardQuerySchema.safeParse(input);
   if (!result.success) throw badRequest('INVALID_DASHBOARD_FILTER', 'Filter dashboard tidak valid');
@@ -518,14 +520,11 @@ export class OrganizationDashboard {
     );
   }
 
-  private async aggregateSnapshot(actor: AuthActor, input: DashboardQuery) {
-    const c = await this.context(actor, input);
-    const { q, where, col, level } = c;
-    const sql = dashboardSql(where);
-    // Aggregate response samples separately. The closure predecessor and rating
-    // joins are at most one-to-one under their unique constraints, so unrated
-    // closures and ratings with incomplete timestamps keep independent counts.
-    const performanceRow = (
+  // Aggregate response samples separately. The closure predecessor and rating
+  // joins are at most one-to-one under their unique constraints, so unrated
+  // closures and ratings with incomplete timestamps keep independent counts.
+  private async performanceFor(sql: Prisma.Sql) {
+    return (
       await this.db.$queryRaw<
         Array<{
           total: bigint;
@@ -569,6 +568,57 @@ export class OrganizationDashboard {
       ) completion
     `)
     )[0]!;
+  }
+
+  /** Voices of the cohort that entered each lifecycle state today (WIB). */
+  private async statusToday(sql: Prisma.Sql): Promise<DashboardBucket[]> {
+    const rows = await this.db.$queryRaw<Array<{ label: string; value: bigint }>>(Prisma.sql`
+      WITH cohort AS MATERIALIZED (SELECT v.id, v."submittedAt" FROM "Voice" v WHERE ${sql}),
+      bound AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta') AS t)
+      SELECT 'OPEN' AS label, count(*) AS value FROM cohort c, bound WHERE c."submittedAt" >= bound.t
+      UNION ALL
+      SELECT 'RESPONDED', count(DISTINCT e."voiceId") FROM cohort c
+        JOIN "VoiceEvent" e ON e."voiceId" = c.id, bound
+        WHERE e.type::text IN ('RESPONDED', 'MONITORED') AND e."occurredAt" >= bound.t
+      UNION ALL
+      SELECT 'IN_PROGRESS', count(DISTINCT e."voiceId") FROM cohort c
+        JOIN "VoiceEvent" e ON e."voiceId" = c.id, bound
+        WHERE e.type::text = 'PROCEEDED' AND e."occurredAt" >= bound.t
+      UNION ALL
+      SELECT 'CLOSED', count(DISTINCT cc."voiceId") FROM cohort c
+        JOIN "ClosureCycle" cc ON cc."voiceId" = c.id, bound
+        WHERE cc."closedAt" >= bound.t`);
+    return count(rows);
+  }
+
+  /**
+   * Timeliness against the tier and target deadlines that actually applied:
+   * a Voice counts once someone owed it an answer (it left Terbuka or a
+   * deadline passed); it is late when a deadline moved it up automatically or
+   * its handling target was missed.
+   */
+  private async onTime(sql: Prisma.Sql) {
+    const row = (
+      await this.db.$queryRaw<Array<{ total: bigint; onTime: bigint }>>(Prisma.sql`
+      WITH cohort AS MATERIALIZED (SELECT v.id, v.status FROM "Voice" v WHERE ${sql}),
+      missed AS (
+        SELECT DISTINCT e."voiceId" FROM cohort c JOIN "VoiceEvent" e ON e."voiceId" = c.id
+        WHERE (e.type::text = 'ESCALATED' AND e.payload->>'automatic' = 'true')
+          OR e.type::text = 'TARGET_OVERDUE'
+      )
+      SELECT count(*) AS total,
+        count(*) FILTER (WHERE c.id NOT IN (SELECT "voiceId" FROM missed)) AS "onTime"
+      FROM cohort c
+      WHERE c.status <> 'OPEN' OR c.id IN (SELECT "voiceId" FROM missed)`)
+    )[0]!;
+    return { onTime: Number(row.onTime), total: Number(row.total) };
+  }
+
+  private async aggregateSnapshot(actor: AuthActor, input: DashboardQuery) {
+    const c = await this.context(actor, input);
+    const { q, where, col, level } = c;
+    const sql = dashboardSql(where);
+    const performanceRow = await this.performanceFor(sql);
     const summary = performanceRow;
     const performance = {
       averageResponseSeconds: performanceRow.averageResponseSeconds,
@@ -685,14 +735,66 @@ export class OrganizationDashboard {
       LEFT JOIN counts c ON c.day = d.day ORDER BY d.day`),
           );
     let previousTotal: number | null = null;
+    let previousPerformance: {
+      averageResponseSeconds: number | null;
+      averageCompletionSeconds: number | null;
+    } | null = null;
     if (q.from && q.to) {
       const end = new Date(q.from);
       const duration = new Date(q.to).getTime() - end.getTime() + 1;
-      previousTotal = await this.db.voice.count({
-        where: {
-          AND: [c.undated, { submittedAt: { gte: new Date(end.getTime() - duration), lt: end } }],
-        },
-      });
+      const previousWhere: Prisma.VoiceWhereInput = {
+        AND: [c.undated, { submittedAt: { gte: new Date(end.getTime() - duration), lt: end } }],
+      };
+      previousTotal = await this.db.voice.count({ where: previousWhere });
+      const before = await this.performanceFor(dashboardSql(previousWhere));
+      previousPerformance = {
+        averageResponseSeconds: before.averageResponseSeconds,
+        averageCompletionSeconds: before.averageCompletionSeconds,
+      };
+    }
+    const general = q.visibility === 'GENERAL';
+    const statusToday = await this.statusToday(sql);
+    const onTime = general ? await this.onTime(sql) : null;
+    // Where a unit's incoming Voices come from; only meaningful on the handling basis.
+    const reporterOrigins =
+      general && q.basis === 'HANDLING'
+        ? count(
+            await this.db.$queryRaw<Array<{ label: string; value: bigint }>>(Prisma.sql`
+          SELECT v."reporterDepartmentSnapshot" AS label, count(*) AS value FROM "Voice" v
+          WHERE ${sql} GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 5`),
+          )
+        : undefined;
+    // Team Voices still open past the deadline that applies to them.
+    const teamOverdue =
+      general && q.basis === 'REPORTER'
+        ? Number(
+            (
+              await this.db.$queryRaw<Array<{ value: bigint }>>(Prisma.sql`
+          SELECT count(*) AS value FROM "Voice" v WHERE ${sql} AND v.status <> 'CLOSED' AND (
+            v."tierDueAt" < now() OR (v.status = 'IN_PROGRESS' AND EXISTS (
+              SELECT 1 FROM "VoiceHandlingTarget" t WHERE t."voiceId" = v.id
+                AND t."cycleNumber" = v."handlingCycleNumber" AND t."dueAt" < now())))`)
+            )[0]!.value,
+          )
+        : undefined;
+    // The basis switcher shows both totals; scope rules of the other basis apply.
+    let otherBasisTotal: number | null | undefined;
+    if (general && !c.global) {
+      try {
+        const other = await this.context(actor, {
+          ...input,
+          basis: q.basis === 'HANDLING' ? 'REPORTER' : 'HANDLING',
+          level: undefined,
+          scopeMode: undefined,
+          directorate: undefined,
+          division: undefined,
+          department: undefined,
+          section: undefined,
+        });
+        otherBasisTotal = await this.db.voice.count({ where: other.where });
+      } catch {
+        otherBasisTotal = null;
+      }
     }
     const missing =
       q.visibility === 'GENERAL' && q.basis === 'HANDLING' ? Number(summary.missing) : null;
@@ -711,6 +813,12 @@ export class OrganizationDashboard {
       trend,
       area: get('area'),
       previousTotal,
+      previousPerformance,
+      statusToday,
+      ...(onTime ? { onTime } : {}),
+      ...(reporterOrigins ? { reporterOrigins } : {}),
+      ...(teamOverdue !== undefined ? { teamOverdue } : {}),
+      ...(otherBasisTotal !== undefined ? { otherBasisTotal } : {}),
       trendGrain: grain,
       pendingAssignment,
       handlingUnresolved: missing,

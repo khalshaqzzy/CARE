@@ -1,0 +1,341 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T00:00:00Z",
+  "title": "Design System: CARE Operations Board",
+  "extensions": {
+    "scope": "Operations world under the .ops class: unit-head Home (Group Leader to Deputy/Division Head), Voice Saya summary card, labelled bottom navigation for every workforce role. Director/Union blue hero, Voice detail, and create flow are the incumbent @care/ui system and out of scope.",
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Slate Ink",
+        "cssVar": "--ops-ink",
+        "tonalRamp": [
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#475569",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f8fafc"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "cssVar": "--ops-ink-2",
+        "tonalRamp": [
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#475569",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f8fafc"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Faint Slate",
+        "cssVar": "--ops-ink-3",
+        "tonalRamp": [
+          "#1b222c",
+          "#2c3542",
+          "#3e4958",
+          "#556275",
+          "#76829a",
+          "#9aa4b5",
+          "#c9cfd9",
+          "#eef1f5"
+        ]
+      },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "cssVar": "--ops-line" },
+      "hairline-soft": {
+        "role": "neutral",
+        "displayName": "Soft Hairline",
+        "cssVar": "--ops-line-soft"
+      },
+      "tile": { "role": "neutral", "displayName": "Tile Slate", "cssVar": "--ops-tile" },
+      "track": { "role": "neutral", "displayName": "Track Slate" },
+      "card": { "role": "neutral", "displayName": "Card White" },
+      "accent": {
+        "role": "primary",
+        "displayName": "Operations Blue",
+        "cssVar": "--ops-accent",
+        "tonalRamp": [
+          "#1e3a8a",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Soft Blue",
+        "cssVar": "--ops-accent-soft"
+      },
+      "accent-ink": { "role": "primary", "displayName": "Deep Blue", "cssVar": "--ops-accent-ink" },
+      "accent-border": { "role": "primary", "displayName": "Blue Border" },
+      "alert": {
+        "role": "signal",
+        "displayName": "Overdue Rose",
+        "cssVar": "--ops-alert",
+        "tonalRamp": [
+          "#881337",
+          "#be123c",
+          "#e11d48",
+          "#f43f5e",
+          "#fb7185",
+          "#fda4af",
+          "#fecdd3",
+          "#fff1f2"
+        ]
+      },
+      "alert-soft": { "role": "signal", "displayName": "Soft Rose", "cssVar": "--ops-alert-soft" },
+      "alert-ink": { "role": "signal", "displayName": "Deep Rose" },
+      "alert-border": { "role": "signal", "displayName": "Rose Border" },
+      "good": {
+        "role": "signal",
+        "displayName": "Done Green",
+        "cssVar": "--ops-good",
+        "tonalRamp": [
+          "#064e3b",
+          "#047857",
+          "#059669",
+          "#10b981",
+          "#34d399",
+          "#6ee7b7",
+          "#a7f3d0",
+          "#ecfdf5"
+        ]
+      },
+      "warning": {
+        "role": "signal",
+        "displayName": "Amber",
+        "tonalRamp": [
+          "#78350f",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fcd34d",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "warning-soft": { "role": "signal", "displayName": "Soft Amber" },
+      "warning-ink": { "role": "signal", "displayName": "Deep Amber" },
+      "warning-border": { "role": "signal", "displayName": "Amber Border" },
+      "status-open": {
+        "role": "status",
+        "displayName": "Terbuka",
+        "cssVar": "--ops-status [data-status=OPEN]"
+      },
+      "status-responded": {
+        "role": "status",
+        "displayName": "Direspons",
+        "cssVar": "--ops-status [data-status=RESPONDED]"
+      },
+      "status-in-progress": {
+        "role": "status",
+        "displayName": "Diproses",
+        "cssVar": "--ops-status [data-status=IN_PROGRESS]",
+        "tonalRamp": [
+          "#164e63",
+          "#0e7490",
+          "#0891b2",
+          "#06b6d4",
+          "#22d3ee",
+          "#67e8f9",
+          "#a5f3fc",
+          "#ecfeff"
+        ]
+      },
+      "status-closed": {
+        "role": "status",
+        "displayName": "Selesai",
+        "cssVar": "--ops-status [data-status=CLOSED]"
+      },
+      "severity-low": { "role": "status", "displayName": "Rendah" }
+    },
+    "typographyMeta": {
+      "figure-lg": {
+        "displayName": "Figure large",
+        "purpose": "Speed metrics and participation total."
+      },
+      "figure-md": {
+        "displayName": "Figure medium",
+        "purpose": "Status tile counts (18px in the compact Voice Saya card)."
+      },
+      "figure-sm": {
+        "displayName": "Figure small",
+        "purpose": "Category, severity, and secondary stat counts (15-18px)."
+      },
+      "headline": { "displayName": "Headline", "purpose": "Person's name in the profile card." },
+      "title": { "displayName": "Title", "purpose": "Card headings and the tickets heading." },
+      "ticket-title": { "displayName": "Ticket title", "purpose": "Action ticket Voice title." },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Names, strip text, rows; tabular numerals board-wide."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Metric labels, filter chips, block subheads, text buttons."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Status labels, units, comparisons, axis ticks, nav labels (10-11.5px)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-rest",
+        "value": "0 1px 2px rgb(15 23 42 / 4%), 0 4px 14px rgb(15 23 42 / 3%)",
+        "purpose": "Every operations card."
+      },
+      {
+        "name": "segment-selected",
+        "value": "0 1px 3px rgb(15 23 42 / 10%)",
+        "purpose": "Selected option in a segmented control."
+      },
+      {
+        "name": "bottom-nav",
+        "value": "0 -4px 18px rgb(15 23 42 / 5%)",
+        "purpose": "Fixed labelled bottom navigation."
+      },
+      {
+        "name": "create-raised",
+        "value": "0 6px 14px rgb(37 99 235 / 32%)",
+        "purpose": "Raised Buat Voice button in the bottom nav."
+      },
+      {
+        "name": "tile-pressed",
+        "value": "inset 0 0 0 1px #2563eb",
+        "purpose": "Pressed status tile in the Voice Saya summary."
+      }
+    ],
+    "motion": [
+      {
+        "name": "segment-switch",
+        "value": "160ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Background and colour change on segmented options; disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      { "name": "two-column", "value": "768px" },
+      { "name": "desktop-shell", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White hairline card with title and count chip; the board's only raised surface.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-head\"><h2>Status Voice</h2><span class=\"ds-chip\">Total 12</span></div><div class=\"ds-tiles\"><div class=\"ds-tile\"><span>Terbuka</span><strong class=\"ds-open\">6</strong></div><div class=\"ds-tile\"><span>Selesai</span><strong>3</strong></div></div></section>",
+      "css": ".ds-card { display: grid; gap: 12px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 4px 14px rgb(15 23 42 / 3%); font-family: 'Inter Variable', sans-serif; font-variant-numeric: tabular-nums; } .ds-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; } .ds-card-head h2 { margin: 0; font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; } .ds-chip { padding: 2px 9px; border: 1px solid #e2e8f0; border-radius: 999px; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 600; } .ds-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .ds-tile { display: grid; justify-items: center; gap: 2px; padding: 9px 4px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; } .ds-tile span { color: #475569; font-size: 11px; font-weight: 550; } .ds-tile strong { font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif; font-size: 22px; font-weight: 700; line-height: 1.15; } .ds-open { color: #e11d48; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "nav",
+      "refersTo": "segmented",
+      "description": "Basis switcher with live counts; selected option turns white and its count turns solid blue.",
+      "html": "<div class=\"ds-seg\"><button aria-pressed=\"true\">Voice Untuk Saya <span class=\"ds-count\">12</span></button><button aria-pressed=\"false\">Voice Tim Saya <span class=\"ds-count\">9</span></button></div>",
+      "css": ".ds-seg { display: flex; gap: 3px; padding: 3px; border-radius: 9px; background: #f1f5f9; font-family: 'Inter Variable', sans-serif; } .ds-seg button { display: inline-flex; flex: 1 1 0; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 6px 8px; border: 0; border-radius: 7px; background: transparent; color: #475569; font: inherit; font-size: 13px; font-weight: 550; cursor: pointer; transition: background 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-seg button:hover { color: #0f172a; } .ds-seg button[aria-pressed='true'] { background: #fff; color: #0f172a; font-weight: 650; box-shadow: 0 1px 3px rgb(15 23 42 / 10%); } .ds-seg button:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; } .ds-count { min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 700; } .ds-seg button[aria-pressed='true'] .ds-count { background: #2563eb; color: #fff; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "32px filter control; active filters take the soft-blue pair.",
+      "html": "<div class=\"ds-filters\"><button class=\"ds-filter\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/></svg>Semua area</button><button class=\"ds-filter ds-filter-active\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg>30 hari</button></div>",
+      "css": ".ds-filters { display: flex; gap: 6px; font-family: 'Inter Variable', sans-serif; } .ds-filter { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 10px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f8fafc; color: #0f172a; font: inherit; font-size: 12px; font-weight: 550; cursor: pointer; } .ds-filter svg { color: #556275; } .ds-filter:hover { border-color: #cbd5e1; } .ds-filter:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; } .ds-filter-active { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; } .ds-filter-active svg { color: #2563eb; }"
+    },
+    {
+      "name": "Action Ticket",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Deadline-first ticket: severity and category pills, the applicable deadline right-aligned, title, origin, full-width CTA.",
+      "html": "<article class=\"ds-ticket\"><div class=\"ds-ticket-chips\"><span class=\"ds-pill ds-pill-critical\"><i></i>Kritis</span><span class=\"ds-pill\">Safety</span><span class=\"ds-due ds-due-urgent\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>Sisa 1 jam</span></div><h3>Sensor suhu cold storage terus berbunyi</h3><p>Dari: Irwan Setiawan · Production Control</p><button class=\"ds-cta\">Respons</button></article>",
+      "css": ".ds-ticket { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 4px 14px rgb(15 23 42 / 3%); font-family: 'Inter Variable', sans-serif; } .ds-ticket-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .ds-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: 1px solid #e2e8f0; border-radius: 999px; background: #f8fafc; color: #475569; font-size: 11.5px; font-weight: 600; } .ds-pill i { width: 6px; height: 6px; border-radius: 50%; background: #e11d48; } .ds-pill-critical { border-color: #fecdd3; background: #fff1f2; color: #be123c; } .ds-due { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: #475569; font-size: 12px; font-weight: 650; } .ds-due-urgent { color: #e11d48; } .ds-ticket h3 { margin: 0; font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif; font-size: 14.5px; font-weight: 700; line-height: 1.35; } .ds-ticket p { margin: 0; color: #556275; font-size: 12px; } .ds-cta { margin-top: auto; min-height: 38px; border: 0; border-radius: 8px; background: #0866ff; color: #fff; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; } .ds-cta:hover { filter: brightness(0.94); } .ds-cta:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Person Tile",
+      "kind": "card",
+      "refersTo": "tile",
+      "description": "Responder or member with initials avatar, role caption, and a four-figure row on a hairline.",
+      "html": "<div class=\"ds-person\"><span class=\"ds-avatar\">AP</span><span class=\"ds-who\"><strong>Andi Pratama</strong><small>Section Head · Assembly 1</small></span><div class=\"ds-figs\"><span><strong>14</strong><small>Voice</small></span><span><strong>30 mnt</strong><small>Respons</small></span><span><strong>93%</strong><small>Tepat waktu</small></span><span class=\"ds-miss\"><strong>3</strong><small>Naik otomatis</small></span></div></div>",
+      "css": ".ds-person { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #0f172a; font-family: 'Inter Variable', sans-serif; font-variant-numeric: tabular-nums; } .ds-avatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 8px; background: #0f172a; color: #fff; font-family: 'Plus Jakarta Sans Variable', sans-serif; font-size: 12px; font-weight: 700; } .ds-who { display: grid; gap: 1px; } .ds-who strong { font-size: 13px; font-weight: 650; } .ds-who small { color: #556275; font-size: 11.5px; } .ds-figs { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 8px; border-top: 1px solid #e2e8f0; } .ds-figs > span { display: grid; justify-items: center; text-align: center; } .ds-figs > span + span { border-left: 1px solid #eef2f7; } .ds-figs strong { font-size: 13px; font-weight: 700; } .ds-figs small { color: #556275; font-size: 10px; } .ds-miss strong { color: #e11d48; }"
+    },
+    {
+      "name": "Alert Strip",
+      "kind": "custom",
+      "refersTo": "alert-strip",
+      "description": "One-line rose strip for overdue team Voices with an underlined action.",
+      "html": "<div class=\"ds-strip\" role=\"status\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"/><path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"/></svg><span>2 Voice tim lewat batas waktu</span><button>Lihat</button></div>",
+      "css": ".ds-strip { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #fecdd3; border-radius: 10px; background: #fff1f2; color: #881337; font-family: 'Inter Variable', sans-serif; font-size: 13px; font-weight: 600; } .ds-strip svg { flex-shrink: 0; color: #e11d48; } .ds-strip span { flex: 1; } .ds-strip button { border: 0; background: none; color: #be123c; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; } .ds-strip button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Labelled Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "bottom-nav-item",
+      "description": "Five labelled items for every workforce role below 1280px; current page in blue, Buat Voice raised.",
+      "html": "<nav class=\"ds-bnav\"><button aria-current=\"page\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span>Home</span></button><button><span class=\"ds-create\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></span><span>Buat Voice</span></button><button><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-2.82-1.17l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3 15H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.17-2.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.09a2 2 0 1 1 0 4H21a1.65 1.65 0 0 0-1.6 2z\"/></svg><span>Pengaturan</span></button></nav>",
+      "css": ".ds-bnav { display: flex; align-items: end; padding: 6px 4px; border-top: 1px solid #e2e8f0; background: rgb(255 255 255 / 96%); box-shadow: 0 -4px 18px rgb(15 23 42 / 5%); font-family: 'Inter Variable', sans-serif; } .ds-bnav button { display: grid; flex: 1; justify-items: center; gap: 3px; min-height: 50px; padding: 4px 2px; border: 0; background: none; color: #64748b; cursor: pointer; } .ds-bnav button > span:last-child { font-size: 11px; font-weight: 550; line-height: 1.1; white-space: nowrap; } .ds-bnav button:hover { color: #0f172a; } .ds-bnav button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; } .ds-bnav button[aria-current='page'] { color: #2563eb; } .ds-bnav button[aria-current='page'] > span:last-child { font-weight: 700; } .ds-create { display: grid; width: 44px; height: 44px; margin-top: -18px; place-items: center; border-radius: 50%; background: #2563eb; color: #fff; box-shadow: 0 6px 14px rgb(37 99 235 / 32%); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Shift Board",
+    "overview": "A calm white operations board read between shifts on a phone and in reviews on a laptop. White hairline cards sit on the app's neutral canvas; inside them, tinted tiles carry the figures. Everything is quiet slate except one blue for selection and progress, rose for what is late or still open, and green for what got done. The deadline that applies is always the loudest thing on a ticket.\n\nDensity is high but legible: 12-13px Inter labels, Plus Jakarta Sans figures and headings, tabular numerals throughout, and copy kept to short labels. The board refuses the marketing hero and the chart wall; the only chart is one thin trend line inside the status card.",
+    "keyCharacteristics": [
+      "White cards (10px) with hairline slate borders and a barely-there two-layer shadow.",
+      "Tinted slate tiles (8px) hold every figure; pills (999px) hold every count and tag.",
+      "One blue accent; rose, amber, and green appear only as status, severity, or deadline signals.",
+      "Plus Jakarta Sans for headings and figures, Inter for everything else, tabular numerals on the whole board.",
+      "Lucide line icons at 14-17px, coloured faint slate or accent."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "Blue means selected, in progress, or tappable. It is never decoration and never a second brand gradient.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal Means Something Rule",
+        "body": "Rose, amber, and green appear only when bound to a status, severity, deadline, or comparison. A \"+N hari ini\" on a tile other than Selesai stays muted slate.",
+        "section": "colors"
+      },
+      {
+        "name": "The Figures In Jakarta Rule",
+        "body": "Every number a head reads as a result is set in Plus Jakarta Sans 700 with tabular numerals; supporting text stays in Inter.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Surface Per Card Rule",
+        "body": "A card holds tiles, but a tile never holds another bordered box; figures inside a person tile sit on a hairline, not a nested panel.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put every figure in a tinted tile (8px) inside a white hairline card (10px); keep one surface level per card.",
+      "Do keep blue for selection, progress, links, and focus only; bind rose, amber, and green to status, severity, deadline, or comparison.",
+      "Do set figures in Plus Jakarta Sans 700 with tabular numerals and give each a short Inter unit or caption.",
+      "Do show the applicable deadline on every action ticket, rose when urgent or late.",
+      "Do read status colours from the `data-status` mapping rather than hard-coding new hues.",
+      "Do label every bottom-nav item and keep the reading order Status, Kecepatan, Sebaran, people, tickets on phones."
+    ],
+    "donts": [
+      "Don't add an uppercase tracked label above a heading; the only uppercase line in this world is the role under the person's name in the profile card.",
+      "Don't introduce SLA targets, invented benchmarks, or a chart wall; the single trend line in the status card is the chart budget.",
+      "Don't nest a bordered box inside a tile or a card inside a card.",
+      "Don't colour a \"+N\" gain green on any tile but Selesai.",
+      "Don't load fonts from a third-party host; both faces are self-hosted (CSP `font-src 'self'`).",
+      "Don't apply these tokens to the Director/Union blue hero, Voice detail, or create flow; those remain the incumbent system."
+    ]
+  }
+}

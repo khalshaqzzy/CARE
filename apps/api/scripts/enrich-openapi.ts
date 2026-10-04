@@ -195,6 +195,8 @@ const queryParameters: Record<string, string[]> = {
   VoicesController_dashboardPrivate: dashboardParameters,
   VoicesController_dashboardMetadata: dashboardParameters,
   VoicesController_dashboardPreview: dashboardParameters,
+  VoicesController_dashboardHandlers: dashboardParameters,
+  VoicesController_dashboardParticipation: dashboardParameters,
   VoicesController_timeline: ['cursor', 'limit', 'order'],
   VoicesController_messages: ['cursor', 'limit', 'order'],
   VoicesController_myHandovers: ['cursor', 'limit', 'search'],
@@ -313,6 +315,10 @@ function successSchema(operationId: string) {
     return { $ref: '#/components/schemas/DashboardMetadata' };
   if (operationId === 'VoicesController_dashboardPreview')
     return { $ref: '#/components/schemas/VoiceListResponse' };
+  if (operationId === 'VoicesController_dashboardHandlers')
+    return { $ref: '#/components/schemas/DashboardHandlers' };
+  if (operationId === 'VoicesController_dashboardParticipation')
+    return { $ref: '#/components/schemas/DashboardParticipation' };
   if (operationId === 'VoicesController_dashboardMember')
     return { $ref: '#/components/schemas/MemberDashboard' };
   if (operationId === 'VoicesController_listDrafts')
@@ -2807,6 +2813,11 @@ const schemas: Record<string, any> = {
       closureReviewDeadline: { type: 'string', format: 'date-time', nullable: true },
       // The live handling target has passed while the Voice is still Diproses.
       targetOverdue: { type: 'boolean' },
+      // Dashboard preview of General Voices only: end of the current tier
+      // holder's window and the reporter shown to authorized responders.
+      tierDueAt: { type: 'string', format: 'date-time', nullable: true },
+      reporterName: { type: 'string', nullable: true },
+      reporterDepartment: { type: 'string', nullable: true },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },

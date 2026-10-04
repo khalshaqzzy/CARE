@@ -1,6 +1,14 @@
 import { Button, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Flag, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import {
+  ChevronRight,
+  ClipboardList,
+  Flag,
+  MapPin,
+  Search,
+  SlidersHorizontal,
+  Star,
+} from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { HistoryVoiceCard } from '../../components/HistoryVoiceCard';
 import { Pager } from '../../components/Pager';
@@ -44,6 +52,13 @@ export function HistoryPage() {
     setSearchParams(params);
   };
 
+  // The member dashboard already counts the reporter's own Voices by status.
+  const summary = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'member'),
+    queryFn: () => api.dashboardMember(),
+    staleTime: 15000,
+  });
+
   const items = voices.data?.items ?? [];
   const nextCursor = voices.data?.nextCursor ?? null;
   const hasFilters = Boolean(search || status || severity || area);
@@ -51,9 +66,62 @@ export function HistoryPage() {
   return (
     <Stack gap="lg">
       <header className="page-intro">
-        <p className="care-eyebrow">Voice Saya</p>
-        <h1>Voice milik Anda</h1>
+        <h1>Voice Saya</h1>
       </header>
+
+      <div className="ops ops--inline">
+        <section className="ops-card" aria-labelledby="mine-summary">
+          <div className="ops-card__head">
+            <h2 id="mine-summary">Ringkasan</h2>
+            {summary.data ? <span className="ops-chip">Total {summary.data.total}</span> : null}
+          </div>
+          {summary.data ? (
+            <>
+              <div className="ops-status" role="group" aria-label="Saring menurut status">
+                {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((key) => (
+                  <button
+                    type="button"
+                    key={key}
+                    className="ops-tile ops-status__tile ops-status__tile--button"
+                    data-status={key}
+                    aria-pressed={status === key}
+                    onClick={() => setParam('status', status === key ? undefined : key)}
+                  >
+                    <span className="ops-status__label">{STATUS_LABELS[key]}</span>
+                    <strong>{summary.data.counts[key]}</strong>
+                  </button>
+                ))}
+              </div>
+              {summary.data.total > 0 ? (
+                <div className="ops-stack" aria-hidden="true">
+                  {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((key) => (
+                    <span
+                      key={key}
+                      data-status={key}
+                      style={{ width: `${(summary.data.counts[key] / summary.data.total) * 100}%` }}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {summary.data.closedPendingReview ? (
+                <button
+                  type="button"
+                  className="ops-strip ops-strip--button"
+                  onClick={() => setParam('status', 'CLOSED')}
+                >
+                  <Star size={16} aria-hidden="true" />
+                  <span>{summary.data.closedPendingReview} Voice menunggu rating Anda</span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              ) : null}
+            </>
+          ) : summary.isError ? (
+            <p className="ops-empty">Ringkasan belum tersedia.</p>
+          ) : (
+            <Skeleton label="Memuat ringkasan Voice Saya" />
+          )}
+        </section>
+      </div>
 
       <div className="history-toolbar">
         <Input

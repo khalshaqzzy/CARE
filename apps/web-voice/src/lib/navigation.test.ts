@@ -8,14 +8,14 @@ const labels = (capabilities: string[], desktop = false): string[] => {
 };
 
 describe('capability-to-navigation mapping', () => {
-  it('gives a Member the four-item mobile dock and direct desktop destinations', () => {
-    expect(labels(['MEMBER'])).toEqual(['Beranda', 'Buat', 'Voice Saya', 'Lainnya']);
+  it('gives a Member the labelled four-item mobile dock and direct desktop destinations', () => {
+    expect(labels(['MEMBER'])).toEqual(['Home', 'Buat Voice', 'Voice Saya', 'Pengaturan']);
     expect(labels(['MEMBER'], true)).toEqual([
-      'Beranda',
-      'Buat',
+      'Home',
+      'Buat Voice',
       'Voice Saya',
       'Notifikasi',
-      'Akun',
+      'Pengaturan',
     ]);
   });
 
@@ -23,16 +23,22 @@ describe('capability-to-navigation mapping', () => {
     'adds Voice Member for %s',
     (capability) => {
       expect(labels(['MEMBER', capability])).toEqual([
-        'Beranda',
+        'Home',
         'Voice Member',
-        'Buat',
+        'Buat Voice',
         'Voice Saya',
-        'Lainnya',
+        'Pengaturan',
       ]);
     },
   );
 
   it('preserves the Union navigation contract', () => {
-    expect(labels(['UNION_HEAD'])).toEqual(['Beranda', 'Private', 'General', 'Notifikasi', 'Akun']);
+    expect(labels(['UNION_HEAD'])).toEqual([
+      'Home',
+      'Private',
+      'General',
+      'Notifikasi',
+      'Pengaturan',
+    ]);
   });
 });

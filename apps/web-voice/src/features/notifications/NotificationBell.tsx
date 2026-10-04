@@ -22,14 +22,6 @@ export function useUnreadNotificationCount(): number {
   return unread.data?.count ?? 0;
 }
 
-/** Small "N belum dibaca" note beside a Notifikasi label; hidden when all are read. */
-export function UnreadCountNote() {
-  const count = useUnreadNotificationCount();
-  return count > 0 ? (
-    <span className="unread-note">{count > 99 ? '99+' : count} belum dibaca</span>
-  ) : null;
-}
-
 /** Hero bell with a highlighted unread count. */
 export function NotificationBellButton() {
   const navigate = useNavigate();

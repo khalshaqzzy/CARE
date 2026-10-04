@@ -965,6 +965,9 @@ export type MockApiOptions = {
   memberDashboard?: unknown;
   generalDashboard?: unknown;
   privateDashboard?: unknown;
+  /** Unit-head people cards; empty lists unless a test supplies them. */
+  dashboardHandlers?: unknown;
+  dashboardParticipation?: unknown;
   draft?: unknown;
   draftPreview?: unknown;
   classification?: unknown;
@@ -1264,6 +1267,10 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         },
       );
     }
+    if (method === 'GET' && path === '/api/v1/dashboard/handlers')
+      return satisfy(200, opts.dashboardHandlers ?? { items: [] });
+    if (method === 'GET' && path === '/api/v1/dashboard/participation')
+      return satisfy(200, opts.dashboardParticipation ?? { memberCount: 0, members: [] });
     if (method === 'GET' && path === '/api/v1/dashboard/metadata')
       return satisfy(200, dashboardFixture(session, url).metadata);
     if (method === 'GET' && path === '/api/v1/dashboard/preview')

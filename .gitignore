@@ -33,3 +33,6 @@ __pycache__/
 
 /all-captures/
 /all-blob-reports/
+
+# Impeccable design-review captures (local evidence only)
+apps/web-voice/.impeccable/review/

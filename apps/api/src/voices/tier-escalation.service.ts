@@ -102,6 +102,12 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
     }
     const unique = (ids: string[]) => [...new Set(ids)];
     const previous = voice.tierHolderIds;
+    // Who missed the window, for handling performance: a holder away on leave
+    // is represented by the substitute acting for them at that moment.
+    const substitutes = await activeSubstitutes(tx, previous, now);
+    const previousHolders = unique(
+      previous.map((holderId) => substitutes.get(holderId) ?? holderId),
+    );
     const unanswered = voice.status === VoiceStatus.OPEN;
     // Received answered (manual Naikkan / handover) and not processed.
     const handedUp = !unanswered && !voice.tierHolderResponded && !voice.currentHandlerId;
@@ -159,6 +165,7 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
           from,
           to: step.level,
           holders: step.accountIds,
+          previousHolders,
           automatic: true,
           mode: unanswered ? 'UNANSWERED' : handedUp ? 'HANDED_UP' : 'JOINED',
           system: true,
@@ -246,6 +253,9 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       where: { id: voice.currentHandlerId },
       select: { id: true, accountKind: true },
     });
+    const substitute = (await activeSubstitutes(tx, [voice.currentHandlerId], now)).get(
+      voice.currentHandlerId,
+    );
     await tx.voiceEvent.create({
       data: {
         voiceId: voice.id,
@@ -258,6 +268,7 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
           from: 'ASSIGNEE',
           to: TierLevel.MANAGER,
           holders: [voice.routeOwnerId],
+          previousHolders: [substitute ?? voice.currentHandlerId],
           automatic: true,
           mode: 'ASSIGNMENT_MISSED',
           system: true,

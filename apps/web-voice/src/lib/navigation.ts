@@ -4,8 +4,8 @@ export type NavigationItem = {
 };
 
 const workforceCore: NavigationItem[] = [
-  { id: 'home', label: 'Beranda' },
-  { id: 'create', label: 'Buat' },
+  { id: 'home', label: 'Home' },
+  { id: 'create', label: 'Buat Voice' },
   { id: 'history', label: 'Voice Saya' },
 ];
 
@@ -18,11 +18,11 @@ export function navigationForCapabilities(
   );
   if (isUnion)
     return [
-      { id: 'home', label: 'Beranda' },
+      { id: 'home', label: 'Home' },
       { id: 'private', label: 'Private' },
       { id: 'general', label: 'General' },
       { id: 'notifications', label: 'Notifikasi' },
-      { id: 'account', label: 'Akun' },
+      { id: 'account', label: 'Pengaturan' },
     ];
 
   const monitorsMembers = capabilities.some((capability) =>
@@ -36,7 +36,12 @@ export function navigationForCapabilities(
     workforceCore[1]!,
     workforceCore[2]!,
   ];
+  // Every tab carries its label; notifications live behind the Home bell on mobile.
   return desktop
-    ? [...items, { id: 'notifications', label: 'Notifikasi' }, { id: 'account', label: 'Akun' }]
-    : [...items, { id: 'more', label: 'Lainnya' }];
+    ? [
+        ...items,
+        { id: 'notifications', label: 'Notifikasi' },
+        { id: 'account', label: 'Pengaturan' },
+      ]
+    : [...items, { id: 'account', label: 'Pengaturan' }];
 }

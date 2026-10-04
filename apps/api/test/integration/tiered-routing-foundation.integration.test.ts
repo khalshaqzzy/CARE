@@ -760,9 +760,15 @@ describe('Tiered routing foundation', () => {
       tierObserverIds: [groupLeader.accountId],
       tierDueKind: 'RESPOND',
     });
-    expect(await prisma.voiceEvent.count({ where: { voiceId: open.id, type: 'ESCALATED' } })).toBe(
-      1,
-    );
+    const escalated = await prisma.voiceEvent.findMany({
+      where: { voiceId: open.id, type: 'ESCALATED' },
+    });
+    expect(escalated).toHaveLength(1);
+    // Handling performance attributes the missed window to whoever held it.
+    expect(escalated[0]!.payload).toMatchObject({
+      automatic: true,
+      previousHolders: [groupLeader.accountId],
+    });
     expect(
       (
         await prisma.notification.findMany({
@@ -774,6 +780,28 @@ describe('Tiered routing foundation', () => {
         .sort(),
     ).toEqual([groupLeader.accountId, sectionHead.accountId].sort());
     expect(await worker.tick()).toBe(0);
+
+    // A holder on leave is represented by the substitute acting for them.
+    const covered = await submitAs('700004', 'auto-covered');
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+    const leave = await prisma.awayPeriod.create({
+      data: {
+        accountId: groupLeader.accountId,
+        substituteId: sectionHead.accountId,
+        startsOn: new Date(today.getTime() - 86_400_000),
+        endsOn: new Date(today.getTime() + 86_400_000),
+      },
+    });
+    await expire(covered.id);
+    await worker.tick();
+    expect(
+      (
+        await prisma.voiceEvent.findFirstOrThrow({
+          where: { voiceId: covered.id, type: 'ESCALATED' },
+        })
+      ).payload,
+    ).toMatchObject({ previousHolders: [sectionHead.accountId] });
+    await prisma.awayPeriod.delete({ where: { id: leave.id } });
 
     // 2. Raised by hand and not processed: up again, stays Direspons, chat note.
     const raised = await submitAs('700004', 'auto-raised');

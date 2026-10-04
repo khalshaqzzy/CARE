@@ -34,6 +34,7 @@ import {
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import { DashboardPerformance } from './DashboardPerformance';
+import { OpsDashboard } from './OpsDashboard';
 import { PersonalVoiceSection } from './PersonalVoiceSection';
 
 const orgLevels = ['directorate', 'division', 'department', 'section'] as const;
@@ -87,6 +88,12 @@ export function DashboardHome() {
   const isPrivate = union && params.get('dashboardTab') !== 'general';
   // Director and Union already see every Voice, so only unit heads choose a basis.
   const basisChoice = !union && !caps.includes('DIRECTOR');
+  // Section Head and above see who handles and who reports; Group Leaders do not.
+  const peopleInsights =
+    basisChoice &&
+    (caps.includes('SECTION_HEAD') ||
+      caps.includes('MANAGER') ||
+      caps.includes('DIVISION_LEADERSHIP'));
   const prefix = isPrivate ? 'private.' : '';
   const read = (key: string) => params.get(`${prefix}${key}`) ?? undefined;
   const range = (read('range') ?? 'all') as DashboardRange;
@@ -263,28 +270,198 @@ export function DashboardHome() {
     if (!query.status) p.set('statusGroup', 'ACTIVE');
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
-  // Sits directly above the summary because the basis changes every figure on the page.
-  const basisToggle = basisChoice ? (
-    <div className="dashboard-basis-bar">
-      <div className="dashboard-basis" role="group" aria-label="Basis dashboard">
-        {[
-          { id: 'HANDLING', label: 'Voice Untuk Saya' },
-          { id: 'REPORTER', label: 'Voice Tim Saya' },
-        ].map((b) => (
-          <button
-            type="button"
-            key={b.id}
-            aria-pressed={query.basis === b.id}
-            onClick={() =>
-              set({ ...clearOrg, basis: b.id, level: undefined, scopeMode: undefined })
-            }
-          >
-            {b.label}
-          </button>
-        ))}
+  const filterRow = (
+    <FilterPillRow
+      primary={[
+        {
+          id: 'dashArea',
+          label: 'Semua area',
+          icon: <MapPin size={18} />,
+          value: read('dashArea') ?? '',
+          onValueChange: (v) => set({ dashArea: v || undefined }),
+          options: [
+            { value: '', label: 'Semua area' },
+            ...Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label })),
+          ],
+        },
+        {
+          id: 'range',
+          label: 'Rentang',
+          icon: <CalendarDays size={18} />,
+          value: range,
+          onValueChange: (v) =>
+            set({
+              range: v,
+              ...(v === 'custom' ? {} : { dashFrom: undefined, dashTo: undefined }),
+            }),
+          options: rangeOptions,
+        },
+      ]}
+      secondary={[
+        ...(!isPrivate
+          ? [
+              {
+                id: 'dashCategory',
+                label: 'Kategori',
+                value: read('dashCategory') ?? '',
+                onValueChange: (v: string) => set({ dashCategory: v || undefined }),
+                options: [
+                  { value: '', label: 'Semua kategori' },
+                  ...(meta?.categories.map((c) => ({
+                    value: c.id,
+                    label: formatCategoryName(c.id, c.label) ?? c.label,
+                  })) ?? []),
+                ],
+              },
+            ]
+          : []),
+        {
+          id: 'dashSeverity',
+          label: 'Severity',
+          value: read('dashSeverity') ?? '',
+          onValueChange: (v) => set({ dashSeverity: v || undefined }),
+          options: [
+            { value: '', label: 'Semua severity' },
+            ...Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label })),
+          ],
+        },
+        {
+          id: 'dashStatus',
+          label: 'Status',
+          value: read('dashStatus') ?? '',
+          onValueChange: (v) => set({ dashStatus: v || undefined }),
+          options: [
+            { value: '', label: 'Semua status' },
+            ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+          ],
+        },
+      ]}
+      onClear={reset}
+      customContent={
+        range === 'custom' ? (
+          <div className="filter-pills__dates">
+            <Input
+              label="Dari tanggal"
+              type="date"
+              value={from ?? ''}
+              onChange={(e) => set({ dashFrom: e.target.value })}
+            />
+            <Input
+              label="Sampai tanggal"
+              type="date"
+              value={to ?? ''}
+              onChange={(e) => set({ dashTo: e.target.value })}
+            />
+          </div>
+        ) : undefined
+      }
+    />
+  );
+  const organizationDialog = (
+    <Dialog
+      open={organizationOpen}
+      onOpenChange={setOrganizationOpen}
+      title="Filter organisasi"
+      description="Pilih cakupan organisasi untuk seluruh ringkasan dan grafik."
+      mobileSheet
+    >
+      <div className="dashboard-org-selects dashboard-org-selects--sheet">
+        <Building2 size={19} aria-hidden="true" />
+        {organizationSelects()}
       </div>
-    </div>
-  ) : null;
+      <div className="dialog-actions">
+        <Button onClick={() => setOrganizationOpen(false)}>Selesai</Button>
+      </div>
+    </Dialog>
+  );
+  if (basisChoice) {
+    const otherTotal = data?.otherBasisTotal ?? undefined;
+    const basis = query.basis as 'HANDLING' | 'REPORTER';
+    const levelTabs =
+      meta && data ? (
+        <div className="ops-segmented ops-segmented--tiny" role="group" aria-label="Level cakupan">
+          {sectionOnly
+            ? meta.allowedScopeModes.map((mode) => (
+                <button
+                  type="button"
+                  key={mode}
+                  aria-pressed={data.scopeMode === mode}
+                  onClick={() => set({ ...clearOrg, scopeMode: mode, level: 'section' })}
+                >
+                  {mode === 'OWN' ? 'Section saya' : 'Seluruh section di department'}
+                </button>
+              ))
+            : meta.allowedLevels.map((l) => (
+                <button
+                  type="button"
+                  key={l}
+                  aria-pressed={data.level === l}
+                  onClick={() => pickLevel(l)}
+                >
+                  {orgLabels[l]}
+                </button>
+              ))}
+        </div>
+      ) : null;
+    const wider =
+      data &&
+      meta?.allowedLevels.includes(data.level === 'section' ? 'department' : 'division') &&
+      data.level !== 'division' ? (
+        <button
+          type="button"
+          className="ops-text-button"
+          onClick={() => pickLevel(data.level === 'section' ? 'department' : 'division')}
+        >
+          <ArrowUp size={14} aria-hidden="true" /> Lihat satu level lebih luas
+        </button>
+      ) : null;
+    return (
+      <OpsDashboard
+        name={name}
+        role={role}
+        greeting={greeting}
+        basis={basis}
+        counts={{
+          [basis]: data?.total,
+          [basis === 'HANDLING' ? 'REPORTER' : 'HANDLING']: otherTotal,
+        }}
+        onBasis={(id) => set({ ...clearOrg, basis: id, level: undefined, scopeMode: undefined })}
+        scopeLabel={scope}
+        hasOrganizationChoice={controls.length > 0}
+        onOrganization={() => setOrganizationOpen(true)}
+        organizationDialog={organizationDialog}
+        filterRow={filterRow}
+        online={online}
+        onRefresh={() => {
+          void metadata.refetch();
+          void refresh.refetch();
+        }}
+        data={data}
+        loadError={
+          invalidDates ? (
+            <Alert tone="warning" title="Periksa rentang tanggal">
+              Pilih tanggal awal dan akhir yang valid.
+            </Alert>
+          ) : dashboard.isError ? (
+            <Alert tone="danger" title="Dashboard gagal dimuat">
+              {organizationUnavailable
+                ? 'Organisasi akun belum lengkap. Hubungi Admin untuk memperbarui data organisasi.'
+                : 'Coba muat ulang atau reset filter.'}
+              <Button onClick={() => void dashboard.refetch()}>Coba lagi</Button>
+            </Alert>
+          ) : null
+        }
+        levelTabs={levelTabs}
+        widerLevel={wider}
+        inbox={{ items: preview.data?.items, isError: preview.isError }}
+        onOpenVoice={(id) => void navigate(`/voices/${id}`)}
+        onOpenList={() => void navigate(listUrl())}
+        peopleQuery={{ ...query, ...refresh.data?.dates }}
+        peopleInsights={peopleInsights}
+        readOnlyLabel={readonly ? 'Leadership · Read-only' : undefined}
+      />
+    );
+  }
   return (
     <div className="organization-home">
       <section className="member-hero organization-home__hero">
@@ -323,7 +500,6 @@ export function DashboardHome() {
             ))}
           </div>
         ) : null}
-        {basisToggle}
         <VoiceSummaryCard
           total={data?.total}
           count={(status) => (data ? bucketValue(data.status, status) : 0)}
@@ -387,21 +563,7 @@ export function DashboardHome() {
                   {organizationSelects()}
                 </div>
               ) : null}
-              <Dialog
-                open={organizationOpen}
-                onOpenChange={setOrganizationOpen}
-                title="Filter organisasi"
-                description="Pilih cakupan organisasi untuk seluruh ringkasan dan grafik."
-                mobileSheet
-              >
-                <div className="dashboard-org-selects dashboard-org-selects--sheet">
-                  <Building2 size={19} aria-hidden="true" />
-                  {organizationSelects()}
-                </div>
-                <div className="dialog-actions">
-                  <Button onClick={() => setOrganizationOpen(false)}>Selesai</Button>
-                </div>
-              </Dialog>
+              {organizationDialog}
             </>
           ) : unionHead && meta ? (
             <div className="dashboard-private-handler">
@@ -417,91 +579,7 @@ export function DashboardHome() {
               />
             </div>
           ) : null}
-          <FilterPillRow
-            primary={[
-              {
-                id: 'dashArea',
-                label: 'Semua area',
-                icon: <MapPin size={18} />,
-                value: read('dashArea') ?? '',
-                onValueChange: (v) => set({ dashArea: v || undefined }),
-                options: [
-                  { value: '', label: 'Semua area' },
-                  ...Object.entries(AREA_LABELS).map(([value, label]) => ({ value, label })),
-                ],
-              },
-              {
-                id: 'range',
-                label: 'Rentang',
-                icon: <CalendarDays size={18} />,
-                value: range,
-                onValueChange: (v) =>
-                  set({
-                    range: v,
-                    ...(v === 'custom' ? {} : { dashFrom: undefined, dashTo: undefined }),
-                  }),
-                options: rangeOptions,
-              },
-            ]}
-            secondary={[
-              ...(!isPrivate
-                ? [
-                    {
-                      id: 'dashCategory',
-                      label: 'Kategori',
-                      value: read('dashCategory') ?? '',
-                      onValueChange: (v: string) => set({ dashCategory: v || undefined }),
-                      options: [
-                        { value: '', label: 'Semua kategori' },
-                        ...(meta?.categories.map((c) => ({
-                          value: c.id,
-                          label: formatCategoryName(c.id, c.label) ?? c.label,
-                        })) ?? []),
-                      ],
-                    },
-                  ]
-                : []),
-              {
-                id: 'dashSeverity',
-                label: 'Severity',
-                value: read('dashSeverity') ?? '',
-                onValueChange: (v) => set({ dashSeverity: v || undefined }),
-                options: [
-                  { value: '', label: 'Semua severity' },
-                  ...Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label })),
-                ],
-              },
-              {
-                id: 'dashStatus',
-                label: 'Status',
-                value: read('dashStatus') ?? '',
-                onValueChange: (v) => set({ dashStatus: v || undefined }),
-                options: [
-                  { value: '', label: 'Semua status' },
-                  ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
-                ],
-              },
-            ]}
-            onClear={reset}
-            customContent={
-              range === 'custom' ? (
-                <div className="filter-pills__dates">
-                  <Input
-                    label="Dari tanggal"
-                    type="date"
-                    value={from ?? ''}
-                    onChange={(e) => set({ dashFrom: e.target.value })}
-                  />
-                  <Input
-                    label="Sampai tanggal"
-                    type="date"
-                    value={to ?? ''}
-                    onChange={(e) => set({ dashTo: e.target.value })}
-                  />
-                </div>
-              ) : undefined
-            }
-          />
+          {filterRow}
         </Card>
         {metadata.isError ? (
           <Alert tone="danger" title="Filter organisasi gagal dimuat">

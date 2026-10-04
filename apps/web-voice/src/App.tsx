@@ -6,7 +6,6 @@ import {
   BottomNav,
   Button,
   Card,
-  Dialog,
   EmptyState,
   Input,
   Loader,
@@ -20,19 +19,17 @@ import {
   ArrowRight,
   Bell,
   Bot,
-  ChevronRight,
-  ClipboardList,
   Clock3,
+  FileClock,
   Home,
-  Inbox,
   Lock,
   LockKeyhole,
-  MoreHorizontal,
   Plus,
   ScrollText,
+  Settings,
   Shield,
-  ShieldCheck,
   UserRound,
+  UsersRound,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
@@ -52,7 +49,6 @@ import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { HomePage } from './features/home/HomePage';
-import { UnreadCountNote } from './features/notifications/NotificationBell';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { ConversationPage } from './features/voice/ConversationPage';
 import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
@@ -589,7 +585,6 @@ function WorkforceShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery(desktopQuery);
-  const [moreOpen, setMoreOpen] = useState(false);
   if (!session) return null;
   const caps = capabilityFor(session);
   const current = resolveCurrent(location.pathname, caps.isUnion);
@@ -597,15 +592,14 @@ function WorkforceShell() {
   const iconFor = (id: string) => {
     const Icon =
       {
-        home: caps.isUnion ? ShieldCheck : Home,
+        home: Home,
         private: Lock,
         general: ScrollText,
-        'work-items': Inbox,
+        'work-items': UsersRound,
         create: Plus,
-        history: ClipboardList,
+        history: FileClock,
         notifications: Bell,
-        account: UserRound,
-        more: MoreHorizontal,
+        account: Settings,
       }[id] ?? Home;
     return <Icon size={20} />;
   };
@@ -675,9 +669,6 @@ function WorkforceShell() {
                 }
                 footer={
                   <Stack gap="sm">
-                    <Button variant="ghost" size="sm" onClick={() => void navigate('/account')}>
-                      Akun Saya
-                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -694,61 +685,13 @@ function WorkforceShell() {
             bottomNav: (
               <BottomNav
                 items={bottomNav}
-                current={
-                  moreOpen || ['notifications', 'account'].includes(current) ? 'more' : current
-                }
-                onNavigate={(id) => {
-                  if (id === 'more') setMoreOpen(true);
-                  else void navigate(NAV_ROUTES[id] ?? '/');
-                }}
+                current={current}
+                onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
               />
             ),
           })}
     >
       <Outlet />
-      {!isDesktop && !caps.isUnion ? (
-        <Dialog
-          open={moreOpen}
-          onOpenChange={setMoreOpen}
-          title="Lainnya"
-          description="Notifikasi dan pengaturan akun CARE."
-          mobileSheet
-        >
-          <div className="more-menu">
-            <button
-              type="button"
-              onClick={() => {
-                setMoreOpen(false);
-                void navigate('/notifications');
-              }}
-            >
-              <Bell size={20} />
-              <span>
-                <span className="more-menu__title">
-                  <strong>Notifikasi</strong>
-                  <UnreadCountNote />
-                </span>
-                <small>Lihat pembaruan Voice terbaru</small>
-              </span>
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMoreOpen(false);
-                void navigate('/account');
-              }}
-            >
-              <UserRound size={20} />
-              <span>
-                <strong>Akun</strong>
-                <small>Profil, akses, dan keamanan</small>
-              </span>
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-          </div>
-        </Dialog>
-      ) : null}
     </AppShell>
   );
 }

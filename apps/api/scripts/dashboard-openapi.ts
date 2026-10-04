@@ -110,7 +110,65 @@ export const dashboardParameters = [
   'from',
   'to',
 ];
+const handler = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'accountId',
+    'name',
+    'role',
+    'unitLabel',
+    'held',
+    'onTimeRate',
+    'autoEscalated',
+    'averageResponseSeconds',
+    'overdue',
+    'averageRating',
+    'ratingCount',
+  ],
+  properties: {
+    accountId: { type: 'string', format: 'uuid' },
+    name: string,
+    role: { type: 'string', enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'] },
+    unitLabel: string,
+    held: { type: 'integer', minimum: 0 },
+    onTimeRate: { type: 'number', nullable: true },
+    autoEscalated: { type: 'integer', minimum: 0 },
+    averageResponseSeconds: { type: 'number', nullable: true },
+    overdue: { type: 'integer', minimum: 0 },
+    averageRating: { type: 'number', nullable: true },
+    ratingCount: { type: 'integer', minimum: 0 },
+  },
+};
+const member = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['id', 'name', 'unitLabel', 'voiceCount', 'lastSubmittedAt', 'activated'],
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    name: string,
+    unitLabel: string,
+    voiceCount: { type: 'integer', minimum: 0 },
+    lastSubmittedAt: { type: 'string', format: 'date-time', nullable: true },
+    activated: { type: 'boolean' },
+  },
+};
 export const dashboardSchemas = {
+  DashboardHandlers: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['items'],
+    properties: { items: { type: 'array', items: handler } },
+  },
+  DashboardParticipation: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['memberCount', 'members'],
+    properties: {
+      memberCount: { type: 'integer', minimum: 0 },
+      members: { type: 'array', items: member },
+    },
+  },
   DashboardMetadata: {
     type: 'object',
     required: Object.keys(metadata),
@@ -149,6 +207,35 @@ export const dashboardSchemas = {
       previousTotal: { type: 'integer', nullable: true },
       trendGrain: { type: 'string', enum: ['day', 'week', 'month'] },
       pendingAssignment: { type: 'integer' },
+      // Comparison window of the same length immediately before from/to; null without a range.
+      previousPerformance: {
+        type: 'object',
+        nullable: true,
+        additionalProperties: false,
+        required: ['averageResponseSeconds', 'averageCompletionSeconds'],
+        properties: {
+          averageResponseSeconds: { type: 'number', nullable: true },
+          averageCompletionSeconds: { type: 'number', nullable: true },
+        },
+      },
+      // Voices of the cohort that entered each lifecycle state today (WIB).
+      statusToday: buckets,
+      // General only: answered or processed within the tier and target deadlines.
+      onTime: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['onTime', 'total'],
+        properties: {
+          onTime: { type: 'integer', minimum: 0 },
+          total: { type: 'integer', minimum: 0 },
+        },
+      },
+      // General handling basis only: top reporter departments of the cohort.
+      reporterOrigins: buckets,
+      // General reporter basis only: team Voices still open past their deadline.
+      teamOverdue: { type: 'integer', minimum: 0 },
+      // Unit heads only: total of the other basis for the basis switcher.
+      otherBasisTotal: { type: 'integer', nullable: true },
       handlingUnresolved: { type: 'integer', nullable: true },
       filters: { type: 'object', additionalProperties: string },
       generatedAt: { type: 'string', format: 'date-time' },

@@ -33,7 +33,7 @@ async function overflow(page: Page) {
 const memberRoutes: RouteCase[] = [
   { path: '/', heading: 'Budi Santoso', viewport: { width: 360, height: 800 } },
   { path: '/voices/new', heading: 'Mulai Voice baru', viewport: { width: 360, height: 800 } },
-  { path: '/history', heading: 'Voice milik Anda', viewport: { width: 360, height: 800 } },
+  { path: '/history', heading: 'Voice Saya', viewport: { width: 360, height: 800 } },
   { path: '/notifications', heading: 'Pusat notifikasi', viewport: { width: 360, height: 800 } },
   { path: '/account', heading: 'Pengaturan akun', viewport: { width: 360, height: 800 } },
 ];

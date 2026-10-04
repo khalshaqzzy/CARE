@@ -279,6 +279,21 @@ export function dashboardFixture(
     handlingUnresolved: 0,
     filters: Object.fromEntries(url.searchParams),
     generatedAt: '2026-08-30T03:00:00Z',
+    // Operations-dashboard figures pass through when a test supplies them.
+    ...Object.fromEntries(
+      (
+        [
+          'statusToday',
+          'previousPerformance',
+          'onTime',
+          'reporterOrigins',
+          'teamOverdue',
+          'otherBasisTotal',
+        ] as const
+      )
+        .filter((key) => old && key in old)
+        .map((key) => [key, (old as Record<string, unknown>)[key]]),
+    ),
   };
   if (sectionOnly && !isPrivate) {
     view.organization = [
