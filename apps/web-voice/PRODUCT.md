@@ -26,7 +26,7 @@ Routing comes from the authoritative organization master, not from what the repo
 - Mobile-first workforce PWA in Indonesian; leadership also reads dashboards on desktop.
 - Old phones are in use: the workforce build targets Safari 11.3 (iOS 11.3), and visuals must not depend on features that break there.
 - Responder dashboards follow the actor's organization scope and filters (period, area, organization unit) and switch between **Voice Untuk Saya** (handling) and **Voice Tim Saya** (reported by the actor's unit).
-- Statuses are fixed product-wide: **Terbuka**, **Direspons**, **Diproses**, **Selesai**.
+- Statuses are fixed product-wide: **Terbuka**, **Direspon**, **Diproses**, **Selesai**.
 
 ## Capabilities and Constraints
 

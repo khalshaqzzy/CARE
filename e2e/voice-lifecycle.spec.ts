@@ -61,7 +61,7 @@ for (const width of [360, 390, 768, 1440]) {
     await expect(page.getByText('Tim akan memeriksa lampu pada shift pagi.')).toBeVisible();
     expect(mutations[0]?.body.text).toBe('Tim akan memeriksa lampu pada shift pagi.');
     await page.goto('/voices/lifecycle-voice');
-    await expect(page.locator('[aria-current="step"]')).toHaveText('Direspons');
+    await expect(page.locator('[aria-current="step"]')).toHaveText('Direspon');
     await page.getByRole('button', { name: 'Proses Voice', exact: true }).click();
     const target = page.getByRole('dialog', { name: 'Mulai penanganan' });
     await expect(target.getByRole('button', { name: 'Mulai diproses' })).toBeDisabled();

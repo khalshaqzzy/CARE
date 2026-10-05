@@ -2928,6 +2928,17 @@ export interface components {
             questions: string[];
             contentHash: string;
         } | null;
+        DashboardPreview: {
+            items: components["schemas"]["VoiceListItem"][];
+            nextCursor: string | null;
+            summary: {
+                total: number;
+                open: number;
+                overdue: number;
+                dueSoon: number;
+                critical: number;
+            };
+        };
         DashboardHandlers: {
             items: {
                 /** Format: uuid */
@@ -11696,6 +11707,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 sort?: string;
+                due?: "OVERDUE" | "SOON";
             };
             header?: never;
             path?: never;
@@ -11965,6 +11977,8 @@ export interface operations {
                 to?: string;
                 unassigned?: string;
                 handler?: string;
+                due?: "OVERDUE" | "SOON";
+                sort?: string;
             };
             header?: never;
             path?: never;
@@ -17152,7 +17166,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VoiceListResponse"];
+                    "application/json": components["schemas"]["DashboardPreview"];
                 };
             };
             /** @description Request validation failed */

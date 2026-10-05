@@ -138,7 +138,7 @@
       },
       "status-responded": {
         "role": "status",
-        "displayName": "Direspons",
+        "displayName": "Direspon",
         "cssVar": "--ops-status [data-status=RESPONDED]"
       },
       "status-in-progress": {

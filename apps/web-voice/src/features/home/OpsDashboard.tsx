@@ -1,4 +1,4 @@
-import { Alert, Button, Skeleton } from '@care/ui';
+import { Alert, Skeleton } from '@care/ui';
 import type { components } from '@care/contracts';
 import {
   ArrowDownRight,
@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Lock,
   CircleCheck,
-  Clock3,
   RefreshCw,
   ShieldCheck,
   Star,
@@ -22,6 +21,8 @@ import { bucketValue } from '../../lib/dashboard-math';
 import { formatCategoryName, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { NotificationBellButton } from '../notifications/NotificationBell';
+import type { DashboardPreview } from '../../workforce-api';
+import { ActionSummaryCard, type ActionKind } from './ActionSummary';
 import {
   formatDuration,
   initials,
@@ -32,15 +33,12 @@ import {
 
 type View = components['schemas']['DashboardView'];
 type Bucket = { id?: string; key?: string; name?: string; label: string; value: number };
-type ListItem = components['schemas']['VoiceListItem'];
 type MemberDashboard = components['schemas']['MemberDashboard'];
 type ViewExtras = Partial<View>;
-type ItemExtras = Partial<ListItem>;
 type Basis = 'HANDLING' | 'REPORTER';
 
 const STATUSES = ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const;
 const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
-const SEVERITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as const;
 
 export type OpsDashboardProps = {
   name: string;
@@ -58,9 +56,9 @@ export type OpsDashboardProps = {
   onRefresh: () => void;
   data?: (View & ViewExtras) | undefined;
   loadError: ReactNode;
-  levelTabs: ReactNode;
-  widerLevel: ReactNode;
-  inbox: { items: (ListItem & ItemExtras)[] | undefined; isError: boolean };
+  inbox: { preview: DashboardPreview | undefined; isError: boolean };
+  onOpenAction: (kind: ActionKind) => void;
+  onOpenRange: (from: string, to: string) => void;
   onOpenVoice: (id: string) => void;
   onOpenList: () => void;
   peopleQuery: Record<string, string | undefined>;
@@ -73,24 +71,6 @@ function splitDuration(seconds: number | null) {
   const text = formatDuration(seconds);
   const [value, ...unit] = text.split(' ');
   return { value: value ?? '—', unit: unit.join(' ') };
-}
-
-function remaining(dueAt: string | null | undefined) {
-  if (!dueAt) return null;
-  const ms = Date.parse(dueAt) - Date.now();
-  const late = ms < 0;
-  const minutes = Math.round(Math.abs(ms) / 60000);
-  const text =
-    minutes < 60
-      ? `${minutes} mnt`
-      : minutes < 1440
-        ? `${Math.round(minutes / 60)} jam`
-        : `${Math.round(minutes / 1440)} hari`;
-  return {
-    late,
-    urgent: late || ms < 2 * 3600000,
-    text: late ? `Terlambat ${text}` : `Sisa ${text}`,
-  };
 }
 
 function Comparison({ now, before }: { now: number | null; before: number | null | undefined }) {
@@ -140,16 +120,30 @@ function MineLine({ mine }: { mine: MemberDashboard | undefined }) {
   );
 }
 
-function TrendMini({ data }: { data: View & ViewExtras }) {
+/** Calendar span behind one trend bucket, as Voice Member date filters. */
+function bucketRange(label: string, grain: string | undefined) {
+  const start = new Date(`${label}T00:00:00Z`);
+  const end = new Date(start);
+  if (grain === 'week') end.setUTCDate(end.getUTCDate() + 6);
+  else if (grain === 'month') end.setUTCMonth(end.getUTCMonth() + 1, 0);
+  return { from: label, to: end.toISOString().slice(0, 10) };
+}
+
+function TrendMini({
+  data,
+  onOpenRange,
+}: {
+  data: View & ViewExtras;
+  onOpenRange?: ((from: string, to: string) => void) | undefined;
+}) {
   const points = data.trend;
+  const [picked, setPicked] = useState<number>();
   if (points.length < 2) return null;
   const max = Math.max(1, ...points.map((p) => p.value));
   const w = 300;
   const h = 72;
-  const xy = points.map((p, i) => [
-    (i / (points.length - 1)) * w,
-    h - (p.value / max) * (h - 6) - 3,
-  ]);
+  const top = (value: number) => ((h - (value / max) * (h - 6) - 3) / h) * 100;
+  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, (top(p.value) / 100) * h]);
   const line = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x!.toFixed(1)},${y!.toFixed(1)}`).join(' ');
   const area = `${line} L${w},${h} L0,${h} Z`;
   const change =
@@ -158,12 +152,21 @@ function TrendMini({ data }: { data: View & ViewExtras }) {
       : null;
   const fmt = (label: string) => {
     const date = new Date(`${label}T00:00:00`);
-    return Number.isNaN(date.getTime())
-      ? label
+    if (Number.isNaN(date.getTime())) return label;
+    return data.trendGrain === 'month'
+      ? date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })
       : date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
   };
   const grain =
     data.trendGrain === 'day' ? 'hari' : data.trendGrain === 'week' ? 'minggu' : 'bulan';
+  const period = (label: string) =>
+    data.trendGrain === 'week' ? `Minggu ${fmt(label)}` : fmt(label);
+  // Until a bucket is picked, read out the peak.
+  const peak = points.reduce((best, p, i) => (p.value >= points[best]!.value ? i : best), 0);
+  const index = picked !== undefined && picked < points.length ? picked : peak;
+  const selected = points[index]!;
+  // Values sit above the dots while they stay readable; otherwise tap to read.
+  const labelled = points.length <= 12;
   return (
     <div className="ops-trend">
       <div className="ops-trend__head">
@@ -178,16 +181,57 @@ function TrendMini({ data }: { data: View & ViewExtras }) {
           puncak {max}/{grain}
         </span>
       </div>
-      <svg
-        className="ops-trend__chart"
-        viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Tren Voice, puncak ${max} per ${grain}`}
-      >
-        <path d={area} className="ops-trend__area" />
-        <path d={line} className="ops-trend__line" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <div className="ops-trend__pick" aria-live="polite">
+        <span>{period(selected.label)}</span>
+        <strong>{selected.value} Voice</strong>
+        {onOpenRange && selected.value > 0 ? (
+          <button
+            type="button"
+            className="ops-text-button"
+            onClick={() => {
+              const range = bucketRange(selected.label, data.trendGrain);
+              onOpenRange(range.from, range.to);
+            }}
+          >
+            Lihat Voice <ChevronRight size={13} aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+      <div className="ops-trend__plot" data-labelled={labelled || undefined}>
+        <svg
+          className="ops-trend__chart"
+          viewBox={`0 0 ${w} ${h}`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path d={area} className="ops-trend__area" />
+          <path d={line} className="ops-trend__line" vectorEffect="non-scaling-stroke" />
+        </svg>
+        <div className="ops-trend__points" role="group" aria-label={`Tren Voice per ${grain}`}>
+          {points.map((point, i) => (
+            <button
+              type="button"
+              key={point.label}
+              className="ops-trend__point"
+              style={{
+                left: `${(i / (points.length - 1)) * 100}%`,
+                width: `${100 / (points.length - 1)}%`,
+                ['--y' as string]: `${top(point.value)}%`,
+              }}
+              aria-pressed={i === index}
+              aria-label={`${period(point.label)}: ${point.value} Voice`}
+              onClick={() => setPicked(i)}
+            >
+              <span className="ops-trend__dot" aria-hidden="true" />
+              {labelled ? (
+                <span className="ops-trend__value" aria-hidden="true">
+                  {point.value}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="ops-trend__axis" aria-hidden="true">
         <span>{fmt(points[0]!.label)}</span>
         <span>{fmt(points[Math.floor(points.length / 2)]!.label)}</span>
@@ -274,7 +318,15 @@ function ProfileCard(props: OpsDashboardProps & { mineLine?: ReactNode }) {
   );
 }
 
-function StatusCard({ data, team }: { data: View & ViewExtras; team: boolean }) {
+function StatusCard({
+  data,
+  team,
+  onOpenRange,
+}: {
+  data: View & ViewExtras;
+  team: boolean;
+  onOpenRange?: ((from: string, to: string) => void) | undefined;
+}) {
   const total = data.total;
   return (
     <section className="ops-card" aria-labelledby="ops-status">
@@ -307,7 +359,7 @@ function StatusCard({ data, team }: { data: View & ViewExtras; team: boolean }) 
           ))}
         </div>
       ) : null}
-      <TrendMini data={data} />
+      <TrendMini data={data} onOpenRange={onOpenRange} />
     </section>
   );
 }
@@ -469,12 +521,8 @@ function SpreadCard(props: OpsDashboardProps & { data: View & ViewExtras }) {
         </div>
       ) : null}
       <div className="ops-block">
-        <div className="ops-block__head">
-          <h3>Penanganan per {level === 'section' ? 'section' : level}</h3>
-          {props.levelTabs}
-        </div>
+        <h3>Penanganan per {level === 'section' ? 'section' : level}</h3>
         <OrganizationBars buckets={data.organization} />
-        {props.widerLevel}
       </div>
     </section>
   );
@@ -500,7 +548,6 @@ function TeamSpreadCard(props: OpsDashboardProps & { data: View & ViewExtras }) 
         <h2 id="ops-team-spread">Sebaran Voice Tim</h2>
         <span className="ops-chip">{data.total} Voice</span>
       </div>
-      <div className="ops-block__head ops-block__head--flush">{props.levelTabs}</div>
       <div className="ops-segmented ops-segmented--small" role="group" aria-label="Jenis sebaran">
         {(
           [
@@ -519,80 +566,7 @@ function TeamSpreadCard(props: OpsDashboardProps & { data: View & ViewExtras }) 
       ) : tab === 'severity' ? (
         <OrganizationBars buckets={severityBuckets} />
       ) : (
-        <>
-          <OrganizationBars buckets={data.organization} />
-          {props.widerLevel}
-        </>
-      )}
-    </section>
-  );
-}
-
-function ActionTickets(props: OpsDashboardProps) {
-  const items = [...(props.inbox.items ?? [])]
-    .filter((item) => item.status !== 'CLOSED')
-    .sort(
-      (a, b) =>
-        (a.tierDueAt ? Date.parse(a.tierDueAt) : Infinity) -
-          (b.tierDueAt ? Date.parse(b.tierDueAt) : Infinity) ||
-        SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
-    );
-  const urgent = items.filter((item) => remaining(item.tierDueAt)?.urgent).length;
-  return (
-    <section className="ops-tickets ops-span-2" aria-labelledby="ops-actions">
-      <div className="ops-tickets__head">
-        <h2 id="ops-actions">Butuh Tindakan Saya</h2>
-        {urgent ? <span className="ops-chip ops-chip--alert">{urgent} mendesak</span> : null}
-        <Button variant="ghost" size="sm" className="ops-link" onClick={props.onOpenList}>
-          Lihat semua
-        </Button>
-      </div>
-      {props.inbox.isError ? (
-        <p className="ops-empty">Daftar belum tersedia.</p>
-      ) : !props.inbox.items ? (
-        <Skeleton label="Memuat Voice yang butuh tindakan" />
-      ) : items.length === 0 ? (
-        <div className="ops-card">
-          <p className="ops-empty">Tidak ada Voice yang menunggu Anda.</p>
-        </div>
-      ) : (
-        <div className="ops-tickets__grid">
-          {items.slice(0, 3).map((item) => {
-            const due = remaining(item.tierDueAt);
-            const category = item.category
-              ? formatCategoryName(item.category, item.categoryNameSnapshot)
-              : null;
-            return (
-              <article className="ops-card ops-ticket" key={item.id}>
-                <div className="ops-ticket__chips">
-                  <span className="ops-pill" data-severity={item.severity}>
-                    <i aria-hidden="true" />
-                    {SEVERITY_LABELS[item.severity]}
-                  </span>
-                  {category ? <span className="ops-pill">{category}</span> : null}
-                  {due ? (
-                    <span className="ops-due" data-urgent={due.urgent || undefined}>
-                      <Clock3 size={13} aria-hidden="true" />
-                      {due.text}
-                    </span>
-                  ) : null}
-                </div>
-                <h3>{item.title}</h3>
-                <p className="ops-ticket__meta">
-                  {item.reporterName ? `Dari: ${item.reporterName}` : item.displayId}
-                  {item.reporterDepartment ? ` · ${item.reporterDepartment}` : ''}
-                </p>
-                <Button
-                  size="sm"
-                  className="ops-ticket__cta"
-                  onClick={() => props.onOpenVoice(item.id)}
-                >
-                  Respons
-                </Button>
-              </article>
-            );
-          })}
-        </div>
+        <OrganizationBars buckets={data.organization} />
       )}
     </section>
   );
@@ -605,6 +579,15 @@ export function OpsDashboard(props: OpsDashboardProps) {
   return (
     <div className={team ? 'ops ops--team' : 'ops ops--handling'}>
       <ProfileCard {...props} mineLine={<MineLine mine={mine} />} />
+      {!team && data ? (
+        <ActionSummaryCard
+          preview={props.inbox.preview}
+          isError={props.inbox.isError}
+          onPick={props.onOpenAction}
+          onOpenVoice={props.onOpenVoice}
+          onMore={props.onOpenList}
+        />
+      ) : null}
       {!props.online ? (
         <div className="ops-span-2">
           <Alert tone="warning" title="Anda sedang offline">
@@ -646,7 +629,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
           ) : (
             <>
               <div className="ops-column">
-                <StatusCard data={data} team={team} />
+                <StatusCard data={data} team={team} onOpenRange={props.onOpenRange} />
                 <SpreadCard {...props} data={data} />
               </div>
               <div className="ops-column">
@@ -655,7 +638,6 @@ export function OpsDashboard(props: OpsDashboardProps) {
                   <ResponderPerformanceCard query={props.peopleQuery} />
                 ) : null}
               </div>
-              <ActionTickets {...props} />
             </>
           )}
         </>

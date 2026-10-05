@@ -14,6 +14,20 @@ const basisButton = (page: Page, label: 'Voice Untuk Saya' | 'Voice Tim Saya') =
   page
     .getByRole('group', { name: 'Basis dashboard' })
     .getByRole('button', { name: new RegExp(`^${label}`) });
+// The organization filter sets scope and level; there is no separate level toggle.
+async function pickOrg(page: Page, label: string, option: string | number) {
+  await orgChip(page).click();
+  const dialog = page.getByRole('dialog', { name: 'Filter organisasi' });
+  await dialog.getByRole('combobox', { name: label, exact: true }).click();
+  const choice =
+    typeof option === 'number'
+      ? page.getByRole('option').nth(option)
+      : page.getByRole('option', { name: option, exact: true });
+  await choice.click();
+  await dialog.getByRole('button', { name: 'Selesai', exact: true }).click();
+}
+const wider = (page: Page) => pickOrg(page, 'Department', 'Semua department');
+const own = (page: Page) => pickOrg(page, 'Department', 'Production Control');
 // Clearing filters lives in the "Filter lainnya" sheet; the head action refreshes data.
 async function clearFilters(page: Page) {
   await page.getByRole('button', { name: /^Filter lainnya/ }).click();
@@ -31,7 +45,7 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
   await expect(summary.locator('.ops-status__tile')).toHaveCount(4);
   for (const [status, label, count] of [
     ['OPEN', 'Terbuka', '6'],
-    ['RESPONDED', 'Direspons', '0'],
+    ['RESPONDED', 'Direspon', '0'],
     ['IN_PROGRESS', 'Diproses', '3'],
     ['CLOSED', 'Selesai', '3'],
   ]) {
@@ -40,7 +54,7 @@ test('dashboard KPI, hierarchy, basis and browser history share one URL state', 
     await expect(metric.locator('.ops-status__label')).toHaveText(label);
   }
   await expect(orgChip(page)).toContainText('Production Control');
-  await page.getByRole('button', { name: 'Department', exact: true }).click();
+  await wider(page);
   await expect(page).toHaveURL(/level=department/);
   await expect(orgChip(page)).toContainText('Production Division');
   await expect(basisButton(page, 'Voice Untuk Saya')).toHaveAttribute('aria-pressed', 'true');
@@ -128,7 +142,7 @@ for (const [name, session] of [
     await expect(metrics.locator('strong')).toHaveText(['2', '3', '4', '5']);
     await expect(metrics.locator('span')).toHaveText([
       'Terbuka',
-      'Direspons',
+      'Direspon',
       'Diproses',
       'Selesai',
     ]);
@@ -207,9 +221,9 @@ test('repeated level switches keep one unassigned row, filter zero severity, and
   });
   await page.goto('/');
   for (let round = 0; round < 3; round++) {
-    await page.getByRole('button', { name: 'Department', exact: true }).click();
+    await wider(page);
     await expect(orgChip(page)).toContainText('Production Division');
-    await page.getByRole('button', { name: 'Section', exact: true }).click();
+    await own(page);
     await expect(orgChip(page)).toContainText('Production Control');
     const unassigned = page
       .locator('.ops-bars li')
@@ -235,13 +249,13 @@ for (const basis of ['HANDLING', 'REPORTER']) {
     const status = page.locator('section[aria-labelledby="ops-status"]');
     const initial = await status.innerText();
     for (let i = 0; i < 3; i++) {
-      await page.getByRole('button', { name: 'Department', exact: true }).click();
+      await wider(page);
       await expect(total).toHaveAttribute('data-total', '17');
       await expect(page).toHaveURL(/scopeMode=PARENT/);
-      await page.getByRole('button', { name: 'Section', exact: true }).click();
+      await own(page);
       await expect(total).toHaveAttribute('data-total', '12');
       await expect(status).toHaveText(initial, { useInnerText: true });
-      await expect(page).not.toHaveURL(/[?&](department|division|section|directorate)=/);
+      await expect(page).toHaveURL(/scopeMode=OWN/);
     }
     await page.reload();
     await expect(total).toHaveAttribute('data-total', '12');
@@ -299,9 +313,9 @@ test('Section Head can switch between own section and department overview', asyn
   await page.goto('/');
   const total = statusGrid(page);
   await expect(total).toHaveAttribute('data-total', '8');
-  await page.getByRole('button', { name: 'Seluruh section di department', exact: true }).click();
+  await pickOrg(page, 'Section', 0);
   await expect(total).toHaveAttribute('data-total', '12');
-  await page.getByRole('button', { name: 'Section saya', exact: true }).click();
+  await pickOrg(page, 'Section', 1);
   await expect(total).toHaveAttribute('data-total', '8');
 });
 test('relative range refresh shares timestamps between aggregate and preview', async ({ page }) => {
@@ -351,7 +365,7 @@ test('a delayed wider response cannot replace the restored own scope', async ({ 
   await page.goto('/');
   const total = statusGrid(page);
   await expect(total).toHaveAttribute('data-total', '12');
-  await page.getByRole('button', { name: 'Department', exact: true }).click();
+  await wider(page);
   await started;
   await page.goBack();
   await expect(total).toHaveAttribute('data-total', '12');
@@ -366,7 +380,7 @@ test('preview failure does not hide a successful aggregate', async ({ page }) =>
   );
   await page.goto('/');
   await expect(statusGrid(page)).toHaveAttribute('data-total', '12');
-  await expect(page.getByText('Daftar belum tersedia.')).toBeVisible();
+  await expect(page.getByText('Ringkasan belum tersedia.')).toBeVisible();
   await expect(page.getByText('Dashboard gagal dimuat')).toHaveCount(0);
 });
 
@@ -607,41 +621,94 @@ test('Voice Tim Saya shows participation, top contributor and members who never 
   await expect(activity.locator('.ops-person').first()).toContainText('Dewi Hartono');
   await expect(activity.locator('.ops-person').first()).toContainText('Belum aktivasi');
 });
-test('Butuh Tindakan Saya puts the nearest deadline first and opens the Voice', async ({
+const actionItem = (
+  id: string,
+  title: string,
+  hours: number | null,
+  severity: string,
+  status = 'OPEN',
+) => ({
+  id,
+  displayId: `CARE-${id.slice(-3)}`,
+  visibility: 'GENERAL',
+  area: 'KARAWANG_1',
+  title,
+  category: 'SAFETY',
+  categoryNameSnapshot: 'Safety',
+  severity,
+  status,
+  updatedAt: new Date().toISOString(),
+  tierDueAt: hours === null ? null : new Date(Date.now() + hours * 3_600_000).toISOString(),
+  reporterName: 'Irwan Setiawan',
+  reporterDepartment: 'Production Control',
+});
+const actionList = {
+  items: [
+    actionItem(
+      '00000000-0000-4000-8000-000000000301',
+      'Sensor cold storage berbunyi',
+      1,
+      'CRITICAL',
+    ),
+    actionItem('00000000-0000-4000-8000-000000000302', 'Lampu jalur forklift redup', -3, 'MEDIUM'),
+  ],
+  nextCursor: null,
+};
+const actionSummary = { total: 5, open: 2, overdue: 1, dueSoon: 1, critical: 1 };
+test('Butuh Tindakan Saya sums up first and each count opens Voice Member', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: manager,
+    voiceList: actionList,
+    dashboardSummary: actionSummary,
+  });
+  await page.goto('/?dashArea=SUNTER_1');
+  const card = page.locator('section[aria-labelledby="ops-actions"]');
+  await expect(card.getByRole('heading', { name: 'Butuh Tindakan Saya' })).toBeVisible();
+  await expect(card.locator('.ops-chip')).toHaveText('5 Voice');
+  // The summary sits above Status Voice.
+  const order = await page.evaluate(() =>
+    [...document.querySelectorAll('#ops-actions, #ops-status')].map((el) => el.id),
+  );
+  expect(order).toEqual(['ops-actions', 'ops-status']);
+  await expect(card.locator('.ops-actions__tile strong')).toHaveText(['1', '1', '2', '1']);
+  await expect(card.locator('.ops-actions__next')).toContainText('Lampu jalur forklift redup');
+  await expect(card.locator('.ops-actions__next')).toContainText('Terlambat 3 jam');
+  await card.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
+  await expect(page).toHaveURL(/\/work-items\?/);
+  await expect(page).toHaveURL(/due=OVERDUE/);
+  await expect(page).toHaveURL(/area=SUNTER_1/);
+  await page.goBack();
+  await card.locator('.ops-actions__next').click();
+  await expect(page).toHaveURL(/\/voices\/00000000-0000-4000-8000-000000000302$/);
+});
+test('Voice Member opens with the summaries and orders what needs action first', async ({
   page,
 }) => {
-  const now = Date.now();
-  const item = (id: string, title: string, hours: number, severity: string) => ({
-    id,
-    displayId: `CARE-${id.slice(-3)}`,
-    visibility: 'GENERAL',
-    area: 'KARAWANG_1',
-    title,
-    category: 'SAFETY',
-    categoryNameSnapshot: 'Safety',
-    severity,
-    status: 'OPEN',
-    updatedAt: new Date(now).toISOString(),
-    tierDueAt: new Date(now + hours * 3_600_000).toISOString(),
-    reporterName: 'Irwan Setiawan',
-    reporterDepartment: 'Production Control',
+  const lists: URL[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/v1/work-items') lists.push(url);
   });
   await mockWorkforceApi(page, {
     session: manager,
-    voiceList: {
-      items: [
-        item('00000000-0000-4000-8000-000000000301', 'Sensor cold storage berbunyi', 1, 'CRITICAL'),
-        item('00000000-0000-4000-8000-000000000302', 'Lampu jalur forklift redup', -3, 'MEDIUM'),
-      ],
-      nextCursor: null,
-    },
+    voiceList: actionList,
+    dashboardSummary: actionSummary,
   });
-  await page.goto('/');
-  const tickets = page.locator('.ops-ticket');
-  await expect(tickets.first()).toContainText('Lampu jalur forklift redup');
-  await expect(tickets.first()).toContainText('Terlambat 3 jam');
-  await expect(tickets.nth(1)).toContainText('Sisa 1 jam');
-  await expect(tickets.nth(1)).toContainText('Dari: Irwan Setiawan · Production Control');
-  await tickets.nth(1).getByRole('button', { name: 'Respons', exact: true }).click();
-  await expect(page).toHaveURL(/\/voices\/00000000-0000-4000-8000-000000000301$/);
+  await page.goto('/work-items');
+  await expect(page.getByRole('heading', { name: 'Voice Member', level: 1 })).toBeVisible();
+  // The header carries no counts; the summaries below do.
+  await expect(page.locator('.hero-band__stats')).toHaveCount(0);
+  await expect(page.locator('section[aria-labelledby="ops-actions"]')).toBeVisible();
+  const strip = page.getByRole('group', { name: 'Status Voice' });
+  await expect(strip.getByRole('button')).toHaveCount(4);
+  await expect(strip).toContainText('Direspon');
+  await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('action');
+  await expect(page.locator('.inbox-card__due').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
+  await expect(page).toHaveURL(/due=OVERDUE/);
+  await expect.poll(() => lists.at(-1)?.searchParams.get('due')).toBe('OVERDUE');
+  await page.getByRole('combobox', { name: 'Urutkan', exact: true }).click();
+  await page.getByRole('option', { name: 'Terbaru', exact: true }).click();
+  await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('newest');
+  expect((await new AxeBuilder({ page }).include('.ops').analyze()).violations).toEqual([]);
 });

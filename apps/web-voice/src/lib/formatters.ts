@@ -15,7 +15,7 @@ export const SEVERITY_LABELS: Record<string, string> = {
 
 export const STATUS_LABELS: Record<string, string> = {
   OPEN: 'Terbuka',
-  RESPONDED: 'Direspons',
+  RESPONDED: 'Direspon',
   IN_PROGRESS: 'Diproses',
   CLOSED: 'Selesai',
 };
@@ -78,7 +78,7 @@ export const ACTION_LABELS: Record<string, string> = {
 
 export const VOICE_ACTION_LABELS: Record<string, string> = {
   SUBMITTED: 'Diajukan',
-  RESPONDED: 'Direspons',
+  RESPONDED: 'Direspon',
   ASKED_REPORTER: 'Menanyakan Reporter',
   MESSAGE_SENT: 'Pesan Terkirim',
   ASSIGNED: 'Ditugaskan',

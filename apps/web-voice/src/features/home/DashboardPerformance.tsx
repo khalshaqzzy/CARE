@@ -26,7 +26,7 @@ export function DashboardPerformance({ data }: { data?: Performance | undefined 
       setUnit: setResponseUnit,
       icon: <Clock3 size={18} />,
       description:
-        'Rata-rata waktu sejak submit sampai pertama kali Direspons, termasuk melalui assignment. Voice tanpa event Direspons tidak dihitung.',
+        'Rata-rata waktu sejak submit sampai pertama kali Direspon, termasuk melalui assignment. Voice tanpa event Direspon tidak dihitung.',
     },
     {
       title: 'Average Completion Time',

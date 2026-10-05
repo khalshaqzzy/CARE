@@ -28,7 +28,7 @@ const TIER_LABELS: Record<TierLevel, string> = {
  * - Nobody answered: the next level takes over, the Voice stays Terbuka and
  *   the former holders keep a read-only view.
  * - It reached the holder already answered (manual Naikkan, handover) and was
- *   not processed: the next level takes over again, it stays Direspons, the
+ *   not processed: the next level takes over again, it stays Direspon, the
  *   chat gets a note and the former holders stay in the chat.
  * - The holder answered (or assigned) but nobody processed it: the next level
  *   joins the chat beside them with Ingatkan / Tugaskan / Proses.

@@ -86,7 +86,7 @@ test.describe('workforce journeys (mocked contract)', () => {
       summary.getByRole('heading', { name: 'Ringkasan Voice', exact: true }),
     ).toBeVisible();
     await expect(summary.locator('.dashboard-summary__total')).toHaveText('Total 1');
-    for (const label of ['Terbuka', 'Direspons', 'Diproses', 'Selesai'])
+    for (const label of ['Terbuka', 'Direspon', 'Diproses', 'Selesai'])
       await expect(summary.getByText(label, { exact: true })).toBeVisible();
     await expect(summary.locator('[data-status="IN_PROGRESS"] strong')).toHaveText('1');
     await expect(

@@ -2,7 +2,7 @@ import { Check, Circle, MessageCircle, Play } from 'lucide-react';
 
 const steps = [
   { status: 'OPEN', label: 'Terbuka', icon: Circle },
-  { status: 'RESPONDED', label: 'Direspons', icon: MessageCircle },
+  { status: 'RESPONDED', label: 'Direspon', icon: MessageCircle },
   { status: 'IN_PROGRESS', label: 'Diproses', icon: Play },
   { status: 'CLOSED', label: 'Selesai', icon: Check },
 ];

@@ -21,7 +21,7 @@ function severityTone(severity: string): 'danger' | 'warning' | 'success' {
 
 const STATUS_LABELS: Record<string, string> = {
   OPEN: 'Terbuka',
-  RESPONDED: 'Direspons',
+  RESPONDED: 'Direspon',
   IN_PROGRESS: 'Diproses',
   CLOSED: 'Selesai',
 };
@@ -205,7 +205,7 @@ export function VoiceExplorerPage() {
               options={[
                 { value: 'ALL', label: 'Semua' },
                 { value: 'OPEN', label: 'OPEN' },
-                { value: 'RESPONDED', label: 'Direspons' },
+                { value: 'RESPONDED', label: 'Direspon' },
                 { value: 'IN_PROGRESS', label: 'Diproses' },
                 { value: 'CLOSED', label: 'Selesai' },
               ]}

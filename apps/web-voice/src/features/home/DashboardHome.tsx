@@ -35,6 +35,7 @@ import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import { DashboardPerformance } from './DashboardPerformance';
 import { OpsDashboard } from './OpsDashboard';
+import { ACTION_FILTERS } from './ActionSummary';
 import { PersonalVoiceSection } from './PersonalVoiceSection';
 
 const orgLevels = ['directorate', 'division', 'department', 'section'] as const;
@@ -262,12 +263,13 @@ export function DashboardHome() {
         : hour < 18
           ? 'Selamat sore'
           : 'Selamat malam';
-  const listUrl = () => {
+  const listUrl = (extra: Record<string, string> = {}) => {
     const p = new URLSearchParams();
     const listQuery = { ...query, ...refresh.data?.dates };
     for (const key of ['area', 'category', 'severity', 'status', 'from', 'to', 'handler'] as const)
       if (listQuery[key]) p.set(key, listQuery[key]!);
     if (!query.status) p.set('statusGroup', 'ACTIVE');
+    for (const [key, value] of Object.entries(extra)) p.set(key, value);
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
   const filterRow = (
@@ -377,44 +379,6 @@ export function DashboardHome() {
   if (basisChoice) {
     const otherTotal = data?.otherBasisTotal ?? undefined;
     const basis = query.basis as 'HANDLING' | 'REPORTER';
-    const levelTabs =
-      meta && data ? (
-        <div className="ops-segmented ops-segmented--tiny" role="group" aria-label="Level cakupan">
-          {sectionOnly
-            ? meta.allowedScopeModes.map((mode) => (
-                <button
-                  type="button"
-                  key={mode}
-                  aria-pressed={data.scopeMode === mode}
-                  onClick={() => set({ ...clearOrg, scopeMode: mode, level: 'section' })}
-                >
-                  {mode === 'OWN' ? 'Section saya' : 'Seluruh section di department'}
-                </button>
-              ))
-            : meta.allowedLevels.map((l) => (
-                <button
-                  type="button"
-                  key={l}
-                  aria-pressed={data.level === l}
-                  onClick={() => pickLevel(l)}
-                >
-                  {orgLabels[l]}
-                </button>
-              ))}
-        </div>
-      ) : null;
-    const wider =
-      data &&
-      meta?.allowedLevels.includes(data.level === 'section' ? 'department' : 'division') &&
-      data.level !== 'division' ? (
-        <button
-          type="button"
-          className="ops-text-button"
-          onClick={() => pickLevel(data.level === 'section' ? 'department' : 'division')}
-        >
-          <ArrowUp size={14} aria-hidden="true" /> Lihat satu level lebih luas
-        </button>
-      ) : null;
     return (
       <OpsDashboard
         name={name}
@@ -451,11 +415,11 @@ export function DashboardHome() {
             </Alert>
           ) : null
         }
-        levelTabs={levelTabs}
-        widerLevel={wider}
-        inbox={{ items: preview.data?.items, isError: preview.isError }}
+        inbox={{ preview: preview.data, isError: preview.isError }}
         onOpenVoice={(id) => void navigate(`/voices/${id}`)}
         onOpenList={() => void navigate(listUrl())}
+        onOpenAction={(kind) => void navigate(listUrl(ACTION_FILTERS[kind]))}
+        onOpenRange={(from, to) => void navigate(listUrl({ view: 'ALL', from, to }))}
         peopleQuery={{ ...query, ...refresh.data?.dates }}
         peopleInsights={peopleInsights}
         readOnlyLabel={readonly ? 'Leadership · Read-only' : undefined}

@@ -1,4 +1,4 @@
-import { Alert, Card, EmptyState, Input, Skeleton, Stack } from '@care/ui';
+import { Alert, Card, EmptyState, Input, Select, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
@@ -10,7 +10,6 @@ import {
   Building2,
   Inbox,
   Lock,
-  ScrollText,
   Search,
   ShieldCheck,
 } from 'lucide-react';
@@ -18,13 +17,13 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { FilterPillRow } from '../../components/FilterPills';
 import { HeroBand, HeroChip } from '../../components/HeroBand';
+import { ACTION_FILTERS, ActionSummaryCard } from '../home/ActionSummary';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { Pager } from '../../components/Pager';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
   formatCategoryName,
-  formatRelative,
   formatDate,
   PRIVATE_ROUTE_LABEL,
   STATUS_LABELS,
@@ -55,7 +54,6 @@ export function WorkItemsPage() {
   const isLeadership = caps.some((capability) =>
     ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
   );
-  const isDirector = caps.includes('DIRECTOR');
   const isManager = caps.includes('MANAGER');
   const isSectionHead =
     caps.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)) && !isManager;
@@ -73,6 +71,12 @@ export function WorkItemsPage() {
   const from = searchParams.get('from') ?? undefined;
   const to = searchParams.get('to') ?? undefined;
   const search = searchParams.get('search') ?? undefined;
+  const rawSort = searchParams.get('sort');
+  const sort =
+    rawSort === 'newest' || rawSort === 'severity' ? rawSort : isUnion ? 'severity' : 'action';
+  const dueParam = searchParams.get('due');
+  const due: 'OVERDUE' | 'SOON' | undefined =
+    dueParam === 'OVERDUE' || dueParam === 'SOON' ? dueParam : undefined;
 
   const inbox = useQuery({
     queryKey: voiceQuery(
@@ -88,6 +92,8 @@ export function WorkItemsPage() {
       from,
       to,
       search,
+      due,
+      sort,
       unassignedOnly ? 'unassigned' : 'assigned-any',
       nav.cursor,
     ),
@@ -103,11 +109,12 @@ export function WorkItemsPage() {
         ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}),
         ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
         ...(search ? { search } : {}),
+        ...(due ? { due } : {}),
         ...(nav.cursor ? { cursor: nav.cursor } : {}),
       };
       return isLeadership
-        ? api.listVoices({ ...common, visibility: 'GENERAL', sort: 'severity' })
-        : api.workItems({ ...common, ...(unassignedOnly ? { unassigned: 'true' } : {}) });
+        ? api.listVoices({ ...common, visibility: 'GENERAL', sort })
+        : api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) });
     },
     enabled: Boolean(session) && !handoverMode,
     refetchInterval: 3000,
@@ -130,7 +137,7 @@ export function WorkItemsPage() {
     queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring'),
     queryFn: () => api.dashboardGeneral({}),
     enabled: !!session && !isUnion,
-    refetchInterval: 3000,
+    refetchInterval: 30_000,
   });
 
   // Union hero stats come from the private dashboard (incl. pendingAssignment).
@@ -139,6 +146,14 @@ export function WorkItemsPage() {
     queryFn: () => api.dashboardPrivate(),
     enabled: !!session && isUnion,
     refetchInterval: 3000,
+  });
+
+  // "Butuh Tindakan Saya" over the viewer's handling scope, unfiltered.
+  const actions = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'actions'),
+    queryFn: ({ signal }) => api.dashboardPreview({}, signal),
+    enabled: !!session && !isUnion,
+    refetchInterval: 30_000,
   });
 
   const options = useQuery({
@@ -167,7 +182,6 @@ export function WorkItemsPage() {
     isUnion,
     isUnionHead,
     isLeadership,
-    isDirector,
     isSectionHead,
     unassignedOnly,
   });
@@ -184,14 +198,9 @@ export function WorkItemsPage() {
   return (
     <Stack gap="lg" className="monitoring-page">
       <HeroBand
-        eyebrow={intro.eyebrow}
+        {...(isUnion ? { eyebrow: intro.eyebrow } : {})}
         title={intro.title}
         description={intro.description}
-        updated={
-          !isUnion && aggregate.data
-            ? `Diperbarui ${formatRelative(aggregate.data.generatedAt)}`
-            : undefined
-        }
         stats={
           isUnion
             ? privateDash.data
@@ -227,56 +236,41 @@ export function WorkItemsPage() {
                   },
                 ]
               : []
-            : aggregate.data
-              ? [
-                  {
-                    key: 'aktif',
-                    icon: <Activity />,
-                    value: activeCount(aggregate.data.status),
-                    label: 'Aktif',
-                    tone: 'brand',
-                  },
-                  isManager
-                    ? {
-                        key: 'pending',
-                        icon: <Clock3 />,
-                        value: aggregate.data.pendingAssignment ?? 0,
-                        label: 'Menunggu penugasan',
-                        tone: 'brand',
-                      }
-                    : isSectionHead
-                      ? {
-                          key: 'verifikasi',
-                          icon: <ScrollText />,
-                          value: bucketValue(aggregate.data.status, 'RESPONDED'),
-                          label: 'Direspons',
-                          tone: 'brand',
-                        }
-                      : {
-                          key: 'selesai',
-                          icon: <CheckCircle2 />,
-                          value: bucketValue(aggregate.data.status, 'CLOSED'),
-                          label: 'Selesai',
-                          tone: 'brand',
-                        },
-                  {
-                    key: 'kritis',
-                    icon: <AlertTriangle />,
-                    value: bucketValue(aggregate.data.severity, 'CRITICAL'),
-                    label: 'Kritis',
-                    tone: 'danger',
-                  },
-                ]
-              : []
+            : []
         }
         chip={
           isUnion ? (
             <HeroChip icon={<ShieldCheck size={12} aria-hidden="true" />} label="Union Private" />
-          ) : isLeadership ? (
-            <HeroChip icon={<Lock size={12} aria-hidden="true" />} label="Read-only" />
           ) : undefined
         }
       />
+      {!isUnion && !handoverMode ? (
+        <div className="ops ops--inline">
+          <ActionSummaryCard
+            preview={actions.data}
+            isError={actions.isError}
+            onPick={(kind) => setSearchParams(new URLSearchParams(ACTION_FILTERS[kind]))}
+            onOpenVoice={(id) => void navigate(`/voices/${id}`)}
+          />
+          <div className="ops-card ops-status-strip" role="group" aria-label="Status Voice">
+            {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((key) => (
+              <button
+                type="button"
+                key={key}
+                data-status={key}
+                aria-pressed={view === key}
+                onClick={() => setParam('view', view === key ? 'ACTIVE' : key)}
+              >
+                <span className="ops-status-strip__label">
+                  <span className="ops-status-strip__dot" aria-hidden="true" />
+                  {STATUS_LABELS[key]}
+                </span>
+                <strong>{aggregate.data ? bucketValue(aggregate.data.status, key) : '–'}</strong>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {offline ? (
         <Alert tone="warning" title="Anda sedang offline">
           Daftar terbaru, detail, dan seluruh tindakan memerlukan koneksi.
@@ -348,6 +342,17 @@ export function WorkItemsPage() {
                 : []
               : [
                   {
+                    id: 'due',
+                    label: 'Tenggat',
+                    value: due ?? '',
+                    onValueChange: (value: string) => setParam('due', value || undefined),
+                    options: [
+                      { value: '', label: 'Semua' },
+                      { value: 'OVERDUE', label: 'Terlambat' },
+                      { value: 'SOON', label: '< 24 jam' },
+                    ],
+                  },
+                  {
                     id: 'area',
                     label: 'Area',
                     value: area ?? '',
@@ -414,6 +419,20 @@ export function WorkItemsPage() {
         }
       />
 
+      {handoverMode ? null : (
+        <div className="monitoring-sort">
+          <Select
+            label="Urutkan"
+            value={sort}
+            onValueChange={(value) => setParam('sort', value === 'action' ? undefined : value)}
+            options={[
+              { value: 'action', label: 'Perlu tindakan' },
+              { value: 'newest', label: 'Terbaru' },
+              { value: 'severity', label: 'Severity' },
+            ]}
+          />
+        </div>
+      )}
       {(handoverMode ? handovers.isLoading : inbox.isLoading) ? (
         <Skeleton label={handoverMode ? 'Memuat riwayat handover' : 'Memuat daftar Voice'} />
       ) : (handoverMode ? handovers.isError : inbox.isError) ? (
@@ -500,7 +519,6 @@ function introFor({
   isUnion,
   isUnionHead,
   isLeadership,
-  isDirector,
   isSectionHead,
   unassignedOnly,
 }: Record<string, boolean>) {
@@ -515,19 +533,12 @@ function introFor({
           : 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
     };
   if (isLeadership)
-    return {
-      eyebrow: 'Monitoring organisasi',
-      title: 'Voice Member',
-      description: isDirector
-        ? 'Pantau seluruh General Voice secara read-only. Aggregate dan detail tetap mengikuti batas permission.'
-        : 'Pantau General Voice divisi Anda secara read-only dengan overview organisasi yang aman.',
-    };
+    return { title: 'Voice Member', description: 'Pantau General Voice secara read-only.' };
   return {
-    eyebrow: 'Workspace operasional',
     title: 'Voice Member',
     description: isSectionHead
-      ? 'General Voice yang ditugaskan kepada Anda untuk diverifikasi dan ditangani.'
-      : 'General Voice yang menjadi tanggung jawab route Anda, lengkap dengan filter dan tindakan lifecycle.',
+      ? 'Voice yang ditugaskan kepada Anda.'
+      : 'Voice yang menjadi tanggung jawab Anda.',
   };
 }
 

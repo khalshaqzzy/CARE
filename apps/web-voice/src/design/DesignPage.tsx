@@ -600,7 +600,7 @@ export default function DesignPage() {
                 <div className="design-dot-row">
                   <DotLabel tone="danger">High</DotLabel>
                   <DotLabel tone="warning">Medium</DotLabel>
-                  <DotLabel tone="info">Direspons</DotLabel>
+                  <DotLabel tone="info">Direspon</DotLabel>
                   <DotLabel tone="success">Selesai</DotLabel>
                   <DotLabel tone="brand">Diproses</DotLabel>
                   <DotLabel tone="neutral">Arsip</DotLabel>

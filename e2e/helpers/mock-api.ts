@@ -967,6 +967,7 @@ export type MockApiOptions = {
   privateDashboard?: unknown;
   /** Unit-head people cards; empty lists unless a test supplies them. */
   dashboardHandlers?: unknown;
+  dashboardSummary?: unknown;
   dashboardParticipation?: unknown;
   draft?: unknown;
   draftPreview?: unknown;
@@ -1273,11 +1274,23 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       return satisfy(200, opts.dashboardParticipation ?? { memberCount: 0, members: [] });
     if (method === 'GET' && path === '/api/v1/dashboard/metadata')
       return satisfy(200, dashboardFixture(session, url).metadata);
-    if (method === 'GET' && path === '/api/v1/dashboard/preview')
-      return satisfy(
-        200,
-        opts.voiceList ?? { items: voice ? [baseVoiceItem(voice)] : [], nextCursor: null },
-      );
+    if (method === 'GET' && path === '/api/v1/dashboard/preview') {
+      const list = opts.voiceList ?? {
+        items: voice ? [baseVoiceItem(voice)] : [],
+        nextCursor: null,
+      };
+      const items = (list as { items: Array<{ status?: string; severity?: string }> }).items;
+      return satisfy(200, {
+        ...list,
+        summary: opts.dashboardSummary ?? {
+          total: items.length,
+          open: items.filter((item) => item.status === 'OPEN').length,
+          overdue: 0,
+          dueSoon: 0,
+          critical: items.filter((item) => item.severity === 'CRITICAL').length,
+        },
+      });
+    }
     if (
       method === 'GET' &&
       ['/api/v1/dashboard/general', '/api/v1/dashboard/private'].includes(path) &&
