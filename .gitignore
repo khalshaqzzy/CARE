@@ -36,3 +36,8 @@ __pycache__/
 
 # Impeccable design-review captures (local evidence only)
 apps/web-voice/.impeccable/review/
+
+# Legacy Voice migration: filled workbooks and reports hold personal data
+/docs/migration/*.xlsx
+!/docs/migration/Template_Migrasi_Voice_CARE.xlsx
+/docs/migration/*.csv
