@@ -63,7 +63,9 @@ async function membersInScope(
       structuralPosition: true,
       section: true,
       lineName: true,
-      organizationUnit: { select: { department: true } },
+      organizationUnit: {
+        select: { department: true, shopLocation: { select: { status: true } } },
+      },
       employee: {
         select: {
           account: { select: { id: true, displayName: true, passwordChangeRequired: true } },
@@ -99,6 +101,9 @@ export class DashboardPeople {
       const account = m.employee.account;
       if (!account || account.id === actor.accountId) continue;
       if (!level || level === 'DIVISION' || !roles.includes(level)) continue;
+      // Lines exist in production shops; elsewhere the Section Head is the first responder.
+      if (level === 'GROUP_LEADER' && m.organizationUnit.shopLocation?.status !== 'ACTIVE')
+        continue;
       if (people.has(account.id)) continue;
       const unitLabel =
         level === 'MANAGER'

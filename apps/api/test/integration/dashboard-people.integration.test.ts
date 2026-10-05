@@ -89,6 +89,8 @@ describe('Dashboard people: handling performance and member participation', () =
     unit = await db.organizationUnit.create({
       data: { directorate: 'Production', division: 'Division A', department: 'GA & SHE' },
     });
+    // Lines and Group Leaders belong to production shops.
+    await db.shopLocation.create({ data: { organizationUnitId: unit.id, areas: [], aliases: [] } });
     remote = await db.organizationUnit.create({
       data: { directorate: 'Production', division: 'Division B', department: 'Logistics' },
     });
@@ -240,6 +242,20 @@ describe('Dashboard people: handling performance and member participation', () =
       await expect(people.handlers(viewer, {})).rejects.toThrow();
     for (const viewer of [groupLeader, director])
       await expect(people.participation(viewer, {})).rejects.toThrow();
+  });
+
+  it('leaves Group Leaders out of a department that is not an active shop', async () => {
+    const shop = { organizationUnitId: unit.id };
+    await db.shopLocation.update({ where: shop, data: { status: 'ARCHIVED' } });
+    try {
+      expect((await people.handlers(manager, {})).items.map((item) => item.name)).toEqual([
+        'Andi SH',
+        'Budi SH',
+      ]);
+      expect((await people.handlers(sectionHead, {})).items).toEqual([]);
+    } finally {
+      await db.shopLocation.update({ where: shop, data: { status: 'ACTIVE' } });
+    }
   });
 
   it('counts every Voice a member sent in the period, including Private, without content', async () => {
