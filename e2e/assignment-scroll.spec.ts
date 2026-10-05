@@ -11,7 +11,7 @@ async function openAssignment(page: Page, count = 30) {
       audience: 'GENERAL_RESPONDER',
       visibility: 'GENERAL',
       area: 'KARAWANG_1',
-      // Open Voices assign through the Respons sheet; this dialog serves Direspons.
+      // Open Voices assign through the Respons sheet; this dialog serves Direspon.
       status: 'RESPONDED',
       title: 'Perbaikan fasilitas',
       detail: 'Perbaikan fasilitas',

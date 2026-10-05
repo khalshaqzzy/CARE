@@ -1,5 +1,30 @@
 # CARE Session Handoff
 
+## Butuh Tindakan Saya, Voice Member ordering, and dashboard layout — 6 October 2026
+
+Product owner decisions after PR #71, each previewed with screenshots first:
+
+- **Filter row:** the select pills lost their hidden-label field gap, so every chip sits on one line.
+- **Spread cards:** level tabs and "Lihat satu level lebih luas" are removed from both. The organization filter sets scope and level.
+- **Butuh Tindakan Saya (version B):** a summary under the profile.
+  - Counts come from `/dashboard/preview` `summary`; each count opens Voice Member with a matching filter.
+  - New list filter `due=OVERDUE|SOON` shares one predicate (`dueFilter`) with the summary.
+- **Trend:** clickable buckets with counts. The peak is picked by default, and on handling the bucket links to Voice Member for that period. The total was removed.
+- **Voice Member:**
+  - **Header:** title and one line only.
+  - **Summaries:** the summary card plus a compact status row.
+  - **Filters and ordering:** a Tenggat filter and Urutkan (`sort=action|newest|severity`; default `action` for General responders, `severity` for Union).
+  - **Cards:** show Sisa/Terlambat.
+- **"Direspons" → "Direspon"** everywhere active (apps, tests, PRD, PRODUCT.md, DESIGN.md). Historical ADRs and handoff entries are unchanged.
+
+**Validation:**
+
+- **API:** typecheck, unit tests 160/160, security 14/14. Integration passes except the known local `admin-safety` timeout. A new test covers the summary, the `due` filters, and the action and newest orders.
+- **Browser:** Chromium/PWA/push 239/242.
+  - The two failures that remained after reruns (dashboard date filter, auth recovery) pass 6/6 alone; they flake only under parallel local load.
+  - The push-support message failure is the known local-build issue.
+- **Visual:** 184/184. Browser inventory is 438.
+
 ## Operations dashboard refinements — 5 October 2026
 
 After PR #70 reached staging, the product owner confirmed it works and decided:

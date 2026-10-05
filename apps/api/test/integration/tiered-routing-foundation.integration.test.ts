@@ -463,7 +463,7 @@ describe('Tiered routing foundation', () => {
       { expectedVersion: 1, reason: 'Perlu keputusan Section.' },
       'esc-gl',
     );
-    // Raising it by hand answers the Voice: Direspons, chat open, Section Head in charge.
+    // Raising it by hand answers the Voice: Direspon, chat open, Section Head in charge.
     expect(escalated).toMatchObject({ status: 'RESPONDED', version: 2 });
     expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
       tierLevel: 'SECTION_HEAD',
@@ -803,7 +803,7 @@ describe('Tiered routing foundation', () => {
     ).toMatchObject({ previousHolders: [sectionHead.accountId] });
     await prisma.awayPeriod.delete({ where: { id: leave.id } });
 
-    // 2. Raised by hand and not processed: up again, stays Direspons, chat note.
+    // 2. Raised by hand and not processed: up again, stays Direspon, chat note.
     const raised = await submitAs('700004', 'auto-raised');
     await voices.escalate(
       groupLeader,

@@ -90,6 +90,24 @@ const draftListItemSelect = Prisma.validator<Prisma.VoiceDraftSelect>()({
   updatedAt: true,
 });
 
+/**
+ * Voice Member orderings. "action" puts what still needs someone first:
+ * Terbuka before Direspon before Diproses, then the nearest deadline (past ones
+ * first), then severity, then the newest.
+ */
+function listOrder(sort: string | undefined): Prisma.VoiceOrderByWithRelationInput[] {
+  if (sort === 'action')
+    return [
+      { status: 'asc' },
+      { tierDueAt: { sort: 'asc', nulls: 'last' } },
+      { severity: 'desc' },
+      { submittedAt: 'desc' },
+      { id: 'desc' },
+    ];
+  if (sort === 'newest') return [{ submittedAt: 'desc' }, { id: 'desc' }];
+  return [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }];
+}
+
 type VoiceListQuery = {
   status?: VoiceStatus;
   statusGroup?: 'ACTIVE' | 'CLOSED' | 'ALL';
@@ -104,6 +122,7 @@ type VoiceListQuery = {
   from?: string;
   to?: string;
   sort?: string;
+  due?: string;
 };
 
 // Draft fields needed to resolve a General route, including the incident shop.
@@ -942,6 +961,7 @@ export class VoicesService {
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [scope];
+    if (query.due) and.push(await this.dueFilter(query.due));
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
       and.push({
@@ -976,8 +996,8 @@ export class VoicesService {
     }
     const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
     const orderBy: Prisma.VoiceOrderByWithRelationInput[] =
-      query.sort === 'severity'
-        ? [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }]
+      query.sort === 'severity' || query.sort === 'action' || query.sort === 'newest'
+        ? listOrder(query.sort)
         : [{ updatedAt: 'desc' }, { id: 'desc' }];
     const items = await this.prisma.voice.findMany({
       where: combinedWhere,
@@ -1014,6 +1034,8 @@ export class VoicesService {
       to?: string;
       unassigned?: string;
       handler?: string;
+      due?: string;
+      sort?: string;
     } = {},
   ) {
     this.assertStatusFilter(query.status, query.statusGroup);
@@ -1021,6 +1043,7 @@ export class VoicesService {
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
+    if (query.due) and.push(await this.dueFilter(query.due));
     // The Union Head assignment queue: only voices still awaiting an officer.
     // The flag is deliberately ignored for every other actor so existing inbox
     // semantics (Manager route inbox, Section Head assigned inbox) never change.
@@ -1070,7 +1093,8 @@ export class VoicesService {
       where: combinedWhere,
       take: take + 1,
       ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      orderBy: [{ severity: 'desc' }, { submittedAt: 'desc' }, { id: 'desc' }],
+      // Union inboxes keep severity first; General responders default to "action".
+      orderBy: listOrder(query.sort ?? (includeAlias ? 'severity' : 'action')),
       select: { ...this.listSelect(true), anonymousAlias: true },
     });
     const hasNext = items.length > take;
@@ -3320,16 +3344,18 @@ export class VoicesService {
   }
 
   async dashboardPreview(actor: AuthActor, query: DashboardQuery = {}) {
-    const context = await this.organizationDashboard.context(actor, query);
+    const context = await this.organizationDashboard.context(actor, query, 'scope');
     const general = context.q.visibility === 'GENERAL';
+    const active: Prisma.VoiceWhereInput = {
+      AND: [
+        context.where,
+        await this.policy.detailScope(actor),
+        { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } },
+      ],
+    };
+    const summary = await this.actionSummary(active);
     const rows = await this.prisma.voice.findMany({
-      where: {
-        AND: [
-          context.where,
-          await this.policy.detailScope(actor),
-          { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } },
-        ],
-      },
+      where: active,
       // General: the deadline that applies first, then severity.
       orderBy: [
         ...(general ? [{ tierDueAt: { sort: 'asc' as const, nulls: 'last' as const } }] : []),
@@ -3367,7 +3393,58 @@ export class VoicesService {
         }),
       ),
       nextCursor: null,
+      summary,
     };
+  }
+
+  /**
+   * "Butuh Tindakan Saya": active Voices in view, those past the deadline that
+   * applies (tier window or the live handling target), those due within a day,
+   * still Terbuka, and Kritis.
+   */
+  private async actionSummary(active: Prisma.VoiceWhereInput) {
+    const now = new Date();
+    const [overdue, soon] = await Promise.all([
+      this.dueFilter('OVERDUE', now),
+      this.dueFilter('SOON', now),
+    ]);
+    const count = (extra?: Prisma.VoiceWhereInput) =>
+      this.prisma.voice.count({ where: extra ? { AND: [active, extra] } : active });
+    const [total, open, late, dueSoon, critical] = await Promise.all([
+      count(),
+      count({ status: VoiceStatus.OPEN }),
+      count(overdue),
+      count(soon),
+      count({ severity: Severity.CRITICAL }),
+    ]);
+    return { total, open, overdue: late, dueSoon, critical };
+  }
+
+  /**
+   * Active Voices past the deadline that applies to them (the tier window, or
+   * the live handling target of the current cycle), or due within a day.
+   * Shared by the action summary and the Voice Member filter so both agree.
+   */
+  private async dueFilter(due: string, now = new Date()): Promise<Prisma.VoiceWhereInput> {
+    if (due !== 'OVERDUE' && due !== 'SOON')
+      throw badRequest('DUE_FILTER_INVALID', 'due must be OVERDUE or SOON');
+    const late = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT v.id FROM "Voice" v JOIN "VoiceHandlingTarget" t ON t."voiceId" = v.id
+        AND t."cycleNumber" = v."handlingCycleNumber"
+      WHERE v.status = 'IN_PROGRESS' AND t."dueAt" < ${now}`);
+    const lateIds = late.map((row) => row.id);
+    const active = {
+      status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
+    };
+    return due === 'OVERDUE'
+      ? { AND: [active, { OR: [{ tierDueAt: { lt: now } }, { id: { in: lateIds } }] }] }
+      : {
+          AND: [
+            active,
+            { tierDueAt: { gte: now, lt: new Date(now.getTime() + 24 * 3600_000) } },
+            { id: { notIn: lateIds } },
+          ],
+        };
   }
 
   async dashboardMember(actor: AuthActor) {
@@ -4139,7 +4216,9 @@ export class VoicesService {
       },
       // PIC display name for operational inbox cards; only joined for responder/
       // leadership/union lists, never for reporter-facing payloads.
-      ...(includeHandler ? { currentHandler: { select: { displayName: true } } } : {}),
+      ...(includeHandler
+        ? { currentHandler: { select: { displayName: true } }, tierDueAt: true }
+        : {}),
     };
   }
   private toListItem<

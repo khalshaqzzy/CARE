@@ -154,6 +154,28 @@ const member = {
   },
 };
 export const dashboardSchemas = {
+  DashboardPreview: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['items', 'nextCursor', 'summary'],
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
+      nextCursor: { type: 'string', nullable: true },
+      // Active Voices in view that need the viewer's action.
+      summary: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['total', 'open', 'overdue', 'dueSoon', 'critical'],
+        properties: {
+          total: { type: 'integer', minimum: 0 },
+          open: { type: 'integer', minimum: 0 },
+          overdue: { type: 'integer', minimum: 0 },
+          dueSoon: { type: 'integer', minimum: 0 },
+          critical: { type: 'integer', minimum: 0 },
+        },
+      },
+    },
+  },
   DashboardHandlers: {
     type: 'object',
     additionalProperties: false,

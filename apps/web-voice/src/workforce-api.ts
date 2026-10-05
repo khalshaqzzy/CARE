@@ -25,6 +25,7 @@ export type DashboardMetadata = components['schemas']['DashboardMetadata'];
 export type DashboardAggregate = components['schemas']['DashboardAggregate'];
 export type DashboardHandlers = components['schemas']['DashboardHandlers'];
 export type DashboardParticipation = components['schemas']['DashboardParticipation'];
+export type DashboardPreview = components['schemas']['DashboardPreview'];
 export type VoiceListItem = components['schemas']['VoiceListItem'];
 export type VoiceList = components['schemas']['VoiceListResponse'];
 export type Attachment = components['schemas']['AttachmentResponse'];
@@ -110,7 +111,7 @@ export function createWorkforceApi(transport: CareTransport) {
       return result;
     },
     dashboardPreview: (query: QueryInput<DashboardQuery> = {}, signal?: AbortSignal) =>
-      dataOrThrow<VoiceList>(
+      dataOrThrow<DashboardPreview>(
         client.GET('/api/v1/dashboard/preview', {
           params: { query: compactQuery(query) },
           signal: signal ?? null,

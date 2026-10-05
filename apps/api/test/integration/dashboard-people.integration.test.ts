@@ -343,4 +343,55 @@ describe('Dashboard people: handling performance and member participation', () =
     });
     expect('reporterAlias' in preview.items[0]!).toBe(false);
   });
+
+  it('summarizes what needs action, and Voice Member filters and orders to match', async () => {
+    const now = Date.now();
+    await voice({
+      title: 'Lewat',
+      severity: 'CRITICAL',
+      tierDueAt: new Date(now - hour),
+    });
+    await voice({ title: 'Segera', status: 'RESPONDED', tierDueAt: new Date(now + 3 * hour) });
+    await voice({
+      title: 'Baru',
+      severity: 'LOW',
+      tierDueAt: new Date(now + 30 * hour),
+      submittedAt: new Date(now),
+    });
+    const target = await voice({
+      title: 'Target lewat',
+      status: 'IN_PROGRESS',
+      currentHandlerId: manager.accountId,
+      handlingCycleNumber: 1,
+    });
+    await db.voiceHandlingTarget.create({
+      data: {
+        voiceId: target.id,
+        cycleNumber: 1,
+        days: 1,
+        setById: manager.accountId,
+        dueAt: new Date(now - hour),
+      },
+    });
+    await voice({ title: 'Tutup', status: 'CLOSED' });
+
+    const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
+    expect(preview.summary).toEqual({ total: 4, open: 2, overdue: 2, dueSoon: 1, critical: 1 });
+    const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
+      (await voices.workItems(manager, query)).items.map((item) => item.title);
+    // Each summary tile opens exactly the Voices it counts.
+    expect((await titles({ due: 'OVERDUE' })).sort()).toEqual(['Lewat', 'Target lewat']);
+    expect(await titles({ due: 'SOON' })).toEqual(['Segera']);
+    // Perlu tindakan: Terbuka first, nearest deadline first; a new low Voice is not buried.
+    expect(await titles({ statusGroup: 'ACTIVE' })).toEqual([
+      'Lewat',
+      'Baru',
+      'Segera',
+      'Target lewat',
+    ]);
+    expect((await titles({ statusGroup: 'ACTIVE', sort: 'newest' }))[0]).toBe('Baru');
+    const [first] = (await voices.workItems(manager, { statusGroup: 'ACTIVE' })).items;
+    expect(first).toMatchObject({ tierDueAt: new Date(now - hour) });
+    await expect(voices.workItems(manager, { due: 'LATER' })).rejects.toThrow();
+  });
 });

@@ -48,6 +48,22 @@ The workforce bottom navigation showed icons without labels on mobile and groupe
 - **Profile card.** It uses the cobalt page-band gradient so Home matches the blue headers of the other workforce pages (version A: it stays a card).
 - **"Lihat semua" sheets.** They show one bordered tile per person. The sheet list takes keyboard focus because it scrolls.
 
+### Follow-up decisions (6 October 2026)
+
+- **Butuh Tindakan Saya.** It becomes a summary under the profile card on Voice Untuk Saya: total, Lewat batas, Batas < 24 jam, Belum direspons, Kritis, and the most urgent Voice.
+  - The ticket grid is removed.
+  - Counts come with `GET /dashboard/preview` (`summary`), outside the aggregate, so the 50k-Voice gate is unaffected.
+  - Each count opens Voice Member with a matching filter. The new list filter `due=OVERDUE|SOON` shares one predicate with the summary (tier window passed, or the live handling target of the current cycle passed), so the count and the list agree.
+- **Level controls.** The level tabs and "Lihat satu level lebih luas" are removed from both spread cards. The organization filter already sets scope and level.
+- **Trend.** Trend buckets are tap targets that read out their count. On Voice Untuk Saya they link to Voice Member for that period. The team trend does not link, because Voice Member lists handled Voices.
+- **Voice Member.**
+  - **Header:** title and one line only.
+  - **Summaries:** the same summary card plus a compact status row.
+  - **Filters and ordering:** a Tenggat filter and an Urutkan control.
+  - **Default "Perlu tindakan" order:** status, then nearest tier deadline, then severity, then newest. A new low-severity Voice no longer sinks below older handled ones.
+  - **Union** keeps severity order and its header counts.
+- **"Direspons" → "Direspon"** across the product.
+
 ## Rationale
 
 Placing people insights on the same filtered cohort as the dashboard keeps every number consistent with what the viewer can already see. Recording the holders who missed a window at escalation time avoids reconstructing history from mutable arrays and makes substitutes accountable for the period they covered.

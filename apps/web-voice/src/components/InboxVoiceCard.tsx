@@ -1,3 +1,4 @@
+import { remainingTime } from '../lib/deadline';
 import {
   AlertTriangle,
   ArrowDownCircle,
@@ -8,6 +9,7 @@ import {
   LoaderCircle,
   MinusCircle,
   ShieldCheck,
+  Timer,
   UserRound,
 } from 'lucide-react';
 import type { VoiceListItem } from '../workforce-api';
@@ -70,6 +72,7 @@ export function InboxVoiceCard({
   // cards align the PIC chip with the severity headline at the top right.
   const picInTopRow = !identity;
   const area = AREA_LABELS[voice.area] ?? voice.area;
+  const due = voice.status === 'CLOSED' ? null : remainingTime(voice.tierDueAt);
   const category = voice.category
     ? formatCategoryName(voice.category, voice.categoryNameSnapshot)
     : null;
@@ -139,6 +142,12 @@ export function InboxVoiceCard({
               ) : null}
             </span>
             {voice.targetOverdue ? <OverdueBadge /> : null}
+            {due ? (
+              <span className="inbox-card__due" data-urgent={due.urgent || undefined}>
+                <Timer size={12} aria-hidden="true" />
+                {due.text}
+              </span>
+            ) : null}
             <span className="inbox-card__time">
               <Clock3 size={12} aria-hidden="true" />
               {formatRelative(voice.updatedAt)}

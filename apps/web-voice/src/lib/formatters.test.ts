@@ -138,7 +138,7 @@ describe('closure review status display', () => {
     expect(voiceStatusDisplay('IN_PROGRESS', 'REJECTED')).toBe('Diproses');
     // A rejected review only colors the re-verification phase, never a plain
     // verification or the accepted closure.
-    expect(voiceStatusDisplay('RESPONDED', null)).toBe('Direspons');
+    expect(voiceStatusDisplay('RESPONDED', null)).toBe('Direspon');
     expect(voiceStatusDisplay('IN_PROGRESS', 'REJECTED')).toBe('Diproses');
   });
 

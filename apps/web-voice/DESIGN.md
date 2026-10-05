@@ -195,7 +195,7 @@ Slate neutrals with a single blue voice and three signal hues that only ever mea
 - **Overdue Rose** (alert): Terbuka status, overdue and urgent deadlines, missed-deadline figures. Its tinted form (alert-soft, alert-border, alert-ink) carries the overdue strip and Kritis pills.
 - **Done Green** (good): Selesai gains ("+N hari ini" on the Selesai tile only) and comparisons that improved.
 - **Amber** (warning): Tinggi severity and "menunggu rating" nudges, in tinted form (warning-soft, warning-border, warning-ink).
-- **Status set**: Terbuka (status-open), Direspons (status-responded), Diproses (status-in-progress, cyan), Selesai (status-closed). Applied through a single `--ops-status` variable keyed on `data-status`, used for dots and the stacked proportion bar.
+- **Status set**: Terbuka (status-open), Direspon (status-responded), Diproses (status-in-progress, cyan), Selesai (status-closed). Applied through a single `--ops-status` variable keyed on `data-status`, used for dots and the stacked proportion bar.
 - **Severity set**: Kritis rose, Tinggi amber, Sedang blue, Rendah slate (severity-low), shown as 6px dots.
 
 ### Neutral
@@ -257,6 +257,8 @@ Nearly flat. Cards lift off the canvas with a hairline plus a very soft two-laye
 ### Named Rules
 
 **The One Surface Per Card Rule.** A card holds tiles, but a tile never holds another bordered box; figures inside a person tile sit on a hairline, not a nested panel.
+
+**The Count Opens Its List Rule.** A summary count is a button that opens the list it counts. On Home it opens Voice Member with the same filters; on Voice Member it filters in place. Never show a count whose list cannot be reached.
 
 **The Portal Token Rule.** Sheets open in a portal outside `.ops`, so `.ops-sheet` carries the same `--ops-*` tokens. Each person in a "Lihat semua" sheet is its own bordered tile, with an 8px gap between tiles.
 

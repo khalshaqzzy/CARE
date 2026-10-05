@@ -40,7 +40,9 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                 ? { type: 'integer', minimum: 1, maximum: 100 }
                 : parameter === 'statusGroup'
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
-                  : { type: 'string' },
+                  : parameter === 'due'
+                    ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
+                    : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -160,6 +162,7 @@ const queryParameters: Record<string, string[]> = {
     'from',
     'to',
     'sort',
+    'due',
   ],
   VoicesController_listMine: [
     'cursor',
@@ -189,6 +192,8 @@ const queryParameters: Record<string, string[]> = {
     'to',
     'unassigned',
     'handler',
+    'due',
+    'sort',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
   VoicesController_dashboardGeneral: dashboardParameters,
@@ -314,7 +319,7 @@ function successSchema(operationId: string) {
   if (operationId === 'VoicesController_dashboardMetadata')
     return { $ref: '#/components/schemas/DashboardMetadata' };
   if (operationId === 'VoicesController_dashboardPreview')
-    return { $ref: '#/components/schemas/VoiceListResponse' };
+    return { $ref: '#/components/schemas/DashboardPreview' };
   if (operationId === 'VoicesController_dashboardHandlers')
     return { $ref: '#/components/schemas/DashboardHandlers' };
   if (operationId === 'VoicesController_dashboardParticipation')

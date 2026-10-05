@@ -11,7 +11,7 @@ Scope: `apps/web-voice/src/features/home/DashboardHome.tsx` plus the workforce b
 
 Audience and job: unit heads check what needs them now (Voice Untuk Saya) and how their unit reports and is served (Voice Tim Saya), on phones between shifts and on laptops in reviews. Performance and participation figures may feed formal evaluation, so every number must trace to recorded events.
 
-Constraints: fixed statuses Terbuka/Direspons/Diproses/Selesai; real category catalog; deadlines per severity and tier (no SLA targets); Private content never shown; minimal copy; Safari 11.3 and 360 px; self-hosted fonts only (CSP font-src 'self').
+Constraints: fixed statuses Terbuka/Direspon/Diproses/Selesai; real category catalog; deadlines per severity and tier (no SLA targets); Private content never shown; minimal copy; Safari 11.3 and 360 px; self-hosted fonts only (CSP font-src 'self').
 
 Pinned direction: two user-supplied HTML mockups (white ops dashboard). Translated, not copied: no eyebrow above headings, no invented targets, no "Verifikasi Lapangan", no update timestamp footer.
 
