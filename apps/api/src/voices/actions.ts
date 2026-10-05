@@ -21,6 +21,8 @@ export type ActionableVoice = {
   sectionHasGroupLeader?: boolean;
   /** Former holders who raised the Voice by hand: they keep the chat only. */
   tierParticipantIds?: string[];
+  /** Migrated from an earlier platform: its closure is final, so it is not rated. */
+  migrated?: boolean;
   closureCycles?: Array<{
     reopenedAt: Date | null;
     reviewState?: 'PENDING' | 'ACCEPTED' | 'REJECTED';
@@ -151,7 +153,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       actions.push('MESSAGE');
     else if (voice.status === 'CLOSED') {
       const latest = voice.closureCycles?.at(-1);
-      if (latest && !latest.reopenedAt && !latest.rating) actions.push('RATE');
+      if (latest && !latest.reopenedAt && !latest.rating && !voice.migrated) actions.push('RATE');
     }
   }
   return actions;

@@ -745,6 +745,10 @@ model Voice {
   shopOrganizationUnitId          String?                 @db.Uuid
   shopDepartmentSnapshot          String?                 @db.VarChar(200)
   shopResolutionSource            ShopResolutionSource?
+  /// Voices migrated from an earlier member-voice platform: that platform and
+  /// its own Voice ID. A pair is imported at most once.
+  legacySource                    String?                 @db.VarChar(80)
+  legacyId                        String?                 @db.VarChar(100)
   version                         Int                     @default(1)
   submittedAt                     DateTime                @default(now())
   updatedAt                       DateTime                @updatedAt
@@ -772,6 +776,7 @@ model Voice {
   adminHandovers                  AdminHandover[]
   reminders                       VoiceReminder[]
 
+  @@unique([legacySource, legacyId])
   @@index([reporterId, status, updatedAt])
   @@index([routeOwnerId, status, severity, submittedAt])
   @@index([currentHandlerId, status, severity, submittedAt])

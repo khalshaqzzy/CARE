@@ -965,6 +965,7 @@ export class VoicesService {
         OR: [
           { displayId: { contains: query.search, mode: 'insensitive' } },
           { title: { contains: query.search, mode: 'insensitive' } },
+          { legacyId: { contains: query.search, mode: 'insensitive' } },
         ],
       });
     }
@@ -1051,6 +1052,7 @@ export class VoicesService {
         OR: [
           { displayId: { contains: query.search, mode: 'insensitive' } },
           { title: { contains: query.search, mode: 'insensitive' } },
+          { legacyId: { contains: query.search, mode: 'insensitive' } },
         ],
       });
     }
@@ -3111,6 +3113,7 @@ export class VoicesService {
         const cycle = voice?.closureCycles[0];
         if (!voice || !cycle) throw forbiddenAsNotFound();
         if (cycle.rating) throw invalidTransition('Closure cycle already has a rating');
+        if (voice.legacySource) throw invalidTransition('Migrated Voices are not rated in CARE');
         // A late rating after auto-acceptance is still recorded as feedback, but
         // it can no longer reopen the voice once the review window has closed.
         const reopenAllowed =
@@ -4494,6 +4497,7 @@ export class VoicesService {
       tierLowerHolderIds?: string[];
       sectionHasGroupLeader?: boolean;
       tierParticipantIds?: string[];
+      legacySource?: string | null;
     },
   ) {
     return computeAvailableActions(
@@ -4507,6 +4511,7 @@ export class VoicesService {
         handlerInactive:
           voice.currentHandler?.status !== undefined &&
           voice.currentHandler.status !== AccountStatus.ACTIVE,
+        migrated: Boolean(voice.legacySource),
         hasConversation: Boolean(voice.conversation),
         hasHandlingTarget: voice.handlingTargets?.some(
           (target) => target.cycleNumber === voice.handlingCycleNumber,
