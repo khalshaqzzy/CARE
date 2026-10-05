@@ -92,7 +92,8 @@ function SearchSheet<T extends { name: string }>({
           value={term}
           onChange={(event) => setTerm(event.target.value)}
         />
-        <ul className="ops-list" role="list">
+        {/* The list scrolls inside the sheet, so it takes keyboard focus. */}
+        <ul className="ops-list" role="list" aria-label={title} tabIndex={0}>
           {shown.map((item) => (
             <Fragment key={itemKey(item)}>{render(item, items.indexOf(item))}</Fragment>
           ))}

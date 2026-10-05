@@ -7476,7 +7476,8 @@
   font-weight: 200 800;
   src: url('./assets/fonts/plus-jakarta-sans-latin-wght-normal.woff2') format('woff2-variations');
 }
-.ops {
+.ops,
+.ops-sheet {
   --ops-ink: #0f172a;
   --ops-ink-2: #475569;
   --ops-ink-3: #556275;
@@ -7490,6 +7491,8 @@
   --ops-alert-soft: #fff1f2;
   --ops-good: #047857;
   --ops-display: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif;
+}
+.ops {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
@@ -8338,7 +8341,10 @@
 }
 .ops-sheet .ops-list {
   max-height: min(60vh, 520px);
+  gap: 8px;
   overflow-y: auto;
+  color: var(--ops-ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Action tickets: the deadline that applies, first */
@@ -8818,4 +8824,75 @@
 }
 .ops-ticket__cta {
   margin-top: auto;
+}
+
+/* Profile card on the cobalt page band, matching the other workforce headers. */
+.ops-card.ops-profile {
+  border-color: transparent;
+  background: var(--gradient-brand-hero);
+  color: #fff;
+  box-shadow: 0 12px 28px -16px rgb(7 86 232 / 55%);
+}
+.ops-profile__avatar {
+  border: 1px solid rgb(255 255 255 / 30%);
+  background: rgb(255 255 255 / 16%);
+}
+.ops-profile__who small {
+  color: rgb(255 255 255 / 82%);
+}
+.ops-profile__who h1 {
+  color: #fff;
+}
+.ops-profile__role {
+  color: #dbeafe;
+}
+.ops-profile__bell .care-button {
+  background: rgb(255 255 255 / 16%);
+  color: #fff;
+}
+.ops-profile .ops-segmented {
+  background: rgb(255 255 255 / 16%);
+}
+.ops-profile .ops-segmented button {
+  color: #fff;
+}
+.ops-profile .ops-segmented button[aria-pressed='true'] {
+  background: #fff;
+  color: var(--ops-accent-ink);
+}
+.ops-profile .ops-segmented button:focus-visible,
+.ops-profile .ops-mine:focus-visible,
+.ops-profile .ops-filter-chip:focus-visible,
+.ops-profile .ops-icon-button:focus-visible {
+  outline-color: #fff;
+}
+.ops-profile .ops-segmented button:not([aria-pressed='true']) .ops-count {
+  background: rgb(255 255 255 / 22%);
+  color: #fff;
+}
+.ops-profile .ops-mine {
+  border: 1px solid rgb(255 255 255 / 30%);
+  background: rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 88%);
+}
+.ops-profile .ops-mine svg {
+  color: #fff;
+}
+.ops-profile .ops-mine__label {
+  color: #fff;
+}
+.ops-profile .ops-readonly {
+  border-color: rgb(255 255 255 / 30%);
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+}
+.ops-profile .ops-filter-chip,
+.ops-profile .ops-filters .filter-pills__pill .care-select-trigger,
+.ops-profile .ops-filters .filter-pills__funnel,
+.ops-profile .ops-icon-button {
+  border-color: transparent;
+  background: #fff;
+}
+.ops-profile .ops-mine__alert {
+  color: #fde68a;
 }

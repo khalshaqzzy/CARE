@@ -173,6 +173,10 @@ Density is high but legible: 12-13px Inter labels, Plus Jakarta Sans figures and
 **Key Characteristics:**
 
 - White cards (10px) with hairline slate borders and a barely-there two-layer shadow.
+- The profile card is the one cobalt card. It uses `--gradient-brand-hero`, the band behind every other workforce page header, so Home matches them. On it:
+  - Text, icons, and the bell are white.
+  - The basis trough and the "Voice saya" line are translucent white, and the selected segment is solid white.
+  - Filter chips and the refresh button are solid white.
 - Tinted slate tiles (8px) hold every figure; pills (999px) hold every count and tag.
 - One blue accent; rose, amber, and green appear only as status, severity, or deadline signals.
 - Plus Jakarta Sans for headings and figures, Inter for everything else, tabular numerals on the whole board.
@@ -254,9 +258,11 @@ Nearly flat. Cards lift off the canvas with a hairline plus a very soft two-laye
 
 **The One Surface Per Card Rule.** A card holds tiles, but a tile never holds another bordered box; figures inside a person tile sit on a hairline, not a nested panel.
 
+**The Portal Token Rule.** Sheets open in a portal outside `.ops`, so `.ops-sheet` carries the same `--ops-*` tokens. Each person in a "Lihat semua" sheet is its own bordered tile, with an 8px gap between tiles.
+
 ## Shapes
 
-Small, consistent corners stepping down with depth: cards 10px, tiles, avatars and person rows 8px, controls and filter chips 7px inside a 9px segmented trough, the profile avatar 10px. Counts, tags, chips, bar tracks, and meters are full pills. Status and severity are 6px dots. Borders are always 1px hairlines; the only dashed border is the "Voice saya" entry line, marking it as a doorway rather than content.
+Small, consistent corners stepping down with depth: cards 10px, tiles, avatars and person rows 8px, controls and filter chips 7px inside a 9px segmented trough, the profile avatar 10px. Counts, tags, chips, bar tracks, and meters are full pills. Status and severity are 6px dots. Borders are always 1px hairlines; the "Voice saya" entry line is the doorway into the person's own Voices.
 
 ## Components
 

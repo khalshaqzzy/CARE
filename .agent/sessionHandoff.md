@@ -1,5 +1,22 @@
 # CARE Session Handoff
 
+## Operations dashboard refinements — 5 October 2026
+
+After PR #70 reached staging, the product owner confirmed it works and decided:
+
+- **Performa Responder in non-shop departments.** No Group Leaders; Section Heads only. `DashboardPeople.handlers` drops Group Leaders whose organization unit has no active `ShopLocation`. The role tabs come from the data, so the Group Leader tab disappears.
+- **Profile card.** Cobalt (`--gradient-brand-hero`) with white text, chosen as version A over a full-bleed band (version B).
+- **"Lihat semua" sheet.** One bordered tile per person, matching mockup image 6. The tiles already existed, but the portal sheet lacked the `--ops-*` tokens, so borders and avatars vanished. `.ops-sheet` now defines them. This also fixes the Aktivitas Anggota sheet.
+
+**Validation:**
+
+- API typecheck. Integration `dashboard-people` and `organization-dashboard`: 33/33, including a new non-shop case.
+- Chromium e2e: dashboard, a11y, journeys, and member: 98/100.
+  - New test: the sheet has bordered rows with token colours.
+  - Axe found that the scrolling sheet list was not keyboard-focusable. Fixed with `tabIndex=0` and a label.
+  - The remaining failure is the notifications push-support message, which depends on the local build's push key and does not involve this change.
+- Visual: dashboard and workforce, 91/91.
+
 ## Unit-head operations dashboard and labelled navigation — 4 October 2026
 
 **Objective:** give unit heads an operations dashboard with handling performance and member participation, label the mobile dock, and add a Voice Saya summary. The product owner chose the design through several rendered prototypes: a separate section, sticky toggles, two HTML mockups, Voice Saya B vs C, three font candidates, and four icon sets. PRD §18.8.6, ADR-0060, and the roadmap record the decisions. `apps/web-voice/PRODUCT.md` holds the confirmed product context, including that performance figures may inform evaluation. Phase 13 remains `in_progress`.

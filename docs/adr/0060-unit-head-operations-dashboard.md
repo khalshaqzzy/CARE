@@ -42,6 +42,12 @@ The workforce bottom navigation showed icons without labels on mobile and groupe
 9. **Type.** Headings and figures use Plus Jakarta Sans, self-hosted because the production CSP allows `font-src 'self'` only. Body text keeps Inter.
 10. **Evaluation.** PRD §3.3 states that the figures may inform performance evaluation while CARE does not become an evaluation system. Every figure must remain traceable to recorded events.
 
+### Follow-up decisions (5 October 2026)
+
+- **Performa Responder.** Group Leaders appear only for departments with an active shop (`ShopLocation` status `ACTIVE`). Elsewhere the Section Head is the first responder, so the card shows Section Heads only and the Group Leader tab disappears.
+- **Profile card.** It uses the cobalt page-band gradient so Home matches the blue headers of the other workforce pages (version A: it stays a card).
+- **"Lihat semua" sheets.** They show one bordered tile per person. The sheet list takes keyboard focus because it scrolls.
+
 ## Rationale
 
 Placing people insights on the same filtered cohort as the dashboard keeps every number consistent with what the viewer can already see. Recording the holders who missed a window at escalation time avoids reconstructing history from mutable arrays and makes substitutes accountable for the period they covered.

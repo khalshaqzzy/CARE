@@ -564,6 +564,33 @@ test('Manager sees responder performance with tabs and the Top label', async ({ 
   await expect(rows).toHaveCount(2);
   expect((await new AxeBuilder({ page }).include('.ops').analyze()).violations).toEqual([]);
 });
+test('the full responder list separates every person in its own box', async ({ page }) => {
+  const many = {
+    items: ['Andi', 'Bayu', 'Citra', 'Dewi', 'Eko'].map((name, index) => ({
+      ...handlers.items[0]!,
+      accountId: `00000000-0000-4000-8000-00000000030${index}`,
+      name: `${name} Section`,
+    })),
+  };
+  await mockWorkforceApi(page, { session: manager, dashboardHandlers: many });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Lihat semua Section Head (5)' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Performa Responder' });
+  const rows = sheet.locator('.ops-person');
+  await expect(rows).toHaveCount(5);
+  // The sheet renders outside the board, so it must carry the board's tokens.
+  for (const style of await rows.evaluateAll((items) =>
+    items.map((item) => {
+      const row = getComputedStyle(item);
+      const avatar = getComputedStyle(item.querySelector('.ops-avatar')!);
+      return [row.borderTopWidth, row.borderTopStyle, avatar.backgroundColor];
+    }),
+  ))
+    expect(style).toEqual(['1px', 'solid', 'rgb(15, 23, 42)']);
+  expect((await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations).toEqual(
+    [],
+  );
+});
 test('Voice Tim Saya shows participation, top contributor and members who never sent', async ({
   page,
 }) => {
