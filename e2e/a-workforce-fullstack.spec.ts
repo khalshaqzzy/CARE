@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import type { PrismaClient as PrismaClientType } from '../apps/api/node_modules/@prisma/client';
@@ -66,6 +66,15 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await expect(page.getByText('Timeline')).toBeVisible();
 });
 
+// Scope and level come from the organization filter on the profile card.
+async function pickDepartment(page: Page, option: string) {
+  await page.getByRole('button', { name: 'Filter organisasi', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Filter organisasi' });
+  await dialog.getByRole('combobox', { name: 'Department', exact: true }).click();
+  await page.getByRole('option', { name: option, exact: true }).click();
+  await dialog.getByRole('button', { name: 'Selesai', exact: true }).click();
+}
+
 test('manager dashboard uses real hierarchy metadata and scoped aggregates', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto(`${ORIGIN}/login`);
@@ -113,9 +122,9 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
       await page.goto(`/?basis=${basis}`);
       await expect(total).toHaveAttribute('data-total', '12');
       for (let round = 0; round < 2; round++) {
-        await page.getByRole('button', { name: 'Department', exact: true }).click();
+        await pickDepartment(page, 'Semua department');
         await expect(total).toHaveAttribute('data-total', '17');
-        await page.getByRole('button', { name: 'Section', exact: true }).click();
+        await pickDepartment(page, 'Department A');
         await expect(total).toHaveAttribute('data-total', '12');
       }
       await page.reload();
@@ -130,7 +139,7 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
     await db.$disconnect();
   }
   await page.goto('/');
-  await page.getByRole('button', { name: 'Department', exact: true }).click();
+  await pickDepartment(page, 'Semua department');
   await expect(page.getByRole('button', { name: 'Filter organisasi', exact: true })).toContainText(
     'Division A',
   );
@@ -149,9 +158,11 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   expect(payload.total).toBe(1);
   expect(JSON.stringify(payload)).not.toContain('Pencahayaan area produksi kurang');
   const preview = await page.request.get(`${ORIGIN}/api/v1/dashboard/preview?basis=HANDLING`);
-  expect((await preview.json()).items).toHaveLength(1);
+  const previewBody = await preview.json();
+  expect(previewBody.items).toHaveLength(1);
+  expect(previewBody.summary.total).toBe(1);
   await basis.getByRole('button', { name: /^Voice Untuk Saya/ }).click();
-  await page.locator('.ops-ticket').getByRole('button', { name: 'Respons', exact: true }).click();
+  await page.locator('.ops-actions__next').click();
   await expect(
     page.getByRole('heading', { name: 'Pencahayaan area produksi kurang' }),
   ).toBeVisible();
