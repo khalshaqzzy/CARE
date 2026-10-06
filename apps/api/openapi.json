@@ -23344,9 +23344,36 @@
               "open",
               "overdue",
               "dueSoon",
-              "critical"
+              "critical",
+              "status"
             ],
             "properties": {
+              "status": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "enum": [
+                        "OPEN",
+                        "RESPONDED",
+                        "IN_PROGRESS",
+                        "CLOSED"
+                      ]
+                    },
+                    "value": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
               "total": {
                 "type": "integer",
                 "minimum": 0

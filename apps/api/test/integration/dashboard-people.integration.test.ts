@@ -376,7 +376,20 @@ describe('Dashboard people: handling performance and member participation', () =
     await voice({ title: 'Tutup', status: 'CLOSED' });
 
     const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
-    expect(preview.summary).toEqual({ total: 4, open: 2, overdue: 2, dueSoon: 1, critical: 1 });
+    expect(preview.summary).toEqual({
+      total: 4,
+      open: 2,
+      overdue: 2,
+      dueSoon: 1,
+      critical: 1,
+      // Same cohort as the counts, closed included.
+      status: [
+        { label: 'OPEN', value: 2 },
+        { label: 'RESPONDED', value: 1 },
+        { label: 'IN_PROGRESS', value: 1 },
+        { label: 'CLOSED', value: 1 },
+      ],
+    });
     const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
       (await voices.workItems(manager, query)).items.map((item) => item.title);
     // Each summary tile opens exactly the Voices it counts.

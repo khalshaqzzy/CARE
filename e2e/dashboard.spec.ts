@@ -654,7 +654,19 @@ const actionList = {
   ],
   nextCursor: null,
 };
-const actionSummary = { total: 5, open: 2, overdue: 1, dueSoon: 1, critical: 1 };
+const actionSummary = {
+  total: 5,
+  open: 2,
+  overdue: 1,
+  dueSoon: 1,
+  critical: 1,
+  status: [
+    { label: 'OPEN', value: 2 },
+    { label: 'RESPONDED', value: 2 },
+    { label: 'IN_PROGRESS', value: 1 },
+    { label: 'CLOSED', value: 4 },
+  ],
+};
 test('Butuh Tindakan Saya sums up first and each count opens Voice Member', async ({ page }) => {
   await mockWorkforceApi(page, {
     session: manager,
@@ -702,6 +714,8 @@ test('Voice Member opens with the summaries and orders what needs action first',
   const strip = page.getByRole('group', { name: 'Status Voice' });
   await expect(strip.getByRole('button')).toHaveCount(4);
   await expect(strip).toContainText('Direspon');
+  // The strip counts the same cohort as Butuh Tindakan Saya and Home.
+  await expect(strip.locator('strong')).toHaveText(['2', '2', '1', '4']);
   await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('action');
   await expect(page.locator('.inbox-card__due').first()).toBeVisible();
   await page.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();

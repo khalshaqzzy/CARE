@@ -3349,14 +3349,17 @@ export class VoicesService {
   async dashboardPreview(actor: AuthActor, query: DashboardQuery = {}) {
     const context = await this.organizationDashboard.context(actor, query, 'scope');
     const general = context.q.visibility === 'GENERAL';
-    const active: Prisma.VoiceWhereInput = {
-      AND: [
-        context.where,
-        await this.policy.detailScope(actor),
-        { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } },
-      ],
+    const scoped: Prisma.VoiceWhereInput = {
+      AND: [context.where, await this.policy.detailScope(actor)],
     };
-    const summary = await this.actionSummary(active);
+    const active: Prisma.VoiceWhereInput = {
+      AND: [scoped, { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } }],
+    };
+    // Status counts share the dashboard cohort, so Voice Member and Home agree.
+    const [summary, byStatus] = await Promise.all([
+      this.actionSummary(active),
+      this.prisma.voice.groupBy({ by: ['status'], where: scoped, _count: { _all: true } }),
+    ]);
     const rows = await this.prisma.voice.findMany({
       where: active,
       // General: the deadline that applies first, then severity.
@@ -3396,7 +3399,18 @@ export class VoicesService {
         }),
       ),
       nextCursor: null,
-      summary,
+      summary: {
+        ...summary,
+        status: [
+          VoiceStatus.OPEN,
+          VoiceStatus.RESPONDED,
+          VoiceStatus.IN_PROGRESS,
+          VoiceStatus.CLOSED,
+        ].map((label) => ({
+          label,
+          value: byStatus.find((row) => row.status === label)?._count._all ?? 0,
+        })),
+      },
     };
   }
 

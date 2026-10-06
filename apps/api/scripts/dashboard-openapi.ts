@@ -165,8 +165,21 @@ export const dashboardSchemas = {
       summary: {
         type: 'object',
         additionalProperties: false,
-        required: ['total', 'open', 'overdue', 'dueSoon', 'critical'],
+        required: ['total', 'open', 'overdue', 'dueSoon', 'critical', 'status'],
         properties: {
+          // Every status in the same cohort as the counts, closed included.
+          status: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['label', 'value'],
+              properties: {
+                label: { type: 'string', enum: ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] },
+                value: { type: 'integer', minimum: 0 },
+              },
+            },
+          },
           total: { type: 'integer', minimum: 0 },
           open: { type: 'integer', minimum: 0 },
           overdue: { type: 'integer', minimum: 0 },

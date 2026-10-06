@@ -1288,6 +1288,10 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
           overdue: 0,
           dueSoon: 0,
           critical: items.filter((item) => item.severity === 'CRITICAL').length,
+          status: ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'].map((label) => ({
+            label,
+            value: items.filter((item) => item.status === label).length,
+          })),
         },
       });
     }

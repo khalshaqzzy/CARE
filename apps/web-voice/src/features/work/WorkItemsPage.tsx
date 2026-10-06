@@ -131,15 +131,6 @@ export function WorkItemsPage() {
     enabled: Boolean(session) && handoverMode,
   });
 
-  // Header stats stay unfiltered: the strip describes the whole queue, not the
-  // active filter combination.
-  const aggregate = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring'),
-    queryFn: () => api.dashboardGeneral({}),
-    enabled: !!session && !isUnion,
-    refetchInterval: 30_000,
-  });
-
   // Union hero stats come from the private dashboard (incl. pendingAssignment).
   const privateDash = useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'private'),
@@ -265,7 +256,11 @@ export function WorkItemsPage() {
                   <span className="ops-status-strip__dot" aria-hidden="true" />
                   {STATUS_LABELS[key]}
                 </span>
-                <strong>{aggregate.data ? bucketValue(aggregate.data.status, key) : '–'}</strong>
+                <strong>
+                  {actions.data
+                    ? (actions.data.summary.status.find((row) => row.label === key)?.value ?? 0)
+                    : '–'}
+                </strong>
               </button>
             ))}
           </div>
