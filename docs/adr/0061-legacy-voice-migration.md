@@ -1,4 +1,4 @@
-# ADR-0060: Migrating closed Voices from earlier member-voice platforms
+# ADR-0061: Migrating closed Voices from earlier member-voice platforms
 
 - Status: Accepted (implemented on a branch, not released)
 - Date: 5 October 2026
