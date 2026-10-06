@@ -407,4 +407,27 @@ describe('Dashboard people: handling performance and member participation', () =
     expect(first).toMatchObject({ tierDueAt: new Date(now - hour) });
     await expect(voices.workItems(manager, { due: 'LATER' })).rejects.toThrow();
   });
+
+  it('lists the unit the dashboard counts when Voice Member asks for scope=unit', async () => {
+    // Held by the Section Head below: in the unit, not in the Manager's own work list.
+    await voice({
+      title: 'Dipegang Section Head',
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+    });
+    await voice({ title: 'Route Manager' });
+    await voice({ title: 'Selesai unit', status: 'CLOSED' });
+    const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
+      (await voices.workItems(manager, query)).items.map((item) => item.title).sort();
+    expect(await titles({ statusGroup: 'ACTIVE' })).toEqual(['Route Manager']);
+    const unit = await titles({ statusGroup: 'ALL', scope: 'unit' });
+    expect(unit).toEqual(['Dipegang Section Head', 'Route Manager', 'Selesai unit']);
+    // The list and the summary describe the same Voices.
+    const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
+    const counted = preview.summary.status.reduce((sum, row) => sum + row.value, 0);
+    expect(counted).toBe(unit.length);
+    expect(preview.summary.total).toBe(
+      (await titles({ statusGroup: 'ACTIVE', scope: 'unit' })).length,
+    );
+  });
 });

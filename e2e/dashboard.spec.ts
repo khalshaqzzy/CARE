@@ -717,6 +717,8 @@ test('Voice Member opens with the summaries and orders what needs action first',
   // The strip counts the same cohort as Butuh Tindakan Saya and Home.
   await expect(strip.locator('strong')).toHaveText(['2', '2', '1', '4']);
   await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('action');
+  // Unit heads list the same unit the summaries count.
+  expect(lists.at(-1)?.searchParams.get('scope')).toBe('unit');
   await expect(page.locator('.inbox-card__due').first()).toBeVisible();
   await page.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
   await expect(page).toHaveURL(/due=OVERDUE/);

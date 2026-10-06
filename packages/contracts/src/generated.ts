@@ -11984,6 +11984,12 @@ export interface operations {
                 handler?: string;
                 due?: "OVERDUE" | "SOON";
                 sort?: string;
+                scope?: "unit";
+                scopeMode?: string;
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
             };
             header?: never;
             path?: never;

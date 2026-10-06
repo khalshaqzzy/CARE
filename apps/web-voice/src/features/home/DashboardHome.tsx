@@ -268,6 +268,9 @@ export function DashboardHome() {
     const listQuery = { ...query, ...refresh.data?.dates };
     for (const key of ['area', 'category', 'severity', 'status', 'from', 'to', 'handler'] as const)
       if (listQuery[key]) p.set(key, listQuery[key]!);
+    if (!union)
+      for (const key of ['scopeMode', ...orgLevels] as const)
+        if (query[key]) p.set(key, query[key]!);
     if (!query.status) p.set('statusGroup', 'ACTIVE');
     for (const [key, value] of Object.entries(extra)) p.set(key, value);
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;

@@ -42,7 +42,9 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
                   : parameter === 'due'
                     ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
-                    : { type: 'string' },
+                    : parameter === 'scope'
+                      ? { type: 'string', enum: ['unit'] }
+                      : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -194,6 +196,12 @@ const queryParameters: Record<string, string[]> = {
     'handler',
     'due',
     'sort',
+    'scope',
+    'scopeMode',
+    'directorate',
+    'division',
+    'department',
+    'section',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
   VoicesController_dashboardGeneral: dashboardParameters,
