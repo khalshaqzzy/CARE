@@ -1,6 +1,6 @@
 # Legacy Voice migration
 
-How closed Voices from earlier member-voice platforms are brought into CARE. The decisions are recorded in [ADR-0060](../adr/0060-legacy-voice-migration.md).
+How closed Voices from earlier member-voice platforms are brought into CARE. The decisions are recorded in [ADR-0061](../adr/0061-legacy-voice-migration.md).
 
 | File                               | Purpose                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------- |
