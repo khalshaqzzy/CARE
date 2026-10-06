@@ -2932,6 +2932,11 @@ export interface components {
             items: components["schemas"]["VoiceListItem"][];
             nextCursor: string | null;
             summary: {
+                status: {
+                    /** @enum {string} */
+                    label: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
+                    value: number;
+                }[];
                 total: number;
                 open: number;
                 overdue: number;
@@ -11979,6 +11984,12 @@ export interface operations {
                 handler?: string;
                 due?: "OVERDUE" | "SOON";
                 sort?: string;
+                scope?: "unit";
+                scopeMode?: string;
+                directorate?: string;
+                division?: string;
+                department?: string;
+                section?: string;
             };
             header?: never;
             path?: never;

@@ -55,8 +55,6 @@ export function WorkItemsPage() {
     ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
   );
   const isManager = caps.includes('MANAGER');
-  const isSectionHead =
-    caps.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c)) && !isManager;
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
@@ -71,6 +69,14 @@ export function WorkItemsPage() {
   const from = searchParams.get('from') ?? undefined;
   const to = searchParams.get('to') ?? undefined;
   const search = searchParams.get('search') ?? undefined;
+  // Unit heads list the organization the dashboard counts (scope=unit).
+  const org = Object.fromEntries(
+    (['scopeMode', 'directorate', 'division', 'department', 'section'] as const).flatMap((key) => {
+      const value = searchParams.get(key);
+      return value ? [[key, value]] : [];
+    }),
+  ) as Partial<Record<'scopeMode' | 'directorate' | 'division' | 'department' | 'section', string>>;
+  const orgKey = JSON.stringify(org);
   const rawSort = searchParams.get('sort');
   const sort =
     rawSort === 'newest' || rawSort === 'severity' ? rawSort : isUnion ? 'severity' : 'action';
@@ -94,6 +100,7 @@ export function WorkItemsPage() {
       search,
       due,
       sort,
+      orgKey,
       unassignedOnly ? 'unassigned' : 'assigned-any',
       nav.cursor,
     ),
@@ -112,9 +119,9 @@ export function WorkItemsPage() {
         ...(due ? { due } : {}),
         ...(nav.cursor ? { cursor: nav.cursor } : {}),
       };
-      return isLeadership
-        ? api.listVoices({ ...common, visibility: 'GENERAL', sort })
-        : api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) });
+      return isUnion
+        ? api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) })
+        : api.workItems({ ...common, sort, scope: 'unit', ...org });
     },
     enabled: Boolean(session) && !handoverMode,
     refetchInterval: 3000,
@@ -131,15 +138,6 @@ export function WorkItemsPage() {
     enabled: Boolean(session) && handoverMode,
   });
 
-  // Header stats stay unfiltered: the strip describes the whole queue, not the
-  // active filter combination.
-  const aggregate = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'monitoring'),
-    queryFn: () => api.dashboardGeneral({}),
-    enabled: !!session && !isUnion,
-    refetchInterval: 30_000,
-  });
-
   // Union hero stats come from the private dashboard (incl. pendingAssignment).
   const privateDash = useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'private'),
@@ -150,8 +148,8 @@ export function WorkItemsPage() {
 
   // "Butuh Tindakan Saya" over the viewer's handling scope, unfiltered.
   const actions = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'actions'),
-    queryFn: ({ signal }) => api.dashboardPreview({}, signal),
+    queryKey: voiceQuery(sessionId, 'dashboard', 'actions', orgKey),
+    queryFn: ({ signal }) => api.dashboardPreview(org, signal),
     enabled: !!session && !isUnion,
     refetchInterval: 30_000,
   });
@@ -182,7 +180,6 @@ export function WorkItemsPage() {
     isUnion,
     isUnionHead,
     isLeadership,
-    isSectionHead,
     unassignedOnly,
   });
   const severityOptions = [
@@ -265,7 +262,11 @@ export function WorkItemsPage() {
                   <span className="ops-status-strip__dot" aria-hidden="true" />
                   {STATUS_LABELS[key]}
                 </span>
-                <strong>{aggregate.data ? bucketValue(aggregate.data.status, key) : '–'}</strong>
+                <strong>
+                  {actions.data
+                    ? (actions.data.summary.status.find((row) => row.label === key)?.value ?? 0)
+                    : '–'}
+                </strong>
               </button>
             ))}
           </div>
@@ -515,13 +516,7 @@ function MyHandoverCard({ item, onOpen }: { item: HandoverHistoryItem; onOpen: (
   );
 }
 
-function introFor({
-  isUnion,
-  isUnionHead,
-  isLeadership,
-  isSectionHead,
-  unassignedOnly,
-}: Record<string, boolean>) {
+function introFor({ isUnion, isUnionHead, isLeadership, unassignedOnly }: Record<string, boolean>) {
   if (isUnion)
     return {
       eyebrow: 'Union',
@@ -536,9 +531,7 @@ function introFor({
     return { title: 'Voice Member', description: 'Pantau General Voice secara read-only.' };
   return {
     title: 'Voice Member',
-    description: isSectionHead
-      ? 'Voice yang ditugaskan kepada Anda.'
-      : 'Voice yang menjadi tanggung jawab Anda.',
+    description: 'Voice yang ditangani unit Anda.',
   };
 }
 

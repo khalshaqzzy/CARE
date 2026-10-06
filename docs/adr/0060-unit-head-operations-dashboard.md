@@ -64,6 +64,15 @@ The workforce bottom navigation showed icons without labels on mobile and groupe
   - **Union** keeps severity order and its header counts.
 - **"Direspons" → "Direspon"** across the product.
 
+### Follow-up decisions (6 October 2026, after release)
+
+- **Mismatched status counts.** The Voice Member status row read the legacy organization aggregate, so it disagreed with Status Voice on Home. Its counts now come with the preview `summary.status`, over the same cohort as Home and Butuh Tindakan Saya.
+- **Voice Member lists the unit.** For unit heads and leadership, Voice Member requests `GET /work-items?scope=unit`, the same cohort Home counts: the handling organization in view, intersected with what the viewer may open.
+  - The list therefore includes Voices held by the Section Heads and Group Leaders below.
+  - The PIC filter narrows the list to one person.
+  - The organization chosen on Home (`scopeMode` and the organization levels) travels with every link into Voice Member.
+  - Union keeps the personal work list.
+
 ## Rationale
 
 Placing people insights on the same filtered cohort as the dashboard keeps every number consistent with what the viewer can already see. Recording the holders who missed a window at escalation time avoids reconstructing history from mutable arrays and makes substitutes accountable for the period they covered.

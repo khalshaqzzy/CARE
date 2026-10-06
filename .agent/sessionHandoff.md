@@ -1,5 +1,18 @@
 # CARE Session Handoff
 
+## Voice Member counts match Home — 6 October 2026
+
+After PR #73 went live (rilis `624a9ce`, deployed via PR #74):
+
+- **Reported bug:** the Voice Member status row differed from Status Voice on Home. Home showed 4/8/4/7; the row showed 10/4/2/4. The row read the legacy aggregate, which has a different scope.
+  - Fix: the row now reads `/dashboard/preview` `summary.status`, the same cohort as Home.
+- **Product owner chose option A:** for unit heads and leadership, the Voice Member list uses the same cohort (`GET /work-items?scope=unit` plus the organization params carried from Home). Voices held by the Section Heads and Group Leaders below are listed. Union is unchanged.
+- **Staging deploy on 6 October:**
+  - Blocked first by a flaky fullstack auth-recovery test.
+  - A failed-only rerun leaves no `capture-*-<attempt>` artifacts, so the reports job fails; use "Re-run all jobs".
+  - Then blocked by new advisories for `proxy-addr` and `source-map-js`, pinned in PR #74.
+- **ADR numbering:** the legacy Voice migration ADR moved from 0060 to 0061 (PR #75).
+
 ## Butuh Tindakan Saya, Voice Member ordering, and dashboard layout — 6 October 2026
 
 Product owner decisions after PR #71, each previewed with screenshots first:

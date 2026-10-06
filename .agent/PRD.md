@@ -2385,6 +2385,13 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
     - **Severity.**
   - **Kartu Voice** menampilkan **Sisa …/Terlambat …** terhadap batas jenjang.
 
+**Pembaruan 6 Oktober 2026 (setelah rilis).**
+
+- **Cakupan sama dengan Home.** Daftar dan seluruh angka Voice Member untuk kepala unit dan pimpinan memakai cakupan yang sama dengan Home: seluruh Voice yang ditangani unit organisasi terpilih dan boleh dibuka penampil. Ini termasuk Voice yang sedang dipegang Section Head atau Group Leader di bawahnya.
+- **Filter PIC.** Daftar dapat dipersempit ke satu orang dengan filter PIC.
+- **Organisasi terbawa.** Pilihan organisasi di Home ikut terbawa ke Voice Member.
+- **Union** tetap memakai daftar kerja pribadi.
+
 ### Amandemen lifecycle — 9 September 2026
 
 §15–17 dan ADR-0044 menggantikan referensi Verifikasi, Tanya Reporter, direct Proceed,

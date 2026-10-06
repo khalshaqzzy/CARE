@@ -376,7 +376,20 @@ describe('Dashboard people: handling performance and member participation', () =
     await voice({ title: 'Tutup', status: 'CLOSED' });
 
     const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
-    expect(preview.summary).toEqual({ total: 4, open: 2, overdue: 2, dueSoon: 1, critical: 1 });
+    expect(preview.summary).toEqual({
+      total: 4,
+      open: 2,
+      overdue: 2,
+      dueSoon: 1,
+      critical: 1,
+      // Same cohort as the counts, closed included.
+      status: [
+        { label: 'OPEN', value: 2 },
+        { label: 'RESPONDED', value: 1 },
+        { label: 'IN_PROGRESS', value: 1 },
+        { label: 'CLOSED', value: 1 },
+      ],
+    });
     const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
       (await voices.workItems(manager, query)).items.map((item) => item.title);
     // Each summary tile opens exactly the Voices it counts.
@@ -393,5 +406,28 @@ describe('Dashboard people: handling performance and member participation', () =
     const [first] = (await voices.workItems(manager, { statusGroup: 'ACTIVE' })).items;
     expect(first).toMatchObject({ tierDueAt: new Date(now - hour) });
     await expect(voices.workItems(manager, { due: 'LATER' })).rejects.toThrow();
+  });
+
+  it('lists the unit the dashboard counts when Voice Member asks for scope=unit', async () => {
+    // Held by the Section Head below: in the unit, not in the Manager's own work list.
+    await voice({
+      title: 'Dipegang Section Head',
+      tierLevel: 'SECTION_HEAD',
+      tierHolderIds: [sectionHead.accountId],
+    });
+    await voice({ title: 'Route Manager' });
+    await voice({ title: 'Selesai unit', status: 'CLOSED' });
+    const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
+      (await voices.workItems(manager, query)).items.map((item) => item.title).sort();
+    expect(await titles({ statusGroup: 'ACTIVE' })).toEqual(['Route Manager']);
+    const unit = await titles({ statusGroup: 'ALL', scope: 'unit' });
+    expect(unit).toEqual(['Dipegang Section Head', 'Route Manager', 'Selesai unit']);
+    // The list and the summary describe the same Voices.
+    const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
+    const counted = preview.summary.status.reduce((sum, row) => sum + row.value, 0);
+    expect(counted).toBe(unit.length);
+    expect(preview.summary.total).toBe(
+      (await titles({ statusGroup: 'ACTIVE', scope: 'unit' })).length,
+    );
   });
 });
