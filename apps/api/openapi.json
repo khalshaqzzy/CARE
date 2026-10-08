@@ -26806,6 +26806,11 @@
             "format": "date-time",
             "nullable": true
           },
+          "targetDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "reporterName": {
             "type": "string",
             "nullable": true

@@ -816,6 +816,12 @@ export class VoicesService {
     const firstWindow = firstTier
       ? await tierWindow(this.prisma, classification.severity, 'RESPOND')
       : null;
+    // Fixed categories (PRD §43.8): the route owner answers within the same
+    // per-severity window; a miss notifies rather than escalates.
+    const fixedWindow =
+      !firstTier && draft.visibility === VoiceVisibility.GENERAL
+        ? await tierWindow(this.prisma, classification.severity, 'RESPOND')
+        : null;
     const response = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.voiceDraft.updateMany({
         where: { id, version: body.version, submittedAt: null },
@@ -889,7 +895,7 @@ export class VoicesService {
                 sectionHasGroupLeader: leaderInSection,
                 ...(firstWindow ?? {}),
               }
-            : {}),
+            : (fixedWindow ?? {})),
           locationWarningAcknowledgedAt:
             draft.locationReview?.completeness === LocationCompleteness.INCOMPLETE ? now : null,
           ...shop,
@@ -2080,8 +2086,10 @@ export class VoicesService {
                   tierLevel: null,
                   tierPath: [],
                   tierHolderIds: [],
-                  tierDueAt: null,
-                  tierDueKind: null,
+                  ...((await tierWindow(tx, voice.severity, 'FULL')) ?? {
+                    tierDueAt: null,
+                    tierDueKind: null,
+                  }),
                 }),
             version: { increment: 1 },
           },
@@ -2804,6 +2812,14 @@ export class VoicesService {
             data: {
               tierHolderResponded: true,
               ...(await tierWindow(tx, current.severity, 'PROCESS')),
+            },
+          });
+        else if (current.visibility === VoiceVisibility.GENERAL && !current.currentHandlerId)
+          await tx.voice.update({
+            where: { id },
+            data: (await tierWindow(tx, current.severity, 'PROCESS')) ?? {
+              tierDueAt: null,
+              tierDueKind: null,
             },
           });
         return this.transitionStatus(
@@ -4317,6 +4333,12 @@ export class VoicesService {
       closureReviewState,
       closureReviewDeadline: latestReview?.reviewDeadline ?? null,
       targetOverdue,
+      targetDueAt:
+        row.status === VoiceStatus.IN_PROGRESS &&
+        target &&
+        target.cycleNumber === handlingCycleNumber
+          ? target.dueAt.toISOString()
+          : null,
     };
   }
   private async authorizedVoice(actor: AuthActor, id: string) {

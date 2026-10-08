@@ -617,9 +617,9 @@ export class OrganizationDashboard {
       ), flags AS MATERIALIZED (
         SELECT e."voiceId",
           bool_or(e.type = 'PROCEEDED') AS proceeded,
-          bool_or(e.type = 'TARGET_OVERDUE' OR (e.type = 'ESCALATED' AND e.payload->>'automatic' = 'true')) AS missed
+          bool_or(e.type IN ('TARGET_OVERDUE', 'DEADLINE_MISSED') OR (e.type = 'ESCALATED' AND e.payload->>'automatic' = 'true')) AS missed
         FROM "VoiceEvent" e
-        WHERE e.type IN ('ESCALATED', 'TARGET_OVERDUE')
+        WHERE e.type IN ('ESCALATED', 'TARGET_OVERDUE', 'DEADLINE_MISSED')
           OR (e.type = 'PROCEEDED' AND e."occurredAt" >= (SELECT t FROM bound))
         GROUP BY 1
       ), closed AS (

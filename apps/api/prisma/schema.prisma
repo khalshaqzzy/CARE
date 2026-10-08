@@ -222,6 +222,7 @@ enum VoiceEventType {
   RATED
   REOPENED
   AUTO_ACCEPTED
+  DEADLINE_MISSED
 }
 
 enum OutboxStatus {
@@ -706,6 +707,8 @@ model Voice {
   tierParticipantIds              String[]                @default([]) @db.Uuid
   /// Stage 3: end of the current holder's window and what they owe by then.
   tierDueAt                       DateTime?
+  /// The tierDueAt a missed-window notice already went out for (fixed categories).
+  tierMissedDueAt                 DateTime?
   tierDueKind                     TierDueKind?
   /// The current holder answered the Voice themselves (vs. received it answered).
   tierHolderResponded             Boolean                 @default(false)

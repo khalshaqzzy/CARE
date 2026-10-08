@@ -1,5 +1,20 @@
 # CARE Session Handoff
 
+## Fixed-category deadlines — 8 October 2026
+
+- **Product rule:** every General Voice has a deadline.
+  - Fixed categories get the per-severity respond window at submit, and the process window once the Manager answers.
+  - A miss while the Voice is still with the route owner notifies the Manager ("segera respons/proses") and the handling division's DDH/DH, once per deadline. It does not escalate.
+  - A PIC's miss keeps the existing Manager-tier behaviour.
+  - Old active Voices are backfilled.
+- **Schema:**
+  - Migration `20261008090000_fixed_category_deadlines`: `VoiceEventType.DEADLINE_MISSED` and `Voice.tierMissedDueAt`.
+  - Notifications reuse `TARGET_OVERDUE`.
+- **Worker:** `missedAtRouteOwner`, `backfillFixed`. The due query is now raw SQL so it can compare `tierMissedDueAt` with `tierDueAt`.
+- **Timeliness:** `DEADLINE_MISSED` counts as late in `dashboard.ts` flags and the people measure. It is counted in held but not as "Naik otomatis".
+- **Cards:** `targetDueAt` on list items; Diproses cards count down to the target.
+- **Docs:** PRD §43.8, ADR-0059 follow-up.
+
 ## Security gates on 8 October 2026
 
 The PR for the Kecepatan toggle passed every application job but failed three gates. None of them came from that PR.

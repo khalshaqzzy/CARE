@@ -263,7 +263,7 @@ export class DashboardPeople {
       events AS MATERIALIZED (
         SELECT e."voiceId", e.type::text AS type, e."actorId", e.payload, e."occurredAt"
         FROM cohort c JOIN "VoiceEvent" e ON e."voiceId" = c.id
-        WHERE e.type::text IN ('RESPONDED', 'MONITORED', 'PROCEEDED', 'CLOSED', 'ESCALATED')
+        WHERE e.type::text IN ('RESPONDED', 'MONITORED', 'PROCEEDED', 'CLOSED', 'ESCALATED', 'DEADLINE_MISSED')
       ),
       reached AS (
         SELECT p.pid, c.id FROM people p JOIN cohort c ON p.pid = c."currentHandlerId"
@@ -284,6 +284,12 @@ export class DashboardPeople {
         SELECT DISTINCT COALESCE(h.pid::uuid, e."actorId") AS pid, e."voiceId" AS id FROM events e
           LEFT JOIN LATERAL jsonb_array_elements_text(e.payload->'previousHolders') h(pid) ON TRUE
           WHERE e.type = 'ESCALATED' AND e.payload->>'automatic' = 'true'
+      ),
+      -- A fixed-category window missed at the route owner: late, not moved up.
+      deadline_missed AS (
+        SELECT DISTINCT COALESCE(h.pid::uuid, e."actorId") AS pid, e."voiceId" AS id FROM events e
+          LEFT JOIN LATERAL jsonb_array_elements_text(e.payload->'previousHolders') h(pid) ON TRUE
+          WHERE e.type = 'DEADLINE_MISSED'
       ),
       overdue AS (
         SELECT c."currentHandlerId" AS pid, c.id FROM cohort c
@@ -319,10 +325,12 @@ export class DashboardPeople {
       )
       SELECT p.pid::text AS "accountId",
         (SELECT count(DISTINCT x.id) FROM (SELECT id FROM reached WHERE pid = p.pid
-          UNION SELECT id FROM missed WHERE pid = p.pid) x) AS held,
+          UNION SELECT id FROM missed WHERE pid = p.pid
+          UNION SELECT id FROM deadline_missed WHERE pid = p.pid) x) AS held,
         (SELECT count(DISTINCT id) FROM missed WHERE pid = p.pid) AS "autoEscalated",
         (SELECT count(DISTINCT id) FROM overdue WHERE pid = p.pid) AS overdue,
         (SELECT count(*) FROM (SELECT id FROM missed WHERE pid = p.pid
+          UNION SELECT id FROM deadline_missed WHERE pid = p.pid
           UNION SELECT id FROM overdue WHERE pid = p.pid) late) AS late,
         (SELECT avg(seconds) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "averageResponseSeconds",
         (SELECT count(*) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "responseCount",

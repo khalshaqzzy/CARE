@@ -72,7 +72,16 @@ export function InboxVoiceCard({
   // cards align the PIC chip with the severity headline at the top right.
   const picInTopRow = !identity;
   const area = AREA_LABELS[voice.area] ?? voice.area;
-  const due = voice.status === 'CLOSED' ? null : remainingTime(voice.tierDueAt);
+  // Terbuka/Direspon count down to the tier window; Diproses to its target
+  // (an overdue target already shows the Terlambat badge).
+  const due =
+    voice.status === 'CLOSED'
+      ? null
+      : voice.status === 'IN_PROGRESS'
+        ? voice.targetOverdue
+          ? null
+          : remainingTime(voice.targetDueAt)
+        : remainingTime(voice.tierDueAt);
   const category = voice.category
     ? formatCategoryName(voice.category, voice.categoryNameSnapshot)
     : null;
