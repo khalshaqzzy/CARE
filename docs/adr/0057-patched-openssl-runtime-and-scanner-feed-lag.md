@@ -77,3 +77,11 @@ Actionlint, ShellCheck, deployment harnesses and exception checks, production
 Compose build/migration/bootstrap/routing/persistence, all five image scans and
 all hosted jobs for the final candidate SHA. Remove the temporary policy and
 registry entry once Trivy recognizes DSA-6531-1, no later than 7 October 2026.
+
+## Follow-up — 8 October 2026
+
+The policy and registry entry reached their 7 October deadline, and `security:exceptions:check` failed as designed.
+
+- **Feed check:** Trivy 0.75.0 with the 8 October database scans `debian:trixie-slim`, which ships `libssl3t64` and `openssl-provider-legacy` `3.5.7-1~deb13u3`, with no CVE-2026-84782 finding. The feed now recognizes the official patch.
+- **Removed:** following the decision above, the scoped `deploy/security/trivy-patched-openssl.rego`, its `ignore-policy` on the API image scan, the validator's policy branch, and the registry entry. The registry is now empty.
+- **Kept:** the exact patched package overlay. The API image still ships the officially fixed OpenSSL, and the scan enforces it with no exception.

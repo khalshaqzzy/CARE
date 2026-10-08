@@ -381,7 +381,6 @@ jobs:
         with:
           {
             image-ref: 'care-api:0000000000000000000000000000000000000000',
-            ignore-policy: deploy/security/trivy-patched-openssl.rego,
             scanners: vuln,
             severity: 'HIGH,CRITICAL',
             ignore-unfixed: false,
