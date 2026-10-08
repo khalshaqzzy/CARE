@@ -9183,3 +9183,29 @@
   padding-inline: 10px;
   font-size: 12.5px;
 }
+
+/* Kecepatan: a unit / Diri Saya toggle beside the title, or a longer "… Saya" title. */
+.ops-speed__head {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.ops-speed__head h2[data-long] {
+  font-size: 15px;
+  line-height: 1.3;
+}
+.ops-speed__toggle {
+  margin-left: auto;
+}
+@media (max-width: 767px) {
+  .ops-speed__head h2[data-long] {
+    font-size: 14px;
+  }
+  /* On phones the toggle takes its own full-width row under the title. */
+  .ops-speed__head h2 {
+    flex: 1 1 100%;
+  }
+  .ops-speed__toggle {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+}

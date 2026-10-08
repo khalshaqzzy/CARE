@@ -29,6 +29,8 @@ import {
   MemberActivityCard,
   ParticipationSummaryCard,
   ResponderPerformanceCard,
+  useHandlers,
+  useMyPerformance,
 } from './DashboardPeople';
 
 type View = components['schemas']['DashboardView'];
@@ -63,6 +65,8 @@ export type OpsDashboardProps = {
   onOpenList: () => void;
   peopleQuery: Record<string, string | undefined>;
   peopleInsights: boolean;
+  /** Department, Section, or Division: the viewer's own unit level. */
+  unitLabel: string;
   /** Division leadership reads General Voices without acting on them. */
   readOnlyLabel?: string | undefined;
 };
@@ -364,71 +368,156 @@ function StatusCard({
   );
 }
 
-function SpeedCard({ data, team }: { data: View & ViewExtras; team: boolean }) {
-  const response = splitDuration(data.performance.averageResponseSeconds);
-  const completion = splitDuration(data.performance.averageCompletionSeconds);
-  const onTime = data.onTime;
+type SpeedFigures = {
+  responseSeconds: number | null | undefined;
+  completionSeconds: number | null | undefined;
+  onTime: { onTime: number; total: number } | null | undefined;
+  rating: number | null | undefined;
+  ratingCount: number;
+};
+
+/**
+ * Kecepatan Respons & Penanganan. Leaders with responders below switch
+ * between their unit and themselves ("Diri Saya"); the smallest responder sees
+ * only their own figures, titled "… Saya".
+ */
+function SpeedCard({
+  data,
+  team,
+  self,
+  query,
+}: {
+  data: View & ViewExtras;
+  team: boolean;
+  /** Absent on Voice Tim Saya; otherwise the unit label and whether a toggle shows. */
+  self?: { unitLabel: string; toggle: boolean } | undefined;
+  query?: Record<string, string | undefined>;
+}) {
+  const [picked, setPicked] = useState<'unit' | 'self'>('unit');
+  const mode = !self ? 'unit' : self.toggle ? picked : 'self';
+  const mine = useMyPerformance(query ?? {}, Boolean(self) && mode === 'self');
+  const unit: SpeedFigures = {
+    responseSeconds: data.performance.averageResponseSeconds,
+    completionSeconds: data.performance.averageCompletionSeconds,
+    onTime: data.onTime,
+    rating: data.performance.averageFeedbackScore,
+    ratingCount: data.performance.feedbackSampleCount,
+  };
+  const own: SpeedFigures | null = mine.data
+    ? {
+        responseSeconds: mine.data.averageResponseSeconds,
+        completionSeconds: mine.data.averageCompletionSeconds,
+        onTime: { onTime: mine.data.onTime, total: mine.data.held },
+        rating: mine.data.averageRating,
+        ratingCount: mine.data.ratingCount,
+      }
+    : null;
+  const figures = mode === 'self' ? own : unit;
+  const response = splitDuration(figures?.responseSeconds ?? null);
+  const completion = splitDuration(figures?.completionSeconds ?? null);
+  const onTime = figures?.onTime;
+  const compare = mode === 'unit';
   return (
     <section className="ops-card" aria-labelledby="ops-speed">
-      <div className="ops-card__head">
-        <h2 id="ops-speed">Kecepatan Respons &amp; Penanganan</h2>
+      <div className="ops-card__head ops-speed__head">
+        <h2 id="ops-speed" data-long={(self && !self.toggle) || undefined}>
+          {self && !self.toggle
+            ? 'Kecepatan Respons & Penanganan Saya'
+            : 'Kecepatan Respons & Penanganan'}
+        </h2>
+        {self?.toggle ? (
+          <div
+            className="ops-segmented ops-segmented--small ops-speed__toggle"
+            role="group"
+            aria-label="Cakupan kecepatan"
+          >
+            {(
+              [
+                ['unit', self.unitLabel],
+                ['self', 'Diri Saya'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                type="button"
+                key={id}
+                aria-pressed={picked === id}
+                onClick={() => setPicked(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      <div className="ops-pair">
-        <div className="ops-tile ops-metric">
-          <span className="ops-metric__label">
-            <Timer size={14} aria-hidden="true" /> {team ? 'Avg respons PIC' : 'Avg respons'}
-          </span>
-          <span className="ops-metric__value">
-            <strong>{response.value}</strong>
-            <small>{response.unit}</small>
-          </span>
-          <Comparison
-            now={data.performance.averageResponseSeconds}
-            before={data.previousPerformance?.averageResponseSeconds}
-          />
-        </div>
-        <div className="ops-tile ops-metric">
-          <span className="ops-metric__label">
-            <CircleCheck size={14} aria-hidden="true" /> {team ? 'Avg selesai PIC' : 'Avg selesai'}
-          </span>
-          <span className="ops-metric__value">
-            <strong>{completion.value}</strong>
-            <small>{completion.unit}</small>
-          </span>
-          <Comparison
-            now={data.performance.averageCompletionSeconds}
-            before={data.previousPerformance?.averageCompletionSeconds}
-          />
-        </div>
-      </div>
-      <div className="ops-pair">
-        <div className="ops-tile ops-stat">
-          <span className="ops-metric__label">
-            <ShieldCheck size={14} aria-hidden="true" /> Tepat waktu
-          </span>
-          <span className="ops-stat__value">
-            <strong>
-              {onTime && onTime.total
-                ? `${Math.round((onTime.onTime / onTime.total) * 100)}%`
-                : '—'}
-            </strong>
-            {onTime ? (
-              <small>
-                {onTime.onTime}/{onTime.total} tepat
-              </small>
-            ) : null}
-          </span>
-        </div>
-        <div className="ops-tile ops-stat">
-          <span className="ops-metric__label">
-            <Star size={14} aria-hidden="true" className="ops-ink-star" /> Rating
-          </span>
-          <span className="ops-stat__value">
-            <strong>{data.performance.averageFeedbackScore?.toFixed(1) ?? '—'}</strong>
-            <small>/ 5 · {data.performance.feedbackSampleCount} ulasan</small>
-          </span>
-        </div>
-      </div>
+      {mode === 'self' && mine.isError ? (
+        <p className="ops-empty">Performa Anda belum tersedia.</p>
+      ) : mode === 'self' && !own ? (
+        <Skeleton label="Memuat performa Anda" />
+      ) : (
+        <>
+          <div className="ops-pair">
+            <div className="ops-tile ops-metric">
+              <span className="ops-metric__label">
+                <Timer size={14} aria-hidden="true" /> {team ? 'Avg respons PIC' : 'Avg respons'}
+              </span>
+              <span className="ops-metric__value">
+                <strong>{response.value}</strong>
+                <small>{response.unit}</small>
+              </span>
+              {compare ? (
+                <Comparison
+                  now={data.performance.averageResponseSeconds}
+                  before={data.previousPerformance?.averageResponseSeconds}
+                />
+              ) : null}
+            </div>
+            <div className="ops-tile ops-metric">
+              <span className="ops-metric__label">
+                <CircleCheck size={14} aria-hidden="true" />{' '}
+                {team ? 'Avg selesai PIC' : 'Avg selesai'}
+              </span>
+              <span className="ops-metric__value">
+                <strong>{completion.value}</strong>
+                <small>{completion.unit}</small>
+              </span>
+              {compare ? (
+                <Comparison
+                  now={data.performance.averageCompletionSeconds}
+                  before={data.previousPerformance?.averageCompletionSeconds}
+                />
+              ) : null}
+            </div>
+          </div>
+          <div className="ops-pair">
+            <div className="ops-tile ops-stat">
+              <span className="ops-metric__label">
+                <ShieldCheck size={14} aria-hidden="true" /> Tepat waktu
+              </span>
+              <span className="ops-stat__value">
+                <strong>
+                  {onTime && onTime.total
+                    ? `${Math.round((onTime.onTime / onTime.total) * 100)}%`
+                    : '—'}
+                </strong>
+                {onTime ? (
+                  <small>
+                    {onTime.onTime}/{onTime.total} tepat
+                  </small>
+                ) : null}
+              </span>
+            </div>
+            <div className="ops-tile ops-stat">
+              <span className="ops-metric__label">
+                <Star size={14} aria-hidden="true" className="ops-ink-star" /> Rating
+              </span>
+              <span className="ops-stat__value">
+                <strong>{figures?.rating?.toFixed(1) ?? '—'}</strong>
+                <small>/ 5 · {figures?.ratingCount ?? 0} ulasan</small>
+              </span>
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -576,6 +665,16 @@ export function OpsDashboard(props: OpsDashboardProps) {
   const team = props.basis === 'REPORTER';
   const { data } = props;
   const mine = useMine().data;
+  // Leaders compare their unit with themselves; the smallest responder
+  // (Group Leader, or a Section Head without one) sees their own figures.
+  // Fetched once the dashboard has loaded, as Performa Responder always did, so
+  // it never competes with the first metadata and aggregate requests.
+  const responders = useHandlers(props.peopleQuery, props.peopleInsights && Boolean(data));
+  // Managers and division leaders always see their unit; a Section Head is the
+  // smallest responder when no Group Leader sits below them (e.g. non-shop).
+  const hasResponders =
+    props.peopleInsights &&
+    (props.unitLabel !== 'Section' || (responders.data?.items.length ?? 1) > 0);
   return (
     <div className={team ? 'ops ops--team' : 'ops ops--handling'}>
       <ProfileCard {...props} mineLine={<MineLine mine={mine} />} />
@@ -633,7 +732,12 @@ export function OpsDashboard(props: OpsDashboardProps) {
                 <SpreadCard {...props} data={data} />
               </div>
               <div className="ops-column">
-                <SpeedCard data={data} team={team} />
+                <SpeedCard
+                  data={data}
+                  team={team}
+                  self={{ unitLabel: props.unitLabel, toggle: hasResponders }}
+                  query={props.peopleQuery}
+                />
                 {props.peopleInsights ? (
                   <ResponderPerformanceCard query={props.peopleQuery} />
                 ) : null}

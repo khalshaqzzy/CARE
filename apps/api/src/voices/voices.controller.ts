@@ -426,6 +426,13 @@ export class VoicesController {
     return this.voices.dashboardHandlers(a, q ?? {});
   }
 
+  @Get('dashboard/me') dashboardMine(
+    @Actor() a: AuthActor,
+    @Query() q: Parameters<VoicesService['dashboardMine']>[1],
+  ) {
+    return this.voices.dashboardMine(a, q ?? {});
+  }
+
   @Get('dashboard/participation') dashboardParticipation(
     @Actor() a: AuthActor,
     @Query() q: Parameters<VoicesService['dashboardParticipation']>[1],

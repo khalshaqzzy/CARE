@@ -7,6 +7,19 @@ The PR for the Kecepatan toggle passed every application job but failed three ga
 - **New advisory: `sharp` < 0.35.5.** GHSA-wq5f-xc86-pv6w, a librsvg CVE, rated high. It failed both the Dependency security job and the Trivy filesystem and image scans. Fix: the API now pins `sharp` 0.35.5 directly. The image smoke test works.
 - **OpenSSL exception expired (ADR-0057).** It expired on 7 October as designed. Trivy 0.75.0 no longer flags patched Debian 13 OpenSSL, so the policy, the `ignore-policy` setting, the validator branch, and the registry entry were removed. The registry is now `[]`. The patched package overlay stays in place.
 
+## Personal figures on Kecepatan — 7 October 2026
+
+- **Decisions (previewed with screenshots):**
+  - Leaders with responders below switch Kecepatan between Department, Section, or Division and **Diri Saya**.
+  - On phones the toggle is full width under the title.
+  - The smallest responder (a Group Leader, or a Section Head without one) sees only "Kecepatan Respons & Penanganan Saya" with personal figures.
+- **API:** `GET /dashboard/me` (DashboardPeople.mine). It shares a per-person `measure()` with `/dashboard/handlers` and adds completion over the person's own closures. Group Leaders may call it; Director and Union may not.
+- **Leaf detection:** `peopleInsights` is false (Group Leader), or `/dashboard/handlers` returns no people.
+- **Tests:**
+  - A new integration test covers GL, Section Head, and denied viewers, and checks the SH figures against the Manager's row.
+  - Two e2e tests cover the toggle and the leaf title.
+  - Browser inventory is 440.
+
 ## Voice Member counts match Home — 6 October 2026
 
 After PR #73 went live (rilis `624a9ce`, deployed via PR #74):

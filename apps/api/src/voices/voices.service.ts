@@ -3369,6 +3369,10 @@ export class VoicesService {
     return new DashboardPeople(this.prisma).handlers(actor, query);
   }
 
+  dashboardMine(actor: AuthActor, query: DashboardQuery = {}) {
+    return new DashboardPeople(this.prisma).mine(actor, query);
+  }
+
   dashboardParticipation(actor: AuthActor, query: DashboardQuery = {}) {
     return new DashboardPeople(this.prisma).participation(actor, query);
   }

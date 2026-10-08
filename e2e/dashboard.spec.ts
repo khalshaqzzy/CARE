@@ -605,6 +605,67 @@ test('the full responder list separates every person in its own box', async ({ p
     [],
   );
 });
+const myFigures = {
+  held: 9,
+  onTime: 8,
+  onTimeRate: 8 / 9,
+  autoEscalated: 1,
+  overdue: 0,
+  averageResponseSeconds: 5400,
+  responseSampleCount: 7,
+  averageCompletionSeconds: 129600,
+  completionSampleCount: 4,
+  averageRating: 4.2,
+  ratingCount: 5,
+};
+test('leaders switch Kecepatan between their unit and themselves', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const mine: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/v1/dashboard/me') mine.push(request.url());
+  });
+  await mockWorkforceApi(page, {
+    session: manager,
+    dashboardHandlers: handlers,
+    dashboardMine: myFigures,
+  });
+  await page.goto('/');
+  const card = page.locator('section[aria-labelledby="ops-speed"]');
+  await expect(card.getByRole('heading', { name: 'Kecepatan Respons & Penanganan' })).toBeVisible();
+  const toggle = card.getByRole('group', { name: 'Cakupan kecepatan' });
+  await expect(toggle.getByRole('button', { name: 'Department' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(card).toContainText('4.0');
+  // Personal figures load only when asked for.
+  expect(mine).toHaveLength(0);
+  await toggle.getByRole('button', { name: 'Diri Saya' }).click();
+  await expect(card).toContainText('1.5');
+  await expect(card).toContainText('8/9 tepat');
+  await expect(card).toContainText('4.2');
+  // On phones the toggle spans the card under the title.
+  const [cardBox, toggleBox] = await Promise.all([card.boundingBox(), toggle.boundingBox()]);
+  expect(toggleBox!.width).toBeGreaterThan(cardBox!.width - 48);
+  expect((await new AxeBuilder({ page }).include('.ops').analyze()).violations).toEqual([]);
+});
+test('the smallest responder sees only their own Kecepatan', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'SECTION_HEAD'],
+      structuralPosition: 'Section Head',
+    }),
+    dashboardHandlers: { items: [] },
+    dashboardMine: myFigures,
+  });
+  await page.goto('/');
+  const card = page.locator('section[aria-labelledby="ops-speed"]');
+  await expect(
+    card.getByRole('heading', { name: 'Kecepatan Respons & Penanganan Saya' }),
+  ).toBeVisible();
+  await expect(card.getByRole('group', { name: 'Cakupan kecepatan' })).toHaveCount(0);
+  await expect(card).toContainText('8/9 tepat');
+});
 test('Voice Tim Saya shows participation, top contributor and members who never sent', async ({
   page,
 }) => {

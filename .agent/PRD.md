@@ -2392,6 +2392,20 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
 - **Organisasi terbawa.** Pilihan organisasi di Home ikut terbawa ke Voice Member.
 - **Union** tetap memakai daftar kerja pribadi.
 
+**Pembaruan 7 Oktober 2026 — capaian pribadi.**
+
+- **Kepala unit dengan responder di bawahnya** (Section Head dengan Group Leader di shop, Manager, pimpinan divisi):
+  - Kartu **Kecepatan Respons & Penanganan** (Voice Untuk Saya) mendapat toggle **Department / Diri Saya**, **Section / Diri Saya**, atau **Division / Diri Saya**. Defaultnya unit.
+  - Di HP, toggle selebar kartu dan terletak di bawah judul.
+- **Diri Saya** menampilkan angka pribadi dengan atribusi yang sama seperti baris orang tersebut di Performa Responder milik atasannya:
+  - **Respons:** sejak Voice sampai kepadanya.
+  - **Selesai:** dari penutupan yang dilakukannya.
+  - **Tepat waktu:** dari Voice yang dipegang.
+  - **Rating:** dari Voice yang ditutupnya.
+  - Tidak ada pembanding periode di mode ini.
+- **Responder terkecil** (Group Leader, atau Section Head tanpa Group Leader, termasuk di department non-shop) melihat kartu berjudul **Kecepatan Respons & Penanganan Saya** berisi angka pribadi, tanpa toggle.
+- **Endpoint baru `GET /dashboard/me`** mengikuti filter dashboard dan dapat dipakai Group Leader. Endpoint ini berada di luar agregat organisasi.
+
 ### Amandemen lifecycle — 9 September 2026
 
 §15–17 dan ADR-0044 menggantikan referensi Verifikasi, Tanya Reporter, direct Proceed,

@@ -154,6 +154,37 @@ const member = {
   },
 };
 export const dashboardSchemas = {
+  // The viewer's own handling figures ("Diri Saya").
+  DashboardMine: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'held',
+      'onTime',
+      'onTimeRate',
+      'autoEscalated',
+      'overdue',
+      'averageResponseSeconds',
+      'responseSampleCount',
+      'averageCompletionSeconds',
+      'completionSampleCount',
+      'averageRating',
+      'ratingCount',
+    ],
+    properties: {
+      held: { type: 'integer', minimum: 0 },
+      onTime: { type: 'integer', minimum: 0 },
+      onTimeRate: { type: 'number', nullable: true },
+      autoEscalated: { type: 'integer', minimum: 0 },
+      overdue: { type: 'integer', minimum: 0 },
+      averageResponseSeconds: { type: 'number', nullable: true },
+      responseSampleCount: { type: 'integer', minimum: 0 },
+      averageCompletionSeconds: { type: 'number', nullable: true },
+      completionSampleCount: { type: 'integer', minimum: 0 },
+      averageRating: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer', minimum: 0 },
+    },
+  },
   DashboardPreview: {
     type: 'object',
     additionalProperties: false,
