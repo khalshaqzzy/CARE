@@ -40,8 +40,13 @@ async function principal(username: string) {
   return policy.resolvePrincipal(account, { id: crypto.randomUUID(), passwordRestricted: false });
 }
 
-/** Submits a tiered Kesejahteraan Voice as the given employee. */
-async function submitAs(username: string, key: string, severity: Severity = Severity.MEDIUM) {
+/** Submits a General Voice (tiered Kesejahteraan by default) as the given employee. */
+async function submitAs(
+  username: string,
+  key: string,
+  severity: Severity = Severity.MEDIUM,
+  category = 'TIER_WELFARE',
+) {
   const reporter = await principal(username);
   const draft = await voices.createDraft(reporter, {
     visibility: 'GENERAL',
@@ -50,10 +55,7 @@ async function submitAs(username: string, key: string, severity: Severity = Seve
     title: 'Insentif kehadiran belum dibayar',
     detail: 'Insentif kehadiran bulan lalu belum dibayarkan.',
   });
-  await voices.manualClassification(reporter, draft.id, {
-    category: 'TIER_WELFARE',
-    severity,
-  });
+  await voices.manualClassification(reporter, draft.id, { category, severity });
   const preview = await voices.previewDraft(reporter, draft.id);
   const submitted = (await voices.submit(
     reporter,
@@ -860,6 +862,126 @@ describe('Tiered routing foundation', () => {
       tierLevel: 'MANAGER',
       tierDueAt: null,
     });
+  });
+
+  it('gives fixed categories the same windows; a miss at the route owner notifies, not escalates', async () => {
+    await prisma.generalVoiceCategory.upsert({
+      where: { key: 'FIXED_FACILITY' },
+      update: { tiered: false },
+      create: {
+        key: 'FIXED_FACILITY',
+        tiered: false,
+        revisions: {
+          create: { revision: 1, name: 'Fasilitas Umum', definition: 'Facility', examples: [] },
+        },
+        routes: { create: { mode: 'RELATED_REPORTER_DEPARTMENT' } },
+      },
+    });
+    // A Division Head of the handling division is informed of a miss.
+    const placed = await prisma.organizationMembership.findFirstOrThrow({
+      where: { employee: { noReg: '700001' }, snapshot: { status: 'ACTIVE' } },
+    });
+    const employee = await prisma.employee.create({ data: { noReg: '700010', name: 'DH Div A' } });
+    const divisionHead = await prisma.userAccount.create({
+      data: {
+        username: '700010',
+        displayName: 'DH Div A',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    const membership = await prisma.organizationMembership.create({
+      data: {
+        snapshotId: placed.snapshotId,
+        employeeId: employee.id,
+        organizationUnitId: placed.organizationUnitId,
+        employeeName: 'DH Div A',
+        structuralPosition: 'Division Head',
+        section: 'Office',
+        sourceRow: 997,
+      },
+    });
+    const manager = await principal('700001');
+    const worker = new TierEscalationService(prisma as never);
+    const past = new Date(Date.now() - 60_000);
+    const expire = (id: string) =>
+      prisma.voice.update({ where: { id }, data: { tierDueAt: past } });
+    const misses = (id: string) =>
+      prisma.voiceEvent.findMany({ where: { voiceId: id, type: 'DEADLINE_MISSED' } });
+    const told = async (id: string) =>
+      (
+        await prisma.notification.findMany({
+          where: { voiceId: id, type: 'TARGET_OVERDUE' },
+          select: { recipientId: true, title: true },
+        })
+      ).sort((a, b) => a.recipientId.localeCompare(b.recipientId));
+    try {
+      // Terbuka with the route owner: the respond window runs from submit.
+      const voice = await submitAs('700004', 'fixed-open', Severity.MEDIUM, 'FIXED_FACILITY');
+      expect(voice).toMatchObject({ tierLevel: null, tierDueKind: 'RESPOND' });
+      expect(voice.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
+      await expire(voice.id);
+      expect(await worker.tick()).toBe(1);
+      // It stays with the Manager; the Manager and the Division Head are told once.
+      expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+        status: 'OPEN',
+        tierLevel: null,
+        routeOwnerId: manager.accountId,
+        tierMissedDueAt: past,
+      });
+      expect((await misses(voice.id))[0]!.payload).toMatchObject({
+        kind: 'RESPOND',
+        previousHolders: [manager.accountId],
+        automatic: true,
+      });
+      expect(await told(voice.id)).toEqual(
+        [
+          { recipientId: manager.accountId, title: 'Segera respons Voice ini' },
+          { recipientId: divisionHead.id, title: 'Voice belum direspons' },
+        ].sort((a, b) => a.recipientId.localeCompare(b.recipientId)),
+      );
+      expect(await worker.tick()).toBe(0);
+      expect(await misses(voice.id)).toHaveLength(1);
+
+      // Once answered, the Manager's process window runs, with the same notice.
+      const current = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
+      await voices.respond(
+        manager,
+        voice.id,
+        { text: 'Kami cek.', version: current.version },
+        'fixed-r',
+      );
+      const answered = await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } });
+      expect(answered).toMatchObject({ status: 'RESPONDED', tierDueKind: 'PROCESS' });
+      expect(answered.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
+      await expire(voice.id);
+      await prisma.voice.update({
+        where: { id: voice.id },
+        data: { tierDueAt: new Date(past.getTime() + 1000) },
+      });
+      expect(await worker.tick()).toBe(1);
+      expect(
+        (await misses(voice.id)).map((event) => (event.payload as { kind: string }).kind),
+      ).toEqual(['RESPOND', 'PROCESS']);
+      expect((await told(voice.id)).map((row) => row.title)).toEqual(
+        expect.arrayContaining(['Segera proses Voice ini', 'Voice belum diproses']),
+      );
+
+      // Older Voices without a deadline get one from when their window began.
+      const older = await submitAs('700004', 'fixed-older', Severity.MEDIUM, 'FIXED_FACILITY');
+      await prisma.voice.update({
+        where: { id: older.id },
+        data: { tierDueAt: null, tierDueKind: null },
+      });
+      await worker.tick();
+      expect((await prisma.voice.findUniqueOrThrow({ where: { id: older.id } })).tierDueKind).toBe(
+        'RESPOND',
+      );
+    } finally {
+      await prisma.organizationMembership.delete({ where: { id: membership.id } });
+    }
   });
 
   it('alerts the whole chain at once for a Critical tiered Voice', async () => {

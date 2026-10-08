@@ -98,6 +98,7 @@ export const VOICE_ACTION_LABELS: Record<string, string> = {
   RATED: 'Dinilai',
   REOPENED: 'Dibuka Kembali',
   AUTO_ACCEPTED: 'Diterima otomatis',
+  DEADLINE_MISSED: 'Batas waktu terlewati',
 };
 
 export type ClosureReviewState = 'PENDING' | 'ACCEPTED' | 'REJECTED';

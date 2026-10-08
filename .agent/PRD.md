@@ -2541,6 +2541,22 @@ Status: **Tahap 1 diimplementasikan dan dirilis ke staging; Tahap 2 dan 3 diimpl
   - Kategori fixed hanya memberi notifikasi baca-saja ke Manager department pelapor.
 - Notifikasi juga dikirim ke pengganti bila penerima sedang tidak masuk (§43.5).
 
+### 43.8 Batas waktu kategori fixed — 8 Oktober 2026
+
+Kategori fixed (tanpa penanda `tiered`) memakai tabel batas per severity dan kalender kerja yang sama dengan kategori bertingkat (§43.4).
+
+- **Terbuka di route owner:** batas respons dihitung sejak Voice masuk.
+- **Direspon oleh Manager tanpa PIC:** batas proses dihitung sejak respons. Handover ke kategori fixed memberi Manager tujuan batas respons dan proses sekaligus.
+- **Batas terlewat selama Voice masih di route owner:**
+  - Voice **tidak naik**.
+  - Manager menerima notifikasi **Segera respons / Segera proses Voice ini**.
+  - Seluruh DDH/DH divisi department penanganan menerima notifikasi informasi **Voice belum direspons / belum diproses**.
+  - Notifikasi dikirim sekali per batas waktu (event `DEADLINE_MISSED`).
+  - Keterlambatan dihitung pada Manager di Performa Responder dan Tepat waktu.
+- **Setelah PIC ditugaskan:** batas PIC berlaku. Bila terlewat, Manager dapat Ingatkan atau mengganti PIC. Bila Manager juga melewati batasnya, Voice naik ke DDH/DH seperti kategori bertingkat (§43.6).
+- **Voice aktif lama** tanpa batas waktu diberi batas dari awal jendelanya: sejak masuk bila Terbuka, sejak respons pertama bila Direspon, atau sejak penugasan bila dipegang PIC. Voice lama yang sudah melewati batas langsung terhitung terlambat dan memicu notifikasi.
+- **Kartu Voice** menampilkan **Sisa …/Terlambat …** terhadap batas jenjang saat Terbuka/Direspon, dan terhadap target penanganan saat Diproses.
+
 ### 43.7 Tahap berikutnya
 
 - **Tahap 2:** Voice mulai di GL/SH, visibilitas baca-saja dan pemisahan Voice Untuk Saya/Tim Saya, aksi Naikkan/Tugaskan/Ingatkan/Proses di chat bertingkat, badge pelapor dari luar, handover Manager yang dilonggarkan, Sedang tidak masuk, ubah severity, dan saran AI ke Private Voice.

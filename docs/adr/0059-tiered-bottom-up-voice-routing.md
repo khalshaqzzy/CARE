@@ -304,3 +304,16 @@ Delivery is split into three stages so that real Line and Group Leader data can 
 - Line names repeat across Sections. Leaders are therefore matched by department, Section, and Line together.
 - Stage 2 must define the Line-level "Voice Tim Saya" scope for Group Leaders and the read-only visibility queries without regressing dashboard performance.
 - Stage 3 must use row locks shared with human actions, be idempotent across API instances, and recover missed deadlines after downtime.
+
+## Follow-up — fixed-category deadlines (8 October 2026)
+
+The product owner ruled that every General Voice has a deadline, not only tiered categories.
+
+- **Windows:** fixed categories now get the same per-severity windows. The respond window starts at submit; the process window starts when the route owner answers. A handover to a fixed category gives the receiving Manager respond and process together.
+- **A miss at the route owner** does not move the Voice:
+  - The worker records `DEADLINE_MISSED`, tells the Manager to act now, and informs the handling division's DDH/DH.
+  - It does this once per deadline (`Voice.tierMissedDueAt`), so the queue is not starved by repeat candidates.
+  - The miss counts against the Manager's timeliness, alongside automatic escalations and missed targets.
+- **Assigned PIC misses** keep the existing behaviour: the Voice joins the Manager tier (Ingatkan / reassign), then DDH/DH.
+- **Backfill:** active fixed Voices without a deadline are backfilled in small batches on each tick from when their window began. Only severities with a configured deadline are considered.
+- **Card display:** list items carry `targetDueAt` so Diproses cards count down to the live handling target.

@@ -2832,6 +2832,8 @@ const schemas: Record<string, any> = {
       // Dashboard preview of General Voices only: end of the current tier
       // holder's window and the reporter shown to authorized responders.
       tierDueAt: { type: 'string', format: 'date-time', nullable: true },
+      // The live handling target while Diproses; drives Sisa/Terlambat on cards.
+      targetDueAt: { type: 'string', format: 'date-time', nullable: true },
       reporterName: { type: 'string', nullable: true },
       reporterDepartment: { type: 'string', nullable: true },
       updatedAt: { type: 'string', format: 'date-time' },

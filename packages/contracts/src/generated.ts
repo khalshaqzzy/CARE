@@ -3761,6 +3761,8 @@ export interface components {
             targetOverdue?: boolean;
             /** Format: date-time */
             tierDueAt?: string | null;
+            /** Format: date-time */
+            targetDueAt?: string | null;
             reporterName?: string | null;
             reporterDepartment?: string | null;
             /** Format: date-time */

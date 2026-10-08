@@ -56,20 +56,17 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     let moved = 0;
     try {
-      const due = await this.prisma.voice.findMany({
-        where: {
-          tierDueAt: { lt: now },
-          status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] },
-          OR: [
-            { tierLevel: { not: null } },
-            // Fixed categories: an assigned PIC who did not process in time.
-            { tierLevel: null, visibility: 'GENERAL', currentHandlerId: { not: null } },
-          ],
-        },
-        orderBy: { tierDueAt: 'asc' },
-        take: 50,
-        select: { id: true },
-      });
+      await this.backfillFixed();
+      // Tiered Voices move up; fixed categories either hand an assigned PIC's
+      // miss to the Manager tier or, still with the route owner, notify once
+      // per deadline (tierMissedDueAt) without moving.
+      const due = await this.prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT v.id FROM "Voice" v
+        WHERE v."tierDueAt" < ${now} AND v.status IN ('OPEN', 'RESPONDED')
+          AND (v."tierLevel" IS NOT NULL OR (v.visibility = 'GENERAL' AND (
+            (v."currentHandlerId" IS NOT NULL AND v."currentHandlerId" <> v."routeOwnerId")
+            OR v."tierMissedDueAt" IS DISTINCT FROM v."tierDueAt")))
+        ORDER BY v."tierDueAt" ASC LIMIT 50`;
       for (const { id } of due)
         if (await this.prisma.$transaction((tx) => this.escalate(tx, id, now))) moved += 1;
     } finally {
@@ -90,7 +87,10 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       (voice.status !== VoiceStatus.OPEN && voice.status !== VoiceStatus.RESPONDED)
     )
       return false;
-    if (!voice.tierLevel) return this.escalateAssignment(tx, voice, now);
+    if (!voice.tierLevel)
+      return voice.currentHandlerId && voice.currentHandlerId !== voice.routeOwnerId
+        ? this.escalateAssignment(tx, voice, now)
+        : this.missedAtRouteOwner(tx, voice, now);
     const from = voice.tierLevel;
     const step = (await chainForVoice(tx, voice)).find(
       (item) => TIER_ORDER.indexOf(item.level) > TIER_ORDER.indexOf(from),
@@ -210,6 +210,135 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       `Diteruskan ke ${TIER_LABELS[step.level]}.`,
     );
     return true;
+  }
+
+  /**
+   * Fixed categories with the route owner (PRD §43.8): a missed respond or
+   * process window does not move the Voice. The Manager is told to act now and
+   * the Deputy/Division Heads are informed, once per deadline. The miss counts
+   * against the Manager's timeliness.
+   */
+  private async missedAtRouteOwner(tx: Tx, voice: Prisma.VoiceGetPayload<object>, now: Date) {
+    if (
+      voice.visibility !== 'GENERAL' ||
+      !voice.tierDueAt ||
+      voice.tierMissedDueAt?.getTime() === voice.tierDueAt.getTime()
+    )
+      return false;
+    const owner = voice.routeOwnerId;
+    const answered = voice.status !== VoiceStatus.OPEN;
+    const substitute = (await activeSubstitutes(tx, [owner], now)).get(owner);
+    const division =
+      (await chainForVoice(tx, voice)).find((step) => step.level === TierLevel.DIVISION)
+        ?.accountIds ?? [];
+    await tx.voice.update({
+      where: { id: voice.id },
+      data: { tierMissedDueAt: voice.tierDueAt },
+    });
+    const carrier = await tx.userAccount.findUniqueOrThrow({
+      where: { id: owner },
+      select: { id: true, accountKind: true },
+    });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: voice.id,
+        type: VoiceEventType.DEADLINE_MISSED,
+        actorId: carrier.id,
+        actorAccountKind: carrier.accountKind,
+        actorStructuralPosition: null,
+        actorCapabilities: [],
+        payload: {
+          kind: answered ? 'PROCESS' : 'RESPOND',
+          dueAt: voice.tierDueAt.toISOString(),
+          previousHolders: [substitute ?? owner],
+          informed: division,
+          automatic: true,
+          system: true,
+        },
+      },
+    });
+    await this.notify(
+      tx,
+      owner,
+      voice.id,
+      NotificationType.TARGET_OVERDUE,
+      answered ? 'Segera proses Voice ini' : 'Segera respons Voice ini',
+      answered ? 'Batas waktu proses telah terlewati.' : 'Batas waktu respons telah terlewati.',
+    );
+    for (const recipientId of division.filter((id) => id !== owner))
+      await this.notify(
+        tx,
+        recipientId,
+        voice.id,
+        NotificationType.TARGET_OVERDUE,
+        answered ? 'Voice belum diproses' : 'Voice belum direspons',
+        'Batas waktu terlewati di Manager department penanganan.',
+      );
+    return true;
+  }
+
+  /**
+   * Fixed-category Voices that predate their deadlines get one, counted from
+   * when the window began: submit while Terbuka, the first answer while
+   * Direspon, the assignment while a PIC holds it.
+   */
+  private async backfillFixed() {
+    // Only severities with a configured deadline can be given one.
+    const configured = (
+      await this.prisma.escalationDeadline.findMany({ select: { severity: true } })
+    ).map((row) => row.severity);
+    if (!configured.length) return;
+    const rows = await this.prisma.voice.findMany({
+      where: {
+        severity: { in: configured },
+        visibility: 'GENERAL',
+        tierLevel: null,
+        tierDueAt: null,
+        status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] },
+      },
+      select: {
+        id: true,
+        status: true,
+        severity: true,
+        submittedAt: true,
+        currentHandlerId: true,
+        routeOwnerId: true,
+        events: {
+          where: {
+            type: {
+              in: [
+                VoiceEventType.RESPONDED,
+                VoiceEventType.MONITORED,
+                VoiceEventType.ASSIGNED,
+                VoiceEventType.REASSIGNED,
+                VoiceEventType.HANDOVER_COMPLETED,
+              ],
+            },
+          },
+          orderBy: { occurredAt: 'desc' },
+          select: { type: true, occurredAt: true },
+        },
+      },
+      take: 200,
+    });
+    for (const row of rows) {
+      const assigned = row.currentHandlerId && row.currentHandlerId !== row.routeOwnerId;
+      const assignedAt = row.events.find(
+        (e) => e.type === VoiceEventType.ASSIGNED || e.type === VoiceEventType.REASSIGNED,
+      )?.occurredAt;
+      const answeredAt = row.events.at(-1)?.occurredAt;
+      const window =
+        row.status === VoiceStatus.OPEN
+          ? await tierWindow(this.prisma, row.severity, 'RESPOND', row.submittedAt)
+          : assigned
+            ? await tierWindow(this.prisma, row.severity, 'FULL', assignedAt ?? row.submittedAt)
+            : await tierWindow(this.prisma, row.severity, 'PROCESS', answeredAt ?? row.submittedAt);
+      if (!window) continue;
+      await this.prisma.voice.updateMany({
+        where: { id: row.id, tierDueAt: null, tierLevel: null },
+        data: { tierDueAt: window.tierDueAt, tierDueKind: window.tierDueKind },
+      });
+    }
   }
 
   /**
