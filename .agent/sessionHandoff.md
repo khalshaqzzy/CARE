@@ -6,6 +6,7 @@ The PR for the Kecepatan toggle passed every application job but failed three ga
 
 - **New advisory: `sharp` < 0.35.5.** GHSA-wq5f-xc86-pv6w, a librsvg CVE, rated high. It failed both the Dependency security job and the Trivy filesystem and image scans. Fix: the API now pins `sharp` 0.35.5 directly. The image smoke test works.
 - **OpenSSL exception expired (ADR-0057).** It expired on 7 October as designed. Trivy 0.75.0 no longer flags patched Debian 13 OpenSSL, so the policy, the `ignore-policy` setting, the validator branch, and the registry entry were removed. The registry is now `[]`. The patched package overlay stays in place.
+
 ## Personal figures on Kecepatan — 7 October 2026
 
 - **Decisions (previewed with screenshots):**
