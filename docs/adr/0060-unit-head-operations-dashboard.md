@@ -73,6 +73,15 @@ The workforce bottom navigation showed icons without labels on mobile and groupe
   - The organization chosen on Home (`scopeMode` and the organization levels) travels with every link into Voice Member.
   - Union keeps the personal work list.
 
+### Follow-up decisions (7 October 2026)
+
+- **Personal figures.** A unit head saw their unit, and their own handling figures appeared only in their leader's Performa Responder.
+  - Leaders with responders below now switch Kecepatan Respons & Penanganan between their unit (Department, Section, or Division) and **Diri Saya**.
+  - The smallest responder (a Group Leader, or a Section Head without one) sees only their own figures, titled "Kecepatan Respons & Penanganan Saya".
+- **`GET /dashboard/me`.** It returns those figures through the same per-person measure as `/dashboard/handlers`, so a leader's row and the person's own view agree.
+  - That measure is now shared, and it adds completion time over the closures the person performed.
+  - It runs only when Diri Saya is shown, outside the organization aggregate.
+
 ## Rationale
 
 Placing people insights on the same filtered cohort as the dashboard keeps every number consistent with what the viewer can already see. Recording the holders who missed a window at escalation time avoids reconstructing history from mutable arrays and makes substitutes accountable for the period they covered.

@@ -17,13 +17,24 @@ const ROLE_LABELS = {
 const ROLE_ORDER = ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER'] as const;
 const PREVIEW = 4;
 
-function useHandlers(query: Query) {
+export function useMyPerformance(query: Query, enabled = true) {
+  const api = useApi();
+  const sessionId = useSessionId();
+  return useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'me', query),
+    queryFn: ({ signal }) => api.dashboardMine(query as never, signal),
+    staleTime: 30000,
+    enabled,
+  });
+}
+export function useHandlers(query: Query, enabled = true) {
   const api = useApi();
   const sessionId = useSessionId();
   return useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'handlers', query),
     queryFn: ({ signal }) => api.dashboardHandlers(query as never, signal),
     staleTime: 30000,
+    enabled,
   });
 }
 function useParticipation(query: Query) {

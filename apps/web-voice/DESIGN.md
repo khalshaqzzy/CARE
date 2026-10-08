@@ -258,6 +258,8 @@ Nearly flat. Cards lift off the canvas with a hairline plus a very soft two-laye
 
 **The One Surface Per Card Rule.** A card holds tiles, but a tile never holds another bordered box; figures inside a person tile sit on a hairline, not a nested panel.
 
+**The Whose Numbers Rule.** Every card says whose figures it shows: the unit by its level name (Department, Section, Division), "Diri Saya" for the viewer, and role names for the people below. Avoid "Tim" here; it already means Voices sent by team members (Voice Tim Saya). On phones a scope toggle takes its own full-width row under the title.
+
 **The Count Opens Its List Rule.** A summary count is a button that opens the list it counts. On Home it opens Voice Member with the same filters; on Voice Member it filters in place. Never show a count whose list cannot be reached.
 
 **The Portal Token Rule.** Sheets open in a portal outside `.ops`, so `.ops-sheet` carries the same `--ops-*` tokens. Each person in a "Lihat semua" sheet is its own bordered tile, with an 8px gap between tiles.

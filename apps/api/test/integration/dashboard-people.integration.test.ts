@@ -244,6 +244,50 @@ describe('Dashboard people: handling performance and member participation', () =
       await expect(people.participation(viewer, {})).rejects.toThrow();
   });
 
+  it('gives each leader their own figures with the attribution their leader sees', async () => {
+    const at = (h: number) => new Date(new Date('2026-08-10T01:00:00Z').getTime() + h * hour);
+    // Answered by the Group Leader two hours after it reached them.
+    const answered = await voice({ tierHolderIds: [groupLeader.accountId], status: 'RESPONDED' });
+    await event(answered.id, 'RESPONDED', groupLeader.accountId, at(2));
+    // Closed by the Section Head a day after submit, rated 4.
+    const closed = await voice({ status: 'CLOSED', currentHandlerId: sectionHead.accountId });
+    const cycle = await db.closureCycle.create({
+      data: {
+        voiceId: closed.id,
+        cycleNumber: 1,
+        actorId: sectionHead.accountId,
+        note: 'Selesai',
+        closedAt: at(24),
+      },
+    });
+    await db.rating.create({
+      data: { closureCycleId: cycle.id, reporterId: member.accountId, score: 4 },
+    });
+
+    // Group Leaders have no people cards but do see their own figures.
+    expect(await people.mine(groupLeader, {})).toMatchObject({
+      held: 1,
+      onTime: 1,
+      onTimeRate: 1,
+      averageResponseSeconds: 7200,
+      responseSampleCount: 1,
+      completionSampleCount: 0,
+    });
+    // The Section Head row matches what the Manager sees in Performa Responder.
+    const own = await people.mine(sectionHead, {});
+    expect(own).toMatchObject({
+      held: 1,
+      averageCompletionSeconds: 24 * 3600,
+      completionSampleCount: 1,
+      averageRating: 4,
+      ratingCount: 1,
+    });
+    const row = (await people.handlers(manager, {})).items.find((p) => p.name === 'Andi SH');
+    expect(row).toMatchObject({ held: own.held, averageRating: own.averageRating });
+    for (const viewer of [director, member])
+      await expect(people.mine(viewer, {})).rejects.toThrow();
+  });
+
   it('leaves Group Leaders out of a department that is not an active shop', async () => {
     const shop = { organizationUnitId: unit.id };
     await db.shopLocation.update({ where: shop, data: { status: 'ARCHIVED' } });

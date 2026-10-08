@@ -425,6 +425,13 @@ export function DashboardHome() {
         onOpenRange={(from, to) => void navigate(listUrl({ view: 'ALL', from, to }))}
         peopleQuery={{ ...query, ...refresh.data?.dates }}
         peopleInsights={peopleInsights}
+        unitLabel={
+          caps.includes('DIVISION_LEADERSHIP')
+            ? 'Division'
+            : caps.includes('MANAGER')
+              ? 'Department'
+              : 'Section'
+        }
         readOnlyLabel={readonly ? 'Leadership · Read-only' : undefined}
       />
     );

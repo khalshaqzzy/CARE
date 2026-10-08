@@ -209,6 +209,7 @@ const queryParameters: Record<string, string[]> = {
   VoicesController_dashboardMetadata: dashboardParameters,
   VoicesController_dashboardPreview: dashboardParameters,
   VoicesController_dashboardHandlers: dashboardParameters,
+  VoicesController_dashboardMine: dashboardParameters,
   VoicesController_dashboardParticipation: dashboardParameters,
   VoicesController_timeline: ['cursor', 'limit', 'order'],
   VoicesController_messages: ['cursor', 'limit', 'order'],
@@ -330,6 +331,8 @@ function successSchema(operationId: string) {
     return { $ref: '#/components/schemas/DashboardPreview' };
   if (operationId === 'VoicesController_dashboardHandlers')
     return { $ref: '#/components/schemas/DashboardHandlers' };
+  if (operationId === 'VoicesController_dashboardMine')
+    return { $ref: '#/components/schemas/DashboardMine' };
   if (operationId === 'VoicesController_dashboardParticipation')
     return { $ref: '#/components/schemas/DashboardParticipation' };
   if (operationId === 'VoicesController_dashboardMember')

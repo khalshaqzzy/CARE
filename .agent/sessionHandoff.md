@@ -1,5 +1,18 @@
 # CARE Session Handoff
 
+## Personal figures on Kecepatan — 7 October 2026
+
+- **Decisions (previewed with screenshots):**
+  - Leaders with responders below switch Kecepatan between Department, Section, or Division and **Diri Saya**.
+  - On phones the toggle is full width under the title.
+  - The smallest responder (a Group Leader, or a Section Head without one) sees only "Kecepatan Respons & Penanganan Saya" with personal figures.
+- **API:** `GET /dashboard/me` (DashboardPeople.mine). It shares a per-person `measure()` with `/dashboard/handlers` and adds completion over the person's own closures. Group Leaders may call it; Director and Union may not.
+- **Leaf detection:** `peopleInsights` is false (Group Leader), or `/dashboard/handlers` returns no people.
+- **Tests:**
+  - A new integration test covers GL, Section Head, and denied viewers, and checks the SH figures against the Manager's row.
+  - Two e2e tests cover the toggle and the leaf title.
+  - Browser inventory is 440.
+
 ## Voice Member counts match Home — 6 October 2026
 
 After PR #73 went live (rilis `624a9ce`, deployed via PR #74):

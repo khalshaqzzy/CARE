@@ -120,8 +120,126 @@ export class DashboardPeople {
     }
     const ids = [...people.keys()];
     if (!ids.length) return { items: [] };
-    const sql = dashboardSql(context.where);
-    const rows = await this.db.$queryRaw<
+    const rows = await this.measure(ids, dashboardSql(context.where));
+    const items = rows.map((row) => {
+      const person = people.get(row.accountId)!;
+      const held = Number(row.held);
+      return {
+        ...person,
+        held,
+        onTimeRate: held ? Math.max(0, held - Number(row.late)) / held : null,
+        autoEscalated: Number(row.autoEscalated),
+        averageResponseSeconds: row.averageResponseSeconds,
+        overdue: Number(row.overdue),
+        averageRating: row.averageRating,
+        ratingCount: Number(row.ratingCount),
+      };
+    });
+    return {
+      items: items.sort(
+        (a, b) => roles.indexOf(a.role) - roles.indexOf(b.role) || a.name.localeCompare(b.name),
+      ),
+    };
+  }
+
+  /**
+   * Members of the viewer's reporting scope and how many Voices each sent in
+   * the selected period. Counts include Private Voices; their content and
+   * route are never exposed here.
+   */
+  /**
+   * The viewer's own handling figures, with the same attribution their leader
+   * sees in Performa Responder, over the same cohort as the dashboard.
+   */
+  async mine(actor: AuthActor, input: DashboardQuery) {
+    const caps = actor.capabilities;
+    if (caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER', 'DIRECTOR', 'CARE_ADMIN'].includes(c)))
+      throw forbiddenAsNotFound();
+    if (
+      !caps.some((c) =>
+        ['DIVISION_LEADERSHIP', 'MANAGER', 'SECTION_HEAD', 'GROUP_LEADER'].includes(c),
+      )
+    )
+      throw forbiddenAsNotFound();
+    const context = await new OrganizationDashboard(this.db).context(
+      actor,
+      { ...input, basis: 'HANDLING', visibility: 'GENERAL' },
+      'scope',
+    );
+    const [row] = await this.measure([actor.accountId], dashboardSql(context.where));
+    const held = Number(row!.held);
+    const onTime = Math.max(0, held - Number(row!.late));
+    return {
+      held,
+      onTime,
+      onTimeRate: held ? onTime / held : null,
+      autoEscalated: Number(row!.autoEscalated),
+      overdue: Number(row!.overdue),
+      averageResponseSeconds: row!.averageResponseSeconds,
+      responseSampleCount: Number(row!.responseCount),
+      averageCompletionSeconds: row!.averageCompletionSeconds,
+      completionSampleCount: Number(row!.completionCount),
+      averageRating: row!.averageRating,
+      ratingCount: Number(row!.ratingCount),
+    };
+  }
+
+  async participation(actor: AuthActor, input: DashboardQuery) {
+    const { sectionOnly } = viewer(actor);
+    const context = await new OrganizationDashboard(this.db).context(
+      actor,
+      { ...input, basis: 'REPORTER', visibility: 'GENERAL' },
+      'scope',
+    );
+    const members = await membersInScope(this.db, actor, context.metadata.selected, sectionOnly);
+    const unique = new Map<string, (typeof members)[number]>();
+    for (const m of members)
+      if (m.employee.account?.id !== actor.accountId && !unique.has(m.employeeId))
+        unique.set(m.employeeId, m);
+    const accountIds = [...unique.values()]
+      .map((m) => m.employee.account?.id)
+      .filter((id): id is string => Boolean(id));
+    const q = context.q;
+    const counts = accountIds.length
+      ? await this.db.voice.groupBy({
+          by: ['reporterId'],
+          where: {
+            reporterId: { in: accountIds },
+            ...(q.from || q.to
+              ? {
+                  submittedAt: {
+                    ...(q.from ? { gte: new Date(q.from) } : {}),
+                    ...(q.to ? { lte: new Date(q.to) } : {}),
+                  },
+                }
+              : {}),
+          },
+          _count: { _all: true },
+          _max: { submittedAt: true },
+        })
+      : [];
+    const byReporter = new Map(counts.map((row) => [row.reporterId, row]));
+    const items = [...unique.values()].map((m) => {
+      const account = m.employee.account;
+      const row = account ? byReporter.get(account.id) : undefined;
+      return {
+        id: m.employeeId,
+        name: account?.displayName ?? m.employeeName,
+        unitLabel: [m.section, m.lineName].filter(Boolean).join(' · '),
+        voiceCount: row?._count._all ?? 0,
+        lastSubmittedAt: row?._max.submittedAt?.toISOString() ?? null,
+        activated: Boolean(account && !account.passwordChangeRequired),
+      };
+    });
+    return { memberCount: items.length, members: items };
+  }
+
+  /**
+   * Handling figures per person over a handling cohort. Every figure traces
+   * to recorded events: who held the Voice, who answered, whose deadline passed.
+   */
+  private measure(ids: string[], sql: Prisma.Sql) {
+    return this.db.$queryRaw<
       Array<{
         accountId: string;
         held: bigint;
@@ -131,6 +249,9 @@ export class DashboardPeople {
         averageResponseSeconds: number | null;
         averageRating: number | null;
         ratingCount: bigint;
+        responseCount: bigint;
+        averageCompletionSeconds: number | null;
+        completionCount: bigint;
       }>
     >(Prisma.sql`
       WITH cohort AS MATERIALIZED (
@@ -183,6 +304,14 @@ export class DashboardPeople {
         ), c."submittedAt")))::float8 AS seconds
         FROM responses r JOIN cohort c ON c.id = r."voiceId"
       ),
+      -- Closures the person performed, timed over the cycle they closed.
+      completions AS (
+        SELECT cc."actorId" AS pid, EXTRACT(EPOCH FROM cc."closedAt" - CASE
+          WHEN cc."cycleNumber" = 1 THEN c."submittedAt" ELSE prev."reopenedAt" END)::float8 AS seconds
+        FROM cohort c JOIN "ClosureCycle" cc ON cc."voiceId" = c.id
+        LEFT JOIN "ClosureCycle" prev ON prev."voiceId" = cc."voiceId"
+          AND prev."cycleNumber" = cc."cycleNumber" - 1
+      ),
       ratings AS (
         SELECT cc."actorId" AS pid, avg(r.score)::float8 AS average, count(r.score) AS n
         FROM cohort c JOIN "ClosureCycle" cc ON cc."voiceId" = c.id
@@ -196,81 +325,10 @@ export class DashboardPeople {
         (SELECT count(*) FROM (SELECT id FROM missed WHERE pid = p.pid
           UNION SELECT id FROM overdue WHERE pid = p.pid) late) AS late,
         (SELECT avg(seconds) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "averageResponseSeconds",
+        (SELECT count(*) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "responseCount",
+        (SELECT avg(seconds) FROM completions WHERE pid = p.pid AND seconds >= 0) AS "averageCompletionSeconds",
+        (SELECT count(*) FROM completions WHERE pid = p.pid AND seconds >= 0) AS "completionCount",
         rt.average AS "averageRating", COALESCE(rt.n, 0) AS "ratingCount"
       FROM people p LEFT JOIN ratings rt ON rt.pid = p.pid`);
-    const items = rows.map((row) => {
-      const person = people.get(row.accountId)!;
-      const held = Number(row.held);
-      return {
-        ...person,
-        held,
-        onTimeRate: held ? Math.max(0, held - Number(row.late)) / held : null,
-        autoEscalated: Number(row.autoEscalated),
-        averageResponseSeconds: row.averageResponseSeconds,
-        overdue: Number(row.overdue),
-        averageRating: row.averageRating,
-        ratingCount: Number(row.ratingCount),
-      };
-    });
-    return {
-      items: items.sort(
-        (a, b) => roles.indexOf(a.role) - roles.indexOf(b.role) || a.name.localeCompare(b.name),
-      ),
-    };
-  }
-
-  /**
-   * Members of the viewer's reporting scope and how many Voices each sent in
-   * the selected period. Counts include Private Voices; their content and
-   * route are never exposed here.
-   */
-  async participation(actor: AuthActor, input: DashboardQuery) {
-    const { sectionOnly } = viewer(actor);
-    const context = await new OrganizationDashboard(this.db).context(
-      actor,
-      { ...input, basis: 'REPORTER', visibility: 'GENERAL' },
-      'scope',
-    );
-    const members = await membersInScope(this.db, actor, context.metadata.selected, sectionOnly);
-    const unique = new Map<string, (typeof members)[number]>();
-    for (const m of members)
-      if (m.employee.account?.id !== actor.accountId && !unique.has(m.employeeId))
-        unique.set(m.employeeId, m);
-    const accountIds = [...unique.values()]
-      .map((m) => m.employee.account?.id)
-      .filter((id): id is string => Boolean(id));
-    const q = context.q;
-    const counts = accountIds.length
-      ? await this.db.voice.groupBy({
-          by: ['reporterId'],
-          where: {
-            reporterId: { in: accountIds },
-            ...(q.from || q.to
-              ? {
-                  submittedAt: {
-                    ...(q.from ? { gte: new Date(q.from) } : {}),
-                    ...(q.to ? { lte: new Date(q.to) } : {}),
-                  },
-                }
-              : {}),
-          },
-          _count: { _all: true },
-          _max: { submittedAt: true },
-        })
-      : [];
-    const byReporter = new Map(counts.map((row) => [row.reporterId, row]));
-    const items = [...unique.values()].map((m) => {
-      const account = m.employee.account;
-      const row = account ? byReporter.get(account.id) : undefined;
-      return {
-        id: m.employeeId,
-        name: account?.displayName ?? m.employeeName,
-        unitLabel: [m.section, m.lineName].filter(Boolean).join(' · '),
-        voiceCount: row?._count._all ?? 0,
-        lastSubmittedAt: row?._max.submittedAt?.toISOString() ?? null,
-        activated: Boolean(account && !account.passwordChangeRequired),
-      };
-    });
-    return { memberCount: items.length, members: items };
   }
 }
