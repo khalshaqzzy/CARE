@@ -1172,14 +1172,25 @@ model LegacyVoiceAccess {
   @@index([accountId, effectiveTo])
 }
 
+/// DAYS has a deadline. SPECIAL (Penanganan Khusus) has a reason and no deadline until the PIC converts it to DAYS once.
+enum HandlingTargetKind {
+  DAYS
+  SPECIAL
+}
+
 model VoiceHandlingTarget {
-  id                String    @id @default(uuid()) @db.Uuid
-  voiceId           String    @db.Uuid
+  id                String             @id @default(uuid()) @db.Uuid
+  voiceId           String             @db.Uuid
   cycleNumber       Int
-  days              Int
-  setById           String    @db.Uuid
-  setAt             DateTime  @default(now())
-  dueAt             DateTime
+  kind              HandlingTargetKind @default(DAYS)
+  days              Int?
+  setById           String             @db.Uuid
+  setAt             DateTime           @default(now())
+  dueAt             DateTime?
+  /// Why the Voice needs special handling; kept after a conversion to DAYS.
+  specialReason     String?
+  specialSetAt      DateTime?
+  specialSetById    String?            @db.Uuid
   /// 08:00 WIB on the target day; skipped for same-day targets.
   reminderSentAt    DateTime?
   overdueNotifiedAt DateTime?

@@ -730,16 +730,18 @@ bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 
 ### 15.2 Transition matrix
 
-| Dari                  | Action                          | Actor                                                 | Ke       | Efek                                                  |
-| --------------------- | ------------------------------- | ----------------------------------------------------- | -------- | ----------------------------------------------------- |
-| Draft                 | Submit                          | Reporter                                              | Terbuka  | Route dan timeline dibuat                             |
-| Terbuka               | Respons + keterangan            | Responder berhak                                      | Direspon | Room, pesan pertama actor, event, notifikasi reporter |
-| Terbuka               | Assign PIC + keterangan         | Route Manager / Union Head                            | Direspon | Assignment dan respons disimpan atomik                |
-| Direspon              | Assign/reassign                 | Route Manager / Union Head                            | Direspon | Histori assignment, room sama, alasan opsional        |
-| Direspon              | Proses + target hari            | PIC aktif; route owner/Union Head bila belum assigned | Diproses | PIC efektif dan target siklus ditetapkan              |
-| Diproses tanpa target | Tetapkan target baru            | PIC efektif                                           | Diproses | Target siklus ditetapkan satu kali                    |
-| Diproses              | Close                           | Responder sesuai scope existing                       | Selesai  | Closure cycle dan review window                       |
-| Selesai               | Rating 1–2 + reopen tepat waktu | Reporter                                              | Diproses | Chat aktif, siklus baru membutuhkan target baru       |
+| Dari                  | Action                                 | Actor                                                 | Ke       | Efek                                                   |
+| --------------------- | -------------------------------------- | ----------------------------------------------------- | -------- | ------------------------------------------------------ |
+| Draft                 | Submit                                 | Reporter                                              | Terbuka  | Route dan timeline dibuat                              |
+| Terbuka               | Respons + keterangan                   | Responder berhak                                      | Direspon | Room, pesan pertama actor, event, notifikasi reporter  |
+| Terbuka               | Assign PIC + keterangan                | Route Manager / Union Head                            | Direspon | Assignment dan respons disimpan atomik                 |
+| Direspon              | Assign/reassign                        | Route Manager / Union Head                            | Direspon | Histori assignment, room sama, alasan opsional         |
+| Direspon              | Proses + target hari                   | PIC aktif; route owner/Union Head bila belum assigned | Diproses | PIC efektif dan target siklus ditetapkan               |
+| Diproses tanpa target | Tetapkan target baru                   | PIC efektif                                           | Diproses | Target siklus ditetapkan satu kali                     |
+| Proses                | Penanganan Khusus + alasan             | PIC aktif; route owner/Union Head bila belum assigned | Diproses | Tanpa target waktu; alasan disimpan, badge ditampilkan |
+| Penanganan Khusus     | Tetapkan target hari                   | PIC efektif                                           | Diproses | Satu kali, satu arah; hitung waktu mulai saat itu      |
+| Diproses              | Close (ditolak saat Penanganan Khusus) | Responder sesuai scope existing                       | Selesai  | Closure cycle dan review window                        |
+| Selesai               | Rating 1–2 + reopen tepat waktu        | Reporter                                              | Diproses | Chat aktif, siklus baru membutuhkan target baru        |
 
 ### 15.3 Transition rules
 
@@ -764,6 +766,20 @@ bukan status kelima. General dan Private mengikuti lifecycle yang sama.
 - Keterlambatan tidak mengubah status atau memblokir chat. Indikator dihitung saat read. Worker mengirim satu pengingat kepada PIC pukul 08.00 WIB pada hari target (tidak untuk target "Hari ini"), lalu satu notifikasi keterlambatan per target kepada PIC, level di atasnya sampai Manager, dan pelapor, disertai pesan sistem "Target penyelesaian terlewati" di chat dan badge **Terlambat** pada kartu dan detail (§43.5). Tanpa pengingat harian berulang.
 - Worker memakai lock Voice yang sama dengan close/reopen. Target siklus lama dan Voice yang telah ditutup tidak mengirim pengingat keterlambatan baru.
 - Notifikasi in-app mencantumkan target tanggal/jam. Push Private tetap generik sesuai kebijakan privasi.
+
+### 15.5 Penanganan Khusus
+
+Sebagian Voice membutuhkan diskusi panjang (misalnya budget) sehingga durasi tidak dapat diperkirakan. Untuk kasus itu PIC memilih **Penanganan Khusus** sebagai pengganti target hari. Penanganan Khusus **bukan status**; status tetap empat (§15.1) dan Voice tetap Diproses.
+
+- Sheet Mulai penanganan / Tetapkan target memakai dua tab: **Target hari** dan **Penanganan Khusus**. Tab Target hari berisi input angka hari (integer 0–365) yang selalu dapat diisi PIC sendiri, dengan pilihan cepat Hari ini, 1, 3, 7, 14 hari sebagai pengisi input saja. Tab Penanganan Khusus tidak menerima durasi; wajib alasan 1–500 karakter setelah trim. Tombol konfirmasi pada tab Penanganan Khusus berlabel **Simpan** (bukan "Mulai diproses").
+- Siklus dengan Penanganan Khusus tidak memiliki deadline: tanpa pengingat, tanpa notifikasi keterlambatan, tanpa badge Terlambat, dan tanpa "Sisa X hari". Chat tetap aktif.
+- Kartu dan detail menampilkan status **Diproses** ditambah badge kecil **Penanganan Khusus**. Detail menampilkan alasan, actor, dan waktu penetapan. Reporter melihat badge dan alasan; pada Private, alasan ditampilkan dengan alias Komite tanpa identitas reporter.
+- Penetapan mengirim notifikasi ke reporter dan route-owning Department Head (Union Head pada Private) dengan alasan; push Private tetap generik. Penerima dideduplikasi.
+- **Close ditolak** selama siklus berada pada Penanganan Khusus (`SPECIAL_HANDLING_REQUIRES_TARGET`). Tombol Tutup diganti **Tetapkan target**. Close terbuka setelah target hari ditetapkan.
+- **Konversi** dari Penanganan Khusus ke target hari hanya oleh PIC efektif, satu kali dan satu arah. Target hari yang sudah ditetapkan tidak dapat diubah menjadi Penanganan Khusus. Konversi menetapkan target immutable seperti §15.4 dan menyimpan riwayat kedua langkah; perhitungan waktu dimulai dari konversi.
+- Reopen membuka siklus baru tanpa target dan tidak mewarisi Penanganan Khusus. Siklus baru tanpa target tetap dapat ditutup seperti aturan data lama; penolakan close hanya berlaku bagi siklus yang secara eksplisit berada pada Penanganan Khusus.
+- Dashboard (§18.8.6): selama Penanganan Khusus, Voice dikeluarkan dari Tepat waktu dan Terlambat serta dihitung terpisah sebagai **Penanganan Khusus: N**. Setelah dikonversi, Voice masuk perhitungan normal sejak target ditetapkan. Durasi aktual tetap tercatat saat Voice ditutup.
+- Voice yang tidak pernah dikonversi tetap Diproses tanpa batas. Tanggal tinjau tidak termasuk ruang lingkup dan dapat ditambahkan kemudian bila diperlukan.
 
 ## 16. Conversation dan Keterangan Penanganan
 
@@ -1823,6 +1839,9 @@ Minimum journeys:
 - [ ] Union Head menjadi route owner semua Private dan hanya Head dapat assign/reassign Union 1/2 sebelum In Progress.
 - [ ] Union Officer hanya melihat/menangani Private yang ditugaskan; Manager atau active handler dapat close General dan Head/assigned Officer dapat close Private sesuai object scope.
 - [ ] Close dari Open/Direspon ditolak; hanya In Progress yang dapat ditutup.
+- [ ] Penanganan Khusus tidak menyimpan durasi, wajib alasan 1–500 karakter, tombolnya berlabel Simpan, tetap status Diproses dengan badge, dan tidak memicu pengingat/Terlambat.
+- [ ] Close ditolak selama Penanganan Khusus; terbuka setelah target hari ditetapkan (konversi satu kali, satu arah).
+- [ ] Reporter melihat badge dan alasan Penanganan Khusus; dashboard menghitung Penanganan Khusus terpisah dari Tepat waktu/Terlambat.
 - [ ] Chat immutable dengan image attachment dan notification.
 - [ ] Timeline actor/timestamp/event lengkap dan append-only.
 
@@ -1989,7 +2008,7 @@ V1 siap production bila:
   Private; label implementasi route tidak ditampilkan kepada reporter.
 - Tidak ada category priority tetap; General memilih kategori utama berdasarkan konteks dan Private tidak menghasilkan kategori.
 - Location review otomatis bersifat advisory; warning incomplete memerlukan acknowledgment snapshot terbaru tetapi provider failure tidak memblokir submit.
-- Empat status saja; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
+- Empat status saja; Penanganan Khusus (§15.5) adalah jenis target/badge, bukan status; reopen adalah event menuju Diproses dengan PIC terakhir. Hasil review penutupan adalah state `ClosureReviewState` pada `ClosureCycle` (PENDING/ACCEPTED/REJECTED) yang ditampilkan sebagai label turunan, bukan status kelima.
 - Reassign hanya sebelum In Progress.
 - Handover hanya untuk current route-owning Manager pada General Voice `OPEN` atau `RESPONDED` yang belum ditugaskan; dapat berulang dan memindahkan operational category + route owner tanpa mengubah immutable submission classification. Handover dihitung sebagai respons: status menjadi Direspon, chat dibuka dengan pesan sistem "Diteruskan ke [Department]", dan pelapor diberi notifikasi. Manager sumber tetap dapat membaca Voice (baca-saja). Serah ke CARE Admin tetap hanya dari Terbuka (§43.5).
 - Detail tiap handover Manager dapat dibaca PIC sumber, PIC tujuan, dan CARE Admin; reporter, leadership, dan pembaca lain hanya menerima metadata sanitasi. PIC baru menerima notifikasi handover; pelapor menerima notifikasi generik tanpa catatan handover.
@@ -2322,7 +2341,8 @@ otomatis, terlambat, rating. Kartu tidak tampil bila tidak ada orang dalam cakup
   ditugaskan; pekerjaan pengganti saat tidak masuk dihitung ke pengganti.
 - **Rata-rata respons** dihitung sejak Voice sampai kepadanya (submit atau eskalasi kepadanya).
 - **Terlambat:** Voice Diproses miliknya yang target hidupnya terlewati. **Tepat waktu** =
-  (dipegang − naik otomatis − terlambat) / dipegang.
+  (dipegang − naik otomatis − terlambat) / dipegang. Voice yang sedang Penanganan Khusus (§15.5)
+  dikeluarkan dari rasio ini dan ditampilkan sebagai hitungan terpisah **Penanganan Khusus: N**.
 
 **Partisipasi dan Aktivitas Anggota** untuk peran yang sama: seluruh anggota unit pelapor terpilih
 (Section Head hanya Section-nya), jumlah Voice yang dikirim dalam rentang (General dan Private

@@ -131,6 +131,7 @@ export class DashboardPeople {
         autoEscalated: Number(row.autoEscalated),
         averageResponseSeconds: row.averageResponseSeconds,
         overdue: Number(row.overdue),
+        specialHandling: Number(row.specialHandling),
         averageRating: row.averageRating,
         ratingCount: Number(row.ratingCount),
       };
@@ -175,6 +176,7 @@ export class DashboardPeople {
       onTimeRate: held ? onTime / held : null,
       autoEscalated: Number(row!.autoEscalated),
       overdue: Number(row!.overdue),
+      specialHandling: Number(row!.specialHandling),
       averageResponseSeconds: row!.averageResponseSeconds,
       responseSampleCount: Number(row!.responseCount),
       averageCompletionSeconds: row!.averageCompletionSeconds,
@@ -246,6 +248,7 @@ export class DashboardPeople {
         autoEscalated: bigint;
         overdue: bigint;
         late: bigint;
+        specialHandling: bigint;
         averageResponseSeconds: number | null;
         averageRating: number | null;
         ratingCount: bigint;
@@ -291,6 +294,13 @@ export class DashboardPeople {
           LEFT JOIN LATERAL jsonb_array_elements_text(e.payload->'previousHolders') h(pid) ON TRUE
           WHERE e.type = 'DEADLINE_MISSED'
       ),
+      -- Penanganan Khusus has no deadline: out of timeliness, counted apart.
+      special AS (
+        SELECT c."currentHandlerId" AS pid, c.id FROM cohort c
+        WHERE c.status = 'IN_PROGRESS' AND EXISTS (
+          SELECT 1 FROM "VoiceHandlingTarget" t WHERE t."voiceId" = c.id
+            AND t."cycleNumber" = c."handlingCycleNumber" AND t.kind = 'SPECIAL')
+      ),
       overdue AS (
         SELECT c."currentHandlerId" AS pid, c.id FROM cohort c
         WHERE c.status = 'IN_PROGRESS' AND EXISTS (
@@ -326,12 +336,15 @@ export class DashboardPeople {
       SELECT p.pid::text AS "accountId",
         (SELECT count(DISTINCT x.id) FROM (SELECT id FROM reached WHERE pid = p.pid
           UNION SELECT id FROM missed WHERE pid = p.pid
-          UNION SELECT id FROM deadline_missed WHERE pid = p.pid) x) AS held,
+          UNION SELECT id FROM deadline_missed WHERE pid = p.pid) x
+          WHERE x.id NOT IN (SELECT id FROM special WHERE pid = p.pid)) AS held,
         (SELECT count(DISTINCT id) FROM missed WHERE pid = p.pid) AS "autoEscalated",
         (SELECT count(DISTINCT id) FROM overdue WHERE pid = p.pid) AS overdue,
         (SELECT count(*) FROM (SELECT id FROM missed WHERE pid = p.pid
           UNION SELECT id FROM deadline_missed WHERE pid = p.pid
-          UNION SELECT id FROM overdue WHERE pid = p.pid) late) AS late,
+          UNION SELECT id FROM overdue WHERE pid = p.pid) late
+          WHERE late.id NOT IN (SELECT id FROM special WHERE pid = p.pid)) AS late,
+        (SELECT count(DISTINCT id) FROM special WHERE pid = p.pid) AS "specialHandling",
         (SELECT avg(seconds) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "averageResponseSeconds",
         (SELECT count(*) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "responseCount",
         (SELECT avg(seconds) FROM completions WHERE pid = p.pid AND seconds >= 0) AS "averageCompletionSeconds",

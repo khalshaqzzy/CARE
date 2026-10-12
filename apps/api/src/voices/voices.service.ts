@@ -10,6 +10,7 @@ import {
   ClosureReviewState,
   GeneralVoiceCategoryRouteMode,
   HandlerType,
+  HandlingTargetKind,
   LocationCompleteness,
   MessageKind,
   NotificationType,
@@ -60,7 +61,12 @@ import { jakartaDateKey } from '../escalation/working-time';
 import { activeSubstitutes } from '../away/away';
 import { tierWindow } from '../escalation/tier-window';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
-import { handlingDueAt, formatHandlingDueAt, handlingTargetState } from './handling-target';
+import {
+  handlingDueAt,
+  formatHandlingDueAt,
+  handlingTargetState,
+  truncateReason,
+} from './handling-target';
 import { OrganizationDashboard, type DashboardQuery } from './dashboard';
 import { DashboardPeople } from './dashboard-people';
 
@@ -280,16 +286,32 @@ const adminHandoverDecisionSchema = z
   });
 const HANDOVER_INVALID_STATE_MESSAGE =
   'Handover hanya tersedia sebelum Voice diproses atau ditugaskan';
+const specialReasonSchema = z.string().trim().min(1).max(500);
 const respondSchema = z
   .object({
     text: z.string().trim().min(1).max(4000),
     version: z.number().int().positive(),
     days: z.number().int().min(0).max(365).optional(),
+    specialReason: specialReasonSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((data) => data.days === undefined || data.specialReason === undefined, {
+    message: 'Pilih target hari atau Penanganan Khusus, tidak keduanya.',
+  });
 const targetSchema = z
-  .object({ days: z.number().int().min(0).max(365), version: z.number().int().positive() })
-  .strict();
+  .object({
+    days: z.number().int().min(0).max(365).optional(),
+    specialReason: specialReasonSchema.optional(),
+    version: z.number().int().positive(),
+  })
+  .strict()
+  .refine((data) => (data.days === undefined) !== (data.specialReason === undefined), {
+    message: 'Isi target hari atau alasan Penanganan Khusus.',
+  });
+/** A target is either a number of days or Penanganan Khusus with its reason. */
+type TargetInput = { days: number } | { specialReason: string };
+const targetInput = (data: { days?: number; specialReason?: string }): TargetInput =>
+  data.days !== undefined ? { days: data.days } : { specialReason: data.specialReason! };
 const closeSchema = z
   .object({ note: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
   .strict();
@@ -2793,7 +2815,7 @@ export class VoicesService {
         if (!this.actionSet(actor, current).includes('RESPOND'))
           throw invalidTransition('Voice tidak dapat direspons');
         const message = await this.createMessageWithin(tx, actor, id, data.text, [], false);
-        if (data.days !== undefined) {
+        if (data.days !== undefined || data.specialReason !== undefined) {
           // "Proses sendiri": the response and the start of handling land together.
           await tx.voiceEvent.create({
             data: {
@@ -2804,7 +2826,7 @@ export class VoicesService {
               payload: { messageId: message.id },
             },
           });
-          return this.applyHandlingTarget(tx, actor, current, data.days, true);
+          return this.applyHandlingTarget(tx, actor, current, targetInput(data), true);
         }
         if (current.tierLevel)
           await tx.voice.update({
@@ -2858,7 +2880,7 @@ export class VoicesService {
         const current = await this.lockedActionVoice(tx, actor, id, data.version);
         if (!this.actionSet(actor, current).includes(proceeding ? 'PROCEED' : 'SET_TARGET'))
           throw invalidTransition('Hanya PIC aktif yang dapat menetapkan target penanganan.');
-        return this.applyHandlingTarget(tx, actor, current, data.days, proceeding);
+        return this.applyHandlingTarget(tx, actor, current, targetInput(data), proceeding);
       },
     );
   }
@@ -2875,21 +2897,52 @@ export class VoicesService {
       handlingCycleNumber: number;
       tierLevel?: TierLevel | null;
     },
-    days: number,
+    input: TargetInput,
     proceeding: boolean,
   ) {
     const id = current.id;
     const setAt = new Date();
-    const target = await tx.voiceHandlingTarget.create({
-      data: {
-        voiceId: id,
-        cycleNumber: current.handlingCycleNumber,
-        days,
-        setById: actor.accountId,
-        setAt,
-        dueAt: handlingDueAt(setAt, days),
+    const existing = await tx.voiceHandlingTarget.findUnique({
+      where: {
+        voiceId_cycleNumber: { voiceId: id, cycleNumber: current.handlingCycleNumber },
       },
     });
+    // Penanganan Khusus converts to a day target once; any other repeat is refused.
+    if (existing && (existing.kind !== HandlingTargetKind.SPECIAL || !('days' in input)))
+      throw invalidTransition('Target penanganan sudah ditetapkan untuk siklus ini.');
+    const converted = Boolean(existing);
+    const target =
+      existing && 'days' in input
+        ? await tx.voiceHandlingTarget.update({
+            where: { id: existing.id },
+            data: {
+              kind: HandlingTargetKind.DAYS,
+              days: input.days,
+              setById: actor.accountId,
+              setAt,
+              dueAt: handlingDueAt(setAt, input.days),
+            },
+          })
+        : await tx.voiceHandlingTarget.create({
+            data: {
+              voiceId: id,
+              cycleNumber: current.handlingCycleNumber,
+              setById: actor.accountId,
+              setAt,
+              ...('days' in input
+                ? {
+                    kind: HandlingTargetKind.DAYS,
+                    days: input.days,
+                    dueAt: handlingDueAt(setAt, input.days),
+                  }
+                : {
+                    kind: HandlingTargetKind.SPECIAL,
+                    specialReason: input.specialReason,
+                    specialSetAt: setAt,
+                    specialSetById: actor.accountId,
+                  }),
+            },
+          });
     const updated = await tx.voice.update({
       where: { id },
       data: {
@@ -2920,20 +2973,32 @@ export class VoicesService {
         type: proceeding ? VoiceEventType.PROCEEDED : VoiceEventType.TARGET_SET,
         payload: {
           targetId: target.id,
-          days,
-          dueAt: target.dueAt.toISOString(),
+          kind: target.kind,
+          days: target.days,
+          dueAt: target.dueAt?.toISOString() ?? null,
+          ...(target.kind === HandlingTargetKind.SPECIAL ? { reason: target.specialReason } : {}),
+          ...(converted ? { convertedFromSpecial: true } : {}),
           cycleNumber: target.cycleNumber,
         },
       },
     });
+    const special = target.kind === HandlingTargetKind.SPECIAL;
     for (const recipient of new Set([current.reporterId, current.routeOwnerId]))
       await this.notify(
         tx,
         recipient,
         id,
         NotificationType.TARGET_SET,
-        proceeding ? 'Voice mulai diproses' : 'Target penyelesaian ditetapkan',
-        `Target penyelesaian: ${formatHandlingDueAt(target.dueAt)}.`,
+        special
+          ? proceeding
+            ? 'Voice mulai diproses: Penanganan Khusus'
+            : 'Penanganan Khusus ditetapkan'
+          : proceeding
+            ? 'Voice mulai diproses'
+            : 'Target penyelesaian ditetapkan',
+        special
+          ? `Alasan: ${truncateReason(target.specialReason ?? '')}`
+          : `Target penyelesaian: ${formatHandlingDueAt(target.dueAt!)}.`,
       );
     return {
       id: updated.id,
@@ -2945,7 +3010,8 @@ export class VoicesService {
       handlingTarget: {
         ...target,
         setAt: target.setAt.toISOString(),
-        dueAt: target.dueAt.toISOString(),
+        dueAt: target.dueAt?.toISOString() ?? null,
+        specialSetAt: target.specialSetAt?.toISOString() ?? null,
         overdueNotifiedAt: target.overdueNotifiedAt?.toISOString() ?? null,
       },
     };
@@ -3093,6 +3159,17 @@ export class VoicesService {
           transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
         )
           throw invalidTransition('Voice cannot close from its current state');
+        if (
+          voice.handlingTargets.some(
+            (target) =>
+              target.cycleNumber === voice.handlingCycleNumber &&
+              target.kind === HandlingTargetKind.SPECIAL,
+          )
+        )
+          throw conflict(
+            'SPECIAL_HANDLING_REQUIRES_TARGET',
+            'Voice dalam Penanganan Khusus belum dapat ditutup. Tetapkan target hari terlebih dahulu.',
+          );
         if (!this.actionSet(actor, voice).includes('CLOSE'))
           throw invalidTransition(
             'Hanya PIC yang memproses Voice ini yang dapat menyelesaikannya.',
@@ -4280,7 +4357,7 @@ export class VoicesService {
       handlingTargets: {
         orderBy: { cycleNumber: 'desc' },
         take: 1,
-        select: { cycleNumber: true, dueAt: true },
+        select: { cycleNumber: true, dueAt: true, kind: true },
       },
       // PIC display name for operational inbox cards; only joined for responder/
       // leadership/union lists, never for reporter-facing payloads.
@@ -4302,7 +4379,11 @@ export class VoicesService {
       }> | null;
       status?: VoiceStatus;
       handlingCycleNumber?: number;
-      handlingTargets?: Array<{ cycleNumber: number; dueAt: Date }>;
+      handlingTargets?: Array<{
+        cycleNumber: number;
+        dueAt: Date | null;
+        kind: HandlingTargetKind;
+      }>;
     },
   >(row: T) {
     const {
@@ -4321,7 +4402,14 @@ export class VoicesService {
       row.status === VoiceStatus.IN_PROGRESS &&
       target &&
       target.cycleNumber === handlingCycleNumber &&
+      target.dueAt &&
       target.dueAt < new Date(),
+    );
+    const specialHandling = Boolean(
+      row.status === VoiceStatus.IN_PROGRESS &&
+      target &&
+      target.cycleNumber === handlingCycleNumber &&
+      target.kind === HandlingTargetKind.SPECIAL,
     );
     const latestReview = closureCycles?.[0];
     const closureReviewState = this.effectiveReviewState(latestReview);
@@ -4337,8 +4425,9 @@ export class VoicesService {
         row.status === VoiceStatus.IN_PROGRESS &&
         target &&
         target.cycleNumber === handlingCycleNumber
-          ? target.dueAt.toISOString()
+          ? (target.dueAt?.toISOString() ?? null)
           : null,
+      specialHandling,
     };
   }
   private async authorizedVoice(actor: AuthActor, id: string) {
@@ -4638,7 +4727,7 @@ export class VoicesService {
         rating?: { score: number } | null;
       }>;
       handlingCycleNumber?: number;
-      handlingTargets?: Array<{ cycleNumber: number }>;
+      handlingTargets?: Array<{ cycleNumber: number; kind?: HandlingTargetKind }>;
       conversation?: { id: string } | null;
       currentHandler?: { status?: AccountStatus } | null;
       tierLevel?: TierLevel | null;
@@ -4665,6 +4754,11 @@ export class VoicesService {
         hasConversation: Boolean(voice.conversation),
         hasHandlingTarget: voice.handlingTargets?.some(
           (target) => target.cycleNumber === voice.handlingCycleNumber,
+        ),
+        specialHandling: voice.handlingTargets?.some(
+          (target) =>
+            target.cycleNumber === voice.handlingCycleNumber &&
+            target.kind === HandlingTargetKind.SPECIAL,
         ),
       },
     );
@@ -4813,10 +4907,16 @@ export class VoicesService {
         return {
           id: target.id,
           cycleNumber: target.cycleNumber,
+          kind: target.kind,
           days: target.days,
           setAt: target.setAt,
           dueAt: target.dueAt,
-          state: handlingTargetState(target.dueAt, closed?.closedAt ?? null),
+          specialReason: target.specialReason ?? null,
+          specialSetAt: target.specialSetAt ?? null,
+          state:
+            target.kind === HandlingTargetKind.SPECIAL
+              ? 'SPECIAL'
+              : handlingTargetState(target.dueAt, closed?.closedAt ?? null),
         };
       }),
     };

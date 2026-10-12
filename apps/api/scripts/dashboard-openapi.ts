@@ -123,6 +123,7 @@ const handler = {
     'autoEscalated',
     'averageResponseSeconds',
     'overdue',
+    'specialHandling',
     'averageRating',
     'ratingCount',
   ],
@@ -136,6 +137,8 @@ const handler = {
     autoEscalated: { type: 'integer', minimum: 0 },
     averageResponseSeconds: { type: 'number', nullable: true },
     overdue: { type: 'integer', minimum: 0 },
+    // Voices in Penanganan Khusus: no deadline, outside held and on-time.
+    specialHandling: { type: 'integer', minimum: 0 },
     averageRating: { type: 'number', nullable: true },
     ratingCount: { type: 'integer', minimum: 0 },
   },
@@ -164,6 +167,7 @@ export const dashboardSchemas = {
       'onTimeRate',
       'autoEscalated',
       'overdue',
+      'specialHandling',
       'averageResponseSeconds',
       'responseSampleCount',
       'averageCompletionSeconds',
@@ -177,6 +181,7 @@ export const dashboardSchemas = {
       onTimeRate: { type: 'number', nullable: true },
       autoEscalated: { type: 'integer', minimum: 0 },
       overdue: { type: 'integer', minimum: 0 },
+      specialHandling: { type: 'integer', minimum: 0 },
       averageResponseSeconds: { type: 'number', nullable: true },
       responseSampleCount: { type: 'integer', minimum: 0 },
       averageCompletionSeconds: { type: 'number', nullable: true },
@@ -296,6 +301,8 @@ export const dashboardSchemas = {
           total: { type: 'integer', minimum: 0 },
         },
       },
+      // Voices in Penanganan Khusus, outside the on-time figures.
+      specialHandling: { type: 'integer', minimum: 0 },
       // General handling basis only: top reporter departments of the cohort.
       reporterOrigins: buckets,
       // General reporter basis only: team Voices still open past their deadline.

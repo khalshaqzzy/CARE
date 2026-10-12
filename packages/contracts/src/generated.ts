@@ -1971,20 +1971,27 @@ export interface components {
             locationContentHash?: string | null;
             acknowledgeIncompleteLocation?: boolean;
         };
+        /** @description Either days, or specialReason for Penanganan Khusus (no deadline). Penanganan Khusus converts to days once. */
         HandlingTargetRequest: {
-            days: number;
+            days?: number;
+            specialReason?: string;
             version: number;
         };
         HandlingTarget: {
             id: string;
             cycleNumber: number;
-            days: number;
+            /** @enum {string} */
+            kind?: "DAYS" | "SPECIAL";
+            days: number | null;
             /** Format: date-time */
             setAt: string;
             /** Format: date-time */
-            dueAt: string;
+            dueAt: string | null;
+            specialReason?: string | null;
+            /** Format: date-time */
+            specialSetAt?: string | null;
             /** @enum {string} */
-            state?: "ON_TRACK" | "OVERDUE" | "COMPLETED_ON_TIME" | "COMPLETED_LATE";
+            state?: "ON_TRACK" | "OVERDUE" | "COMPLETED_ON_TIME" | "COMPLETED_LATE" | "SPECIAL";
         };
         ConversationParticipant: {
             id: string;
@@ -2242,6 +2249,7 @@ export interface components {
             text: string;
             version: number;
             days?: number;
+            specialReason?: string;
         };
         AwayRequest: {
             /** Format: date */
@@ -2950,6 +2958,7 @@ export interface components {
             onTimeRate: number | null;
             autoEscalated: number;
             overdue: number;
+            specialHandling: number;
             averageResponseSeconds: number | null;
             responseSampleCount: number;
             averageCompletionSeconds: number | null;
@@ -2986,6 +2995,7 @@ export interface components {
                 autoEscalated: number;
                 averageResponseSeconds: number | null;
                 overdue: number;
+                specialHandling: number;
                 averageRating: number | null;
                 ratingCount: number;
             }[];
@@ -3176,6 +3186,7 @@ export interface components {
                 onTime: number;
                 total: number;
             };
+            specialHandling?: number;
             reporterOrigins?: {
                 id?: string;
                 label: string;
@@ -3759,6 +3770,7 @@ export interface components {
             /** Format: date-time */
             closureReviewDeadline?: string | null;
             targetOverdue?: boolean;
+            specialHandling?: boolean;
             /** Format: date-time */
             tierDueAt?: string | null;
             /** Format: date-time */

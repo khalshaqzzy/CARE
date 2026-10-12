@@ -826,6 +826,96 @@ describe('Voice lifecycle backend completion', () => {
     expect(detail.conversationState).toBe('ACTIVE');
   });
 
+  it('processes under Penanganan Khusus without a deadline, refuses close, and converts to days once', async () => {
+    const voice = await createVoice({ status: VoiceStatus.OPEN });
+    const reason = 'Menunggu persetujuan budget dari Finance';
+    const result = await voices.respond(
+      manager,
+      voice.id,
+      { text: 'Perlu diskusi budget.', version: 1, specialReason: reason },
+      'special-process',
+    );
+    expect(result).toMatchObject({
+      status: VoiceStatus.IN_PROGRESS,
+      handlingTarget: { kind: 'SPECIAL', days: null, dueAt: null, specialReason: reason },
+    });
+    const reporterView = await voices.detail(reporter, voice.id);
+    expect(reporterView.handlingTargets[0]).toMatchObject({
+      kind: 'SPECIAL',
+      state: 'SPECIAL',
+      dueAt: null,
+      specialReason: reason,
+    });
+    const notices = await prisma.notification.findMany({
+      where: { voiceId: voice.id, recipientId: reporter.accountId },
+    });
+    expect(notices.map((item) => item.body)).toEqual([`Alasan: ${reason}`]);
+
+    const pic = await voices.detail(manager, voice.id);
+    expect(pic.availableActions).toContain('SET_TARGET');
+    expect(pic.availableActions).not.toContain('CLOSE');
+    await expect(
+      voices.close(manager, voice.id, { note: 'Selesai', version: pic.version }, 'special-close'),
+    ).rejects.toMatchObject({ code: 'SPECIAL_HANDLING_REQUIRES_TARGET' });
+
+    // No deadline: the worker sends neither a reminder nor an overdue notice.
+    await new HandlingTargetService(prisma as never).tick();
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, type: { in: ['TARGET_REMINDER', 'TARGET_OVERDUE'] } },
+      }),
+    ).toBe(0);
+
+    await expect(
+      voices.setTarget(
+        manager,
+        voice.id,
+        { specialReason: 'Masih menunggu', version: pic.version },
+        'special-again',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+
+    const converted = await voices.setTarget(
+      manager,
+      voice.id,
+      { days: 5, version: pic.version },
+      'special-convert',
+    );
+    expect(converted.handlingTarget).toMatchObject({ kind: 'DAYS', days: 5 });
+    expect(converted.handlingTarget.dueAt).not.toBeNull();
+    expect(await prisma.voiceHandlingTarget.count({ where: { voiceId: voice.id } })).toBe(1);
+
+    const after = await voices.detail(manager, voice.id);
+    expect(after.availableActions).toContain('CLOSE');
+    expect(after.availableActions).not.toContain('SET_TARGET');
+    expect(after.handlingTargets[0]).toMatchObject({
+      kind: 'DAYS',
+      state: 'ON_TRACK',
+      specialReason: reason,
+    });
+    await expect(
+      voices.setTarget(manager, voice.id, { days: 9, version: after.version }, 'convert-again'),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await voices.close(
+      manager,
+      voice.id,
+      { note: 'Selesai', version: after.version },
+      'special-finish',
+    );
+  });
+
+  it('rejects a target that carries both days and a special reason', async () => {
+    const voice = await createVoice({ status: VoiceStatus.RESPONDED });
+    await expect(
+      voices.proceed(
+        manager,
+        voice.id,
+        { days: 3, specialReason: 'Budget', version: 1 },
+        'special-both',
+      ),
+    ).rejects.toBeDefined();
+  });
+
   it('counts unread chat messages per viewer until the conversation is opened', async () => {
     const voice = await createVoice({ status: VoiceStatus.RESPONDED });
     await prisma.conversation.create({ data: { voiceId: voice.id } });

@@ -372,6 +372,8 @@ type SpeedFigures = {
   responseSeconds: number | null | undefined;
   completionSeconds: number | null | undefined;
   onTime: { onTime: number; total: number } | null | undefined;
+  /** Voices in Penanganan Khusus, kept out of the on-time figures. */
+  special: number | undefined;
   rating: number | null | undefined;
   ratingCount: number;
 };
@@ -400,6 +402,7 @@ function SpeedCard({
     responseSeconds: data.performance.averageResponseSeconds,
     completionSeconds: data.performance.averageCompletionSeconds,
     onTime: data.onTime,
+    special: data.specialHandling,
     rating: data.performance.averageFeedbackScore,
     ratingCount: data.performance.feedbackSampleCount,
   };
@@ -408,6 +411,7 @@ function SpeedCard({
         responseSeconds: mine.data.averageResponseSeconds,
         completionSeconds: mine.data.averageCompletionSeconds,
         onTime: { onTime: mine.data.onTime, total: mine.data.held },
+        special: mine.data.specialHandling,
         rating: mine.data.averageRating,
         ratingCount: mine.data.ratingCount,
       }
@@ -502,6 +506,7 @@ function SpeedCard({
                 {onTime ? (
                   <small>
                     {onTime.onTime}/{onTime.total} tepat
+                    {figures?.special ? ` · Penanganan Khusus: ${figures.special}` : ''}
                   </small>
                 ) : null}
               </span>

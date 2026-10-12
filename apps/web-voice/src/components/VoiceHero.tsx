@@ -19,6 +19,7 @@ import {
 import { categoryIcon, SEVERITY_FLAG_TONES, statusFlagTone } from '../lib/voice-visuals';
 import type { VoiceDetail } from '../workforce-api';
 import { OverdueBadge } from './OverdueBadge';
+import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 
 /**
  * Shared voice header for the detail and conversation surfaces (screens 13/20
@@ -85,6 +86,7 @@ export function VoiceHero({
     (target) => target.cycleNumber === voice.handlingCycleNumber,
   );
   const overdue = voice.status === 'IN_PROGRESS' && liveTarget?.state === 'OVERDUE';
+  const special = voice.status === 'IN_PROGRESS' && liveTarget?.kind === 'SPECIAL';
 
   return (
     <section className="voice-hero" aria-label={voice.displayId}>
@@ -116,6 +118,7 @@ export function VoiceHero({
             <span className="voice-reopened">Dibuka kembali</span>
           ) : null}
           {overdue ? <OverdueBadge /> : null}
+          {special ? <SpecialHandlingBadge /> : null}
           {voice.outsideReporter && voice.audience !== 'REPORTER_SELF' ? (
             <span className="voice-outside">Pelapor dari luar department</span>
           ) : null}

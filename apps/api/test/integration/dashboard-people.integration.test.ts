@@ -369,6 +369,36 @@ describe('Dashboard people: handling performance and member participation', () =
     expect('otherBasisTotal' in (await dashboard.aggregate(director, {}))).toBe(false);
   });
 
+  it('keeps Penanganan Khusus out of timeliness and counts it apart', async () => {
+    const before = await dashboard.aggregate(manager, { basis: 'HANDLING' });
+    const beforeHeld = (await people.handlers(manager, {})).items.find(
+      (item) => item.accountId === sectionHead.accountId,
+    );
+    const special = await voice({
+      status: 'IN_PROGRESS',
+      currentHandlerId: sectionHead.accountId,
+      handlingCycleNumber: 1,
+    });
+    await db.voiceHandlingTarget.create({
+      data: {
+        voiceId: special.id,
+        cycleNumber: 1,
+        kind: 'SPECIAL',
+        specialReason: 'Menunggu budget',
+        setById: sectionHead.accountId,
+      },
+    });
+    const after = await dashboard.aggregate(manager, { basis: 'HANDLING' });
+    expect(after.specialHandling).toBe((before.specialHandling ?? 0) + 1);
+    expect(after.onTime).toEqual(before.onTime);
+    const afterRow = (await people.handlers(manager, {})).items.find(
+      (item) => item.accountId === sectionHead.accountId,
+    );
+    expect(afterRow?.specialHandling).toBe((beforeHeld?.specialHandling ?? 0) + 1);
+    expect(afterRow?.held).toBe(beforeHeld?.held);
+    expect(afterRow?.overdue).toBe(beforeHeld?.overdue);
+  });
+
   it('orders General preview by the deadline that applies and shows the reporter', async () => {
     const now = Date.now();
     await voice({ title: 'Tanpa batas', severity: 'CRITICAL' });

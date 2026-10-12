@@ -1,5 +1,39 @@
 # CARE Session Handoff
 
+## Penanganan Khusus — 12 October 2026
+
+**Objective:** let a PIC process a Voice that needs long discussion (for example a budget decision) without inventing a duration. Implemented on `feat/legacy-voice-import`, uncommitted and not released. The product owner chose the two-tab sheet (variant B) and the Simpan label.
+
+**Decisions (PRD §15.5, ADR-0062):**
+
+- **Penanganan Khusus is a target kind, not a fifth status.** The Voice stays Diproses with a small badge. Statuses remain Open, Direspon, Diproses, Selesai.
+- Target sheet uses two tabs (variant B, chosen by the product owner): **Target hari** (free number input, always editable; Hari ini/1/3/7/14 only fill it) and **Penanganan Khusus** (reason 1–500 characters, no duration). The special tab button reads **Simpan**, not "Mulai diproses".
+- No reminder, overdue notification, Terlambat badge, or remaining-time label. The reporter sees the badge and the reason; the reporter and Department Head are notified.
+- **Close is refused** under special handling (`SPECIAL_HANDLING_REQUIRES_TARGET`); Close becomes Tetapkan target. The PIC may convert it to a day target once, one way. Time counts from the conversion.
+- Reopen cycles and legacy no-target cycles stay closable as before.
+- Dashboard: excluded from on-time and late, shown as a separate "Penanganan Khusus: N".
+- No review date for now; it can be added later.
+
+**Files changed:**
+
+- Docs: `.agent/PRD.md` (§15.2, §15.5, §18.8.6, acceptance checklist, locked rules), `docs/adr/0062-special-handling-target.md`, this handoff, `.agent/implementationPhases.md`.
+- Schema: `schema.prisma` and migration `20261012090000_special_handling_target` (kind enum, reason columns, nullable days/deadline, shape CHECK).
+- API: `voices.service.ts` (schemas, `applyHandlingTarget` create/convert, close guard, list/detail serialization), `actions.ts`, `handling-target.ts`, `handling-target.service.ts` (null-safe worker), `dashboard.ts`, `dashboard-people.ts`, `voice.contracts.ts`; OpenAPI scripts, `openapi.json`, `packages/contracts/src/generated.ts`.
+- Workforce UI: `ActionPanel.tsx` (`TargetPicker` tabs shared by the target dialog and the Respons sheet), `HandlingTargetCard.tsx`, new `SpecialHandlingBadge.tsx`, `VoiceHero`, `VoiceCard`, `InboxVoiceCard`, `HistoryVoiceCard`, `OpsDashboard`, `DashboardPeople`, `styles.css`.
+- Tests: `actions.test.ts`, `handling-target.test.ts`, integration `voice-lifecycle` and `dashboard-people`, e2e `voice-lifecycle.spec.ts` plus mock API, browser inventory 437 → 438 in `validation.test.mjs`.
+
+**Next recommended action:** review the diff, commit, and let hosted CI run the gates that were not run locally. Open question carried over: a review date for Voices that stay in Penanganan Khusus is deferred (ADR-0062).
+
+**Checks run (Windows, scratchpad Node 22.23.2 / pnpm 11.8.0, throwaway pgvector container on 54339, since removed):**
+
+- API and web-voice typecheck, ESLint on changed files, Prettier on changed files (with `--end-of-line auto`).
+- Unit: API 164, web-voice 127, UI 26, frontend-core 15, Admin 2, all passing.
+- Integration: `voice-lifecycle` and `dashboard-people` 34/34 against the migrated database, including the new Penanganan Khusus cases (process, close refusal, silent worker, one-time conversion, dashboard exclusion).
+- Chromium e2e: `voice-lifecycle` and `dashboard` 43/43, including the new sheet test and axe on the dialog.
+- Rendered the sheet and detail at 390 px and checked them against the mock.
+- Gitleaks directory scan: no leaks.
+- Not run locally: visual captures, legacy WebKit, full-stack, performance gate and the migration upgrade harness are left to hosted CI.
+
 ## Fixed-category deadlines — 8 October 2026
 
 - **Product rule:** every General Voice has a deadline.

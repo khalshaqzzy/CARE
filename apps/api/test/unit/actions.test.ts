@@ -23,6 +23,41 @@ function voice(overrides: Partial<ActionableVoice> = {}): ActionableVoice {
   };
 }
 
+describe('Penanganan Khusus', () => {
+  const processing = (overrides: Partial<ActionableVoice> = {}) =>
+    voice({
+      status: 'IN_PROGRESS' as VoiceStatus,
+      currentHandlerId: 'handler',
+      hasHandlingTarget: true,
+      hasConversation: true,
+      ...overrides,
+    });
+
+  it('keeps the PIC on Tetapkan target and hides Tutup while the cycle is special', () => {
+    const result = computeAvailableActions(
+      actor(['SECTION_HEAD'], 'handler'),
+      processing({ specialHandling: true }),
+    );
+    expect(result).toContain('SET_TARGET');
+    expect(result).not.toContain('CLOSE');
+    expect(result).toContain('MESSAGE');
+  });
+
+  it('offers Tutup and no target change once a day target exists', () => {
+    const result = computeAvailableActions(actor(['SECTION_HEAD'], 'handler'), processing());
+    expect(result).toContain('CLOSE');
+    expect(result).not.toContain('SET_TARGET');
+  });
+
+  it('still lets a cycle without any target close', () => {
+    const result = computeAvailableActions(
+      actor(['SECTION_HEAD'], 'handler'),
+      processing({ hasHandlingTarget: false }),
+    );
+    expect(result).toEqual(expect.arrayContaining(['SET_TARGET', 'CLOSE']));
+  });
+});
+
 describe('computeAvailableActions', () => {
   it('gives a route owner monitor on OPEN General', () => {
     const result = computeAvailableActions(actor(['MANAGER'], 'owner'), voice());

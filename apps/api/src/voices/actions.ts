@@ -9,6 +9,8 @@ export type ActionableVoice = {
   handlerType: HandlerType;
   hasConversation?: boolean;
   hasHandlingTarget?: boolean;
+  /** The live cycle is Penanganan Khusus: no deadline, and the Voice cannot close yet. */
+  specialHandling?: boolean;
   /** The current PIC account is no longer active (deactivated or legacy). */
   handlerInactive?: boolean;
   /** Tiered categories: the level holding the Voice and who may act on it. */
@@ -115,7 +117,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       if (voice.hasConversation) actions.push('MESSAGE');
     } else if (voice.status === 'IN_PROGRESS') {
       if (
-        !voice.hasHandlingTarget &&
+        (!voice.hasHandlingTarget || voice.specialHandling) &&
         (isHandler ||
           (!voice.currentHandlerId &&
             (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD')))))
@@ -124,9 +126,10 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       // Only the PIC who started handling closes the Voice. Older Voices that
       // never recorded a PIC stay closable by their route destination.
       if (
-        isHandler ||
-        (!voice.currentHandlerId &&
-          (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD'))))
+        !voice.specialHandling &&
+        (isHandler ||
+          (!voice.currentHandlerId &&
+            (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD')))))
       )
         actions.push('CLOSE');
       if (voice.hasConversation) actions.push('MESSAGE');

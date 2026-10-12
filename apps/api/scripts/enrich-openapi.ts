@@ -888,9 +888,12 @@ const schemas: Record<string, any> = {
   HandlingTargetRequest: {
     type: 'object',
     additionalProperties: false,
-    required: ['days', 'version'],
+    required: ['version'],
+    description:
+      'Either days, or specialReason for Penanganan Khusus (no deadline). Penanganan Khusus converts to days once.',
     properties: {
       days: { type: 'integer', minimum: 0, maximum: 365 },
+      specialReason: { type: 'string', minLength: 1, maxLength: 500 },
       version: { type: 'integer', minimum: 1 },
     },
   },
@@ -900,12 +903,15 @@ const schemas: Record<string, any> = {
     properties: {
       id: { type: 'string' },
       cycleNumber: { type: 'integer' },
-      days: { type: 'integer' },
+      kind: { type: 'string', enum: ['DAYS', 'SPECIAL'] },
+      days: { type: 'integer', nullable: true },
       setAt: { type: 'string', format: 'date-time' },
-      dueAt: { type: 'string', format: 'date-time' },
+      dueAt: { type: 'string', format: 'date-time', nullable: true },
+      specialReason: { type: 'string', nullable: true },
+      specialSetAt: { type: 'string', format: 'date-time', nullable: true },
       state: {
         type: 'string',
-        enum: ['ON_TRACK', 'OVERDUE', 'COMPLETED_ON_TIME', 'COMPLETED_LATE'],
+        enum: ['ON_TRACK', 'OVERDUE', 'COMPLETED_ON_TIME', 'COMPLETED_LATE', 'SPECIAL'],
       },
     },
   },
@@ -1407,6 +1413,8 @@ const schemas: Record<string, any> = {
       version: { type: 'integer', minimum: 1 },
       // Present for "Proses sendiri": respond and start handling in one step.
       days: { type: 'integer', minimum: 0, maximum: 365 },
+      // Alternative to days: Penanganan Khusus with its reason (no deadline).
+      specialReason: { type: 'string', minLength: 1, maxLength: 500 },
     },
   },
   // "Sedang tidak masuk" (ADR-0059): WIB days, inclusive.
@@ -2829,6 +2837,7 @@ const schemas: Record<string, any> = {
       closureReviewDeadline: { type: 'string', format: 'date-time', nullable: true },
       // The live handling target has passed while the Voice is still Diproses.
       targetOverdue: { type: 'boolean' },
+      specialHandling: { type: 'boolean' },
       // Dashboard preview of General Voices only: end of the current tier
       // holder's window and the reporter shown to authorized responders.
       tierDueAt: { type: 'string', format: 'date-time', nullable: true },

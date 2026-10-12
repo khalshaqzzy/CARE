@@ -104,9 +104,12 @@ export type VoiceDetailBase = {
   handlingTargets: Array<{
     id: string;
     cycleNumber: number;
-    days: number;
+    kind: 'DAYS' | 'SPECIAL';
+    days: number | null;
     setAt: Date;
-    dueAt: Date;
+    dueAt: Date | null;
+    specialReason: string | null;
+    specialSetAt: Date | null;
     state: string;
   }>;
   participants: Array<{ id: string; displayName: string; role: string }>;
