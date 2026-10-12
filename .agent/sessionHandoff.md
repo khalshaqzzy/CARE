@@ -6,7 +6,8 @@ The first CI run of the branch failed three jobs, none from the feature logic:
 
 - **Migration guard.** `scripts/check-migrations.mjs` rejected every `DROP`, including the `DROP NOT NULL` the new migration needs. It now accepts `DROP NOT NULL` and still rejects dropping tables, columns, types or data.
 - **Trivy.** CVE-2026-4775 (HIGH) in Alpine `tiff` 4.7.1-r0 inside the nginx runtime of both web images; fixed in 4.7.2-r0. Both Dockerfiles now pin `tiff=4.7.2-r0` with the other patched packages, the same approach as the OpenSSL and expat pins.
-- **API (performance).** `P2028` (transaction could not start) on the hosted runner, not a p95 miss; rerun.
+- **API (performance).** The first run hit `P2028`; the rerun measured a real p95 of 4,882 ms against 2,300 ms on staging. The benchmark's Manager actor takes the operations path, where the new special-handling test ran as a correlated `EXISTS` per Voice. It is now a single materialized `special_targets` lookup matched as a row-value `IN`. Locally on the 50,000-Voice fixture the benchmark measured 1,519–1,674 ms.
+- **Trivy, second finding.** With `tiff` fixed, the Caddy image reported four HIGH findings: Go stdlib 1.25.13 and `golang.org/x/net` v0.58.0 (CVE-2026-78667, -78669, -97031). `deploy/caddy/Dockerfile` now builds on `golang:1.26.9-alpine` with `x/net` v0.60.0, which pulls `x/crypto` v0.57.0 and `x/text` v0.42.0. A local build of the image scans clean with Trivy 0.70 (HIGH/CRITICAL, 0 findings; the Go binary and the Debian base).
 
 ## Penanganan Khusus — 12 October 2026
 

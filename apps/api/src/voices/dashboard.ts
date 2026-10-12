@@ -570,9 +570,9 @@ export class OrganizationDashboard {
   ) {
     const extra = [...new Set(columns)].map((name) => Prisma.sql`, ${column(name)}`);
     // Penanganan Khusus has no deadline, so it stays out of timeliness and is counted apart.
-    const special = Prisma.sql`EXISTS (SELECT 1 FROM "VoiceHandlingTarget" st
-      WHERE st."voiceId" = v.id AND st."cycleNumber" = v."handlingCycleNumber"
-        AND st.kind = 'SPECIAL' AND v.status = 'IN_PROGRESS')`;
+    // Looked up once per query (hashed), not per Voice: the set of live special cycles is tiny.
+    const special = Prisma.sql`(v.status = 'IN_PROGRESS'
+      AND (v.id, v."handlingCycleNumber") IN (SELECT "voiceId", "cycleNumber" FROM special_targets))`;
     const operations = ops
       ? Prisma.sql`count(*) FILTER (WHERE "submittedAt" >= (SELECT t FROM bound)) AS "openedToday",
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM flags WHERE proceeded)) AS "proceededToday",
@@ -620,6 +620,8 @@ export class OrganizationDashboard {
         SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted
         FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type IN ('MONITORED', 'RESPONDED')
         GROUP BY v.id, v."submittedAt"
+      ), special_targets AS MATERIALIZED (
+        SELECT t."voiceId", t."cycleNumber" FROM "VoiceHandlingTarget" t WHERE t.kind = 'SPECIAL'
       ), flags AS MATERIALIZED (
         SELECT e."voiceId",
           bool_or(e.type = 'PROCEEDED') AS proceeded,
