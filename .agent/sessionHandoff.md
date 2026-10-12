@@ -1,5 +1,13 @@
 # CARE Session Handoff
 
+## Penanganan Khusus CI follow-up — 12 October 2026
+
+The first CI run of the branch failed three jobs, none from the feature logic:
+
+- **Migration guard.** `scripts/check-migrations.mjs` rejected every `DROP`, including the `DROP NOT NULL` the new migration needs. It now accepts `DROP NOT NULL` and still rejects dropping tables, columns, types or data.
+- **Trivy.** CVE-2026-4775 (HIGH) in Alpine `tiff` 4.7.1-r0 inside the nginx runtime of both web images; fixed in 4.7.2-r0. Both Dockerfiles now pin `tiff=4.7.2-r0` with the other patched packages, the same approach as the OpenSSL and expat pins.
+- **API (performance).** `P2028` (transaction could not start) on the hosted runner, not a p95 miss; rerun.
+
 ## Penanganan Khusus — 12 October 2026
 
 **Objective:** let a PIC process a Voice that needs long discussion (for example a budget decision) without inventing a duration. Implemented on `feat/legacy-voice-import`, uncommitted and not released. The product owner chose the two-tab sheet (variant B) and the Simpan label.
