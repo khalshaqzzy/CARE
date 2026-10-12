@@ -47,6 +47,7 @@ As built:
 - Available actions: `SET_TARGET` stays while the live cycle is special, and `CLOSE` is withheld. The close mutation also answers `SPECIAL_HANDLING_REQUIRES_TARGET`.
 - Dashboard: the unit view returns `specialHandling` and removes these Voices from the on-time ratio; handler rows drop them from held and late and return their own `specialHandling` count.
 - Notification text for the reason is cut to 200 characters; the full reason stays on the Voice.
+- The migration relaxes two NOT NULL constraints. The changed-migration guard in `scripts/check-migrations.mjs` previously rejected every `DROP`; it now accepts `DROP NOT NULL`, which only widens a column, and still rejects dropping tables, columns, types, or data.
 
 ## Consequences
 

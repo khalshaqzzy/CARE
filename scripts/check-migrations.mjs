@@ -26,7 +26,9 @@ if (baseSha) {
   );
   if (changed.status !== 0)
     throw new Error(changed.stderr || 'Could not inspect changed migrations');
-  const forbidden = /\b(DROP\s+|TRUNCATE\b|prisma\s+migrate\s+reset|DOWN\s+MIGRATION)/i;
+  // DROP NOT NULL only relaxes a constraint (an expand step), so it is not data loss.
+  const forbidden =
+    /\b(DROP\s+(?!NOT\s+NULL\b)|TRUNCATE\b|prisma\s+migrate\s+reset|DOWN\s+MIGRATION)/i;
   for (const migration of changed.stdout.trim().split('\n').filter(Boolean)) {
     if (forbidden.test(await readFile(resolve(process.cwd(), migration), 'utf8')))
       findings.push(migration);
