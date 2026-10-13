@@ -1300,6 +1300,7 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       const items = (list as { items: Array<{ status?: string; severity?: string }> }).items;
       return satisfy(200, {
         ...list,
+        actionItems: (list as { items: unknown[] }).items.slice(0, 3),
         summary: opts.dashboardSummary ?? {
           total: items.length,
           open: items.filter((item) => item.status === 'OPEN').length,

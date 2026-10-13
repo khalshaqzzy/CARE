@@ -1072,39 +1072,45 @@ export class VoicesService {
       department?: string;
       section?: string;
       visibility?: string;
+      action?: string;
     } = {},
   ) {
     this.assertStatusFilter(query.status, query.statusGroup);
+    if (query.action !== undefined && query.action !== 'me')
+      throw badRequest('ACTION_FILTER_INVALID', 'action must be me');
     const director = actor.capabilities.includes('DIRECTOR');
     // Director's Private list: every Private Voice, read-only.
     const directorPrivate = director && query.visibility === 'PRIVATE';
     // scope=unit: the unit-head dashboard cohort (the selected organization's
     // handled General Voices the viewer may open), so Voice Member lists exactly
     // what Home and Butuh Tindakan Saya count. Otherwise the personal work list.
+    // action=me: exactly the Voices "Butuh Tindakan Saya" counts.
     const where: Prisma.VoiceWhereInput = directorPrivate
       ? { AND: [{ visibility: VoiceVisibility.PRIVATE }, await this.policy.detailScope(actor)] }
-      : query.scope === 'unit'
-        ? {
-            AND: [
-              (
-                await this.organizationDashboard.context(
-                  actor,
-                  {
-                    basis: 'HANDLING',
-                    visibility: 'GENERAL',
-                    scopeMode: query.scopeMode,
-                    directorate: query.directorate,
-                    division: query.division,
-                    department: query.department,
-                    section: query.section,
-                  } as DashboardQuery,
-                  'scope',
-                )
-              ).where,
-              await this.policy.detailScope(actor),
-            ],
-          }
-        : this.policy.workItemScope(actor);
+      : query.action === 'me'
+        ? this.policy.actionNeededScope(actor)
+        : query.scope === 'unit'
+          ? {
+              AND: [
+                (
+                  await this.organizationDashboard.context(
+                    actor,
+                    {
+                      basis: 'HANDLING',
+                      visibility: 'GENERAL',
+                      scopeMode: query.scopeMode,
+                      directorate: query.directorate,
+                      division: query.division,
+                      department: query.department,
+                      section: query.section,
+                    } as DashboardQuery,
+                    'scope',
+                  )
+                ).where,
+                await this.policy.detailScope(actor),
+              ],
+            }
+          : this.policy.workItemScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
@@ -3494,49 +3500,57 @@ export class VoicesService {
     const active: Prisma.VoiceWhereInput = {
       AND: [scoped, { status: { in: ['OPEN', 'RESPONDED', 'IN_PROGRESS'] } }],
     };
+    // General: "Butuh Tindakan Saya" counts only the Voices waiting for this
+    // responder at their own level, wherever the organization filter points.
+    const waiting: Prisma.VoiceWhereInput = general ? this.policy.actionNeededScope(actor) : active;
+    const latest = (where: Prisma.VoiceWhereInput) =>
+      this.prisma.voice.findMany({
+        where,
+        // General: the deadline that applies first, then severity.
+        orderBy: [
+          ...(general ? [{ tierDueAt: { sort: 'asc' as const, nulls: 'last' as const } }] : []),
+          { severity: 'desc' },
+          { submittedAt: 'desc' },
+          { id: 'desc' },
+        ],
+        take: 3,
+        select: {
+          ...this.listSelect(true),
+          anonymousAlias: true,
+          tierDueAt: true,
+          reporterNameSnapshot: true,
+          reporterDepartmentSnapshot: true,
+        },
+      });
     // Status counts share the dashboard cohort, so Voice Member and Home agree.
-    const [summary, byStatus] = await Promise.all([
-      this.actionSummary(active),
+    const [summary, byStatus, rows, actionRows] = await Promise.all([
+      this.actionSummary(waiting),
       this.prisma.voice.groupBy({ by: ['status'], where: scoped, _count: { _all: true } }),
+      latest(active),
+      general ? latest(waiting) : null,
     ]);
-    const rows = await this.prisma.voice.findMany({
-      where: active,
-      // General: the deadline that applies first, then severity.
-      orderBy: [
-        ...(general ? [{ tierDueAt: { sort: 'asc' as const, nulls: 'last' as const } }] : []),
-        { severity: 'desc' },
-        { submittedAt: 'desc' },
-        { id: 'desc' },
-      ],
-      take: 3,
-      select: {
-        ...this.listSelect(true),
-        anonymousAlias: true,
-        tierDueAt: true,
-        reporterNameSnapshot: true,
-        reporterDepartmentSnapshot: true,
-      },
+    const shape = ({
+      anonymousAlias,
+      tierDueAt,
+      reporterNameSnapshot,
+      reporterDepartmentSnapshot,
+      ...row
+    }: (typeof rows)[number]) => ({
+      ...this.toListItem(row),
+      // Reporter identity is visible to authorized General responders only.
+      ...(general
+        ? {
+            tierDueAt: tierDueAt?.toISOString() ?? null,
+            reporterName: reporterNameSnapshot,
+            reporterDepartment: reporterDepartmentSnapshot,
+          }
+        : { reporterAlias: anonymousAlias }),
     });
     return {
-      items: rows.map(
-        ({
-          anonymousAlias,
-          tierDueAt,
-          reporterNameSnapshot,
-          reporterDepartmentSnapshot,
-          ...row
-        }) => ({
-          ...this.toListItem(row),
-          // Reporter identity is visible to authorized General responders only.
-          ...(general
-            ? {
-                tierDueAt: tierDueAt?.toISOString() ?? null,
-                reporterName: reporterNameSnapshot,
-                reporterDepartment: reporterDepartmentSnapshot,
-              }
-            : { reporterAlias: anonymousAlias }),
-        }),
-      ),
+      // The active Voices in view, for the inbox.
+      items: rows.map(shape),
+      // The most urgent Voices waiting for the viewer.
+      actionItems: (actionRows ?? rows).map(shape),
       nextCursor: null,
       summary: {
         ...summary,

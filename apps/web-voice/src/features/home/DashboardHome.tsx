@@ -35,7 +35,7 @@ import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import { DashboardPerformance } from './DashboardPerformance';
 import { OpsDashboard } from './OpsDashboard';
-import { ACTION_FILTERS } from './ActionSummary';
+import { ACTION_FILTERS, ACTION_LIST } from './ActionSummary';
 import { PersonalVoiceSection } from './PersonalVoiceSection';
 
 const orgLevels = ['directorate', 'division', 'department', 'section'] as const;
@@ -448,7 +448,11 @@ export function DashboardHome() {
         inbox={{ preview: preview.data, isError: preview.isError }}
         onOpenVoice={(id) => void navigate(`/voices/${id}`)}
         onOpenList={() => void navigate(listUrl())}
-        onOpenAction={(kind) => void navigate(listUrl(ACTION_FILTERS[kind]))}
+        // The action list ignores the dashboard filters, like its counts.
+        onOpenAction={(kind) =>
+          void navigate(`/work-items?${new URLSearchParams(ACTION_FILTERS[kind])}`)
+        }
+        onOpenActionList={() => void navigate(`/work-items?${new URLSearchParams(ACTION_LIST)}`)}
         onOpenRange={(from, to) => void navigate(listUrl({ view: 'ALL', from, to }))}
         peopleQuery={{ ...query, ...refresh.data?.dates }}
         peopleInsights={peopleInsights && !isPrivate}

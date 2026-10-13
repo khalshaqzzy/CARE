@@ -2968,6 +2968,7 @@ export interface components {
         };
         DashboardPreview: {
             items: components["schemas"]["VoiceListItem"][];
+            actionItems: components["schemas"]["VoiceListItem"][];
             nextCursor: string | null;
             summary: {
                 status: {
@@ -12034,6 +12035,7 @@ export interface operations {
                 division?: string;
                 department?: string;
                 section?: string;
+                action?: "me";
             };
             header?: never;
             path?: never;

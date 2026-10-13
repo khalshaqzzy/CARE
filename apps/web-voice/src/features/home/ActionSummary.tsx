@@ -8,17 +8,21 @@ type Item = DashboardPreview['items'][number];
 
 const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
+/** The Voice Member list of every Voice waiting for the viewer. */
+export const ACTION_LIST: Record<string, string> = { view: 'ACTIVE', action: 'me' };
+
 /** Search parameters of the Voice Member list behind each summary tile. */
 export const ACTION_FILTERS: Record<ActionKind, Record<string, string>> = {
-  overdue: { view: 'ACTIVE', due: 'OVERDUE' },
-  soon: { view: 'ACTIVE', due: 'SOON' },
-  open: { view: 'OPEN' },
-  critical: { view: 'ACTIVE', severity: 'CRITICAL' },
+  overdue: { ...ACTION_LIST, due: 'OVERDUE' },
+  soon: { ...ACTION_LIST, due: 'SOON' },
+  open: { ...ACTION_LIST, view: 'OPEN' },
+  critical: { ...ACTION_LIST, severity: 'CRITICAL' },
 };
 
 /**
- * "Butuh Tindakan Saya": how many active Voices need the viewer, each count
- * opening the matching Voice Member list, and the single most urgent Voice.
+ * "Butuh Tindakan Saya": how many active Voices wait for the viewer at their
+ * own level, each count opening the matching Voice Member list, and the single
+ * most urgent of them.
  */
 export function ActionSummaryCard({
   preview,
@@ -34,7 +38,7 @@ export function ActionSummaryCard({
   onMore?: () => void;
 }) {
   const summary = preview?.summary;
-  const next = [...(preview?.items ?? [])]
+  const next = [...(preview?.actionItems ?? [])]
     .filter((item: Item) => item.status !== 'CLOSED')
     .sort(
       (a: Item, b: Item) =>

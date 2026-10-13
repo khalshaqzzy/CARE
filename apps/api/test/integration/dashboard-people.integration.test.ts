@@ -519,13 +519,14 @@ describe('Dashboard people: handling performance and member participation', () =
     expect(await titles({ statusGroup: 'ACTIVE' })).toEqual(['Route Manager']);
     const unit = await titles({ statusGroup: 'ALL', scope: 'unit' });
     expect(unit).toEqual(['Dipegang Section Head', 'Route Manager', 'Selesai unit']);
-    // The list and the summary describe the same Voices.
+    // The status strip counts the unit; Butuh Tindakan Saya only what waits for
+    // the Manager, which the action list shows.
     const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
     const counted = preview.summary.status.reduce((sum, row) => sum + row.value, 0);
     expect(counted).toBe(unit.length);
-    expect(preview.summary.total).toBe(
-      (await titles({ statusGroup: 'ACTIVE', scope: 'unit' })).length,
-    );
+    expect(await titles({ action: 'me' })).toEqual(['Route Manager']);
+    expect(preview.summary.total).toBe(1);
+    expect(preview.actionItems.map((item) => item.title)).toEqual(['Route Manager']);
   });
 
   it('narrows people to their Pers Area when the dashboard filters an area', async () => {

@@ -148,3 +148,14 @@ A labelled dock removes guesswork about icon meaning, a recurring issue for occa
 - Person rows depend on structural positions in the active snapshot. Default PICs without a Department Head position are not listed.
 - If performance figures are used formally, a documented review of attribution edge cases (manual raises, handovers, reopen cycles) with HR is recommended.
 - Director and Union may adopt the operations layout later; their dashboards were intentionally left unchanged.
+
+### Follow-up decisions (13 October 2026): Butuh Tindakan Saya is the viewer's own
+
+- **Problem.** The summary counted every active Voice in the handling unit. A Division Head saw Voices still held by Section Heads and Managers, while a Voice raised to them was rarely the most urgent one. Section Heads never saw tiered Voices, because those have no handling Section.
+- **Decision.** The counts and "Paling mendesak" cover only the General Voices waiting for the viewer at their own level (`PolicyService.actionNeededScope`), whatever the dashboard's organization or date filters:
+  - Terbuka or Direspon without a PIC: the current tier holders, and the route Manager of a fixed category.
+  - Raised because nobody processed it: the tier that joined, and the lower holders who answered.
+  - Assigned: the PIC. Upper holders count it again once the PIC has missed their window (`tierLowerHolderIds`).
+  - Diproses: the PIC only.
+- **Preview response.** `GET /dashboard/preview` adds `actionItems` (the three most urgent Voices waiting for the viewer). `items` (the inbox) and `summary.status` keep the unit cohort.
+- **Voice Member.** `GET /work-items?action=me` lists the same Voices, behind the new **Tindakan → Tindakan saya** filter. Every summary link opens it, without the dashboard filters.

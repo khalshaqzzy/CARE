@@ -5,6 +5,7 @@ import {
   Prisma,
   RouteKind,
   UnionSlot,
+  VoiceStatus,
   VoiceVisibility,
 } from '@prisma/client';
 import { forbiddenAsNotFound } from '../common/errors';
@@ -217,6 +218,52 @@ export class PolicyService {
     // '__none__'` would be coerced as a UUID and fail for actors with no work-item
     // scope (e.g. a plain Member reading their own voice detail/timeline/messages).
     return scopes.length ? { OR: scopes } : { id: { in: [] } };
+  }
+
+  /**
+   * "Butuh Tindakan Saya": active General Voices waiting for this responder (or
+   * the away leader they substitute for), at whatever level they hold it.
+   * - Terbuka / Direspons: a tier holder, unless a PIC below was assigned and
+   *   has not missed their window; the route Manager of a fixed category while
+   *   nobody is assigned; the assigned PIC.
+   * - Diproses: only the PIC, who must close it.
+   */
+  actionNeededScope(actor: Principal): Prisma.VoiceWhereInput {
+    const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+    const caps = actor.capabilities;
+    if (
+      !caps.some((c) =>
+        ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(c),
+      )
+    )
+      return { id: { in: [] } };
+    const waiting = { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED] };
+    return {
+      visibility: VoiceVisibility.GENERAL,
+      NOT: { reporterId: actor.accountId },
+      OR: [
+        {
+          status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
+          currentHandlerId: { in: ids },
+        },
+        {
+          status: waiting,
+          tierHolderIds: { hasSome: ids },
+          // An assigned PIC owns the next step until the Voice escalates past them.
+          OR: [{ currentHandlerId: null }, { tierLowerHolderIds: { isEmpty: false } }],
+        },
+        ...(caps.includes('MANAGER')
+          ? [
+              {
+                status: waiting,
+                tierLevel: null,
+                routeOwnerId: { in: ids },
+                currentHandlerId: null,
+              },
+            ]
+          : []),
+      ],
+    };
   }
 
   async detailScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {

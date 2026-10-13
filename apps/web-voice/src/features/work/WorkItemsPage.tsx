@@ -59,6 +59,9 @@ export function WorkItemsPage() {
   const isDirector = caps.includes('DIRECTOR');
   const directorPrivate = isDirector && searchParams.get('visibility') === 'PRIVATE';
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
+  // "Tindakan saya": the Voices Butuh Tindakan Saya counts.
+  const canAct = !isUnion && !isDirector;
+  const actionMine = canAct && searchParams.get('action') === 'me';
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
   const handoverMode = isManager && rawView === 'HANDOVERS';
@@ -106,6 +109,7 @@ export function WorkItemsPage() {
       orgKey,
       directorPrivate ? 'private' : 'general',
       unassignedOnly ? 'unassigned' : 'assigned-any',
+      actionMine ? 'action-me' : 'action-any',
       nav.cursor,
     ),
     queryFn: () => {
@@ -127,7 +131,9 @@ export function WorkItemsPage() {
         ? api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) })
         : directorPrivate
           ? api.workItems({ ...common, sort, visibility: 'PRIVATE' })
-          : api.workItems({ ...common, sort, scope: 'unit', ...org });
+          : actionMine
+            ? api.workItems({ ...common, sort, action: 'me' })
+            : api.workItems({ ...common, sort, scope: 'unit', ...org });
     },
     enabled: Boolean(session) && !handoverMode,
     refetchInterval: 3000,
@@ -152,7 +158,8 @@ export function WorkItemsPage() {
     refetchInterval: 3000,
   });
 
-  // "Butuh Tindakan Saya" over the viewer's handling scope, unfiltered.
+  // "Butuh Tindakan Saya" counts the Voices waiting for the viewer; the status
+  // strip counts every Voice in the selected organization.
   const actions = useQuery({
     queryKey: voiceQuery(sessionId, 'dashboard', 'actions', orgKey),
     queryFn: ({ signal }) => api.dashboardPreview(org, signal),
@@ -185,7 +192,6 @@ export function WorkItemsPage() {
   const intro = introFor({
     isUnion,
     isUnionHead,
-    isLeadership,
     isDirector,
     unassignedOnly,
   });
@@ -371,6 +377,22 @@ export function WorkItemsPage() {
                   ]
                 : []
               : [
+                  ...(canAct
+                    ? [
+                        {
+                          id: 'action',
+                          label: 'Tindakan',
+                          value: actionMine ? 'me' : 'all',
+                          neutralValue: 'all',
+                          onValueChange: (value: string) =>
+                            setParam('action', value === 'me' ? 'me' : undefined),
+                          options: [
+                            { value: 'all', label: 'Semua' },
+                            { value: 'me', label: 'Tindakan saya' },
+                          ],
+                        },
+                      ]
+                    : []),
                   {
                     id: 'due',
                     label: 'Tenggat',
@@ -547,13 +569,7 @@ function MyHandoverCard({ item, onOpen }: { item: HandoverHistoryItem; onOpen: (
   );
 }
 
-function introFor({
-  isUnion,
-  isUnionHead,
-  isLeadership,
-  isDirector,
-  unassignedOnly,
-}: Record<string, boolean>) {
+function introFor({ isUnion, isUnionHead, isDirector, unassignedOnly }: Record<string, boolean>) {
   if (isUnion)
     return {
       eyebrow: 'Union',
@@ -569,8 +585,7 @@ function introFor({
       title: 'Voice Member',
       description: 'Pantau General dan Private Voice secara read-only.',
     };
-  if (isLeadership)
-    return { title: 'Voice Member', description: 'Pantau General Voice secara read-only.' };
+  // Division leaders act on the Voices that reach their level, like other heads.
   return {
     title: 'Voice Member',
     description: 'Voice yang ditangani unit Anda.',

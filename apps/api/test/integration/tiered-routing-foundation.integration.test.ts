@@ -1013,6 +1013,113 @@ describe('Tiered routing foundation', () => {
     ).toBe(2);
   });
 
+  it('counts in Butuh Tindakan Saya only the Voices waiting for the viewer at their level', async () => {
+    const placed = await prisma.organizationMembership.findFirstOrThrow({
+      where: { employee: { noReg: '700001' }, snapshot: { status: 'ACTIVE' } },
+    });
+    const employee = await prisma.employee.create({ data: { noReg: '700012', name: 'DH Act' } });
+    await prisma.userAccount.create({
+      data: {
+        username: '700012',
+        displayName: 'DH Act',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    const membership = await prisma.organizationMembership.create({
+      data: {
+        snapshotId: placed.snapshotId,
+        employeeId: employee.id,
+        organizationUnitId: placed.organizationUnitId,
+        employeeName: 'DH Act',
+        structuralPosition: 'Division Head',
+        section: 'Office',
+        sourceRow: 996,
+      },
+    });
+    try {
+      const groupLeader = await principal('700003');
+      const sectionHead = await principal('700002');
+      const manager = await principal('700001');
+      const divisionHead = await principal('700012');
+      const worker = new TierEscalationService(prisma as never);
+      const expire = (id: string) =>
+        prisma.voice.update({
+          where: { id },
+          data: { tierDueAt: new Date(Date.now() - 60_000) },
+        });
+      // The Voice Member action list holds exactly what the summary counts.
+      const waiting = async (who: Principal) => {
+        const [preview, list] = await Promise.all([
+          voices.dashboardPreview(who, {}),
+          voices.workItems(who, { action: 'me', limit: '100' }),
+        ]);
+        expect(preview.summary.total).toBe(list.items.length);
+        return list.items.map((item) => item.id);
+      };
+      await expect(voices.workItems(manager, { action: 'all' })).rejects.toMatchObject({
+        code: 'ACTION_FILTER_INVALID',
+      });
+
+      // Raised by hand to the Section Head: it waits for them, not the Group Leader.
+      const raised = await submitAs('700004', 'act-raised');
+      expect(await waiting(groupLeader)).toContain(raised.id);
+      expect(await waiting(divisionHead)).not.toContain(raised.id);
+      await voices.escalate(
+        groupLeader,
+        raised.id,
+        { expectedVersion: 1, reason: 'Perlu Section Head.' },
+        'act-raise',
+      );
+      expect(await waiting(sectionHead)).toContain(raised.id);
+      expect(await waiting(groupLeader)).not.toContain(raised.id);
+      expect(await waiting(manager)).not.toContain(raised.id);
+      // "Paling mendesak" is picked from those same Voices.
+      const shWaiting = await waiting(sectionHead);
+      const shPreview = await voices.dashboardPreview(sectionHead, {});
+      expect(shPreview.actionItems.length).toBe(Math.min(3, shWaiting.length));
+      for (const item of shPreview.actionItems) expect(shWaiting).toContain(item.id);
+
+      // Answered but never processed, up to the Division Head: it now waits for
+      // them, and still for the Group Leader who answered it.
+      const answered = await submitAs('700004', 'act-answered');
+      await voices.respond(groupLeader, answered.id, { text: 'Kami cek.', version: 1 }, 'act-r');
+      const level = async () =>
+        (await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).tierLevel;
+      for (let step = 0; step < 3; step++) {
+        await expire(answered.id);
+        await worker.tick();
+        // At the Section Head and Manager steps it is not the Division Head's yet.
+        if ((await level()) !== 'DIVISION')
+          expect(await waiting(divisionHead)).not.toContain(answered.id);
+        if ((await level()) === 'MANAGER') expect(await waiting(manager)).toContain(answered.id);
+      }
+      expect((await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } })).tierLevel).toBe(
+        'DIVISION',
+      );
+      expect(await waiting(divisionHead)).toContain(answered.id);
+      expect(await waiting(groupLeader)).toContain(answered.id);
+      // Voices of the division that never reached the Division Head do not count.
+      expect(await waiting(divisionHead)).not.toContain(raised.id);
+
+      // Once the Group Leader processes it, only they (the PIC) still act on it.
+      const current = await prisma.voice.findUniqueOrThrow({ where: { id: answered.id } });
+      await voices.proceed(
+        groupLeader,
+        answered.id,
+        { days: 1, version: current.version },
+        'act-process',
+      );
+      expect(await waiting(groupLeader)).toContain(answered.id);
+      expect(await waiting(divisionHead)).not.toContain(answered.id);
+      expect(await waiting(manager)).not.toContain(answered.id);
+    } finally {
+      await prisma.organizationMembership.delete({ where: { id: membership.id } });
+    }
+  });
+
   it('exposes seeded defaults and edits the working calendar with versions', async () => {
     const initial = await settings.get();
     expect(initial.deadlines).toEqual([

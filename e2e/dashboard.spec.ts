@@ -813,7 +813,9 @@ test('Butuh Tindakan Saya sums up first and each count opens Voice Member', asyn
   await card.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
   await expect(page).toHaveURL(/\/work-items\?/);
   await expect(page).toHaveURL(/due=OVERDUE/);
-  await expect(page).toHaveURL(/area=SUNTER_1/);
+  // The counts are the viewer's own, whatever the dashboard filters.
+  await expect(page).toHaveURL(/action=me/);
+  expect(page.url()).not.toContain('area=');
   await page.goBack();
   await card.locator('.ops-actions__next').click();
   await expect(page).toHaveURL(/\/voices\/00000000-0000-4000-8000-000000000302$/);
@@ -848,6 +850,12 @@ test('Voice Member opens with the summaries and orders what needs action first',
   await page.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
   await expect(page).toHaveURL(/due=OVERDUE/);
   await expect.poll(() => lists.at(-1)?.searchParams.get('due')).toBe('OVERDUE');
+  // A tile lists only the Voices waiting for the viewer, like its count.
+  expect(lists.at(-1)?.searchParams.get('action')).toBe('me');
+  expect(lists.at(-1)?.searchParams.get('scope')).toBeNull();
+  await expect(page.getByRole('combobox', { name: 'Tindakan', exact: true })).toContainText(
+    'Tindakan saya',
+  );
   await page.getByRole('combobox', { name: 'Urutkan', exact: true }).click();
   await page.getByRole('option', { name: 'Terbaru', exact: true }).click();
   await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('newest');
