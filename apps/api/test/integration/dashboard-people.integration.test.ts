@@ -238,10 +238,14 @@ describe('Dashboard people: handling performance and member participation', () =
     expect((await people.handlers(sectionHead, {})).items.map((item) => item.name)).toEqual([
       'Gita GL',
     ]);
-    for (const viewer of [groupLeader, director, member])
+    for (const viewer of [groupLeader, member])
       await expect(people.handlers(viewer, {})).rejects.toThrow();
-    for (const viewer of [groupLeader, director])
-      await expect(people.participation(viewer, {})).rejects.toThrow();
+    await expect(people.participation(groupLeader, {})).rejects.toThrow();
+    // Director reads every unit's leaders and members, as a Division Head reads theirs.
+    expect((await people.handlers(director, {})).items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(['Dedi Manager', 'Andi SH', 'Gita GL']),
+    );
+    expect((await people.participation(director, {})).memberCount).toBeGreaterThan(0);
   });
 
   it('gives each leader their own figures with the attribution their leader sees', async () => {
@@ -365,8 +369,12 @@ describe('Dashboard people: handling performance and member participation', () =
       averageResponseSeconds: null,
       averageCompletionSeconds: null,
     });
-    // Director and Union keep one handling dashboard without the switcher total.
-    expect('otherBasisTotal' in (await dashboard.aggregate(director, {}))).toBe(false);
+    // Director keeps one handling dashboard without the switcher total, with the
+    // same today counts and timeliness as unit heads.
+    const directorView = await dashboard.aggregate(director, {});
+    expect('otherBasisTotal' in directorView).toBe(false);
+    expect(directorView.onTime).toEqual(expect.objectContaining({ total: expect.any(Number) }));
+    expect(directorView.statusToday).toBeDefined();
   });
 
   it('keeps Penanganan Khusus out of timeliness and counts it apart', async () => {

@@ -136,8 +136,11 @@ export class PolicyService {
   async browseScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     if (actor.capabilities.includes('CARE_ADMIN')) return {};
     const own: Prisma.VoiceWhereInput = { reporterId: actor.accountId };
+    // Director reads every General and Private Voice, read-only.
     if (actor.capabilities.includes('DIRECTOR'))
-      return { OR: [own, { visibility: VoiceVisibility.GENERAL }] };
+      return {
+        OR: [own, { visibility: { in: [VoiceVisibility.GENERAL, VoiceVisibility.PRIVATE] } }],
+      };
     if (actor.capabilities.includes('UNION_HEAD') || actor.capabilities.includes('UNION_OFFICER'))
       return { visibility: VoiceVisibility.GENERAL };
     if (actor.capabilities.includes('DIVISION_LEADERSHIP') && actor.directorate && actor.division)

@@ -86,13 +86,18 @@ export function DashboardHome() {
   const caps = session?.capabilities ?? [];
   const union = caps.includes('UNION_HEAD') || caps.includes('UNION_OFFICER');
   const unionHead = caps.includes('UNION_HEAD');
-  const isPrivate = union && params.get('dashboardTab') !== 'general';
-  // Director and Union already see every Voice, so only unit heads choose a basis.
-  const basisChoice = !union && !caps.includes('DIRECTOR');
+  const director = caps.includes('DIRECTOR');
+  // Union opens on Private; Director opens on General and reads Private read-only.
+  const isPrivate = union
+    ? params.get('dashboardTab') !== 'general'
+    : director && params.get('dashboardTab') === 'private';
+  // Union keeps the organization view; Director and unit heads use the operations dashboard.
+  const basisChoice = !union;
   // Section Head and above see who handles and who reports; Group Leaders do not.
   const peopleInsights =
     basisChoice &&
-    (caps.includes('SECTION_HEAD') ||
+    (director ||
+      caps.includes('SECTION_HEAD') ||
       caps.includes('MANAGER') ||
       caps.includes('DIVISION_LEADERSHIP'));
   const prefix = isPrivate ? 'private.' : '';
@@ -111,7 +116,8 @@ export function DashboardHome() {
         !Number.isFinite(Date.parse(from)) ||
         !Number.isFinite(Date.parse(to))));
   const query = {
-    basis: basisChoice ? (read('basis') ?? 'HANDLING') : 'HANDLING',
+    // Director has no basis switch; their view is always the handling basis.
+    basis: basisChoice && !director ? (read('basis') ?? 'HANDLING') : 'HANDLING',
     visibility: isPrivate ? 'PRIVATE' : 'GENERAL',
     scopeMode: read('scopeMode'),
     level: read('level'),
@@ -246,8 +252,8 @@ export function DashboardHome() {
     !caps.includes('DIVISION_LEADERSHIP') &&
     !caps.includes('MANAGER');
   const scope = data?.scopeLabel ?? meta?.scopeLabel;
-  const readonly =
-    !isPrivate && (union || caps.includes('DIVISION_LEADERSHIP') || caps.includes('DIRECTOR'));
+  // Division Heads respond like Managers, so only Union (General) and Director read-only.
+  const readonly = (!isPrivate && union) || director;
   const name = session?.account.displayName ?? '';
   const role = union
     ? unionHead
@@ -272,6 +278,7 @@ export function DashboardHome() {
       for (const key of ['scopeMode', ...orgLevels] as const)
         if (query[key]) p.set(key, query[key]!);
     if (!query.status) p.set('statusGroup', 'ACTIVE');
+    if (director && isPrivate) p.set('visibility', 'PRIVATE');
     for (const [key, value] of Object.entries(extra)) p.set(key, value);
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
@@ -379,7 +386,12 @@ export function DashboardHome() {
       </div>
     </Dialog>
   );
-  if (basisChoice) {
+  const pickTab = (tab: 'private' | 'general') => {
+    const next = new URLSearchParams(params);
+    next.set('dashboardTab', tab);
+    setParams(next);
+  };
+  if (basisChoice && !isPrivate) {
     const otherTotal = data?.otherBasisTotal ?? undefined;
     const basis = query.basis as 'HANDLING' | 'REPORTER';
     return (
@@ -425,12 +437,16 @@ export function DashboardHome() {
         onOpenRange={(from, to) => void navigate(listUrl({ view: 'ALL', from, to }))}
         peopleQuery={{ ...query, ...refresh.data?.dates }}
         peopleInsights={peopleInsights}
+        observer={director}
+        onPrivate={director ? () => pickTab('private') : undefined}
         unitLabel={
-          caps.includes('DIVISION_LEADERSHIP')
-            ? 'Division'
-            : caps.includes('MANAGER')
-              ? 'Department'
-              : 'Section'
+          director
+            ? 'Perusahaan'
+            : caps.includes('DIVISION_LEADERSHIP')
+              ? 'Division'
+              : caps.includes('MANAGER')
+                ? 'Department'
+                : 'Section'
         }
         readOnlyLabel={readonly ? 'Leadership · Read-only' : undefined}
       />
@@ -453,25 +469,24 @@ export function DashboardHome() {
         </div>
         {readonly ? (
           <span className="member-hero__context">
-            <Lock size={12} /> {union ? 'General' : 'Leadership'} · Read-only
+            <Lock size={12} /> {isPrivate ? 'Private' : union ? 'General' : 'Leadership'} ·
+            Read-only
           </span>
         ) : null}
-        {union ? (
+        {union || director ? (
           <div className="dashboard-tabs dashboard-tabs--hero" aria-label="Jenis dashboard">
-            {['private', 'general'].map((tab) => (
-              <button
-                type="button"
-                key={tab}
-                aria-pressed={isPrivate === (tab === 'private')}
-                onClick={() => {
-                  const next = new URLSearchParams(params);
-                  next.set('dashboardTab', tab);
-                  setParams(next);
-                }}
-              >
-                {tab === 'private' ? 'Private Voice' : 'General Voice'}
-              </button>
-            ))}
+            {(union ? (['private', 'general'] as const) : (['general', 'private'] as const)).map(
+              (tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  aria-pressed={isPrivate === (tab === 'private')}
+                  onClick={() => pickTab(tab)}
+                >
+                  {tab === 'private' ? 'Private Voice' : 'General Voice'}
+                </button>
+              ),
+            )}
           </div>
         ) : null}
         <VoiceSummaryCard
@@ -539,7 +554,7 @@ export function DashboardHome() {
               ) : null}
               {organizationDialog}
             </>
-          ) : unionHead && meta ? (
+          ) : (unionHead || director) && meta ? (
             <div className="dashboard-private-handler">
               <Select
                 label="PIC Union"

@@ -804,6 +804,41 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Belum ada penugasan')).toBeVisible();
   });
 
+  test('Director lists Private Voices read-only from Voice Member', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const visibilities: (string | null)[] = [];
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.pathname === '/api/v1/work-items')
+        visibilities.push(url.searchParams.get('visibility'));
+    });
+    await mockWorkforceApi(page, {
+      session: memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] }),
+      voice: {
+        id: 'voice-p1',
+        displayId: 'CARE-202608-000002',
+        audience: 'UNION_ANONYMOUS',
+        visibility: 'PRIVATE',
+        status: 'OPEN',
+        title: 'Laporan papan nama rusak',
+        availableActions: [],
+        category: null,
+      },
+    });
+    await page.goto('/work-items');
+    await expect(
+      page.getByText('Pantau General dan Private Voice secara read-only.'),
+    ).toBeVisible();
+    // The Director never handles Voices, so there is nothing to act on.
+    await expect(page.getByRole('heading', { name: 'Butuh Tindakan Saya' })).toHaveCount(0);
+    await page.getByRole('combobox', { name: 'Jenis' }).click();
+    await page.getByRole('option', { name: 'Private Voice' }).click();
+    await expect(page).toHaveURL(/visibility=PRIVATE/);
+    await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
+    await expect.poll(() => visibilities.at(-1)).toBe('PRIVATE');
+    await expect(page.getByRole('combobox', { name: 'PIC' })).toHaveCount(0);
+  });
+
   test('union head can assign a union officer from the private voice detail', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {

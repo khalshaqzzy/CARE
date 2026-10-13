@@ -1039,8 +1039,8 @@ export class VoicesService {
     const rows = hasNext ? items.slice(0, take) : items;
     const data = rows.map((row) => this.toListItem(row));
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
-    // audit admin private list reads
-    if (actor.capabilities.includes('CARE_ADMIN')) {
+    // audit admin and Director private list reads
+    if (this.auditsPrivateReads(actor)) {
       const hasPrivate =
         data.some((v) => (v as { visibility: string }).visibility === 'PRIVATE') ||
         query.visibility === 'PRIVATE';
@@ -1071,14 +1071,19 @@ export class VoicesService {
       division?: string;
       department?: string;
       section?: string;
+      visibility?: string;
     } = {},
   ) {
     this.assertStatusFilter(query.status, query.statusGroup);
+    const director = actor.capabilities.includes('DIRECTOR');
+    // Director's Private list: every Private Voice, read-only.
+    const directorPrivate = director && query.visibility === 'PRIVATE';
     // scope=unit: the unit-head dashboard cohort (the selected organization's
     // handled General Voices the viewer may open), so Voice Member lists exactly
     // what Home and Butuh Tindakan Saya count. Otherwise the personal work list.
-    const where: Prisma.VoiceWhereInput =
-      query.scope === 'unit'
+    const where: Prisma.VoiceWhereInput = directorPrivate
+      ? { AND: [{ visibility: VoiceVisibility.PRIVATE }, await this.policy.detailScope(actor)] }
+      : query.scope === 'unit'
         ? {
             AND: [
               (
@@ -1147,9 +1152,9 @@ export class VoicesService {
     const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
     // Alias chips for Union private inbox cards follow the same consent surface
     // as the detail: the per-Voice alias is only meaningful for Union actors.
-    const includeAlias = actor.capabilities.some((capability) =>
-      ['UNION_HEAD', 'UNION_OFFICER'].includes(capability),
-    );
+    const includeAlias =
+      directorPrivate ||
+      actor.capabilities.some((capability) => ['UNION_HEAD', 'UNION_OFFICER'].includes(capability));
     const items = await this.prisma.voice.findMany({
       where: combinedWhere,
       take: take + 1,
@@ -1170,6 +1175,8 @@ export class VoicesService {
       };
     });
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    if (directorPrivate && data.length)
+      await this.auditPrivateRead(actor, 'list', 'PRIVATE_LIST_READ');
     return { items: data, nextCursor };
   }
   async monitoringOptions(actor: AuthActor) {
@@ -1227,7 +1234,7 @@ export class VoicesService {
       },
     });
     if (!voice) throw forbiddenAsNotFound();
-    if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
+    if (this.auditsPrivateReads(actor) && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
     const chatMembers = [...voice.tierParticipantIds, ...voice.tierHolderIds];
     const tierHolders = chatMembers.length ? await this.tierHolders(chatMembers) : [];
@@ -1424,7 +1431,7 @@ export class VoicesService {
     query: { limit?: string; cursor?: string; order?: 'asc' | 'desc' },
   ) {
     const voice = await this.authorizedVoice(actor, id);
-    if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
+    if (this.auditsPrivateReads(actor) && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_TIMELINE_READ');
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
@@ -3024,7 +3031,7 @@ export class VoicesService {
   ) {
     const voice = await this.authorizedVoice(actor, id);
     if (this.conversationState(actor, voice) === 'UNAVAILABLE') throw forbiddenAsNotFound();
-    if (actor.capabilities.includes('CARE_ADMIN') && voice.visibility === VoiceVisibility.PRIVATE)
+    if (this.auditsPrivateReads(actor) && voice.visibility === VoiceVisibility.PRIVATE)
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_MESSAGE_READ');
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
@@ -3411,7 +3418,11 @@ export class VoicesService {
   }
   async dashboardPrivate(actor: AuthActor, filter: DashboardFilter = {}) {
     let where: Prisma.VoiceWhereInput;
-    if (actor.capabilities.includes('CARE_ADMIN') || actor.capabilities.includes('UNION_HEAD'))
+    if (
+      actor.capabilities.some((capability) =>
+        ['CARE_ADMIN', 'UNION_HEAD', 'DIRECTOR'].includes(capability),
+      )
+    )
       where = { visibility: VoiceVisibility.PRIVATE };
     else if (actor.capabilities.includes('UNION_OFFICER'))
       where = { visibility: VoiceVisibility.PRIVATE, currentHandlerId: actor.accountId };
@@ -4984,6 +4995,10 @@ export class VoicesService {
       throw badRequest('STATUS_FILTER_CONFLICT', 'status and statusGroup cannot be combined');
     if (group && !['ACTIVE', 'CLOSED', 'ALL'].includes(group))
       throw badRequest('STATUS_FILTER_INVALID', 'statusGroup must be ACTIVE, CLOSED, or ALL');
+  }
+  /** CARE Admin and Director read Private Voices they do not handle; each read is audited. */
+  private auditsPrivateReads(actor: AuthActor) {
+    return actor.capabilities.some((capability) => ['CARE_ADMIN', 'DIRECTOR'].includes(capability));
   }
   private async auditPrivateRead(actor: AuthActor, voiceId: string, action: string) {
     await this.prisma.auditEvent.create({

@@ -417,12 +417,9 @@ export class AuthService {
   }
 
   private detailScopes(actor: AuthActor) {
-    if (actor.capabilities.includes('CARE_ADMIN')) return ['GENERAL_ALL', 'PRIVATE_ALL_READ_ONLY'];
-    if (
-      actor.capabilities.some((value) =>
-        ['DIRECTOR', 'UNION_HEAD', 'UNION_OFFICER'].includes(value),
-      )
-    )
+    if (actor.capabilities.some((value) => ['CARE_ADMIN', 'DIRECTOR'].includes(value)))
+      return ['GENERAL_ALL', 'PRIVATE_ALL_READ_ONLY'];
+    if (actor.capabilities.some((value) => ['UNION_HEAD', 'UNION_OFFICER'].includes(value)))
       return ['GENERAL_ALL'];
     if (actor.capabilities.includes('DIVISION_LEADERSHIP')) return ['GENERAL_OWN_DIVISION'];
     if (actor.capabilities.includes('MANAGER'))

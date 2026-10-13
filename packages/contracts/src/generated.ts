@@ -12018,6 +12018,7 @@ export interface operations {
                 search?: string;
                 status?: string;
                 statusGroup?: "ACTIVE" | "CLOSED" | "ALL";
+                visibility?: string;
                 severity?: string;
                 area?: string;
                 category?: string;

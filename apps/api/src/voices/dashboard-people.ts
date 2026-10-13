@@ -16,9 +16,10 @@ type Db = PrismaService | Prisma.TransactionClient;
 /** Section Head and above see who handles and who reports; Group Leaders do not. */
 function viewer(actor: AuthActor) {
   const caps = actor.capabilities;
-  if (caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER', 'DIRECTOR', 'CARE_ADMIN'].includes(c)))
+  if (caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER', 'CARE_ADMIN'].includes(c)))
     throw forbiddenAsNotFound();
-  const leader = caps.includes('DIVISION_LEADERSHIP');
+  // Director reads every unit the way a Division Head reads their division.
+  const leader = caps.includes('DIVISION_LEADERSHIP') || caps.includes('DIRECTOR');
   const manager = caps.includes('MANAGER');
   const sectionHead = caps.includes('SECTION_HEAD');
   if (!leader && !manager && !sectionHead) throw forbiddenAsNotFound();
@@ -268,19 +269,23 @@ export class DashboardPeople {
         FROM cohort c JOIN "VoiceEvent" e ON e."voiceId" = c.id
         WHERE e.type::text IN ('RESPONDED', 'MONITORED', 'PROCEEDED', 'CLOSED', 'ESCALATED', 'DEADLINE_MISSED')
       ),
+      -- Every figure is grouped per person in one pass, so the cost grows with the
+      -- cohort, not with people × cohort (a Director measures every leader at once).
       reached AS (
-        SELECT p.pid, c.id FROM people p JOIN cohort c ON p.pid = c."currentHandlerId"
-          OR p.pid = ANY(c."tierHolderIds") OR p.pid = ANY(c."tierLowerHolderIds")
-          OR p.pid = ANY(c."tierObserverIds") OR p.pid = ANY(c."tierParticipantIds")
-        UNION
-        SELECT e."actorId", e."voiceId" FROM events e
-          WHERE e.type IN ('RESPONDED', 'MONITORED', 'PROCEEDED', 'CLOSED')
-        UNION
-        SELECT h.pid::uuid, e."voiceId" FROM events e
-          CROSS JOIN LATERAL jsonb_array_elements_text(
-            COALESCE(e.payload->'holders', '[]'::jsonb) || COALESCE(e.payload->'previousHolders', '[]'::jsonb)
-          ) h(pid)
-          WHERE e.type = 'ESCALATED'
+        SELECT x.pid, x.id FROM (
+          SELECT c."currentHandlerId" AS pid, c.id FROM cohort c
+          UNION SELECT unnest(c."tierHolderIds"), c.id FROM cohort c
+          UNION SELECT unnest(c."tierLowerHolderIds"), c.id FROM cohort c
+          UNION SELECT unnest(c."tierObserverIds"), c.id FROM cohort c
+          UNION SELECT unnest(c."tierParticipantIds"), c.id FROM cohort c
+          UNION SELECT e."actorId", e."voiceId" FROM events e
+            WHERE e.type IN ('RESPONDED', 'MONITORED', 'PROCEEDED', 'CLOSED')
+          UNION SELECT h.pid::uuid, e."voiceId" FROM events e
+            CROSS JOIN LATERAL jsonb_array_elements_text(
+              COALESCE(e.payload->'holders', '[]'::jsonb) || COALESCE(e.payload->'previousHolders', '[]'::jsonb)
+            ) h(pid)
+            WHERE e.type = 'ESCALATED'
+        ) x JOIN people p ON p.pid = x.pid
       ),
       -- Older automatic escalations carry only the former holder as the actor.
       missed AS (
@@ -307,18 +312,40 @@ export class DashboardPeople {
           SELECT 1 FROM "VoiceHandlingTarget" t WHERE t."voiceId" = c.id
             AND t."cycleNumber" = c."handlingCycleNumber" AND t."dueAt" < now())
       ),
+      held AS (
+        SELECT x.pid, count(DISTINCT x.id) AS n FROM (
+          SELECT pid, id FROM reached UNION SELECT pid, id FROM missed
+          UNION SELECT pid, id FROM deadline_missed
+        ) x WHERE NOT EXISTS (SELECT 1 FROM special s WHERE s.pid = x.pid AND s.id = x.id)
+        GROUP BY x.pid
+      ),
+      late AS (
+        SELECT x.pid, count(DISTINCT x.id) AS n FROM (
+          SELECT pid, id FROM missed UNION SELECT pid, id FROM deadline_missed
+          UNION SELECT pid, id FROM overdue
+        ) x WHERE NOT EXISTS (SELECT 1 FROM special s WHERE s.pid = x.pid AND s.id = x.id)
+        GROUP BY x.pid
+      ),
       -- Response time runs from when the Voice reached the person, not from submit.
       responses AS (
         SELECT e."actorId" AS pid, e."voiceId", min(e."occurredAt") AS at FROM events e
         WHERE e.type IN ('RESPONDED', 'MONITORED') GROUP BY 1, 2
       ),
+      escalations AS (
+        SELECT e."voiceId", h.pid::uuid AS pid, e."occurredAt" FROM events e
+          CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(e.payload->'holders', '[]'::jsonb)) h(pid)
+          WHERE e.type = 'ESCALATED'
+      ),
       response_times AS (
-        SELECT r.pid, EXTRACT(EPOCH FROM r.at - GREATEST(c."submittedAt", COALESCE((
-          SELECT max(e."occurredAt") FROM events e WHERE e."voiceId" = r."voiceId"
-            AND e.type = 'ESCALATED' AND e."occurredAt" <= r.at
-            AND e.payload->'holders' @> jsonb_build_array(r.pid::text)
-        ), c."submittedAt")))::float8 AS seconds
+        SELECT r.pid, EXTRACT(EPOCH FROM r.at - GREATEST(c."submittedAt",
+          COALESCE(max(x."occurredAt"), c."submittedAt")))::float8 AS seconds
         FROM responses r JOIN cohort c ON c.id = r."voiceId"
+        LEFT JOIN escalations x ON x."voiceId" = r."voiceId" AND x.pid = r.pid AND x."occurredAt" <= r.at
+        GROUP BY r.pid, r."voiceId", r.at, c."submittedAt"
+      ),
+      response AS (
+        SELECT pid, avg(seconds) AS average, count(*) AS n FROM response_times
+        WHERE seconds >= 0 GROUP BY pid
       ),
       -- Closures the person performed, timed over the cycle they closed.
       completions AS (
@@ -328,28 +355,37 @@ export class DashboardPeople {
         LEFT JOIN "ClosureCycle" prev ON prev."voiceId" = cc."voiceId"
           AND prev."cycleNumber" = cc."cycleNumber" - 1
       ),
+      completion AS (
+        SELECT pid, avg(seconds) AS average, count(*) AS n FROM completions
+        WHERE seconds >= 0 GROUP BY pid
+      ),
+      auto AS (SELECT pid, count(DISTINCT id) AS n FROM missed GROUP BY pid),
+      overdue_n AS (SELECT pid, count(DISTINCT id) AS n FROM overdue GROUP BY pid),
+      special_n AS (SELECT pid, count(DISTINCT id) AS n FROM special GROUP BY pid),
       ratings AS (
         SELECT cc."actorId" AS pid, avg(r.score)::float8 AS average, count(r.score) AS n
         FROM cohort c JOIN "ClosureCycle" cc ON cc."voiceId" = c.id
         JOIN "Rating" r ON r."closureCycleId" = cc.id GROUP BY 1
       )
       SELECT p.pid::text AS "accountId",
-        (SELECT count(DISTINCT x.id) FROM (SELECT id FROM reached WHERE pid = p.pid
-          UNION SELECT id FROM missed WHERE pid = p.pid
-          UNION SELECT id FROM deadline_missed WHERE pid = p.pid) x
-          WHERE x.id NOT IN (SELECT id FROM special WHERE pid = p.pid)) AS held,
-        (SELECT count(DISTINCT id) FROM missed WHERE pid = p.pid) AS "autoEscalated",
-        (SELECT count(DISTINCT id) FROM overdue WHERE pid = p.pid) AS overdue,
-        (SELECT count(*) FROM (SELECT id FROM missed WHERE pid = p.pid
-          UNION SELECT id FROM deadline_missed WHERE pid = p.pid
-          UNION SELECT id FROM overdue WHERE pid = p.pid) late
-          WHERE late.id NOT IN (SELECT id FROM special WHERE pid = p.pid)) AS late,
-        (SELECT count(DISTINCT id) FROM special WHERE pid = p.pid) AS "specialHandling",
-        (SELECT avg(seconds) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "averageResponseSeconds",
-        (SELECT count(*) FROM response_times WHERE pid = p.pid AND seconds >= 0) AS "responseCount",
-        (SELECT avg(seconds) FROM completions WHERE pid = p.pid AND seconds >= 0) AS "averageCompletionSeconds",
-        (SELECT count(*) FROM completions WHERE pid = p.pid AND seconds >= 0) AS "completionCount",
+        COALESCE(held.n, 0) AS held,
+        COALESCE(auto.n, 0) AS "autoEscalated",
+        COALESCE(overdue_n.n, 0) AS overdue,
+        COALESCE(late.n, 0) AS late,
+        COALESCE(special_n.n, 0) AS "specialHandling",
+        response.average AS "averageResponseSeconds",
+        COALESCE(response.n, 0) AS "responseCount",
+        completion.average AS "averageCompletionSeconds",
+        COALESCE(completion.n, 0) AS "completionCount",
         rt.average AS "averageRating", COALESCE(rt.n, 0) AS "ratingCount"
-      FROM people p LEFT JOIN ratings rt ON rt.pid = p.pid`);
+      FROM people p
+      LEFT JOIN held ON held.pid = p.pid
+      LEFT JOIN late ON late.pid = p.pid
+      LEFT JOIN auto ON auto.pid = p.pid
+      LEFT JOIN overdue_n ON overdue_n.pid = p.pid
+      LEFT JOIN special_n ON special_n.pid = p.pid
+      LEFT JOIN response ON response.pid = p.pid
+      LEFT JOIN completion ON completion.pid = p.pid
+      LEFT JOIN ratings rt ON rt.pid = p.pid`);
   }
 }

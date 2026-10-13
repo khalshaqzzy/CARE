@@ -132,7 +132,10 @@ export class MediaService {
         )
       : false;
     if (!draftAllowed && !voiceAllowed) throw forbiddenAsNotFound();
-    if (voice?.visibility === 'PRIVATE' && actor.capabilities.includes('CARE_ADMIN'))
+    if (
+      voice?.visibility === 'PRIVATE' &&
+      actor.capabilities.some((capability) => ['CARE_ADMIN', 'DIRECTOR'].includes(capability))
+    )
       await this.prisma.auditEvent.create({
         data: {
           actorId: actor.accountId,

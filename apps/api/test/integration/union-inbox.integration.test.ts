@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PolicyService, type Principal } from '../../src/auth/policy.service';
+import { OrganizationDashboard } from '../../src/voices/dashboard';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const prisma = new PrismaClient();
@@ -18,6 +19,7 @@ const voices = new VoicesService(prisma as never, {} as never, {} as never, poli
 let reporter: Principal;
 let unionHead: Principal;
 let officer: Principal;
+let director: Principal;
 let unitId: string;
 let sourceRow = 0;
 let seq = 0;
@@ -117,6 +119,7 @@ describe('Union private inbox scope and assignment queue', () => {
     reporter = await resolve(await workforce('000001', 'Reporter', 'Member'));
     unionHead = await resolve(await union(UnionSlot.HEAD));
     officer = await resolve(await union(UnionSlot.OFFICER_1));
+    director = await resolve(await workforce('000009', 'Direktur', 'Director'));
   });
   afterAll(async () => prisma.$disconnect());
 
@@ -182,5 +185,59 @@ describe('Union private inbox scope and assignment queue', () => {
     expect(officerAggregate.pendingAssignment).toBeUndefined();
     const reporterAggregate = await voices.dashboardPrivate(reporter, {});
     expect(reporterAggregate.pendingAssignment).toBeUndefined();
+  });
+
+  it('lets the Director read every Private Voice without acting, auditing each read', async () => {
+    const anonymous = await seedVoice({});
+    const identified = await seedVoice({
+      currentHandlerId: officer.accountId,
+      showReporterIdentity: true,
+    });
+
+    const list = await voices.workItems(director, { visibility: 'PRIVATE' });
+    const byId = new Map(list.items.map((item) => [item.id, item]));
+    expect(byId.get(anonymous.id)).toMatchObject({ reporterAlias: anonymous.anonymousAlias });
+    expect(byId.has(identified.id)).toBe(true);
+    // The Director holds no work: their own list stays empty without the Private view.
+    expect((await voices.workItems(director, {})).items).toEqual([]);
+
+    const hidden = await voices.detail(director, anonymous.id);
+    expect(hidden).toMatchObject({
+      audience: 'UNION_ANONYMOUS',
+      anonymousReporter: { alias: anonymous.anonymousAlias },
+      availableActions: [],
+    });
+    expect(hidden).not.toHaveProperty('reporter');
+    expect(await voices.detail(director, identified.id)).toMatchObject({
+      audience: 'UNION_IDENTIFIED',
+      reporter: { name: 'Reporter' },
+      availableActions: [],
+    });
+    const audits = await prisma.auditEvent.findMany({
+      where: { actorId: director.accountId },
+      select: { action: true, resourceId: true },
+    });
+    expect(audits).toEqual(
+      expect.arrayContaining([
+        { action: 'PRIVATE_LIST_READ', resourceId: 'list' },
+        { action: 'PRIVATE_DETAIL_READ', resourceId: anonymous.id },
+        { action: 'PRIVATE_DETAIL_READ', resourceId: identified.id },
+      ]),
+    );
+    await expect(
+      voices.assign(
+        director,
+        anonymous.id,
+        { handlerAccountId: officer.accountId, expectedVersion: anonymous.version },
+        crypto.randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+    const aggregate = await new OrganizationDashboard(prisma as never).aggregate(director, {
+      visibility: 'PRIVATE',
+    });
+    expect(aggregate.scopeLabel).toBe('Seluruh Private Voice');
+    expect(aggregate.total).toBe(await prisma.voice.count({ where: { visibility: 'PRIVATE' } }));
+    expect(aggregate.pendingAssignment).toBeUndefined();
   });
 });

@@ -565,7 +565,7 @@ test('workforce leadership home visual at 360', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByText('Leadership · Read-only')).toBeVisible();
+  await expect(page.locator('.ops-status').first()).toBeVisible();
   await scrollToTop(page);
   await capture(page, `workforce-leadership-home-360-${visualPlatform}.png`, screenshotOptions);
 });

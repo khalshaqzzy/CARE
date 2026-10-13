@@ -94,9 +94,11 @@ describe('Authorization scopes', () => {
     expect(policy.workItemScope(leadership)).toEqual({
       OR: [{ visibility: 'GENERAL', tierHolderIds: { has: 'account' } }],
     });
+    // Director reads every General and Private Voice, read-only.
     expect(await policy.browseScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({
-      OR: [{ reporterId: 'account' }, { visibility: 'GENERAL' }],
+      OR: [{ reporterId: 'account' }, { visibility: { in: ['GENERAL', 'PRIVATE'] } }],
     });
+    expect(policy.workItemScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({ id: { in: [] } });
     const union = principal(['UNION_HEAD'], { accountKind: AccountKind.UNION, employeeId: null });
     expect(await policy.browseScope(union)).toEqual({ visibility: 'GENERAL' });
     expect(policy.workItemScope(union)).toEqual({ OR: [{ visibility: 'PRIVATE' }] });
