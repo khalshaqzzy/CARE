@@ -295,7 +295,18 @@ test('Director reads the operations dashboard without acting, and Private read-o
       capabilities: ['MEMBER', 'DIRECTOR'],
       structuralPosition: 'Director',
     }),
-    dashboardHandlers: handlers,
+    dashboardHandlers: {
+      items: [
+        {
+          ...handlers.items[0]!,
+          accountId: '00000000-0000-4000-8000-000000000400',
+          name: 'Dimas Division',
+          role: 'DIVISION',
+          unitLabel: 'Division A',
+        },
+        ...handlers.items,
+      ],
+    },
   });
   await page.goto('/?basis=REPORTER');
   await expect(statusGrid(page)).toBeVisible();
@@ -304,6 +315,12 @@ test('Director reads the operations dashboard without acting, and Private read-o
   await expect(page.getByRole('heading', { name: 'Butuh Tindakan Saya' })).toHaveCount(0);
   await expect(page.getByRole('group', { name: 'Cakupan kecepatan' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Performa Responder' })).toBeVisible();
+  // Division Heads respond like Managers, so the Director sees them first.
+  await expect(
+    page
+      .getByRole('group', { name: 'Peran responder' })
+      .getByRole('button', { name: /^Division Head/ }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Leadership · Read-only')).toBeVisible();
   await expect.poll(() => bases.length).toBeGreaterThan(0);
   expect(bases.every((basis) => basis === 'HANDLING')).toBe(true);

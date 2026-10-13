@@ -2433,7 +2433,7 @@ Menggantikan pengecualian Director pada §18.8.6 dan baris Director pada matriks
 - **Director memakai papan operasional §18.8.6** dengan satu muka:
   - Tanpa toggle Voice Untuk Saya / Voice Tim Saya; basis selalu `HANDLING`.
   - Tanpa **Butuh Tindakan Saya** dan tanpa **Diri Saya**, karena Director tidak menjadi responder.
-  - Kartu: Status Voice, Sebaran Voice Masuk, Kecepatan Respons & Penanganan, Performa Responder (Manager, Section Head, Group Leader seluruh perusahaan), Partisipasi Anggota, dan Aktivitas Anggota.
+  - Kartu: Status Voice, Sebaran Voice Masuk, Kecepatan Respons & Penanganan, Performa Responder (Division Head, Manager, Section Head, Group Leader seluruh perusahaan; di HP keempat tab tersusun 2×2), Partisipasi Anggota, dan Aktivitas Anggota.
   - Filter organisasi dimulai dari seluruh organisasi dan dapat dipersempit per direktorat, division, department, atau section.
   - Chip **Leadership · Read-only** tetap tampil.
 - **Akses Private Director.** Director membaca seluruh Private Voice secara read-only:

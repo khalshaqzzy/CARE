@@ -10,7 +10,7 @@ import {
   type DashboardQuery,
 } from './dashboard';
 
-type Role = 'GROUP_LEADER' | 'SECTION_HEAD' | 'MANAGER';
+type Role = 'GROUP_LEADER' | 'SECTION_HEAD' | 'MANAGER' | 'DIVISION';
 type Db = PrismaService | Prisma.TransactionClient;
 
 /** Section Head and above see who handles and who reports; Group Leaders do not. */
@@ -18,16 +18,20 @@ function viewer(actor: AuthActor) {
   const caps = actor.capabilities;
   if (caps.some((c) => ['UNION_HEAD', 'UNION_OFFICER', 'CARE_ADMIN'].includes(c)))
     throw forbiddenAsNotFound();
-  // Director reads every unit the way a Division Head reads their division.
-  const leader = caps.includes('DIVISION_LEADERSHIP') || caps.includes('DIRECTOR');
+  // Director reads every unit the way a Division Head reads their division,
+  // and also sees the Division Heads, who respond like Managers.
+  const director = caps.includes('DIRECTOR');
+  const leader = caps.includes('DIVISION_LEADERSHIP') || director;
   const manager = caps.includes('MANAGER');
   const sectionHead = caps.includes('SECTION_HEAD');
   if (!leader && !manager && !sectionHead) throw forbiddenAsNotFound();
-  const roles: Role[] = leader
-    ? ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER']
-    : manager
-      ? ['SECTION_HEAD', 'GROUP_LEADER']
-      : ['GROUP_LEADER'];
+  const roles: Role[] = director
+    ? ['DIVISION', 'MANAGER', 'SECTION_HEAD', 'GROUP_LEADER']
+    : leader
+      ? ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER']
+      : manager
+        ? ['SECTION_HEAD', 'GROUP_LEADER']
+        : ['GROUP_LEADER'];
   return { roles, sectionOnly: !leader && !manager };
 }
 
@@ -65,7 +69,7 @@ async function membersInScope(
       section: true,
       lineName: true,
       organizationUnit: {
-        select: { department: true, shopLocation: { select: { status: true } } },
+        select: { division: true, department: true, shopLocation: { select: { status: true } } },
       },
       employee: {
         select: {
@@ -101,17 +105,19 @@ export class DashboardPeople {
       const level = leaderLevel(m.structuralPosition);
       const account = m.employee.account;
       if (!account || account.id === actor.accountId) continue;
-      if (!level || level === 'DIVISION' || !roles.includes(level)) continue;
+      if (!level || !roles.includes(level)) continue;
       // Lines exist in production shops; elsewhere the Section Head is the first responder.
       if (level === 'GROUP_LEADER' && m.organizationUnit.shopLocation?.status !== 'ACTIVE')
         continue;
       if (people.has(account.id)) continue;
       const unitLabel =
-        level === 'MANAGER'
-          ? m.organizationUnit.department
-          : level === 'SECTION_HEAD'
-            ? m.section
-            : [m.section, m.lineName].filter(Boolean).join(' · ');
+        level === 'DIVISION'
+          ? m.organizationUnit.division
+          : level === 'MANAGER'
+            ? m.organizationUnit.department
+            : level === 'SECTION_HEAD'
+              ? m.section
+              : [m.section, m.lineName].filter(Boolean).join(' · ');
       people.set(account.id, {
         accountId: account.id,
         name: account.displayName,

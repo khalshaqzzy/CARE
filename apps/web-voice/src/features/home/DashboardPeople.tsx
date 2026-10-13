@@ -13,8 +13,9 @@ const ROLE_LABELS = {
   GROUP_LEADER: 'Group Leader',
   SECTION_HEAD: 'Section Head',
   MANAGER: 'Manager',
+  DIVISION: 'Division Head',
 } as const;
-const ROLE_ORDER = ['MANAGER', 'SECTION_HEAD', 'GROUP_LEADER'] as const;
+const ROLE_ORDER = ['DIVISION', 'MANAGER', 'SECTION_HEAD', 'GROUP_LEADER'] as const;
 const PREVIEW = 4;
 
 export function useMyPerformance(query: Query, enabled = true) {
@@ -127,7 +128,11 @@ function Segmented<T extends string>({
   options: { id: T; label: string; count?: number }[];
 }) {
   return (
-    <div className="ops-segmented ops-segmented--small" role="group" aria-label={label}>
+    <div
+      className={`ops-segmented ops-segmented--small${options.length > 3 ? ' ops-segmented--grid' : ''}`}
+      role="group"
+      aria-label={label}
+    >
       {options.map((option) => (
         <button
           type="button"

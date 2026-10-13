@@ -23836,7 +23836,8 @@
                   "enum": [
                     "GROUP_LEADER",
                     "SECTION_HEAD",
-                    "MANAGER"
+                    "MANAGER",
+                    "DIVISION"
                   ]
                 },
                 "unitLabel": {

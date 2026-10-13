@@ -130,7 +130,7 @@ const handler = {
   properties: {
     accountId: { type: 'string', format: 'uuid' },
     name: string,
-    role: { type: 'string', enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'] },
+    role: { type: 'string', enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'] },
     unitLabel: string,
     held: { type: 'integer', minimum: 0 },
     onTimeRate: { type: 'number', nullable: true },

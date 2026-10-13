@@ -2988,7 +2988,7 @@ export interface components {
                 accountId: string;
                 name: string;
                 /** @enum {string} */
-                role: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER";
+                role: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 unitLabel: string;
                 held: number;
                 onTimeRate: number | null;

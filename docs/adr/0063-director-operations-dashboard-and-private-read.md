@@ -25,7 +25,11 @@ Before this decision, Private Voices were readable only by Union (by role) and C
    - The organization chip opens the existing Direktorat → Division → Department → Section selectors, starting at the whole organization.
    - The "Leadership · Read-only" chip stays.
 2. **Operations figures for Director.** The General aggregate computes `statusToday`, `onTime`, `specialHandling`, and `reporterOrigins` for Director on the handling basis. It does not compute `otherBasisTotal`, because Director has no switch.
-3. **People endpoints for Director.** `/dashboard/handlers` and `/dashboard/participation` accept Director and treat them like a Division Head over the whole organization: Managers, Section Heads, and Group Leaders, and every member in the selected organization. `/dashboard/me` still refuses Director.
+3. **People endpoints for Director.** `/dashboard/handlers` and `/dashboard/participation` accept Director and treat them like a Division Head over the whole organization, with every member in the selected organization.
+   - Performa Responder for Director lists Division Heads (role `DIVISION`, unit label = division) before Managers, Section Heads, and Group Leaders. Division Heads respond like Managers, so the Director compares them too.
+   - Viewers below the Director never see Division Heads as rows.
+   - On phones, the four role tabs wrap two by two.
+   - `/dashboard/me` still refuses Director.
 4. **Director Private read access.**
    - `browseScope` gives Director every General and Private Voice. The session detail scopes become `GENERAL_ALL` and `PRIVATE_ALL_READ_ONLY`.
    - The detail uses the Union audiences: `UNION_IDENTIFIED` when the reporter consented, otherwise `UNION_ANONYMOUS` with the alias. Conversation participants and messages hide an anonymous reporter as they do for Union.
@@ -70,7 +74,7 @@ Reusing the Union audiences gives Director the consented view of Private reporte
   - `voices/voices.service.ts` (Director Private list, audits, `dashboardPrivate`)
   - `media/media.service.ts` (media audit)
   - OpenAPI enrichment and the regenerated `openapi.json` and `generated.ts` (`visibility` on `/work-items`)
-- **Workforce:** `features/home/DashboardHome.tsx`, `features/home/OpsDashboard.tsx`, `features/work/WorkItemsPage.tsx`.
+- **Workforce:** `features/home/DashboardHome.tsx`, `features/home/OpsDashboard.tsx`, `features/home/DashboardPeople.tsx`, `features/work/WorkItemsPage.tsx`, `styles.css`.
 - **Tests:**
   - `policy.test.ts`
   - `dashboard-people.integration.test.ts`
