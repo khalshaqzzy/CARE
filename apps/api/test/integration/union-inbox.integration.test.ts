@@ -239,5 +239,9 @@ describe('Union private inbox scope and assignment queue', () => {
     expect(aggregate.scopeLabel).toBe('Seluruh Private Voice');
     expect(aggregate.total).toBe(await prisma.voice.count({ where: { visibility: 'PRIVATE' } }));
     expect(aggregate.pendingAssignment).toBeUndefined();
+    // The Private board reads today's counts and timeliness, never reporter origins.
+    expect(aggregate.onTime).toEqual(expect.objectContaining({ total: expect.any(Number) }));
+    expect(aggregate.statusToday).toBeDefined();
+    expect(aggregate.reporterOrigins).toBeUndefined();
   });
 });

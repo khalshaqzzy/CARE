@@ -335,6 +335,14 @@ export class OrganizationDashboard {
     for (let i = 0; i < 3; i++) {
       const seen = new Set<string>();
       for (const u of allowedUnits) {
+        // Department 14 is the master's placeholder, not a real unit to filter by.
+        // A viewer whose own unit is Department 14 still keeps it selected.
+        if (
+          i === 2 &&
+          u.department.trim() === '14' &&
+          organizationKey(unitParts(u)) !== selections.department
+        )
+          continue;
         const p = unitParts(u).slice(0, i + 1);
         const id = organizationKey(p);
         const parentId = i ? organizationKey(p.slice(0, -1)) : null;
@@ -687,9 +695,13 @@ export class OrganizationDashboard {
     // dashboard. Director reads it on the handling basis only, without a basis
     // switch; Union keeps the organization view.
     const director = actor.capabilities.includes('DIRECTOR');
-    const ops = general && (!c.global || (director && q.basis === 'HANDLING'));
-    // Where a unit's incoming Voices come from; only meaningful on the handling basis.
-    const origins = ops && q.basis === 'HANDLING';
+    // Director also reads today's counts and timeliness on the Private board.
+    const ops =
+      (general && (!c.global || (director && q.basis === 'HANDLING'))) ||
+      (director && q.visibility === 'PRIVATE');
+    // Where a unit's incoming Voices come from; only meaningful on the handling basis,
+    // and never on Private, whose reporter organization stays out of every aggregate.
+    const origins = ops && general && q.basis === 'HANDLING';
     const orgN = levels.indexOf(level) + 1;
     // Group native scalar keys first; serialize one label per resulting bucket,
     // rather than allocating and hashing a JSON string for every Voice.

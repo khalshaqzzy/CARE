@@ -692,6 +692,21 @@ describe('Organization dashboard scope, privacy and filtering', () => {
       (await voices.dashboardPreview(section, { ...common, scopeMode: 'PARENT' })).items,
     ).toEqual([]);
   });
+  it('leaves the Department 14 placeholder out of the organization filter', async () => {
+    const placeholder = await db.organizationUnit.create({
+      data: { directorate: a.directorate, division: a.division, department: '14' },
+    });
+    try {
+      const division = organizationKey([a.directorate, a.division]);
+      const meta = await dashboard.metadata(director, { division });
+      expect(meta.organization.department.map((o) => o.label)).toEqual([
+        a.department,
+        b.department,
+      ]);
+    } finally {
+      await db.organizationUnit.delete({ where: { id: placeholder.id } });
+    }
+  });
   it('retains global division overview while restricting selectable divisions', async () => {
     await seed();
     await seed({

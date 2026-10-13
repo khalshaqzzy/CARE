@@ -108,10 +108,7 @@ test('Manager sees status counts, today and the total on the operations dashboar
   await expect(basisButton(page, 'Voice Tim Saya')).toContainText('9');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
-for (const [name, session] of [
-  ['Director', memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] })],
-  ['Union Head', unionSession({ slot: 'HEAD' })],
-] as const) {
+for (const [name, session] of [['Union Head', unionSession({ slot: 'HEAD' })]] as const) {
   test(`${name} sees the Voice total and four compact status counts`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     const dashboard = {
@@ -128,8 +125,7 @@ for (const [name, session] of [
       generalDashboard: dashboard,
       privateDashboard: dashboard,
     });
-    // Director's summary card lives on their Private tab.
-    await page.goto(name === 'Director' ? '/?dashboardTab=private' : '/');
+    await page.goto('/');
     const summary = page.locator('.dashboard-summary');
     const heading = summary.getByRole('heading', { name: 'Ringkasan Voice', exact: true });
     const total = summary.locator('.dashboard-summary__total');
@@ -329,8 +325,17 @@ test('Director reads the operations dashboard without acting, and Private read-o
     .getByRole('button', { name: 'Private Voice' })
     .click();
   await expect(page).toHaveURL(/dashboardTab=private/);
-  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+  // Private uses the same operations board, without category or people cards.
+  await expect(page.getByRole('heading', { name: 'Sebaran Private Voice' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Private terbaru' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Performa Responder' })).toHaveCount(0);
   await expect(page.getByText('Private · Read-only')).toBeVisible();
+  await page
+    .getByRole('group', { name: 'Jenis dashboard' })
+    .getByRole('button', { name: 'General Voice' })
+    .click();
+  await expect(page).toHaveURL(/dashboardTab=general/);
+  await expect(page.getByRole('heading', { name: 'Sebaran Voice Masuk' })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 test('Division Head reads the operations dashboard without a read-only badge', async ({ page }) => {

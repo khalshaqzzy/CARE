@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, type Area } from '@prisma/client';
 import type { AuthActor } from '../auth/auth.types';
 import { leaderLevel } from '../away/away';
 import { forbiddenAsNotFound } from '../common/errors';
@@ -44,6 +44,7 @@ async function membersInScope(
   actor: AuthActor,
   selected: Partial<Record<'directorate' | 'division' | 'department' | 'section', string>>,
   sectionOnly: boolean,
+  area: Area | undefined,
 ) {
   const deepest = (['section', 'department', 'division', 'directorate'] as const).find(
     (level) => selected[level],
@@ -61,6 +62,8 @@ async function membersInScope(
       snapshot: { status: 'ACTIVE' },
       organizationUnit: unitWhere,
       ...(section ? { section } : {}),
+      // An area filter keeps the people whose Pers Area is that area.
+      ...(area ? { area } : {}),
     },
     select: {
       employeeId: true,
@@ -96,7 +99,13 @@ export class DashboardPeople {
       { ...input, basis: 'HANDLING', visibility: 'GENERAL' },
       'scope',
     );
-    const members = await membersInScope(this.db, actor, context.metadata.selected, sectionOnly);
+    const members = await membersInScope(
+      this.db,
+      actor,
+      context.metadata.selected,
+      sectionOnly,
+      context.q.area,
+    );
     const people = new Map<
       string,
       { accountId: string; name: string; role: Role; unitLabel: string }
@@ -200,7 +209,13 @@ export class DashboardPeople {
       { ...input, basis: 'REPORTER', visibility: 'GENERAL' },
       'scope',
     );
-    const members = await membersInScope(this.db, actor, context.metadata.selected, sectionOnly);
+    const members = await membersInScope(
+      this.db,
+      actor,
+      context.metadata.selected,
+      sectionOnly,
+      context.q.area,
+    );
     const unique = new Map<string, (typeof members)[number]>();
     for (const m of members)
       if (m.employee.account?.id !== actor.accountId && !unique.has(m.employeeId))
@@ -214,6 +229,7 @@ export class DashboardPeople {
           by: ['reporterId'],
           where: {
             reporterId: { in: accountIds },
+            ...(q.area ? { area: q.area } : {}),
             ...(q.from || q.to
               ? {
                   submittedAt: {
