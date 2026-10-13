@@ -193,11 +193,15 @@ export const dashboardSchemas = {
   DashboardPreview: {
     type: 'object',
     additionalProperties: false,
-    required: ['items', 'nextCursor', 'summary'],
+    required: ['items', 'actionItems', 'nextCursor', 'summary'],
     properties: {
+      // The active Voices in view (the inbox).
       items: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
+      // The most urgent Voices waiting for the viewer's own action.
+      actionItems: { type: 'array', items: { $ref: '#/components/schemas/VoiceListItem' } },
       nextCursor: { type: 'string', nullable: true },
-      // Active Voices in view that need the viewer's action.
+      // General: the counts cover the Voices waiting for the viewer's action;
+      // `status` covers every Voice in view.
       summary: {
         type: 'object',
         additionalProperties: false,

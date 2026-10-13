@@ -9268,6 +9268,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "me"
+              ]
+            }
           }
         ],
         "responses": {
@@ -23721,11 +23732,18 @@
         "additionalProperties": false,
         "required": [
           "items",
+          "actionItems",
           "nextCursor",
           "summary"
         ],
         "properties": {
           "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoiceListItem"
+            }
+          },
+          "actionItems": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/VoiceListItem"

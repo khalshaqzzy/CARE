@@ -63,6 +63,8 @@ export type OpsDashboardProps = {
   onOpenRange: (from: string, to: string) => void;
   onOpenVoice: (id: string) => void;
   onOpenList: () => void;
+  /** Voice Member filtered to the Voices waiting for the viewer. */
+  onOpenActionList: () => void;
   peopleQuery: Record<string, string | undefined>;
   peopleInsights: boolean;
   /**
@@ -709,7 +711,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
           isError={props.inbox.isError}
           onPick={props.onOpenAction}
           onOpenVoice={props.onOpenVoice}
-          onMore={props.onOpenList}
+          onMore={props.onOpenActionList}
         />
       ) : null}
       {!props.online ? (

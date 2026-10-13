@@ -1,5 +1,24 @@
 # CARE Session Handoff
 
+## Butuh Tindakan Saya is the viewer's own — 13 October 2026
+
+**Reported on staging:** a Division Head got the escalation notification and saw Proses / Ingatkan when opening the Voice from it. The same Voice was missing from Butuh Tindakan Saya, and the Voice Member list showed it next to many Voices without actions.
+
+**Cause:** Butuh Tindakan Saya counted every active Voice in the handling unit, not the ones waiting for the viewer. For a Division Head that is the whole division, so the raised Voice rarely won "Paling mendesak" (at the top of the chain its deadline is cleared and sorts last). Section Heads and Group Leaders never saw tiered Voices at all, because the unit scope matches `handlingSectionSnapshot`, which a tiered Voice only gets on assignment.
+
+**Changes on `feat/action-needed-summary`** (worktree `../CARE-action`, from `origin/staging` 4d420bf):
+
+- **`PolicyService.actionNeededScope`** defines "waiting for me" (PRD §18.8.6 update of 13 October; ADR-0060 follow-up).
+- **`GET /dashboard/preview`:** the summary counts and the new `actionItems` use that scope for General. `items` (inbox) and `summary.status` keep the unit cohort.
+- **`GET /work-items?action=me`:** lists the same Voices; anything other than `me` returns `ACTION_FILTER_INVALID`.
+- **web-voice:**
+  - The summary card picks "Paling mendesak" from `actionItems`.
+  - The tiles and "Lihat selengkapnya" open `/work-items?action=me` without the dashboard filters.
+  - Voice Member has the **Tindakan → Tindakan saya** pill (label A, chosen by the product owner).
+  - The leadership hero no longer says read-only.
+
+**Validation:** tiered routing integration (new case: Section Head, Manager and Division Head steps and the PIC after Proses), dashboard integration 37/37, the two dashboard browser tests, typecheck and lint. The calendar test in the tiered suite fails locally on clean staging too (reused DB).
+
 ## Penanganan Khusus CI follow-up — 12 October 2026
 
 The first CI run of the branch failed three jobs, none from the feature logic:

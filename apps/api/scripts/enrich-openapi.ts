@@ -44,7 +44,10 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                     ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
                     : parameter === 'scope'
                       ? { type: 'string', enum: ['unit'] }
-                      : { type: 'string' },
+                      : parameter === 'action' &&
+                          operation.operationId === 'VoicesController_workItems'
+                        ? { type: 'string', enum: ['me'] }
+                        : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -203,6 +206,7 @@ const queryParameters: Record<string, string[]> = {
     'division',
     'department',
     'section',
+    'action',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
   VoicesController_dashboardGeneral: dashboardParameters,

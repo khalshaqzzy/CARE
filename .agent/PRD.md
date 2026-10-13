@@ -2426,6 +2426,18 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
 - **Responder terkecil** (Group Leader, atau Section Head tanpa Group Leader, termasuk di department non-shop) melihat kartu berjudul **Kecepatan Respons & Penanganan Saya** berisi angka pribadi, tanpa toggle.
 - **Endpoint baru `GET /dashboard/me`** mengikuti filter dashboard dan dapat dipakai Group Leader. Endpoint ini berada di luar agregat organisasi.
 
+**Pembaruan 13 Oktober 2026 — Butuh Tindakan Saya milik responder sendiri.**
+
+- **Isi kartu.** Butuh Tindakan Saya (angka dan Paling mendesak) hanya menghitung General Voice aktif yang menunggu tindakan orang yang membukanya, di levelnya sendiri, tanpa terpengaruh filter organisasi atau tanggal dashboard:
+  - Terbuka atau Direspon tanpa PIC: pemegang jenjang saat ini (GL, SH, Manager, atau Deputy/Division Head), dan Manager rute untuk kategori tetap.
+  - Naik karena belum diproses: jenjang atas yang bergabung, serta pemegang bawah yang sudah merespons.
+  - Sudah ditugaskan: PIC tersebut; jenjang atas ikut menghitung setelah PIC melewati batas waktunya.
+  - Diproses: hanya PIC.
+  - Substitute ikut menghitung Voice milik pimpinan yang sedang tidak masuk.
+- **Bukan milik saya.** Voice yang masih di Section Head atau Manager tidak masuk Butuh Tindakan Saya Division Head. Voice itu tetap terhitung di Status Voice dan tampil di Voice Member.
+- **Voice Member.** Filter baru **Tindakan → Tindakan saya** (`GET /work-items?action=me`) menampilkan Voice yang sama persis dengan angka kartu. Setiap angka dan **Lihat selengkapnya** membuka Voice Member dengan filter ini. Status Voice dan Inbox Voice Member tetap memakai cakupan unit.
+- **Keterangan Voice Member** untuk pimpinan divisi menjadi "Voice yang ditangani unit Anda.", bukan read-only.
+
 ### 18.8.7 Dashboard Director, Akses Private Director, dan Division Head sebagai Responder — 13 Oktober 2026
 
 Menggantikan pengecualian Director pada §18.8.6 dan baris Director pada matriks Private §7.
