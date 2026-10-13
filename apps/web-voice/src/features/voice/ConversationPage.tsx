@@ -34,8 +34,15 @@ export function ConversationPage() {
   });
 
   const back = () => {
+    // Opened from the detail: step back to it, so its own back still reaches the
+    // list it came from. Pushing the detail again would trap the user between
+    // detail and chat.
+    if ((location.state as { fromDetail?: boolean } | null)?.fromDetail) {
+      void navigate(-1);
+      return;
+    }
     if (id) {
-      void navigate(`/voices/${id}`);
+      void navigate(`/voices/${id}`, { replace: true });
       return;
     }
     // Deep links have no in-app history to return to; land on the root instead.

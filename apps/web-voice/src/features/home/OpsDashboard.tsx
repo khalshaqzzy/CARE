@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { bucketValue } from '../../lib/dashboard-math';
 import { formatCategoryName, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
+import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { NotificationBellButton } from '../notifications/NotificationBell';
 import type { DashboardPreview } from '../../workforce-api';
 import { ActionSummaryCard, type ActionKind } from './ActionSummary';
@@ -70,8 +71,11 @@ export type OpsDashboardProps = {
    * Butuh Tindakan Saya, no "Diri Saya".
    */
   observer?: boolean;
-  /** Director switches from this General view to the Private Voice dashboard. */
+  /** Director switches between the General and the Private Voice boards. */
   onPrivate?: (() => void) | undefined;
+  onGeneral?: (() => void) | undefined;
+  /** Director's read-only Private board: no category, people, or reporter origins. */
+  privateView?: boolean;
   /** Department, Section, or Division: the viewer's own unit level. */
   unitLabel: string;
   /** Division leadership reads General Voices without acting on them. */
@@ -274,12 +278,20 @@ function ProfileCard(props: OpsDashboardProps & { mineLine?: ReactNode }) {
         </span>
       ) : null}
       {props.observer ? (
-        props.onPrivate ? (
+        props.onPrivate || props.onGeneral ? (
           <div className="ops-segmented" role="group" aria-label="Jenis dashboard">
-            <button type="button" aria-pressed="true">
+            <button
+              type="button"
+              aria-pressed={!props.privateView}
+              onClick={props.privateView ? props.onGeneral : undefined}
+            >
               <span>General Voice</span>
             </button>
-            <button type="button" aria-pressed="false" onClick={props.onPrivate}>
+            <button
+              type="button"
+              aria-pressed={Boolean(props.privateView)}
+              onClick={props.privateView ? undefined : props.onPrivate}
+            >
               <span>Private Voice</span>
             </button>
           </div>
@@ -642,6 +654,58 @@ function SpreadCard(props: OpsDashboardProps & { data: View & ViewExtras }) {
   );
 }
 
+/** Private Voices carry no category, and their reporter organization stays hidden. */
+function PrivateSpreadCard({ data }: { data: View & ViewExtras }) {
+  return (
+    <section className="ops-card" aria-labelledby="ops-private-spread">
+      <div className="ops-card__head">
+        <h2 id="ops-private-spread">Sebaran Private Voice</h2>
+        <span className="ops-chip">{data.total} Voice</span>
+      </div>
+      <div className="ops-block">
+        <h3>Severity</h3>
+        <SeverityTiles buckets={data.severity} />
+      </div>
+      <div className="ops-block">
+        <h3>Penanganan per PIC</h3>
+        <OrganizationBars buckets={data.organization} />
+      </div>
+    </section>
+  );
+}
+
+function PrivateLatestCard(props: OpsDashboardProps) {
+  const items = props.inbox.preview?.items ?? [];
+  return (
+    <section className="ops-card" aria-labelledby="ops-private-latest">
+      <div className="ops-card__head">
+        <h2 id="ops-private-latest">Private terbaru</h2>
+        <button type="button" className="ops-text-button" onClick={props.onOpenList}>
+          Lihat semua <ChevronRight size={13} aria-hidden="true" />
+        </button>
+      </div>
+      {props.inbox.isError ? (
+        <p className="ops-empty">Daftar belum tersedia.</p>
+      ) : !props.inbox.preview ? (
+        <Skeleton label="Memuat Private terbaru" />
+      ) : items.length ? (
+        <div className="inbox-list">
+          {items.map((voice) => (
+            <InboxVoiceCard
+              key={voice.id}
+              voice={voice}
+              identity={{ alias: voice.reporterAlias ?? null }}
+              onOpen={() => props.onOpenVoice(voice.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="ops-empty">Tidak ada Private Voice aktif.</p>
+      )}
+    </section>
+  );
+}
+
 function TeamSpreadCard(props: OpsDashboardProps & { data: View & ViewExtras }) {
   const { data } = props;
   const [tab, setTab] = useState<'category' | 'severity' | 'unit'>('category');
@@ -736,7 +800,18 @@ export function OpsDashboard(props: OpsDashboardProps) {
               </button>
             </div>
           ) : null}
-          {team ? (
+          {props.privateView ? (
+            <>
+              <div className="ops-column">
+                <StatusCard data={data} team={false} onOpenRange={props.onOpenRange} />
+                <PrivateSpreadCard data={data} />
+              </div>
+              <div className="ops-column">
+                <SpeedCard data={data} team={false} />
+                <PrivateLatestCard {...props} />
+              </div>
+            </>
+          ) : team ? (
             <>
               <div className="ops-column">
                 <StatusCard data={data} team={team} />

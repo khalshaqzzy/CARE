@@ -160,7 +160,7 @@ function ConversationLink({ voice }: { voice: VoiceDetail }) {
         title="Percakapan"
         description={feed.isLoading ? 'Memuat…' : subtitle}
         trailing={<span className="link-card__cta">Buka Chat</span>}
-        onClick={() => void navigate(`/voices/${voice.id}/chat`)}
+        onClick={() => void navigate(`/voices/${voice.id}/chat`, { state: { fromDetail: true } })}
       />
       {unread ? (
         <span className="voice-conversation__unread" aria-label={`${unread} pesan belum dibaca`}>

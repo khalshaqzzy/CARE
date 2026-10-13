@@ -2443,6 +2443,11 @@ Menggantikan pengecualian Director pada §18.8.6 dan baris Director pada matriks
   - Setiap baca Private oleh Director (daftar, detail, timeline, pesan, media) dicatat sebagai `PRIVATE_*_READ` di audit, sama seperti CARE Admin.
 - **Division Head sebagai responder.** Chip **Leadership · Read-only** dihapus dari papan Division/Deputy Head; tampilannya sama dengan Manager.
 - **API.** `GET /work-items` menerima `visibility=PRIVATE` untuk Director. Endpoint `/dashboard/handlers` dan `/dashboard/participation` kini menerima Director dengan cakupan seluruh organisasi. Agregat General Director menambah `statusToday`, `onTime`, dan `reporterOrigins` (tanpa `otherBasisTotal`); agregat Private menerima Director dengan cakupan seluruh Private.
+- **Revisi 13 Oktober 2026.**
+  - Tab Private Director memakai papan operasional yang sama: Status Voice dengan tren, **Sebaran Private Voice** (severity dan penanganan per PIC Union), Kecepatan Respons & Penanganan, dan **Private terbaru** dengan alias pelapor. Filter PIC Union ada di Filter lainnya. Kategori dan asal pelapor tidak pernah ditampilkan di Private.
+  - Department **14** (placeholder master) tidak muncul di pilihan filter organisasi, kecuali unit penampil sendiri.
+  - Filter area mempersempit Performa Responder dan Partisipasi Anggota ke orang dengan **Pers Area** tersebut, dan hanya menghitung Voice di area itu. Orang tanpa Pers Area tidak tampil selama filter area aktif.
+  - Tombol kembali di percakapan kembali ke detail Voice, lalu ke daftar Voice Member beserta filternya.
 
 ### Amandemen lifecycle — 9 September 2026
 

@@ -310,6 +310,20 @@ export function DashboardHome() {
         },
       ]}
       secondary={[
+        ...(isPrivate && director && meta
+          ? [
+              {
+                id: 'handler',
+                label: 'PIC Union',
+                value: read('handler') ?? '',
+                onValueChange: (v: string) => set({ handler: v || undefined }),
+                options: [
+                  { value: '', label: 'Semua PIC' },
+                  ...meta.handlers.map((h) => ({ value: h.id, label: h.label })),
+                ],
+              },
+            ]
+          : []),
         ...(!isPrivate
           ? [
               {
@@ -391,7 +405,8 @@ export function DashboardHome() {
     next.set('dashboardTab', tab);
     setParams(next);
   };
-  if (basisChoice && !isPrivate) {
+  // Director reads Private on the same operations board; Union keeps its layout.
+  if (basisChoice && (!isPrivate || director)) {
     const otherTotal = data?.otherBasisTotal ?? undefined;
     const basis = query.basis as 'HANDLING' | 'REPORTER';
     return (
@@ -436,9 +451,11 @@ export function DashboardHome() {
         onOpenAction={(kind) => void navigate(listUrl(ACTION_FILTERS[kind]))}
         onOpenRange={(from, to) => void navigate(listUrl({ view: 'ALL', from, to }))}
         peopleQuery={{ ...query, ...refresh.data?.dates }}
-        peopleInsights={peopleInsights}
+        peopleInsights={peopleInsights && !isPrivate}
         observer={director}
         onPrivate={director ? () => pickTab('private') : undefined}
+        onGeneral={director ? () => pickTab('general') : undefined}
+        privateView={isPrivate}
         unitLabel={
           director
             ? 'Perusahaan'
@@ -448,7 +465,9 @@ export function DashboardHome() {
                 ? 'Department'
                 : 'Section'
         }
-        readOnlyLabel={readonly ? 'Leadership · Read-only' : undefined}
+        readOnlyLabel={
+          readonly ? (isPrivate ? 'Private · Read-only' : 'Leadership · Read-only') : undefined
+        }
       />
     );
   }
@@ -469,24 +488,21 @@ export function DashboardHome() {
         </div>
         {readonly ? (
           <span className="member-hero__context">
-            <Lock size={12} /> {isPrivate ? 'Private' : union ? 'General' : 'Leadership'} ·
-            Read-only
+            <Lock size={12} /> {union ? 'General' : 'Leadership'} · Read-only
           </span>
         ) : null}
-        {union || director ? (
+        {union ? (
           <div className="dashboard-tabs dashboard-tabs--hero" aria-label="Jenis dashboard">
-            {(union ? (['private', 'general'] as const) : (['general', 'private'] as const)).map(
-              (tab) => (
-                <button
-                  type="button"
-                  key={tab}
-                  aria-pressed={isPrivate === (tab === 'private')}
-                  onClick={() => pickTab(tab)}
-                >
-                  {tab === 'private' ? 'Private Voice' : 'General Voice'}
-                </button>
-              ),
-            )}
+            {(['private', 'general'] as const).map((tab) => (
+              <button
+                type="button"
+                key={tab}
+                aria-pressed={isPrivate === (tab === 'private')}
+                onClick={() => pickTab(tab)}
+              >
+                {tab === 'private' ? 'Private Voice' : 'General Voice'}
+              </button>
+            ))}
           </div>
         ) : null}
         <VoiceSummaryCard
@@ -554,7 +570,7 @@ export function DashboardHome() {
               ) : null}
               {organizationDialog}
             </>
-          ) : (unionHead || director) && meta ? (
+          ) : unionHead && meta ? (
             <div className="dashboard-private-handler">
               <Select
                 label="PIC Union"

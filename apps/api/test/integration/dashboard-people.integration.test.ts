@@ -527,4 +527,35 @@ describe('Dashboard people: handling performance and member participation', () =
       (await titles({ statusGroup: 'ACTIVE', scope: 'unit' })).length,
     );
   });
+
+  it('narrows people to their Pers Area when the dashboard filters an area', async () => {
+    const setArea = (name: string, area: 'SUNTER_1' | null) =>
+      db.organizationMembership.updateMany({ where: { employeeName: name }, data: { area } });
+    await setArea('Gita GL', 'SUNTER_1');
+    await setArea('Rina Member', 'SUNTER_1');
+    try {
+      const held = await voice({
+        area: 'SUNTER_1',
+        tierHolderIds: [groupLeader.accountId],
+        status: 'RESPONDED',
+      });
+      await event(held.id, 'RESPONDED', groupLeader.accountId, new Date('2026-08-10T02:00:00Z'));
+      await voice({ area: 'KARAWANG_1', tierHolderIds: [groupLeader.accountId] });
+      const sunter = { area: 'SUNTER_1' } as const;
+      const rows = (await people.handlers(director, sunter)).items;
+      expect(rows.map((row) => row.name)).toEqual(['Gita GL']);
+      // Only the Voice in Sunter 1 counts toward the person.
+      expect(rows[0]).toMatchObject({ held: 1 });
+      const participation = await people.participation(director, sunter);
+      expect(participation.members.map((m) => m.name)).toEqual(['Gita GL', 'Rina Member']);
+      expect(participation.members.find((m) => m.name === 'Rina Member')).toMatchObject({
+        voiceCount: 1,
+      });
+      // Without an area, everyone in the organization stays listed.
+      expect((await people.handlers(director, {})).items.length).toBeGreaterThan(1);
+    } finally {
+      await setArea('Gita GL', null);
+      await setArea('Rina Member', null);
+    }
+  });
 });

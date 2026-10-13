@@ -43,6 +43,13 @@ Before this decision, Private Voices were readable only by Union (by role) and C
 6. **Division Head.** The "Leadership · Read-only" chip is removed from the Division Head dashboard.
 7. **Per-person measure.** The per-person measure behind Performa Responder and `/dashboard/me` is rewritten to group every figure per person in one pass instead of correlated subqueries per person. The figures and attribution rules of ADR-0060 are unchanged.
 
+### Follow-up decisions (13 October 2026)
+
+- **Director Private board.** The Private tab uses the operations board instead of the Union hero layout: Status Voice with trend, Sebaran Private Voice (severity and handling per Union PIC), Kecepatan Respons & Penanganan, and Private terbaru with reporter aliases. The PIC Union filter sits in Filter lainnya. The aggregate computes today counts and timeliness for Director on Private; reporter origins stay General-only, so Private never groups by reporter organization. Union keeps its layout.
+- **Department 14.** The master placeholder Department 14 is left out of the organization filter options, unless it is the viewer's own selected unit.
+- **Area filter on people cards.** With an area selected, Performa Responder and Partisipasi Anggota list only people whose Pers Area (`OrganizationMembership.area`) is that area, and count only Voices in it. People without a Pers Area are not listed while an area filter is active.
+- **Back from the chat.** The chat opened from a Voice detail steps back to that detail instead of pushing it again, so the detail's back returns to the Voice Member list with its filters.
+
 ## Rationale
 
 Reusing the operations board keeps one dashboard vocabulary across leadership. Hiding the controls that only make sense for responders avoids implying that the Director must act.

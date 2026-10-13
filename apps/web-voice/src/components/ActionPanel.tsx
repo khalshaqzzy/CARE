@@ -157,7 +157,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         variables.action === 'respond-process' ||
         variables.action === 'assignment-note'
       )
-        void navigate(`/voices/${detail.id}/chat`);
+        void navigate(`/voices/${detail.id}/chat`, { state: { fromDetail: true } });
       else
         setNotice(
           variables.action === 'proceed' || variables.action === 'target'

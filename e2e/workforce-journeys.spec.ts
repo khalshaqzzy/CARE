@@ -510,6 +510,26 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Sudah kami cek, tim sedang menuju lokasi.')).toBeVisible();
   });
 
+  test('back from the chat returns to the detail, then to the Voice Member list', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: responder, voice: generalVoice });
+    await page.goto('/work-items?view=ALL');
+    await page
+      .getByRole('button', { name: new RegExp(generalVoice.title) })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/voices\/voice-1$/);
+    await page.getByRole('button', { name: /Percakapan/ }).click();
+    await expect(page).toHaveURL(/\/voices\/voice-1\/chat$/);
+    await page.getByRole('button', { name: 'Kembali' }).click();
+    await expect(page).toHaveURL(/\/voices\/voice-1$/);
+    await page.getByRole('button', { name: 'Kembali' }).click();
+    // The list keeps the filter it was opened with.
+    await expect(page).toHaveURL(/\/work-items\?view=ALL$/);
+  });
+
   test('conversation scroll keeps the Voice card and composer in place', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { session: responder, voice: generalVoice });
