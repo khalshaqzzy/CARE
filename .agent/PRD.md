@@ -246,7 +246,7 @@ Tiga akun Union non-workforce dikelola Admin terpisah dari workbook: tepat satu 
 ### 6.6 Leadership Read-only
 
 - Division Head, Deputy Division Head, dan Deputy Division Head Pjt. melihat aggregate seluruh General Voice tetapi hanya detail pada division sendiri.
-- Director melihat aggregate dan detail seluruh General Voice.
+- Director melihat aggregate dan detail seluruh General dan Private Voice secara read-only (§18.8.7). Identitas reporter Private mengikuti consent seperti Union, dan setiap akses Private diaudit.
 - Leadership tidak dapat melakukan lifecycle action kecuali account tersebut juga memiliki explicit route capability yang berbeda dan action dilakukan dalam scope capability tersebut.
 
 ---
@@ -264,8 +264,8 @@ Legenda: `M` manage/mutate, `V` view, `O` operate workflow, `-` tidak memiliki a
 | General overview                        |          V |    Own |          Division |     Assigned |             All |        All |        All |           All |
 | General detail                          |          V |    Own |  Dept/route scope |     Assigned |    Own division |        All |        All |           All |
 | General lifecycle action                |          - |      - |       Route scope |     Assigned |               - |          - |          - |             - |
-| Private content                         |     V full |    Own |               Own |          Own |               - |          - |        All |      Assigned |
-| Private reporter identity               |     V full |    Own |               Own |          Own |               - |          - | By consent |    By consent |
+| Private content                         |     V full |    Own |               Own |          Own |               - |      V All |        All |      Assigned |
+| Private reporter identity               |     V full |    Own |               Own |          Own |               - | By consent | By consent |    By consent |
 | Assign Section Head                     |          - |      - |                 M |            - |               - |          - |          - |             - |
 | Assign Union Officer                    |          - |      - |                 - |            - |               - |          - |          M |             - |
 | Private lifecycle action                |          - |      - |                 - |            - |               - |          - |        All |      Assigned |
@@ -907,7 +907,7 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 ### 18.5 Leadership Dashboard
 
 - Division Head, Deputy Division Head, dan Deputy Division Head Pjt. melihat aggregate seluruh General Voice dan detail hanya pada division sendiri;
-- Director melihat aggregate dan detail seluruh General Voice;
+- Director melihat aggregate dan detail seluruh General dan Private Voice secara read-only (§18.8.7);
 - leadership view tidak menampilkan mutation action;
 - grafik minimum untuk semua overview yang berizin: status, severity, category termasuk Environment, trend waktu, dan breakdown division/department sesuai scope.
 - filter dan default rentang mengikuti Manager Dashboard; seluruh chart memiliki
@@ -1865,7 +1865,7 @@ Minimum journeys:
 - [ ] Aggregate overview, scoped list/detail, dan action authorization dipisahkan dan sesuai matriks Section 17.
 - [ ] Grafik minimum mencakup status, severity, category termasuk Environment, trend waktu, dan breakdown division/department sesuai aggregate scope.
 - [ ] Manager mendapat aggregate satu divisi, detail department sendiri, serta operational inbox terpisah untuk global/default route yang menjadi tanggung jawabnya.
-- [ ] Division/Deputy/Pjt. Head, Director, dan Union memperoleh General read-only sesuai scope; Private tetap mengikuti scope Union khusus.
+- [ ] Division/Deputy/Pjt. Head, Director, dan Union memperoleh General read-only sesuai scope; Private mengikuti scope Union khusus, kecuali Director yang membaca seluruh Private read-only dengan audit (§18.8.7).
 - [ ] Inbox severity-first lalu newest dengan server pagination/filter.
 - [ ] Notification Center authoritative dan push best-effort/redacted.
 - [x] Workforce app dan Admin app memakai generated OpenAPI client bersama tetapi dipisahkan sebagai deployment/origin berbeda.
@@ -2425,6 +2425,24 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
   - Tidak ada pembanding periode di mode ini.
 - **Responder terkecil** (Group Leader, atau Section Head tanpa Group Leader, termasuk di department non-shop) melihat kartu berjudul **Kecepatan Respons & Penanganan Saya** berisi angka pribadi, tanpa toggle.
 - **Endpoint baru `GET /dashboard/me`** mengikuti filter dashboard dan dapat dipakai Group Leader. Endpoint ini berada di luar agregat organisasi.
+
+### 18.8.7 Dashboard Director, Akses Private Director, dan Division Head sebagai Responder — 13 Oktober 2026
+
+Menggantikan pengecualian Director pada §18.8.6 dan baris Director pada matriks Private §7.
+
+- **Director memakai papan operasional §18.8.6** dengan satu muka:
+  - Tanpa toggle Voice Untuk Saya / Voice Tim Saya; basis selalu `HANDLING`.
+  - Tanpa **Butuh Tindakan Saya** dan tanpa **Diri Saya**, karena Director tidak menjadi responder.
+  - Kartu: Status Voice, Sebaran Voice Masuk, Kecepatan Respons & Penanganan, Performa Responder (Division Head, Manager, Section Head, Group Leader seluruh perusahaan; di HP keempat tab tersusun 2×2), Partisipasi Anggota, dan Aktivitas Anggota.
+  - Filter organisasi dimulai dari seluruh organisasi dan dapat dipersempit per direktorat, division, department, atau section.
+  - Chip **Leadership · Read-only** tetap tampil.
+- **Akses Private Director.** Director membaca seluruh Private Voice secara read-only:
+  - Tab **General Voice / Private Voice** di Home. Tab Private memakai dashboard Private Union Head (ringkasan, filter PIC Union, cakupan penanganan) dengan chip **Private · Read-only**.
+  - Voice Member mendapat filter **Jenis** (General / Private); daftar Private memakai alias reporter seperti Union.
+  - Detail mengikuti consent: identitas hanya bila reporter memilih tampil, selain itu alias. Tidak ada lifecycle action, assignment, maupun pesan.
+  - Setiap baca Private oleh Director (daftar, detail, timeline, pesan, media) dicatat sebagai `PRIVATE_*_READ` di audit, sama seperti CARE Admin.
+- **Division Head sebagai responder.** Chip **Leadership · Read-only** dihapus dari papan Division/Deputy Head; tampilannya sama dengan Manager.
+- **API.** `GET /work-items` menerima `visibility=PRIVATE` untuk Director. Endpoint `/dashboard/handlers` dan `/dashboard/participation` kini menerima Director dengan cakupan seluruh organisasi. Agregat General Director menambah `statusToday`, `onTime`, dan `reporterOrigins` (tanpa `otherBasisTotal`); agregat Private menerima Director dengan cakupan seluruh Private.
 
 ### Amandemen lifecycle — 9 September 2026
 

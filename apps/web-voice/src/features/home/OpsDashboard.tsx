@@ -65,6 +65,13 @@ export type OpsDashboardProps = {
   onOpenList: () => void;
   peopleQuery: Record<string, string | undefined>;
   peopleInsights: boolean;
+  /**
+   * Director acknowledges without responding: one view, no basis switch, no
+   * Butuh Tindakan Saya, no "Diri Saya".
+   */
+  observer?: boolean;
+  /** Director switches from this General view to the Private Voice dashboard. */
+  onPrivate?: (() => void) | undefined;
   /** Department, Section, or Division: the viewer's own unit level. */
   unitLabel: string;
   /** Division leadership reads General Voices without acting on them. */
@@ -266,26 +273,39 @@ function ProfileCard(props: OpsDashboardProps & { mineLine?: ReactNode }) {
           <Lock size={12} aria-hidden="true" /> {props.readOnlyLabel}
         </span>
       ) : null}
-      <div className="ops-segmented" role="group" aria-label="Basis dashboard">
-        {(
-          [
-            ['HANDLING', 'Voice Untuk Saya'],
-            ['REPORTER', 'Voice Tim Saya'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            type="button"
-            key={id}
-            aria-pressed={props.basis === id}
-            onClick={() => props.onBasis(id)}
-          >
-            <span>{label}</span>
-            {props.counts[id] !== undefined ? (
-              <span className="ops-count">{props.counts[id]}</span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+      {props.observer ? (
+        props.onPrivate ? (
+          <div className="ops-segmented" role="group" aria-label="Jenis dashboard">
+            <button type="button" aria-pressed="true">
+              <span>General Voice</span>
+            </button>
+            <button type="button" aria-pressed="false" onClick={props.onPrivate}>
+              <span>Private Voice</span>
+            </button>
+          </div>
+        ) : null
+      ) : (
+        <div className="ops-segmented" role="group" aria-label="Basis dashboard">
+          {(
+            [
+              ['HANDLING', 'Voice Untuk Saya'],
+              ['REPORTER', 'Voice Tim Saya'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              type="button"
+              key={id}
+              aria-pressed={props.basis === id}
+              onClick={() => props.onBasis(id)}
+            >
+              <span>{label}</span>
+              {props.counts[id] !== undefined ? (
+                <span className="ops-count">{props.counts[id]}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      )}
       {props.mineLine}
       <div className="ops-filters">
         {props.hasOrganizationChoice ? (
@@ -683,7 +703,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
   return (
     <div className={team ? 'ops ops--team' : 'ops ops--handling'}>
       <ProfileCard {...props} mineLine={<MineLine mine={mine} />} />
-      {!team && data ? (
+      {!team && !props.observer && data ? (
         <ActionSummaryCard
           preview={props.inbox.preview}
           isError={props.inbox.isError}
@@ -740,11 +760,21 @@ export function OpsDashboard(props: OpsDashboardProps) {
                 <SpeedCard
                   data={data}
                   team={team}
-                  self={{ unitLabel: props.unitLabel, toggle: hasResponders }}
+                  self={
+                    props.observer
+                      ? undefined
+                      : { unitLabel: props.unitLabel, toggle: hasResponders }
+                  }
                   query={props.peopleQuery}
                 />
                 {props.peopleInsights ? (
                   <ResponderPerformanceCard query={props.peopleQuery} />
+                ) : null}
+                {props.observer && props.peopleInsights ? (
+                  <>
+                    <ParticipationSummaryCard query={props.peopleQuery} />
+                    <MemberActivityCard query={props.peopleQuery} />
+                  </>
                 ) : null}
               </div>
             </>

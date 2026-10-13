@@ -164,7 +164,9 @@ export class OrganizationDashboard {
       !caps.some((c) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(c))
     )
       throw forbiddenAsNotFound();
-    if (q.visibility === 'PRIVATE' && !union) throw forbiddenAsNotFound();
+    // Director reads every Private Voice the way the Union Head does, without acting.
+    const privateAll = caps.includes('UNION_HEAD') || caps.includes('DIRECTOR');
+    if (q.visibility === 'PRIVATE' && !union && !privateAll) throw forbiddenAsNotFound();
     if (
       q.visibility === 'PRIVATE' &&
       (q.basis === 'REPORTER' || q.category || levels.some((l) => q[l]))
@@ -253,8 +255,7 @@ export class OrganizationDashboard {
             )
           : units.filter((u) => u.id === own!.id);
     let scope: Prisma.VoiceWhereInput;
-    if (privateView)
-      scope = caps.includes('UNION_HEAD') ? {} : { currentHandlerId: actor.accountId };
+    if (privateView) scope = privateAll ? {} : { currentHandlerId: actor.accountId };
     else if (global || (leader && scopeMode === 'GLOBAL')) scope = {};
     else if (leader) scope = forPath(unitParts(defaultUnit!).slice(0, 2));
     else if (manager)
@@ -363,15 +364,16 @@ export class OrganizationDashboard {
     for (const l of levels)
       if (selections[l] && !options[l].some((o) => o.id === selections[l]))
         throw forbiddenAsNotFound();
-    const terms = union
-      ? await this.db.unionAccountTerm.findMany({
-          where: {
-            effectiveTo: null,
-            ...(caps.includes('UNION_OFFICER') ? { accountId: actor.accountId } : {}),
-          },
-          select: { accountId: true, slot: true },
-        })
-      : [];
+    const terms =
+      union || privateAll
+        ? await this.db.unionAccountTerm.findMany({
+            where: {
+              effectiveTo: null,
+              ...(caps.includes('UNION_OFFICER') ? { accountId: actor.accountId } : {}),
+            },
+            select: { accountId: true, slot: true },
+          })
+        : [];
     const handlers = terms.map((t) => ({
       id: t.accountId,
       label: t.slot === 'HEAD' ? 'Union Head' : t.slot === 'OFFICER_1' ? 'Union 1' : 'Union 2',
@@ -510,7 +512,7 @@ export class OrganizationDashboard {
         ],
         scopeLabel:
           q.visibility === 'PRIVATE'
-            ? caps.includes('UNION_HEAD')
+            ? privateAll
               ? 'Seluruh Private Voice'
               : 'Penugasan Anda'
             : selections.section
@@ -681,9 +683,11 @@ export class OrganizationDashboard {
     const { q, where, col, level } = c;
     const sql = dashboardSql(where);
     const general = q.visibility === 'GENERAL';
-    // Today's counts, timeliness, origins, and team overdue feed the unit-head
-    // operations dashboard; Director and Union keep the organization view.
-    const ops = general && !c.global;
+    // Today's counts, timeliness, origins, and team overdue feed the operations
+    // dashboard. Director reads it on the handling basis only, without a basis
+    // switch; Union keeps the organization view.
+    const director = actor.capabilities.includes('DIRECTOR');
+    const ops = general && (!c.global || (director && q.basis === 'HANDLING'));
     // Where a unit's incoming Voices come from; only meaningful on the handling basis.
     const origins = ops && q.basis === 'HANDLING';
     const orgN = levels.indexOf(level) + 1;
@@ -707,7 +711,7 @@ export class OrganizationDashboard {
     // and its count rides on the same Voice scan.
     let other: Prisma.Sql | undefined;
     let otherUnavailable = false;
-    if (ops) {
+    if (ops && !director) {
       try {
         other = dashboardSql(
           (
@@ -925,7 +929,8 @@ export class OrganizationDashboard {
         )
       : undefined;
     const teamOverdue = ops && q.basis === 'REPORTER' ? Number(summary.overdue) : undefined;
-    const otherBasisTotal = !ops ? undefined : otherUnavailable ? null : Number(summary.otherTotal);
+    const otherBasisTotal =
+      !ops || director ? undefined : otherUnavailable ? null : Number(summary.otherTotal);
     const missing =
       q.visibility === 'GENERAL' && q.basis === 'HANDLING' ? Number(summary.missing) : null;
     const pendingAssignment =

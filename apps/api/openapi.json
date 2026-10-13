@@ -9135,6 +9135,14 @@
             }
           },
           {
+            "name": "visibility",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "severity",
             "in": "query",
             "required": false,
@@ -23828,7 +23836,8 @@
                   "enum": [
                     "GROUP_LEADER",
                     "SECTION_HEAD",
-                    "MANAGER"
+                    "MANAGER",
+                    "DIVISION"
                   ]
                 },
                 "unitLabel": {

@@ -7740,6 +7740,13 @@
   padding: 3px 10px;
   font-size: 12px;
 }
+/* Four tabs (Director's Performa Responder) do not fit one phone row: two by two. */
+@media (max-width: 479px) {
+  .ops-segmented--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .ops-filters {
   display: flex;
   align-items: center;

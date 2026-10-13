@@ -15,6 +15,7 @@ let unit: OrganizationUnit;
 let remote: OrganizationUnit;
 let manager: Principal,
   director: Principal,
+  divisionHead: Principal,
   sectionHead: Principal,
   otherSectionHead: Principal,
   groupLeader: Principal,
@@ -137,6 +138,7 @@ describe('Dashboard people: handling performance and member participation', () =
     };
     manager = (await person('Dedi Manager', 'Department Head', 'Assembly'))!;
     director = (await person('Dina Director', 'Director', 'Assembly'))!;
+    divisionHead = (await person('Dimas Division', 'Division Head', 'Assembly'))!;
     sectionHead = (await person('Andi SH', 'Section Head', 'Assembly'))!;
     otherSectionHead = (await person('Budi SH', 'Section Head', 'Welding'))!;
     groupLeader = (await person('Gita GL', 'Group Leader', 'Assembly', { line: 'Line 1' }))!;
@@ -238,10 +240,27 @@ describe('Dashboard people: handling performance and member participation', () =
     expect((await people.handlers(sectionHead, {})).items.map((item) => item.name)).toEqual([
       'Gita GL',
     ]);
-    for (const viewer of [groupLeader, director, member])
+    for (const viewer of [groupLeader, member])
       await expect(people.handlers(viewer, {})).rejects.toThrow();
-    for (const viewer of [groupLeader, director])
-      await expect(people.participation(viewer, {})).rejects.toThrow();
+    await expect(people.participation(groupLeader, {})).rejects.toThrow();
+    // Director reads every unit's leaders and members, and the Division Heads too.
+    await voice({ tierHolderIds: [divisionHead.accountId], status: 'RESPONDED' });
+    const directorRows = (await people.handlers(director, {})).items;
+    expect(directorRows.map((item) => item.name)).toEqual(
+      expect.arrayContaining(['Dimas Division', 'Dedi Manager', 'Andi SH', 'Gita GL']),
+    );
+    expect(directorRows[0]).toMatchObject({
+      name: 'Dimas Division',
+      role: 'DIVISION',
+      unitLabel: 'Division A',
+      held: 1,
+    });
+    // Below the Director, Division Heads are not listed as responders.
+    for (const viewer of [manager, divisionHead])
+      expect((await people.handlers(viewer, {})).items.map((item) => item.role)).not.toContain(
+        'DIVISION',
+      );
+    expect((await people.participation(director, {})).memberCount).toBeGreaterThan(0);
   });
 
   it('gives each leader their own figures with the attribution their leader sees', async () => {
@@ -365,8 +384,12 @@ describe('Dashboard people: handling performance and member participation', () =
       averageResponseSeconds: null,
       averageCompletionSeconds: null,
     });
-    // Director and Union keep one handling dashboard without the switcher total.
-    expect('otherBasisTotal' in (await dashboard.aggregate(director, {}))).toBe(false);
+    // Director keeps one handling dashboard without the switcher total, with the
+    // same today counts and timeliness as unit heads.
+    const directorView = await dashboard.aggregate(director, {});
+    expect('otherBasisTotal' in directorView).toBe(false);
+    expect(directorView.onTime).toEqual(expect.objectContaining({ total: expect.any(Number) }));
+    expect(directorView.statusToday).toBeDefined();
   });
 
   it('keeps Penanganan Khusus out of timeliness and counts it apart', async () => {

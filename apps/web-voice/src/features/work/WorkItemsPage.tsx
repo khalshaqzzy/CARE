@@ -55,6 +55,9 @@ export function WorkItemsPage() {
     ['DIVISION_LEADERSHIP', 'DIRECTOR'].includes(capability),
   );
   const isManager = caps.includes('MANAGER');
+  // Director reads General and Private Voices, read-only.
+  const isDirector = caps.includes('DIRECTOR');
+  const directorPrivate = isDirector && searchParams.get('visibility') === 'PRIVATE';
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
@@ -101,6 +104,7 @@ export function WorkItemsPage() {
       due,
       sort,
       orgKey,
+      directorPrivate ? 'private' : 'general',
       unassignedOnly ? 'unassigned' : 'assigned-any',
       nav.cursor,
     ),
@@ -121,7 +125,9 @@ export function WorkItemsPage() {
       };
       return isUnion
         ? api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) })
-        : api.workItems({ ...common, sort, scope: 'unit', ...org });
+        : directorPrivate
+          ? api.workItems({ ...common, sort, visibility: 'PRIVATE' })
+          : api.workItems({ ...common, sort, scope: 'unit', ...org });
     },
     enabled: Boolean(session) && !handoverMode,
     refetchInterval: 3000,
@@ -180,6 +186,7 @@ export function WorkItemsPage() {
     isUnion,
     isUnionHead,
     isLeadership,
+    isDirector,
     unassignedOnly,
   });
   const severityOptions = [
@@ -241,14 +248,16 @@ export function WorkItemsPage() {
           ) : undefined
         }
       />
-      {!isUnion && !handoverMode ? (
+      {!isUnion && !handoverMode && !directorPrivate ? (
         <div className="ops ops--inline">
-          <ActionSummaryCard
-            preview={actions.data}
-            isError={actions.isError}
-            onPick={(kind) => setSearchParams(new URLSearchParams(ACTION_FILTERS[kind]))}
-            onOpenVoice={(id) => void navigate(`/voices/${id}`)}
-          />
+          {isDirector ? null : (
+            <ActionSummaryCard
+              preview={actions.data}
+              isError={actions.isError}
+              onPick={(kind) => setSearchParams(new URLSearchParams(ACTION_FILTERS[kind]))}
+              onOpenVoice={(id) => void navigate(`/voices/${id}`)}
+            />
+          )}
           <div className="ops-card ops-status-strip" role="group" aria-label="Status Voice">
             {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((key) => (
               <button
@@ -298,6 +307,26 @@ export function WorkItemsPage() {
 
       <FilterPillRow
         primary={[
+          ...(isDirector
+            ? [
+                {
+                  id: 'visibility',
+                  label: 'Jenis',
+                  value: directorPrivate ? 'PRIVATE' : 'GENERAL',
+                  neutralValue: 'GENERAL',
+                  onValueChange: (value: string) =>
+                    setSearchParams(
+                      new URLSearchParams(
+                        value === 'PRIVATE' ? { visibility: 'PRIVATE' } : { view: 'ACTIVE' },
+                      ),
+                    ),
+                  options: [
+                    { value: 'GENERAL', label: 'General Voice' },
+                    { value: 'PRIVATE', label: 'Private Voice' },
+                  ],
+                },
+              ]
+            : []),
           ...(handoverMode
             ? []
             : [
@@ -324,7 +353,7 @@ export function WorkItemsPage() {
           },
           ...(handoverMode
             ? []
-            : isUnion
+            : isUnion || directorPrivate
               ? isUnionHead
                 ? [
                     {
@@ -379,7 +408,7 @@ export function WorkItemsPage() {
           handoverMode
             ? []
             : [
-                ...(isUnion
+                ...(isUnion || directorPrivate
                   ? [
                       {
                         id: 'area',
@@ -470,7 +499,9 @@ export function WorkItemsPage() {
                   <InboxVoiceCard
                     key={voice.id}
                     voice={voice}
-                    {...(isUnion ? { identity: { alias: voice.reporterAlias ?? null } } : {})}
+                    {...(isUnion || directorPrivate
+                      ? { identity: { alias: voice.reporterAlias ?? null } }
+                      : {})}
                     onOpen={() => void navigate(`/voices/${voice.id}`)}
                   />
                 ))}
@@ -516,7 +547,13 @@ function MyHandoverCard({ item, onOpen }: { item: HandoverHistoryItem; onOpen: (
   );
 }
 
-function introFor({ isUnion, isUnionHead, isLeadership, unassignedOnly }: Record<string, boolean>) {
+function introFor({
+  isUnion,
+  isUnionHead,
+  isLeadership,
+  isDirector,
+  unassignedOnly,
+}: Record<string, boolean>) {
   if (isUnion)
     return {
       eyebrow: 'Union',
@@ -526,6 +563,11 @@ function introFor({ isUnion, isUnionHead, isLeadership, unassignedOnly }: Record
         : isUnionHead
           ? `Seluruh Private Voice melalui ${PRIVATE_ROUTE_LABEL}, diurutkan berdasarkan severity.`
           : 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
+    };
+  if (isDirector)
+    return {
+      title: 'Voice Member',
+      description: 'Pantau General dan Private Voice secara read-only.',
     };
   if (isLeadership)
     return { title: 'Voice Member', description: 'Pantau General Voice secara read-only.' };

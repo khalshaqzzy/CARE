@@ -187,6 +187,7 @@ const queryParameters: Record<string, string[]> = {
     'search',
     'status',
     'statusGroup',
+    'visibility',
     'severity',
     'area',
     'category',

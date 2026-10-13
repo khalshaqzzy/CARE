@@ -128,7 +128,8 @@ for (const [name, session] of [
       generalDashboard: dashboard,
       privateDashboard: dashboard,
     });
-    await page.goto('/');
+    // Director's summary card lives on their Private tab.
+    await page.goto(name === 'Director' ? '/?dashboardTab=private' : '/');
     const summary = page.locator('.dashboard-summary');
     const heading = summary.getByRole('heading', { name: 'Ringkasan Voice', exact: true });
     const total = summary.locator('.dashboard-summary__total');
@@ -267,25 +268,83 @@ for (const basis of ['HANDLING', 'REPORTER']) {
     await expect(total).toHaveAttribute('data-total', '12');
   });
 }
-for (const [name, session] of [
-  ['Director', memberSession({ capabilities: ['MEMBER', 'DIRECTOR'] })],
-  ['Union Head', unionSession({ slot: 'HEAD' })],
-] as const) {
-  test(`${name} sees one all-Voice dashboard without a basis choice`, async ({ page }) => {
-    const bases: (string | null)[] = [];
-    page.on('request', (request) => {
-      const url = new URL(request.url());
-      if (url.pathname === '/api/v1/dashboard/general') bases.push(url.searchParams.get('basis'));
-    });
-    await mockWorkforceApi(page, { session });
-    await page.goto('/?dashboardTab=general&basis=REPORTER');
-    await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
-    await expect(page.getByRole('group', { name: 'Basis dashboard' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Voice Tim Saya' })).toHaveCount(0);
-    await expect.poll(() => bases.length).toBeGreaterThan(0);
-    expect(bases.every((basis) => basis === 'HANDLING')).toBe(true);
+test('Union Head sees one all-Voice dashboard without a basis choice', async ({ page }) => {
+  const bases: (string | null)[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/v1/dashboard/general') bases.push(url.searchParams.get('basis'));
   });
-}
+  await mockWorkforceApi(page, { session: unionSession({ slot: 'HEAD' }) });
+  await page.goto('/?dashboardTab=general&basis=REPORTER');
+  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Basis dashboard' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Voice Tim Saya' })).toHaveCount(0);
+  await expect.poll(() => bases.length).toBeGreaterThan(0);
+  expect(bases.every((basis) => basis === 'HANDLING')).toBe(true);
+});
+test('Director reads the operations dashboard without acting, and Private read-only', async ({
+  page,
+}) => {
+  const bases: (string | null)[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/v1/dashboard/general') bases.push(url.searchParams.get('basis'));
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'DIRECTOR'],
+      structuralPosition: 'Director',
+    }),
+    dashboardHandlers: {
+      items: [
+        {
+          ...handlers.items[0]!,
+          accountId: '00000000-0000-4000-8000-000000000400',
+          name: 'Dimas Division',
+          role: 'DIVISION',
+          unitLabel: 'Division A',
+        },
+        ...handlers.items,
+      ],
+    },
+  });
+  await page.goto('/?basis=REPORTER');
+  await expect(statusGrid(page)).toBeVisible();
+  // One handling view: no basis switch, no Butuh Tindakan Saya, no "Diri Saya".
+  await expect(page.getByRole('group', { name: 'Basis dashboard' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Butuh Tindakan Saya' })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Cakupan kecepatan' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Performa Responder' })).toBeVisible();
+  // Division Heads respond like Managers, so the Director sees them first.
+  await expect(
+    page
+      .getByRole('group', { name: 'Peran responder' })
+      .getByRole('button', { name: /^Division Head/ }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('Leadership · Read-only')).toBeVisible();
+  await expect.poll(() => bases.length).toBeGreaterThan(0);
+  expect(bases.every((basis) => basis === 'HANDLING')).toBe(true);
+  await page
+    .getByRole('group', { name: 'Jenis dashboard' })
+    .getByRole('button', { name: 'Private Voice' })
+    .click();
+  await expect(page).toHaveURL(/dashboardTab=private/);
+  await expect(page.getByRole('heading', { name: 'Ringkasan Voice' })).toBeVisible();
+  await expect(page.getByText('Private · Read-only')).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+test('Division Head reads the operations dashboard without a read-only badge', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'DIVISION_LEADERSHIP'],
+      structuralPosition: 'Division Head',
+    }),
+  });
+  await page.goto('/');
+  await expect(statusGrid(page)).toBeVisible();
+  await expect(basisButton(page, 'Voice Untuk Saya')).toBeVisible();
+  await expect(page.getByText('Read-only')).toHaveCount(0);
+});
 test('Refresh reloads the dashboard without clearing filters', async ({ page }) => {
   // Metadata is not polled (30 s stale time), so a new request proves the manual refresh.
   let metadataRequests = 0;
