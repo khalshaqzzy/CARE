@@ -24,6 +24,10 @@ export function formatHandlingDueAt(date: Date): string {
     }).format(date) + ' WIB'
   );
 }
+/** Notification text for a Penanganan Khusus reason. */
+export function truncateReason(reason: string, max = 200): string {
+  return reason.length > max ? `${reason.slice(0, max - 1)}…` : reason;
+}
 export function handlingTargetState(dueAt: Date, closedAt: Date | null, now = new Date()) {
   if (closedAt) return closedAt <= dueAt ? 'COMPLETED_ON_TIME' : 'COMPLETED_LATE';
   return now > dueAt ? 'OVERDUE' : 'ON_TRACK';

@@ -1605,13 +1605,15 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         text?: string;
         handlerAccountId?: string;
         days?: number;
+        specialReason?: string;
       };
       if (voice) {
         voice.status = path.endsWith('/close')
           ? 'CLOSED'
           : path.endsWith('/proceed') ||
               path.endsWith('/target') ||
-              (path.endsWith('/respond') && body.days !== undefined)
+              (path.endsWith('/respond') &&
+                (body.days !== undefined || body.specialReason !== undefined))
             ? 'IN_PROGRESS'
             : 'RESPONDED';
         voice.conversationState = voice.status === 'CLOSED' ? 'READ_ONLY' : 'ACTIVE';
@@ -1619,8 +1621,24 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
           voice.status === 'RESPONDED'
             ? ['MESSAGE', 'PROCEED', body.handlerAccountId ? 'REASSIGN' : 'ASSIGN']
             : voice.status === 'IN_PROGRESS'
-              ? ['MESSAGE', 'CLOSE']
+              ? body.specialReason !== undefined
+                ? ['MESSAGE', 'SET_TARGET']
+                : ['MESSAGE', 'CLOSE']
               : [];
+        if (body.specialReason !== undefined) {
+          voice.handlingTargets = [
+            {
+              id: 'target-special',
+              cycleNumber: voice.handlingCycleNumber ?? 1,
+              kind: 'SPECIAL',
+              days: null,
+              setAt: new Date().toISOString(),
+              dueAt: null,
+              specialReason: body.specialReason,
+              state: 'SPECIAL',
+            },
+          ];
+        }
         if (body.days !== undefined) {
           const now = new Date();
           const shifted = new Date(now.getTime() + 7 * 3600000);

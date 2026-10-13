@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { VoiceListItem } from '../workforce-api';
 import { OverdueBadge } from './OverdueBadge';
+import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 import {
   AREA_LABELS,
   formatCategoryName,
@@ -151,6 +152,7 @@ export function InboxVoiceCard({
               ) : null}
             </span>
             {voice.targetOverdue ? <OverdueBadge /> : null}
+            {voice.specialHandling ? <SpecialHandlingBadge /> : null}
             {due ? (
               <span className="inbox-card__due" data-urgent={due.urgent || undefined}>
                 <Timer size={12} aria-hidden="true" />

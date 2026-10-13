@@ -3,6 +3,7 @@ import {
   handlingDueAt,
   handlingReminderAt,
   handlingTargetState,
+  truncateReason,
 } from '../../src/voices/handling-target';
 
 describe('Jakarta calendar target', () => {
@@ -18,6 +19,12 @@ describe('Jakarta calendar target', () => {
     const due = handlingDueAt(new Date('2026-09-21T03:00:00Z'), 2);
     // 23 Sep 2026 08:00 WIB is 01:00 UTC.
     expect(handlingReminderAt(due).toISOString()).toBe('2026-09-23T01:00:00.000Z');
+  });
+  it('shortens a long Penanganan Khusus reason for notifications only', () => {
+    expect(truncateReason('Menunggu budget')).toBe('Menunggu budget');
+    const long = truncateReason('a'.repeat(300));
+    expect(long).toHaveLength(200);
+    expect(long.endsWith('…')).toBe(true);
   });
   it('uses closure time rather than current time for completed commitments', () => {
     const due = new Date('2026-09-21T16:59:59.999Z');

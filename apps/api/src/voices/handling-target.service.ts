@@ -60,7 +60,12 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
         if (!locked) return;
         const { voice, target } = locked;
         const now = new Date();
-        if (target.reminderSentAt || target.days === 0 || now < handlingReminderAt(target.dueAt))
+        if (
+          !target.dueAt ||
+          target.reminderSentAt ||
+          target.days === 0 ||
+          now < handlingReminderAt(target.dueAt)
+        )
           return;
         await tx.voiceHandlingTarget.update({
           where: { id: target.id },
@@ -89,7 +94,7 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
         const locked = await this.lockCurrentTarget(tx, candidate);
         if (!locked) return;
         const { voice, target } = locked;
-        if (target.overdueNotifiedAt || target.dueAt >= new Date()) return;
+        if (!target.dueAt || target.overdueNotifiedAt || target.dueAt >= new Date()) return;
         const now = new Date();
         await tx.voiceHandlingTarget.update({
           where: { id: target.id },

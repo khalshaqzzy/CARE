@@ -1,5 +1,48 @@
 # CARE Session Handoff
 
+## Penanganan Khusus CI follow-up — 12 October 2026
+
+The first CI run of the branch failed three jobs, none from the feature logic:
+
+- **Migration guard.** `scripts/check-migrations.mjs` rejected every `DROP`, including the `DROP NOT NULL` the new migration needs. It now accepts `DROP NOT NULL` and still rejects dropping tables, columns, types or data.
+- **Trivy.** CVE-2026-4775 (HIGH) in Alpine `tiff` 4.7.1-r0 inside the nginx runtime of both web images; fixed in 4.7.2-r0. Both Dockerfiles now pin `tiff=4.7.2-r0` with the other patched packages, the same approach as the OpenSSL and expat pins.
+- **API (performance).** The first run hit `P2028`; the rerun measured a real p95 of 4,882 ms against 2,300 ms on staging. The benchmark's Manager actor takes the operations path, where the new special-handling test ran as a correlated `EXISTS` per Voice. It is now a single materialized `special_targets` lookup matched as a row-value `IN`. Locally on the 50,000-Voice fixture the benchmark measured 1,519–1,674 ms.
+- **Trivy, second finding.** With `tiff` fixed, the Caddy image reported four HIGH findings: Go stdlib 1.25.13 and `golang.org/x/net` v0.58.0 (CVE-2026-78667, -78669, -97031). `deploy/caddy/Dockerfile` now builds on `golang:1.26.9-alpine` with `x/net` v0.60.0, which pulls `x/crypto` v0.57.0 and `x/text` v0.42.0. A local build of the image scans clean with Trivy 0.70 (HIGH/CRITICAL, 0 findings; the Go binary and the Debian base).
+
+## Penanganan Khusus — 12 October 2026
+
+**Objective:** let a PIC process a Voice that needs long discussion (for example a budget decision) without inventing a duration. Implemented on `feat/legacy-voice-import`, uncommitted and not released. The product owner chose the two-tab sheet (variant B) and the Simpan label.
+
+**Decisions (PRD §15.5, ADR-0062):**
+
+- **Penanganan Khusus is a target kind, not a fifth status.** The Voice stays Diproses with a small badge. Statuses remain Open, Direspon, Diproses, Selesai.
+- Target sheet uses two tabs (variant B, chosen by the product owner): **Target hari** (free number input, always editable; Hari ini/1/3/7/14 only fill it) and **Penanganan Khusus** (reason 1–500 characters, no duration). The special tab button reads **Simpan**, not "Mulai diproses".
+- No reminder, overdue notification, Terlambat badge, or remaining-time label. The reporter sees the badge and the reason; the reporter and Department Head are notified.
+- **Close is refused** under special handling (`SPECIAL_HANDLING_REQUIRES_TARGET`); Close becomes Tetapkan target. The PIC may convert it to a day target once, one way. Time counts from the conversion.
+- Reopen cycles and legacy no-target cycles stay closable as before.
+- Dashboard: excluded from on-time and late, shown as a separate "Penanganan Khusus: N".
+- No review date for now; it can be added later.
+
+**Files changed:**
+
+- Docs: `.agent/PRD.md` (§15.2, §15.5, §18.8.6, acceptance checklist, locked rules), `docs/adr/0062-special-handling-target.md`, this handoff, `.agent/implementationPhases.md`.
+- Schema: `schema.prisma` and migration `20261012090000_special_handling_target` (kind enum, reason columns, nullable days/deadline, shape CHECK).
+- API: `voices.service.ts` (schemas, `applyHandlingTarget` create/convert, close guard, list/detail serialization), `actions.ts`, `handling-target.ts`, `handling-target.service.ts` (null-safe worker), `dashboard.ts`, `dashboard-people.ts`, `voice.contracts.ts`; OpenAPI scripts, `openapi.json`, `packages/contracts/src/generated.ts`.
+- Workforce UI: `ActionPanel.tsx` (`TargetPicker` tabs shared by the target dialog and the Respons sheet), `HandlingTargetCard.tsx`, new `SpecialHandlingBadge.tsx`, `VoiceHero`, `VoiceCard`, `InboxVoiceCard`, `HistoryVoiceCard`, `OpsDashboard`, `DashboardPeople`, `styles.css`.
+- Tests: `actions.test.ts`, `handling-target.test.ts`, integration `voice-lifecycle` and `dashboard-people`, e2e `voice-lifecycle.spec.ts` plus mock API, browser inventory 437 → 438 in `validation.test.mjs`.
+
+**Next recommended action:** review the diff, commit, and let hosted CI run the gates that were not run locally. Open question carried over: a review date for Voices that stay in Penanganan Khusus is deferred (ADR-0062).
+
+**Checks run (Windows, scratchpad Node 22.23.2 / pnpm 11.8.0, throwaway pgvector container on 54339, since removed):**
+
+- API and web-voice typecheck, ESLint on changed files, Prettier on changed files (with `--end-of-line auto`).
+- Unit: API 164, web-voice 127, UI 26, frontend-core 15, Admin 2, all passing.
+- Integration: `voice-lifecycle` and `dashboard-people` 34/34 against the migrated database, including the new Penanganan Khusus cases (process, close refusal, silent worker, one-time conversion, dashboard exclusion).
+- Chromium e2e: `voice-lifecycle` and `dashboard` 43/43, including the new sheet test and axe on the dialog.
+- Rendered the sheet and detail at 390 px and checked them against the mock.
+- Gitleaks directory scan: no leaks.
+- Not run locally: visual captures, legacy WebKit, full-stack, performance gate and the migration upgrade harness are left to hosted CI.
+
 ## Fixed-category deadlines — 8 October 2026
 
 - **Product rule:** every General Voice has a deadline.

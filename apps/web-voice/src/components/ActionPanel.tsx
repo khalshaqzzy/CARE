@@ -62,16 +62,27 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [days, setDays] = useState('');
+  // Penanganan Khusus: a reason instead of a number of days.
+  const [special, setSpecial] = useState(false);
+  const [reason, setReason] = useState('');
   const [severity, setSeverity] = useState('');
   const mutationKey = useMutationKey('voice-action');
   const request = useRef<{ signature: string; version: number } | null>(null);
   const validDays = /^\d+$/.test(days) && Number(days) <= 365;
+  const targetReady = special ? reason.trim().length > 0 : validDays;
+  const targetBody = special ? { specialReason: reason.trim() } : { days: Number(days) };
+  // A Voice already in Penanganan Khusus can only be given a day target.
+  const inSpecialHandling = detail.handlingTargets?.some(
+    (target) => target.cycleNumber === detail.handlingCycleNumber && target.kind === 'SPECIAL',
+  );
   const refresh = () => queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId) });
   const open = (action: Action) => {
     setActive(action);
     setError(null);
     setText('');
     setDays('');
+    setSpecial(false);
+    setReason('');
     request.current = null;
     mutationKey.reset();
   };
@@ -85,7 +96,15 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       assignmentBody?: Assignment;
       note?: string;
     }) => {
-      const signature = JSON.stringify({ action, assignmentBody, note, days, severity });
+      const signature = JSON.stringify({
+        action,
+        assignmentBody,
+        note,
+        days,
+        special,
+        reason,
+        severity,
+      });
       if (request.current?.signature !== signature) {
         mutationKey.reset();
         request.current = { signature, version: detail.version };
@@ -94,11 +113,11 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       const key = mutationKey.key();
       if (action === 'respond') return api.respond(detail.id, { text: note!, version }, key);
       if (action === 'respond-process')
-        return api.respond(detail.id, { text: note!, version, days: Number(days) }, key);
+        return api.respond(detail.id, { text: note!, version, ...targetBody }, key);
       if (action === 'proceed' || action === 'target')
         return (action === 'target' ? api.setTarget : api.proceed)(
           detail.id,
-          { days: Number(days), version },
+          { ...targetBody, version },
           key,
         );
       if (action === 'close') return api.close(detail.id, { note: note!, version }, key);
@@ -142,7 +161,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
       else
         setNotice(
           variables.action === 'proceed' || variables.action === 'target'
-            ? 'Target penyelesaian tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
+            ? special
+              ? 'Penanganan Khusus tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
+              : 'Target penyelesaian tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
             : variables.action === 'close'
               ? 'Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.'
               : variables.action === 'take-over'
@@ -322,6 +343,11 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         days={days}
         onDays={setDays}
         validDays={validDays}
+        special={special}
+        onSpecial={setSpecial}
+        reason={reason}
+        onReason={setReason}
+        targetReady={targetReady}
         loading={pending}
         error={error}
         onCancel={cancel}
@@ -365,10 +391,10 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             <Button
               variant="primary"
               loading={pending}
-              disabled={!validDays || pending}
+              disabled={!targetReady || pending}
               onClick={() => mutation.mutate({ action: active })}
             >
-              {active === 'proceed' ? 'Mulai diproses' : 'Simpan target'}
+              {special ? 'Simpan' : active === 'proceed' ? 'Mulai diproses' : 'Simpan target'}
             </Button>
           </div>
         }
@@ -379,24 +405,23 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               {error}
             </Alert>
           ) : null}
-          <Input
-            label="Target penyelesaian (hari)"
-            inputMode="numeric"
-            type="number"
-            min={0}
-            max={365}
-            step={1}
-            value={days}
-            onChange={(event) => setDays(event.target.value)}
-            required
+          <TargetPicker
+            days={days}
+            onDays={setDays}
+            validDays={validDays}
+            special={special}
+            onSpecial={setSpecial}
+            reason={reason}
+            onReason={setReason}
+            allowSpecial={!inSpecialHandling}
             disabled={pending}
-            placeholder="Masukkan jumlah hari"
           />
-          <TargetPresets days={days} onDays={setDays} disabled={pending} validDays={validDays} />
-          <p className="dialog-copy">
-            Target tidak dapat diubah dalam siklus ini. Pelapor dan penanggung jawab menerima
-            notifikasi; pengingat dikirim sekali jika target terlewati.
-          </p>
+          {special ? null : (
+            <p className="dialog-copy">
+              Target tidak dapat diubah dalam siklus ini. Pelapor dan penanggung jawab menerima
+              notifikasi; pengingat dikirim sekali jika target terlewati.
+            </p>
+          )}
         </Stack>
       </Dialog>
       <Dialog
@@ -543,6 +568,86 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
   );
 }
 
+/**
+ * Target choice shared by the target dialog and the Respons sheet: a day count
+ * (typed freely; the presets only fill it) or Penanganan Khusus with a reason.
+ */
+function TargetPicker({
+  days,
+  onDays,
+  validDays,
+  special,
+  onSpecial,
+  reason,
+  onReason,
+  allowSpecial,
+  disabled,
+}: {
+  days: string;
+  onDays: (value: string) => void;
+  validDays: boolean;
+  special: boolean;
+  onSpecial: (value: boolean) => void;
+  reason: string;
+  onReason: (value: string) => void;
+  allowSpecial: boolean;
+  disabled: boolean;
+}) {
+  const showSpecial = allowSpecial && special;
+  return (
+    <>
+      {allowSpecial ? (
+        <div className="target-tabs" role="radiogroup" aria-label="Jenis target">
+          {[
+            { value: false, label: 'Target hari' },
+            { value: true, label: 'Penanganan Khusus' },
+          ].map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="radio"
+              aria-checked={special === item.value}
+              disabled={disabled}
+              onClick={() => onSpecial(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {showSpecial ? (
+        <Textarea
+          label="Alasan"
+          value={reason}
+          onChange={(event) => onReason(event.target.value)}
+          rows={3}
+          maxLength={500}
+          counter={`${reason.length}/500`}
+          required
+          disabled={disabled}
+        />
+      ) : (
+        <>
+          <Input
+            label="Target penyelesaian (hari)"
+            inputMode="numeric"
+            type="number"
+            min={0}
+            max={365}
+            step={1}
+            value={days}
+            onChange={(event) => onDays(event.target.value)}
+            required
+            disabled={disabled}
+            placeholder="Masukkan jumlah hari"
+          />
+          <TargetPresets days={days} onDays={onDays} disabled={disabled} validDays={validDays} />
+        </>
+      )}
+    </>
+  );
+}
+
 /** Day presets plus the resulting due date; shared by the target dialog and the Respons sheet. */
 function TargetPresets({
   days,
@@ -594,6 +699,11 @@ function RespondSheet({
   days,
   onDays,
   validDays,
+  special,
+  onSpecial,
+  reason,
+  onReason,
+  targetReady,
   loading,
   error,
   onCancel,
@@ -608,6 +718,11 @@ function RespondSheet({
   days: string;
   onDays: (value: string) => void;
   validDays: boolean;
+  special: boolean;
+  onSpecial: (value: boolean) => void;
+  reason: string;
+  onReason: (value: string) => void;
+  targetReady: boolean;
   loading: boolean;
   error: string | null;
   onCancel: () => void;
@@ -629,7 +744,7 @@ function RespondSheet({
       (choice === 'reply' ||
         choice === 'escalate' ||
         (choice === 'assign' && Boolean(handler)) ||
-        (choice === 'process' && validDays)));
+        (choice === 'process' && targetReady)));
   return (
     <Dialog
       open={open}
@@ -701,7 +816,17 @@ function RespondSheet({
           />
         )}
         {choice === 'process' ? (
-          <TargetPresets days={days} onDays={onDays} disabled={loading} validDays={validDays} />
+          <TargetPicker
+            days={days}
+            onDays={onDays}
+            validDays={validDays}
+            special={special}
+            onSpecial={onSpecial}
+            reason={reason}
+            onReason={onReason}
+            allowSpecial
+            disabled={loading}
+          />
         ) : null}
       </Stack>
     </Dialog>

@@ -78,6 +78,64 @@ for (const width of [360, 390, 768, 1440]) {
   });
 }
 
+test('Penanganan Khusus saves a reason, keeps Tutup away, and converts to a day target', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'POST' && /\/(proceed|target)$/.test(path))
+      requests.push({ path, body: request.postDataJSON() });
+  });
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'MANAGER'],
+      structuralPosition: 'Department Head',
+    }),
+    voice: {
+      id: 'special-voice',
+      displayId: 'CARE-202610-000003',
+      visibility: 'GENERAL',
+      status: 'RESPONDED',
+      area: 'KARAWANG_1',
+      title: 'Anggaran AC ruang istirahat',
+      detail: 'Ruang istirahat terlalu panas.',
+      availableActions: ['PROCEED', 'MESSAGE'],
+    },
+  });
+  await page.goto('/voices/special-voice');
+  await page.getByRole('button', { name: 'Proses Voice', exact: true }).click();
+  const start = page.getByRole('dialog', { name: 'Mulai penanganan' });
+  await expect(start.getByRole('radio', { name: 'Target hari' })).toBeChecked();
+  await start.getByRole('radio', { name: 'Penanganan Khusus' }).click();
+  await expect(start.getByRole('spinbutton')).toHaveCount(0);
+  const save = start.getByRole('button', { name: 'Simpan', exact: true });
+  await expect(start.getByRole('button', { name: 'Mulai diproses' })).toHaveCount(0);
+  await expect(save).toBeDisabled();
+  await start.getByRole('textbox', { name: 'Alasan' }).fill('Menunggu persetujuan budget.');
+  expect((await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations).toEqual(
+    [],
+  );
+  await save.click();
+  await expect(page.locator('[aria-current="step"]')).toHaveText('Diproses');
+  await expect(page.locator('.voice-special').first()).toHaveText('Penanganan Khusus');
+  await expect(page.getByRole('region', { name: 'Penanganan Khusus' })).toContainText(
+    'Menunggu persetujuan budget.',
+  );
+  await expect(page.getByRole('button', { name: 'Selesaikan Voice' })).toHaveCount(0);
+  expect(requests[0]?.body).toMatchObject({ specialReason: 'Menunggu persetujuan budget.' });
+  expect(requests[0]?.body).not.toHaveProperty('days');
+
+  await page.getByRole('button', { name: 'Tetapkan target baru' }).click();
+  const convert = page.getByRole('dialog', { name: 'Tetapkan target baru' });
+  await expect(convert.getByRole('radiogroup', { name: 'Jenis target' })).toHaveCount(0);
+  await convert.getByRole('button', { name: '3 hari', exact: true }).click();
+  await convert.getByRole('button', { name: 'Simpan target' }).click();
+  await expect(page.locator('.voice-special')).toHaveCount(0);
+  expect(requests[1]?.body).toMatchObject({ days: 3 });
+});
+
 test('Respons sheet processes in one step or leads to handover', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const requests: Array<{ path: string; body: Record<string, unknown> }> = [];

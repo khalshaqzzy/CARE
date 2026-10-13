@@ -569,16 +569,21 @@ export class OrganizationDashboard {
     } = {},
   ) {
     const extra = [...new Set(columns)].map((name) => Prisma.sql`, ${column(name)}`);
+    // Penanganan Khusus has no deadline, so it stays out of timeliness and is counted apart.
+    // Looked up once per query (hashed), not per Voice: the set of live special cycles is tiny.
+    const special = Prisma.sql`(v.status = 'IN_PROGRESS'
+      AND (v.id, v."handlingCycleNumber") IN (SELECT "voiceId", "cycleNumber" FROM special_targets))`;
     const operations = ops
       ? Prisma.sql`count(*) FILTER (WHERE "submittedAt" >= (SELECT t FROM bound)) AS "openedToday",
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM flags WHERE proceeded)) AS "proceededToday",
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM closed)) AS "closedToday",
+          count(*) FILTER (WHERE (v.status <> 'OPEN'
+            OR v.id IN (SELECT "voiceId" FROM flags WHERE missed)) AND NOT ${special}) AS "onTimeTotal",
           count(*) FILTER (WHERE v.status <> 'OPEN'
-            OR v.id IN (SELECT "voiceId" FROM flags WHERE missed)) AS "onTimeTotal",
-          count(*) FILTER (WHERE v.status <> 'OPEN'
-            AND v.id NOT IN (SELECT "voiceId" FROM flags WHERE missed)) AS "onTime"`
+            AND v.id NOT IN (SELECT "voiceId" FROM flags WHERE missed) AND NOT ${special}) AS "onTime",
+          count(*) FILTER (WHERE ${special}) AS "specialHandling"`
       : Prisma.sql`0::bigint AS "openedToday", 0::bigint AS "proceededToday", 0::bigint AS "closedToday",
-          0::bigint AS "onTimeTotal", 0::bigint AS "onTime"`;
+          0::bigint AS "onTimeTotal", 0::bigint AS "onTime", 0::bigint AS "specialHandling"`;
     return (
       await this.db.$queryRaw<
         Array<{
@@ -598,6 +603,7 @@ export class OrganizationDashboard {
           closedToday: bigint;
           onTimeTotal: bigint;
           onTime: bigint;
+          specialHandling: bigint;
           overdue: bigint;
           metrics: Array<{ kind: string; label: string | null; value: number | bigint }> | null;
           otherTotal: bigint | null;
@@ -614,6 +620,8 @@ export class OrganizationDashboard {
         SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted
         FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type IN ('MONITORED', 'RESPONDED')
         GROUP BY v.id, v."submittedAt"
+      ), special_targets AS MATERIALIZED (
+        SELECT t."voiceId", t."cycleNumber" FROM "VoiceHandlingTarget" t WHERE t.kind = 'SPECIAL'
       ), flags AS MATERIALIZED (
         SELECT e."voiceId",
           bool_or(e.type = 'PROCEEDED') AS proceeded,
@@ -906,6 +914,7 @@ export class OrganizationDashboard {
     const onTime = ops
       ? { onTime: Number(summary.onTime), total: Number(summary.onTimeTotal) }
       : null;
+    const specialHandling = ops ? Number(summary.specialHandling) : undefined;
     const reporterOrigins = origins
       ? count(
           metrics
@@ -938,6 +947,7 @@ export class OrganizationDashboard {
       previousPerformance,
       ...(statusToday ? { statusToday } : {}),
       ...(onTime ? { onTime } : {}),
+      ...(specialHandling !== undefined ? { specialHandling } : {}),
       ...(reporterOrigins ? { reporterOrigins } : {}),
       ...(teamOverdue !== undefined ? { teamOverdue } : {}),
       ...(otherBasisTotal !== undefined ? { otherBasisTotal } : {}),

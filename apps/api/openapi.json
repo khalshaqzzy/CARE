@@ -19621,14 +19621,19 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "days",
           "version"
         ],
+        "description": "Either days, or specialReason for Penanganan Khusus (no deadline). Penanganan Khusus converts to days once.",
         "properties": {
           "days": {
             "type": "integer",
             "minimum": 0,
             "maximum": 365
+          },
+          "specialReason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
           },
           "version": {
             "type": "integer",
@@ -19652,8 +19657,16 @@
           "cycleNumber": {
             "type": "integer"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "DAYS",
+              "SPECIAL"
+            ]
+          },
           "days": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "setAt": {
             "type": "string",
@@ -19661,7 +19674,17 @@
           },
           "dueAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
+          },
+          "specialReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialSetAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "state": {
             "type": "string",
@@ -19669,7 +19692,8 @@
               "ON_TRACK",
               "OVERDUE",
               "COMPLETED_ON_TIME",
-              "COMPLETED_LATE"
+              "COMPLETED_LATE",
+              "SPECIAL"
             ]
           }
         }
@@ -20682,6 +20706,11 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 365
+          },
+          "specialReason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
           }
         }
       },
@@ -23620,6 +23649,7 @@
           "onTimeRate",
           "autoEscalated",
           "overdue",
+          "specialHandling",
           "averageResponseSeconds",
           "responseSampleCount",
           "averageCompletionSeconds",
@@ -23645,6 +23675,10 @@
             "minimum": 0
           },
           "overdue": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "specialHandling": {
             "type": "integer",
             "minimum": 0
           },
@@ -23777,6 +23811,7 @@
                 "autoEscalated",
                 "averageResponseSeconds",
                 "overdue",
+                "specialHandling",
                 "averageRating",
                 "ratingCount"
               ],
@@ -23816,6 +23851,10 @@
                   "nullable": true
                 },
                 "overdue": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "specialHandling": {
                   "type": "integer",
                   "minimum": 0
                 },
@@ -24647,6 +24686,10 @@
                 "minimum": 0
               }
             }
+          },
+          "specialHandling": {
+            "type": "integer",
+            "minimum": 0
           },
           "reporterOrigins": {
             "type": "array",
@@ -26799,6 +26842,9 @@
             "nullable": true
           },
           "targetOverdue": {
+            "type": "boolean"
+          },
+          "specialHandling": {
             "type": "boolean"
           },
           "tierDueAt": {

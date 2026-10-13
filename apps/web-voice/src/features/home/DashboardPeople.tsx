@@ -160,6 +160,7 @@ function ResponderRow({ person, top }: { person: HandlerPerformance; top: boolea
         </span>
         <small>
           {ROLE_LABELS[person.role]} · {person.unitLabel}
+          {person.specialHandling ? ` · Penanganan Khusus: ${person.specialHandling}` : ''}
         </small>
       </span>
       <span className="ops-person__figures">

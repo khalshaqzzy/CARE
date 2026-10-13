@@ -3,6 +3,7 @@ import { Activity, ArrowRight, Flag, Layers, MapPin } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { VoiceListItem } from '../workforce-api';
 import { OverdueBadge } from './OverdueBadge';
+import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 import {
   AREA_LABELS,
   formatCategoryName,
@@ -77,6 +78,7 @@ export function VoiceCard({
         <span className="voice-reopened">Dibuka kembali</span>
       ) : null}
       {voice.targetOverdue ? <OverdueBadge /> : null}
+      {voice.specialHandling ? <SpecialHandlingBadge /> : null}
       <h3 className="voice-card__title">{voice.title}</h3>
       <div className="voice-card__panel">
         <ValueRow

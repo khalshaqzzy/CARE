@@ -1,5 +1,17 @@
 # CARE v1.1 Implementation Phases
 
+## Penanganan Khusus target kind — 12 October 2026
+
+Phase 13 remains the only `in_progress` phase. Implemented locally on `feat/legacy-voice-import` (uncommitted, not released). Long-running Voices:
+
+- Penanganan Khusus is a target kind with a reason, not a fifth status; the Voice stays Diproses with a badge.
+- Close is refused until a day target is set; conversion to days is one time and one way.
+- It is excluded from on-time and late figures and counted separately on the dashboard.
+- The target sheet uses two tabs, Target hari and Penanganan Khusus (button Simpan).
+- Hosted CI remains the authority for the gates not run locally (see the handoff).
+
+See PRD §15.5 and ADR-0062.
+
 ## Unit-head operations dashboard — 4 October 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/ops-dashboard`, not yet released:
