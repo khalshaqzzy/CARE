@@ -159,3 +159,8 @@ A labelled dock removes guesswork about icon meaning, a recurring issue for occa
   - Diproses: the PIC only.
 - **Preview response.** `GET /dashboard/preview` adds `actionItems` (the three most urgent Voices waiting for the viewer). `items` (the inbox) and `summary.status` keep the unit cohort.
 - **Voice Member.** `GET /work-items?action=me` lists the same Voices, behind the new **Tindakan → Tindakan saya** filter. Every summary link opens it, without the dashboard filters.
+- **Card layout (same day, after release).** Butuh Tindakan Saya and Status Voice each answer one question:
+  - **Butuh Tindakan Saya ("what do I do next").** It shows Perlu Direspon / Perlu Diproses / Perlu Diselesaikan, which add up to the total. A separate **Selesai oleh saya** tile counts Voices whose current closure the viewer made (`PolicyService.closedByScope`, all time). The viewer's own urgency chips appear only when non-zero.
+  - **Status Voice ("how is my unit").** It adds **Perlu perhatian** (lewat batas, < 24 jam, kritis over the unit cohort, `summary.attention`) right under the status tiles, and drops the status bar.
+  - **Preview summary.** It gains `responded`, `inProgress`, `closedByMe` and `attention`.
+  - **Work items.** `GET /work-items` accepts `action=closed`.

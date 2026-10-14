@@ -782,9 +782,13 @@ const actionList = {
 const actionSummary = {
   total: 5,
   open: 2,
+  responded: 2,
+  inProgress: 1,
   overdue: 1,
   dueSoon: 1,
   critical: 1,
+  closedByMe: 4,
+  attention: { overdue: 3, dueSoon: 0, critical: 1 },
   status: [
     { label: 'OPEN', value: 2 },
     { label: 'RESPONDED', value: 2 },
@@ -807,10 +811,40 @@ test('Butuh Tindakan Saya sums up first and each count opens Voice Member', asyn
     [...document.querySelectorAll('#ops-actions, #ops-status')].map((el) => el.id),
   );
   expect(order).toEqual(['ops-actions', 'ops-status']);
-  await expect(card.locator('.ops-actions__tile strong')).toHaveText(['1', '1', '2', '1']);
+  // The next steps add up to the total; Selesai oleh saya stands beside them.
+  await expect(card.locator('.ops-actions__tile span')).toHaveText([
+    'Perlu Direspon',
+    'Perlu Diproses',
+    'Perlu Diselesaikan',
+    'Selesai oleh saya',
+  ]);
+  await expect(card.locator('.ops-actions__tile strong')).toHaveText(['2', '2', '1', '4']);
+  await expect(card.locator('.ops-urgency__chip')).toHaveText([
+    '1 Lewat batas',
+    '1 Batas < 24 jam',
+    '1 Kritis',
+  ]);
   await expect(card.locator('.ops-actions__next')).toContainText('Lampu jalur forklift redup');
   await expect(card.locator('.ops-actions__next')).toContainText('Terlambat 3 jam');
-  await card.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
+  // Status Voice: the unit's urgency right under the tiles, a zero greyed out.
+  const unit = page.getByRole('group', { name: 'Perlu perhatian' });
+  await expect(unit.getByRole('button')).toHaveText([
+    '3 Lewat batas',
+    '0 Batas < 24 jam',
+    '1 Kritis',
+  ]);
+  await expect(page.locator('section[aria-labelledby="ops-status"] .ops-stack')).toHaveCount(0);
+  await unit.getByRole('button', { name: '3 Lewat batas' }).click();
+  await expect(page).toHaveURL(/due=OVERDUE/);
+  // The unit list keeps the dashboard filters and is not the action list.
+  await expect(page).toHaveURL(/area=SUNTER_1/);
+  expect(page.url()).not.toContain('action=');
+  await page.goBack();
+  await card.getByRole('button', { name: 'Selesai oleh saya: 4 Voice' }).click();
+  await expect(page).toHaveURL(/action=closed/);
+  await expect(page).toHaveURL(/view=CLOSED/);
+  await page.goBack();
+  await card.getByRole('button', { name: '1 Lewat batas' }).click();
   await expect(page).toHaveURL(/\/work-items\?/);
   await expect(page).toHaveURL(/due=OVERDUE/);
   // The counts are the viewer's own, whatever the dashboard filters.
@@ -847,7 +881,7 @@ test('Voice Member opens with the summaries and orders what needs action first',
   // Unit heads list the same unit the summaries count.
   expect(lists.at(-1)?.searchParams.get('scope')).toBe('unit');
   await expect(page.locator('.inbox-card__due').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Lewat batas: 1 Voice' }).click();
+  await page.getByRole('button', { name: '1 Lewat batas' }).click();
   await expect(page).toHaveURL(/due=OVERDUE/);
   await expect.poll(() => lists.at(-1)?.searchParams.get('due')).toBe('OVERDUE');
   // A tile lists only the Voices waiting for the viewer, like its count.

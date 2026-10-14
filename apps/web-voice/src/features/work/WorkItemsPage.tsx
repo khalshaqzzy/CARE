@@ -59,9 +59,11 @@ export function WorkItemsPage() {
   const isDirector = caps.includes('DIRECTOR');
   const directorPrivate = isDirector && searchParams.get('visibility') === 'PRIVATE';
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
-  // "Tindakan saya": the Voices Butuh Tindakan Saya counts.
+  // "Tindakan saya" / "Selesai oleh saya": the Voices Butuh Tindakan Saya counts.
   const canAct = !isUnion && !isDirector;
-  const actionMine = canAct && searchParams.get('action') === 'me';
+  const rawAction = searchParams.get('action');
+  const actionFilter =
+    canAct && (rawAction === 'me' || rawAction === 'closed') ? rawAction : undefined;
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
   const handoverMode = isManager && rawView === 'HANDOVERS';
@@ -109,7 +111,7 @@ export function WorkItemsPage() {
       orgKey,
       directorPrivate ? 'private' : 'general',
       unassignedOnly ? 'unassigned' : 'assigned-any',
-      actionMine ? 'action-me' : 'action-any',
+      actionFilter ?? 'action-any',
       nav.cursor,
     ),
     queryFn: () => {
@@ -131,8 +133,8 @@ export function WorkItemsPage() {
         ? api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) })
         : directorPrivate
           ? api.workItems({ ...common, sort, visibility: 'PRIVATE' })
-          : actionMine
-            ? api.workItems({ ...common, sort, action: 'me' })
+          : actionFilter
+            ? api.workItems({ ...common, sort, action: actionFilter })
             : api.workItems({ ...common, sort, scope: 'unit', ...org });
     },
     enabled: Boolean(session) && !handoverMode,
@@ -382,13 +384,23 @@ export function WorkItemsPage() {
                         {
                           id: 'action',
                           label: 'Tindakan',
-                          value: actionMine ? 'me' : 'all',
+                          value: actionFilter ?? 'all',
                           neutralValue: 'all',
+                          // Closed Voices are only ever "Selesai oleh saya".
                           onValueChange: (value: string) =>
-                            setParam('action', value === 'me' ? 'me' : undefined),
+                            setSearchParams(
+                              new URLSearchParams(
+                                value === 'closed'
+                                  ? { view: 'CLOSED', action: 'closed' }
+                                  : value === 'me'
+                                    ? { view: 'ACTIVE', action: 'me' }
+                                    : { view: 'ACTIVE' },
+                              ),
+                            ),
                           options: [
                             { value: 'all', label: 'Semua' },
                             { value: 'me', label: 'Tindakan saya' },
+                            { value: 'closed', label: 'Selesai oleh saya' },
                           ],
                         },
                       ]

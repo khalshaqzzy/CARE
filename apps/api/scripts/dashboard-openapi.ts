@@ -205,8 +205,32 @@ export const dashboardSchemas = {
       summary: {
         type: 'object',
         additionalProperties: false,
-        required: ['total', 'open', 'overdue', 'dueSoon', 'critical', 'status'],
+        required: [
+          'total',
+          'open',
+          'responded',
+          'inProgress',
+          'overdue',
+          'dueSoon',
+          'critical',
+          'closedByMe',
+          'attention',
+          'status',
+        ],
         properties: {
+          // General: Voices whose current closure the viewer made.
+          closedByMe: { type: 'integer', minimum: 0 },
+          // General: the urgent active Voices of the whole cohort in view.
+          attention: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['overdue', 'dueSoon', 'critical'],
+            properties: {
+              overdue: { type: 'integer', minimum: 0 },
+              dueSoon: { type: 'integer', minimum: 0 },
+              critical: { type: 'integer', minimum: 0 },
+            },
+          },
           // Every status in the same cohort as the counts, closed included.
           status: {
             type: 'array',
@@ -222,6 +246,8 @@ export const dashboardSchemas = {
           },
           total: { type: 'integer', minimum: 0 },
           open: { type: 'integer', minimum: 0 },
+          responded: { type: 'integer', minimum: 0 },
+          inProgress: { type: 'integer', minimum: 0 },
           overdue: { type: 'integer', minimum: 0 },
           dueSoon: { type: 'integer', minimum: 0 },
           critical: { type: 'integer', minimum: 0 },

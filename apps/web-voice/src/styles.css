@@ -8965,11 +8965,23 @@
   font-weight: 750;
   line-height: 1.1;
 }
+/* Same label weight as Status Voice; the two-word steps wrap quietly on phones. */
 .ops-actions__tile span {
   color: var(--ops-ink-2);
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.2;
+}
+@media (max-width: 479px) {
+  .ops-actions__tile {
+    padding: 8px 3px;
+  }
+  .ops-actions__tile strong {
+    font-size: 19px;
+  }
+  .ops-actions__tile span {
+    font-size: 10px;
+  }
 }
 .ops-actions__tile[data-kind='overdue']:not([data-zero]) {
   border-color: #fecdd3;
@@ -8986,6 +8998,75 @@
   color: #b45309;
 }
 .ops-actions__tile[data-zero] strong {
+  color: var(--ops-ink-3);
+}
+/* Selesai oleh saya sits beside the steps but is not part of the total. */
+.ops-actions__tile[data-kind='closed'] {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+.ops-actions__tile[data-kind='closed']:not([data-zero]) strong {
+  color: var(--ops-good);
+}
+
+/* Urgency chips: the viewer's own under Butuh Tindakan Saya, the unit's in Status Voice. */
+.ops-urgency {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ops-urgency__label {
+  margin-right: 2px;
+  color: var(--ops-ink-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+/* On phones the label takes its own line so the three chips stay together. */
+@media (max-width: 479px) {
+  .ops-urgency__label {
+    flex-basis: 100%;
+  }
+  .ops-urgency__chip {
+    padding: 5px 9px;
+    font-size: 11.5px;
+  }
+}
+.ops-urgency__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--ops-line);
+  border-radius: 999px;
+  background: var(--ops-tile);
+  color: var(--ops-ink-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ops-urgency__chip strong {
+  font-family: var(--ops-display);
+  font-size: 13px;
+}
+/* A darker red than --ops-alert keeps 12px chip text above 4.5:1. */
+.ops-urgency__chip[data-kind='overdue']:not([data-zero]) {
+  border-color: #fecdd3;
+  background: var(--ops-alert-soft);
+  color: #be123c;
+}
+.ops-urgency__chip[data-kind='soon']:not([data-zero]) {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #b45309;
+}
+.ops-urgency__chip[data-kind='critical']:not([data-zero]) {
+  border-color: #fecdd3;
+  color: #be123c;
+}
+.ops-urgency__chip[data-zero] {
   color: var(--ops-ink-3);
 }
 .ops-actions__next {

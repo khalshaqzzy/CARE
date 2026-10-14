@@ -2971,6 +2971,12 @@ export interface components {
             actionItems: components["schemas"]["VoiceListItem"][];
             nextCursor: string | null;
             summary: {
+                closedByMe: number;
+                attention: {
+                    overdue: number;
+                    dueSoon: number;
+                    critical: number;
+                };
                 status: {
                     /** @enum {string} */
                     label: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
@@ -2978,6 +2984,8 @@ export interface components {
                 }[];
                 total: number;
                 open: number;
+                responded: number;
+                inProgress: number;
                 overdue: number;
                 dueSoon: number;
                 critical: number;
@@ -12035,7 +12043,7 @@ export interface operations {
                 division?: string;
                 department?: string;
                 section?: string;
-                action?: "me";
+                action?: "me" | "closed";
             };
             header?: never;
             path?: never;

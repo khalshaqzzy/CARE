@@ -23,7 +23,12 @@ import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { NotificationBellButton } from '../notifications/NotificationBell';
 import type { DashboardPreview } from '../../workforce-api';
-import { ActionSummaryCard, type ActionKind } from './ActionSummary';
+import {
+  ActionSummaryCard,
+  AttentionRow,
+  type ActionKind,
+  type AttentionKind,
+} from './ActionSummary';
 import {
   formatDuration,
   initials,
@@ -66,6 +71,8 @@ export type OpsDashboardProps = {
   onOpenList: () => void;
   /** Voice Member filtered to the Voices waiting for the viewer. */
   onOpenActionList: () => void;
+  /** Voice Member over the unit, filtered to one urgency. */
+  onOpenAttention: (kind: AttentionKind) => void;
   peopleQuery: Record<string, string | undefined>;
   peopleInsights: boolean;
   /**
@@ -360,10 +367,15 @@ function StatusCard({
   data,
   team,
   onOpenRange,
+  attention,
+  onAttention,
 }: {
   data: View & ViewExtras;
   team: boolean;
   onOpenRange?: ((from: string, to: string) => void) | undefined;
+  /** Urgent active Voices of the unit in view (handling basis only). */
+  attention?: DashboardPreview['summary']['attention'] | undefined;
+  onAttention?: ((kind: AttentionKind) => void) | undefined;
 }) {
   const total = data.total;
   return (
@@ -386,16 +398,9 @@ function StatusCard({
           );
         })}
       </div>
-      {total > 0 ? (
-        <div className="ops-stack" aria-hidden="true">
-          {STATUSES.map((status) => (
-            <span
-              key={status}
-              data-status={status}
-              style={{ width: `${(bucketValue(data.status, status) / total) * 100}%` }}
-            />
-          ))}
-        </div>
+      {/* Right under the tiles, where Butuh Tindakan Saya shows its urgency. */}
+      {attention && onAttention ? (
+        <AttentionRow attention={attention} onPick={onAttention} />
       ) : null}
       <TrendMini data={data} onOpenRange={onOpenRange} />
     </section>
@@ -830,7 +835,13 @@ export function OpsDashboard(props: OpsDashboardProps) {
           ) : (
             <>
               <div className="ops-column">
-                <StatusCard data={data} team={team} onOpenRange={props.onOpenRange} />
+                <StatusCard
+                  data={data}
+                  team={team}
+                  onOpenRange={props.onOpenRange}
+                  attention={props.inbox.preview?.summary.attention}
+                  onAttention={props.onOpenAttention}
+                />
                 <SpreadCard {...props} data={data} />
               </div>
               <div className="ops-column">

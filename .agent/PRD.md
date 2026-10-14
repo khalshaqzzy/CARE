@@ -2438,6 +2438,14 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
 - **Voice Member.** Filter baru **Tindakan → Tindakan saya** (`GET /work-items?action=me`) menampilkan Voice yang sama persis dengan angka kartu. Setiap angka dan **Lihat selengkapnya** membuka Voice Member dengan filter ini. Status Voice dan Inbox Voice Member tetap memakai cakupan unit.
 - **Keterangan Voice Member** untuk pimpinan divisi menjadi "Voice yang ditangani unit Anda.", bukan read-only.
 
+**Pembaruan 13 Oktober 2026 — susunan kartu.**
+
+- **Butuh Tindakan Saya** memecah total menurut langkah berikutnya: **Perlu Direspon** (Terbuka), **Perlu Diproses** (Direspon), **Perlu Diselesaikan** (Diproses, sebagai PIC). Ketiga angka selalu berjumlah sama dengan total.
+  - Di sebelahnya ada kotak hijau **Selesai oleh saya**: Voice yang penutupan terakhirnya dilakukan orang itu dan belum dibuka kembali, sepanjang waktu, tidak termasuk total.
+  - Di bawah kotak tampil chip mendesak pribadi (**Lewat batas**, **Batas < 24 jam**, **Kritis**) bila angkanya lebih dari 0, lalu **Paling mendesak**.
+- **Status Voice** menampilkan baris **Perlu perhatian** (Lewat batas · Batas < 24 jam · Kritis) tepat di bawah kotak status. Angkanya mencakup seluruh unit dalam filter dashboard, termasuk Voice yang masih di jenjang bawah, dan membuka Voice Member dengan filter yang sama. Batang warna status dihapus dari kartu ini.
+- **Voice Member:** filter **Tindakan** berisi Semua · Tindakan saya · Selesai oleh saya (`action=closed`).
+
 ### 18.8.7 Dashboard Director, Akses Private Director, dan Division Head sebagai Responder — 13 Oktober 2026
 
 Menggantikan pengecualian Director pada §18.8.6 dan baris Director pada matriks Private §7.

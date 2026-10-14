@@ -1,5 +1,31 @@
 # CARE Session Handoff
 
+## Butuh Tindakan Saya and Status Voice layout — 13 October 2026
+
+**Follow-up after PR #83:** a Deputy Division Head saw "4 Voice" with all four tiles at 0. Those tiles (lewat batas, < 24 jam, belum direspons, kritis) overlap and do not split the total. The four Voices were Direspon with more than a day left.
+
+**Product owner decisions:**
+
+- **Butuh Tindakan Saya (personal):**
+  - Perlu Direspon / Perlu Diproses / Perlu Diselesaikan add up to the total.
+  - A green **Selesai oleh saya** tile beside them.
+  - Personal urgency chips only when non-zero.
+  - Smaller tile labels, matching Status Voice.
+- **Status Voice (unit):** a **Perlu perhatian** row right under the tiles (unit urgency, including Voices still held below). The red/blue/green status bar is removed from this card.
+
+**Changes on `feat/action-card-breakdown`** (worktree `../CARE-action` from `origin/staging` 196353b):
+
+- **API:**
+  - `PolicyService.closedByScope`.
+  - The preview summary gains `responded`, `inProgress`, `closedByMe` and `attention`.
+  - `GET /work-items?action=closed`.
+- **web-voice:**
+  - `ActionSummaryCard` rewritten, with `AttentionRow` in `StatusCard` (handling view only).
+  - The Voice Member **Tindakan** filter gains "Selesai oleh saya".
+  - The status bar stays on the Voice Saya history page.
+
+**Validation:** dashboard people, tiered routing and organization dashboard integration 54/55 (the calendar test fails on clean staging with this local DB too), plus the updated dashboard browser tests.
+
 ## Butuh Tindakan Saya is the viewer's own — 13 October 2026
 
 **Reported on staging:** a Division Head got the escalation notification and saw Proses / Ingatkan when opening the Voice from it. The same Voice was missing from Butuh Tindakan Saya, and the Voice Member list showed it next to many Voices without actions.
