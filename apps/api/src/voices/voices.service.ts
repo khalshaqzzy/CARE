@@ -1076,41 +1076,44 @@ export class VoicesService {
     } = {},
   ) {
     this.assertStatusFilter(query.status, query.statusGroup);
-    if (query.action !== undefined && query.action !== 'me')
-      throw badRequest('ACTION_FILTER_INVALID', 'action must be me');
+    if (query.action !== undefined && query.action !== 'me' && query.action !== 'closed')
+      throw badRequest('ACTION_FILTER_INVALID', 'action must be me or closed');
     const director = actor.capabilities.includes('DIRECTOR');
     // Director's Private list: every Private Voice, read-only.
     const directorPrivate = director && query.visibility === 'PRIVATE';
     // scope=unit: the unit-head dashboard cohort (the selected organization's
     // handled General Voices the viewer may open), so Voice Member lists exactly
     // what Home and Butuh Tindakan Saya count. Otherwise the personal work list.
-    // action=me: exactly the Voices "Butuh Tindakan Saya" counts.
+    // action=me / closed: exactly the Voices "Butuh Tindakan Saya" counts as
+    // waiting for the viewer / closed by them.
     const where: Prisma.VoiceWhereInput = directorPrivate
       ? { AND: [{ visibility: VoiceVisibility.PRIVATE }, await this.policy.detailScope(actor)] }
       : query.action === 'me'
         ? this.policy.actionNeededScope(actor)
-        : query.scope === 'unit'
-          ? {
-              AND: [
-                (
-                  await this.organizationDashboard.context(
-                    actor,
-                    {
-                      basis: 'HANDLING',
-                      visibility: 'GENERAL',
-                      scopeMode: query.scopeMode,
-                      directorate: query.directorate,
-                      division: query.division,
-                      department: query.department,
-                      section: query.section,
-                    } as DashboardQuery,
-                    'scope',
-                  )
-                ).where,
-                await this.policy.detailScope(actor),
-              ],
-            }
-          : this.policy.workItemScope(actor);
+        : query.action === 'closed'
+          ? this.policy.closedByScope(actor)
+          : query.scope === 'unit'
+            ? {
+                AND: [
+                  (
+                    await this.organizationDashboard.context(
+                      actor,
+                      {
+                        basis: 'HANDLING',
+                        visibility: 'GENERAL',
+                        scopeMode: query.scopeMode,
+                        directorate: query.directorate,
+                        division: query.division,
+                        department: query.department,
+                        section: query.section,
+                      } as DashboardQuery,
+                      'scope',
+                    )
+                  ).where,
+                  await this.policy.detailScope(actor),
+                ],
+              }
+            : this.policy.workItemScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
@@ -3523,11 +3526,14 @@ export class VoicesService {
         },
       });
     // Status counts share the dashboard cohort, so Voice Member and Home agree.
-    const [summary, byStatus, rows, actionRows] = await Promise.all([
+    const [summary, byStatus, rows, actionRows, unit, closedByMe] = await Promise.all([
       this.actionSummary(waiting),
       this.prisma.voice.groupBy({ by: ['status'], where: scoped, _count: { _all: true } }),
       latest(active),
       general ? latest(waiting) : null,
+      // Status Voice "Perlu perhatian": the urgent Voices of the whole unit.
+      general ? this.actionSummary(active) : null,
+      general ? this.prisma.voice.count({ where: this.policy.closedByScope(actor) }) : 0,
     ]);
     const shape = ({
       anonymousAlias,
@@ -3554,6 +3560,12 @@ export class VoicesService {
       nextCursor: null,
       summary: {
         ...summary,
+        closedByMe,
+        attention: {
+          overdue: (unit ?? summary).overdue,
+          dueSoon: (unit ?? summary).dueSoon,
+          critical: (unit ?? summary).critical,
+        },
         status: [
           VoiceStatus.OPEN,
           VoiceStatus.RESPONDED,
@@ -3568,9 +3580,9 @@ export class VoicesService {
   }
 
   /**
-   * "Butuh Tindakan Saya": active Voices in view, those past the deadline that
-   * applies (tier window or the live handling target), those due within a day,
-   * still Terbuka, and Kritis.
+   * Counts over a set of active Voices: per status (what the next step is),
+   * past the deadline that applies (tier window or the live handling target),
+   * due within a day, and Kritis.
    */
   private async actionSummary(active: Prisma.VoiceWhereInput) {
     const now = new Date();
@@ -3580,14 +3592,16 @@ export class VoicesService {
     ]);
     const count = (extra?: Prisma.VoiceWhereInput) =>
       this.prisma.voice.count({ where: extra ? { AND: [active, extra] } : active });
-    const [total, open, late, dueSoon, critical] = await Promise.all([
+    const [total, open, responded, inProgress, late, dueSoon, critical] = await Promise.all([
       count(),
       count({ status: VoiceStatus.OPEN }),
+      count({ status: VoiceStatus.RESPONDED }),
+      count({ status: VoiceStatus.IN_PROGRESS }),
       count(overdue),
       count(soon),
       count({ severity: Severity.CRITICAL }),
     ]);
-    return { total, open, overdue: late, dueSoon, critical };
+    return { total, open, responded, inProgress, overdue: late, dueSoon, critical };
   }
 
   /**

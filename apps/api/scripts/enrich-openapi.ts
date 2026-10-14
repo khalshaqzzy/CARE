@@ -46,7 +46,7 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                       ? { type: 'string', enum: ['unit'] }
                       : parameter === 'action' &&
                           operation.operationId === 'VoicesController_workItems'
-                        ? { type: 'string', enum: ['me'] }
+                        ? { type: 'string', enum: ['me', 'closed'] }
                         : { type: 'string' },
           });
       if (

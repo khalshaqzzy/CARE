@@ -266,6 +266,16 @@ export class PolicyService {
     };
   }
 
+  /** "Selesai oleh saya": General Voices whose current closure this responder made. */
+  closedByScope(actor: Principal): Prisma.VoiceWhereInput {
+    return {
+      visibility: VoiceVisibility.GENERAL,
+      status: VoiceStatus.CLOSED,
+      // Only the latest cycle is never reopened.
+      closureCycles: { some: { actorId: actor.accountId, reopenedAt: null } },
+    };
+  }
+
   async detailScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     const browse = await this.browseScope(actor);
     // A match-all browse scope (CARE Admin) already covers every clause below.

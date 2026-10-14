@@ -3,7 +3,10 @@ import { ChevronRight, Clock3 } from 'lucide-react';
 import { remainingTime } from '../../lib/deadline';
 import type { DashboardPreview } from '../../workforce-api';
 
-export type ActionKind = 'overdue' | 'soon' | 'open' | 'critical';
+/** What the Voice needs next from the viewer, and the urgency markers. */
+export type ActionKind =
+  'open' | 'responded' | 'inProgress' | 'closed' | 'overdue' | 'soon' | 'critical';
+export type AttentionKind = 'overdue' | 'soon' | 'critical';
 type Item = DashboardPreview['items'][number];
 
 const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -11,18 +14,34 @@ const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2,
 /** The Voice Member list of every Voice waiting for the viewer. */
 export const ACTION_LIST: Record<string, string> = { view: 'ACTIVE', action: 'me' };
 
-/** Search parameters of the Voice Member list behind each summary tile. */
+/** Search parameters of the Voice Member list behind each summary count. */
 export const ACTION_FILTERS: Record<ActionKind, Record<string, string>> = {
+  open: { ...ACTION_LIST, view: 'OPEN' },
+  responded: { ...ACTION_LIST, view: 'RESPONDED' },
+  inProgress: { ...ACTION_LIST, view: 'IN_PROGRESS' },
+  closed: { view: 'CLOSED', action: 'closed' },
   overdue: { ...ACTION_LIST, due: 'OVERDUE' },
   soon: { ...ACTION_LIST, due: 'SOON' },
-  open: { ...ACTION_LIST, view: 'OPEN' },
   critical: { ...ACTION_LIST, severity: 'CRITICAL' },
 };
 
+/** Status Voice "Perlu perhatian": the same urgency over the whole unit. */
+export const ATTENTION_FILTERS: Record<AttentionKind, Record<string, string>> = {
+  overdue: { view: 'ACTIVE', due: 'OVERDUE' },
+  soon: { view: 'ACTIVE', due: 'SOON' },
+  critical: { view: 'ACTIVE', severity: 'CRITICAL' },
+};
+
+export const URGENCY_LABELS: Record<AttentionKind, string> = {
+  overdue: 'Lewat batas',
+  soon: 'Batas < 24 jam',
+  critical: 'Kritis',
+};
+
 /**
- * "Butuh Tindakan Saya": how many active Voices wait for the viewer at their
- * own level, each count opening the matching Voice Member list, and the single
- * most urgent of them.
+ * "Butuh Tindakan Saya": the Voices waiting for the viewer at their own level,
+ * split by the next step so the counts add up to the total, how many the
+ * viewer closed, the urgent ones among them, and the single most urgent Voice.
  */
 export function ActionSummaryCard({
   preview,
@@ -49,11 +68,20 @@ export function ActionSummaryCard({
   const due = next ? remainingTime(next.tierDueAt) : null;
   const tiles: [ActionKind, string, number][] = summary
     ? [
-        ['overdue', 'Lewat batas', summary.overdue],
-        ['soon', 'Batas < 24 jam', summary.dueSoon],
-        ['open', 'Belum direspons', summary.open],
-        ['critical', 'Kritis', summary.critical],
+        ['open', 'Perlu Direspon', summary.open],
+        ['responded', 'Perlu Diproses', summary.responded],
+        ['inProgress', 'Perlu Diselesaikan', summary.inProgress],
+        ['closed', 'Selesai oleh saya', summary.closedByMe],
       ]
+    : [];
+  const urgent: [AttentionKind, number][] = summary
+    ? (
+        [
+          ['overdue', summary.overdue],
+          ['soon', summary.dueSoon],
+          ['critical', summary.critical],
+        ] as [AttentionKind, number][]
+      ).filter(([, value]) => value > 0)
     : [];
   return (
     <section className="ops-card ops-actions ops-span-2" aria-labelledby="ops-actions">
@@ -65,8 +93,6 @@ export function ActionSummaryCard({
         <p className="ops-empty">Ringkasan belum tersedia.</p>
       ) : !summary ? (
         <Skeleton label="Memuat Voice yang butuh tindakan" />
-      ) : summary.total === 0 ? (
-        <p className="ops-empty">Tidak ada Voice yang menunggu Anda.</p>
       ) : (
         <>
           <div className="ops-actions__tiles">
@@ -85,7 +111,24 @@ export function ActionSummaryCard({
               </button>
             ))}
           </div>
-          {next ? (
+          {urgent.length ? (
+            <div className="ops-urgency" role="group" aria-label="Mendesak">
+              {urgent.map(([kind, value]) => (
+                <button
+                  type="button"
+                  className="ops-urgency__chip"
+                  data-kind={kind}
+                  key={kind}
+                  onClick={() => onPick(kind)}
+                >
+                  <strong>{value}</strong> {URGENCY_LABELS[kind]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {summary.total === 0 ? (
+            <p className="ops-empty">Tidak ada Voice yang menunggu Anda.</p>
+          ) : next ? (
             <button
               type="button"
               className="ops-actions__next"
@@ -111,5 +154,37 @@ export function ActionSummaryCard({
         </Button>
       ) : null}
     </section>
+  );
+}
+
+/** Status Voice "Perlu perhatian": urgent active Voices of the whole unit. */
+export function AttentionRow({
+  attention,
+  onPick,
+}: {
+  attention: DashboardPreview['summary']['attention'];
+  onPick: (kind: AttentionKind) => void;
+}) {
+  const items: [AttentionKind, number][] = [
+    ['overdue', attention.overdue],
+    ['soon', attention.dueSoon],
+    ['critical', attention.critical],
+  ];
+  return (
+    <div className="ops-urgency ops-urgency--unit" role="group" aria-label="Perlu perhatian">
+      <span className="ops-urgency__label">Perlu perhatian</span>
+      {items.map(([kind, value]) => (
+        <button
+          type="button"
+          className="ops-urgency__chip"
+          data-kind={kind}
+          data-zero={value === 0 || undefined}
+          key={kind}
+          onClick={() => onPick(kind)}
+        >
+          <strong>{value}</strong> {URGENCY_LABELS[kind]}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -35,7 +35,7 @@ import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useOnlineStatus } from '../../lib/use-online-status';
 import { DashboardPerformance } from './DashboardPerformance';
 import { OpsDashboard } from './OpsDashboard';
-import { ACTION_FILTERS, ACTION_LIST } from './ActionSummary';
+import { ACTION_FILTERS, ACTION_LIST, ATTENTION_FILTERS } from './ActionSummary';
 import { PersonalVoiceSection } from './PersonalVoiceSection';
 
 const orgLevels = ['directorate', 'division', 'department', 'section'] as const;
@@ -453,6 +453,8 @@ export function DashboardHome() {
           void navigate(`/work-items?${new URLSearchParams(ACTION_FILTERS[kind])}`)
         }
         onOpenActionList={() => void navigate(`/work-items?${new URLSearchParams(ACTION_LIST)}`)}
+        // "Perlu perhatian" counts the unit in view, so its list keeps the filters.
+        onOpenAttention={(kind) => void navigate(listUrl(ATTENTION_FILTERS[kind]))}
         onOpenRange={(from, to) => void navigate(listUrl({ view: 'ALL', from, to }))}
         peopleQuery={{ ...query, ...refresh.data?.dates }}
         peopleInsights={peopleInsights && !isPrivate}

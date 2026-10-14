@@ -9276,7 +9276,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "me"
+                "me",
+                "closed"
               ]
             }
           }
@@ -23759,12 +23760,43 @@
             "required": [
               "total",
               "open",
+              "responded",
+              "inProgress",
               "overdue",
               "dueSoon",
               "critical",
+              "closedByMe",
+              "attention",
               "status"
             ],
             "properties": {
+              "closedByMe": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attention": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "overdue",
+                  "dueSoon",
+                  "critical"
+                ],
+                "properties": {
+                  "overdue": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "dueSoon": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "critical": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
               "status": {
                 "type": "array",
                 "items": {
@@ -23796,6 +23828,14 @@
                 "minimum": 0
               },
               "open": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "responded": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "inProgress": {
                 "type": "integer",
                 "minimum": 0
               },

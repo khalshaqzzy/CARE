@@ -470,26 +470,49 @@ describe('Dashboard people: handling performance and member participation', () =
         dueAt: new Date(now - hour),
       },
     });
-    await voice({ title: 'Tutup', status: 'CLOSED' });
+    const closed = await voice({ title: 'Tutup', status: 'CLOSED' });
+    // Closed by the Manager: counted once, until it is reopened.
+    await db.closureCycle.create({
+      data: { voiceId: closed.id, cycleNumber: 1, actorId: manager.accountId, note: 'Selesai' },
+    });
+    const reopened = await voice({ title: 'Dibuka lagi', status: 'CLOSED' });
+    await db.closureCycle.create({
+      data: {
+        voiceId: reopened.id,
+        cycleNumber: 1,
+        actorId: manager.accountId,
+        note: 'Selesai',
+        reopenedAt: new Date(),
+      },
+    });
+    await db.closureCycle.create({
+      data: { voiceId: reopened.id, cycleNumber: 2, actorId: sectionHead.accountId, note: 'Ulang' },
+    });
 
     const preview = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
     expect(preview.summary).toEqual({
       total: 4,
       open: 2,
+      responded: 1,
+      inProgress: 1,
       overdue: 2,
       dueSoon: 1,
       critical: 1,
+      closedByMe: 1,
+      // Everything here waits for the Manager, so the unit shows the same urgency.
+      attention: { overdue: 2, dueSoon: 1, critical: 1 },
       // Same cohort as the counts, closed included.
       status: [
         { label: 'OPEN', value: 2 },
         { label: 'RESPONDED', value: 1 },
         { label: 'IN_PROGRESS', value: 1 },
-        { label: 'CLOSED', value: 1 },
+        { label: 'CLOSED', value: 2 },
       ],
     });
     const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
       (await voices.workItems(manager, query)).items.map((item) => item.title);
     // Each summary tile opens exactly the Voices it counts.
+    expect(await titles({ action: 'closed' })).toEqual(['Tutup']);
     expect((await titles({ due: 'OVERDUE' })).sort()).toEqual(['Lewat', 'Target lewat']);
     expect(await titles({ due: 'SOON' })).toEqual(['Segera']);
     // Perlu tindakan: Terbuka first, nearest deadline first; a new low Voice is not buried.

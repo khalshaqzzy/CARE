@@ -1304,9 +1304,17 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
         summary: opts.dashboardSummary ?? {
           total: items.length,
           open: items.filter((item) => item.status === 'OPEN').length,
+          responded: items.filter((item) => item.status === 'RESPONDED').length,
+          inProgress: items.filter((item) => item.status === 'IN_PROGRESS').length,
           overdue: 0,
           dueSoon: 0,
           critical: items.filter((item) => item.severity === 'CRITICAL').length,
+          closedByMe: 0,
+          attention: {
+            overdue: 0,
+            dueSoon: 0,
+            critical: items.filter((item) => item.severity === 'CRITICAL').length,
+          },
           status: ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'].map((label) => ({
             label,
             value: items.filter((item) => item.status === label).length,
