@@ -279,6 +279,8 @@ export function DashboardHome() {
         if (query[key]) p.set(key, query[key]!);
     if (!query.status) p.set('statusGroup', 'ACTIVE');
     if (director && isPrivate) p.set('visibility', 'PRIVATE');
+    // Responders land on the Voice Member list matching the basis in view.
+    if (!union && !director) p.set('tab', query.basis === 'REPORTER' ? 'team' : 'unit');
     for (const [key, value] of Object.entries(extra)) p.set(key, value);
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
@@ -448,6 +450,7 @@ export function DashboardHome() {
         inbox={{ preview: preview.data, isError: preview.isError }}
         onOpenVoice={(id) => void navigate(`/voices/${id}`)}
         onOpenList={() => void navigate(listUrl())}
+        onOpenTeamOverdue={() => void navigate(listUrl({ tab: 'team', due: 'OVERDUE' }))}
         // The action list ignores the dashboard filters, like its counts.
         onOpenAction={(kind) =>
           void navigate(`/work-items?${new URLSearchParams(ACTION_FILTERS[kind])}`)

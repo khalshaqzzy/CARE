@@ -1078,12 +1078,16 @@ export class VoicesService {
     this.assertStatusFilter(query.status, query.statusGroup);
     if (query.action !== undefined && query.action !== 'me' && query.action !== 'closed')
       throw badRequest('ACTION_FILTER_INVALID', 'action must be me or closed');
+    if (query.scope !== undefined && query.scope !== 'unit' && query.scope !== 'team')
+      throw badRequest('SCOPE_FILTER_INVALID', 'scope must be unit or team');
     const director = actor.capabilities.includes('DIRECTOR');
     // Director's Private list: every Private Voice, read-only.
     const directorPrivate = director && query.visibility === 'PRIVATE';
     // scope=unit: the unit-head dashboard cohort (the selected organization's
     // handled General Voices the viewer may open), so Voice Member lists exactly
-    // what Home and Butuh Tindakan Saya count. Otherwise the personal work list.
+    // what Home and Butuh Tindakan Saya count. scope=team: the Voice Tim Saya
+    // cohort, the General Voices the selected organization's members sent,
+    // wherever they are handled. Otherwise the personal work list.
     // action=me / closed: exactly the Voices "Butuh Tindakan Saya" counts as
     // waiting for the viewer / closed by them.
     const where: Prisma.VoiceWhereInput = directorPrivate
@@ -1092,14 +1096,14 @@ export class VoicesService {
         ? this.policy.actionNeededScope(actor)
         : query.action === 'closed'
           ? this.policy.closedByScope(actor)
-          : query.scope === 'unit'
+          : query.scope
             ? {
                 AND: [
                   (
                     await this.organizationDashboard.context(
                       actor,
                       {
-                        basis: 'HANDLING',
+                        basis: query.scope === 'team' ? 'REPORTER' : 'HANDLING',
                         visibility: 'GENERAL',
                         scopeMode: query.scopeMode,
                         directorate: query.directorate,

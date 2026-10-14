@@ -1400,3 +1400,14 @@ the Compose fixture. Test environment is now limited to application jobs, with a
 regression contract and verified fixture image tags. Phase 13 remains in progress;
 replacement hosted verification is not inferred and monitoring is excluded for
 this corrective delivery.
+
+## Voice Member three lists — 14 October 2026
+
+Implemented locally on `feat/voice-member-tabs` (from `origin/staging` 349d775):
+Voice Member for responders is split into **Butuh Tindakan Saya**, **Voice Untuk
+Unit** and **Voice Tim Saya** (Group Leaders: the first and last), backed by the new
+`GET /work-items?scope=team`. Summary counts show their pressed filter and toggle
+off on a second tap; phone action tiles are 2×2 with 12 px labels. Home links,
+including **Pantau** on the team-overdue strip, open the matching tab. ADR-0064 and
+PRD §18.8.6 (update of 14 October) record the decision. Phase 13 remains the only
+`in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.

@@ -2446,6 +2446,27 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
 - **Status Voice** menampilkan baris **Perlu perhatian** (Lewat batas · Batas < 24 jam · Kritis) tepat di bawah kotak status. Angkanya mencakup seluruh unit dalam filter dashboard, termasuk Voice yang masih di jenjang bawah, dan membuka Voice Member dengan filter yang sama. Batang warna status dihapus dari kartu ini.
 - **Voice Member:** filter **Tindakan** berisi Semua · Tindakan saya · Selesai oleh saya (`action=closed`).
 
+**Pembaruan 14 Oktober 2026 — Voice Member menjadi tiga daftar.**
+
+Menggantikan ringkasan ganda dan filter **Tindakan → Semua** di Voice Member pada pembaruan sebelumnya. Halaman Union dan Director tidak berubah.
+
+- **Tiga tab** di bawah judul (gaya segmented seperti toggle basis di Home). Setiap tab menampilkan jumlah Voice aktifnya di kanan label:
+  - **Butuh Tindakan Saya** (default): Voice yang menunggu tindakan penampil di jenjangnya (`action=me`, aturan sama dengan kartu di Home). Isinya kartu Butuh Tindakan Saya lalu daftar. Filter **Tindakan** berisi Menunggu saya · Selesai oleh saya.
+  - **Voice Untuk Unit**: seluruh General Voice yang ditangani unit organisasi terpilih (`scope=unit`), dengan strip Terbuka · Direspon · Diproses · Selesai dan filter PIC.
+  - **Voice Tim Saya**: seluruh General Voice yang dikirim anggota unit terpilih, ke unit mana pun (`scope=team`, cakupan sama dengan Voice Tim Saya di Home). Ada strip status yang sama, tanpa filter PIC. Private Voice tidak pernah tampil.
+- **Group Leader** hanya melihat Butuh Tindakan Saya dan Voice Tim Saya (Line sendiri).
+- **Aksi.** Daftar tidak menentukan aksi. Voice di Voice Tim Saya yang sedang berada di jenjang penampil tetap menampilkan aksinya di detail, sama seperti dibuka dari tab lain. Kartu daftar tidak diberi penanda tambahan.
+- **Ringkasan dapat diklik.** Kotak dan chip yang sedang memfilter daftar tampil aktif: kotak bergaris aksen, chip mendesak terisi warna penuh. Ketukan kedua melepas filter. Kotak dan chip mengecil saat ditekan dan terangkat saat hover di desktop, dan daftar muncul dengan transisi singkat. Semua gerak dimatikan bila pengguna memilih gerak dikurangi.
+- **Tata letak HP (≤ 479 px)**, berlaku juga di Home:
+  - Kotak Butuh Tindakan Saya tersusun 2×2, angka di kiri label, label 12 px.
+  - Chip Lewat batas · < 24 jam · Kritis tetap satu baris; "Batas" disembunyikan secara visual di HP, nama aksesibel tetap lengkap.
+- **Tautan dari Home** membuka tab yang sesuai:
+  - Angka Butuh Tindakan Saya dan **Lihat selengkapnya** membuka tab Butuh Tindakan Saya.
+  - Status, tren, **Perlu perhatian**, dan **Lihat semua** membuka Voice Untuk Unit atau Voice Tim Saya, mengikuti basis yang dipilih.
+  - **Pantau** pada strip "N Voice tim lewat batas waktu" membuka Voice Tim Saya dengan filter Terlambat. Aturan terlambat sama dengan angka strip.
+  - Tautan lama tanpa `tab` tetap berlaku: `action` membuka Butuh Tindakan Saya, filter lain membuka Voice Untuk Unit.
+- **API.** `GET /work-items` menerima `scope=team` (basis pelapor dashboard dan cakupan baca penampil); nilai `scope` lain ditolak dengan `SCOPE_FILTER_INVALID`. Jumlah tab Voice Tim Saya memakai `GET /dashboard/preview?basis=REPORTER`.
+
 ### 18.8.7 Dashboard Director, Akses Private Director, dan Division Head sebagai Responder — 13 Oktober 2026
 
 Menggantikan pengecualian Director pada §18.8.6 dan baris Director pada matriks Private §7.

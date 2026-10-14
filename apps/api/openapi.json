@@ -9225,7 +9225,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "unit"
+                "unit",
+                "team"
               ]
             }
           },
