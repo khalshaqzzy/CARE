@@ -17,7 +17,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import { FilterPillRow } from '../../components/FilterPills';
 import { HeroBand, HeroChip } from '../../components/HeroBand';
-import { ACTION_FILTERS, ActionSummaryCard } from '../home/ActionSummary';
+import { ACTION_FILTERS, ActionSummaryCard, type ActionKind } from '../home/ActionSummary';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { Pager } from '../../components/Pager';
 import {
@@ -36,6 +36,29 @@ import { useOnlineStatus } from '../../lib/use-online-status';
 import type { HandoverHistoryItem } from '../../workforce-api';
 
 const STATUS_VIEWS = new Set(['ACTIVE', 'ALL', 'OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED']);
+
+type ListTab = 'me' | 'unit' | 'team';
+const TAB_LABELS: Record<ListTab, string> = {
+  me: 'Butuh Tindakan Saya',
+  unit: 'Voice Untuk Unit',
+  team: 'Voice Tim Saya',
+};
+/**
+ * The list a link opens. Links from before the tabs carry `action` for the
+ * viewer's own Voices and organization or filter parameters for the unit list.
+ */
+function resolveTab(params: URLSearchParams, tabs: ListTab[]): ListTab {
+  const raw = params.get('tab') as ListTab | null;
+  if (raw && tabs.includes(raw)) return raw;
+  if (params.has('action') || !tabs.includes('unit')) return 'me';
+  return [...params.keys()].some((key) => key !== 'view') ? 'unit' : 'me';
+}
+
+const TAB_DESCRIPTIONS: Record<ListTab, string> = {
+  me: 'Voice yang menunggu tindakan Anda.',
+  unit: 'Voice yang ditangani unit Anda.',
+  team: 'Voice yang dikirim anggota tim Anda.',
+};
 
 export function WorkItemsPage() {
   const { session } = useAuth();
@@ -59,11 +82,19 @@ export function WorkItemsPage() {
   const isDirector = caps.includes('DIRECTOR');
   const directorPrivate = isDirector && searchParams.get('visibility') === 'PRIVATE';
   const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
-  // "Tindakan saya" / "Selesai oleh saya": the Voices Butuh Tindakan Saya counts.
+  // Responders read three lists: what waits for them, what their unit handles,
+  // and what their team sent. A Group Leader's unit list is their own queue.
   const canAct = !isUnion && !isDirector;
-  const rawAction = searchParams.get('action');
+  const groupLeaderOnly =
+    caps.includes('GROUP_LEADER') &&
+    !caps.some((capability) =>
+      ['SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(capability),
+    );
+  const tabs: ListTab[] = !canAct ? [] : groupLeaderOnly ? ['me', 'team'] : ['me', 'unit', 'team'];
+  const tab = tabs.length ? resolveTab(searchParams, tabs) : undefined;
+  // "Tindakan saya" / "Selesai oleh saya": the Voices Butuh Tindakan Saya counts.
   const actionFilter =
-    canAct && (rawAction === 'me' || rawAction === 'closed') ? rawAction : undefined;
+    tab === 'me' ? (searchParams.get('action') === 'closed' ? 'closed' : 'me') : undefined;
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
   const handoverMode = isManager && rawView === 'HANDOVERS';
@@ -112,6 +143,7 @@ export function WorkItemsPage() {
       directorPrivate ? 'private' : 'general',
       unassignedOnly ? 'unassigned' : 'assigned-any',
       actionFilter ?? 'action-any',
+      tab ?? 'no-tab',
       nav.cursor,
     ),
     queryFn: () => {
@@ -135,7 +167,7 @@ export function WorkItemsPage() {
           ? api.workItems({ ...common, sort, visibility: 'PRIVATE' })
           : actionFilter
             ? api.workItems({ ...common, sort, action: actionFilter })
-            : api.workItems({ ...common, sort, scope: 'unit', ...org });
+            : api.workItems({ ...common, sort, scope: tab === 'team' ? 'team' : 'unit', ...org });
     },
     enabled: Boolean(session) && !handoverMode,
     refetchInterval: 3000,
@@ -169,6 +201,43 @@ export function WorkItemsPage() {
     refetchInterval: 30_000,
   });
 
+  // Voice Tim Saya counts the Voices the viewer's team sent (reporter basis).
+  const team = useQuery({
+    queryKey: voiceQuery(sessionId, 'dashboard', 'team', orgKey),
+    queryFn: ({ signal }) => api.dashboardPreview({ ...org, basis: 'REPORTER' }, signal),
+    enabled: !!session && tabs.includes('team'),
+    refetchInterval: 30_000,
+  });
+  const unitStatus = actions.data?.summary.status;
+  const teamStatus = team.data?.summary.status;
+  const tabCounts: Record<ListTab, number | undefined> = {
+    me: actions.data?.summary.total,
+    unit: unitStatus ? activeCount(unitStatus) : undefined,
+    team: teamStatus ? activeCount(teamStatus) : undefined,
+  };
+  const stripStatus = tab === 'team' ? teamStatus : unitStatus;
+  // The Butuh Tindakan Saya count behind the current list, shown pressed.
+  const activeKind: ActionKind | null =
+    tab !== 'me'
+      ? null
+      : actionFilter === 'closed'
+        ? 'closed'
+        : due === 'OVERDUE'
+          ? 'overdue'
+          : due === 'SOON'
+            ? 'soon'
+            : severity === 'CRITICAL'
+              ? 'critical'
+              : view === 'OPEN'
+                ? 'open'
+                : view === 'RESPONDED'
+                  ? 'responded'
+                  : view === 'IN_PROGRESS'
+                    ? 'inProgress'
+                    : null;
+  // Switching lists clears the filters but keeps the organization from Home.
+  const openTab = (id: ListTab) => setSearchParams(new URLSearchParams({ ...org, tab: id }));
+
   const options = useQuery({
     queryKey: voiceQuery(sessionId, 'monitoring-options'),
     queryFn: () => api.monitoringOptions(),
@@ -185,7 +254,11 @@ export function WorkItemsPage() {
     setSearchParams(params);
   };
   const clearFilters = () =>
-    setSearchParams(isUnion ? new URLSearchParams() : new URLSearchParams({ view: 'ACTIVE' }));
+    setSearchParams(
+      isUnion
+        ? new URLSearchParams()
+        : new URLSearchParams(tab ? { ...org, tab } : { view: 'ACTIVE' }),
+    );
   const items = inbox.data?.items ?? [];
   const handoverItems = handovers.data?.items ?? [];
   const nextCursor = handoverMode
@@ -212,7 +285,7 @@ export function WorkItemsPage() {
       <HeroBand
         {...(isUnion ? { eyebrow: intro.eyebrow } : {})}
         title={intro.title}
-        description={intro.description}
+        description={tab ? TAB_DESCRIPTIONS[tab] : intro.description}
         stats={
           isUnion
             ? privateDash.data
@@ -256,37 +329,55 @@ export function WorkItemsPage() {
           ) : undefined
         }
       />
+      {tab && !handoverMode ? (
+        <div className="vm-tabs" role="group" aria-label="Daftar Voice">
+          {tabs.map((id) => (
+            <button type="button" key={id} aria-pressed={tab === id} onClick={() => openTab(id)}>
+              <span className="vm-tabs__label">{TAB_LABELS[id]}</span>
+              <span className="vm-tabs__count">{tabCounts[id] ?? '–'}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       {!isUnion && !handoverMode && !directorPrivate ? (
         <div className="ops ops--inline">
-          {isDirector ? null : (
+          {tab === 'me' ? (
             <ActionSummaryCard
               preview={actions.data}
               isError={actions.isError}
-              onPick={(kind) => setSearchParams(new URLSearchParams(ACTION_FILTERS[kind]))}
+              active={activeKind}
+              // A second tap on the pressed count lifts the filter again.
+              onPick={(kind) =>
+                setSearchParams(
+                  new URLSearchParams(
+                    kind === activeKind ? { tab: 'me' } : { ...ACTION_FILTERS[kind], tab: 'me' },
+                  ),
+                )
+              }
               onOpenVoice={(id) => void navigate(`/voices/${id}`)}
             />
+          ) : null}
+          {tab === 'me' ? null : (
+            <div className="ops-card ops-status-strip" role="group" aria-label="Status Voice">
+              {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((key) => (
+                <button
+                  type="button"
+                  key={key}
+                  data-status={key}
+                  aria-pressed={view === key}
+                  onClick={() => setParam('view', view === key ? 'ACTIVE' : key)}
+                >
+                  <span className="ops-status-strip__label">
+                    <span className="ops-status-strip__dot" aria-hidden="true" />
+                    {STATUS_LABELS[key]}
+                  </span>
+                  <strong>
+                    {stripStatus ? (stripStatus.find((row) => row.label === key)?.value ?? 0) : '–'}
+                  </strong>
+                </button>
+              ))}
+            </div>
           )}
-          <div className="ops-card ops-status-strip" role="group" aria-label="Status Voice">
-            {(['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const).map((key) => (
-              <button
-                type="button"
-                key={key}
-                data-status={key}
-                aria-pressed={view === key}
-                onClick={() => setParam('view', view === key ? 'ACTIVE' : key)}
-              >
-                <span className="ops-status-strip__label">
-                  <span className="ops-status-strip__dot" aria-hidden="true" />
-                  {STATUS_LABELS[key]}
-                </span>
-                <strong>
-                  {actions.data
-                    ? (actions.data.summary.status.find((row) => row.label === key)?.value ?? 0)
-                    : '–'}
-                </strong>
-              </button>
-            ))}
-          </div>
         </div>
       ) : null}
       {offline ? (
@@ -379,27 +470,24 @@ export function WorkItemsPage() {
                   ]
                 : []
               : [
-                  ...(canAct
+                  ...(tab === 'me'
                     ? [
                         {
                           id: 'action',
                           label: 'Tindakan',
-                          value: actionFilter ?? 'all',
-                          neutralValue: 'all',
+                          value: actionFilter ?? 'me',
+                          neutralValue: 'me',
                           // Closed Voices are only ever "Selesai oleh saya".
                           onValueChange: (value: string) =>
                             setSearchParams(
                               new URLSearchParams(
                                 value === 'closed'
-                                  ? { view: 'CLOSED', action: 'closed' }
-                                  : value === 'me'
-                                    ? { view: 'ACTIVE', action: 'me' }
-                                    : { view: 'ACTIVE' },
+                                  ? { tab: 'me', view: 'CLOSED', action: 'closed' }
+                                  : { tab: 'me', view: 'ACTIVE' },
                               ),
                             ),
                           options: [
-                            { value: 'all', label: 'Semua' },
-                            { value: 'me', label: 'Tindakan saya' },
+                            { value: 'me', label: 'Menunggu saya' },
                             { value: 'closed', label: 'Selesai oleh saya' },
                           ],
                         },
@@ -423,19 +511,23 @@ export function WorkItemsPage() {
                     onValueChange: (value: string) => setParam('area', value || undefined),
                     options: areaOptions,
                   },
-                  {
-                    id: 'handler',
-                    label: 'PIC',
-                    value: handler ?? '',
-                    onValueChange: (value: string) => setParam('handler', value || undefined),
-                    options: [
-                      { value: '', label: 'Semua' },
-                      ...(options.data?.handlers ?? []).map((option) => ({
-                        value: option.id,
-                        label: option.displayName,
-                      })),
-                    ],
-                  },
+                  ...(tab === 'me' || tab === 'team'
+                    ? []
+                    : [
+                        {
+                          id: 'handler',
+                          label: 'PIC',
+                          value: handler ?? '',
+                          onValueChange: (value: string) => setParam('handler', value || undefined),
+                          options: [
+                            { value: '', label: 'Semua' },
+                            ...(options.data?.handlers ?? []).map((option) => ({
+                              value: option.id,
+                              label: option.displayName,
+                            })),
+                          ],
+                        },
+                      ]),
                 ]),
         ]}
         secondary={
@@ -520,7 +612,7 @@ export function WorkItemsPage() {
         </Card>
       ) : (
         <Stack gap="md">
-          <div className="inbox-list">
+          <div className="inbox-list vm-list" key={searchParams.toString()}>
             {handoverMode
               ? handoverItems.map((item) => (
                   <MyHandoverCard

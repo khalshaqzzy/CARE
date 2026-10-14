@@ -12037,7 +12037,7 @@ export interface operations {
                 handler?: string;
                 due?: "OVERDUE" | "SOON";
                 sort?: string;
-                scope?: "unit";
+                scope?: "unit" | "team";
                 scopeMode?: string;
                 directorate?: string;
                 division?: string;

@@ -43,7 +43,7 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   : parameter === 'due'
                     ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
                     : parameter === 'scope'
-                      ? { type: 'string', enum: ['unit'] }
+                      ? { type: 'string', enum: ['unit', 'team'] }
                       : parameter === 'action' &&
                           operation.operationId === 'VoicesController_workItems'
                         ? { type: 'string', enum: ['me', 'closed'] }

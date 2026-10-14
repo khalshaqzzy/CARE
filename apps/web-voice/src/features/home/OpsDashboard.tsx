@@ -69,6 +69,8 @@ export type OpsDashboardProps = {
   onOpenRange: (from: string, to: string) => void;
   onOpenVoice: (id: string) => void;
   onOpenList: () => void;
+  /** Voice Tim Saya in Voice Member, filtered to the team Voices past their deadline. */
+  onOpenTeamOverdue: () => void;
   /** Voice Member filtered to the Voices waiting for the viewer. */
   onOpenActionList: () => void;
   /** Voice Member over the unit, filtered to one urgency. */
@@ -802,7 +804,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
             <div className="ops-strip ops-span-2" role="status">
               <BellRing size={17} aria-hidden="true" />
               <span>{data.teamOverdue} Voice tim lewat batas waktu</span>
-              <button type="button" onClick={props.onOpenList}>
+              <button type="button" onClick={props.onOpenTeamOverdue}>
                 Pantau
               </button>
             </div>

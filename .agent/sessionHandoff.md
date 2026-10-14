@@ -1,5 +1,39 @@
 # CARE Session Handoff
 
+## Voice Member three lists — 14 October 2026
+
+**Objective:** stop Voice Member from mixing two populations in one list. The product owner chose three tabs (**Butuh Tindakan Saya · Voice Untuk Unit · Voice Tim Saya**) in the segmented style (variant A), pressed/toggling summaries with tap feedback, 2×2 phone tiles with 12 px labels, and no marker on team cards.
+
+**Branch:** `feat/voice-member-tabs` from `origin/staging` 349d775 (includes PR #83/#84). Uncommitted at the time of writing.
+
+**Changes:**
+
+- **API:**
+  - `GET /work-items?scope=team` uses the reporter-basis dashboard context ∩ `detailScope`, General only.
+  - Any other `scope` value returns `SCOPE_FILTER_INVALID`.
+  - OpenAPI and contracts were regenerated.
+- **web-voice:**
+  - `WorkItemsPage`: the tabs (Group Leader gets two), per-tab header copy, totals from the preview (handling and reporter), and filters per tab. Tab switches keep the organization selection. Legacy links resolve through `resolveTab`.
+  - `ActionSummaryCard`: an `active` pressed state, the short "< 24 jam" phone label, and one chip row.
+  - Home links carry `tab`. **Pantau** now opens `tab=team&due=OVERDUE` (it used to open the handling list).
+  - CSS: `.vm-tabs`, the press/hover/pressed motion (off under reduced motion), and the 2×2 phone tiles (also on Home).
+- **Docs:** PRD §18.8.6 update of 14 October, ADR-0064, and the implementationPhases entry.
+
+**Checks:**
+
+- Typecheck passed (API, web-voice).
+- Unit tests passed: API 160, web-voice 127.
+- Integration suites that call `workItems` passed 70/70 (dashboard-people, responder-matrix, tiered-routing-foundation, union-inbox, voice-lifecycle) on a throwaway `pgvector/pgvector:pg16` container on port 54339.
+- Browser runs used the Vite dev server with a scratch config (not committed):
+  - `dashboard`, `workforce-handover`, `workforce-journeys` and `member-voice`: everything passed except the Web Push notice test. It fails identically on unmodified staging with the dev server.
+  - `workforce-a11y`, `workforce-security`, `voice-lifecycle`, `assignment-scroll` and `foundation` passed 66/66.
+  - Legacy WebKit passed 6/6.
+- Screenshots were reviewed at 360 and 1440 px.
+
+**Not run locally:** visual capture against a verified build, the full integration and performance suites, and full-stack. Hosted CI is authoritative.
+
+**Next:** commit, open the PR to `staging`, and watch CI (performance in particular, since the team list adds a reporter-basis query path).
+
 ## Butuh Tindakan Saya and Status Voice layout — 13 October 2026
 
 **Follow-up after PR #83:** a Deputy Division Head saw "4 Voice" with all four tiles at 0. Those tiles (lewat batas, < 24 jam, belum direspons, kritis) overlap and do not split the total. The four Voices were Direspon with more than a day left.

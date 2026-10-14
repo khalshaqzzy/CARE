@@ -838,11 +838,13 @@ test('Butuh Tindakan Saya sums up first and each count opens Voice Member', asyn
   await expect(page).toHaveURL(/due=OVERDUE/);
   // The unit list keeps the dashboard filters and is not the action list.
   await expect(page).toHaveURL(/area=SUNTER_1/);
+  await expect(page).toHaveURL(/tab=unit/);
   expect(page.url()).not.toContain('action=');
   await page.goBack();
   await card.getByRole('button', { name: 'Selesai oleh saya: 4 Voice' }).click();
   await expect(page).toHaveURL(/action=closed/);
   await expect(page).toHaveURL(/view=CLOSED/);
+  await expect(page).toHaveURL(/tab=me/);
   await page.goBack();
   await card.getByRole('button', { name: '1 Lewat batas' }).click();
   await expect(page).toHaveURL(/\/work-items\?/);
@@ -854,9 +856,7 @@ test('Butuh Tindakan Saya sums up first and each count opens Voice Member', asyn
   await card.locator('.ops-actions__next').click();
   await expect(page).toHaveURL(/\/voices\/00000000-0000-4000-8000-000000000302$/);
 });
-test('Voice Member opens with the summaries and orders what needs action first', async ({
-  page,
-}) => {
+test('Voice Member splits into what waits for me, my unit, and my team', async ({ page }) => {
   const lists: URL[] = [];
   page.on('request', (request) => {
     const url = new URL(request.url());
@@ -869,29 +869,96 @@ test('Voice Member opens with the summaries and orders what needs action first',
   });
   await page.goto('/work-items');
   await expect(page.getByRole('heading', { name: 'Voice Member', level: 1 })).toBeVisible();
-  // The header carries no counts; the summaries below do.
+  // The header carries no counts; each list carries its active total.
   await expect(page.locator('.hero-band__stats')).toHaveCount(0);
+  const tabs = page.getByRole('group', { name: 'Daftar Voice' });
+  await expect(tabs.getByRole('button')).toHaveText([
+    'Butuh Tindakan Saya5',
+    'Voice Untuk Unit5',
+    'Voice Tim Saya5',
+  ]);
+  // Butuh Tindakan Saya opens first: its summary and only the Voices waiting for the viewer.
+  await expect(tabs.getByRole('button', { name: /^Butuh Tindakan Saya/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByText('Voice yang menunggu tindakan Anda.')).toBeVisible();
   await expect(page.locator('section[aria-labelledby="ops-actions"]')).toBeVisible();
-  const strip = page.getByRole('group', { name: 'Status Voice' });
-  await expect(strip.getByRole('button')).toHaveCount(4);
-  await expect(strip).toContainText('Direspon');
-  // The strip counts the same cohort as Butuh Tindakan Saya and Home.
-  await expect(strip.locator('strong')).toHaveText(['2', '2', '1', '4']);
-  await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('action');
-  // Unit heads list the same unit the summaries count.
-  expect(lists.at(-1)?.searchParams.get('scope')).toBe('unit');
+  await expect(page.getByRole('group', { name: 'Status Voice' })).toHaveCount(0);
+  await expect.poll(() => lists.at(-1)?.searchParams.get('action')).toBe('me');
+  expect(lists.at(-1)?.searchParams.get('sort')).toBe('action');
   await expect(page.locator('.inbox-card__due').first()).toBeVisible();
-  await page.getByRole('button', { name: '1 Lewat batas' }).click();
+  // A count filters the list and stays pressed; a second tap lifts the filter.
+  const overdue = page.getByRole('button', { name: '1 Lewat batas' });
+  await overdue.click();
+  await expect(overdue).toHaveAttribute('aria-pressed', 'true');
   await expect(page).toHaveURL(/due=OVERDUE/);
   await expect.poll(() => lists.at(-1)?.searchParams.get('due')).toBe('OVERDUE');
-  // A tile lists only the Voices waiting for the viewer, like its count.
   expect(lists.at(-1)?.searchParams.get('action')).toBe('me');
-  expect(lists.at(-1)?.searchParams.get('scope')).toBeNull();
+  await overdue.click();
+  await expect(overdue).toHaveAttribute('aria-pressed', 'false');
+  await expect(page).not.toHaveURL(/due=/);
+  await page.getByRole('button', { name: 'Selesai oleh saya: 4 Voice' }).click();
+  await expect.poll(() => lists.at(-1)?.searchParams.get('action')).toBe('closed');
   await expect(page.getByRole('combobox', { name: 'Tindakan', exact: true })).toContainText(
-    'Tindakan saya',
+    'Selesai oleh saya',
   );
+  // Voice Untuk Unit: the unit the summaries count, with its status strip.
+  await tabs.getByRole('button', { name: /^Voice Untuk Unit/ }).click();
+  await expect(page).toHaveURL(/tab=unit/);
+  await expect(page.getByText('Voice yang ditangani unit Anda.')).toBeVisible();
+  await expect(page.locator('section[aria-labelledby="ops-actions"]')).toHaveCount(0);
+  const strip = page.getByRole('group', { name: 'Status Voice' });
+  await expect(strip.locator('strong')).toHaveText(['2', '2', '1', '4']);
+  await expect.poll(() => lists.at(-1)?.searchParams.get('scope')).toBe('unit');
+  expect(lists.at(-1)?.searchParams.get('action')).toBeNull();
+  await expect(page.getByRole('combobox', { name: 'PIC', exact: true })).toBeVisible();
+  // Voice Tim Saya: what the team sent, wherever it is handled.
+  await tabs.getByRole('button', { name: /^Voice Tim Saya/ }).click();
+  await expect(page.getByText('Voice yang dikirim anggota tim Anda.')).toBeVisible();
+  await expect.poll(() => lists.at(-1)?.searchParams.get('scope')).toBe('team');
+  await expect(page.getByRole('combobox', { name: 'PIC', exact: true })).toHaveCount(0);
   await page.getByRole('combobox', { name: 'Urutkan', exact: true }).click();
   await page.getByRole('option', { name: 'Terbaru', exact: true }).click();
   await expect.poll(() => lists.at(-1)?.searchParams.get('sort')).toBe('newest');
-  expect((await new AxeBuilder({ page }).include('.ops').analyze()).violations).toEqual([]);
+  expect(lists.at(-1)?.searchParams.get('scope')).toBe('team');
+  expect((await new AxeBuilder({ page }).include('.monitoring-page').analyze()).violations).toEqual(
+    [],
+  );
+});
+test('Pantau on Voice Tim Saya opens the team Voices past their deadline', async ({ page }) => {
+  const lists: URL[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/v1/work-items') lists.push(url);
+  });
+  await mockWorkforceApi(page, {
+    session: manager,
+    generalDashboard: { total: 6, teamOverdue: 2 },
+  });
+  await page.goto('/?basis=REPORTER');
+  await expect(page.getByText('2 Voice tim lewat batas waktu')).toBeVisible();
+  await page.getByRole('button', { name: 'Pantau', exact: true }).click();
+  await expect(page).toHaveURL(/tab=team/);
+  await expect(page).toHaveURL(/due=OVERDUE/);
+  await expect(
+    page
+      .getByRole('group', { name: 'Daftar Voice' })
+      .getByRole('button', { name: /^Voice Tim Saya/ }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => lists.at(-1)?.searchParams.get('scope')).toBe('team');
+  expect(lists.at(-1)?.searchParams.get('due')).toBe('OVERDUE');
+});
+test('Group Leader reads two lists: Butuh Tindakan Saya and Voice Tim Saya', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: memberSession({
+      capabilities: ['MEMBER', 'GROUP_LEADER'],
+      structuralPosition: 'Group Leader',
+    }),
+    voiceList: actionList,
+    dashboardSummary: actionSummary,
+  });
+  await page.goto('/work-items');
+  const tabs = page.getByRole('group', { name: 'Daftar Voice' });
+  await expect(tabs.getByRole('button')).toHaveText(['Butuh Tindakan Saya5', 'Voice Tim Saya5']);
 });
