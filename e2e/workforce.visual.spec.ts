@@ -593,7 +593,8 @@ test('workforce union home visual at 360', async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date('2026-08-05T10:00:00Z'));
   await page.goto('/');
-  await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
+  // The Komite home has no assignment queue; wait for its Private scope instead.
+  await expect(page.getByText('Seluruh Private Voice').first()).toBeVisible();
   await scrollToTop(page);
   await capture(page, `workforce-union-home-360-${visualPlatform}.png`, screenshotOptions);
 });
