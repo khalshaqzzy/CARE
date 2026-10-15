@@ -20,6 +20,47 @@
 
 **Local browser testing:** another session's Vite servers held ports 4173/4174. The Voice-app specs ran against this worktree's build on port 4183 with a temporary uncommitted config.
 
+## Account login tracking — 15 October 2026
+
+**Objective:** let the CARE Admin see, per division (and department/section), which workforce accounts have logged in. Before this, the Audit `USER_LOGIN` filter matched nothing and accounts had no login date. ADR-0065 holds the rules.
+
+**Branch:** `feat/login-tracking` (worktree `../CARE-login`) from `origin/staging` 52a7b6b. Uncommitted at the time of writing.
+
+**Changes:**
+
+- **API:**
+  - `AuthService.login` and `startLogin` write `USER_LOGIN` audit events. `SUCCESS` records `{ method, firstLogin }`, the IP hash, user agent and session reference. `FAILED` is written after the rolled-back transaction with `{ method }` and the account id only when the account exists. Identifiers and passwords are never stored.
+  - Migration `20261015090000_account_login_tracking` adds `UserAccount.firstLoginAt`/`lastLoginAt` (nullable, existing accounts stay `NULL`). A login sets them with raw SQL, so `version` and `updatedAt` do not change.
+  - `GET /admin/accounts` gains `division`, `department`, `section` and `loggedIn=true|false`, and returns the login dates.
+  - New `GET /admin/accounts/login-summary?division=&department=` returns total, logged-in and not-logged-in counts of active workforce accounts in the active snapshot, grouped one level down, plus `trackingSince` (the migration's `finished_at`).
+  - OpenAPI and contracts were regenerated.
+- **Admin › Accounts (variant B of three rendered options):**
+  - New "Login terakhir" column ("Belum pernah" when empty).
+  - Divisi, Departemen and Seksi filters, plus a Login filter (Sudah/Belum). Choosing a login state also sets Workforce and Aktif, matching the summary counts.
+  - With a division chosen, a summary card shows Akun aktif, Sudah login and Belum login tiles (the last two filter the list) and one bar per department or section (a click drills down).
+  - "Ekspor belum login" pages through the filtered list and downloads a CSV.
+- **Tests:** `login-tracking.integration.test.ts` (audit sanitization, timestamps, filters, summary, non-admin denied) and `e2e/admin-login-tracking.spec.ts` (filters, request parameters, CSV). The browser test inventory in `validation.test.mjs` goes from 445 to 446.
+- **Docs:** ADR-0065 and the implementationPhases entry.
+
+**Release note:** counts start at deploy. Everyone shows "Belum pernah" until their first login after the release.
+
+**Checks (Windows, portable Node 22.23.2, throwaway `pgvector/pgvector:pg16` container on port 54349):**
+
+- Passed:
+  - Prettier on changed files, ESLint, `git diff --check`, typecheck.
+  - `openapi:check`.
+  - Unit tests: API 164, ui 26, frontend-core 15, web-admin 2, web-voice 127.
+  - `verify:ci integration`: 163 integration and 14 security tests.
+  - `verify:ci organization`: 5 tests.
+  - `verify:ci performance`: 2 tests on the 50k seed.
+  - `test:migration:upgrade`: all seven scripts, run through a scratchpad `psql` shim into the container.
+  - Admin browser specs (journeys, a11y, explorer, pages visual, login tracking): 64/64 on private ports 4373/4374 with a scratch config (not committed), because other sessions held 4173/4174.
+- Failed locally on clean staging as well (Windows only), not caused by this change:
+  - `validation.test.mjs` tests 6 (build seal) and 8 (Compose fixtures).
+  - `verify:ci build` stopped at the manifest seal because of Windows path separators. Every build step before the seal passed.
+- Not run locally: workforce browser, legacy WebKit, capture and fullstack jobs. The change does not touch web-voice; CI covers them.
+- Gitleaks `v8.24.3` directory scan, including uncommitted files: no leaks found.
+
 ## Private Voice → Komite with directorate observers — 14 October 2026
 
 **Product owner decision:** Private Voices are handled by the Komite (the existing Union Head account) alone. The Director and all Deputy/Division Heads of the reporter's directorate read the Voice and its chat. ADR-0064 and PRD §14.1 hold the full rules.

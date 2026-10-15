@@ -42,12 +42,14 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
                   : parameter === 'due'
                     ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
-                    : parameter === 'scope'
-                      ? { type: 'string', enum: ['unit', 'team'] }
-                      : parameter === 'action' &&
-                          operation.operationId === 'VoicesController_workItems'
-                        ? { type: 'string', enum: ['me', 'closed'] }
-                        : { type: 'string' },
+                    : parameter === 'loggedIn'
+                      ? { type: 'string', enum: ['true', 'false'] }
+                      : parameter === 'scope'
+                        ? { type: 'string', enum: ['unit', 'team'] }
+                        : parameter === 'action' &&
+                            operation.operationId === 'VoicesController_workItems'
+                          ? { type: 'string', enum: ['me', 'closed'] }
+                          : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -131,9 +133,14 @@ const queryParameters: Record<string, string[]> = {
     'unitId',
     'position',
     'eligibility',
+    'division',
+    'department',
+    'section',
+    'loggedIn',
     'cursor',
     'limit',
   ],
+  AdminController_loginSummary: ['division', 'department'],
   AdminController_issues: ['status', 'type', 'organizationUnitId', 'batchId', 'cursor', 'limit'],
   AdminController_resolutions: ['cursor', 'limit', 'type', 'status'],
   AdminController_auditEvents: [
@@ -250,6 +257,7 @@ const noBodyOperations = new Set([
   'NotificationsController_readAll',
   'NotificationsController_read',
   'AdminController_accounts',
+  'AdminController_loginSummary',
   'AdminController_overview',
   'AdminController_accountDetail',
   'AdminController_resetPassword',
@@ -356,6 +364,7 @@ function successSchema(operationId: string) {
   const mapping: Record<string, string> = {
     AdminController_overview: 'AdminOverview',
     AdminController_accounts: 'AccountSummaryList',
+    AdminController_loginSummary: 'AccountLoginSummary',
     AdminController_accountDetail: 'AccountSummary',
     AdminController_resetPassword: 'AccountResetResponse',
     AdminController_setStatus: 'AccountSummary',
@@ -2471,9 +2480,52 @@ const schemas: Record<string, any> = {
         },
       },
       passwordChangeRequired: { type: 'boolean' },
+      firstLoginAt: { type: 'string', format: 'date-time', nullable: true },
+      lastLoginAt: { type: 'string', format: 'date-time', nullable: true },
       deactivatedAt: { type: 'string', format: 'date-time', nullable: true },
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  AccountLoginSummary: {
+    type: 'object',
+    required: [
+      'division',
+      'department',
+      'trackingSince',
+      'total',
+      'loggedIn',
+      'notLoggedIn',
+      'groups',
+    ],
+    additionalProperties: false,
+    properties: {
+      division: { type: 'string', nullable: true },
+      department: { type: 'string', nullable: true },
+      trackingSince: {
+        type: 'string',
+        format: 'date-time',
+        nullable: true,
+        description: 'When login tracking was deployed; earlier logins were not recorded',
+      },
+      total: { type: 'integer', minimum: 0 },
+      loggedIn: { type: 'integer', minimum: 0 },
+      notLoggedIn: { type: 'integer', minimum: 0 },
+      groups: {
+        type: 'array',
+        description: 'Divisions, or departments of the division, or sections of the department',
+        items: {
+          type: 'object',
+          required: ['name', 'total', 'loggedIn', 'notLoggedIn'],
+          additionalProperties: false,
+          properties: {
+            name: { type: 'string' },
+            total: { type: 'integer', minimum: 0 },
+            loggedIn: { type: 'integer', minimum: 0 },
+            notLoggedIn: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
     },
   },
   AccountResetResponse: {

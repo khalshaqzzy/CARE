@@ -359,6 +359,10 @@ export class AdminService {
           unitId?: string;
           position?: string;
           eligibility?: string;
+          division?: string;
+          department?: string;
+          section?: string;
+          loggedIn?: string;
           cursor?: string;
           limit?: string | number;
         },
@@ -422,6 +426,26 @@ export class AdminService {
         },
       };
     }
+    const unit = {
+      ...(params.division ? { division: params.division } : {}),
+      ...(params.department ? { department: params.department } : {}),
+    };
+    if (params.division || params.department || params.section)
+      where.AND = [
+        {
+          employee: {
+            memberships: {
+              some: {
+                snapshot: { status: 'ACTIVE' },
+                ...(params.section ? { section: params.section } : {}),
+                ...(Object.keys(unit).length ? { organizationUnit: unit } : {}),
+              },
+            },
+          },
+        },
+      ];
+    if (params.loggedIn === 'true') where.lastLoginAt = { not: null };
+    if (params.loggedIn === 'false') where.lastLoginAt = null;
     const items = await this.prisma.userAccount.findMany({
       where,
       orderBy: [{ username: 'asc' }, { id: 'asc' }],
@@ -435,6 +459,8 @@ export class AdminService {
         status: true,
         passwordChangeRequired: true,
         version: true,
+        firstLoginAt: true,
+        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
         employee: {
@@ -466,6 +492,47 @@ export class AdminService {
     return { items: data, nextCursor };
   }
 
+  // Active workforce accounts in the active snapshot, grouped one level below the chosen unit.
+  async loginSummary(query: { division?: string; department?: string }) {
+    const division = query.division?.trim() || undefined;
+    const department = division ? query.department?.trim() || undefined : undefined;
+    const group = department
+      ? Prisma.sql`m."section"`
+      : division
+        ? Prisma.sql`u."department"`
+        : Prisma.sql`u."division"`;
+    const rows = await this.prisma.$queryRaw<{ name: string; total: number; loggedIn: number }[]>`
+      SELECT ${group} AS "name", COUNT(*)::int AS "total", COUNT(a."lastLoginAt")::int AS "loggedIn"
+      FROM "UserAccount" a
+      JOIN "OrganizationMembership" m ON m."employeeId" = a."employeeId"
+      JOIN "OrganizationSnapshot" s ON s."id" = m."snapshotId" AND s."status" = 'ACTIVE'
+      JOIN "OrganizationUnit" u ON u."id" = m."organizationUnitId"
+      WHERE a."accountKind" = 'WORKFORCE' AND a."status" = 'ACTIVE'
+        ${division ? Prisma.sql`AND u."division" = ${division}` : Prisma.empty}
+        ${department ? Prisma.sql`AND u."department" = ${department}` : Prisma.empty}
+      GROUP BY 1
+      ORDER BY 1`;
+    const [tracking] = await this.prisma.$queryRaw<{ since: Date | null }[]>`
+      SELECT MIN("finished_at") AS "since" FROM "_prisma_migrations"
+      WHERE "migration_name" = '20261015090000_account_login_tracking'`;
+    const total = rows.reduce((sum, row) => sum + row.total, 0);
+    const loggedIn = rows.reduce((sum, row) => sum + row.loggedIn, 0);
+    return {
+      division: division ?? null,
+      department: department ?? null,
+      trackingSince: tracking?.since ?? null,
+      total,
+      loggedIn,
+      notLoggedIn: total - loggedIn,
+      groups: rows.map((row) => ({
+        name: row.name,
+        total: row.total,
+        loggedIn: row.loggedIn,
+        notLoggedIn: row.total - row.loggedIn,
+      })),
+    };
+  }
+
   async accountDetail(id: string) {
     const account = await this.prisma.userAccount.findUnique({
       where: { id },
@@ -477,6 +544,8 @@ export class AdminService {
         status: true,
         passwordChangeRequired: true,
         version: true,
+        firstLoginAt: true,
+        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
         deactivatedAt: true,
