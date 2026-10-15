@@ -1,5 +1,37 @@
 # CARE Session Handoff
 
+## Mandatory first password change — 15 October 2026
+
+**Problem:** imported workforce accounts start with the No. Reg as password, and login/start opens a restricted session from the No. Reg alone. **Lain kali** then unlocked that session, so anyone who knew an unchanged No. Reg could use CARE as that employee.
+
+**Change on `fix/require-password-change` (worktree `../CARE-pwforce`, from `origin/staging` 5b42f35):** ADR-0066 supersedes ADR-0040.
+
+- **API:**
+  - `deferPasswordChange` and `POST /api/v1/auth/defer-password-change` are removed.
+  - `AuthGuard` uses `session.passwordRestricted || account.passwordChangeRequired`. Earlier deferred sessions are restricted again on their next request: only session, CSRF, change-password and logout respond, and `GET /auth/session` reports `passwordChangeRequired: true`.
+  - `changePassword` lets a `WORKFORCE` account with the flag set and the default hash omit the current password, whatever the session's stored flag.
+- **Contracts and client:** OpenAPI and `generated.ts` were regenerated. Defer is removed from the transport and `useAuth`.
+- **web-voice:** the Lain kali button, its handler, error copy and `.auth-defer__button` CSS are gone. The screen now has Kembali ke login, the two password fields and Simpan password. web-admin had no defer action.
+- **Tests:**
+  - API integration covers the 404 endpoint, a DB-unrestricted session staying restricted, change from that session and access afterwards.
+  - Mock browser specs cover no Lain kali, protected routes redirecting to `/change-password` and Union needing the current password.
+  - Fullstack specs set real passwords: member `care-member-e2e-123`, manager 000003 `care-manager-e2e-123`.
+  - The deferral visual scenario was removed. Captures go 184 → 183 and the browser total 447 → 445 (confirmed with `playwright test --list`, FULLSTACK on). The local gallery entry and PNG for `workforce-password-defer-360` were deleted.
+  - `workforce-password-change-360.png` (darwin) still shows the old button until the next macOS capture.
+- **Docs:** PRD auth rules, ADR-0066, ADR-0040 marked superseded, ADR-0048 status note, implementationPhases.
+
+**Checks (Windows, portable Node 22.23.2, throwaway `pgvector/pgvector:pg16` on 54349):**
+
+- Passed:
+  - Prettier on changed files, ESLint and typecheck.
+  - Unit tests: API 165, ui 26, frontend-core 14, web-admin 2, web-voice 127.
+  - API integration 163/163 (organization-routing excluded, as in CI) and security 14/14.
+  - Affected mocked Playwright specs (voice-consent, workforce-a11y, auth-recovery, workforce.visual): 96/96 against this worktree's build on port 4193.
+  - Fullstack `a-workforce` 3/3 and `z-auth-recovery` 1/1 against the real API.
+- Not run locally: the admin fullstack, legacy and performance jobs, and `test:validation` (cannot spawn pnpm on Windows). Hosted CI not run yet.
+
+**Accepted risk:** the default-credential path still identifies an account by No. Reg alone, so whoever finishes the change-password screen first owns the account. A birth-date step on first login was prototyped. The product owner declined it and keeps No. Reg followed by a new password.
+
 ## Closed Voice chat keeps its full message height — 15 October 2026
 
 **Problem:** in a closed (read-only) chat the info banner "Percakapan telah selesai" sat in the fixed area above the log. At 360 × 800 only ~156 px was left for messages, so the chat looked cut off.

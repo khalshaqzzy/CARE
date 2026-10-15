@@ -12,7 +12,7 @@ export async function mockRecovery(
     rateLimited?: boolean;
   } = {},
 ) {
-  let session = (options.union ? unionSession() : memberSession()) as Session;
+  const session = (options.union ? unionSession() : memberSession()) as Session;
   const identifier = options.union ? 'union-office' : options.tm ? 'TM123456' : '00123456';
   let required = options.defaultPassword ?? false;
   let loggedIn = false;
@@ -47,10 +47,6 @@ export async function mockRecovery(
       required = true;
       loggedIn = false;
       return reply({ success: true });
-    }
-    if (path.endsWith('/defer-password-change')) {
-      session = { ...session, passwordChangeRequired: false };
-      return reply({ ...current(), passwordChangeRequired: false });
     }
     if (path.endsWith('/change-password')) {
       required = false;

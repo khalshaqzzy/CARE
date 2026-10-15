@@ -19,7 +19,6 @@ import {
   ArrowRight,
   Bell,
   Bot,
-  Clock3,
   FileClock,
   Home,
   Lock,
@@ -344,24 +343,14 @@ function passwordChangeFailureMessage(cause: unknown) {
   return 'Password tidak dapat diubah. Silakan coba lagi.';
 }
 
-function passwordDeferralFailureMessage(cause: unknown) {
-  if (typeof cause === 'object' && cause) {
-    const failure = cause as { kind?: unknown; message?: unknown };
-    if (failure.kind === 'rate-limited')
-      return 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
-    if (failure.kind === 'offline' && typeof failure.message === 'string') return failure.message;
-  }
-  return 'Ganti password tidak dapat ditunda. Silakan coba lagi.';
-}
-
 function ChangePasswordPage() {
-  const { session, transport, refresh, logout, deferPasswordChange, loading } = useAuth();
+  const { session, transport, refresh, logout, loading } = useAuth();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
-  const [pendingAction, setPendingAction] = useState<'back' | 'password' | 'defer' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'back' | 'password' | null>(null);
   const pending = pendingAction !== null;
   if (loading) return <RouteLoader />;
   if (!session) return <Navigate to="/login" replace />;
@@ -390,7 +379,7 @@ function ChangePasswordPage() {
     setPendingAction('password');
     setError(null);
     try {
-      await transport.changePassword(canDefer ? undefined : currentPassword, newPassword);
+      await transport.changePassword(omitCurrent ? undefined : currentPassword, newPassword);
       await refresh();
       void navigate('/', { replace: true });
     } catch (cause) {
@@ -399,22 +388,8 @@ function ChangePasswordPage() {
       setPendingAction(null);
     }
   }
-  async function defer() {
-    if (pending) return;
-    setPendingAction('defer');
-    setError(null);
-    try {
-      await deferPasswordChange();
-      void navigate('/', { replace: true });
-    } catch (cause) {
-      setError({
-        title: 'Ganti password belum ditunda',
-        message: passwordDeferralFailureMessage(cause),
-      });
-      setPendingAction(null);
-    }
-  }
-  const canDefer = session.passwordChangeRequired && session.account.accountKind === 'WORKFORCE';
+  // A required WORKFORCE change still on the initial No. Reg password needs no current password.
+  const omitCurrent = session.passwordChangeRequired && session.account.accountKind === 'WORKFORCE';
   return (
     <main className="auth-layout">
       <section className="auth-brand auth-brand--security">
@@ -456,7 +431,7 @@ function ChangePasswordPage() {
             </Alert>
           ) : null}
           <form onSubmit={submit} className="auth-form">
-            {!canDefer ? (
+            {!omitCurrent ? (
               <PasswordInput
                 label="Password saat ini"
                 autoComplete="current-password"
@@ -493,19 +468,6 @@ function ChangePasswordPage() {
               Simpan password
               <ArrowRight size={18} aria-hidden="true" />
             </Button>
-            {canDefer ? (
-              <Button
-                type="button"
-                variant="secondary"
-                className="auth-defer__button"
-                loading={pendingAction === 'defer'}
-                disabled={pending}
-                onClick={() => void defer()}
-              >
-                <Clock3 size={18} aria-hidden="true" />
-                Lain kali
-              </Button>
-            ) : null}
           </form>
         </Stack>
       </Card>

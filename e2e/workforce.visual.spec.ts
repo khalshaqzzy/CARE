@@ -800,17 +800,6 @@ test('workforce password change visual at 360', async ({ page }) => {
   await capture(page, 'workforce-password-change-360.png', screenshotOptions);
 });
 
-test('workforce password deferral action visual at 360', async ({ page }) => {
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await mockWorkforceApi(page, {
-    session: { ...memberSession(), passwordChangeRequired: true },
-  });
-  await page.goto('/change-password');
-  await page.getByRole('button', { name: 'Lain kali' }).scrollIntoViewIfNeeded();
-  await capture(page, 'workforce-password-defer-360.png', screenshotOptions);
-});
-
 test('workforce create voice type visual at 360', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.emulateMedia({ reducedMotion: 'reduce' });

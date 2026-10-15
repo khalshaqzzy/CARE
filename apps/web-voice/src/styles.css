@@ -266,11 +266,6 @@
   position: absolute;
   right: 0;
 }
-.auth-defer__button {
-  width: 100%;
-  min-height: 3rem;
-  border-radius: 1rem;
-}
 .workforce-topbar {
   display: flex;
   width: 100%;

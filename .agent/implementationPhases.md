@@ -1422,3 +1422,13 @@ chosen division per department, and exports the "belum login" list as CSV. Count
 start at deploy; earlier logins were never recorded. ADR-0065 records the decision.
 Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed. Checks
 are in sessionHandoff.md.
+
+## Mandatory first password change — 15 October 2026
+
+Implemented locally on `fix/require-password-change` (from `origin/staging` 5b42f35).
+The workforce **Lain kali** deferral and `POST /auth/defer-password-change` are
+removed. The API guard treats every session of an account with
+`passwordChangeRequired` as restricted, including sessions deferred earlier, so no
+app page or API data is reachable before a new password is saved. ADR-0066
+supersedes ADR-0040. Phase 13 remains the only `in_progress` phase; no hosted
+delivery is claimed. Checks are in sessionHandoff.md.

@@ -36,7 +36,7 @@ for (const width of [360, 390, 768, 1440]) {
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
     await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
     await expect(page.getByLabel('Password saat ini')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Lain kali' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
     await assertContained(page);
   });
 }
@@ -77,7 +77,7 @@ for (const options of [{ tm: true }, { union: true }]) {
     await expect(page.getByRole('button', { name: 'Reset password', exact: true })).toHaveCount(0);
   });
 }
-test('Union default uses the same form, requires password and cannot defer', async ({ page }) => {
+test('Union default uses the same form and requires the current password', async ({ page }) => {
   const identifier = await mockRecovery(page, { union: true, defaultPassword: true });
   await page.goto('/login');
   await enterIdentifier(page, identifier);

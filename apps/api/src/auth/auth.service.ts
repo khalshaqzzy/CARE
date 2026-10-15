@@ -4,7 +4,7 @@ import { hash, verify } from 'argon2';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { hmac256, randomToken } from '../common/crypto';
-import { badRequest, forbiddenAsNotFound, unauthorized } from '../common/errors';
+import { badRequest, unauthorized } from '../common/errors';
 import { parseBirthDate } from '../common/birth-date';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
@@ -367,7 +367,6 @@ export class AuthService {
         throw unauthorized();
       const canOmitCurrent =
         account.accountKind === AccountKind.WORKFORCE &&
-        session.passwordRestricted &&
         account.passwordChangeRequired &&
         (await this.hasDefaultPassword(account));
       if (
@@ -408,40 +407,6 @@ export class AuthService {
       });
     });
     return { success: true };
-  }
-  async deferPasswordChange(actor: AuthActor, correlationId: string) {
-    if (actor.accountKind !== AccountKind.WORKFORCE) throw forbiddenAsNotFound();
-    await this.prisma.$transaction(async (tx) => {
-      await this.lockAccount(tx, actor.username);
-      const session = await tx.session.findUnique({ where: { id: actor.sessionId } });
-      if (
-        !session ||
-        session.revokedAt ||
-        session.expiresAt <= new Date() ||
-        session.absoluteExpiresAt <= new Date()
-      )
-        throw unauthorized();
-      const updated = await tx.session.updateMany({
-        where: { id: actor.sessionId, passwordRestricted: true },
-        data: { passwordRestricted: false },
-      });
-      if (updated.count === 0) return;
-      await tx.auditEvent.create({
-        data: {
-          actorId: actor.accountId,
-          ...this.policy.actorSnapshot(actor),
-          action: 'PASSWORD_CHANGE_DEFERRED',
-          result: 'SUCCESS',
-          resourceType: 'USER_ACCOUNT',
-          resourceId: actor.accountId,
-          summary: { scope: 'CURRENT_SESSION' },
-          correlationId,
-          sessionRef: hmac256(loadConfig().SESSION_HASH_SECRET, actor.sessionId),
-          releaseSha: loadConfig().RELEASE_SHA,
-        },
-      });
-    });
-    return this.session({ ...actor, passwordRestricted: false });
   }
   private sessionShape(
     account: {

@@ -66,42 +66,48 @@ describe('Registration-first authentication and recovery', () => {
     await app.close();
     await db.$disconnect();
   });
-  it('creates restricted default sessions, defers only the current session, and changes without current password', async () => {
+  it('keeps default sessions restricted until a new password is set without the current one', async () => {
     const initial = await start();
     expect(initial.body.next).toBe('CHANGE_PASSWORD');
     expect(initial.headers['cache-control']).toBe('no-store');
     const cookies = cookie(initial);
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/defer-password-change')
-      .set('Cookie', cookies)
-      .expect(401);
+    for (const path of [
+      '/api/v1/voices',
+      '/api/v1/notifications',
+      '/api/v1/general-voice-categories',
+    ])
+      await request(app.getHttpServer()).get(path).set('Cookie', cookies).expect(404);
     await request(app.getHttpServer())
       .post('/api/v1/auth/defer-password-change')
       .set('Cookie', cookies)
       .set('X-CSRF-Token', await csrf(cookies))
-      .expect(201);
+      .expect(404);
+    // A session previously unrestricted through "Lain kali" is restricted by the account flag.
+    await db.session.update({
+      where: { id: initial.body.session.sessionId },
+      data: { passwordRestricted: false },
+    });
+    await request(app.getHttpServer()).get('/api/v1/voices').set('Cookie', cookies).expect(404);
     expect(
-      (await db.userAccount.findUniqueOrThrow({ where: { username: noReg } }))
+      (await request(app.getHttpServer()).get('/api/v1/auth/session').set('Cookie', cookies)).body
         .passwordChangeRequired,
     ).toBe(true);
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/change-password')
-      .set('Cookie', cookies)
-      .set('X-CSRF-Token', await csrf(cookies))
-      .send({ newPassword: 'changed-secret' })
-      .expect(400);
     const next = await start();
     const nextCookies = cookie(next);
     expect(next.body.session.passwordChangeRequired).toBe(true);
     await request(app.getHttpServer())
       .post('/api/v1/auth/change-password')
-      .set('Cookie', nextCookies)
-      .set('X-CSRF-Token', await csrf(nextCookies))
+      .set('Cookie', cookies)
+      .set('X-CSRF-Token', await csrf(cookies))
       .send({ newPassword: 'changed-secret' })
       .expect(201);
     await request(app.getHttpServer())
-      .get('/api/v1/auth/session')
+      .get('/api/v1/general-voice-categories')
       .set('Cookie', cookies)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/session')
+      .set('Cookie', nextCookies)
       .expect(401);
     expect((await start()).body).toEqual({ next: 'PASSWORD_REQUIRED' });
     const account = await db.userAccount.findUniqueOrThrow({ where: { username: noReg } });
@@ -123,11 +129,6 @@ describe('Registration-first authentication and recovery', () => {
       .set('X-CSRF-Token', token)
       .send({ newPassword: 'union-secret' })
       .expect(400);
-    await request(app.getHttpServer())
-      .post('/api/v1/auth/defer-password-change')
-      .set('Cookie', cookies)
-      .set('X-CSRF-Token', token)
-      .expect(404);
     expect((await start(' TM990001 ')).body.next).toBe('CHANGE_PASSWORD');
     for (const identifier of ['recovery-admin', 'missing-account'])
       await request(app.getHttpServer())
