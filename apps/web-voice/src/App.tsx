@@ -246,19 +246,16 @@ function LoginPage() {
           <strong>CARE</strong>
         </div>
         <h1>
-          <span>Selamat datang</span> <span className="auth-brand__title-accent">di CARE.</span>
+          <span>Selamat datang</span> <span className="auth-brand__title-accent">di CARE</span>
         </h1>
         <img alt="" className="auth-brand__asset" height={768} src={authHeroAsset} width={1152} />
       </section>
       <Card variant="raised" className="auth-card">
         <Stack gap="lg">
-          <div>
-            <h2>Silahkan login sesuai petunjuk.</h2>
-            <p>Login untuk melanjutkan ke CARE</p>
-          </div>
+          <h2>Masuk ke akun Anda</h2>
           {initial?.resetSuccess ? (
             <Alert tone="success" title="Password berhasil direset">
-              Password anda sudah direset, silahkan login kembali.
+              Password Anda sudah direset, silakan masuk kembali.
             </Alert>
           ) : null}
           {error ? (
@@ -272,7 +269,6 @@ function LoginPage() {
               autoComplete="username"
               leading={<UserRound size={18} />}
               placeholder="Masukkan No. Reg Anda"
-              helperText="Masukkan No. Reg atau username Anda."
               ref={inputRef}
               readOnly={expanded || pending}
               maxLength={64}
@@ -390,8 +386,9 @@ function ChangePasswordPage() {
   }
   // A required WORKFORCE change still on the initial No. Reg password needs no current password.
   const omitCurrent = session.passwordChangeRequired && session.account.accountKind === 'WORKFORCE';
+  const identifierLabel = session.account.accountKind === 'WORKFORCE' ? 'No. Reg' : 'username';
   return (
-    <main className="auth-layout">
+    <main className="auth-layout auth-layout--password">
       <section className="auth-brand auth-brand--security">
         <span className="auth-brand__badge" aria-hidden="true">
           <LockKeyhole size={22} />
@@ -399,7 +396,7 @@ function ChangePasswordPage() {
         <h1>Keamanan akun</h1>
         <p>
           {session.passwordChangeRequired
-            ? 'Ganti password sementara untuk menjaga keamanan akun Anda.'
+            ? 'Buat password baru sebelum mulai.'
             : 'Perbarui password untuk menjaga keamanan akun Anda.'}
         </p>
         <Shield className="auth-brand__watermark" aria-hidden="true" />
@@ -414,16 +411,9 @@ function ChangePasswordPage() {
               onClick={() => void back()}
             >
               <ArrowLeft size={18} aria-hidden="true" />
-              {session.passwordChangeRequired ? 'Kembali ke login' : 'Kembali'}
+              {session.passwordChangeRequired ? 'Kembali ke halaman masuk' : 'Kembali'}
             </Button>
-            <h2>
-              {session.passwordChangeRequired ? 'Ganti password sementara' : 'Ganti password'}
-            </h2>
-            <p>
-              Password minimal 6 karakter dan tidak boleh sama dengan{' '}
-              {session.account.accountKind === 'WORKFORCE' ? 'No. Reg' : 'username'} dan password
-              sebelumnya
-            </p>
+            <h2>{session.passwordChangeRequired ? 'Buat password baru' : 'Ganti password'}</h2>
           </div>
           {error ? (
             <Alert tone="danger" title={error.title}>
@@ -443,6 +433,9 @@ function ChangePasswordPage() {
             ) : null}
             <PasswordInput
               label="Password baru"
+              helperText={`Minimal 6 karakter, tidak sama dengan ${identifierLabel}${
+                omitCurrent ? '' : ' dan password sebelumnya'
+              }.`}
               autoComplete="new-password"
               leading={<Lock size={18} />}
               value={newPassword}

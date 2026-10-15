@@ -139,7 +139,7 @@ for (const forced of [false, true]) {
     });
     await page.goto('/change-password');
     await page
-      .getByRole('button', { name: forced ? 'Kembali ke login' : 'Kembali', exact: true })
+      .getByRole('button', { name: forced ? 'Kembali ke halaman masuk' : 'Kembali', exact: true })
       .click();
     await expect(page).toHaveURL(forced ? /\/login$/ : /\/account$/);
   });
@@ -153,7 +153,7 @@ test('a required workforce password change cannot be skipped', async ({ page }) 
     await page.goto(path);
     await expect(page).toHaveURL(/\/change-password$/);
   }
-  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Buat password baru' })).toBeVisible();
   await expect(page.getByLabel('Password saat ini')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
 });
@@ -183,7 +183,7 @@ test('Union required password change asks for the current password', async ({ pa
     session: { ...unionSession(), passwordChangeRequired: true },
   });
   await page.goto('/change-password');
-  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Buat password baru' })).toBeVisible();
   await expect(page.getByLabel('Password saat ini')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
 });

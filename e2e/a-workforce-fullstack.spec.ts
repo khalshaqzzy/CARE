@@ -25,7 +25,7 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   // smoke room without loosening the assertion budgets.
   test.setTimeout(90_000);
   await page.goto(`${ORIGIN}/login`);
-  await expect(page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Masuk ke akun Anda' })).toBeVisible({
     timeout: 60_000,
   });
   await page.getByLabel('No. Reg').fill(USERNAME);
@@ -33,7 +33,7 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
 
   // The initial No. Reg password cannot be kept: no app page or API data is
   // reachable until a new password is set.
-  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Buat password baru' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
   expect((await page.request.get(`${ORIGIN}/api/v1/voices/mine`)).status()).toBe(404);
   await page.goto(`${ORIGIN}/`);
@@ -57,7 +57,7 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
 });
 
 async function setNewPassword(page: Page, password: string) {
-  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Buat password baru' })).toBeVisible();
   // The required new-password field's accessible name is "Password baru *"; anchor
   // the regex at the start so it does not also match "Konfirmasi password baru".
   await page.getByLabel(/^Password baru/).fill(password);

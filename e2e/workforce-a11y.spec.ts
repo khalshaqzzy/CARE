@@ -281,7 +281,7 @@ test.describe('workforce accessibility and responsive surface', () => {
     await mockWorkforceApi(page, { unauthenticated: true });
     await page.goto('/login');
     await expect(
-      page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
+      page.getByRole('heading', { name: 'Masuk ke akun Anda' }),
     ).toBeVisible();
     expect(await axe(page)).toEqual([]);
     await page.evaluate(() => document.body.focus());
