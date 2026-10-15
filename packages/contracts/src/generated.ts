@@ -2553,7 +2553,7 @@ export interface components {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 /** @enum {string} */
-                state: "DONE" | "CURRENT" | "NEXT";
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
                 names: string[];
             }[];
             /** @description Messages from others since the viewer last opened the conversation. */
@@ -2632,7 +2632,7 @@ export interface components {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 /** @enum {string} */
-                state: "DONE" | "CURRENT" | "NEXT";
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
                 names: string[];
             }[];
             /** @description Messages from others since the viewer last opened the conversation. */
@@ -2709,7 +2709,7 @@ export interface components {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 /** @enum {string} */
-                state: "DONE" | "CURRENT" | "NEXT";
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
                 names: string[];
             }[];
             /** @description Messages from others since the viewer last opened the conversation. */
@@ -2783,7 +2783,7 @@ export interface components {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 /** @enum {string} */
-                state: "DONE" | "CURRENT" | "NEXT";
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
                 names: string[];
             }[];
             /** @description Messages from others since the viewer last opened the conversation. */
@@ -2858,7 +2858,7 @@ export interface components {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 /** @enum {string} */
-                state: "DONE" | "CURRENT" | "NEXT";
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
                 names: string[];
             }[];
             /** @description Messages from others since the viewer last opened the conversation. */
@@ -2935,7 +2935,7 @@ export interface components {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
                 /** @enum {string} */
-                state: "DONE" | "CURRENT" | "NEXT";
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
                 names: string[];
             }[];
             /** @description Messages from others since the viewer last opened the conversation. */

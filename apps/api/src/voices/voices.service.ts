@@ -47,7 +47,7 @@ import { CategoriesService } from '../categories/categories.service';
 import { ShopLocationsService } from '../shops/shop-locations.service';
 import { resolveShop, type ShopResolution } from '../shops/shop-matching';
 import { PrismaService } from '../prisma.service';
-import { computeAvailableActions, type ActionActor } from './actions';
+import { actingTierLevel, computeAvailableActions, type ActionActor } from './actions';
 import { ratingError, transitionTarget } from './policies';
 import { isValidPosition, positionArea, positionOptions } from './tm-position';
 import {
@@ -1280,6 +1280,7 @@ export class VoicesService {
     voice: Parameters<typeof chainForVoice>[1] & {
       tierLevel: TierLevel | null;
       tierPath: TierLevel[];
+      tierLowerHolderIds: string[];
     },
   ) {
     const chain = await chainForVoice(this.prisma, voice);
@@ -1293,9 +1294,15 @@ export class VoicesService {
       ).map((account) => [account.id, account.displayName]),
     );
     const current = voice.tierLevel ? voice.tierPath.indexOf(voice.tierLevel) : -1;
+    // A passed level whose window ran out still holds the Voice: Terlambat.
+    const late = (level: TierLevel) =>
+      (chain.find((step) => step.level === level)?.accountIds ?? []).some((id) =>
+        voice.tierLowerHolderIds.includes(id),
+      );
     return voice.tierPath.map((level, index) => ({
       level,
-      state: index < current ? 'DONE' : index === current ? 'CURRENT' : 'NEXT',
+      state:
+        index < current ? (late(level) ? 'LATE' : 'DONE') : index === current ? 'CURRENT' : 'NEXT',
       names: (chain.find((step) => step.level === level)?.accountIds ?? [])
         .map((id) => names.get(id))
         .filter((name): name is string => Boolean(name)),
@@ -1531,7 +1538,12 @@ export class VoicesService {
         throw forbiddenAsNotFound();
       handlerType = HandlerType.UNION_OFFICER;
     } else if (voice.tierLevel) {
-      const eligible = await tierAssignees(this.prisma, voice.tierLevel, voice);
+      // A level the Voice went past assigns within its own reach.
+      const eligible = await tierAssignees(
+        this.prisma,
+        actingTierLevel(actor, voice) ?? voice.tierLevel,
+        voice,
+      );
       const match = eligible.find((item) => item.id === candidate.id);
       if (!match || match.id === actor.accountId) throw forbiddenAsNotFound();
       const position = normalizedPosition(match.structuralPosition);
@@ -1682,20 +1694,22 @@ export class VoicesService {
           );
         const wasOpen = current.status === VoiceStatus.OPEN;
         const unique = (ids: string[]) => [...new Set(ids)];
+        // Whoever raises it hands it on and keeps the chat; levels the Voice
+        // already went past (their window passed) keep acting.
+        const missed = current.tierLowerHolderIds;
+        const raisers = current.tierHolderIds.filter((holder) => !missed.includes(holder));
         const updated = await tx.voice.update({
           where: { id },
           data: {
             status: VoiceStatus.RESPONDED,
             tierLevel: step.level,
-            tierHolderIds: step.accountIds,
-            tierLowerHolderIds: [],
+            tierHolderIds: unique([...missed, ...step.accountIds]),
+            tierLowerHolderIds: missed.filter((holder) => !step.accountIds.includes(holder)),
             tierHolderResponded: false,
             ...(await tierWindow(tx, current.severity, 'FULL')),
-            tierParticipantIds: unique([
-              ...current.tierParticipantIds,
-              ...current.tierHolderIds,
-              ...current.tierLowerHolderIds,
-            ]).filter((accountId) => !step.accountIds.includes(accountId)),
+            tierParticipantIds: unique([...current.tierParticipantIds, ...raisers]).filter(
+              (accountId) => !step.accountIds.includes(accountId),
+            ),
             version: { increment: 1 },
           },
         });
@@ -1956,7 +1970,9 @@ export class VoicesService {
           slot: term.slot,
         }));
     } else if (voice.tierLevel) {
-      candidates = (await tierAssignees(this.prisma, voice.tierLevel, voice))
+      candidates = (
+        await tierAssignees(this.prisma, actingTierLevel(actor, voice) ?? voice.tierLevel, voice)
+      )
         .filter((item) => item.id !== actor.accountId && item.id !== voice.currentHandlerId)
         .map(({ line, ...item }) => ({
           ...item,
@@ -4789,6 +4805,7 @@ export class VoicesService {
       tierHolderIds?: string[];
       tierPath?: TierLevel[];
       tierLowerHolderIds?: string[];
+      tierHolderResponded?: boolean;
       sectionHasGroupLeader?: boolean;
       tierParticipantIds?: string[];
       legacySource?: string | null;

@@ -18,8 +18,13 @@ export type ActionableVoice = {
   tierHolderIds?: string[];
   /** Levels found at submit; a holder may go up while a later level exists. */
   tierPath?: TierLevel[];
-  /** Holders who answered before the Voice went up (the upper tier reminds them). */
+  /**
+   * Holders the Voice went past when their window passed. They keep their
+   * actions at their own level, and the upper tier reminds them.
+   */
   tierLowerHolderIds?: string[];
+  /** A holder at the current level has answered (not merely raised it). */
+  tierHolderResponded?: boolean;
   sectionHasGroupLeader?: boolean;
   /** Former holders who raised the Voice by hand: they keep the chat only. */
   tierParticipantIds?: string[];
@@ -38,6 +43,29 @@ export type ActionActor = {
   /** Away leaders this actor substitutes for today. */
   actingFor?: string[];
 };
+
+/** The tier a leader holds by position (the highest one they carry). */
+export function ownTierLevel(capabilities: string[]): TierLevel | null {
+  if (capabilities.includes('DIVISION_LEADERSHIP')) return 'DIVISION';
+  if (capabilities.includes('MANAGER')) return 'MANAGER';
+  if (capabilities.includes('SECTION_HEAD')) return 'SECTION_HEAD';
+  if (capabilities.includes('GROUP_LEADER')) return 'GROUP_LEADER';
+  return null;
+}
+
+/**
+ * The tier a holder acts at: the Voice's current tier for its newest holders,
+ * and their own level for the holders it went past (who keep their actions).
+ */
+export function actingTierLevel(
+  actor: ActionActor,
+  voice: Pick<ActionableVoice, 'tierLevel' | 'tierLowerHolderIds'>,
+): TierLevel | null {
+  const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+  if ((voice.tierLowerHolderIds ?? []).some((id) => ids.includes(id)))
+    return ownTierLevel(actor.capabilities) ?? voice.tierLevel ?? null;
+  return voice.tierLevel ?? null;
+}
 
 /**
  * Computes the server-authoritative set of lifecycle actions an actor may
@@ -58,25 +86,29 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
   const isHandler = isMe(voice.currentHandlerId);
   const isPrivate = voice.visibility === 'PRIVATE';
   const tierLevel = voice.tierLevel ?? null;
-  // The newest tier acts in full; holders below it keep Proses and the chat.
-  const isTopHolder = !!tierLevel && isRouteOwner && !(voice.tierLowerHolderIds ?? []).some(isMe);
+  // The newest tier acts in full. The holders it went past (because their
+  // window passed) keep acting at their own level, except Naikkan.
+  const lowerIds = voice.tierLowerHolderIds ?? [];
+  const isTopHolder = !!tierLevel && isRouteOwner && !lowerIds.some(isMe);
+  const holdLevel = isRouteOwner ? actingTierLevel(actor, voice) : null;
   const path = voice.tierPath ?? [];
   const hasNextTier = !!tierLevel && path.indexOf(tierLevel) + 1 < path.length;
   // The Komite (Union Head account) handles Private Voices itself: no assignment.
   const canAssign = isPrivate
     ? false
     : tierLevel
-      ? isTopHolder &&
-        (tierLevel === 'MANAGER' ||
-          tierLevel === 'DIVISION' ||
-          (tierLevel === 'SECTION_HEAD' && !!voice.sectionHasGroupLeader))
+      ? !!holdLevel &&
+        (holdLevel === 'MANAGER' ||
+          holdLevel === 'DIVISION' ||
+          (holdLevel === 'SECTION_HEAD' && !!voice.sectionHasGroupLeader))
       : actor.capabilities.includes('MANAGER') && isRouteOwner;
-  // Naikkan: only the newest tier, before anyone processes or is assigned.
+  // Naikkan: only the newest tier, before anyone processes or is assigned, and
+  // not once a level below has answered (the upper tier joined beside it).
   const canEscalate =
     isTopHolder &&
     hasNextTier &&
     !voice.currentHandlerId &&
-    !(voice.tierLowerHolderIds ?? []).length;
+    !(lowerIds.length && voice.tierHolderResponded);
   // Ingatkan: an upper tier nudges whoever answered or was assigned below it.
   const canRemind =
     isTopHolder &&
@@ -104,6 +136,8 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       if (canAssign) actions.push('ASSIGN');
       if (canHandover) actions.push('HANDOVER');
       if (canEscalate) actions.push('ESCALATE');
+      // The upper tier nudges the levels it went past, still unanswered.
+      if (canRemind) actions.push('REMIND');
     } else if (voice.status === 'RESPONDED') {
       if (
         isHandler ||

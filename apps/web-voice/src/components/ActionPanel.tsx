@@ -271,9 +271,10 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             </Button>
           </div>
         ) : null}
-        {!responding && actions.some((action) => ['ESCALATE', 'REMIND'].includes(action)) ? (
+        {/* While Terbuka, Naikkan sits in the Respons sheet; Ingatkan stays here. */}
+        {actions.includes('REMIND') || (!responding && actions.includes('ESCALATE')) ? (
           <div className="action-row action-row--secondary" role="group" aria-label="Atasan">
-            {actions.includes('ESCALATE') ? (
+            {!responding && actions.includes('ESCALATE') ? (
               <Button variant="secondary" onClick={() => open('escalate')}>
                 <ArrowUpCircle size={18} aria-hidden="true" />
                 Naikkan

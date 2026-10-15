@@ -7424,6 +7424,15 @@
   border-color: var(--state-success);
   background: var(--state-success);
 }
+/* A level the Voice went past when its window ran out: it still acts. */
+.tier-timeline li[data-state='LATE'] .tier-timeline__dot {
+  border-color: #b45309;
+  background: #b45309;
+}
+.tier-timeline__late {
+  color: #b45309;
+  font-weight: var(--weight-semibold);
+}
 .tier-timeline li[data-state='CURRENT'] .tier-timeline__dot {
   border-color: var(--action-primary-bg);
   background: var(--action-primary-bg);
