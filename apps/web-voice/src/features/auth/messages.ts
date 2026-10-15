@@ -17,6 +17,6 @@ export function authFailureMessage(cause: unknown, mode: 'login' | 'reset') {
     if (cause.kind === 'validation' && mode === 'reset') return 'Pilih tanggal lahir yang valid.';
   }
   return mode === 'login'
-    ? 'Login belum berhasil. Silakan coba kembali.'
+    ? 'Belum berhasil masuk. Silakan coba kembali.'
     : 'Password belum direset. Silakan coba kembali.';
 }

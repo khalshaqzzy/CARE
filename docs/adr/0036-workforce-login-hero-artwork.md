@@ -22,7 +22,7 @@ username hint, and a NoReg example as the username placeholder.
 ## Decision
 
 - The login hero becomes a media variant scoped by a new modifier class
-  `auth-brand--media`: CARE lockup, the headline "Selamat datang di CARE."
+  `auth-brand--media`: CARE lockup, the headline "Selamat datang di CARE"
   (two block lines, the second in a light-blue accent with a short rounded
   underline), and the artwork. The old two-span headline and the descriptive
   paragraph are removed. The `ChangePasswordPage` hero keeps the unmodified

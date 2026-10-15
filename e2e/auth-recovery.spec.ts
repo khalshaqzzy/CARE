@@ -31,10 +31,10 @@ for (const width of [360, 390, 768, 1440]) {
     await page.getByRole('button', { name: 'Reset password', exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(
-      page.getByText('Password anda sudah direset, silahkan login kembali.'),
+      page.getByText('Password Anda sudah direset, silakan masuk kembali.'),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
-    await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Buat password baru' })).toBeVisible();
     await expect(page.getByLabel('Password saat ini')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
     await assertContained(page);
@@ -65,6 +65,21 @@ test('Ubah No. Reg restores editing and the date row keeps Tanggal visible', asy
   await page.getByRole('button', { name: 'Ubah No. Reg' }).click();
   await expect(page.getByLabel('No. Reg')).toBeEditable();
   await expect(page.getByLabel('No. Reg')).toBeFocused();
+});
+
+test('picking Bulan and Tahun after Tanggal keeps the chosen day', async ({ page }) => {
+  const identifier = await mockRecovery(page);
+  await page.goto('/forgot-password');
+  await enterIdentifier(page, identifier);
+  const day = page.getByLabel('Tanggal', { exact: true });
+  await day.selectOption('15');
+  await page.getByLabel('Bulan', { exact: true }).selectOption('08');
+  await page.getByLabel('Tahun', { exact: true }).selectOption('1990');
+  await expect(day).toHaveValue('15');
+  // A day the new month cannot hold is cleared instead of silently shifted.
+  await day.selectOption('31');
+  await page.getByLabel('Bulan', { exact: true }).selectOption('02');
+  await expect(day).toHaveValue('');
 });
 
 for (const options of [{ tm: true }, { union: true }]) {
