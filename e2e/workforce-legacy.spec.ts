@@ -210,7 +210,5 @@ test('legacy WebKit opens password and birth-date recovery controls', async ({ p
   await chooseBirthDate(page);
   await assertContained(page);
   await page.getByRole('button', { name: 'Reset password', exact: true }).click();
-  await expect(
-    page.getByText('Password Anda sudah direset, silakan masuk kembali.'),
-  ).toBeVisible();
+  await expect(page.getByText('Password Anda sudah direset, silakan masuk kembali.')).toBeVisible();
 });
