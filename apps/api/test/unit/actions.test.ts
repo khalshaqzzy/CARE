@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HandlerType, VoiceStatus, VoiceVisibility } from '@prisma/client';
 import {
+  actingTierLevel,
   computeAvailableActions,
   type ActionActor,
   type ActionableVoice,
@@ -126,6 +127,7 @@ describe('computeAvailableActions', () => {
       tierLevel: 'SECTION_HEAD',
       tierHolderIds: ['leader', 'head'],
       tierLowerHolderIds: ['leader'],
+      tierHolderResponded: true,
       tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'],
       sectionHasGroupLeader: true,
       hasConversation: true,
@@ -149,6 +151,38 @@ describe('computeAvailableActions', () => {
         sectionHasGroupLeader: false,
       }),
     ).not.toContain('ASSIGN');
+  });
+
+  it('keeps every level the Voice went past acting at its own level, except Naikkan', () => {
+    // Nobody answered at the Group Leader or the Section Head: now at the Manager.
+    const missed = voice({
+      status: 'OPEN' as VoiceStatus,
+      tierLevel: 'MANAGER',
+      tierHolderIds: ['leader', 'head', 'manager'],
+      tierLowerHolderIds: ['leader', 'head'],
+      tierHolderResponded: false,
+      tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'],
+      sectionHasGroupLeader: true,
+    });
+    expect(computeAvailableActions(actor(['MANAGER'], 'manager'), missed)).toEqual([
+      'RESPOND',
+      'ASSIGN',
+      'HANDOVER',
+      'ESCALATE',
+      'REMIND',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'head'), missed)).toEqual([
+      'RESPOND',
+      'ASSIGN',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(computeAvailableActions(actor(['GROUP_LEADER'], 'leader'), missed)).toEqual([
+      'RESPOND',
+      'CHANGE_SEVERITY',
+    ]);
+    expect(actingTierLevel(actor(['SECTION_HEAD'], 'head'), missed)).toBe('SECTION_HEAD');
+    expect(actingTierLevel(actor(['MANAGER'], 'manager'), missed)).toBe('MANAGER');
   });
 
   it('keeps a leader who raised the Voice by hand in the chat without lifecycle actions', () => {

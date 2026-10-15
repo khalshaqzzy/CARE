@@ -1,5 +1,25 @@
 # CARE Session Handoff
 
+## Missed tier levels keep acting — 15 October 2026
+
+**Product owner decision:** when a tier window passes, the level that missed it stays responsible. It keeps its normal actions at its own level (a Section Head still assigns a Group Leader of its Section), except Naikkan. The miss still counts against it, and Tahap penanganan shows it as **Terlambat**. Whoever raises a Voice by hand still keeps the chat only. ADR-0059 amendment; PRD §43.2.
+
+**Changes on `feat/missed-tier-keeps-actions`:**
+
+- **`TierEscalationService`:** unanswered and handed-up escalations keep the previous holders in `tierHolderIds` and `tierLowerHolderIds`, as the answered case already did.
+- **Manual escalate:** moves only the raisers to `tierParticipantIds`.
+- **`actions.ts`:**
+  - `ownTierLevel` and `actingTierLevel` let a missed holder assign within its own level.
+  - Naikkan is refused once a level below has answered.
+  - Ingatkan is also offered while the Voice is Terbuka.
+- **Assignment:** validation and candidates use the acting level.
+- **Tahap penanganan:** a `LATE` stage state.
+- **web-voice:**
+  - `TierStages` shows Terlambat.
+  - `ActionPanel` shows Ingatkan beside Respons while Terbuka.
+
+**Local browser testing:** another session's Vite servers held ports 4173/4174. The Voice-app specs ran against this worktree's build on port 4183 with a temporary uncommitted config.
+
 ## Private Voice → Komite with directorate observers — 14 October 2026
 
 **Product owner decision:** Private Voices are handled by the Komite (the existing Union Head account) alone. The Director and all Deputy/Division Heads of the reporter's directorate read the Voice and its chat. ADR-0064 and PRD §14.1 hold the full rules.

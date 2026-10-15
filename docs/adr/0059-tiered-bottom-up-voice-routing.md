@@ -317,3 +317,25 @@ The product owner ruled that every General Voice has a deadline, not only tiered
 - **Assigned PIC misses** keep the existing behaviour: the Voice joins the Manager tier (Ingatkan / reassign), then DDH/DH.
 - **Backfill:** active fixed Voices without a deadline are backfilled in small batches on each tick from when their window began. Only severities with a configured deadline are considered.
 - **Card display:** list items carry `targetDueAt` so Diproses cards count down to the live handling target.
+
+## Amendment: missed levels keep acting (15 October 2026)
+
+**Context.** An automatic escalation used to take the Voice away from the level that missed its window:
+
+- an unanswered Voice left the Group Leader read-only (`tierObserverIds`);
+- a Voice raised by hand and then missed left the Section Head with the chat only (`tierParticipantIds`).
+
+The product owner wants every missed level to stay responsible.
+
+**Decision.**
+
+- **Holders.** Every automatic escalation (unanswered, handed up, or answered but unprocessed) keeps the previous holders in `tierHolderIds` and adds them to `tierLowerHolderIds`. A Voice that climbs several levels keeps all of them.
+- **Actions.** A missed holder acts at its own level (`actingTierLevel`, from its position): Respons, Tugaskan PIC within its own reach (`tierAssignees` of that level), Proses, Ubah severity and chat. It cannot Naikkan, because the Voice is already above it.
+- **Upper tier.**
+  - It gets Ingatkan, also while the Voice is still Terbuka.
+  - It keeps Naikkan unless a level below has already answered (`tierHolderResponded`).
+- **Manual Naikkan.** The raiser moves to the chat (`tierParticipantIds`). Earlier missed levels keep acting.
+- **Visibility.**
+  - Tahap penanganan shows a missed level as `LATE` ("Terlambat").
+  - The miss still counts against that level through the escalation event's `previousHolders`.
+  - The Voice stays in Butuh Tindakan Saya for every holder until someone processes it.

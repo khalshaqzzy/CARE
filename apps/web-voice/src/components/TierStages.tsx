@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Clock3 } from 'lucide-react';
 import type { VoiceDetail } from '../workforce-api';
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -8,7 +8,10 @@ const LEVEL_LABELS: Record<string, string> = {
   DIVISION: 'DDH/DH',
 };
 
-/** Tahap penanganan (ADR-0059): who handled, who holds, and who is next. */
+/**
+ * Tahap penanganan (ADR-0059): who handled, who holds, and who is next. A
+ * level whose window ran out still acts on the Voice and reads "Terlambat".
+ */
 export function TierStages({ stages }: { stages: NonNullable<VoiceDetail['tierStages']> }) {
   return (
     <ol className="tier-timeline" aria-label="Tahap penanganan">
@@ -16,9 +19,15 @@ export function TierStages({ stages }: { stages: NonNullable<VoiceDetail['tierSt
         <li key={stage.level} data-state={stage.state}>
           <span className="tier-timeline__dot" aria-hidden="true">
             {stage.state === 'DONE' ? <Check size={12} /> : null}
+            {stage.state === 'LATE' ? <Clock3 size={12} /> : null}
           </span>
           <span className="tier-timeline__body">
-            <strong>{LEVEL_LABELS[stage.level] ?? stage.level}</strong>
+            <strong>
+              {LEVEL_LABELS[stage.level] ?? stage.level}
+              {stage.state === 'LATE' ? (
+                <span className="tier-timeline__late"> · Terlambat</span>
+              ) : null}
+            </strong>
             {stage.names.length ? <small>{stage.names.join(', ')}</small> : null}
           </span>
         </li>

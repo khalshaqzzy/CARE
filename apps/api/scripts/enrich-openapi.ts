@@ -619,7 +619,7 @@ const shopVoiceProperties = {
       required: ['level', 'state', 'names'],
       properties: {
         level: { type: 'string', enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'] },
-        state: { type: 'string', enum: ['DONE', 'CURRENT', 'NEXT'] },
+        state: { type: 'string', enum: ['DONE', 'LATE', 'CURRENT', 'NEXT'] },
         names: { type: 'array', items: { type: 'string' } },
       },
     },

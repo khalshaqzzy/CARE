@@ -26,13 +26,15 @@ const TIER_LABELS: Record<TierLevel, string> = {
 /**
  * Stage 3 (ADR-0059): when a tier holder's window passes, the Voice moves up
  * the chain on its own.
- * - Nobody answered: the next level takes over, the Voice stays Terbuka and
- *   the former holders keep a read-only view.
+ * - Nobody answered: the next level joins with full actions and the Voice
+ *   stays Terbuka.
  * - It reached the holder already answered (manual Naikkan, handover) and was
- *   not processed: the next level takes over again, it stays Direspon, the
- *   chat gets a note and the former holders stay in the chat.
+ *   not processed: the next level joins, it stays Direspon and the chat gets
+ *   a note.
  * - The holder answered (or assigned) but nobody processed it: the next level
  *   joins the chat beside them with Ingatkan / Tugaskan / Proses.
+ * In every case the levels whose window passed keep holding the Voice with
+ * their own actions (except Naikkan), and the miss still counts against them.
  * Every step runs under the Voice row lock shared with human actions and
  * re-checks the window, so concurrent workers and late actions are safe.
  */
@@ -129,27 +131,21 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
         version: { increment: 1 },
         tierDueAt: window?.tierDueAt ?? null,
         tierDueKind: window?.tierDueKind ?? null,
-        ...(unanswered
+        // Every level whose window passed keeps holding the Voice with its
+        // own actions; the miss still counts against it (previousHolders).
+        ...(unanswered || handedUp
           ? {
-              tierHolderIds: step.accountIds,
-              tierLowerHolderIds: [],
-              tierObserverIds: unique([...voice.tierObserverIds, ...previous]),
+              tierHolderIds: unique([...previous, ...step.accountIds]),
+              tierLowerHolderIds: unique([...voice.tierLowerHolderIds, ...previous]).filter(
+                (accountId) => !step.accountIds.includes(accountId),
+              ),
               tierHolderResponded: false,
             }
-          : handedUp
-            ? {
-                tierHolderIds: step.accountIds,
-                tierLowerHolderIds: [],
-                tierParticipantIds: unique([...voice.tierParticipantIds, ...previous]).filter(
-                  (accountId) => !step.accountIds.includes(accountId),
-                ),
-                tierHolderResponded: false,
-              }
-            : {
-                tierHolderIds: unique([...previous, ...step.accountIds]),
-                tierLowerHolderIds: unique([...voice.tierLowerHolderIds, ...previous]),
-                tierHolderResponded: true,
-              }),
+          : {
+              tierHolderIds: unique([...previous, ...step.accountIds]),
+              tierLowerHolderIds: unique([...voice.tierLowerHolderIds, ...previous]),
+              tierHolderResponded: true,
+            }),
       },
     });
     // No system account: the former holder carries the event, marked as system.

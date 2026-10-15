@@ -749,7 +749,8 @@ describe('Tiered routing foundation', () => {
         .filter((message) => message.kind === 'SYSTEM')
         .map((message) => message.text);
 
-    // 1. Nobody answered: the Section Head takes over and it stays Terbuka.
+    // 1. Nobody answered: the Section Head joins and it stays Terbuka. The
+    // Group Leader who missed it keeps acting at their own level.
     const open = await submitAs('700004', 'auto-open');
     expect(open).toMatchObject({ tierDueKind: 'RESPOND', tierHolderResponded: false });
     expect(open.tierDueAt!.getTime()).toBeGreaterThan(Date.now());
@@ -758,10 +759,18 @@ describe('Tiered routing foundation', () => {
     expect(await prisma.voice.findUniqueOrThrow({ where: { id: open.id } })).toMatchObject({
       status: 'OPEN',
       tierLevel: 'SECTION_HEAD',
-      tierHolderIds: [sectionHead.accountId],
-      tierObserverIds: [groupLeader.accountId],
+      tierHolderIds: [groupLeader.accountId, sectionHead.accountId],
+      tierLowerHolderIds: [groupLeader.accountId],
+      tierObserverIds: [],
       tierDueKind: 'RESPOND',
     });
+    expect((await voices.detail(groupLeader, open.id)).availableActions).toEqual([
+      'RESPOND',
+      'CHANGE_SEVERITY',
+    ]);
+    expect((await voices.detail(sectionHead, open.id)).availableActions).toEqual(
+      expect.arrayContaining(['RESPOND', 'ESCALATE', 'REMIND']),
+    );
     const escalated = await prisma.voiceEvent.findMany({
       where: { voiceId: open.id, type: 'ESCALATED' },
     });
@@ -806,6 +815,8 @@ describe('Tiered routing foundation', () => {
     await prisma.awayPeriod.delete({ where: { id: leave.id } });
 
     // 2. Raised by hand and not processed: up again, stays Direspon, chat note.
+    // The Group Leader who raised it keeps the chat; the Section Head who
+    // missed it keeps acting beside the Manager.
     const raised = await submitAs('700004', 'auto-raised');
     await voices.escalate(
       groupLeader,
@@ -822,9 +833,17 @@ describe('Tiered routing foundation', () => {
     expect(await prisma.voice.findUniqueOrThrow({ where: { id: raised.id } })).toMatchObject({
       status: 'RESPONDED',
       tierLevel: 'MANAGER',
-      tierHolderIds: [manager.accountId],
-      tierParticipantIds: [groupLeader.accountId, sectionHead.accountId],
+      tierHolderIds: [sectionHead.accountId, manager.accountId],
+      tierLowerHolderIds: [sectionHead.accountId],
+      tierParticipantIds: [groupLeader.accountId],
     });
+    // The Section Head still assigns within their Section.
+    expect((await voices.detail(sectionHead, raised.id)).availableActions).toEqual(
+      expect.arrayContaining(['PROCEED', 'ASSIGN', 'MESSAGE']),
+    );
+    expect(
+      (await voices.assignmentCandidates(sectionHead, raised.id)).map((item) => item.id),
+    ).toEqual([groupLeader.accountId]);
     expect(await thread(raised.id)).toEqual([
       'Diteruskan ke Section Head',
       'Diteruskan ke Manager',
