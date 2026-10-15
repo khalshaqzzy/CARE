@@ -1,5 +1,25 @@
 # CARE Session Handoff
 
+## Read notifications stay openable — 15 October 2026
+
+**Problem:** on every workforce account a notification could be opened only once. `NotificationsPage` rendered "Buka" only while `readAt` was null, so after the first open the row lost its button and its deep link.
+
+**Change on `fix/reopen-read-notifications` (from `origin/staging` a897c7f):**
+
+- `NotificationsPage.tsx`: "Buka" shows when the row has a deep link or is unread. Clicking it marks read only if the row is unread, then navigates to the deep link. Read rows without a deep link still have no button.
+- No API, contract or styling change.
+- ADR-0023 amendment; implementationPhases entry.
+
+**Tests:** new mocked journey in `e2e/workforce-journeys.spec.ts` (read row with deep link → Buka → `/voices/voice-1`, no mark-read PATCH). Browser total in `scripts/validation/validation.test.mjs` raised to 447 (446 after PR #92's birth-date test, plus this one); the first PR run failed `quality` on the stale 446 until staging was merged in.
+
+**Checks (Windows, portable Node 22.23.2):**
+
+- Passed: web-voice typecheck, ESLint and Prettier on changed files; the 7 notification-related Chromium tests (journeys, security, a11y) against this checkout's production build on port 4197; the CI partition inventory test (446) with a pnpm shell preload.
+- Against the other session's Vite dev server on 4173, 5 existing notification tests failed on Web Push detection; this is a dev-server difference, and they pass on the preview build.
+- Not run locally: full `verify:local`, legacy WebKit, fullstack and captures (no visual change for the default fixture). Hosted CI not run yet.
+
+**Next:** commit, push, open a PR to `staging`, then check `/ready` after merge.
+
 ## Mandatory first password change — 15 October 2026
 
 **Problem:** imported workforce accounts start with the No. Reg as password, and login/start opens a restricted session from the No. Reg alone. **Lain kali** then unlocked that session, so anyone who knew an unchanged No. Reg could use CARE as that employee.

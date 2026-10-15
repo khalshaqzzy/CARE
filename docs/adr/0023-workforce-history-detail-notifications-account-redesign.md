@@ -100,6 +100,17 @@ switch, degraded-state guidance, and device list stay reachable without extra
 taps; all existing anchors are preserved. "Tandai semua dibaca" stays a
 brand-styled ghost action that still appears only while unread items exist.
 
+**Amendment (15 October 2026): read notifications stay openable.** The "Buka"
+action was originally rendered only for unread rows, so a notification could be
+opened once and its deep link was unreachable afterwards. "Buka" is now shown
+for every row that has a deep link, read or unread, and for unread rows without
+one (where it only marks the row read). Opening a row that is already read
+navigates without sending another mark-read request, so `readAt` keeps the
+first-open time and the unread count is unaffected. Read rows without a deep
+link still show no action because there is nothing to open. No API or contract
+change was needed. A mocked Playwright journey covers reopening a read row and
+asserts that no `PATCH /notifications/{id}/read` request is sent.
+
 **Account (screen 16).** The hero keeps the gradient card with a larger
 initial avatar, name, `No. Reg` (or `@username` for Union), and icon-led chips
 (status check, `Briefcase` kind, Union slot). Organization profile becomes

@@ -170,13 +170,14 @@ export function NotificationsPage() {
                         <div className="notification-row__main">
                           <h3 className="notification-row__title">{notification.title}</h3>
                           <p className="notification-row__body">{notification.body}</p>
-                          {!isRead ? (
+                          {/* Read notifications stay openable; only unread ones are marked. */}
+                          {notification.deepLink || !isRead ? (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="notification-row__open"
                               onClick={() => {
-                                markRead.mutate(notification.id);
+                                if (!isRead) markRead.mutate(notification.id);
                                 if (notification.deepLink) void navigate(notification.deepLink);
                               }}
                             >

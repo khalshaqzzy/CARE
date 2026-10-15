@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Read notifications stay openable — 15 October 2026
+
+Phase 13 remains the only `in_progress` phase. Fix on `fix/reopen-read-notifications` (from `origin/staging`, not released): the Notification Center keeps "Buka" on read rows that have a deep link, so a notification can be opened any number of times. See ADR-0023 amendment.
+
 ## Penanganan Khusus target kind — 12 October 2026
 
 Phase 13 remains the only `in_progress` phase. Implemented locally on `feat/legacy-voice-import` (uncommitted, not released). Long-running Voices:
