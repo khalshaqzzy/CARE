@@ -1,6 +1,6 @@
 # ADR-0040: Session-scoped Workforce Password Deferral
 
-- Status: Accepted
+- Status: Superseded by ADR-0066
 - Date: 6 September 2026
 
 ## Context

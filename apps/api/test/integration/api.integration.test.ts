@@ -13,7 +13,6 @@ describe('API session boundary', () => {
     await app.init();
     await prisma.requestThrottle.deleteMany();
     await prisma.outboxEvent.deleteMany();
-    await prisma.auditEvent.deleteMany({ where: { action: 'PASSWORD_CHANGE_DEFERRED' } });
     await prisma.userAccount.upsert({
       where: { username: 'api-admin' },
       update: {
@@ -86,49 +85,30 @@ describe('API session boundary', () => {
       .send({ currentPassword: 'initial-admin-password', newPassword: 'changed-admin-password' })
       .expect(201);
   });
-  it('defers password change for only the current workforce session', async () => {
+  it('keeps every workforce session restricted until the password is changed', async () => {
     const agent = request.agent(app.getHttpServer());
     const login = await agent
       .post('/api/v1/auth/login')
       .send({ username: 'api-workforce', password: 'temporary-password' })
       .expect(201);
     expect(login.body.passwordChangeRequired).toBe(true);
-    const siblingAgent = request.agent(app.getHttpServer());
-    await siblingAgent
-      .post('/api/v1/auth/login')
-      .send({ username: 'api-workforce', password: 'temporary-password' })
-      .expect(201);
     await agent.get('/api/v1/general-voice-categories').expect(404);
-    await agent.post('/api/v1/auth/defer-password-change').expect(401);
     const csrf = await agent.get('/api/v1/auth/csrf').expect(200);
-    const deferred = await agent
-      .post('/api/v1/auth/defer-password-change')
-      .set('X-CSRF-Token', csrf.body.token)
-      .expect(201);
-    expect(deferred.body.passwordChangeRequired).toBe(false);
-    const siblingSession = await siblingAgent.get('/api/v1/auth/session').expect(200);
-    expect(siblingSession.body.passwordChangeRequired).toBe(true);
-    await agent.get('/api/v1/general-voice-categories').expect(200);
-    expect(
-      await prisma.userAccount.findUniqueOrThrow({
-        where: { username: 'api-workforce' },
-        select: { passwordChangeRequired: true },
-      }),
-    ).toEqual({ passwordChangeRequired: true });
-    expect(
-      await prisma.auditEvent.count({
-        where: { action: 'PASSWORD_CHANGE_DEFERRED', actorId: deferred.body.account.id },
-      }),
-    ).toBe(1);
+    // The deferral operation no longer exists.
     await agent
       .post('/api/v1/auth/defer-password-change')
       .set('X-CSRF-Token', csrf.body.token)
-      .expect(201);
-    expect(
-      await prisma.auditEvent.count({
-        where: { action: 'PASSWORD_CHANGE_DEFERRED', actorId: deferred.body.account.id },
-      }),
-    ).toBe(1);
+      .expect(404);
+    // A session unrestricted by the removed deferral stays restricted by the account flag.
+    await prisma.session.update({
+      where: { id: login.body.sessionId },
+      data: { passwordRestricted: false },
+    });
+    await agent.get('/api/v1/general-voice-categories').expect(404);
+    await agent.get('/api/v1/voices').expect(404);
+    expect((await agent.get('/api/v1/auth/session').expect(200)).body.passwordChangeRequired).toBe(
+      true,
+    );
     await agent.post('/api/v1/auth/logout').set('X-CSRF-Token', csrf.body.token).expect(201);
 
     const nextAgent = request.agent(app.getHttpServer());
@@ -158,9 +138,10 @@ describe('API session boundary', () => {
         select: { passwordChangeRequired: true },
       }),
     ).toEqual({ passwordChangeRequired: false });
+    await nextAgent.get('/api/v1/general-voice-categories').expect(200);
   });
   it.each(['api-union', 'api-defer-admin'])(
-    'keeps password deferral unavailable to %s',
+    'keeps a required password change restricted for %s',
     async (username) => {
       const agent = request.agent(app.getHttpServer());
       await agent

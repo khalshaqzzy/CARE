@@ -3419,27 +3419,6 @@
       "platform": "darwin-arm64"
     },
     {
-      "id": "267df09e5956e83d9bc9-dbc0141caaa938df0274",
-      "title": " › visual › workforce.visual.spec.ts › workforce password deferral action visual at 360",
-      "status": "passed",
-      "images": [
-        {
-          "file": "workforce-password-defer-360.png",
-          "name": "workforce-password-defer-360.png",
-          "width": 360,
-          "height": 800
-        }
-      ],
-      "metadata": [
-        {
-          "name": "capture-meta:workforce-password-defer-360.png",
-          "value": "{\"viewport\":{\"width\":360,\"height\":800},\"browserVersion\":\"151.0.7922.34\"}"
-        }
-      ],
-      "sha": "6c4fd2d0e658a57093d6540fa8a916856e456d41",
-      "platform": "darwin-arm64"
-    },
-    {
       "id": "267df09e5956e83d9bc9-927573a3875e140b38e0",
       "title": " › visual › workforce.visual.spec.ts › workforce submit success visual at 1440",
       "status": "passed",

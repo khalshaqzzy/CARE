@@ -27,7 +27,6 @@ type AuthContextValue = {
   clearAfterReset: () => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<Session | null>;
-  deferPasswordChange: () => Promise<Session>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -122,13 +121,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result.data ?? null;
   }, [refetch]);
 
-  const deferPasswordChange = useCallback(async () => {
-    const session = await transport.deferPasswordChange();
-    queryClient.setQueryData(sessionQueryKey, session);
-    channelRef.current?.postMessage({ type: 'session-changed' });
-    return session;
-  }, [queryClient, transport]);
-
   const value = useMemo<AuthContextValue>(
     () => ({
       session: sessionData ?? null,
@@ -140,11 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAfterReset,
       logout,
       refresh,
-      deferPasswordChange,
     }),
     [
       clearAfterReset,
-      deferPasswordChange,
       isLoading,
       login,
       startLogin,

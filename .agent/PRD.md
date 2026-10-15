@@ -285,7 +285,7 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 - Form login workforce memakai heading **“Silahkan login sesuai petunjuk.”**, field **No. Reg**, helper **“Masukkan No. Reg atau username Anda.”**, dan tombol **Lanjutkan**. Form menerima identifier teks, termasuk TM dan username Union.
 - `POST /auth/login/start` memeriksa account kind, status, account flag, dan hash credential. Workforce aktif dengan credential default langsung mendapat sesi terbatas; workforce berpassword pribadi dan seluruh Union mendapat `PASSWORD_REQUIRED` tanpa sesi, lalu form Password dan **Lupa Password?** diperluas ke bawah. Selama tahap Password aktif, field No. Reg terkunci; kontrol **Ubah No. Reg** mengembalikannya ke kondisi dapat diedit dan memfokuskannya dalam gesture yang sama sehingga keyboard perangkat tetap muncul.
 - Workforce default dapat mengganti password tanpa Password saat ini. Backend memverifikasi ulang status account dan sesi; sesi biasa serta Union tetap wajib menyertakan password saat ini. Tidak ada jalur atau opsi login Union terpisah.
-- Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`. Akun `WORKFORCE` dapat memilih **Lain kali** untuk membuka hanya sesi aktif; `UserAccount.passwordChangeRequired` tetap `true`, sehingga sesi baru kembali restricted sampai password benar-benar diganti. Sebelum change atau defer, hanya endpoint session, CSRF, logout, change password, dan workforce defer password yang dapat diakses.
+- Login pertama menghasilkan restricted session `PASSWORD_CHANGE_REQUIRED`. Password wajib diganti sebelum aplikasi dapat dipakai; tidak ada opsi menunda (**Lain kali** dihapus, ADR-0066). Selama `UserAccount.passwordChangeRequired` bernilai `true`, setiap sesi akun tersebut diperlakukan restricted oleh guard API, termasuk sesi lama yang sebelumnya dibuka melalui defer, sehingga hanya endpoint session, CSRF, logout, dan change password yang dapat diakses.
 - Password baru memiliki panjang 6–128 karakter, tidak memiliki syarat simbol/huruf/angka, dan tidak boleh sama dengan username atau password sementara.
 - Helper workforce menggunakan copy **“Password minimal 6 karakter dan tidak boleh sama dengan No. Reg dan password sebelumnya”**; Union/Admin tetap memakai istilah username. Alert kegagalan tetap berada di halaman dan membedakan konfirmasi yang tidak sama, password saat ini yang tidak sesuai, reuse, rate limit/offline, dan kegagalan umum tanpa menampilkan pesan backend mentah.
 - Password disimpan dengan Argon2id; plaintext tidak pernah disimpan atau dicatat.
@@ -297,7 +297,7 @@ Authorization wajib ditegakkan di backend pada role, relationship, dan object le
 - Setiap Union account adalah account individual; credential dan session tidak dibagi.
 - Penggantian password hanya mencabut session lain milik account tersebut.
 
-Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi biasa, atau Kembali ke login melalui logout untuk sesi yang wajib mengganti password. Pilihan **Lain kali** hanya tersedia bagi account kind `WORKFORCE`, berlaku pada sesi aktif, dan wajib muncul kembali pada login berikutnya selama account flag belum dihapus melalui change password. Union tetap wajib mengganti password sebelum mengakses aplikasi dan tidak dapat menunda.
+Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi biasa, atau Kembali ke login melalui logout untuk sesi yang wajib mengganti password. Tidak ada pilihan menunda: setiap account kind wajib menyimpan password baru sebelum mengakses aplikasi, dan setiap route aplikasi diarahkan ke halaman ganti password sampai selesai.
 
 ### 8.3 CARE Admin Bootstrap
 
@@ -1095,7 +1095,7 @@ Path final dapat disesuaikan selama OpenAPI mempertahankan capability berikut:
 
 - login, logout, session introspection;
 - session response dengan account kind, structural position, capability list, dan safe overview/detail/action scopes;
-- password change serta session-scoped defer khusus `WORKFORCE`; defer tidak mengubah account flag atau sesi lain dan Union/CARE Admin tetap mandatory;
+- password change wajib untuk setiap account kind; tidak ada endpoint defer;
 - CARE Admin password reset dan account activation/deactivation;
 - CSRF token lifecycle.
 
@@ -1472,7 +1472,7 @@ CI wajib mencakup:
 Event minimum:
 
 - login success/failure/lockout/logout;
-- first-password change, workforce session-scoped password defer, reset/deactivation/session revocation;
+- mandatory first-password change, reset/deactivation/session revocation;
 - XLSX/CSV import preview/confirm/failure dan authoritative deactivation;
 - default/global route change dan remediation resolution;
 - derived Section Head capability change akibat snapshot;
@@ -1715,7 +1715,7 @@ Risiko diberi status **Critical / Accepted by product decision** dan wajib mempe
 
 Minimum:
 
-- password/first-login/reset/session rules, termasuk defer idempoten khusus `WORKFORCE` yang tidak mengubah account flag atau sesi lain;
+- password/first-login/reset/session rules, termasuk restriction dari account flag untuk setiap sesi sampai password diganti;
 - account-kind/capability/object permission matrix dan tiga Private serializer variants;
 - XLSX sheet serta XLSX/CSV header/row/effective-diff/default/global route/remediation validation;
 - AI function-call parsing, no-fixed-priority behavior, confidence/fallback, location hash invalidation/acknowledgment;
@@ -1753,7 +1753,7 @@ Minimum journeys:
 2. XLSX/CSV invalid/valid preview, authoritative confirm, diff, remediation, dan preserved leading-zero no.reg.
 3. Default PIC, PIC global, serta exactly-one-Head/two-Officer setup.
 4. Monthly snapshot deactivation dan legacy handler menyelesaikan Voice aktif tanpa menerima Voice baru.
-5. Member first login dapat defer untuk sesi aktif, login berikutnya kembali restricted sampai change password, sedangkan Union/Admin tidak dapat defer; pilihan awal Private/General memakai copy final.
+5. Member first login wajib mengganti password sebelum masuk aplikasi (tanpa defer), sama seperti Union/Admin; pilihan awal Private/General memakai copy final.
 6. General Safety/Environment/Facility → AI Preview → satu PIC global lintas area.
 7. Work Difficulty → composite department Head/default PIC; `Department=14` dan missing route preserve draft.
 8. AI timeout/low confidence → General category+severity atau Private severity Manual Fallback.
@@ -1810,7 +1810,7 @@ Minimum journeys:
 - [ ] Department Head aktif otomatis menjadi Manager; department tanpa Department Head dapat memperoleh default PIC yang ditunjuk Admin.
 - [ ] Enam kategori default aktif, fixed target memakai exact composite unit, dan category route gap muncul sebagai remediation issue.
 - [ ] Tepat satu Union Head dan dua Union Officer dikelola Admin di luar workbook.
-- [ ] Username/password awal dan forced change bekerja untuk setiap account kind; hanya `WORKFORCE` dapat defer untuk sesi aktif, login berikutnya kembali restricted sampai password diganti, Union/Admin tetap mandatory, dan Admin reset mencabut session.
+- [ ] Username/password awal dan forced change bekerja untuk setiap account kind; tidak ada account kind yang dapat menunda, setiap sesi tetap restricted sampai password diganti, dan Admin reset mencabut session.
 - [ ] Section Head candidates sepenuhnya read-only dan diturunkan dari snapshot organisasi aktif; tidak ada promote/transfer/remove manual.
 - [ ] Perubahan snapshot atau route tidak menulis ulang reporter, route owner, assignment, actor, closure, atau PIC historis.
 
@@ -2001,7 +2001,7 @@ V1 siap production bila:
 - Satu file `.xlsx` atau UTF-8 `.csv` authoritative memakai tujuh header legacy atau delapan header dengan Birth Date; XLSX memakai sheet `MFG + QD`; Section Head dan posisi struktural diturunkan dari monthly snapshot, bukan dikelola Manager.
 - Workforce master diimpor melalui Admin UI dan tidak disimpan di Git; tiga akun Union dikelola Admin di luar workbook.
 - First login/reset memakai username/no.reg sebagai temporary password dan wajib change.
-- Akun `WORKFORCE` boleh menunda change password untuk sesi aktif melalui **Lain kali**; account flag dan sesi lain tidak berubah, sehingga prompt kembali pada login berikutnya. Union dan CARE Admin tidak dapat menunda.
+- Tidak ada account kind yang boleh menunda change password; **Lain kali** dihapus (ADR-0066) dan sesi dengan account flag aktif tetap restricted sampai password diganti.
 - Department Head dan Manager interchangeable; Department Head aktif otomatis menjadi Manager department-nya.
 - Department tanpa Department Head dapat memakai default PIC yang dipilih Admin dari karyawan aktif; kandidat assignment tetap Section Head pada department target.
 - Katalog kategori General Voice bersifat database-driven, berversi, archive-only, dan dimulai dengan enam stable key yang ditetapkan pada §1.1.

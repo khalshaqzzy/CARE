@@ -289,7 +289,9 @@ test.describe('workforce accessibility and responsive surface', () => {
     await expect(page.getByRole('textbox', { name: 'No. Reg' })).toBeFocused();
   });
 
-  test('password deferral stays accessible and contained across viewports', async ({ page }) => {
+  test('required password change stays accessible and contained across viewports', async ({
+    page,
+  }) => {
     await mockWorkforceApi(page, {
       session: { ...memberSession(), passwordChangeRequired: true },
     });
@@ -300,10 +302,11 @@ test.describe('workforce accessibility and responsive surface', () => {
     ]) {
       await page.setViewportSize(viewport);
       await page.goto('/change-password');
-      const defer = page.getByRole('button', { name: 'Lain kali' });
-      await defer.scrollIntoViewIfNeeded();
-      await expect(defer).toBeVisible();
-      expect((await defer.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      const save = page.getByRole('button', { name: 'Simpan password' });
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeVisible();
+      expect((await save.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
       expect(await axe(page)).toEqual([]);
       expect(await overflow(page)).toBeLessThanOrEqual(1);
     }

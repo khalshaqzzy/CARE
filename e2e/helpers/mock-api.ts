@@ -931,8 +931,6 @@ export type MockApiOptions = {
   session?: Session;
   /** Return 401 for the session endpoint (login / unauthenticated surfaces). */
   unauthenticated?: boolean;
-  /** Fail only the session-scoped password deferral mutation. */
-  deferPasswordError?: { status: number; code: string };
   /** Fail only the password-change mutation with a structured API state. */
   changePasswordError?: { status: number; code: string };
   voice?: MockVoice;
@@ -1186,7 +1184,7 @@ const notificationPageFixture = (): unknown => ({
  * its error state.
  */
 export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
-  let session = opts.session ?? memberSession();
+  const session = opts.session ?? memberSession();
   const voice = opts.voice;
   let savedDraft: Record<string, unknown> | null = null;
   let awayPeriod: Record<string, unknown> | null = null;
@@ -1211,17 +1209,6 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
     }
     if (method === 'GET' && path === '/api/v1/auth/csrf')
       return satisfy(200, { token: 'csrf-token' });
-    if (method === 'POST' && path === '/api/v1/auth/defer-password-change') {
-      if (opts.deferPasswordError)
-        return satisfy(
-          opts.deferPasswordError.status,
-          JSON.parse(
-            errorBody(opts.deferPasswordError.code, 'Ganti password tidak dapat ditunda.'),
-          ),
-        );
-      session = { ...session, passwordChangeRequired: false };
-      return satisfy(201, session);
-    }
     if (method === 'POST' && path === '/api/v1/auth/change-password' && opts.changePasswordError)
       return satisfy(
         opts.changePasswordError.status,

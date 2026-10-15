@@ -9,6 +9,7 @@ const { PrismaClient } = createRequire(resolve('apps/api/package.json'))('@prism
 const ORIGIN = 'http://127.0.0.1:4173';
 const USERNAME = '000128';
 const NEW_PASSWORD = 'care-member-e2e-123';
+const MANAGER_PASSWORD = 'care-manager-e2e-123';
 const enabled = process.env.FULLSTACK_E2E === '1';
 
 // The seeded member `00000128` (Budi Santoso) starts with passwordChangeRequired.
@@ -30,25 +31,14 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await page.getByLabel('No. Reg').fill(USERNAME);
   await page.getByRole('button', { name: 'Lanjutkan' }).click();
 
-  // A workforce account can defer for this session, but the account-level
-  // requirement survives and is enforced again after the next login.
+  // The initial No. Reg password cannot be kept: no app page or API data is
+  // reachable until a new password is set.
   await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
-  await page.getByRole('button', { name: 'Lain kali' }).click();
-  await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByRole('banner').getByRole('button', { name: 'Keluar' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
-  ).toBeVisible();
-  await page.getByLabel('No. Reg').fill(USERNAME);
-  await page.getByRole('button', { name: 'Lanjutkan' }).click();
-  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
-  // The required new-password field's accessible name is "Password baru *"; anchor
-  // the regex at the start so it does not also match "Konfirmasi password baru".
-  await page.getByLabel(/^Password baru/).fill(NEW_PASSWORD);
-  await page.getByLabel('Konfirmasi password baru').fill(NEW_PASSWORD);
-  await page.getByRole('button', { name: 'Simpan password' }).click();
+  await expect(page.getByRole('button', { name: 'Lain kali' })).toHaveCount(0);
+  expect((await page.request.get(`${ORIGIN}/api/v1/voices/mine`)).status()).toBe(404);
+  await page.goto(`${ORIGIN}/`);
+  await expect(page).toHaveURL(/\/change-password$/);
+  await setNewPassword(page, NEW_PASSWORD);
 
   // Member home loads real dashboard data from the seeded voices.
   await expect(page.getByRole('heading', { name: 'Budi Santoso' })).toBeVisible({
@@ -66,6 +56,15 @@ test('member full-stack smoke: login, forced password, home and voice detail', a
   await expect(page.getByText('Timeline')).toBeVisible();
 });
 
+async function setNewPassword(page: Page, password: string) {
+  await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+  // The required new-password field's accessible name is "Password baru *"; anchor
+  // the regex at the start so it does not also match "Konfirmasi password baru".
+  await page.getByLabel(/^Password baru/).fill(password);
+  await page.getByLabel('Konfirmasi password baru').fill(password);
+  await page.getByRole('button', { name: 'Simpan password' }).click();
+}
+
 // Scope and level come from the organization filter on the profile card.
 async function pickDepartment(page: Page, option: string) {
   await page.getByRole('button', { name: 'Filter organisasi', exact: true }).click();
@@ -80,7 +79,7 @@ test('manager dashboard uses real hierarchy metadata and scoped aggregates', asy
   await page.goto(`${ORIGIN}/login`);
   await page.getByLabel('No. Reg').fill('000003');
   await page.getByRole('button', { name: 'Lanjutkan' }).click();
-  await page.getByRole('button', { name: 'Lain kali' }).click();
+  await setNewPassword(page, MANAGER_PASSWORD);
   await expect(page.getByRole('button', { name: 'Filter organisasi', exact: true })).toContainText(
     'Department A',
   );
@@ -214,11 +213,10 @@ test('real lifecycle: monitor, process with opening note, close and reporter reo
         await page.getByRole('button', { name: 'Masuk' }).click();
       }
       await page.waitForURL((url) => url.pathname !== '/login');
-      if (await page.getByRole('button', { name: 'Lain kali' }).isVisible())
-        await page.getByRole('button', { name: 'Lain kali' }).click();
+      if (new URL(page.url()).pathname === '/change-password') await setNewPassword(page, password);
       await expect(page.getByRole('banner').getByRole('button', { name: 'Keluar' })).toBeVisible();
     };
-    await login(managerPage, '000003', '00000003');
+    await login(managerPage, '000003', MANAGER_PASSWORD);
     await managerPage.goto(`${ORIGIN}/voices/${voiceId}`);
     await managerPage.getByRole('button', { name: 'Respons', exact: true }).click();
     const sheet = managerPage.getByRole('dialog', { name: 'Respons' });

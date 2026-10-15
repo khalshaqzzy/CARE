@@ -41,7 +41,13 @@ export class AuthGuard implements CanActivate {
       session.absoluteExpiresAt <= now
     )
       throw unauthorized();
-    request.actor = await this.policy.resolvePrincipal(session.account, session);
+    // The account flag also restricts sessions opened before it was set, including ones
+    // unrestricted by the removed "Lain kali" deferral.
+    const passwordRestricted = session.passwordRestricted || session.account.passwordChangeRequired;
+    request.actor = await this.policy.resolvePrincipal(session.account, {
+      id: session.id,
+      passwordRestricted,
+    });
     const required = this.reflector.getAllAndOverride<Capability[]>(CAPABILITIES_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -50,12 +56,11 @@ export class AuthGuard implements CanActivate {
       throw forbiddenAsNotFound();
     const path = request.path;
     if (
-      session.passwordRestricted &&
+      passwordRestricted &&
       ![
         '/api/v1/auth/session',
         '/api/v1/auth/csrf',
         '/api/v1/auth/change-password',
-        '/api/v1/auth/defer-password-change',
         '/api/v1/auth/logout',
       ].includes(path)
     )

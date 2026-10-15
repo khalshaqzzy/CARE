@@ -1,6 +1,6 @@
 # ADR-0048: Registration-first Login and Birth-date Recovery
 
-- Status: Accepted
+- Status: Accepted; password deferral removed by ADR-0066
 - Date: 10 September 2026
 
 ## Context
