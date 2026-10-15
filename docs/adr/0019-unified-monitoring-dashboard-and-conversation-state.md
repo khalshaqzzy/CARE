@@ -108,3 +108,22 @@ room, Assign empty active room, first-message upsert, continuation In Progress,
 dan Closed read-only. Playwright mencakup navigation, workspace/detail/actions,
 axe, keyboard, reduced-motion, 360/768/1440 overflow, serta baseline visual baru.
 Hasil parity final dicatat pada `.agent/sessionHandoff.md`.
+
+## Amandemen 15 Oktober 2026 — Tampilan percakapan read-only
+
+Room chat memakai tinggi viewport tetap: hero, peserta, dan judul Percakapan
+terkunci di atas, sedangkan hanya log pesan yang di-scroll. Banner info
+"Percakapan telah selesai" / "Akses hanya baca" sebelumnya ikut terkunci di
+area atas tersebut, sehingga pada layar 360 × 800 log pesan untuk Voice Selesai
+hanya menyisakan sekitar 156 px (Voice aktif sekitar 235 px).
+
+Banner tersebut digantikan oleh catatan kecil bergaya pesan sistem di akhir log
+pesan. Status hanya baca tetap ditandai oleh label "Hanya baca" di samping judul
+Percakapan, dan composer tetap tidak dirender. Log pesan untuk Voice Selesai
+menjadi sekitar 294 px pada viewport yang sama. Alternatif berupa seluruh
+halaman yang di-scroll untuk percakapan read-only tidak dipilih karena
+membedakan perilaku scroll antara room aktif dan room Selesai.
+
+Validasi: Playwright `voice-lifecycle.spec.ts` memastikan room Selesai tidak
+memuat alert di area atas, diakhiri catatan "Percakapan telah selesai", tanpa
+composer, dan log pesan lebih tinggi dari 250 px pada 360 × 800.

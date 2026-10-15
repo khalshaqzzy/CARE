@@ -1,5 +1,13 @@
 # CARE Session Handoff
 
+## Closed Voice chat keeps its full message height — 15 October 2026
+
+**Problem:** in a closed (read-only) chat the info banner "Percakapan telah selesai" sat in the fixed area above the log. At 360 × 800 only ~156 px was left for messages, so the chat looked cut off.
+
+**Change on `fix/closed-chat-full-height` (from `origin/staging`):** `ConversationPage` no longer renders the read-only `Alert` in the fixed head. A small `chat-system` note ("Percakapan telah selesai", or "Akses hanya baca" for non-closed read-only access) now ends the message log. The "Hanya baca" pill stays beside the heading. At 360 × 800 the log grows to ~294 px. The product owner picked this variant over whole-page scrolling for read-only rooms. ADR-0019 amendment.
+
+**Tests:** new Playwright test in `e2e/voice-lifecycle.spec.ts`; browser total in `scripts/validation/validation.test.mjs` raised to 447. Local: lifecycle spec passed (two `calendar target` widths flaked under parallel load against the Vite dev server and passed on rerun), plus web-voice typecheck, eslint and Prettier on changed files. The partition count test could not spawn `pnpm` on Windows, so the +1 was confirmed with `playwright test --list` (440 → 441, fullstack excluded). Hosted CI not run yet.
+
 ## Missed tier levels keep acting — 15 October 2026
 
 **Product owner decision:** when a tier window passes, the level that missed it stays responsible. It keeps its normal actions at its own level (a Section Head still assigns a Group Leader of its Section), except Naikkan. The miss still counts against it, and Tahap penanganan shows it as **Terlambat**. Whoever raises a Voice by hand still keeps the chat only. ADR-0059 amendment; PRD §43.2.

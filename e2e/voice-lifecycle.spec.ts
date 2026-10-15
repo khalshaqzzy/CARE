@@ -623,3 +623,33 @@ for (const width of [360, 768, 1440]) {
     );
   });
 }
+
+test('a closed Voice chat keeps its height for messages and ends with the closed note', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await mockWorkforceApi(page, {
+    session: memberSession({ capabilities: ['MEMBER', 'MANAGER'] }),
+    voice: {
+      id: 'closed-voice',
+      displayId: 'CARE-202610-000011',
+      visibility: 'GENERAL',
+      status: 'CLOSED',
+      area: 'KARAWANG_1',
+      title: 'Pencahayaan area produksi kurang',
+      detail: 'Lampu di stasiun 3 redup.',
+      availableActions: [],
+      conversationState: 'READ_ONLY',
+    },
+  });
+  await page.goto('/voices/closed-voice/chat');
+  const log = page.getByRole('log');
+  await expect(log.getByText('Lantai 3, dekat mesin produksi.')).toBeVisible();
+  await expect(page.getByText('Hanya baca')).toBeVisible();
+  await expect(page.locator('.chat-composer')).toHaveCount(0);
+  // The notice closes the history inside the log instead of pinning above it.
+  await expect(page.locator('.chat-page__fixed-head .care-alert')).toHaveCount(0);
+  await expect(log.getByRole('note').last()).toHaveText('Percakapan telah selesai');
+  const logHeight = await log.evaluate((element) => element.clientHeight);
+  expect(logHeight).toBeGreaterThan(250);
+});
