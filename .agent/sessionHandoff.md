@@ -10,7 +10,7 @@
 - No API, contract or styling change.
 - ADR-0023 amendment; implementationPhases entry.
 
-**Tests:** new mocked journey in `e2e/workforce-journeys.spec.ts` (read row with deep link → Buka → `/voices/voice-1`, no mark-read PATCH). Browser total in `scripts/validation/validation.test.mjs` raised 445 → 446.
+**Tests:** new mocked journey in `e2e/workforce-journeys.spec.ts` (read row with deep link → Buka → `/voices/voice-1`, no mark-read PATCH). Browser total in `scripts/validation/validation.test.mjs` raised to 447 (446 after PR #92's birth-date test, plus this one); the first PR run failed `quality` on the stale 446 until staging was merged in.
 
 **Checks (Windows, portable Node 22.23.2):**
 
