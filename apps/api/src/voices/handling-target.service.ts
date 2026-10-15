@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { loadConfig } from '../config';
 import { formatHandlingDueAt, handlingReminderAt } from './handling-target';
 import { activeSubstitutes } from '../away/away';
+import { privateObservers } from './private-observers';
 
 type Tx = Prisma.TransactionClient;
 type CurrentVoice = {
@@ -11,6 +12,8 @@ type CurrentVoice = {
   reporterId: string;
   routeOwnerId: string;
   currentHandlerId: string | null;
+  visibility: string;
+  reporterDirectorateSnapshot: string | null;
 };
 
 /**
@@ -150,10 +153,16 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Everyone between the PIC and the Manager who owns the route. Until tiered
-   * chains land, that is the route-owning Manager.
+   * chains land, that is the route-owning Manager. A Private Voice also tells
+   * the Director and Deputy/Division Heads of the reporter's directorate.
    */
-  private async levelsAbove(_tx: Tx, voice: CurrentVoice) {
-    return voice.routeOwnerId !== voice.currentHandlerId ? [voice.routeOwnerId] : [];
+  private async levelsAbove(tx: Tx, voice: CurrentVoice) {
+    const owner = voice.routeOwnerId !== voice.currentHandlerId ? [voice.routeOwnerId] : [];
+    if (voice.visibility !== 'PRIVATE') return owner;
+    return [
+      ...owner,
+      ...(await privateObservers(tx, voice.reporterDirectorateSnapshot, voice.reporterId)),
+    ];
   }
 
   /** Same lock order as close/reopen/target mutations; returns null when stale. */

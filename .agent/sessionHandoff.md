@@ -1,5 +1,34 @@
 # CARE Session Handoff
 
+## Private Voice → Komite with directorate observers — 14 October 2026
+
+**Product owner decision:** Private Voices are handled by the Komite (the existing Union Head account) alone. The Director and all Deputy/Division Heads of the reporter's directorate read the Voice and its chat. ADR-0064 and PRD §14.1 hold the full rules.
+
+**Changes on `feat/private-komite-routing`** (worktree `../CARE-action` from `origin/staging` 349d775):
+
+- **API:**
+  - `PolicyService.privateObserverScope` sets the read scope. Director browse is limited to their own directorate's Private.
+  - `private-observers.ts` lists the notification recipients.
+  - The submit notice goes to the Komite and the observers.
+  - Private gets respond and process windows. A miss calls `missedAtRouteOwner`, which notifies the observers and adds a chat note without escalating. A missed handling target also notifies the observers.
+  - The `PRIVATE` category bucket appears in the Deputy/Division Head aggregate.
+  - `GET /work-items?visibility=PRIVATE` works for Deputy/Division Heads.
+  - No `ASSIGN` for Private. The Komite can `TAKE_OVER` from a deactivated Officer.
+  - Deputy/Division Head Private reads are audited.
+  - The route label is "Komite".
+- **Admin:**
+  - Deactivating a Union Officer ends its slot.
+  - Imports no longer raise `UNION_OFFICER_MISSING`.
+  - Overview counts only the Komite slot.
+- **web-voice:**
+  - Union labels become Komite.
+  - The assignment queue, Penugasan filter, PIC Union filter and pending KPI are removed.
+  - The reporter wizard says "Identitas kepada Komite".
+  - Deputy/Division Heads get the Jenis filter.
+  - The hero hides a role equal to the account name.
+
+**Open after release:** CARE Admin deactivates Union Officer 1 and 2 in Admin › Accounts, and the trial Voices are deleted.
+
 ## Butuh Tindakan Saya and Status Voice layout — 13 October 2026
 
 **Follow-up after PR #83:** a Deputy Division Head saw "4 Voice" with all four tiles at 0. Those tiles (lewat batas, < 24 jam, belum direspons, kritis) overlap and do not split the total. The four Voices were Direspon with more than a day left.

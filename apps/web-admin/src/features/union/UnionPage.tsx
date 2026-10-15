@@ -10,9 +10,9 @@ import { createAdminApi, type UnionAccountList } from '../../admin-api';
 type UnionTerm = UnionAccountList[number];
 
 const SLOT_META: Record<UnionTerm['slot'], { title: string; impact: string; index?: string }> = {
-  HEAD: { title: 'Head (Akun Utama)', impact: 'Akses semua Union akan berubah' },
-  OFFICER_1: { title: 'Union 1', impact: 'Akses slot ini akan berubah', index: '1' },
-  OFFICER_2: { title: 'Union 2', impact: 'Akses slot ini akan berubah', index: '2' },
+  HEAD: { title: 'Komite (Head)', impact: 'Seluruh Private Voice ditangani akun ini' },
+  OFFICER_1: { title: 'Union 1', impact: 'Tidak dipakai untuk Private Voice baru', index: '1' },
+  OFFICER_2: { title: 'Union 2', impact: 'Tidak dipakai untuk Private Voice baru', index: '2' },
 };
 
 export function UnionPage() {

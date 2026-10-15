@@ -74,7 +74,7 @@ export function ReviewSummary({
             icon={showIdentity ? <UserRound size={16} /> : <EyeOff size={16} />}
             label={showIdentity ? 'Identitas ditampilkan' : 'Identitas disembunyikan'}
             value={
-              showIdentity ? 'Union melihat profil yang disetujui' : 'Union melihat alias anonim'
+              showIdentity ? 'Komite melihat profil yang disetujui' : 'Komite melihat alias anonim'
             }
           />
           {fallbackCode ? (
@@ -177,7 +177,7 @@ export function ReviewConsentConfirmation({ showIdentity }: { showIdentity: bool
         <EyeOff size={18} aria-hidden="true" />
       )}
       <strong>
-        {showIdentity ? 'Union melihat profil yang disetujui' : 'Union melihat alias anonim'}
+        {showIdentity ? 'Komite melihat profil yang disetujui' : 'Komite melihat alias anonim'}
       </strong>
       <span className="review-consent__check" aria-hidden="true">
         <Check size={14} strokeWidth={3} />

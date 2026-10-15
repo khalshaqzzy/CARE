@@ -67,7 +67,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   await expect(page.getByText('Department Head belum tersedia').first()).toBeVisible();
 
   // Union: the three fixed slots are populated from the seed. The Head node
-  // carries the design title "Head (Akun Utama)", so match the account names
+  // carries the design title "Komite (Head)", so match the account names
   // as substrings rather than exact node titles.
   await page.goto(`${ADMIN}/union`);
   await expect(page.getByRole('heading', { name: 'Union Accounts' })).toBeVisible();

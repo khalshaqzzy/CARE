@@ -134,13 +134,28 @@ export class PolicyService {
     };
   }
 
+  /**
+   * Private Voices are handled by the Komite alone. The Director and every
+   * Deputy/Division Head of the reporter's directorate read them, and their
+   * chat, without acting.
+   */
+  privateObserverScope(actor: Principal): Prisma.VoiceWhereInput | null {
+    if (
+      !actor.directorate ||
+      !actor.capabilities.some((c) => c === 'DIRECTOR' || c === 'DIVISION_LEADERSHIP')
+    )
+      return null;
+    return { visibility: VoiceVisibility.PRIVATE, reporterDirectorateSnapshot: actor.directorate };
+  }
+
   async browseScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     if (actor.capabilities.includes('CARE_ADMIN')) return {};
     const own: Prisma.VoiceWhereInput = { reporterId: actor.accountId };
-    // Director reads every General and Private Voice, read-only.
+    const observed = this.privateObserverScope(actor);
+    // Director reads every General Voice and their directorate's Private, read-only.
     if (actor.capabilities.includes('DIRECTOR'))
       return {
-        OR: [own, { visibility: { in: [VoiceVisibility.GENERAL, VoiceVisibility.PRIVATE] } }],
+        OR: [own, { visibility: VoiceVisibility.GENERAL }, ...(observed ? [observed] : [])],
       };
     if (actor.capabilities.includes('UNION_HEAD') || actor.capabilities.includes('UNION_OFFICER'))
       return { visibility: VoiceVisibility.GENERAL };
@@ -153,6 +168,7 @@ export class PolicyService {
             reporterDirectorateSnapshot: actor.directorate,
             reporterDivisionSnapshot: actor.division,
           },
+          ...(observed ? [observed] : []),
         ],
       };
     if (actor.capabilities.includes('MANAGER') && actor.organizationUnitId)

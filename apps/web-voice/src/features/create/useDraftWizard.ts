@@ -245,7 +245,7 @@ export function useDraftWizard(draftId?: string) {
       return;
     }
     if (form.visibility === 'PRIVATE' && form.showReporterIdentity === null) {
-      setError('Pilih apakah identitas Anda ditampilkan kepada Union.');
+      setError('Pilih apakah identitas Anda ditampilkan kepada Komite.');
       return;
     }
     if (form.visibility === 'PRIVATE' && !form.privateContactConsent) {

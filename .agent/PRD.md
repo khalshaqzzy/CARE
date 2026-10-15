@@ -673,11 +673,22 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 
 ### 14.1 Private Voice
 
-- Selalu route ke tepat satu Union Head aktif setelah prerequisite satu Head/dua Officer terpenuhi.
+> **Amandemen 14 Oktober 2026 (ADR-0064).** Butir di bawah menggantikan aturan Union Head/Officer sebelumnya.
+
+- **Komite.** Private Voice selalu route ke tepat satu akun Union Head aktif, yang di aplikasi tampil sebagai **Komite**. Komite satu-satunya yang merespons, memproses, dan menutup. Tidak ada penugasan ke Union Officer, dan Union Officer dapat dinonaktifkan Admin tanpa pengganti.
+- **Pengamat direktorat.** Director dan seluruh Deputy/Division Head **direktorat pelapor** (data organisasi aktif) masuk ke Voice dan room chat secara read-only.
+  - Identitas mengikuti pilihan pelapor.
+  - Pelapor melihat semuanya sebagai **Komite**.
+  - Setiap akses mereka diaudit.
+  - Pelapor tanpa direktorat yang jelas: hanya Komite.
+- **Notifikasi.** Komite dan pengamat diberi notifikasi saat Voice masuk dan saat terlambat.
+- **Batas waktu.** Batas respons dan proses mengikuti severity (§43.4). Keterlambatan hanya memberi notifikasi dan catatan di chat, tanpa eskalasi.
+- **Cakupan baca.**
+  - Director: hanya Private direktoratnya sendiri, tanpa Butuh Tindakan Saya.
+  - Deputy/Division Head: Private tampil sebagai kategori **Private** di Sebaran Voice Masuk dan lewat filter Jenis di Voice Member. Private tidak masuk Butuh Tindakan Saya.
 - Tidak pernah dikirim kepada Manager/Section Head berdasarkan category.
-- `routeOwnerId` adalah Union Head; current handler awal kosong/Head sesuai action pertama.
-- Union Head dapat assign/reassign Union 1 atau Union 2 sebelum `IN_PROGRESS`; Officer hanya memperoleh assigned scope.
-- Consent identity disnapshot saat submit dan menentukan Union DTO; Admin DTO selalu memuat profil reporter lengkap secara read-only.
+- `routeOwnerId` adalah akun Komite; current handler awal kosong/Komite sesuai action pertama.
+- Consent identity disnapshot saat submit dan menentukan DTO Komite dan pengamat. Admin DTO selalu memuat profil reporter lengkap secara read-only.
 
 ### 14.2 Route Berbasis Kategori
 

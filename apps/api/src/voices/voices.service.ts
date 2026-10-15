@@ -57,6 +57,7 @@ import {
   TIER_ORDER,
   tierAssignees,
 } from './tier-chain';
+import { privateObservers } from './private-observers';
 import { jakartaDateKey } from '../escalation/working-time';
 import { activeSubstitutes } from '../away/away';
 import { tierWindow } from '../escalation/tier-window';
@@ -838,12 +839,12 @@ export class VoicesService {
     const firstWindow = firstTier
       ? await tierWindow(this.prisma, classification.severity, 'RESPOND')
       : null;
-    // Fixed categories (PRD §43.8): the route owner answers within the same
-    // per-severity window; a miss notifies rather than escalates.
-    const fixedWindow =
-      !firstTier && draft.visibility === VoiceVisibility.GENERAL
-        ? await tierWindow(this.prisma, classification.severity, 'RESPOND')
-        : null;
+    // Fixed categories (PRD §43.8) and Private Voices: the route owner (the
+    // Komite for Private) answers within the same per-severity window; a miss
+    // notifies rather than escalates.
+    const fixedWindow = !firstTier
+      ? await tierWindow(this.prisma, classification.severity, 'RESPOND')
+      : null;
     const response = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.voiceDraft.updateMany({
         where: { id, version: body.version, submittedAt: null },
@@ -958,7 +959,15 @@ export class VoicesService {
           expiresAt: new Date(Date.now() + 86_400_000),
         },
       });
-      for (const recipientId of firstTier?.accountIds ?? [route.ownerAccountId])
+      // A Private Voice also reaches the reporter's Director and Deputy/Division
+      // Heads, who read it alongside the Komite.
+      const observers =
+        voice.visibility === VoiceVisibility.PRIVATE
+          ? await privateObservers(tx, voice.reporterDirectorateSnapshot, voice.reporterId)
+          : [];
+      for (const recipientId of [
+        ...new Set([...(firstTier?.accountIds ?? [route.ownerAccountId]), ...observers]),
+      ])
         await this.notify(
           tx,
           recipientId,
@@ -1078,9 +1087,10 @@ export class VoicesService {
     this.assertStatusFilter(query.status, query.statusGroup);
     if (query.action !== undefined && query.action !== 'me' && query.action !== 'closed')
       throw badRequest('ACTION_FILTER_INVALID', 'action must be me or closed');
-    const director = actor.capabilities.includes('DIRECTOR');
-    // Director's Private list: every Private Voice, read-only.
-    const directorPrivate = director && query.visibility === 'PRIVATE';
+    // Director and Deputy/Division Heads: their directorate's Private Voices, read-only.
+    const directorPrivate =
+      query.visibility === 'PRIVATE' &&
+      actor.capabilities.some((c) => c === 'DIRECTOR' || c === 'DIVISION_LEADERSHIP');
     // scope=unit: the unit-head dashboard cohort (the selected organization's
     // handled General Voices the viewer may open), so Voice Member lists exactly
     // what Home and Butuh Tindakan Saya count. Otherwise the personal work list.
@@ -2852,7 +2862,7 @@ export class VoicesService {
               ...(await tierWindow(tx, current.severity, 'PROCESS')),
             },
           });
-        else if (current.visibility === VoiceVisibility.GENERAL && !current.currentHandlerId)
+        else if (!current.currentHandlerId)
           await tx.voice.update({
             where: { id },
             data: (await tierWindow(tx, current.severity, 'PROCESS')) ?? {
@@ -3427,12 +3437,14 @@ export class VoicesService {
   }
   async dashboardPrivate(actor: AuthActor, filter: DashboardFilter = {}) {
     let where: Prisma.VoiceWhereInput;
-    if (
-      actor.capabilities.some((capability) =>
-        ['CARE_ADMIN', 'UNION_HEAD', 'DIRECTOR'].includes(capability),
-      )
-    )
+    if (actor.capabilities.some((capability) => ['CARE_ADMIN', 'UNION_HEAD'].includes(capability)))
       where = { visibility: VoiceVisibility.PRIVATE };
+    // The Director reads the Private Voices of their own directorate only.
+    else if (actor.capabilities.includes('DIRECTOR'))
+      where = {
+        visibility: VoiceVisibility.PRIVATE,
+        reporterDirectorateSnapshot: actor.directorate ?? '__none__',
+      };
     else if (actor.capabilities.includes('UNION_OFFICER'))
       where = { visibility: VoiceVisibility.PRIVATE, currentHandlerId: actor.accountId };
     else where = { visibility: VoiceVisibility.PRIVATE, reporterId: actor.accountId };
@@ -4173,7 +4185,7 @@ export class VoicesService {
               account: { status: AccountStatus.ACTIVE },
             },
           })) === 1,
-        targetLabel: 'Union Head',
+        targetLabel: 'Komite',
       };
     if (!draft.organizationUnitId || !draft.classification)
       return {
@@ -4194,7 +4206,7 @@ export class VoicesService {
     }
   }
   private async routeTargetLabel(draft: ShopDraft) {
-    if (draft.visibility === VoiceVisibility.PRIVATE) return 'Union Head';
+    if (draft.visibility === VoiceVisibility.PRIVATE) return 'Komite';
     if (!draft.organizationUnitId || !draft.classification) return null;
     try {
       const route = await this.resolveRoute(draft, draft.classification.categoryKey);
@@ -5024,9 +5036,14 @@ export class VoicesService {
     if (group && !['ACTIVE', 'CLOSED', 'ALL'].includes(group))
       throw badRequest('STATUS_FILTER_INVALID', 'statusGroup must be ACTIVE, CLOSED, or ALL');
   }
-  /** CARE Admin and Director read Private Voices they do not handle; each read is audited. */
+  /**
+   * CARE Admin, the Director and the Deputy/Division Heads read Private Voices
+   * they do not handle; each read is audited.
+   */
   private auditsPrivateReads(actor: AuthActor) {
-    return actor.capabilities.some((capability) => ['CARE_ADMIN', 'DIRECTOR'].includes(capability));
+    return actor.capabilities.some((capability) =>
+      ['CARE_ADMIN', 'DIRECTOR', 'DIVISION_LEADERSHIP'].includes(capability),
+    );
   }
   private async auditPrivateRead(actor: AuthActor, voiceId: string, action: string) {
     await this.prisma.auditEvent.create({

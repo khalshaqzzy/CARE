@@ -11,6 +11,7 @@ import { activeSubstitutes } from '../away/away';
 import { loadConfig } from '../config';
 import { tierWindow } from '../escalation/tier-window';
 import { PrismaService } from '../prisma.service';
+import { privateObservers } from './private-observers';
 import { chainForVoice, TIER_ORDER } from './tier-chain';
 
 type Tx = Prisma.TransactionClient;
@@ -59,13 +60,15 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
       await this.backfillFixed();
       // Tiered Voices move up; fixed categories either hand an assigned PIC's
       // miss to the Manager tier or, still with the route owner, notify once
-      // per deadline (tierMissedDueAt) without moving.
+      // per deadline (tierMissedDueAt) without moving. Private Voices stay with
+      // the Komite and only notify, like a fixed category at its route owner.
       const due = await this.prisma.$queryRaw<Array<{ id: string }>>`
         SELECT v.id FROM "Voice" v
         WHERE v."tierDueAt" < ${now} AND v.status IN ('OPEN', 'RESPONDED')
           AND (v."tierLevel" IS NOT NULL OR (v.visibility = 'GENERAL' AND (
             (v."currentHandlerId" IS NOT NULL AND v."currentHandlerId" <> v."routeOwnerId")
-            OR v."tierMissedDueAt" IS DISTINCT FROM v."tierDueAt")))
+            OR v."tierMissedDueAt" IS DISTINCT FROM v."tierDueAt"))
+            OR (v.visibility = 'PRIVATE' AND v."tierMissedDueAt" IS DISTINCT FROM v."tierDueAt"))
         ORDER BY v."tierDueAt" ASC LIMIT 50`;
       for (const { id } of due)
         if (await this.prisma.$transaction((tx) => this.escalate(tx, id, now))) moved += 1;
@@ -88,7 +91,9 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
     )
       return false;
     if (!voice.tierLevel)
-      return voice.currentHandlerId && voice.currentHandlerId !== voice.routeOwnerId
+      return voice.visibility === 'GENERAL' &&
+        voice.currentHandlerId &&
+        voice.currentHandlerId !== voice.routeOwnerId
         ? this.escalateAssignment(tx, voice, now)
         : this.missedAtRouteOwner(tx, voice, now);
     const from = voice.tierLevel;
@@ -217,28 +222,45 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
    * process window does not move the Voice. The Manager is told to act now and
    * the Deputy/Division Heads are informed, once per deadline. The miss counts
    * against the Manager's timeliness.
+   * Private Voices work the same at the Komite: the Komite is told to act, the
+   * Director and Deputy/Division Heads of the reporter's directorate are
+   * informed, and an open chat gets a note.
    */
-  private async missedAtRouteOwner(tx: Tx, voice: Prisma.VoiceGetPayload<object>, now: Date) {
-    if (
-      voice.visibility !== 'GENERAL' ||
-      !voice.tierDueAt ||
-      voice.tierMissedDueAt?.getTime() === voice.tierDueAt.getTime()
-    )
+  private async missedAtRouteOwner(
+    tx: Tx,
+    voice: Prisma.VoiceGetPayload<{ include: { conversation: { select: { id: true } } } }>,
+    now: Date,
+  ) {
+    if (!voice.tierDueAt || voice.tierMissedDueAt?.getTime() === voice.tierDueAt.getTime())
       return false;
+    const isPrivate = voice.visibility === 'PRIVATE';
     const owner = voice.routeOwnerId;
     const answered = voice.status !== VoiceStatus.OPEN;
     const substitute = (await activeSubstitutes(tx, [owner], now)).get(owner);
-    const division =
-      (await chainForVoice(tx, voice)).find((step) => step.level === TierLevel.DIVISION)
-        ?.accountIds ?? [];
+    const division = isPrivate
+      ? await privateObservers(tx, voice.reporterDirectorateSnapshot, voice.reporterId)
+      : ((await chainForVoice(tx, voice)).find((step) => step.level === TierLevel.DIVISION)
+          ?.accountIds ?? []);
     await tx.voice.update({
       where: { id: voice.id },
       data: { tierMissedDueAt: voice.tierDueAt },
     });
     const carrier = await tx.userAccount.findUniqueOrThrow({
       where: { id: owner },
-      select: { id: true, accountKind: true },
+      select: { id: true, accountKind: true, displayName: true },
     });
+    if (isPrivate && voice.conversation)
+      await tx.message.create({
+        data: {
+          conversationId: voice.conversation.id,
+          senderId: carrier.id,
+          senderAccountKind: carrier.accountKind,
+          senderCapabilities: [],
+          senderNameSnapshot: carrier.displayName,
+          kind: MessageKind.SYSTEM,
+          text: answered ? 'Batas waktu proses terlewati' : 'Batas waktu respons terlewati',
+        },
+      });
     await tx.voiceEvent.create({
       data: {
         voiceId: voice.id,
@@ -271,8 +293,16 @@ export class TierEscalationService implements OnModuleInit, OnModuleDestroy {
         recipientId,
         voice.id,
         NotificationType.TARGET_OVERDUE,
-        answered ? 'Voice belum diproses' : 'Voice belum direspons',
-        'Batas waktu terlewati di Manager department penanganan.',
+        isPrivate
+          ? answered
+            ? 'Private Voice belum diproses'
+            : 'Private Voice belum direspons'
+          : answered
+            ? 'Voice belum diproses'
+            : 'Voice belum direspons',
+        isPrivate
+          ? 'Batas waktu terlewati di Komite.'
+          : 'Batas waktu terlewati di Manager department penanganan.',
       );
     return true;
   }

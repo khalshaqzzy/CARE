@@ -43,7 +43,7 @@ const ACCOUNT_STATUS_LABELS: Record<string, string> = {
 
 const ACCOUNT_KIND_LABELS: Record<string, string> = {
   WORKFORCE: 'Karyawan',
-  UNION: 'Union',
+  UNION: 'Komite',
   CARE_ADMIN: 'CARE Admin',
 };
 
@@ -120,7 +120,7 @@ export function AccountPage() {
             ))}
           </dl>
         ) : (
-          <p className="account-note">Tidak ada profil workforce (akun Union).</p>
+          <p className="account-note">Tidak ada profil workforce (akun Komite).</p>
         )}
       </SectionCard>
 

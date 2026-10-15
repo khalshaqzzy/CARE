@@ -307,29 +307,38 @@ describe('Voice lifecycle backend completion', () => {
     ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
   });
 
-  it('Private assignment acknowledges anonymously and reserves processing for the officer', async () => {
+  it('keeps Private handling with the Komite, which sees the reporter anonymously', async () => {
     const voice = await createVoice({
       visibility: VoiceVisibility.PRIVATE,
       routeOwnerId: unionHead.accountId,
       handlerType: HandlerType.UNION_HEAD,
       showReporterIdentity: false,
     });
-    await voices.assign(
+    // No Union Officer assignment: the Komite processes the Voice itself.
+    await expect(
+      voices.assign(
+        unionHead,
+        voice.id,
+        {
+          handlerAccountId: officer.accountId,
+          expectedVersion: 1,
+          text: 'Komite menindaklanjuti laporan',
+        },
+        'private-assign',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    const processed = await voices.respond(
       unionHead,
       voice.id,
-      {
-        handlerAccountId: officer.accountId,
-        expectedVersion: 1,
-        text: 'Komite menindaklanjuti laporan',
-      },
-      'private-assign',
+      { text: 'Komite menindaklanjuti laporan', version: 1, days: 1 },
+      'private-process',
     );
-    await expect(
-      voices.proceed(unionHead, voice.id, { version: 2, days: 1 }, 'private-owner'),
-    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
-    await voices.proceed(officer, voice.id, { version: 2, days: 1 }, 'private-process');
+    expect(processed).toMatchObject({
+      status: 'IN_PROGRESS',
+      currentHandlerId: unionHead.accountId,
+    });
     await voices.addMessage(reporter, voice.id, { text: 'Terima kasih' }, [], 'private-reply');
-    const messages = await voices.messages(officer, voice.id, {});
+    const messages = await voices.messages(unionHead, voice.id, {});
     expect(messages.items[1]?.sender).toMatchObject({ kind: 'ANONYMOUS_REPORTER' });
     expect(messages.items[1]?.senderId).toBeUndefined();
   });

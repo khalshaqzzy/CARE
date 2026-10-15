@@ -149,9 +149,12 @@ export function GeneralBrowsePage() {
       <HeroBand
         eyebrow="General Voice"
         title="Tinjauan General"
-        description="Aggregate dan detail General Voice bersifat read-only untuk Union."
+        description="Aggregate dan detail General Voice bersifat read-only untuk Komite."
         chip={
-          <HeroChip icon={<ShieldCheck size={12} aria-hidden="true" />} label="Union · Read-only" />
+          <HeroChip
+            icon={<ShieldCheck size={12} aria-hidden="true" />}
+            label="Komite · Read-only"
+          />
         }
         updated={data ? `Diperbarui ${formatRelative(data.generatedAt)}` : undefined}
         inset={
