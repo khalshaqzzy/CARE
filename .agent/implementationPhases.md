@@ -1411,3 +1411,14 @@ off on a second tap; phone action tiles are 2×2 with 12 px labels. Home links,
 including **Pantau** on the team-overdue strip, open the matching tab. ADR-0064 and
 PRD §18.8.6 (update of 14 October) record the decision. Phase 13 remains the only
 `in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.
+
+## Account login tracking — 15 October 2026
+
+Implemented locally on `feat/login-tracking` (from `origin/staging` 52a7b6b): logins
+now write a sanitized `USER_LOGIN` audit event (success and failure) and set
+`UserAccount.firstLoginAt`/`lastLoginAt`. Admin › Accounts filters by Divisi,
+Departemen, Seksi and Sudah/Belum login, shows "Login terakhir", summarizes the
+chosen division per department, and exports the "belum login" list as CSV. Counts
+start at deploy; earlier logins were never recorded. ADR-0065 records the decision.
+Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed. Checks
+are in sessionHandoff.md.

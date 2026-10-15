@@ -59,6 +59,10 @@ export class AdminController {
     @Query('unitId') unitId?: string,
     @Query('position') position?: string,
     @Query('eligibility') eligibility?: string,
+    @Query('division') division?: string,
+    @Query('department') department?: string,
+    @Query('section') section?: string,
+    @Query('loggedIn') loggedIn?: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
@@ -69,9 +73,20 @@ export class AdminController {
       unitId,
       position,
       eligibility,
+      division,
+      department,
+      section,
+      loggedIn,
       cursor,
       limit,
     });
+  }
+
+  @Get('accounts/login-summary') loginSummary(
+    @Query('division') division?: string,
+    @Query('department') department?: string,
+  ) {
+    return this.service.loginSummary({ division, department });
   }
 
   @Get('accounts/:id') accountDetail(@Param('id', ParseUUIDPipe) id: string) {
