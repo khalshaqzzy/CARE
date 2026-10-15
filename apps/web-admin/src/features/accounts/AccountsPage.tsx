@@ -23,6 +23,7 @@ import { AdminEmpty } from '../../components/AdminEmpty';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type Account } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+import { LoginSummary } from './LoginSummary';
 
 function orgContext(account: Account): string {
   const membership = account.employee?.memberships?.[0];
@@ -30,6 +31,20 @@ function orgContext(account: Account): string {
   const unit = membership.organizationUnit;
   return `${unit.division} — ${unit.department}`;
 }
+
+function formatLastLogin(value: string | null | undefined) {
+  return value
+    ? new Date(value).toLocaleString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+}
+
+const csvCell = (value: string) => `"${value.replaceAll('"', '""')}"`;
 
 function kindTone(kind: string): 'info' | 'neutral' {
   return kind === 'CARE_ADMIN' ? 'info' : 'neutral';
@@ -43,6 +58,11 @@ export function AccountsPage() {
   const search = searchParams.get('search') ?? '';
   const kind = searchParams.get('kind') ?? '';
   const status = searchParams.get('status') ?? '';
+  const division = searchParams.get('division') ?? '';
+  const department = searchParams.get('department') ?? '';
+  const section = searchParams.get('section') ?? '';
+  const loggedIn = searchParams.get('loggedIn') ?? '';
+  const [exporting, setExporting] = useState(false);
   const pagination = cursorPagination(searchParams, setSearchParams);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -59,6 +79,10 @@ export function AccountsPage() {
       search,
       kind,
       status,
+      division,
+      department,
+      section,
+      loggedIn,
       pagination.cursor ?? 'first',
     ),
     queryFn: () =>
@@ -67,10 +91,38 @@ export function AccountsPage() {
         search: search || undefined,
         kind: kind || undefined,
         status: status || undefined,
+        division: division || undefined,
+        department: department || undefined,
+        section: section || undefined,
+        loggedIn: (loggedIn || undefined) as 'true' | 'false' | undefined,
         cursor: pagination.cursor,
       }),
     enabled: !!session,
   });
+
+  const divisionsQuery = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts', 'divisions'),
+    queryFn: () => api.organizationDivisions(),
+    enabled: !!session,
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts', 'login', division, department),
+    queryFn: () =>
+      api.loginSummary({
+        division: division || undefined,
+        department: department || undefined,
+      }),
+    enabled: !!session && !!division,
+  });
+  // Department and section options come from the summary one level up.
+  const departmentsQuery = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts', 'login', division, ''),
+    queryFn: () => api.loginSummary({ division }),
+    enabled: !!session && !!division,
+  });
+  const departments = departmentsQuery.data?.groups.map((group) => group.name) ?? [];
+  const sections = department ? (summaryQuery.data?.groups.map((group) => group.name) ?? []) : [];
 
   const detailQuery = useQuery({
     queryKey: careQueryKey(
@@ -115,15 +167,79 @@ export function AccountsPage() {
     },
   });
 
-  const updateParam = (name: string, value: string) => {
+  const updateParams = (values: Record<string, string>) => {
     const params = new URLSearchParams(searchParams);
     params.delete('cursor');
     params.delete('cursorHistory');
-    if (value) params.set(name, value);
-    else params.delete(name);
+    for (const [name, value] of Object.entries(values))
+      if (value) params.set(name, value);
+      else params.delete(name);
     setSearchParams(params);
   };
-  const filtersActive = Boolean(search || kind || status);
+  const updateParam = (name: string, value: string) => updateParams({ [name]: value });
+  // Login counts cover active workforce accounts, so the list follows suit.
+  const pickLogin = (value: string) =>
+    updateParams(
+      value
+        ? { loggedIn: value, kind: kind || 'WORKFORCE', status: status || 'ACTIVE' }
+        : { loggedIn: '' },
+    );
+  const pickDivision = (value: string) =>
+    updateParams({ division: value, department: '', section: '' });
+  const pickGroup = (name: string) =>
+    !division
+      ? pickDivision(name)
+      : !department
+        ? updateParams({ department: name, section: '' })
+        : updateParams({ section: name });
+  const filtersActive = Boolean(search || kind || status || division || loggedIn);
+
+  const exportNotLoggedIn = async () => {
+    setExporting(true);
+    try {
+      const rows: Account[] = [];
+      let cursor: string | undefined;
+      do {
+        const pageData = await api.accounts({
+          limit: 100,
+          kind: 'WORKFORCE',
+          status: 'ACTIVE',
+          loggedIn: 'false',
+          division: division || undefined,
+          department: department || undefined,
+          section: section || undefined,
+          cursor,
+        });
+        rows.push(...pageData.items);
+        cursor = pageData.nextCursor ?? undefined;
+      } while (cursor);
+      const lines = [
+        'noReg,nama,divisi,departemen,seksi,posisi',
+        ...rows.map((row) => {
+          const membership = row.employee?.memberships?.[0];
+          return [
+            row.employee?.noReg ?? row.username,
+            row.employee?.name ?? row.displayName,
+            membership?.organizationUnit.division ?? '',
+            membership?.organizationUnit.department ?? '',
+            membership?.section ?? '',
+            membership?.structuralPosition ?? '',
+          ]
+            .map(csvCell)
+            .join(',');
+        }),
+      ];
+      const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `belum-login-${(section || department || division || 'semua').replace(/[^\w-]+/g, '-')}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <Stack gap="lg">
@@ -169,6 +285,49 @@ export function AccountsPage() {
                 { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
             />
+            <Select
+              label="Divisi"
+              value={division || 'ALL'}
+              onValueChange={(v) => pickDivision(v === 'ALL' ? '' : v)}
+              options={[
+                { value: 'ALL', label: 'Semua' },
+                ...(divisionsQuery.data ?? []).map((name) => ({ value: name, label: name })),
+              ]}
+            />
+            {division ? (
+              <Select
+                label="Departemen"
+                value={department || 'ALL'}
+                onValueChange={(v) =>
+                  updateParams({ department: v === 'ALL' ? '' : v, section: '' })
+                }
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  ...departments.map((name) => ({ value: name, label: name })),
+                ]}
+              />
+            ) : null}
+            {department ? (
+              <Select
+                label="Seksi"
+                value={section || 'ALL'}
+                onValueChange={(v) => updateParam('section', v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  ...sections.map((name) => ({ value: name, label: name })),
+                ]}
+              />
+            ) : null}
+            <Select
+              label="Login"
+              value={loggedIn || 'ALL'}
+              onValueChange={(v) => pickLogin(v === 'ALL' ? '' : v)}
+              options={[
+                { value: 'ALL', label: 'Semua' },
+                { value: 'true', label: 'Sudah login' },
+                { value: 'false', label: 'Belum login' },
+              ]}
+            />
           </>
         }
         {...(q.data
@@ -178,6 +337,16 @@ export function AccountsPage() {
           : {})}
         {...(filtersActive ? { onReset: () => setSearchParams({}) } : {})}
       />
+
+      {summaryQuery.data ? (
+        <LoginSummary
+          summary={summaryQuery.data}
+          exporting={exporting}
+          onExport={() => void exportNotLoggedIn()}
+          onPickGroup={pickGroup}
+          onPickLogin={pickLogin}
+        />
+      ) : null}
 
       {q.isLoading ? (
         <section className="admin-table-card" aria-label="Memuat akun">
@@ -230,6 +399,14 @@ export function AccountsPage() {
                         : r.status}
                   </span>
                 ),
+              },
+              {
+                key: 'lastLogin',
+                header: 'Login terakhir',
+                cell: (r: Account) =>
+                  formatLastLogin(r.lastLoginAt) ?? (
+                    <span className="admin-meta--xs">Belum pernah</span>
+                  ),
               },
               {
                 key: 'route',

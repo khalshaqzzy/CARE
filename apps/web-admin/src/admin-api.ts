@@ -11,6 +11,7 @@ async function dataOrThrow<T>(request: Promise<ApiResult<T>>): Promise<T> {
 
 export type Account = components['schemas']['AccountSummary'];
 export type AccountList = components['schemas']['AccountSummaryList'];
+export type AccountLoginSummary = components['schemas']['AccountLoginSummary'];
 export type AdminOverview = components['schemas']['AdminOverview'];
 export type ImportPreview = components['schemas']['OrganizationImportPreview'];
 export type ImportList = components['schemas']['OrganizationImportList'];
@@ -186,6 +187,12 @@ export function createAdminApi(transport: CareTransport) {
     accounts: (query: QueryInput<AccountsQuery>) =>
       dataOrThrow<AccountList>(
         client.GET('/api/v1/admin/accounts', { params: { query: compactQuery(query) } }),
+      ),
+    loginSummary: (query: { division?: string | undefined; department?: string | undefined }) =>
+      dataOrThrow<AccountLoginSummary>(
+        client.GET('/api/v1/admin/accounts/login-summary', {
+          params: { query: compactQuery(query) },
+        }),
       ),
     account: (id: string) =>
       dataOrThrow<Account>(client.GET('/api/v1/admin/accounts/{id}', { params: { path: { id } } })),

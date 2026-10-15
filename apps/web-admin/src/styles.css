@@ -2411,3 +2411,85 @@ button.admin-rows > li:hover,
 .tierset__unit {
   min-width: 10.5rem;
 }
+
+/* ===== Accounts: login summary ===== */
+
+/* KPI tiles that filter the list; the left divider comes from .admin-kpi + .admin-kpi. */
+.admin-kpi--button {
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.admin-kpi--button:hover .admin-kpi__label {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.admin-card__head + .admin-kpi-strip,
+.admin-card__head + .admin-login-groups {
+  margin-top: var(--space-4);
+}
+.admin-card__head {
+  justify-content: space-between;
+}
+.admin-card__head .admin-card__title {
+  margin: 0;
+}
+.admin-kpi-strip + .admin-login-groups {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
+}
+.admin-login-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: var(--space-1) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-login-groups button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem 4.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  border: 0;
+  border-radius: 0.375rem;
+  background: none;
+  padding: var(--space-2);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+.admin-login-groups button:hover {
+  background: var(--surface-inset);
+}
+.admin-login-groups__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-login-groups__bar {
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-inset);
+}
+.admin-login-groups__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--state-success);
+}
+.admin-login-groups__count {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: right;
+}

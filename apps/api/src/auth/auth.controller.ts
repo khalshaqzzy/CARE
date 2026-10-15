@@ -28,7 +28,13 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     this.publicAuth(request, response);
-    return this.auth.login(body, response, request.ip ?? 'unknown', request.header('user-agent'));
+    return this.auth.login(
+      body,
+      response,
+      request.ip ?? 'unknown',
+      request.header('user-agent'),
+      String(request.headers['x-correlation-id'] ?? 'unknown'),
+    );
   }
   private publicAuth(request: Request, response: Response) {
     response.setHeader('Cache-Control', 'no-store');
@@ -66,6 +72,7 @@ export class AuthController {
       response,
       request.ip ?? 'unknown',
       request.header('user-agent'),
+      String(request.headers['x-correlation-id'] ?? 'unknown'),
     );
   }
   @Public()

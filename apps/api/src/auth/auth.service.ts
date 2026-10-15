@@ -23,6 +23,13 @@ const passwordSchema = z.object({
 
 const identifierSchema = z.object({ noReg: z.string().trim().min(1).max(64) });
 
+type LoginAttempt = {
+  method: 'PASSWORD' | 'DEFAULT_PASSWORD';
+  ip: string;
+  userAgent?: string | undefined;
+  correlationId: string;
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -30,7 +37,13 @@ export class AuthService {
     @Inject(ThrottleService) private readonly throttle: ThrottleService,
     @Inject(PolicyService) private readonly policy: PolicyService,
   ) {}
-  async login(input: unknown, response: Response, ip: string, userAgent?: string) {
+  async login(
+    input: unknown,
+    response: Response,
+    ip: string,
+    userAgent?: string,
+    correlationId = 'unknown',
+  ) {
     const parsed = loginSchema.safeParse(input);
     if (!parsed.success) throw badRequest('VALIDATION_ERROR', 'Invalid credentials');
     const username = parsed.data.username.toLocaleLowerCase('en-US');
@@ -38,6 +51,7 @@ export class AuthService {
       this.throttle.consume('login-ip', ip, 50, 15 * 60_000),
       this.throttle.consume('login-account', username, 10, 15 * 60_000),
     ]);
+    const login = { method: 'PASSWORD' as const, ip, userAgent, correlationId };
     const result = await this.prisma.$transaction(async (tx) => {
       const account = await this.lockAccount(tx, username);
       if (
@@ -45,9 +59,15 @@ export class AuthService {
         account.status === AccountStatus.INACTIVE ||
         !(await verify(account.passwordHash, parsed.data.password))
       )
-        throw unauthorized();
-      return this.createSession(tx, account, ip, userAgent);
+        return { failedAccountId: account?.id ?? null };
+      const created = await this.createSession(tx, account, ip, userAgent);
+      await this.recordLogin(tx, created, login);
+      return created;
     });
+    if ('failedAccountId' in result) {
+      await this.auditLoginFailure(result.failedAccountId, login);
+      throw unauthorized();
+    }
     return this.completeLogin(result, response);
   }
 
@@ -62,12 +82,19 @@ export class AuthService {
     return parsed.data.noReg.toLocaleLowerCase('en-US');
   }
 
-  async startLogin(input: unknown, response: Response, ip: string, userAgent?: string) {
+  async startLogin(
+    input: unknown,
+    response: Response,
+    ip: string,
+    userAgent?: string,
+    correlationId = 'unknown',
+  ) {
     const username = this.identifier(input);
     await Promise.all([
       this.throttle.consume('login-ip', ip, 50, 15 * 60_000),
       this.throttle.consume('login-account', username, 10, 15 * 60_000),
     ]);
+    const login = { method: 'DEFAULT_PASSWORD' as const, ip, userAgent, correlationId };
     const result = await this.prisma.$transaction(async (tx) => {
       const account = await this.lockAccount(tx, username);
       if (
@@ -75,7 +102,7 @@ export class AuthService {
         account.status === AccountStatus.INACTIVE ||
         account.accountKind === AccountKind.CARE_ADMIN
       )
-        throw badRequest('LOGIN_IDENTIFIER_INVALID', 'Periksa No. Reg atau username Anda.');
+        return { failedAccountId: account?.id ?? null };
       if (
         account.accountKind !== AccountKind.WORKFORCE ||
         account.status !== AccountStatus.ACTIVE ||
@@ -83,8 +110,14 @@ export class AuthService {
         !(await this.hasDefaultPassword(account))
       )
         return null;
-      return this.createSession(tx, account, ip, userAgent);
+      const created = await this.createSession(tx, account, ip, userAgent);
+      await this.recordLogin(tx, created, login);
+      return created;
     });
+    if (result && 'failedAccountId' in result) {
+      await this.auditLoginFailure(result.failedAccountId, login);
+      throw badRequest('LOGIN_IDENTIFIER_INVALID', 'Periksa No. Reg atau username Anda.');
+    }
     if (!result) return { next: 'PASSWORD_REQUIRED' as const };
     return {
       next: 'CHANGE_PASSWORD' as const,
@@ -125,6 +158,50 @@ export class AuthService {
       },
     });
     return { account, session, token };
+  }
+
+  // Raw SQL so a login does not bump the account's optimistic version or updatedAt.
+  private async recordLogin(
+    tx: Prisma.TransactionClient,
+    { account, session }: Awaited<ReturnType<AuthService['createSession']>>,
+    login: LoginAttempt,
+  ) {
+    await tx.$executeRaw`UPDATE "UserAccount" SET "lastLoginAt" = ${session.createdAt}, "firstLoginAt" = COALESCE("firstLoginAt", ${session.createdAt}) WHERE "id" = ${account.id}::uuid`;
+    const config = loadConfig();
+    await tx.auditEvent.create({
+      data: {
+        actorId: account.id,
+        actorAccountKind: account.accountKind,
+        action: 'USER_LOGIN',
+        result: 'SUCCESS',
+        resourceType: 'USER_ACCOUNT',
+        resourceId: account.id,
+        summary: { method: login.method, firstLogin: !account.firstLoginAt },
+        correlationId: login.correlationId,
+        ipHash: hmac256(config.AUTH_THROTTLE_SECRET, login.ip),
+        userAgent: login.userAgent?.slice(0, 300),
+        sessionRef: hmac256(config.SESSION_HASH_SECRET, session.id),
+        releaseSha: config.RELEASE_SHA,
+      },
+    });
+  }
+
+  // The submitted identifier is never stored: an unknown account leaves resourceId empty.
+  private async auditLoginFailure(accountId: string | null, login: LoginAttempt) {
+    const config = loadConfig();
+    await this.prisma.auditEvent.create({
+      data: {
+        action: 'USER_LOGIN',
+        result: 'FAILED',
+        resourceType: 'USER_ACCOUNT',
+        resourceId: accountId,
+        summary: { method: login.method },
+        correlationId: login.correlationId,
+        ipHash: hmac256(config.AUTH_THROTTLE_SECRET, login.ip),
+        userAgent: login.userAgent?.slice(0, 300),
+        releaseSha: config.RELEASE_SHA,
+      },
+    });
   }
 
   private async completeLogin(
