@@ -552,6 +552,63 @@ describe('Dashboard people: handling performance and member participation', () =
     expect(preview.actionItems.map((item) => item.title)).toEqual(['Route Manager']);
   });
 
+  it('lists the Voices the team sent when Voice Member asks for scope=team', async () => {
+    const elsewhere = {
+      handlingOrganizationUnitId: remote.id,
+      handlingDirectorateSnapshot: remote.directorate,
+      handlingDivisionSnapshot: remote.division,
+      handlingDepartmentSnapshot: remote.department,
+      handlingSectionSnapshot: 'Remote',
+      routeOwnerId: otherSectionHead.accountId,
+    };
+    // Sent by the team to another department, past its deadline.
+    await voice({
+      ...elsewhere,
+      title: 'Dikirim ke Logistics',
+      reporterLineSnapshot: 'Line 1',
+      tierDueAt: new Date(Date.now() - hour),
+    });
+    await voice({ title: 'Dari tim, di unit', reporterLineSnapshot: 'Line 1' });
+    await voice({
+      ...elsewhere,
+      title: 'Dari Welding',
+      reporterSectionSnapshot: 'Welding',
+      reporterLineSnapshot: 'Line 2',
+      status: 'CLOSED',
+    });
+    // Handled here but sent from Logistics: the unit's, not the team's.
+    await voice({
+      title: 'Masuk dari Logistics',
+      reporterOrganizationUnitId: remote.id,
+      reporterDivisionSnapshot: remote.division,
+      reporterDepartmentSnapshot: remote.department,
+      reporterSectionSnapshot: 'Remote',
+    });
+    await voice({ ...elsewhere, title: 'Private tim', visibility: 'PRIVATE' });
+    const titles = async (who: Principal, query: Parameters<VoicesService['workItems']>[1]) =>
+      (await voices.workItems(who, query)).items.map((item) => item.title).sort();
+
+    const team = await titles(manager, { statusGroup: 'ALL', scope: 'team' });
+    expect(team).toEqual(['Dari Welding', 'Dari tim, di unit', 'Dikirim ke Logistics']);
+    expect(await titles(manager, { statusGroup: 'ALL', scope: 'unit' })).toEqual([
+      'Dari tim, di unit',
+      'Masuk dari Logistics',
+    ]);
+    // The tab total and the Home "Pantau" count list exactly these Voices.
+    const preview = await voices.dashboardPreview(manager, { basis: 'REPORTER' });
+    expect(preview.summary.status.reduce((sum, row) => sum + row.value, 0)).toBe(team.length);
+    expect((await dashboard.aggregate(manager, { basis: 'REPORTER' })).teamOverdue).toBe(1);
+    expect(await titles(manager, { statusGroup: 'ACTIVE', scope: 'team', due: 'OVERDUE' })).toEqual(
+      ['Dikirim ke Logistics'],
+    );
+    // A Group Leader's team is their own Line.
+    expect(await titles(groupLeader, { statusGroup: 'ALL', scope: 'team' })).toEqual([
+      'Dari tim, di unit',
+      'Dikirim ke Logistics',
+    ]);
+    await expect(voices.workItems(manager, { scope: 'everyone' })).rejects.toThrow();
+  });
+
   it('narrows people to their Pers Area when the dashboard filters an area', async () => {
     const setArea = (name: string, area: 'SUNTER_1' | null) =>
       db.organizationMembership.updateMany({ where: { employeeName: name }, data: { area } });

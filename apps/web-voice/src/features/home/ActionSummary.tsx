@@ -12,14 +12,14 @@ type Item = DashboardPreview['items'][number];
 const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
 /** The Voice Member list of every Voice waiting for the viewer. */
-export const ACTION_LIST: Record<string, string> = { view: 'ACTIVE', action: 'me' };
+export const ACTION_LIST: Record<string, string> = { tab: 'me', view: 'ACTIVE', action: 'me' };
 
 /** Search parameters of the Voice Member list behind each summary count. */
 export const ACTION_FILTERS: Record<ActionKind, Record<string, string>> = {
   open: { ...ACTION_LIST, view: 'OPEN' },
   responded: { ...ACTION_LIST, view: 'RESPONDED' },
   inProgress: { ...ACTION_LIST, view: 'IN_PROGRESS' },
-  closed: { view: 'CLOSED', action: 'closed' },
+  closed: { tab: 'me', view: 'CLOSED', action: 'closed' },
   overdue: { ...ACTION_LIST, due: 'OVERDUE' },
   soon: { ...ACTION_LIST, due: 'SOON' },
   critical: { ...ACTION_LIST, severity: 'CRITICAL' },
@@ -38,6 +38,17 @@ export const URGENCY_LABELS: Record<AttentionKind, string> = {
   critical: 'Kritis',
 };
 
+/** "Batas < 24 jam" drops "Batas" on phones so the three chips share one row. */
+function UrgencyText({ kind }: { kind: AttentionKind }) {
+  return kind === 'soon' ? (
+    <span aria-hidden="true">
+      <span className="ops-urgency__wide">Batas </span>&lt; 24 jam
+    </span>
+  ) : (
+    <span aria-hidden="true">{URGENCY_LABELS[kind]}</span>
+  );
+}
+
 /**
  * "Butuh Tindakan Saya": the Voices waiting for the viewer at their own level,
  * split by the next step so the counts add up to the total, how many the
@@ -49,10 +60,13 @@ export function ActionSummaryCard({
   onPick,
   onOpenVoice,
   onMore,
+  active,
 }: {
   preview: DashboardPreview | undefined;
   isError?: boolean;
   onPick: (kind: ActionKind) => void;
+  /** The count filtering the list below; `undefined` where nothing is filtered. */
+  active?: ActionKind | null;
   onOpenVoice: (id: string) => void;
   onMore?: () => void;
 }) {
@@ -104,6 +118,7 @@ export function ActionSummaryCard({
                 data-zero={value === 0 || undefined}
                 key={kind}
                 aria-label={`${label}: ${value} Voice`}
+                {...(active !== undefined ? { 'aria-pressed': active === kind } : {})}
                 onClick={() => onPick(kind)}
               >
                 <strong>{value}</strong>
@@ -119,9 +134,11 @@ export function ActionSummaryCard({
                   className="ops-urgency__chip"
                   data-kind={kind}
                   key={kind}
+                  aria-label={`${value} ${URGENCY_LABELS[kind]}`}
+                  {...(active !== undefined ? { 'aria-pressed': active === kind } : {})}
                   onClick={() => onPick(kind)}
                 >
-                  <strong>{value}</strong> {URGENCY_LABELS[kind]}
+                  <strong>{value}</strong> <UrgencyText kind={kind} />
                 </button>
               ))}
             </div>

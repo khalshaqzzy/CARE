@@ -673,9 +673,7 @@ test.describe('workforce journeys (mocked contract)', () => {
     expect(memberDashboardRequests).toBe(0);
   });
 
-  test('union home lists private voices with the assignment queue for the head', async ({
-    page,
-  }) => {
+  test('Komite home lists private voices without an assignment queue', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {
       session: unionHead,
@@ -753,8 +751,8 @@ test.describe('workforce journeys (mocked contract)', () => {
       },
     });
     await page.goto('/');
-    // Assignment summary card for the Union Head.
-    await expect(page.getByText('2 Private Voice menunggu penugasan')).toBeVisible();
+    // The Komite handles every Private Voice itself: no assignment queue.
+    await expect(page.getByText('menunggu penugasan')).toHaveCount(0);
     // Localized status labels on the private list chips, never raw enums.
     await expect(page.getByText('Terbuka').first()).toBeVisible();
     await expect(page.getByText('Diproses').first()).toBeVisible();
@@ -775,7 +773,9 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Private Voice').first()).toBeVisible();
   });
 
-  test('union private inbox is role-aware and filterable for the head', async ({ page }) => {
+  test('Komite private inbox lists every Private Voice without an assignment filter', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, {
       session: unionHead,
@@ -791,24 +791,14 @@ test.describe('workforce journeys (mocked contract)', () => {
         availableActions: [],
         category: null,
       },
-      unassignedVoiceList: { items: [], nextCursor: null },
     });
     await page.goto('/work-items');
     await expect(page.getByRole('heading', { name: 'Private Voice' })).toBeVisible();
     await expect(
-      page.getByText('Seluruh Private Voice melalui Komite, diurutkan berdasarkan severity.'),
+      page.getByText('Seluruh Private Voice yang masuk, diurutkan berdasarkan severity.'),
     ).toBeVisible();
     await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
-
-    // Switching the assignment filter drains the queue view.
-    await page.getByRole('combobox', { name: 'Penugasan' }).click();
-    await page.getByRole('option', { name: 'Perlu ditugaskan' }).click();
-    await expect(page.getByText('Semua Private Voice sudah ditugaskan')).toBeVisible();
-
-    // Returning to "Semua" restores the full private list.
-    await page.getByRole('combobox', { name: 'Penugasan' }).click();
-    await page.getByRole('option', { name: 'Semua' }).click();
-    await expect(page.getByText('Laporan papan nama rusak')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Penugasan' })).toHaveCount(0);
   });
 
   test('union officer private inbox copy reflects the assigned scope', async ({ page }) => {

@@ -30,7 +30,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   MANAGER: 'Manager',
   DIVISION_LEADERSHIP: 'Divisi Leadership',
   DIRECTOR: 'Director',
-  UNION_HEAD: 'Union Head',
+  UNION_HEAD: 'Komite',
   UNION_OFFICER: 'Union Officer',
   CARE_ADMIN: 'CARE Admin',
 };
