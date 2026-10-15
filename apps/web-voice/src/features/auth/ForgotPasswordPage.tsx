@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthReveal } from './AuthReveal';
+import { daysInMonth, keepDay } from './birth-date';
 import { authFailureMessage } from './messages';
 
 const months = [
@@ -43,7 +44,7 @@ export function ForgotPasswordPage() {
     [],
   );
   const currentYear = new Date().getFullYear();
-  const days = month && year ? new Date(Number(year), Number(month), 0).getDate() : 31;
+  const days = daysInMonth(month, year);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -89,13 +90,13 @@ export function ForgotPasswordPage() {
     identifierRef.current?.focus();
   }
   return (
-    <main className="auth-layout auth-layout--recovery">
+    <main className="auth-layout auth-layout--recovery auth-layout--password">
       <section className="auth-brand auth-brand--security">
         <span className="auth-brand__badge" aria-hidden="true">
           <LockKeyhole size={22} />
         </span>
         <h1>Keamanan akun</h1>
-        <p>Pulihkan akses akun Anda untuk kembali terhubung dengan CARE.</p>
+        <p>Atur ulang password dengan No. Reg dan tanggal lahir.</p>
         <Shield className="auth-brand__watermark" aria-hidden="true" />
       </section>
       <Card variant="raised" className="auth-card">
@@ -107,10 +108,9 @@ export function ForgotPasswordPage() {
               className="auth-back auth-back--login auth-text-link"
             >
               <ArrowLeft size={18} aria-hidden="true" />
-              Kembali ke login
+              Kembali ke halaman masuk
             </Link>
-            <h2>Lupa Password</h2>
-            <p>Masukkan No. Reg untuk memeriksa ketersediaan reset password.</p>
+            <h2>Lupa password</h2>
           </div>
           {error ? (
             <Alert tone="danger" title="Password belum direset">
@@ -150,7 +150,7 @@ export function ForgotPasswordPage() {
                   <CalendarDays size={18} aria-hidden="true" />
                   Tanggal lahir
                 </legend>
-                <p>Pilih tanggal lahir sesuai data kepegawaian Anda.</p>
+                <p>Sesuai data kepegawaian.</p>
                 <div className="auth-date-fields">
                   <NativeSelect
                     label="Tanggal"
@@ -176,7 +176,7 @@ export function ForgotPasswordPage() {
                     value={month}
                     onChange={(event) => {
                       setMonth(event.target.value);
-                      setDay('');
+                      setDay((current) => keepDay(current, event.target.value, year));
                     }}
                   >
                     {[
@@ -194,7 +194,7 @@ export function ForgotPasswordPage() {
                     value={year}
                     onChange={(event) => {
                       setYear(event.target.value);
-                      setDay('');
+                      setDay((current) => keepDay(current, month, event.target.value));
                     }}
                   >
                     {[

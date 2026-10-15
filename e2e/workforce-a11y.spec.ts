@@ -280,9 +280,7 @@ test.describe('workforce accessibility and responsive surface', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { unauthenticated: true });
     await page.goto('/login');
-    await expect(
-      page.getByRole('heading', { name: 'Silahkan login sesuai petunjuk.' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Masuk ke akun Anda' })).toBeVisible();
     expect(await axe(page)).toEqual([]);
     await page.evaluate(() => document.body.focus());
     await page.keyboard.press('Tab');

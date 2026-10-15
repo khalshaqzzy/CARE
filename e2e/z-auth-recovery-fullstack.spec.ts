@@ -33,7 +33,7 @@ test('real password recovery returns to registration-first login and changes the
     await chooseBirthDate(page);
     await page.getByRole('button', { name: 'Reset password', exact: true }).click();
     await expect(
-      page.getByText('Password anda sudah direset, silahkan login kembali.'),
+      page.getByText('Password Anda sudah direset, silakan masuk kembali.'),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Lanjutkan' }).click();
     await expect(page.getByLabel('Password saat ini')).toHaveCount(0);

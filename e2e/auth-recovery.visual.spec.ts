@@ -42,14 +42,14 @@ for (const width of [360, 768, 1440])
       }
       if (scenario === 'reset-success')
         await expect(
-          page.getByText('Password anda sudah direset, silahkan login kembali.'),
+          page.getByText('Password Anda sudah direset, silakan masuk kembali.'),
         ).toBeVisible();
       if (scenario === 'reset-error')
         await expect(page.getByRole('alert')).toContainText('tanggal lahir tidak sesuai');
       if (['login-password', 'login-union'].includes(scenario))
         await expect(page.getByRole('textbox', { name: 'Password', exact: true })).toBeFocused();
       if (scenario.startsWith('password-'))
-        await expect(page.getByRole('heading', { name: 'Ganti password sementara' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Buat password baru' })).toBeVisible();
       await assertContained(page);
       await capture(page, `auth-${scenario}-${width}.png`, { fullPage: true });
     });

@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 @import '@care/ui/styles.css';
+@import '@fontsource/poppins/400.css';
+@import '@fontsource/poppins/500.css';
+@import '@fontsource/poppins/600.css';
+@import '@fontsource/poppins/700.css';
 
 /* Static boot shell remains readable even when the application module cannot execute. */
 .care-boot {
@@ -242,6 +246,41 @@
 .auth-card p {
   margin: 0;
   color: var(--text-secondary);
+}
+/* Login and password pages set in Poppins for a warmer, rounder greeting than Inter. */
+.auth-layout--login,
+.auth-layout--login input,
+.auth-layout--login button,
+.auth-layout--password,
+.auth-layout--password input,
+.auth-layout--password select,
+.auth-layout--password button {
+  font-family: Poppins, var(--font-ui);
+}
+.auth-layout--login .auth-brand h1,
+.auth-layout--password .auth-brand h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.auth-layout--login .auth-card h2,
+.auth-layout--password .auth-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+/* The back link stays a 44px target but reads as a quiet link above the heading. */
+.auth-layout--password .auth-back--login {
+  margin-bottom: var(--space-1);
+  padding-inline: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+}
+.auth-layout--password .auth-back--login:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  text-decoration: underline;
 }
 .auth-form {
   display: grid;
@@ -5334,7 +5373,7 @@
   min-height: 44px;
   margin-bottom: var(--space-3);
 }
-/* Forced-password "Kembali ke login" must stand out from the ghost default. */
+/* Forced-password "Kembali ke halaman masuk" must stand out from the ghost default. */
 .auth-back--login {
   align-self: flex-start;
   border: 1.5px solid var(--raw-brand-200);
