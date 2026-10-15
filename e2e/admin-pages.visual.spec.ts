@@ -44,7 +44,7 @@ const pages: { path: string; heading: string; anchor: string; baseline: string }
   {
     path: '/union',
     heading: 'Union Accounts',
-    anchor: 'Head (Akun Utama)',
+    anchor: 'Komite (Head)',
     baseline: 'admin-union-1440.png',
   },
   { path: '/accounts', heading: 'Accounts', anchor: '000128', baseline: 'admin-accounts-1440.png' },

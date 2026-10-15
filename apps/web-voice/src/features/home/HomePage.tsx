@@ -25,7 +25,7 @@ import { DonutChart, DonutLegend } from '../../components/DonutChart';
 import { FilterPillRow } from '../../components/FilterPills';
 import { HeroInset } from '../../components/HeroBand';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
-import { KpiTrio, generalKpiItems, unionKpiItems } from '../../components/KpiTrio';
+import { KpiTrio, generalKpiItems } from '../../components/KpiTrio';
 import { StatusDistribution } from '../../components/StatusDistribution';
 import { TrendCard } from '../../components/TrendCard';
 import { VoiceCard } from '../../components/VoiceCard';
@@ -161,12 +161,15 @@ function MemberHomePage() {
   const displayName = session?.account.displayName ?? '';
   const unionSlotLabel = isUnion
     ? caps.includes('UNION_HEAD')
-      ? 'Union Head'
+      ? 'Komite'
       : 'Union Officer'
     : null;
   // Leadership/union heroes show the role instead of the date (screens 20/21).
   const heroSubline = unionSlotLabel
-    ? unionSlotLabel
+    ? // The Komite account is named after its role: show the date instead.
+      unionSlotLabel === displayName
+      ? null
+      : unionSlotLabel
     : isLeadership
       ? (session?.workforceProfile?.structuralPosition ?? 'Leadership')
       : null;
@@ -255,43 +258,13 @@ function MemberHomePage() {
               >
                 <KpiTrio
                   ariaLabel="Ringkasan Private Voice"
-                  items={
-                    isUnionHead
-                      ? unionKpiItems(
-                          privateDash.data.status,
-                          privateDash.data.total,
-                          privateDash.data.pendingAssignment,
-                        )
-                      : generalKpiItems(
-                          privateDash.data.status,
-                          privateDash.data.total,
-                          privateDash.data.severity,
-                        )
-                  }
+                  items={generalKpiItems(
+                    privateDash.data.status,
+                    privateDash.data.total,
+                    privateDash.data.severity,
+                  )}
                 />
               </HeroInset>
-            ) : null}
-            {isUnionHead && privateDash.data?.pendingAssignment !== undefined ? (
-              <button
-                type="button"
-                className="hero-row"
-                onClick={() => void navigate('/work-items?unassigned=true')}
-              >
-                <span className="hero-row__plate" aria-hidden="true">
-                  <ClipboardList size={18} />
-                </span>
-                <span className="hero-row__label">
-                  <span className="hero-row__title">
-                    {privateDash.data.pendingAssignment > 0
-                      ? `${privateDash.data.pendingAssignment} Private Voice menunggu penugasan`
-                      : 'Semua Private Voice sudah ditugaskan'}
-                  </span>
-                  <span className="hero-row__meta">
-                    Tugaskan Union Officer sebelum Voice diproses.
-                  </span>
-                </span>
-                <ChevronRight size={18} aria-hidden="true" />
-              </button>
             ) : null}
           </>
         ) : isLeadership ? (

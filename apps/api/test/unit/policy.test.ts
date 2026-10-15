@@ -88,15 +88,21 @@ describe('Authorization scopes', () => {
           reporterDirectorateSnapshot: 'Directorate',
           reporterDivisionSnapshot: 'Division A',
         },
+        // Their directorate's Private Voices, read-only (the Komite handles them).
+        { visibility: 'PRIVATE', reporterDirectorateSnapshot: 'Directorate' },
       ],
     });
     // Leadership acts only on tiered Voices that reached the division level.
     expect(policy.workItemScope(leadership)).toEqual({
       OR: [{ visibility: 'GENERAL', tierHolderIds: { has: 'account' } }],
     });
-    // Director reads every General and Private Voice, read-only.
+    // Director reads every General Voice and their directorate's Private, read-only.
     expect(await policy.browseScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({
-      OR: [{ reporterId: 'account' }, { visibility: { in: ['GENERAL', 'PRIVATE'] } }],
+      OR: [
+        { reporterId: 'account' },
+        { visibility: 'GENERAL' },
+        { visibility: 'PRIVATE', reporterDirectorateSnapshot: 'Directorate' },
+      ],
     });
     expect(policy.workItemScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({ id: { in: [] } });
     const union = principal(['UNION_HEAD'], { accountKind: AccountKind.UNION, employeeId: null });

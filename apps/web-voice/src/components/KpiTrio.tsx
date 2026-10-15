@@ -1,5 +1,5 @@
 import { Card } from '@care/ui';
-import { Activity, AlertTriangle, Clock3, Layers3 } from 'lucide-react';
+import { Activity, AlertTriangle, Layers3 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { activeCount, bucketValue } from '../lib/dashboard-math';
 import type { Bucket } from '../lib/dashboard-math';
@@ -60,31 +60,6 @@ export function generalKpiItems(buckets: Bucket[], total: number, severity: Buck
       value: critical,
       label: 'Kritis',
       tone: critical > 0 ? 'danger' : 'neutral',
-    },
-  ];
-}
-
-/** Union Private trio: Total / Aktif / Menunggu penugasan (screen 21). */
-export function unionKpiItems(
-  buckets: Bucket[],
-  total: number,
-  pendingAssignment?: number,
-): KpiItem[] {
-  return [
-    { key: 'total', icon: <Layers3 />, value: total, label: 'Total', tone: 'brand' },
-    {
-      key: 'aktif',
-      icon: <Activity />,
-      value: activeCount(buckets),
-      label: 'Aktif',
-      tone: 'brand',
-    },
-    {
-      key: 'pending',
-      icon: <Clock3 />,
-      value: pendingAssignment ?? 0,
-      label: 'Menunggu penugasan',
-      tone: 'neutral',
     },
   ];
 }

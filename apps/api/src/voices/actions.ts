@@ -62,8 +62,9 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
   const isTopHolder = !!tierLevel && isRouteOwner && !(voice.tierLowerHolderIds ?? []).some(isMe);
   const path = voice.tierPath ?? [];
   const hasNextTier = !!tierLevel && path.indexOf(tierLevel) + 1 < path.length;
+  // The Komite (Union Head account) handles Private Voices itself: no assignment.
   const canAssign = isPrivate
-    ? actor.capabilities.includes('UNION_HEAD')
+    ? false
     : tierLevel
       ? isTopHolder &&
         (tierLevel === 'MANAGER' ||
@@ -136,9 +137,10 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     }
     if (canChangeSeverity) actions.push('CHANGE_SEVERITY');
     // The superior who can assign may take over from a PIC whose account is no
-    // longer active, so the Voice can still be completed.
+    // longer active, so the Voice can still be completed. The Komite takes back
+    // Private Voices a deactivated Union Officer still holds.
     if (
-      canAssign &&
+      (canAssign || (isPrivate && actor.capabilities.includes('UNION_HEAD'))) &&
       voice.currentHandlerId &&
       !isHandler &&
       voice.handlerInactive &&

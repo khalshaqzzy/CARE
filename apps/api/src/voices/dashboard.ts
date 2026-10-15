@@ -255,7 +255,13 @@ export class OrganizationDashboard {
             )
           : units.filter((u) => u.id === own!.id);
     let scope: Prisma.VoiceWhereInput;
-    if (privateView) scope = privateAll ? {} : { currentHandlerId: actor.accountId };
+    // The Director reads the Private Voices of their own directorate only.
+    if (privateView)
+      scope = caps.includes('DIRECTOR')
+        ? { reporterDirectorateSnapshot: actor.directorate ?? '__none__' }
+        : privateAll
+          ? {}
+          : { currentHandlerId: actor.accountId };
     else if (global || (leader && scopeMode === 'GLOBAL')) scope = {};
     else if (leader) scope = forPath(unitParts(defaultUnit!).slice(0, 2));
     else if (manager)
@@ -384,7 +390,7 @@ export class OrganizationDashboard {
         : [];
     const handlers = terms.map((t) => ({
       id: t.accountId,
-      label: t.slot === 'HEAD' ? 'Union Head' : t.slot === 'OFFICER_1' ? 'Union 1' : 'Union 2',
+      label: t.slot === 'HEAD' ? 'Komite' : t.slot === 'OFFICER_1' ? 'Union 1' : 'Union 2',
     }));
     if (q.handler && !handlers.some((h) => h.id === q.handler)) throw forbiddenAsNotFound();
     const clauses: Prisma.VoiceWhereInput[] = [{ visibility: q.visibility }, scope];
@@ -520,9 +526,11 @@ export class OrganizationDashboard {
         ],
         scopeLabel:
           q.visibility === 'PRIVATE'
-            ? privateAll
-              ? 'Seluruh Private Voice'
-              : 'Penugasan Anda'
+            ? caps.includes('DIRECTOR')
+              ? 'Private Voice direktorat'
+              : privateAll
+                ? 'Seluruh Private Voice'
+                : 'Penugasan Anda'
             : selections.section
               ? parts(selections.section).at(-1)!
               : selections.department
@@ -853,6 +861,35 @@ export class OrganizationDashboard {
       label: names.get(b.label) ?? 'Tanpa kategori',
       id: b.label,
     }));
+    // Deputy/Division Heads also read their directorate's Private Voices: they
+    // join the spread as one "Private" category, with its count only.
+    if (
+      general &&
+      q.basis === 'HANDLING' &&
+      !q.category &&
+      !director &&
+      actor.capabilities.includes('DIVISION_LEADERSHIP') &&
+      actor.directorate
+    ) {
+      const value = await this.db.voice.count({
+        where: {
+          visibility: 'PRIVATE',
+          reporterDirectorateSnapshot: actor.directorate,
+          ...(q.area ? { area: q.area } : {}),
+          ...(q.status ? { status: q.status } : {}),
+          ...(q.severity ? { severity: q.severity } : {}),
+          ...(q.from || q.to
+            ? {
+                submittedAt: {
+                  ...(q.from ? { gte: new Date(q.from) } : {}),
+                  ...(q.to ? { lte: new Date(q.to) } : {}),
+                },
+              }
+            : {}),
+        },
+      });
+      category.push({ label: 'PRIVATE', value, key: 'PRIVATE', name: 'Private', id: 'PRIVATE' });
+    }
     // Unknown organization rows (one per department or former handler) share the
     // same user-facing meaning, so they merge into single buckets with stable
     // identifiers; duplicate labels would otherwise collide as React keys and

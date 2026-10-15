@@ -8,8 +8,11 @@ import {
   VoiceVisibility,
 } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { AdminService } from '../../src/admin/admin.service';
 import { PolicyService, type Principal } from '../../src/auth/policy.service';
 import { OrganizationDashboard } from '../../src/voices/dashboard';
+import { privateObservers } from '../../src/voices/private-observers';
+import { TierEscalationService } from '../../src/voices/tier-escalation.service';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const prisma = new PrismaClient();
@@ -20,6 +23,10 @@ let reporter: Principal;
 let unionHead: Principal;
 let officer: Principal;
 let director: Principal;
+let divisionHead: Principal;
+let otherDirector: Principal;
+let otherDivisionHead: Principal;
+let admin: Principal;
 let unitId: string;
 let sourceRow = 0;
 let seq = 0;
@@ -30,6 +37,7 @@ async function seedVoice(
     handlerType: HandlerType;
     status: VoiceStatus;
     showReporterIdentity: boolean;
+    tierDueAt: Date;
   }> = {},
 ) {
   seq += 1;
@@ -57,25 +65,34 @@ async function seedVoice(
       categoryKey: null,
       anonymousAlias: `R-${seq}`,
       version: 1,
+      ...(overrides.tierDueAt ? { tierDueAt: overrides.tierDueAt, tierDueKind: 'PROCESS' } : {}),
     },
   });
 }
 
-describe('Union private inbox scope and assignment queue', () => {
+describe('Private Voices with the Komite and the directorate observers', () => {
   beforeAll(async () => {
     await prisma.$connect();
     await prisma.$executeRawUnsafe(
       'TRUNCATE TABLE "UserAccount", "Employee", "OrganizationSnapshot", "OrganizationUnit", "OrganizationMembership", "UnionAccountTerm" CASCADE',
     );
     const snapshot = await prisma.organizationSnapshot.create({
-      data: { status: 'ACTIVE', checksum: 'c'.repeat(64), rowCount: 3, effectiveAt: new Date() },
+      data: { status: 'ACTIVE', checksum: 'c'.repeat(64), rowCount: 6, effectiveAt: new Date() },
     });
     const unit = await prisma.organizationUnit.create({
       data: { directorate: 'Manufacturing', division: 'Division A', department: 'Department A' },
     });
     unitId = unit.id;
+    const otherUnit = await prisma.organizationUnit.create({
+      data: { directorate: 'Engineering', division: 'Division E', department: 'Department E' },
+    });
 
-    const workforce = async (noReg: string, name: string, position: string) => {
+    const workforce = async (
+      noReg: string,
+      name: string,
+      position: string,
+      unitIdFor = unit.id,
+    ) => {
       const employee = await prisma.employee.create({ data: { noReg, name } });
       const account = await prisma.userAccount.create({
         data: {
@@ -91,7 +108,7 @@ describe('Union private inbox scope and assignment queue', () => {
         data: {
           snapshotId: snapshot.id,
           employeeId: employee.id,
-          organizationUnitId: unit.id,
+          organizationUnitId: unitIdFor,
           employeeName: name,
           structuralPosition: position,
           section: 'Section A',
@@ -120,10 +137,28 @@ describe('Union private inbox scope and assignment queue', () => {
     unionHead = await resolve(await union(UnionSlot.HEAD));
     officer = await resolve(await union(UnionSlot.OFFICER_1));
     director = await resolve(await workforce('000009', 'Direktur', 'Director'));
+    divisionHead = await resolve(await workforce('000008', 'Kadiv', 'Division Head'));
+    otherDirector = await resolve(
+      await workforce('000019', 'Direktur Lain', 'Director', otherUnit.id),
+    );
+    otherDivisionHead = await resolve(
+      await workforce('000018', 'Kadiv Lain', 'Division Head', otherUnit.id),
+    );
+    admin = await resolve(
+      await prisma.userAccount.create({
+        data: {
+          username: 'care-admin',
+          displayName: 'CARE Admin',
+          passwordHash: 'test',
+          accountKind: AccountKind.CARE_ADMIN,
+          passwordChangeRequired: false,
+        },
+      }),
+    );
   });
   afterAll(async () => prisma.$disconnect());
 
-  it('scopes the head inbox to all Private voices and the officer inbox to assigned only', async () => {
+  it('scopes the Komite inbox to all Private voices and the officer inbox to assigned only', async () => {
     const unassigned = await seedVoice({});
     const assigned = await seedVoice({ currentHandlerId: officer.accountId });
 
@@ -141,43 +176,20 @@ describe('Union private inbox scope and assignment queue', () => {
     expect(officerIds).not.toContain(unassigned.id);
   });
 
-  it('filters the head queue to voices awaiting an officer assignment', async () => {
+  it('keeps every new Private Voice with the Komite: no officer assignment', async () => {
     const waiting = await seedVoice({});
-    const assigned = await seedVoice({ currentHandlerId: officer.accountId });
-
-    const queue = await voices.workItems(unionHead, { unassigned: 'true' });
-    const queueIds = queue.items.map((item) => item.id);
-    expect(queueIds).toContain(waiting.id);
-    // Every already-assigned voice (this test's and earlier tests') is excluded.
-    expect(queueIds).not.toContain(assigned.id);
-  });
-
-  it('ignores the unassigned flag for actors other than the Union Head', async () => {
-    // Only the Union Head assignment queue honors the flag; the Officer inbox
-    // must still return its assigned voices even when the flag is present.
-    const assigned = await seedVoice({ currentHandlerId: officer.accountId });
-    const officerItems = await voices.workItems(officer, { unassigned: 'true' });
-    expect(officerItems.items.map((item) => item.id)).toContain(assigned.id);
-  });
-
-  it('reports pendingAssignment for the Union Head and shrinks it after assignment', async () => {
-    const waiting = await seedVoice({});
-    const withWaiting = await voices.dashboardPrivate(unionHead, {});
-    expect(withWaiting.pendingAssignment).toBeGreaterThanOrEqual(1);
-    const queue = await voices.workItems(unionHead, { unassigned: 'true' });
-    expect(queue.items.map((item) => item.id)).toContain(waiting.id);
-
-    // Assign the officer; the voice leaves the queue and the count follows.
-    await voices.assign(
-      unionHead,
-      waiting.id,
-      { handlerAccountId: officer.accountId, text: 'Keterangan penanganan' },
-      'assign-queue',
-    );
-    const after = await voices.dashboardPrivate(unionHead, {});
-    expect(after.pendingAssignment).toBe((withWaiting.pendingAssignment ?? 1) - 1);
-    const remaining = await voices.workItems(unionHead, { unassigned: 'true' });
-    expect(remaining.items.map((item) => item.id)).not.toContain(waiting.id);
+    expect((await voices.detail(unionHead, waiting.id)).availableActions).toEqual([
+      'RESPOND',
+      'CHANGE_SEVERITY',
+    ]);
+    await expect(
+      voices.assign(
+        unionHead,
+        waiting.id,
+        { handlerAccountId: officer.accountId, text: 'Keterangan penanganan' },
+        'assign-refused',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
   });
 
   it('omits pendingAssignment from the officer and reporter private aggregates', async () => {
@@ -187,7 +199,7 @@ describe('Union private inbox scope and assignment queue', () => {
     expect(reporterAggregate.pendingAssignment).toBeUndefined();
   });
 
-  it('lets the Director read every Private Voice without acting, auditing each read', async () => {
+  it("lets the Director read their directorate's Private Voices without acting, auditing each read", async () => {
     const anonymous = await seedVoice({});
     const identified = await seedVoice({
       currentHandlerId: officer.accountId,
@@ -236,12 +248,132 @@ describe('Union private inbox scope and assignment queue', () => {
     const aggregate = await new OrganizationDashboard(prisma as never).aggregate(director, {
       visibility: 'PRIVATE',
     });
-    expect(aggregate.scopeLabel).toBe('Seluruh Private Voice');
-    expect(aggregate.total).toBe(await prisma.voice.count({ where: { visibility: 'PRIVATE' } }));
+    expect(aggregate.scopeLabel).toBe('Private Voice direktorat');
+    expect(aggregate.total).toBe(
+      await prisma.voice.count({
+        where: { visibility: 'PRIVATE', reporterDirectorateSnapshot: 'Manufacturing' },
+      }),
+    );
     expect(aggregate.pendingAssignment).toBeUndefined();
     // The Private board reads today's counts and timeliness, never reporter origins.
     expect(aggregate.onTime).toEqual(expect.objectContaining({ total: expect.any(Number) }));
     expect(aggregate.statusToday).toBeDefined();
     expect(aggregate.reporterOrigins).toBeUndefined();
+  });
+
+  it("lets the directorate's Division Heads read Private Voices; other directorates cannot", async () => {
+    const voice = await seedVoice({ status: VoiceStatus.RESPONDED });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+
+    expect(await privateObservers(prisma as never, 'Manufacturing', reporter.accountId)).toEqual(
+      [director.accountId, divisionHead.accountId].sort(),
+    );
+
+    const detail = await voices.detail(divisionHead, voice.id);
+    expect(detail).toMatchObject({
+      audience: 'UNION_ANONYMOUS',
+      availableActions: [],
+      conversationState: 'READ_ONLY',
+    });
+    await expect(voices.messages(divisionHead, voice.id, {})).resolves.toBeDefined();
+    expect(
+      (await voices.workItems(divisionHead, { visibility: 'PRIVATE' })).items.map((i) => i.id),
+    ).toContain(voice.id);
+    expect(
+      await prisma.auditEvent.count({
+        where: {
+          actorId: divisionHead.accountId,
+          action: 'PRIVATE_DETAIL_READ',
+          resourceId: voice.id,
+        },
+      }),
+    ).toBe(1);
+    // Private joins the Division Head's category spread as one count.
+    const view = await new OrganizationDashboard(prisma as never).aggregate(divisionHead, {});
+    expect(view.category.find((bucket) => bucket.key === 'PRIVATE')).toMatchObject({
+      name: 'Private',
+      value: await prisma.voice.count({
+        where: { visibility: 'PRIVATE', reporterDirectorateSnapshot: 'Manufacturing' },
+      }),
+    });
+
+    for (const outsider of [otherDirector, otherDivisionHead]) {
+      await expect(voices.detail(outsider, voice.id)).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+      expect((await voices.workItems(outsider, { visibility: 'PRIVATE' })).items).toEqual([]);
+    }
+  });
+
+  it('tells the Komite and the directorate observers when a Private Voice runs late, in the chat too', async () => {
+    const late = await seedVoice({
+      status: VoiceStatus.RESPONDED,
+      tierDueAt: new Date(Date.now() - 60_000),
+    });
+    await prisma.conversation.create({ data: { voiceId: late.id } });
+
+    await new TierEscalationService(prisma as never).tick();
+
+    const after = await prisma.voice.findUniqueOrThrow({ where: { id: late.id } });
+    // It stays with the Komite: no tier, no escalation.
+    expect(after).toMatchObject({ tierLevel: null, routeOwnerId: unionHead.accountId });
+    expect(after.tierMissedDueAt).toEqual(after.tierDueAt);
+    const told = await prisma.notification.findMany({
+      where: { voiceId: late.id, type: 'TARGET_OVERDUE' },
+      select: { recipientId: true, title: true },
+    });
+    expect(told.map((row) => row.recipientId).sort()).toEqual(
+      [unionHead.accountId, director.accountId, divisionHead.accountId].sort(),
+    );
+    expect(told.find((row) => row.recipientId === divisionHead.accountId)?.title).toBe(
+      'Private Voice belum diproses',
+    );
+    const notes = await prisma.message.findMany({
+      where: { conversation: { voiceId: late.id }, kind: 'SYSTEM' },
+      select: { text: true },
+    });
+    expect(notes).toEqual([{ text: 'Batas waktu proses terlewati' }]);
+    // Once per deadline.
+    await new TierEscalationService(prisma as never).tick();
+    expect(
+      await prisma.notification.count({ where: { voiceId: late.id, type: 'TARGET_OVERDUE' } }),
+    ).toBe(3);
+  });
+
+  it('lets CARE Admin retire a Union Officer; the Komite takes over what it held', async () => {
+    const held = await seedVoice({
+      status: VoiceStatus.RESPONDED,
+      currentHandlerId: officer.accountId,
+    });
+    const adminService = new AdminService(prisma as never, policy);
+    const account = await prisma.userAccount.findUniqueOrThrow({
+      where: { id: officer.accountId },
+    });
+    await adminService.setAccountStatus(
+      admin,
+      officer.accountId,
+      { status: 'INACTIVE', reason: 'Tidak dipakai', expectedVersion: account.version },
+      'retire-officer',
+    );
+    expect(
+      await prisma.unionAccountTerm.count({
+        where: { accountId: officer.accountId, effectiveTo: null },
+      }),
+    ).toBe(0);
+    expect(
+      (await prisma.userAccount.findUniqueOrThrow({ where: { id: officer.accountId } })).status,
+    ).toBe('INACTIVE');
+    expect((await voices.detail(unionHead, held.id)).availableActions).toContain('TAKE_OVER');
+
+    // The Komite itself must be replaced, not switched off.
+    const head = await prisma.userAccount.findUniqueOrThrow({ where: { id: unionHead.accountId } });
+    await expect(
+      adminService.setAccountStatus(
+        admin,
+        unionHead.accountId,
+        { status: 'INACTIVE', reason: 'Coba', expectedVersion: head.version },
+        'retire-head',
+      ),
+    ).rejects.toMatchObject({ code: 'UNION_SLOT_ACTIVE' });
   });
 });

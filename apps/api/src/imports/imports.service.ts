@@ -375,7 +375,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         })),
       department14Rows: rows.filter((row) => normalize(row.department) === '14').length,
       globalPicInvalid: false,
-      unionGaps: (['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).filter(
+      // Only the Komite (Union Head) is required; Union Officers are retired.
+      unionGaps: (['HEAD'] as const).filter(
         (slot) => !unionTerms.some((term) => term.slot === slot),
       ),
       tiers: tierSummary(rows),
@@ -1159,13 +1160,6 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
             type: ImportIssueType.UNION_HEAD_MISSING,
             details: {},
           });
-        for (const slot of ['OFFICER_1', 'OFFICER_2'] as const)
-          if (!unionTerms.some((term) => term.slot === slot))
-            derivedIssues.push({
-              batchId: batch.id,
-              type: ImportIssueType.UNION_OFFICER_MISSING,
-              details: { slot },
-            });
         if (derivedIssues.length) await tx.importIssue.createMany({ data: derivedIssues });
         await tx.importBatch.update({
           where: { id: batch.id },

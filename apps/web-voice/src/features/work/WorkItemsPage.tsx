@@ -4,7 +4,6 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  Clock3,
   ArrowRight,
   ArrowRightLeft,
   Building2,
@@ -80,8 +79,9 @@ export function WorkItemsPage() {
   const isManager = caps.includes('MANAGER');
   // Director reads General and Private Voices, read-only.
   const isDirector = caps.includes('DIRECTOR');
-  const directorPrivate = isDirector && searchParams.get('visibility') === 'PRIVATE';
-  const unassignedOnly = isUnionHead && searchParams.get('unassigned') === 'true';
+  // Director and Deputy/Division Heads read their directorate's Private Voices.
+  const readsPrivate = isDirector || caps.includes('DIVISION_LEADERSHIP');
+  const directorPrivate = readsPrivate && searchParams.get('visibility') === 'PRIVATE';
   // Responders read three lists: what waits for them, what their unit handles,
   // and what their team sent. A Group Leader's unit list is their own queue.
   const canAct = !isUnion && !isDirector;
@@ -141,7 +141,6 @@ export function WorkItemsPage() {
       sort,
       orgKey,
       directorPrivate ? 'private' : 'general',
-      unassignedOnly ? 'unassigned' : 'assigned-any',
       actionFilter ?? 'action-any',
       tab ?? 'no-tab',
       nav.cursor,
@@ -162,7 +161,7 @@ export function WorkItemsPage() {
         ...(nav.cursor ? { cursor: nav.cursor } : {}),
       };
       return isUnion
-        ? api.workItems({ ...common, sort, ...(unassignedOnly ? { unassigned: 'true' } : {}) })
+        ? api.workItems({ ...common, sort })
         : directorPrivate
           ? api.workItems({ ...common, sort, visibility: 'PRIVATE' })
           : actionFilter
@@ -268,7 +267,6 @@ export function WorkItemsPage() {
     isUnion,
     isUnionHead,
     isDirector,
-    unassignedOnly,
   });
   const severityOptions = [
     { value: '', label: 'Semua' },
@@ -285,7 +283,7 @@ export function WorkItemsPage() {
       <HeroBand
         {...(isUnion ? { eyebrow: intro.eyebrow } : {})}
         title={intro.title}
-        description={tab ? TAB_DESCRIPTIONS[tab] : intro.description}
+        description={tab && !directorPrivate ? TAB_DESCRIPTIONS[tab] : intro.description}
         stats={
           isUnion
             ? privateDash.data
@@ -297,21 +295,13 @@ export function WorkItemsPage() {
                     label: 'Aktif',
                     tone: 'brand',
                   },
-                  isUnionHead
-                    ? {
-                        key: 'pending',
-                        icon: <Clock3 />,
-                        value: privateDash.data.pendingAssignment ?? 0,
-                        label: 'Belum ditugaskan',
-                        tone: 'brand',
-                      }
-                    : {
-                        key: 'selesai',
-                        icon: <CheckCircle2 />,
-                        value: bucketValue(privateDash.data.status, 'CLOSED'),
-                        label: 'Selesai',
-                        tone: 'brand',
-                      },
+                  {
+                    key: 'selesai',
+                    icon: <CheckCircle2 />,
+                    value: bucketValue(privateDash.data.status, 'CLOSED'),
+                    label: 'Selesai',
+                    tone: 'brand',
+                  },
                   {
                     key: 'kritis',
                     icon: <AlertTriangle />,
@@ -325,11 +315,12 @@ export function WorkItemsPage() {
         }
         chip={
           isUnion ? (
-            <HeroChip icon={<ShieldCheck size={12} aria-hidden="true" />} label="Union Private" />
+            <HeroChip icon={<ShieldCheck size={12} aria-hidden="true" />} label="Private" />
           ) : undefined
         }
       />
-      {tab && !handoverMode ? (
+      {/* The Private view is its own read-only list, outside the tabs. */}
+      {tab && !handoverMode && !directorPrivate ? (
         <div className="vm-tabs" role="group" aria-label="Daftar Voice">
           {tabs.map((id) => (
             <button type="button" key={id} aria-pressed={tab === id} onClick={() => openTab(id)}>
@@ -406,7 +397,7 @@ export function WorkItemsPage() {
 
       <FilterPillRow
         primary={[
-          ...(isDirector
+          ...(readsPrivate
             ? [
                 {
                   id: 'visibility',
@@ -453,22 +444,7 @@ export function WorkItemsPage() {
           ...(handoverMode
             ? []
             : isUnion || directorPrivate
-              ? isUnionHead
-                ? [
-                    {
-                      id: 'unassigned',
-                      label: 'Penugasan',
-                      value: unassignedOnly ? 'unassigned' : 'all',
-                      neutralValue: 'all',
-                      onValueChange: (value: string) =>
-                        setParam('unassigned', value === 'unassigned' ? 'true' : undefined),
-                      options: [
-                        { value: 'all', label: 'Semua' },
-                        { value: 'unassigned', label: 'Perlu ditugaskan' },
-                      ],
-                    },
-                  ]
-                : []
+              ? []
               : [
                   ...(tab === 'me'
                     ? [
@@ -608,7 +584,7 @@ export function WorkItemsPage() {
         </Card>
       ) : !handoverMode && items.length === 0 ? (
         <Card>
-          <EmptyState {...emptyStateFor({ isUnion, isUnionHead, unassignedOnly })} />
+          <EmptyState {...emptyStateFor({ isUnion, isUnionHead })} />
         </Card>
       ) : (
         <Stack gap="md">
@@ -673,16 +649,15 @@ function MyHandoverCard({ item, onOpen }: { item: HandoverHistoryItem; onOpen: (
   );
 }
 
-function introFor({ isUnion, isUnionHead, isDirector, unassignedOnly }: Record<string, boolean>) {
+function introFor({ isUnion, isUnionHead, isDirector }: Record<string, boolean>) {
+  // Komite (the former Union Head) handles every Private Voice itself.
   if (isUnion)
     return {
-      eyebrow: 'Union',
+      eyebrow: PRIVATE_ROUTE_LABEL,
       title: 'Private Voice',
-      description: unassignedOnly
-        ? 'Private Voice yang masih menunggu penugasan Union Officer.'
-        : isUnionHead
-          ? `Seluruh Private Voice melalui ${PRIVATE_ROUTE_LABEL}, diurutkan berdasarkan severity.`
-          : 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
+      description: isUnionHead
+        ? 'Seluruh Private Voice yang masuk, diurutkan berdasarkan severity.'
+        : 'Private Voice yang ditugaskan kepada Anda untuk ditangani.',
     };
   if (isDirector)
     return {
@@ -696,13 +671,7 @@ function introFor({ isUnion, isUnionHead, isDirector, unassignedOnly }: Record<s
   };
 }
 
-function emptyStateFor({ isUnion, isUnionHead, unassignedOnly }: Record<string, boolean>) {
-  if (unassignedOnly)
-    return {
-      icon: <Lock size={24} />,
-      title: 'Semua Private Voice sudah ditugaskan',
-      description: 'Tidak ada Private Voice yang menunggu Union Officer.',
-    };
+function emptyStateFor({ isUnion, isUnionHead }: Record<string, boolean>) {
   if (isUnionHead)
     return {
       icon: <Lock size={24} />,

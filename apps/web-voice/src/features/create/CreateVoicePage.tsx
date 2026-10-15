@@ -267,7 +267,7 @@ function FormStep({ wizard }: { wizard: Wizard }) {
           <h1>Detail Voice {isPrivate ? 'Private' : 'General'}</h1>
           <p>
             {isPrivate
-              ? 'Lengkapi detail agar Union dapat memverifikasi dan menindaklanjuti laporan Anda.'
+              ? 'Lengkapi detail agar Komite dapat memverifikasi dan menindaklanjuti laporan Anda.'
               : 'Lengkapi detail agar AInsight dapat mengklasifikasikan dan memverifikasi lokasi Anda.'}
           </p>
         </header>
@@ -375,17 +375,17 @@ function FormStep({ wizard }: { wizard: Wizard }) {
         {isPrivate ? (
           <section
             className="wizard-block"
-            aria-label="Identitas kepada Union"
+            aria-label="Identitas kepada Komite"
             id="privacy-checklist"
           >
             <div className="wizard-block__head">
               <span className="wizard-card__icon" aria-hidden="true">
                 <ShieldCheck size={18} />
               </span>
-              <h2 className="wizard-block__title">Identitas kepada Union</h2>
+              <h2 className="wizard-block__title">Identitas kepada Komite</h2>
             </div>
             <ChoiceCardGroup
-              label="Tampilkan nama kepada Union"
+              label="Tampilkan nama kepada Komite"
               columns={1}
               indicator="radio"
               appearance="brand"
@@ -402,13 +402,13 @@ function FormStep({ wizard }: { wizard: Wizard }) {
                 {
                   value: 'TIDAK',
                   label: 'Sembunyikan identitas',
-                  description: 'Union melihat alias anonim',
+                  description: 'Komite melihat alias anonim',
                   icon: <EyeOff size={20} />,
                 },
                 {
                   value: 'YA',
                   label: 'Tampilkan nama',
-                  description: 'Union melihat profil yang disetujui',
+                  description: 'Komite melihat profil yang disetujui',
                   icon: <UserRound size={20} />,
                 },
               ]}
@@ -431,7 +431,7 @@ function FormStep({ wizard }: { wizard: Wizard }) {
         {privacyGate ? (
           <p className="wizard-privacy-gate" id="privacy-gate-hint" aria-live="polite">
             <ShieldCheck size={15} aria-hidden="true" />
-            Centang persetujuan pada bagian Identitas kepada Union untuk melanjutkan analisis.
+            Centang persetujuan pada bagian Identitas kepada Komite untuk melanjutkan analisis.
           </p>
         ) : null}
 

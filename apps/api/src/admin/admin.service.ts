@@ -293,8 +293,13 @@ export class AdminService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: { id: true, status: true, createdAt: true, summary: true },
       }),
+      // Private Voices only need the Komite (Union Head); Officers are retired.
       this.prisma.unionAccountTerm.count({
-        where: { effectiveTo: null, account: { status: AccountStatus.ACTIVE } },
+        where: {
+          slot: UnionSlot.HEAD,
+          effectiveTo: null,
+          account: { status: AccountStatus.ACTIVE },
+        },
       }),
       this.prisma.importIssueResolution.findFirst({
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -656,22 +661,32 @@ export class AdminService {
           }
         }
         if (parsed.data.status === 'INACTIVE') {
-          // check active Union slot cannot be deactivated before slot replaced
+          // The Union Head (the Komite) must be replaced before deactivation.
+          // Union Officers are retired outright: the Komite handles Private
+          // Voices alone and takes over any it still holds.
           const unionTerm = await tx.unionAccountTerm.findFirst({
             where: { accountId: id, effectiveTo: null },
           });
-          if (unionTerm)
+          if (unionTerm?.slot === UnionSlot.HEAD)
             throw conflict(
               'UNION_SLOT_ACTIVE',
               'Active Union slot cannot be deactivated before replacement',
             );
+          const retiringOfficer = Boolean(unionTerm);
+          if (unionTerm)
+            await tx.unionAccountTerm.update({
+              where: { id: unionTerm.id },
+              data: { effectiveTo: new Date() },
+            });
           // check legacy/active Voice ownership constraint
-          const activeVoices = await tx.voice.count({
-            where: {
-              status: { not: 'CLOSED' },
-              OR: [{ routeOwnerId: id }, { currentHandlerId: id }],
-            },
-          });
+          const activeVoices = retiringOfficer
+            ? 0
+            : await tx.voice.count({
+                where: {
+                  status: { not: 'CLOSED' },
+                  OR: [{ routeOwnerId: id }, { currentHandlerId: id }],
+                },
+              });
           if (activeVoices > 0)
             throw conflict(
               'ACTIVE_VOICE_OWNERSHIP',

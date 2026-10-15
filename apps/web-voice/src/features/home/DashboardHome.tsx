@@ -257,7 +257,7 @@ export function DashboardHome() {
   const name = session?.account.displayName ?? '';
   const role = union
     ? unionHead
-      ? 'Union Head'
+      ? 'Komite'
       : 'Union Officer'
     : (session?.workforceProfile?.structuralPosition ?? 'PIC');
   const hour = new Date().getHours();
@@ -312,20 +312,6 @@ export function DashboardHome() {
         },
       ]}
       secondary={[
-        ...(isPrivate && director && meta
-          ? [
-              {
-                id: 'handler',
-                label: 'PIC Union',
-                value: read('handler') ?? '',
-                onValueChange: (v: string) => set({ handler: v || undefined }),
-                options: [
-                  { value: '', label: 'Semua PIC' },
-                  ...meta.handlers.map((h) => ({ value: h.id, label: h.label })),
-                ],
-              },
-            ]
-          : []),
         ...(!isPrivate
           ? [
               {
@@ -488,7 +474,8 @@ export function DashboardHome() {
             <div className="member-hero__who">
               <p className="member-hero__greeting">{greeting},</p>
               <h1 className="member-hero__name">{name}</h1>
-              <p className="member-hero__role">{role}</p>
+              {/* The Komite account is named after its role; say it once. */}
+              {role !== name ? <p className="member-hero__role">{role}</p> : null}
             </div>
           </div>
           <div className="member-hero__actions">
@@ -579,19 +566,6 @@ export function DashboardHome() {
               ) : null}
               {organizationDialog}
             </>
-          ) : unionHead && meta ? (
-            <div className="dashboard-private-handler">
-              <Select
-                label="PIC Union"
-                placeholder="Semua PIC"
-                value={read('handler') ?? ''}
-                onValueChange={(v) => set({ handler: v || undefined })}
-                options={[
-                  { value: '', label: 'Semua PIC' },
-                  ...meta.handlers.map((h) => ({ value: h.id, label: h.label })),
-                ]}
-              />
-            </div>
           ) : null}
           {filterRow}
         </Card>
@@ -730,20 +704,6 @@ export function DashboardHome() {
             ) : null}
           </>
         )}
-        {isPrivate && unionHead && data?.pendingAssignment !== undefined ? (
-          <button
-            type="button"
-            className="dashboard-queue"
-            onClick={() => void navigate('/work-items?unassigned=true')}
-          >
-            <ClipboardList size={20} />
-            <span>
-              <strong>{data.pendingAssignment} Private Voice menunggu penugasan</strong>
-              <small>Antrean operasional · seluruh periode</small>
-            </span>
-            <ChevronRight size={18} />
-          </button>
-        ) : null}
         <section className="dashboard-inbox">
           <div className="home-section__head">
             <h2>{isPrivate ? 'Private terbaru' : 'Inbox Voice Member'}</h2>

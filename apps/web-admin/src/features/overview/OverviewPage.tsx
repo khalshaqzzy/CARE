@@ -115,10 +115,10 @@ export function OverviewPage() {
       owner: 'CARE Admin',
       to: '/remediation',
     });
-  if (unionSlots < 3)
+  if (unionSlots < 1)
     priorities.push({
-      title: 'Slot Union belum lengkap',
-      description: 'Private Voice membutuhkan satu Head dan dua Officer aktif.',
+      title: 'Akun Komite belum ada',
+      description: 'Private Voice membutuhkan satu akun Komite (Union Head) aktif.',
       severity: 'Tinggi',
       owner: 'CARE Admin',
       to: '/union',
@@ -230,8 +230,8 @@ export function OverviewPage() {
             <AdminKpi
               icon={<Archive size={20} />}
               iconTone="info"
-              value={`${unionSlots} / 3`}
-              label="slot Union"
+              value={`${unionSlots} / 1`}
+              label="akun Komite"
             />
             <AdminKpi
               icon={<CloudUpload size={20} />}

@@ -351,7 +351,7 @@ describe('computeAvailableActions', () => {
     expect(result).not.toContain('REOPEN');
   });
 
-  it('allows Union Head to operate on all Private and assign officers', () => {
+  it('lets the Komite (Union Head) handle every Private Voice itself, without assigning', () => {
     const result = computeAvailableActions(
       actor(['UNION_HEAD'], 'unionHead'),
       voice({
@@ -360,8 +360,8 @@ describe('computeAvailableActions', () => {
         handlerType: 'UNION_HEAD' as HandlerType,
       }),
     );
-    expect(result).toContain('ASSIGN');
     expect(result).toContain('RESPOND');
+    expect(result).not.toContain('ASSIGN');
   });
 
   it('does not expose assign control to a Section Head', () => {
