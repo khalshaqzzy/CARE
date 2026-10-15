@@ -222,14 +222,6 @@ function ConversationSurface({
             {state === 'READ_ONLY' ? 'Hanya baca' : `${items.length} pesan`}
           </span>
         </div>
-        {state === 'READ_ONLY' ? (
-          <Alert
-            tone="info"
-            title={voice.status === 'CLOSED' ? 'Percakapan telah selesai' : 'Akses hanya baca'}
-          >
-            Riwayat tersedia untuk dibaca. Pengiriman pesan tidak tersedia pada akses ini.
-          </Alert>
-        ) : null}
         {send.isError ? (
           <Alert tone="danger" title="Pesan gagal dikirim">
             {send.error instanceof Error ? send.error.message : 'Coba kirim kembali.'}
@@ -278,6 +270,15 @@ function ConversationSurface({
                 ))}
               </Fragment>
             ))}
+            {/* The read-only notice ends the history instead of pinning above it,
+                so a closed Voice keeps the full height for its messages. */}
+            {state === 'READ_ONLY' ? (
+              <p className="chat-system" role="note">
+                <span>
+                  {voice.status === 'CLOSED' ? 'Percakapan telah selesai' : 'Akses hanya baca'}
+                </span>
+              </p>
+            ) : null}
           </>
         )}
         {showLatest ? (
