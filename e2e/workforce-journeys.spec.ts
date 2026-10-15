@@ -639,6 +639,36 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Web Push tidak didukung di browser ini')).toBeVisible();
   });
 
+  test('read notifications can be opened again without re-marking them', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const readRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'PATCH' && /\/notifications\/[^/]+\/read$/.test(request.url()))
+        readRequests.push(request.url());
+    });
+    await mockWorkforceApi(page, {
+      unread: 0,
+      notifications: {
+        items: [
+          {
+            id: 'note-read',
+            type: 'VOICE_SUBMITTED',
+            title: 'Voice sudah dibaca',
+            body: 'Voice ini sudah pernah dibuka.',
+            deepLink: '/voices/voice-1',
+            createdAt: '2026-08-05T00:00:00.000Z',
+            readAt: '2026-08-05T00:05:00.000Z',
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    await page.goto('/notifications');
+    await page.getByRole('button', { name: 'Buka' }).click();
+    await expect(page).toHaveURL(/\/voices\/voice-1$/);
+    expect(readRequests).toEqual([]);
+  });
+
   test('union general browse is read-only with a suppression surface', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { session: unionHead });
