@@ -18,6 +18,17 @@ async function open(page: Page, route: RouteCase) {
 }
 
 async function axe(page: Page) {
+  // Check the settled page: entrance fades (e.g. the Voice Member list) would
+  // otherwise be measured half-transparent. Endless spinners are not waited on.
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animation) =>
+          animation.playState !== 'running' ||
+          animation.effect?.getComputedTiming().endTime === Infinity,
+      ),
+  );
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
