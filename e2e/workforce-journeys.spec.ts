@@ -1038,7 +1038,18 @@ test.describe('install link (/install)', () => {
       await page.goto('/install');
       await expect(page).toHaveURL(/\/install$/);
       await expect(page.getByRole('heading', { name: 'Pasang CARE di iPhone' })).toBeVisible();
-      await expect(page.getByRole('listitem')).toHaveText([/Tap Bagikan/, /Tambah ke Layar Utama/]);
+      await expect(page.getByRole('listitem')).toHaveText([
+        /Tap ⋯ di kanan bawah/,
+        /Tap Bagikan \/ Share/,
+        /Pilih Tambahkan ke Layar Utama \/ Add to Home Screen/,
+      ]);
+      // The arrow points at Safari's own ⋯ button; it is decorative only.
+      const arrow = page.locator('.install-arrow');
+      await expect(arrow).toBeVisible();
+      await expect(arrow).toHaveAttribute('aria-hidden', 'true');
+      const box = await arrow.boundingBox();
+      expect(box!.x + box!.width).toBeGreaterThan(300);
+      expect(box!.y + box!.height).toBeGreaterThan(700);
     });
   });
 

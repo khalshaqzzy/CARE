@@ -17,7 +17,7 @@ A public route, `/install`, is added to the workforce app outside the session ga
 | Situation                              | Title                 | Action                                                               |
 | -------------------------------------- | --------------------- | -------------------------------------------------------------------- |
 | Chromium has offered an install prompt | Pasang CARE di HP     | **Instal CARE** opens the native dialog                              |
-| iPhone/iPad Safari                     | Pasang CARE di iPhone | Two steps: Bagikan, Tambah ke Layar Utama                            |
+| iPhone/iPad Safari                     | Pasang CARE di iPhone | Three illustrated steps and an arrow toward Safari's ⋯ button        |
 | Other iOS browser or in-app browser    | Buka di Safari        | **Salin link** copies the install URL                                |
 | Android in-app browser                 | Buka di Chrome        | Link with an Android `intent://` URL that reopens the page in Chrome |
 | Other browsers without a prompt        | Pasang CARE di HP     | Two steps: browser menu, Instal aplikasi                             |
@@ -53,6 +53,16 @@ The page cannot remove the user's confirmation, but it reduces Android to two ta
 
 - Unit tests cover platform detection, including desktop-mode iPad, in-app browsers and the intent URL.
 - Mocked Playwright journeys cover the replayed install prompt and `appinstalled`, iPhone Safari, iPhone Chrome and an Android in-app browser. The accessibility and overflow suite includes `/install`.
+
+## Amendment (16 October 2026): iPhone Safari guide
+
+Current Safari on iPhone places Share inside the **⋯** menu at the bottom right, and the share sheet lists **Add to Home Screen** only after **View More**. A page cannot open that menu or trigger the action: a share sheet opened by the Web Share API omits Add to Home Screen. The iPhone Safari view is therefore a visual guide:
+
+- Three steps, each with a small mockup of the Safari surface and the target ringed in brand blue: **⋯** in the bottom bar; **Bagikan / Share** in the light menu; **Lihat Lainnya / View More** then **Tambahkan ke Layar Utama / Add to Home Screen** in the dark share list.
+- Labels name both the Indonesian and English Safari strings, because Safari follows the phone's language setting.
+- A decorative (`aria-hidden`) arrow fixed at the bottom right, labelled "Tap ⋯", nudges toward Safari's button. It is static when `prefers-reduced-motion` is set. The header drops the product name on this view so the three steps fit above the arrow on a 390 × 760 viewport.
+
+The mockups were matched against screenshots from a real iPhone. Older iOS versions that show Share directly in the bar can skip step 1.
 
 ## Risks and Follow-up
 

@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## iPhone Safari install guide — 16 October 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/ios-install-guide` (from `origin/staging`, not released): `/install` on iPhone Safari shows three illustrated, bilingual steps (⋯ → Bagikan/Share → View More → Add to Home Screen) and an arrow toward Safari's ⋯ button. See the ADR-0067 amendment.
+
 ## Public install link — 16 October 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/install-link` (from `origin/staging`, not released): a public `/install` page gives one shareable link to put CARE on the home screen (native prompt on Chromium, guided steps on iPhone Safari, reopen-in-Safari/Chrome for other and in-app browsers). See ADR-0067.
