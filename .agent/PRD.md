@@ -1230,6 +1230,7 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 - Manifest memiliki stable app ID, root scope, standalone display, theme/background color, icon 192/512/maskable, dan Apple touch icon.
 - Satu custom TypeScript service worker mengelola precache, update, offline fallback, push, dan notification click.
 - Update service worker ditawarkan setelah ready dan tidak boleh memotong form/mutation aktif.
+- Link instal publik `/install` (tanpa login) menampilkan jalur instal terpendek per browser: tombol prompt native di Chromium, dua langkah "Bagikan → Tambah ke Layar Utama" di Safari iOS, dan arahan membuka ulang di Safari/Chrome untuk browser lain atau in-app browser. Instal tanpa konfirmasi pengguna tidak dimungkinkan browser (ADR-0067).
 
 ### 23.2 Cache Policy
 

@@ -1,5 +1,8 @@
 import { getBrowserCapabilities } from './lib/browser-capabilities.js';
+import { captureInstallPrompt } from './lib/install-prompt.js';
 import './styles.css';
+
+captureInstallPrompt();
 
 declare global {
   interface Window {
