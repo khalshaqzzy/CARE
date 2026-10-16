@@ -3641,7 +3641,7 @@ export class VoicesService {
    * the live handling target of the current cycle), or due within a day.
    * Shared by the action summary and the Voice Member filter so both agree.
    */
-  private async dueFilter(due: string, now = new Date()): Promise<Prisma.VoiceWhereInput> {
+  async dueFilter(due: string, now = new Date()): Promise<Prisma.VoiceWhereInput> {
     if (due !== 'OVERDUE' && due !== 'SOON')
       throw badRequest('DUE_FILTER_INVALID', 'due must be OVERDUE or SOON');
     const late = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
@@ -4736,7 +4736,8 @@ export class VoicesService {
     };
   }
   private async actionVoice(actor: AuthActor, id: string) {
-    if (actor.capabilities.includes('CARE_ADMIN')) throw forbiddenAsNotFound();
+    if (actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN'))
+      throw forbiddenAsNotFound();
     const voice = await this.authorizedVoice(actor, id);
     if (!this.mayAct(actor, voice)) throw forbiddenAsNotFound();
     return voice;
@@ -4772,7 +4773,8 @@ export class VoicesService {
     id: string,
     expectedVersion: number,
   ) {
-    if (actor.capabilities.includes('CARE_ADMIN')) throw forbiddenAsNotFound();
+    if (actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN'))
+      throw forbiddenAsNotFound();
     await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
     const voice = await tx.voice.findUnique({
       where: { id },
@@ -5003,9 +5005,14 @@ export class VoicesService {
       return {
         ...base,
         audience: actor.capabilities.some((capability: string) =>
-          ['DIRECTOR', 'DIVISION_LEADERSHIP', 'UNION_HEAD', 'UNION_OFFICER', 'CARE_ADMIN'].includes(
-            capability,
-          ),
+          [
+            'DIRECTOR',
+            'DIVISION_LEADERSHIP',
+            'UNION_HEAD',
+            'UNION_OFFICER',
+            'CARE_ADMIN',
+            'DIVISION_ADMIN',
+          ].includes(capability),
         )
           ? 'LEADERSHIP_GENERAL_READ_ONLY'
           : 'GENERAL_RESPONDER',

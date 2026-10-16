@@ -40,6 +40,19 @@ const unionBody = z
     reason: z.string().trim().min(1).max(500),
   })
   .strict();
+const divisionAdminBody = z
+  .object({
+    directorate: z.string().trim().min(1).max(200),
+    division: z.string().trim().min(1).max(200),
+    username: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z][A-Za-z0-9._-]{2,63}$/),
+    displayName: z.string().trim().min(1).max(200),
+    expectedCurrentAccountId: z.string().uuid().nullable(),
+    reason: z.string().trim().min(1).max(500),
+  })
+  .strict();
 const slots = new Set(Object.values(UnionSlot));
 const isDepartmentHead = (value?: string | null) =>
   value?.trim().toLocaleLowerCase('en-US') === 'department head';
@@ -359,6 +372,7 @@ export class AdminService {
           unitId?: string;
           position?: string;
           eligibility?: string;
+          directorate?: string;
           division?: string;
           department?: string;
           section?: string;
@@ -427,10 +441,11 @@ export class AdminService {
       };
     }
     const unit = {
+      ...(params.directorate ? { directorate: params.directorate } : {}),
       ...(params.division ? { division: params.division } : {}),
       ...(params.department ? { department: params.department } : {}),
     };
-    if (params.division || params.department || params.section)
+    if (params.directorate || params.division || params.department || params.section)
       where.AND = [
         {
           employee: {
@@ -461,6 +476,8 @@ export class AdminService {
         version: true,
         firstLoginAt: true,
         lastLoginAt: true,
+        adminDirectorate: true,
+        adminDivision: true,
         createdAt: true,
         updatedAt: true,
         employee: {
@@ -493,7 +510,8 @@ export class AdminService {
   }
 
   // Active workforce accounts in the active snapshot, grouped one level below the chosen unit.
-  async loginSummary(query: { division?: string; department?: string }) {
+  async loginSummary(query: { directorate?: string; division?: string; department?: string }) {
+    const directorate = query.directorate?.trim() || undefined;
     const division = query.division?.trim() || undefined;
     const department = division ? query.department?.trim() || undefined : undefined;
     const group = department
@@ -508,6 +526,7 @@ export class AdminService {
       JOIN "OrganizationSnapshot" s ON s."id" = m."snapshotId" AND s."status" = 'ACTIVE'
       JOIN "OrganizationUnit" u ON u."id" = m."organizationUnitId"
       WHERE a."accountKind" = 'WORKFORCE' AND a."status" = 'ACTIVE'
+        ${directorate ? Prisma.sql`AND u."directorate" = ${directorate}` : Prisma.empty}
         ${division ? Prisma.sql`AND u."division" = ${division}` : Prisma.empty}
         ${department ? Prisma.sql`AND u."department" = ${department}` : Prisma.empty}
       GROUP BY 1
@@ -546,6 +565,8 @@ export class AdminService {
         version: true,
         firstLoginAt: true,
         lastLoginAt: true,
+        adminDirectorate: true,
+        adminDivision: true,
         createdAt: true,
         updatedAt: true,
         deactivatedAt: true,
@@ -721,6 +742,20 @@ export class AdminService {
                 'Employee not found in active organization snapshot',
               );
           }
+          // One active Division Admin per division.
+          if (
+            account.accountKind === AccountKind.DIVISION_ADMIN &&
+            (await tx.userAccount.count({
+              where: {
+                accountKind: AccountKind.DIVISION_ADMIN,
+                status: AccountStatus.ACTIVE,
+                adminDirectorate: account.adminDirectorate,
+                adminDivision: account.adminDivision,
+                id: { not: account.id },
+              },
+            }))
+          )
+            throw conflict('DIVISION_ADMIN_ACTIVE', 'Divisi ini sudah punya admin aktif');
           if (account.accountKind === AccountKind.UNION) {
             // Union activation handled via union slot, not generic status
             throw badRequest(
@@ -1016,6 +1051,151 @@ export class AdminService {
           null,
           'Assigned by registration number through remediation',
         );
+      },
+    });
+  }
+
+  /** Every division in the organization data with its active Division Admin, if any. */
+  async divisionAdmins() {
+    const [divisions, admins] = await Promise.all([
+      this.prisma.organizationUnit.findMany({
+        distinct: ['directorate', 'division'],
+        select: { directorate: true, division: true },
+        orderBy: [{ directorate: 'asc' }, { division: 'asc' }],
+      }),
+      this.prisma.userAccount.findMany({
+        where: { accountKind: AccountKind.DIVISION_ADMIN, status: AccountStatus.ACTIVE },
+        select: {
+          ...accountResponseSelect,
+          adminDirectorate: true,
+          adminDivision: true,
+          lastLoginAt: true,
+        },
+      }),
+    ]);
+    return divisions.map((unit) => {
+      const admin = admins.find(
+        (account) =>
+          account.adminDirectorate === unit.directorate && account.adminDivision === unit.division,
+      );
+      return {
+        directorate: unit.directorate,
+        division: unit.division,
+        account: admin
+          ? {
+              id: admin.id,
+              username: admin.username,
+              displayName: admin.displayName,
+              status: admin.status,
+              version: admin.version,
+              passwordChangeRequired: admin.passwordChangeRequired,
+              lastLoginAt: admin.lastLoginAt,
+            }
+          : null,
+      };
+    });
+  }
+
+  /**
+   * Creates the Division Admin of a division. An active one is deactivated
+   * first; the new account signs in with its username as temporary password.
+   */
+  async setDivisionAdmin(actor: AuthActor, body: unknown, idempotencyKey?: string) {
+    this.requireIdempotencyKey(idempotencyKey);
+    const parsed = divisionAdminBody.safeParse(body);
+    if (!parsed.success)
+      throw badRequest(
+        'VALIDATION_ERROR',
+        'directorate, division, username, displayName, expectedCurrentAccountId and reason are required',
+      );
+    const input = { ...parsed.data, username: parsed.data.username.toLocaleLowerCase('en-US') };
+    const { directorate, division, username } = input;
+    return this.executeIdempotent<{
+      account: unknown;
+      temporaryPassword: string;
+      passwordChangeRequired: boolean;
+    }>({
+      actor,
+      scope: 'admin:division-admin',
+      key: idempotencyKey,
+      requestHash: canonicalHash(input),
+      resourceLock: `division-admin:${directorate}:${division}`,
+      serialize: (result) =>
+        ({ account: result.account, passwordChangeRequired: true }) as Prisma.InputJsonValue,
+      replay: (_tx, response) => ({
+        account: response.account,
+        temporaryPassword: username,
+        passwordChangeRequired: true,
+      }),
+      work: async (tx) => {
+        const unit = await tx.organizationUnit.findFirst({ where: { directorate, division } });
+        if (!unit) throw badRequest('DIVISION_UNKNOWN', 'Divisi tidak ada di data organisasi');
+        const current = await tx.userAccount.findFirst({
+          where: {
+            accountKind: AccountKind.DIVISION_ADMIN,
+            status: AccountStatus.ACTIVE,
+            adminDirectorate: directorate,
+            adminDivision: division,
+          },
+        });
+        if (input.expectedCurrentAccountId !== (current?.id ?? null))
+          throw conflict('VERSION_CONFLICT', 'Admin divisi sudah berubah; muat ulang');
+        // A No. Reg username would collide with the organization import.
+        const [taken, employee] = await Promise.all([
+          tx.userAccount.findUnique({ where: { username }, select: { id: true } }),
+          tx.employee.findFirst({
+            where: { noReg: { equals: username, mode: 'insensitive' } },
+            select: { id: true },
+          }),
+        ]);
+        if (taken || employee) throw conflict('USERNAME_EXISTS', 'Username sudah dipakai');
+        if (current) {
+          await this.lockAccountRow(tx, current.id);
+          await tx.userAccount.update({
+            where: { id: current.id },
+            data: {
+              status: AccountStatus.INACTIVE,
+              deactivatedAt: new Date(),
+              version: { increment: 1 },
+            },
+          });
+          await tx.session.updateMany({
+            where: { accountId: current.id, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
+        const passwordHash = await hash(username, {
+          type: 2,
+          memoryCost: 19_456,
+          timeCost: 2,
+          parallelism: 1,
+        });
+        const account = await tx.userAccount.create({
+          data: {
+            username,
+            displayName: input.displayName,
+            passwordHash,
+            accountKind: AccountKind.DIVISION_ADMIN,
+            adminDirectorate: directorate,
+            adminDivision: division,
+          },
+          select: { ...accountResponseSelect, adminDirectorate: true, adminDivision: true },
+        });
+        await tx.auditEvent.create({
+          data: {
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            action: 'DIVISION_ADMIN_ASSIGNED',
+            result: 'SUCCESS',
+            resourceType: 'USER_ACCOUNT',
+            resourceId: account.id,
+            summary: { directorate, division, replacedAccountId: current?.id ?? null },
+            reason: input.reason,
+            correlationId: `admin:division-admin:${account.id}`,
+            releaseSha: loadConfig().RELEASE_SHA,
+          },
+        });
+        return { account, temporaryPassword: username, passwordChangeRequired: true };
       },
     });
   }

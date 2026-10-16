@@ -19,6 +19,11 @@ export type ImportChanges = components['schemas']['OrganizationChangeList'];
 export type RemediationList = components['schemas']['RemediationIssueList'];
 export type RemediationHistory = components['schemas']['RemediationResolutionList'];
 export type UnionAccountList = components['schemas']['UnionAccountList'];
+export type DivisionAdminList = components['schemas']['DivisionAdminList'];
+export type DivisionOverview = components['schemas']['DivisionOverview'];
+export type DivisionExportQuery = NonNullable<
+  operations['DivisionAdminController_export']['parameters']['query']
+>;
 export type AuditEventList = components['schemas']['AuditEventList'];
 export type AuditEvent = components['schemas']['AuditEvent'];
 export type VoiceList = components['schemas']['VoiceListResponse'];
@@ -266,6 +271,42 @@ export function createAdminApi(transport: CareTransport) {
           body,
         }),
       ),
+    divisionAdmins: () =>
+      dataOrThrow<DivisionAdminList>(client.GET('/api/v1/admin/division-admins')),
+    setDivisionAdmin: (
+      body: components['schemas']['DivisionAdminRequest'],
+      idempotencyKey: string,
+    ) =>
+      dataOrThrow(
+        client.PUT('/api/v1/admin/division-admins', {
+          params: { header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey } },
+          body,
+        }),
+      ),
+    divisionAccounts: (query: Omit<QueryInput<AccountsQuery>, 'kind' | 'division'>) =>
+      dataOrThrow<AccountList>(
+        client.GET('/api/v1/division-admin/accounts', {
+          params: { query: compactQuery(query) as never },
+        }),
+      ),
+    divisionLoginSummary: (query: { department?: string | undefined }) =>
+      dataOrThrow<AccountLoginSummary>(
+        client.GET('/api/v1/division-admin/accounts/login-summary', {
+          params: { query: compactQuery(query) },
+        }),
+      ),
+    divisionOverview: () =>
+      dataOrThrow<DivisionOverview>(client.GET('/api/v1/division-admin/overview')),
+    /** The Excel file of the division's General Voices and their chat. */
+    divisionExport: async (query: QueryInput<DivisionExportQuery>) => {
+      const { data, error, response } = await client.GET('/api/v1/division-admin/export', {
+        params: { query: compactQuery(query) },
+        parseAs: 'blob',
+      });
+      if (!data) throw normalizeApiError(error, response.status);
+      const name = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '');
+      return { blob: data as Blob, filename: name?.[1] ?? 'voice-divisi.xlsx' };
+    },
     auditEvents: (query: QueryInput<AuditQuery>) =>
       dataOrThrow<AuditEventList>(
         client.GET('/api/v1/admin/audit-events', { params: { query: compactQuery(query) } }),

@@ -8,6 +8,7 @@ export const capabilities = [
   'UNION_HEAD',
   'UNION_OFFICER',
   'CARE_ADMIN',
+  'DIVISION_ADMIN',
 ] as const;
 
 export type Capability = (typeof capabilities)[number];

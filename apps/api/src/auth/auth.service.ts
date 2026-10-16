@@ -23,6 +23,9 @@ const passwordSchema = z.object({
 
 const identifierSchema = z.object({ noReg: z.string().trim().min(1).max(64) });
 
+// Admin-app accounts sign in with a password only and have no self-service reset.
+const adminKinds = new Set<AccountKind>([AccountKind.CARE_ADMIN, AccountKind.DIVISION_ADMIN]);
+
 type LoginAttempt = {
   method: 'PASSWORD' | 'DEFAULT_PASSWORD';
   ip: string;
@@ -100,7 +103,7 @@ export class AuthService {
       if (
         !account ||
         account.status === AccountStatus.INACTIVE ||
-        account.accountKind === AccountKind.CARE_ADMIN
+        adminKinds.has(account.accountKind)
       )
         return { failedAccountId: account?.id ?? null };
       if (
@@ -242,11 +245,7 @@ export class AuthService {
       where: { username },
       include: { employee: true },
     });
-    if (
-      !account ||
-      account.status !== AccountStatus.ACTIVE ||
-      account.accountKind === AccountKind.CARE_ADMIN
-    )
+    if (!account || account.status !== AccountStatus.ACTIVE || adminKinds.has(account.accountKind))
       throw badRequest('RESET_IDENTIFIER_INVALID', 'Periksa No. Reg atau username Anda.');
     return { eligible: this.resetEligible(account) };
   }
@@ -264,7 +263,7 @@ export class AuthService {
       if (
         !account ||
         account.status !== AccountStatus.ACTIVE ||
-        account.accountKind === AccountKind.CARE_ADMIN
+        adminKinds.has(account.accountKind)
       )
         throw badRequest('RESET_VERIFICATION_FAILED', 'No. Reg atau tanggal lahir tidak sesuai.');
       if (!this.resetEligible(account))
@@ -454,7 +453,8 @@ export class AuthService {
     )
       return ['GENERAL_GLOBAL'];
     if (actor.capabilities.includes('CARE_ADMIN')) return ['ADMIN_OPERATIONAL'];
-    if (actor.capabilities.includes('MANAGER')) return ['GENERAL_OWN_DIVISION'];
+    if (actor.capabilities.some((value) => ['MANAGER', 'DIVISION_ADMIN'].includes(value)))
+      return ['GENERAL_OWN_DIVISION'];
     return ['OWN'];
   }
 
@@ -463,7 +463,10 @@ export class AuthService {
       return ['GENERAL_ALL', 'PRIVATE_ALL_READ_ONLY'];
     if (actor.capabilities.some((value) => ['UNION_HEAD', 'UNION_OFFICER'].includes(value)))
       return ['GENERAL_ALL'];
-    if (actor.capabilities.includes('DIVISION_LEADERSHIP')) return ['GENERAL_OWN_DIVISION'];
+    if (
+      actor.capabilities.some((value) => ['DIVISION_LEADERSHIP', 'DIVISION_ADMIN'].includes(value))
+    )
+      return ['GENERAL_OWN_DIVISION'];
     if (actor.capabilities.includes('MANAGER'))
       return ['GENERAL_OWN_DEPARTMENT', 'EXPLICIT_WORK_ITEMS'];
     if (actor.capabilities.some((value) => ['SECTION_HEAD', 'GROUP_LEADER'].includes(value)))

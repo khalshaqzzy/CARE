@@ -19,7 +19,8 @@ export type Capability =
   | 'DIRECTOR'
   | 'UNION_HEAD'
   | 'UNION_OFFICER'
-  | 'CARE_ADMIN';
+  | 'CARE_ADMIN'
+  | 'DIVISION_ADMIN';
 export type ScopeDescriptor =
   | 'OWN'
   | 'GENERAL_GLOBAL'

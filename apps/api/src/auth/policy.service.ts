@@ -49,6 +49,8 @@ export class PolicyService {
       accountKind: AccountKind;
       status: AccountStatus;
       employeeId: string | null;
+      adminDirectorate?: string | null;
+      adminDivision?: string | null;
     },
     session: { id: string; passwordRestricted: boolean },
   ): Promise<Principal> {
@@ -71,6 +73,8 @@ export class PolicyService {
     ]);
     const capabilitySet = new Set<Capability>();
     if (account.accountKind === AccountKind.CARE_ADMIN) capabilitySet.add('CARE_ADMIN');
+    const divisionAdmin = account.accountKind === AccountKind.DIVISION_ADMIN;
+    if (divisionAdmin) capabilitySet.add('DIVISION_ADMIN');
     if (account.accountKind === AccountKind.WORKFORCE) capabilitySet.add('MEMBER');
     if (unionTerm?.slot === UnionSlot.HEAD) capabilitySet.add('UNION_HEAD');
     if (unionTerm?.slot === UnionSlot.OFFICER_1 || unionTerm?.slot === UnionSlot.OFFICER_2)
@@ -94,8 +98,13 @@ export class PolicyService {
       structuralPosition: membership?.structuralPosition ?? null,
       organizationSnapshotId: membership?.snapshotId ?? null,
       organizationUnitId: membership?.organizationUnitId ?? null,
-      directorate: membership?.organizationUnit.directorate ?? null,
-      division: membership?.organizationUnit.division ?? null,
+      // A Division Admin has no membership; its scope is the division it was given.
+      directorate: divisionAdmin
+        ? (account.adminDirectorate ?? null)
+        : (membership?.organizationUnit.directorate ?? null),
+      division: divisionAdmin
+        ? (account.adminDivision ?? null)
+        : (membership?.organizationUnit.division ?? null),
       department: membership?.organizationUnit.department ?? null,
       section: membership?.section ?? null,
       line: membership?.lineName ?? null,
@@ -150,6 +159,15 @@ export class PolicyService {
 
   async browseScope(actor: Principal): Promise<Prisma.VoiceWhereInput> {
     if (actor.capabilities.includes('CARE_ADMIN')) return {};
+    // Division Admin: every General Voice reported from its division, read-only.
+    if (actor.capabilities.includes('DIVISION_ADMIN'))
+      return actor.directorate && actor.division
+        ? {
+            visibility: VoiceVisibility.GENERAL,
+            reporterDirectorateSnapshot: actor.directorate,
+            reporterDivisionSnapshot: actor.division,
+          }
+        : { id: { in: [] } };
     const own: Prisma.VoiceWhereInput = { reporterId: actor.accountId };
     const observed = this.privateObserverScope(actor);
     // Director reads every General Voice and their directorate's Private, read-only.

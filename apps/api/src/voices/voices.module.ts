@@ -6,15 +6,18 @@ import { HandlingTargetService } from './handling-target.service';
 import { TierEscalationService } from './tier-escalation.service';
 import { ClosureReviewService } from './closure-review.service';
 import { VoicesController } from './voices.controller';
+import { DivisionAdminController } from './division-admin.controller';
+import { DivisionAdminService } from './division-admin.service';
 import { VoicesService } from './voices.service';
 import { CategoriesModule } from '../categories/categories.module';
 import { ShopsModule } from '../shops/shops.module';
 @Module({
   imports: [AiModule, MediaModule, CategoriesModule, ShopsModule],
-  controllers: [VoicesController],
+  controllers: [VoicesController, DivisionAdminController],
   providers: [
     PrismaService,
     VoicesService,
+    DivisionAdminService,
     ClosureReviewService,
     HandlingTargetService,
     TierEscalationService,

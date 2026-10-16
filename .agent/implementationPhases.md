@@ -1444,3 +1444,13 @@ removed. The API guard treats every session of an account with
 app page or API data is reachable before a new password is saved. ADR-0066
 supersedes ADR-0040. Phase 13 remains the only `in_progress` phase; no hosted
 delivery is claimed. Checks are in sessionHandoff.md.
+
+## Division Admin — 16 October 2026
+
+Implemented locally on `feat/division-admin` (from `origin/staging` 690728b): a new
+`DIVISION_ADMIN` account kind signs in to CARE Admin and reads one division's
+General Voices with chat, never acting on them. It sees Private Voices only as
+counts, downloads the division's Voices as Excel (Voice and Chat sheets), and sees
+the division's accounts and login state. The CARE Admin creates one per division
+in Admin › Admin Divisi. ADR-0068 records the decision. Phase 13 remains the only
+`in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.

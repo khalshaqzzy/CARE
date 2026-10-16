@@ -62,6 +62,21 @@ export function AccountsPage() {
   const department = searchParams.get('department') ?? '';
   const section = searchParams.get('section') ?? '';
   const loggedIn = searchParams.get('loggedIn') ?? '';
+  // A Division Admin reads its own division's workforce accounts, read-only.
+  const divisionAdmin = !!session?.capabilities.includes('DIVISION_ADMIN');
+  const scoped = divisionAdmin || !!division;
+  const listAccounts = (query: Parameters<typeof api.accounts>[0]) => {
+    if (!divisionAdmin) return api.accounts(query);
+    // The server fixes kind and division for a Division Admin.
+    const rest = Object.fromEntries(
+      Object.entries(query).filter(([key]) => key !== 'kind' && key !== 'division'),
+    );
+    return api.divisionAccounts(rest);
+  };
+  const summaryOf = (query: { division?: string; department?: string }) =>
+    divisionAdmin
+      ? api.divisionLoginSummary({ department: query.department })
+      : api.loginSummary(query);
   const [exporting, setExporting] = useState(false);
   const pagination = cursorPagination(searchParams, setSearchParams);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,7 +101,7 @@ export function AccountsPage() {
       pagination.cursor ?? 'first',
     ),
     queryFn: () =>
-      api.accounts({
+      listAccounts({
         limit: 20,
         search: search || undefined,
         kind: kind || undefined,
@@ -103,23 +118,23 @@ export function AccountsPage() {
   const divisionsQuery = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts', 'divisions'),
     queryFn: () => api.organizationDivisions(),
-    enabled: !!session,
+    enabled: !!session && !divisionAdmin,
   });
 
   const summaryQuery = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts', 'login', division, department),
     queryFn: () =>
-      api.loginSummary({
-        division: division || undefined,
-        department: department || undefined,
+      summaryOf({
+        ...(division ? { division } : {}),
+        ...(department ? { department } : {}),
       }),
-    enabled: !!session && !!division,
+    enabled: !!session && scoped,
   });
   // Department and section options come from the summary one level up.
   const departmentsQuery = useQuery({
     queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts', 'login', division, ''),
-    queryFn: () => api.loginSummary({ division }),
-    enabled: !!session && !!division,
+    queryFn: () => summaryOf({ division }),
+    enabled: !!session && scoped,
   });
   const departments = departmentsQuery.data?.groups.map((group) => group.name) ?? [];
   const sections = department ? (summaryQuery.data?.groups.map((group) => group.name) ?? []) : [];
@@ -132,7 +147,7 @@ export function AccountsPage() {
       selectedId ?? 'none',
     ),
     queryFn: () => api.account(selectedId!),
-    enabled: !!session && !!selectedId,
+    enabled: !!session && !!selectedId && !divisionAdmin,
   });
   const detail = detailQuery.data ?? null;
 
@@ -181,13 +196,15 @@ export function AccountsPage() {
   const pickLogin = (value: string) =>
     updateParams(
       value
-        ? { loggedIn: value, kind: kind || 'WORKFORCE', status: status || 'ACTIVE' }
+        ? divisionAdmin
+          ? { loggedIn: value, status: status || 'ACTIVE' }
+          : { loggedIn: value, kind: kind || 'WORKFORCE', status: status || 'ACTIVE' }
         : { loggedIn: '' },
     );
   const pickDivision = (value: string) =>
     updateParams({ division: value, department: '', section: '' });
   const pickGroup = (name: string) =>
-    !division
+    !scoped
       ? pickDivision(name)
       : !department
         ? updateParams({ department: name, section: '' })
@@ -200,7 +217,7 @@ export function AccountsPage() {
       const rows: Account[] = [];
       let cursor: string | undefined;
       do {
-        const pageData = await api.accounts({
+        const pageData = await listAccounts({
           limit: 100,
           kind: 'WORKFORCE',
           status: 'ACTIVE',
@@ -244,9 +261,13 @@ export function AccountsPage() {
   return (
     <Stack gap="lg">
       <AdminPageHeader
-        eyebrow="Akun"
-        title="Accounts"
-        description="Kelola workflow dan Union. CARE Admin hanya read-only di sini."
+        eyebrow={divisionAdmin ? 'Admin Divisi' : 'Akun'}
+        title={divisionAdmin ? 'Akun divisi' : 'Accounts'}
+        description={
+          divisionAdmin
+            ? (summaryQuery.data?.division ?? '')
+            : 'Kelola workflow dan Union. CARE Admin hanya read-only di sini.'
+        }
         badge={
           <span className="admin-pill" data-tone="neutral">
             <Lock size={12} aria-hidden="true" /> Hanya baca
@@ -263,17 +284,20 @@ export function AccountsPage() {
               onChange={(e) => updateParam('search', e.target.value)}
               placeholder="Username / nama / noReg"
             />
-            <Select
-              label="Jenis akun"
-              value={kind || 'ALL'}
-              onValueChange={(v) => updateParam('kind', v === 'ALL' ? '' : v)}
-              options={[
-                { value: 'ALL', label: 'Semua' },
-                { value: 'WORKFORCE', label: 'Workforce' },
-                { value: 'UNION', label: 'Union' },
-                { value: 'CARE_ADMIN', label: 'Admin' },
-              ]}
-            />
+            {divisionAdmin ? null : (
+              <Select
+                label="Jenis akun"
+                value={kind || 'ALL'}
+                onValueChange={(v) => updateParam('kind', v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  { value: 'WORKFORCE', label: 'Workforce' },
+                  { value: 'UNION', label: 'Union' },
+                  { value: 'CARE_ADMIN', label: 'Admin' },
+                  { value: 'DIVISION_ADMIN', label: 'Admin Divisi' },
+                ]}
+              />
+            )}
             <Select
               label="Status"
               value={status || 'ALL'}
@@ -285,16 +309,18 @@ export function AccountsPage() {
                 { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
             />
-            <Select
-              label="Divisi"
-              value={division || 'ALL'}
-              onValueChange={(v) => pickDivision(v === 'ALL' ? '' : v)}
-              options={[
-                { value: 'ALL', label: 'Semua' },
-                ...(divisionsQuery.data ?? []).map((name) => ({ value: name, label: name })),
-              ]}
-            />
-            {division ? (
+            {divisionAdmin ? null : (
+              <Select
+                label="Divisi"
+                value={division || 'ALL'}
+                onValueChange={(v) => pickDivision(v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  ...(divisionsQuery.data ?? []).map((name) => ({ value: name, label: name })),
+                ]}
+              />
+            )}
+            {scoped ? (
               <Select
                 label="Departemen"
                 value={department || 'ALL'}
@@ -363,22 +389,59 @@ export function AccountsPage() {
           <DataTable
             caption="Daftar akun workforce dan Union"
             columns={[
-              {
-                key: 'username',
-                header: 'Username / Nama',
-                cell: (r: Account) => <span className="admin-id admin-nums">{r.username}</span>,
-              },
-              { key: 'displayName', header: 'Nama', cell: (r: Account) => r.displayName },
-              {
-                key: 'kind',
-                header: 'Jenis akun',
-                cell: (r: Account) => <Badge tone={kindTone(r.accountKind)}>{r.accountKind}</Badge>,
-              },
-              {
-                key: 'org',
-                header: 'Konteks organisasi',
-                cell: (r: Account) => orgContext(r),
-              },
+              ...(divisionAdmin
+                ? []
+                : [
+                    {
+                      key: 'username',
+                      header: 'Username / Nama',
+                      cell: (r: Account) => (
+                        <span className="admin-id admin-nums">{r.username}</span>
+                      ),
+                    },
+                    { key: 'displayName', header: 'Nama', cell: (r: Account) => r.displayName },
+                    {
+                      key: 'kind',
+                      header: 'Jenis akun',
+                      cell: (r: Account) => (
+                        <Badge tone={kindTone(r.accountKind)}>{r.accountKind}</Badge>
+                      ),
+                    },
+                  ]),
+              ...(divisionAdmin
+                ? [
+                    {
+                      key: 'noReg',
+                      header: 'No. Reg',
+                      cell: (r: Account) => (
+                        <span className="admin-id admin-nums">
+                          {r.employee?.noReg ?? r.username}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: 'name',
+                      header: 'Nama',
+                      cell: (r: Account) => r.employee?.name ?? r.displayName,
+                    },
+                    {
+                      key: 'unit',
+                      header: 'Departemen / Seksi',
+                      cell: (r: Account) => {
+                        const membership = r.employee?.memberships?.[0];
+                        return membership
+                          ? `${membership.organizationUnit.department} — ${membership.section ?? '–'}`
+                          : '—';
+                      },
+                    },
+                  ]
+                : [
+                    {
+                      key: 'org',
+                      header: 'Konteks organisasi',
+                      cell: (r: Account) => orgContext(r),
+                    },
+                  ]),
               {
                 key: 'status',
                 header: 'Status',
@@ -410,30 +473,34 @@ export function AccountsPage() {
               },
               {
                 key: 'route',
-                header: 'Dependensi rute',
+                header: divisionAdmin ? 'Posisi' : 'Dependensi rute',
                 cell: (r: Account) => (
                   <span className="admin-meta--xs">
                     {r.employee?.memberships?.[0]?.structuralPosition ?? '—'}
                   </span>
                 ),
               },
-              {
-                key: 'action',
-                header: '',
-                cell: (r: Account) => (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label={`Detail ${r.username}`}
-                    onClick={() => {
-                      setSelectedId(r.id);
-                      setDrawerOpen(true);
-                    }}
-                  >
-                    <ChevronRight size={16} />
-                  </Button>
-                ),
-              },
+              ...(divisionAdmin
+                ? []
+                : [
+                    {
+                      key: 'action',
+                      header: '',
+                      cell: (r: Account) => (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Detail ${r.username}`}
+                          onClick={() => {
+                            setSelectedId(r.id);
+                            setDrawerOpen(true);
+                          }}
+                        >
+                          <ChevronRight size={16} />
+                        </Button>
+                      ),
+                    },
+                  ]),
             ]}
             rows={(q.data?.items ?? []) as never}
             rowKey={(r: Account) => r.id}
