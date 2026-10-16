@@ -47,6 +47,7 @@ import { DraftPreviewPage } from './features/create/DraftPreviewPage';
 import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
+import { InstallPage } from './features/install/InstallPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { ConversationPage } from './features/voice/ConversationPage';
@@ -78,6 +79,7 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
+        <Route path="/install" element={<InstallPage />} />
         <Route
           path="*"
           element={

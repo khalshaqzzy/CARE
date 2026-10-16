@@ -47,6 +47,7 @@ const memberRoutes: RouteCase[] = [
   { path: '/history', heading: 'Voice Saya', viewport: { width: 360, height: 800 } },
   { path: '/notifications', heading: 'Pusat notifikasi', viewport: { width: 360, height: 800 } },
   { path: '/account', heading: 'Pengaturan akun', viewport: { width: 360, height: 800 } },
+  { path: '/install', heading: 'Pasang CARE di HP', viewport: { width: 360, height: 800 } },
 ];
 
 const responder = memberSession({

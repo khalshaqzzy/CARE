@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Public install link — 16 October 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/install-link` (from `origin/staging`, not released): a public `/install` page gives one shareable link to put CARE on the home screen (native prompt on Chromium, guided steps on iPhone Safari, reopen-in-Safari/Chrome for other and in-app browsers). See ADR-0067.
+
 ## Read notifications stay openable — 15 October 2026
 
 Phase 13 remains the only `in_progress` phase. Fix on `fix/reopen-read-notifications` (from `origin/staging`, not released): the Notification Center keeps "Buka" on read rows that have a deep link, so a notification can be opened any number of times. See ADR-0023 amendment.

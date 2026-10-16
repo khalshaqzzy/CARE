@@ -998,3 +998,74 @@ test.describe('workforce journeys (mocked contract)', () => {
     expect(body).not.toContain('INTERNAL_SERVER_ERROR');
   });
 });
+
+test.describe('install link (/install)', () => {
+  const IPHONE_SAFARI =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
+
+  test('Android shows the native install prompt and then opens CARE', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { unauthenticated: true });
+    // Chromium's install event is replayed deterministically; headless never fires it.
+    await page.addInitScript(() => {
+      window.addEventListener('load', () => {
+        const event = new Event('beforeinstallprompt', { cancelable: true });
+        Object.assign(event, {
+          prompt: async () => {
+            (window as unknown as { __prompted: boolean }).__prompted = true;
+          },
+          userChoice: Promise.resolve({ outcome: 'accepted' }),
+        });
+        window.dispatchEvent(event);
+      });
+    });
+    await page.goto('/install');
+    await expect(page.getByRole('heading', { name: 'Pasang CARE di HP' })).toBeVisible();
+    await page.getByRole('button', { name: 'Instal CARE' }).click();
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __prompted?: boolean }).__prompted))
+      .toBe(true);
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await expect(page.getByRole('heading', { name: 'CARE sudah terpasang' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Buka CARE' })).toBeVisible();
+  });
+
+  test.describe('on iPhone Safari', () => {
+    test.use({ userAgent: IPHONE_SAFARI });
+    test('shows the two Add to Home Screen steps without signing in', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await expect(page).toHaveURL(/\/install$/);
+      await expect(page.getByRole('heading', { name: 'Pasang CARE di iPhone' })).toBeVisible();
+      await expect(page.getByRole('listitem')).toHaveText([/Tap Bagikan/, /Tambah ke Layar Utama/]);
+    });
+  });
+
+  test.describe('on iPhone Chrome', () => {
+    test.use({ userAgent: IPHONE_SAFARI.replace('Version/17.4', 'CriOS/124.0.6367.88') });
+    test('asks to reopen the link in Safari', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await expect(page.getByRole('heading', { name: 'Buka di Safari' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Salin link' })).toBeVisible();
+    });
+  });
+
+  test.describe('in an Android in-app browser', () => {
+    test.use({
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 14; SM-A546E; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.0.0 Mobile Safari/537.36 Instagram 330.0.0.0',
+    });
+    test('offers to reopen the link in Chrome', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await expect(page.getByRole('link', { name: 'Buka di Chrome' })).toHaveAttribute(
+        'href',
+        /^intent:\/\/127\.0\.0\.1:\d+\/install#Intent;scheme=https;package=com\.android\.chrome;end$/,
+      );
+    });
+  });
+});

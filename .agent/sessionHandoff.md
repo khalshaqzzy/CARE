@@ -1,5 +1,28 @@
 # CARE Session Handoff
 
+## Public install link — 16 October 2026
+
+**Goal:** one link (`https://satucare.com/install`) that employees open to put CARE on their phone's home screen. A page cannot install itself, so the link offers the shortest path each browser allows. The product owner picked the centred-icon design (B) from three rendered variants (`docs/preview-install-link/`, untracked).
+
+**Change on `feat/install-link` (from `origin/staging` aa44718):**
+
+- `lib/install-prompt.ts`: captures `beforeinstallprompt` and `appinstalled` (called first in `main.tsx`), `promptInstall`, `detectInstallPlatform`, `chromeIntentUrl`.
+- `features/install/InstallPage.tsx`: public `/install` route outside `SessionGate`, with these states:
+  - Chromium prompt → **Instal CARE**.
+  - iPhone Safari → Bagikan, Tambah ke Layar Utama.
+  - Other iOS or in-app browser → **Salin link**.
+  - Android in-app browser → **Buka di Chrome** (intent URL).
+  - Fallback → menu, Instal aplikasi.
+  - After `appinstalled` → **Buka CARE**.
+  - Opened from the installed app (standalone) → redirect to `/`.
+- `.install-*` styles appended to `apps/web-voice/src/styles.css`. ADR-0067, implementationPhases.
+
+**Tests:** `install-prompt.test.ts` (5 unit tests); 4 journeys in `e2e/workforce-journeys.spec.ts`; `/install` added to the a11y route list. Browser total in `scripts/validation/validation.test.mjs` 447 → 452.
+
+**Checks (Windows, portable Node 22.23.2):** web-voice typecheck, ESLint, Prettier, the new unit tests, the 5 new Chromium tests against this checkout's production build on port 4197, and the CI partition inventory (452) all passed. Not run locally: full `verify:local`, legacy WebKit, fullstack, captures. Real-device install on Android/iPhone not yet tried.
+
+**Next:** PR to `staging`, merge when CI is green, check `/ready`, then try the link on a real Android phone and iPhone.
+
 ## Read notifications stay openable — 15 October 2026
 
 **Problem:** on every workforce account a notification could be opened only once. `NotificationsPage` rendered "Buka" only while `readAt` was null, so after the first open the row lost its button and its deep link.
