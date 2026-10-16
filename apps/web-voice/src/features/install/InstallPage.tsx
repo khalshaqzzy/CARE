@@ -1,8 +1,13 @@
 import { Button } from '@care/ui';
 import {
+  ArrowDownRight,
+  Bookmark,
   Check,
+  ChevronDown,
+  ChevronLeft,
   Copy,
   Download,
+  Ellipsis,
   EllipsisVertical,
   ExternalLink,
   Share,
@@ -58,6 +63,79 @@ function Step({ index, icon, children }: { index: number; icon: ReactNode; child
   );
 }
 
+/** Points at Safari's own ⋯ button, which sits below the page in the bottom bar. */
+function SafariArrow() {
+  return (
+    <div className="install-arrow" aria-hidden="true">
+      <span className="install-arrow__label">
+        Tap <Ellipsis size={16} />
+      </span>
+      <ArrowDownRight className="install-arrow__icon" size={40} strokeWidth={2.75} />
+    </div>
+  );
+}
+
+/**
+ * iPhone Safari steps with small mockups of Safari's own menus. Labels carry
+ * both the Indonesian and English names, since Safari follows the phone language.
+ */
+function IosSafariGuide() {
+  return (
+    <>
+      <ol className="install-shots">
+        <li className="install-shot">
+          <p>
+            <span className="install-step__index">1</span>
+            <span>
+              Tap <strong>⋯</strong> di kanan bawah
+            </span>
+          </p>
+          <div className="install-mock install-mock--bar" aria-hidden="true">
+            <ChevronLeft size={18} />
+            <span className="install-mock__url">satucare.com</span>
+            <span className="install-mock__hit">
+              <Ellipsis size={18} />
+            </span>
+          </div>
+        </li>
+        <li className="install-shot">
+          <p>
+            <span className="install-step__index">2</span>
+            <span>
+              Tap <strong>Bagikan</strong> / <strong>Share</strong>
+            </span>
+          </p>
+          <div className="install-mock install-mock--menu" aria-hidden="true">
+            <span className="install-mock__row install-mock__hit">
+              <Share size={16} /> Bagikan / Share
+            </span>
+            <span className="install-mock__row">
+              <Bookmark size={16} /> Add to Bookmarks
+            </span>
+          </div>
+        </li>
+        <li className="install-shot">
+          <p>
+            <span className="install-step__index">3</span>
+            <span>
+              Pilih <strong>Tambahkan ke Layar Utama</strong> / <strong>Add to Home Screen</strong>
+            </span>
+          </p>
+          <div className="install-mock install-mock--sheet" aria-hidden="true">
+            <span className="install-mock__more">
+              <ChevronDown size={16} /> Lihat Lainnya / View More
+            </span>
+            <span className="install-mock__row install-mock__hit">
+              <SquarePlus size={16} /> Add to Home Screen
+            </span>
+          </div>
+        </li>
+      </ol>
+      <SafariArrow />
+    </>
+  );
+}
+
 function InstallAction({ view }: { view: View }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
@@ -84,16 +162,7 @@ function InstallAction({ view }: { view: View }) {
         </Button>
       );
     case 'ios-safari':
-      return (
-        <ol className="install-steps">
-          <Step index={1} icon={<Share size={18} />}>
-            Tap <strong>Bagikan</strong>
-          </Step>
-          <Step index={2} icon={<SquarePlus size={18} />}>
-            Pilih <strong>Tambah ke Layar Utama</strong>
-          </Step>
-        </ol>
-      );
+      return <IosSafariGuide />;
     case 'android-manual':
       return (
         <ol className="install-steps">
@@ -142,7 +211,7 @@ export function InstallPage() {
   }, [navigate, standalone]);
 
   return (
-    <main className="install-page">
+    <main className={view === 'ios-safari' ? 'install-page install-page--ios' : 'install-page'}>
       <img className="install-icon" src="/icon-192.png" alt="" width={96} height={96} />
       <p className="install-name">
         <strong>CARE</strong>

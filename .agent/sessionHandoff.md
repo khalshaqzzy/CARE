@@ -1,5 +1,25 @@
 # CARE Session Handoff
 
+## iPhone Safari install guide — 16 October 2026
+
+**Problem:** on current Safari for iPhone, Share sits inside the ⋯ menu (bottom right) and Add to Home Screen only appears after View More, so the old two-step text ("Tap Bagikan") did not match what people see. A page cannot open Safari's menu or add itself to the home screen; the Web Share sheet omits that action.
+
+**Change on `feat/ios-install-guide` (from `origin/staging` 4327371):** the product owner picked the illustrated variant from rendered previews and supplied real iPhone screenshots.
+
+- `InstallPage.tsx` `IosSafariGuide`: 3 steps with mini Safari mockups, target ringed in blue:
+  - Tap ⋯ di kanan bawah.
+  - Tap Bagikan / Share.
+  - Pilih Tambahkan ke Layar Utama / Add to Home Screen, with Lihat Lainnya / View More shown in the mockup.
+- `SafariArrow`: fixed bottom-right "Tap ⋯" label and a nudging arrow, `aria-hidden`. Static under reduced motion.
+- `.install-page--ios`, `.install-shot*`, `.install-mock*`, `.install-arrow*` styles. Header hides the product name on this view.
+- ADR-0067 amendment, implementationPhases.
+
+**Tests:** the iPhone Safari journey asserts the three bilingual steps and that the arrow sits at the bottom right. Browser total unchanged (452).
+
+**Checks (Windows, portable Node 22.23.2):** typecheck, ESLint, Prettier, production build, and the 5 install Chromium tests on port 4197 passed. The arrow position against Safari's floating bar on a real iPhone is not verified.
+
+**Next:** PR to `staging`; after deploy, open `satucare.com/install` on an iPhone to confirm the arrow lines up with ⋯.
+
 ## Public install link — 16 October 2026
 
 **Goal:** one link (`https://satucare.com/install`) that employees open to put CARE on their phone's home screen. A page cannot install itself, so the link offers the shortest path each browser allows. The product owner picked the centred-icon design (B) from three rendered variants (`docs/preview-install-link/`, untracked).

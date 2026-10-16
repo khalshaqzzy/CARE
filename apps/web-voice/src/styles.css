@@ -9676,3 +9676,162 @@
   color: var(--raw-brand-600);
   background: var(--raw-brand-50);
 }
+
+/* iPhone Safari guide: tighter header, room above Safari's bar for the arrow. */
+.install-page--ios {
+  gap: var(--space-3);
+  padding-top: var(--space-8);
+  padding-bottom: 7.5rem;
+}
+.install-page--ios .install-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
+}
+.install-page--ios .install-name {
+  display: none;
+}
+.install-page--ios h1 {
+  margin-top: var(--space-3);
+}
+.install-shots {
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 26rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.install-shot {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
+}
+.install-shot p {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+}
+.install-shot p .install-step__index {
+  flex: none;
+}
+/* Mini Safari mockups: grey iOS surfaces with the target control ringed in brand blue. */
+.install-mock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: 1.25rem;
+  color: #1c1c1e;
+  background: #eceef2;
+  font-size: var(--font-size-sm);
+}
+.install-mock--bar {
+  justify-content: space-between;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-pill);
+}
+.install-mock__url {
+  flex: 1;
+  padding: 0.375rem var(--space-3);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: #6b7280;
+  text-align: center;
+}
+.install-mock--menu {
+  display: grid;
+  gap: 0;
+  padding: var(--space-1);
+  border-radius: 0.875rem;
+}
+.install-mock__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+  border-radius: 0.625rem;
+}
+.install-mock__hit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: var(--radius-pill);
+  color: var(--raw-brand-700);
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--raw-brand-600);
+  font-weight: 600;
+}
+.install-mock__row.install-mock__hit {
+  justify-content: flex-start;
+  border-radius: 0.625rem;
+}
+.install-arrow {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-3));
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  color: var(--raw-brand-600);
+  animation: install-arrow-nudge 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.install-arrow__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: var(--space-6);
+  padding: 0.375rem var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-inverse);
+  background: var(--raw-brand-600);
+  box-shadow: 0 8px 20px rgb(8 102 255 / 30%);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+@keyframes install-arrow-nudge {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(6px, 8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .install-arrow {
+    animation: none;
+  }
+}
+/* Step 3 mirrors the dark share list, where Add to Home Screen sits under View More. */
+.install-mock--sheet {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: 0.875rem;
+  color: #f2f2f7;
+  background: #3a3a3c;
+}
+.install-mock__more {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  color: #c7c7cc;
+  font-size: var(--font-size-xs, 0.75rem);
+}
+.install-mock--sheet .install-mock__hit {
+  color: #fff;
+  background: #48484a;
+  box-shadow: 0 0 0 2px var(--raw-brand-500);
+}
