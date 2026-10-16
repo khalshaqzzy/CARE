@@ -11,6 +11,7 @@ enum AccountKind {
   CARE_ADMIN
   WORKFORCE
   UNION
+  DIVISION_ADMIN
 }
 
 enum AccountStatus {
@@ -284,6 +285,9 @@ model UserAccount {
   version                  Int                            @default(1)
   firstLoginAt             DateTime?
   lastLoginAt              DateTime?
+  /// Division Admin scope; set only for DIVISION_ADMIN accounts.
+  adminDirectorate         String?                        @db.VarChar(200)
+  adminDivision            String?                        @db.VarChar(200)
   createdAt                DateTime                       @default(now())
   updatedAt                DateTime                       @updatedAt
   employee                 Employee?                      @relation(fields: [employeeId], references: [id])

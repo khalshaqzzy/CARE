@@ -160,9 +160,9 @@ export function hasCapability(session: Session, capability: Capability) {
 }
 
 export function admitsAccount(session: Session, app: 'voice' | 'admin') {
-  return app === 'admin'
-    ? session.account.accountKind === 'CARE_ADMIN'
-    : session.account.accountKind !== 'CARE_ADMIN';
+  // CARE Admin and Division Admin accounts use the Admin app only.
+  const admin = ['CARE_ADMIN', 'DIVISION_ADMIN'].includes(session.account.accountKind);
+  return app === 'admin' ? admin : !admin;
 }
 
 export function SessionGate({

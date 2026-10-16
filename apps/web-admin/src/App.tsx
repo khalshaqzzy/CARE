@@ -24,10 +24,11 @@ import {
   Settings,
   ShieldCheck,
   CalendarClock,
+  UserCog,
   UserRound,
   UsersRound,
 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { ImportsPage } from './features/imports/ImportsPage';
@@ -43,6 +44,8 @@ import {
 import { AuditPage } from './features/audit/AuditPage';
 import { SystemStatusPage } from './features/system/SystemStatusPage';
 import { AccountPage } from './features/account/AccountPage';
+import { DivisionAdminsPage } from './features/division/DivisionAdminsPage';
+import { useDivisionOverview } from './features/division/DivisionPages';
 
 export function App() {
   return (
@@ -63,11 +66,12 @@ export function App() {
           </SessionGate>
         }
       >
-        <Route index element={<OverviewPage />} />
+        <Route index element={<HomePage />} />
         <Route path="imports" element={<ImportsPage />} />
         <Route path="remediation" element={<RemediationPage />} />
         <Route path="escalation" element={<EscalationSettingsPage />} />
         <Route path="union" element={<UnionPage />} />
+        <Route path="division-admins" element={<DivisionAdminsPage />} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="voices" element={<VoiceExplorerPage />} />
         <Route path="handovers" element={<AdminHandoverQueuePage />} />
@@ -80,6 +84,27 @@ export function App() {
     </Routes>
   );
 }
+const DIVISION_ADMIN_PATHS = ['/', '/voices', '/accounts', '/account'];
+
+/** A Division Admin only has its division home, its Voices and its own account. */
+function DivisionAdminGuard({ children }: { children: ReactElement }) {
+  const { session } = useAuth();
+  const location = useLocation();
+  if (
+    session?.capabilities.includes('DIVISION_ADMIN') &&
+    !DIVISION_ADMIN_PATHS.includes(location.pathname)
+  )
+    return <Navigate to="/" replace />;
+  return children;
+}
+
+function HomePage() {
+  const { session } = useAuth();
+  // A Division Admin starts on its division's Voices.
+  if (session?.capabilities.includes('DIVISION_ADMIN')) return <Navigate to="/voices" replace />;
+  return <OverviewPage />;
+}
+
 function RouteLoader() {
   return (
     <main className="route-loader">
@@ -282,6 +307,7 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   remediation: '/remediation',
   escalation: '/escalation',
   union: '/union',
+  'division-admins': '/division-admins',
   accounts: '/accounts',
   voices: '/voices',
   handovers: '/handovers',
@@ -293,30 +319,38 @@ function AdminShell() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const division = useDivisionOverview();
   if (!session) return null;
+  const divisionAdmin = session.capabilities.includes('DIVISION_ADMIN');
   const path = location.pathname;
-  const current = path.startsWith('/imports')
-    ? 'imports'
-    : path.startsWith('/remediation')
-      ? 'remediation'
-      : path.startsWith('/escalation')
-        ? 'escalation'
-        : path.startsWith('/union')
-          ? 'union'
-          : path.startsWith('/accounts')
-            ? 'accounts'
-            : path.startsWith('/voices')
-              ? 'voices'
-              : path.startsWith('/handovers')
-                ? 'handovers'
-                : path.startsWith('/audit')
-                  ? 'audit'
-                  : path.startsWith('/system')
-                    ? 'system'
-                    : path.startsWith('/account')
-                      ? 'account'
-                      : 'overview';
-  const items = [
+  const current = path.startsWith('/division-admins')
+    ? 'division-admins'
+    : path.startsWith('/imports')
+      ? 'imports'
+      : path.startsWith('/remediation')
+        ? 'remediation'
+        : path.startsWith('/escalation')
+          ? 'escalation'
+          : path.startsWith('/union')
+            ? 'union'
+            : path.startsWith('/accounts')
+              ? 'accounts'
+              : path.startsWith('/voices')
+                ? 'voices'
+                : path.startsWith('/handovers')
+                  ? 'handovers'
+                  : path.startsWith('/audit')
+                    ? 'audit'
+                    : path.startsWith('/system')
+                      ? 'system'
+                      : path.startsWith('/account')
+                        ? 'account'
+                        : 'overview';
+  const divisionItems = [
+    { id: 'voices', label: 'Voice divisi', icon: <FileSearch size={19} /> },
+    { id: 'accounts', label: 'Akun divisi', icon: <UsersRound size={19} /> },
+  ];
+  const adminItems = [
     {
       id: 'overview',
       label: 'Overview',
@@ -341,6 +375,11 @@ function AdminShell() {
       id: 'union',
       label: 'Union Accounts',
       icon: <ShieldCheck size={19} />,
+    },
+    {
+      id: 'division-admins',
+      label: 'Admin Divisi',
+      icon: <UserCog size={19} />,
     },
     {
       id: 'accounts',
@@ -373,7 +412,7 @@ function AdminShell() {
       density="compact"
       sidebar={
         <Sidebar
-          items={items}
+          items={divisionAdmin ? divisionItems : adminItems}
           current={current}
           onNavigate={(id) => void navigate(ADMIN_NAV_ROUTES[id] ?? '/')}
           header={
@@ -411,7 +450,11 @@ function AdminShell() {
       topbar={
         <div className="admin-topbar">
           <div className="admin-topbar__context">
-            <strong>Workspace operasional</strong>
+            <strong>
+              {divisionAdmin
+                ? `Admin Divisi · ${division.data?.division ?? ''}`
+                : 'Workspace operasional'}
+            </strong>
             <span className="admin-topbar__divider" aria-hidden="true" />
             <Badge tone="success">
               <span className="admin-live-dot" aria-hidden="true" />
@@ -425,7 +468,9 @@ function AdminShell() {
         </div>
       }
     >
-      <Outlet />
+      <DivisionAdminGuard>
+        <Outlet />
+      </DivisionAdminGuard>
     </AppShell>
   );
 }

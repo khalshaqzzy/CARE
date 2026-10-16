@@ -115,7 +115,7 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
     ((voice.tierLowerHolderIds ?? []).length > 0 || (!!voice.currentHandlerId && !isHandler));
   const canOperate =
     !isReporter &&
-    !actor.capabilities.includes('CARE_ADMIN') &&
+    !actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN') &&
     (isPrivate
       ? actor.capabilities.includes('UNION_HEAD') || isHandler
       : isRouteOwner || isHandler);

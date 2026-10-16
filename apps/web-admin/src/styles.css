@@ -2493,3 +2493,188 @@ button.admin-rows > li:hover,
   font-size: var(--font-size-xs);
   text-align: right;
 }
+
+/* ===== Division Admin ===== */
+
+.admin-division-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.admin-division-kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.625rem;
+  background: none;
+  padding: var(--space-3) var(--space-4);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.admin-division-kpi:hover {
+  background: var(--surface-inset);
+}
+.admin-division-kpi[aria-pressed='true'] {
+  border-color: var(--raw-brand-600);
+  background: var(--raw-brand-50);
+}
+.admin-division-due {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+.admin-division-due .admin-pill {
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-xs);
+}
+.admin-division-due .admin-pill[aria-pressed='true'] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+.admin-division-private {
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+}
+.admin-export {
+  display: inline-grid;
+  justify-items: end;
+  gap: var(--space-1);
+}
+.admin-export__error {
+  color: var(--state-danger);
+}
+
+/* Compact division summary: five small panels under the KPI tiles. */
+.admin-division-summary {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
+}
+.admin-division-summary__toggle {
+  display: inline-flex;
+  justify-self: end;
+  align-items: center;
+  gap: var(--space-1);
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-xs);
+}
+.admin-division-summary__toggle:hover {
+  color: var(--text-primary);
+}
+.admin-division-panels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+.admin-division-panel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.admin-division-panel h3 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+}
+.admin-division-trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 2.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.admin-division-trend span {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  background: var(--raw-brand-500);
+}
+.admin-division-trend span[data-empty] {
+  background: var(--surface-inset);
+}
+.admin-division-severity {
+  display: flex;
+  gap: 2px;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+}
+.admin-division-severity span,
+.admin-division-legend i {
+  background: var(--surface-inset);
+}
+.admin-division-summary [data-severity='critical'] {
+  background: var(--state-danger);
+}
+.admin-division-summary [data-severity='high'] {
+  background: var(--state-warning);
+}
+.admin-division-summary [data-severity='medium'] {
+  background: var(--raw-brand-300);
+}
+.admin-division-summary [data-severity='low'] {
+  background: var(--raw-neutral-300);
+}
+.admin-division-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px var(--space-2);
+  margin: 0;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  list-style: none;
+}
+.admin-division-legend i {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+}
+.admin-division-top {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  list-style: none;
+}
+.admin-division-top li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.admin-division-top__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-division-top .admin-nums {
+  flex: none;
+  color: var(--text-secondary);
+}
+@media (max-width: 1100px) {
+  .admin-division-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

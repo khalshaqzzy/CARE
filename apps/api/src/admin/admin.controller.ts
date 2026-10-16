@@ -152,6 +152,19 @@ export class AdminController {
     return this.service.sectionHeadCandidates(id);
   }
 
+  @Get('division-admins') divisionAdmins() {
+    return this.service.divisionAdmins();
+  }
+
+  @Put('division-admins') setDivisionAdmin(
+    @Actor() actor: AuthActor,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+    @Headers('Idempotency-Key') keyAlt?: string,
+  ) {
+    return this.service.setDivisionAdmin(actor, body, key ?? keyAlt);
+  }
+
   @Get('union-accounts') unionAccounts() {
     return this.service.unionAccounts();
   }

@@ -1,5 +1,65 @@
 # CARE Session Handoff
 
+## Division Admin (Admin Divisi) — 16 October 2026
+
+**Objective:** one admin per division (the Manufacturing divisions and the Quality Division) watches that division's Voices in CARE Admin, follows up late or critical ones on the floor, and downloads them. They read like a Division Head but never act. ADR-0068 holds the rules.
+
+**Product owner decisions:**
+
+- Private Voices: counts only.
+- General Voices: the admin sees the reporter's identity.
+- No follow-up action inside CARE.
+- One division per admin.
+- The Excel export includes the chat.
+- The admin also sees the division's accounts and who has logged in.
+- UI: variant B. The admin lands on Voice divisi, which shows status tiles (Terbuka, Direspon, Diproses, Selesai), "terlambat" and "< 24 jam" chips, and a short collapsible summary.
+
+**Branch:** `feat/division-admin` (worktree `../CARE-login`) from `origin/staging` 690728b. Uncommitted at the time of writing.
+
+**Changes:**
+
+- **Data:**
+  - `AccountKind.DIVISION_ADMIN` is added in its own migration, `20261016090000_division_admin_kind`.
+  - `UserAccount.adminDirectorate`/`adminDivision`, a check constraint and a partial unique index (one active admin per division) are in `20261016090100_division_admin_scope`.
+- **Access:**
+  - The `DIVISION_ADMIN` capability browses General Voices whose reporter directorate and division match its own.
+  - Its read-only audience is `LEADERSHIP_GENERAL_READ_ONLY`.
+  - `actions.ts`, `actionVoice` and `lockedActionVoice` refuse it.
+  - No. Reg login and self-service reset reject it, and the workforce app does not admit it.
+- **API:**
+  - `GET /division-admin/overview` returns status counts, overdue and due-soon counts, the active critical count, Private counts, an 8-week trend, severity counts, top handling departments, top reporters and top PICs.
+  - `GET /division-admin/export` returns an xlsx with Voice and Chat sheets (at most 5,000 Voices) and is audited as `DIVISION_VOICE_EXPORT`.
+  - `GET /division-admin/accounts` and `/accounts/login-summary` return the division's workforce accounts and login counts.
+  - `GET/PUT /admin/division-admins` let the CARE Admin list and create or replace a division's admin. The temporary password is the username, and a No. Reg username is refused.
+  - Reactivating an old Division Admin while another is active returns `DIVISION_ADMIN_ACTIVE`.
+  - OpenAPI and contracts were regenerated.
+- **Admin UI:**
+  - A Division Admin shell has Voice divisi and Akun divisi only. Every other route redirects to Voice divisi.
+  - The Voice Explorer in division mode hides Visibility and handover history. It adds Batas waktu, status tiles with due chips, the collapsible summary and **Unduh Excel**.
+  - The Accounts page in division mode shows the division's workforce accounts with login state and has no actions.
+  - The CARE Admin gets a new **Admin Divisi** page.
+- **Tests:**
+  - `division-admin.integration.test.ts` covers provisioning, scope, refused actions, overview, Excel content, audit, division accounts and replacement.
+  - `e2e/admin-division.spec.ts` covers the shell, tile filters, export, collapse, division accounts and the CARE Admin create flow.
+  - The browser test inventory goes from 452 to 455.
+- **Docs:** ADR-0068 and the implementationPhases entry.
+
+**After release:** the CARE Admin creates the division accounts in Admin › Admin Divisi and hands each admin the username. The temporary password equals the username and must be changed at first login.
+
+**Checks (Windows, portable Node 22.23.2, throwaway `pgvector/pgvector:pg16` on port 54349):**
+
+- Passed:
+  - Prettier on changed files, ESLint, typecheck, `openapi:check`.
+  - Unit tests: API 165, ui 26, frontend-core 14, web-admin 2, web-voice 137.
+  - `verify:ci integration`: 166 integration and 14 security tests.
+  - `verify:ci performance`: 2 tests.
+  - `test:migration:upgrade`: all scripts, through the scratchpad `psql` shim.
+  - Admin browser specs (journeys, a11y, explorer, pages visual, login tracking, division): 67/67 on private ports with a scratch config.
+- `verify:ci organization` timed out once on the 10,000-account import (145 s, while the machine was busy). A rerun alone passed 5/5.
+- Windows-only failures, the same on clean staging: `validation.test.mjs` tests 6 and 8.
+- Not run locally: workforce browser, legacy WebKit, capture and fullstack jobs. The workforce app only changed in `admitsAccount`; CI covers them.
+- Gitleaks `v8.24.3` directory scan, including uncommitted files: no leaks found.
+
 ## iPhone Safari install guide — 16 October 2026
 
 **Problem:** on current Safari for iPhone, Share sits inside the ⋯ menu (bottom right) and Add to Home Screen only appears after View More, so the old two-step text ("Tap Bagikan") did not match what people see. A page cannot open Safari's menu or add itself to the home screen; the Web Share sheet omits that action.

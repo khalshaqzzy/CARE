@@ -10,6 +10,14 @@ import { AdminEmpty } from '../../components/AdminEmpty';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type VoiceItem } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+import {
+  DivisionKpis,
+  DivisionSummary,
+  ExportButton,
+  tileParams,
+  useDivisionOverview,
+  type DivisionTile,
+} from '../division/DivisionPages';
 
 function severityTone(severity: string): 'danger' | 'warning' | 'success' {
   return severity === 'CRITICAL' || severity === 'HIGH'
@@ -46,6 +54,11 @@ export function VoiceExplorerPage() {
   const handler = searchParams.get('handler') ?? '';
   const dateFrom = searchParams.get('dateFrom') ?? '';
   const dateTo = searchParams.get('dateTo') ?? '';
+  const statusGroup = searchParams.get('statusGroup') ?? '';
+  const due = searchParams.get('due') ?? '';
+  // A Division Admin reads only its division's General Voices, read-only.
+  const divisionAdmin = !!session?.capabilities.includes('DIVISION_ADMIN');
+  const overview = useDivisionOverview();
   const pagination = cursorPagination(searchParams, setSearchParams);
   const [selected, setSelected] = useState<VoiceItem | null>(null);
   const [open, setOpen] = useState(false);
@@ -63,10 +76,14 @@ export function VoiceExplorerPage() {
       handler,
       dateFrom,
       dateTo,
+      statusGroup,
+      due,
       pagination.cursor ?? 'first',
     ),
     queryFn: () =>
       api.voices({
+        statusGroup: (statusGroup || undefined) as never,
+        due: (due || undefined) as never,
         limit: 10,
         search: search || undefined,
         status: status || undefined,
@@ -135,7 +152,7 @@ export function VoiceExplorerPage() {
       selected?.id ?? 'none',
     ),
     queryFn: () => api.adminHandoverHistory(selected!.id),
-    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL',
+    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL' && !divisionAdmin,
   });
   const directHandovers = useQuery({
     queryKey: careQueryKey(
@@ -144,7 +161,7 @@ export function VoiceExplorerPage() {
       selected?.id ?? 'none',
     ),
     queryFn: () => api.directHandoverHistory(selected!.id),
-    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL',
+    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL' && !divisionAdmin,
   });
   const updateFilter = (name: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -154,8 +171,23 @@ export function VoiceExplorerPage() {
     else params.delete(name);
     setSearchParams(params);
   };
+  const exportQuery = {
+    status: status || undefined,
+    statusGroup: statusGroup || undefined,
+    severity: severity || undefined,
+    due: due || undefined,
+    from: dateFrom || undefined,
+    to: dateTo || undefined,
+  };
+  const currentTile = (
+    ['open', 'responded', 'inProgress', 'closed', 'overdue', 'soon'] as DivisionTile[]
+  ).find((tile) =>
+    Object.entries(tileParams(tile)).every(([key, value]) => searchParams.get(key) === value),
+  );
   const activeFilters = [
     search,
+    statusGroup,
+    due,
     status,
     visibility,
     severity,
@@ -171,23 +203,58 @@ export function VoiceExplorerPage() {
 
   return (
     <Stack gap="lg">
-      <AdminPageHeader
-        eyebrow="Voice Explorer"
-        title="Voice Explorer"
-        description="Jelajahi seluruh rekaman Voice dari General dan Private. Akses Private diaudit dan setiap akses tercatat."
-        badge={
-          <span
-            className="admin-meta--xs"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
-          >
-            Read-only • Akses Private diaudit <Lock size={12} aria-hidden="true" />
-          </span>
-        }
-      />
-      <Alert tone="warning" title="Akses Private diaudit">
-        Setiap akses detail Private dicatat sebagai audit event teredaksi. Mutasi Voice oleh Admin
-        ditolak.
-      </Alert>
+      {divisionAdmin ? (
+        <AdminPageHeader
+          eyebrow="Admin Divisi"
+          title={overview.data?.division ?? 'Voice divisi'}
+          description={overview.data?.directorate ?? ''}
+          badge={<ExportButton query={exportQuery} />}
+        />
+      ) : (
+        <>
+          <AdminPageHeader
+            eyebrow="Voice Explorer"
+            title="Voice Explorer"
+            description="Jelajahi seluruh rekaman Voice dari General dan Private. Akses Private diaudit dan setiap akses tercatat."
+            badge={
+              <span
+                className="admin-meta--xs"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
+              >
+                Read-only • Akses Private diaudit <Lock size={12} aria-hidden="true" />
+              </span>
+            }
+          />
+          <Alert tone="warning" title="Akses Private diaudit">
+            Setiap akses detail Private dicatat sebagai audit event teredaksi. Mutasi Voice oleh
+            Admin ditolak.
+          </Alert>
+        </>
+      )}
+      {divisionAdmin && overview.data ? (
+        <section className="admin-card">
+          <DivisionKpis
+            overview={overview.data}
+            current={currentTile ?? null}
+            onPick={(tile) => {
+              const params = new URLSearchParams(searchParams);
+              for (const key of [
+                'status',
+                'statusGroup',
+                'severity',
+                'due',
+                'cursor',
+                'cursorHistory',
+              ])
+                params.delete(key);
+              if (currentTile !== tile)
+                for (const [key, value] of Object.entries(tileParams(tile))) params.set(key, value);
+              setSearchParams(params);
+            }}
+          />
+          <DivisionSummary overview={overview.data} />
+        </section>
+      ) : null}
 
       <AdminFilterBar
         controls={
@@ -210,16 +277,29 @@ export function VoiceExplorerPage() {
                 { value: 'CLOSED', label: 'Selesai' },
               ]}
             />
-            <Select
-              label="Visibility"
-              value={visibility || 'ALL'}
-              onValueChange={(v) => updateFilter('visibility', v === 'ALL' ? '' : v)}
-              options={[
-                { value: 'ALL', label: 'Semua' },
-                { value: 'GENERAL', label: 'General' },
-                { value: 'PRIVATE', label: 'Private' },
-              ]}
-            />
+            {divisionAdmin ? (
+              <Select
+                label="Batas waktu"
+                value={due || 'ALL'}
+                onValueChange={(v) => updateFilter('due', v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  { value: 'OVERDUE', label: 'Terlambat' },
+                  { value: 'SOON', label: '< 24 jam' },
+                ]}
+              />
+            ) : (
+              <Select
+                label="Visibility"
+                value={visibility || 'ALL'}
+                onValueChange={(v) => updateFilter('visibility', v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  { value: 'GENERAL', label: 'General' },
+                  { value: 'PRIVATE', label: 'Private' },
+                ]}
+              />
+            )}
             <Select
               label="Severity"
               value={severity || 'ALL'}
@@ -322,18 +402,22 @@ export function VoiceExplorerPage() {
                 header: 'Judul',
                 cell: (r: VoiceItem) => <span className="admin-clamp-2">{r.title}</span>,
               },
-              {
-                key: 'visibility',
-                header: 'Visibility',
-                cell: (r: VoiceItem) => (
-                  <span
-                    className="admin-pill"
-                    data-tone={r.visibility === 'PRIVATE' ? 'warning' : 'info'}
-                  >
-                    {r.visibility}
-                  </span>
-                ),
-              },
+              ...(divisionAdmin
+                ? []
+                : [
+                    {
+                      key: 'visibility',
+                      header: 'Visibility',
+                      cell: (r: VoiceItem) => (
+                        <span
+                          className="admin-pill"
+                          data-tone={r.visibility === 'PRIVATE' ? 'warning' : 'info'}
+                        >
+                          {r.visibility}
+                        </span>
+                      ),
+                    },
+                  ]),
               {
                 key: 'severity',
                 header: 'Severity',
@@ -548,7 +632,7 @@ export function VoiceExplorerPage() {
                 )}
               </Stack>
             </div>
-            {selected?.visibility === 'GENERAL' ? (
+            {selected?.visibility === 'GENERAL' && !divisionAdmin ? (
               <div className="admin-card admin-card--subtle">
                 <Stack gap="xs">
                   <strong>Riwayat handover</strong>
