@@ -7487,6 +7487,49 @@
   font-weight: var(--weight-semibold);
 }
 
+/* Persetujuan penyelesaian: the PIC's report, then the approval levels. */
+.closure-approval {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+.closure-approval .tier-timeline--flat {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.closure-approval__report {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.closure-approval__report small {
+  color: var(--text-secondary);
+}
+.closure-approval__report p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.closure-approval__due {
+  color: var(--text-secondary);
+  font-size: var(--text-sm, 0.875rem);
+}
+.closure-approval__waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  color: #92400e;
+  background: #fef3c7;
+  font-weight: var(--weight-semibold);
+}
+
 /* Chat with more than three people: overlapping avatars. */
 .chat-avatars {
   display: flex;
@@ -9021,6 +9064,10 @@
   .ops-actions__tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  /* Five tiles: Selesai oleh saya takes the last row on its own. */
+  .ops-actions__tiles[data-count='5'] .ops-actions__tile[data-kind='closed'] {
+    grid-column: 1 / -1;
+  }
   .ops-actions__tile {
     display: flex;
     align-items: center;
@@ -9054,6 +9101,20 @@
 }
 .ops-actions__tile[data-zero] strong {
   color: var(--ops-ink-3);
+}
+/* Leaders who approve get a fifth tile. */
+@media (min-width: 480px) {
+  .ops-actions__tiles[data-count='5'] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+/* Perlu Disetujui: reported done by a PIC, waiting for the viewer. */
+.ops-actions__tile[data-kind='approve']:not([data-zero]) {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+}
+.ops-actions__tile[data-kind='approve']:not([data-zero]) strong {
+  color: #6d28d9;
 }
 /* Selesai oleh saya sits beside the steps but is not part of the total. */
 .ops-actions__tile[data-kind='closed'] {

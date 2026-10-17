@@ -828,6 +828,24 @@ Dalam satu transaction, server:
 
 Closure yang sudah tersimpan tidak dapat diedit. Kesalahan diperbaiki melalui reopen dan closure cycle baru, bukan overwrite.
 
+### 17.1a Persetujuan Penyelesaian Berjenjang (update 17 Oktober 2026, ADR-0069)
+
+Yang menutup Voice General ditentukan oleh severity:
+
+- **Low:** PIC menutup sendiri (**Selesaikan Voice**).
+- **Medium dan High:** Manager (route owner departemen penanganan) yang menutup.
+- **Critical:** Deputy/Division Head divisi penanganan yang menutup.
+- PIC yang sudah setara atau di atas level penutup menutup langsung.
+- **Private:** hanya Komite yang menutup.
+
+Di bawah level penutup, aksi PIC menjadi **Lapor Sudah Selesai** (catatan penyelesaian + maksimum lima foto bukti, sama seperti closure). Setiap level di atas PIC sampai level penutup menyetujui bergiliran, mengikuti rantai tiered routing (Group Leader → Section Head → Manager → DDH/DH; kategori tetap hanya Manager dan DDH/DH departemen penanganan; level kosong dilewati). Penyetuju hanya menekan **Setujui**; level terakhir menekan **Tutup Voice**. **Kembalikan** wajib alasan, mengembalikan Voice ke PIC, dan laporan berikutnya mulai lagi dari level pertama.
+
+- Batas tiap level 2 hari kerja (kalender kerja Admin). Penyetuju menerima notifikasi saat levelnya mulai dan pengingat setiap 24 jam. Lewat batas, level tetap menunggu dengan tanda **Terlambat** dan satu notifikasi terlambat.
+- Laporan langsung dihitung selesai untuk PIC: masuk **Selesai oleh saya**, keluar dari **Perlu Diselesaikan**, dan waktu penyelesaian serta ketepatan target diukur pada saat PIC melapor. Closure dikreditkan ke PIC. Pengingat dan notifikasi target terlewati berhenti setelah PIC melapor.
+- Butuh Tindakan Saya menambah tile **Perlu Disetujui** hanya untuk yang dapat menjadi penyetuju (Section Head yang memiliki Group Leader, Manager, DDH/DH).
+- Pelapor melihat status Diproses dengan keterangan "Menunggu persetujuan atasan". Rating baru dapat diberikan setelah Voice benar-benar ditutup, dan jendela penilaian 2 hari dihitung dari penutupan itu, bukan dari laporan PIC.
+- Voice yang sudah Diproses saat rilis langsung mengikuti aturan ini.
+
 ### 17.2 Rating
 
 - Rating berupa integer 1–5 dan hanya reporter yang dapat memberikan.

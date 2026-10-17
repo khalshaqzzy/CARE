@@ -363,6 +363,31 @@ export class VoicesController {
   ) {
     return this.voices.close(a, id, b, key);
   }
+  // Medium and above: the PIC reports done and the levels above approve in turn.
+  @Post('voices/:id/report-done') reportDone(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.reportDone(a, id, b, key);
+  }
+  @Post('voices/:id/approve-closure') approveClosure(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.approveClosure(a, id, b, key);
+  }
+  @Post('voices/:id/return-closure') returnClosure(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.returnClosure(a, id, b, key);
+  }
   @Post('voices/:id/rate') rate(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

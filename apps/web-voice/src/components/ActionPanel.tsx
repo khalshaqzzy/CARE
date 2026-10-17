@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Play,
   Send,
+  Undo2,
   UserRound,
   UserRoundCheck,
 } from 'lucide-react';
@@ -29,6 +30,9 @@ type Action =
   | 'proceed'
   | 'target'
   | 'close'
+  | 'report-done'
+  | 'approve'
+  | 'return'
   | 'assign'
   | 'reassign'
   | 'assignment-note'
@@ -121,6 +125,9 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           key,
         );
       if (action === 'close') return api.close(detail.id, { note: note!, version }, key);
+      if (action === 'report-done') return api.reportDone(detail.id, { note: note!, version }, key);
+      if (action === 'approve') return api.approveClosure(detail.id, { version }, key);
+      if (action === 'return') return api.returnClosure(detail.id, { text: note!, version }, key);
       if (action === 'take-over') return api.takeOver(detail.id, { expectedVersion: version }, key);
       if (action === 'escalate')
         return api.escalate(detail.id, { expectedVersion: version, reason: note! }, key);
@@ -166,15 +173,25 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               : 'Target penyelesaian tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
             : variables.action === 'close'
               ? 'Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.'
-              : variables.action === 'take-over'
-                ? 'Anda sekarang PIC Voice ini.'
-                : variables.action === 'escalate'
-                  ? 'Voice dinaikkan ke atasan.'
-                  : variables.action === 'remind'
-                    ? 'Pengingat terkirim.'
-                    : variables.action === 'severity'
-                      ? 'Severity diperbarui.'
-                      : 'PIC berhasil diperbarui.',
+              : variables.action === 'report-done'
+                ? (_result as { status?: string } | undefined)?.status === 'CLOSED'
+                  ? 'Voice berhasil ditutup.'
+                  : 'Laporan terkirim. Menunggu persetujuan atasan.'
+                : variables.action === 'approve'
+                  ? closesOnApprove
+                    ? 'Voice berhasil ditutup.'
+                    : 'Disetujui. Diteruskan ke atasan berikutnya.'
+                  : variables.action === 'return'
+                    ? 'Dikembalikan ke PIC.'
+                    : variables.action === 'take-over'
+                      ? 'Anda sekarang PIC Voice ini.'
+                      : variables.action === 'escalate'
+                        ? 'Voice dinaikkan ke atasan.'
+                        : variables.action === 'remind'
+                          ? 'Pengingat terkirim.'
+                          : variables.action === 'severity'
+                            ? 'Severity diperbarui.'
+                            : 'PIC berhasil diperbarui.',
         );
     },
     onError: (cause) => {
@@ -192,6 +209,10 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     },
   });
   const pending = mutation.isPending;
+  // The last approval level closes the Voice.
+  const approvalSteps = detail.closureApproval?.steps ?? [];
+  const closesOnApprove =
+    approvalSteps.findIndex((step) => step.state === 'PENDING') === approvalSteps.length - 1;
   const cancel = () => {
     if (!pending) {
       setActive('none');
@@ -320,6 +341,24 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           {actions.includes('SET_TARGET') ? (
             <Button variant="primary" onClick={() => open('target')}>
               Tetapkan target baru
+            </Button>
+          ) : null}
+          {actions.includes('RETURN_CLOSURE') ? (
+            <Button variant="secondary" onClick={() => open('return')}>
+              <Undo2 size={18} aria-hidden="true" />
+              {ACTION_LABELS.RETURN_CLOSURE}
+            </Button>
+          ) : null}
+          {actions.includes('APPROVE_CLOSURE') ? (
+            <Button variant="primary" onClick={() => open('approve')}>
+              <Check size={18} aria-hidden="true" />
+              {closesOnApprove ? 'Tutup Voice' : ACTION_LABELS.APPROVE_CLOSURE}
+            </Button>
+          ) : null}
+          {actions.includes('REPORT_DONE') ? (
+            <Button variant="primary" onClick={() => open('report-done')}>
+              <Check size={18} aria-hidden="true" />
+              {ACTION_LABELS.REPORT_DONE}
             </Button>
           ) : null}
           {actions.includes('CLOSE') ? (
@@ -564,6 +603,100 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           onConfirm={(body) => mutation.mutate({ action: 'close', note: body.note })}
           loading={pending}
         />
+      </Dialog>
+      <Dialog
+        open={active === 'report-done'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title="Lapor Sudah Selesai"
+        description="Atasan menyetujui sebelum Voice ditutup."
+      >
+        {error ? (
+          <Alert tone="danger" title="Laporan belum terkirim">
+            {error}
+          </Alert>
+        ) : null}
+        <CloseDialog
+          detail={detail}
+          submitLabel="Kirim laporan"
+          onCancel={cancel}
+          onConfirm={(body) => mutation.mutate({ action: 'report-done', note: body.note })}
+          loading={pending}
+        />
+      </Dialog>
+      <Dialog
+        open={active === 'approve'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title={closesOnApprove ? 'Tutup Voice ini?' : 'Setujui penyelesaian?'}
+        description={
+          closesOnApprove ? 'Status berubah menjadi Selesai.' : 'Diteruskan ke atasan berikutnya.'
+        }
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              onClick={() => mutation.mutate({ action: 'approve' })}
+            >
+              {closesOnApprove ? 'Tutup Voice' : 'Setujui'}
+            </Button>
+          </div>
+        }
+      >
+        {error ? (
+          <Alert tone="danger" title="Belum tersimpan">
+            {error}
+          </Alert>
+        ) : null}
+      </Dialog>
+      <Dialog
+        open={active === 'return'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title="Kembalikan ke PIC"
+        footer={
+          <div className="dialog-actions">
+            <Button variant="ghost" disabled={pending} onClick={cancel}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              loading={pending}
+              disabled={!text.trim() || pending}
+              onClick={() => mutation.mutate({ action: 'return', note: text.trim() })}
+            >
+              Kembalikan
+            </Button>
+          </div>
+        }
+      >
+        <Stack gap="md">
+          {error ? (
+            <Alert tone="danger" title="Belum tersimpan">
+              {error}
+            </Alert>
+          ) : null}
+          <Textarea
+            label="Alasan"
+            placeholder="Apa yang masih perlu dilakukan?"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            rows={3}
+            maxLength={4000}
+            required
+            disabled={pending}
+          />
+        </Stack>
       </Dialog>
     </>
   );
@@ -1044,11 +1177,13 @@ function AssignDialog({
 
 function CloseDialog({
   detail,
+  submitLabel = 'Tutup Voice',
   onCancel,
   onConfirm,
   loading,
 }: {
   detail: VoiceDetail;
+  submitLabel?: string;
   onCancel: () => void;
   onConfirm: (body: { note: string; version: number }) => void;
   loading: boolean;
@@ -1137,7 +1272,7 @@ function CloseDialog({
           disabled={!note.trim() || uploading}
           onClick={() => onConfirm({ note, version: detail.version })}
         >
-          Tutup Voice
+          {submitLabel}
         </Button>
       </div>
     </Stack>

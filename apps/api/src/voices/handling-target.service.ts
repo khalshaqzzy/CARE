@@ -1,5 +1,12 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { MessageKind, NotificationType, Prisma, VoiceEventType } from '@prisma/client';
+import {
+  ClosureApprovalState,
+  ClosureReportState,
+  MessageKind,
+  NotificationType,
+  Prisma,
+  VoiceEventType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { loadConfig } from '../config';
 import { formatHandlingDueAt, handlingReminderAt } from './handling-target';
@@ -20,7 +27,10 @@ type CurrentVoice = {
  * At-least-once polling for handling targets: one reminder to the PIC at
  * 08:00 WIB on the target day, then one overdue notice to the PIC, the levels
  * above them and the reporter, with a system note in the chat. Each step is
- * guarded by its own timestamp inside the Voice row lock.
+ * guarded by its own timestamp inside the Voice row lock. A Voice the PIC
+ * reported done waits for approval: its target is met, so no target notices.
+ * The approval level gets a reminder every day and one late notice once its
+ * two working days pass (ADR-0069).
  */
 @Injectable()
 export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
@@ -43,6 +53,7 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.sendReminders();
       await this.sendOverdueNotices();
+      await this.sendApprovalReminders();
     } finally {
       this.running = false;
     }
@@ -56,6 +67,7 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
         AND t."dueAt" - interval '16 hours' + interval '1 millisecond' <= now()
         AND t."dueAt" >= now()
         AND v.status = 'IN_PROGRESS' AND v."handlingCycleNumber" = t."cycleNumber"
+        AND v."closureReportedById" IS NULL
       ORDER BY t."dueAt" ASC LIMIT 100`;
     for (const candidate of targets)
       await this.prisma.$transaction(async (tx) => {
@@ -91,6 +103,7 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
       SELECT t.id, t."voiceId" FROM "VoiceHandlingTarget" t JOIN "Voice" v ON v.id = t."voiceId"
       WHERE t."overdueNotifiedAt" IS NULL AND t."dueAt" < now()
         AND v.status = 'IN_PROGRESS' AND v."handlingCycleNumber" = t."cycleNumber"
+        AND v."closureReportedById" IS NULL
       ORDER BY t."dueAt" ASC LIMIT 100`;
     for (const candidate of targets)
       await this.prisma.$transaction(async (tx) => {
@@ -151,6 +164,50 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
       });
   }
 
+  private async sendApprovalReminders() {
+    const steps = await this.prisma.$queryRaw<Array<{ id: string; voiceId: string }>>`
+      SELECT s.id, r."voiceId" FROM "ClosureApprovalStep" s
+        JOIN "ClosureReport" r ON r.id = s."reportId"
+      WHERE s.state = 'PENDING' AND r.state = 'PENDING' AND (
+        s."remindedAt" <= now() - interval '24 hours'
+        OR (s."dueAt" < now() AND s."lateAt" IS NULL))
+      ORDER BY s."remindedAt" ASC LIMIT 100`;
+    for (const candidate of steps)
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Voice" WHERE "id" = ${candidate.voiceId}::uuid FOR UPDATE`;
+        const step = await tx.closureApprovalStep.findUniqueOrThrow({
+          where: { id: candidate.id },
+          include: { report: true },
+        });
+        if (
+          step.state !== ClosureApprovalState.PENDING ||
+          step.report.state !== ClosureReportState.PENDING
+        )
+          return;
+        const now = new Date();
+        const late = !!step.dueAt && step.dueAt < now && !step.lateAt;
+        const daily =
+          !step.remindedAt || now.getTime() - step.remindedAt.getTime() >= 24 * 3_600_000;
+        if (!late && !daily) return;
+        await tx.closureApprovalStep.update({
+          where: { id: step.id },
+          data: { remindedAt: now, ...(late ? { lateAt: now } : {}) },
+        });
+        for (const recipientId of step.approverIds)
+          await this.notify(
+            tx,
+            recipientId,
+            candidate.voiceId,
+            NotificationType.CLOSURE_APPROVAL,
+            late ? 'Persetujuan penyelesaian terlambat' : 'Menunggu persetujuan Anda',
+            late
+              ? 'Batas 2 hari kerja untuk menyetujui penyelesaian telah terlewati.'
+              : 'PIC telah melaporkan Voice ini selesai.',
+            `CLOSURE_APPROVAL:${step.id}:${recipientId}:${now.toISOString()}`,
+          );
+      });
+  }
+
   /**
    * Everyone between the PIC and the Manager who owns the route. Until tiered
    * chains land, that is the route-owning Manager. A Private Voice also tells
@@ -170,7 +227,11 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
     await tx.$queryRaw`SELECT "id" FROM "Voice" WHERE "id" = ${candidate.voiceId}::uuid FOR UPDATE`;
     const voice = await tx.voice.findUniqueOrThrow({ where: { id: candidate.voiceId } });
     const target = await tx.voiceHandlingTarget.findUniqueOrThrow({ where: { id: candidate.id } });
-    if (voice.status !== 'IN_PROGRESS' || target.cycleNumber !== voice.handlingCycleNumber)
+    if (
+      voice.status !== 'IN_PROGRESS' ||
+      target.cycleNumber !== voice.handlingCycleNumber ||
+      voice.closureReportedById
+    )
       return null;
     return { voice, target };
   }

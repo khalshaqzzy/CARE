@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
 import { HandlingTargetCard } from '../../components/HandlingTargetCard';
 import { ActionPanel } from '../../components/ActionPanel';
+import { ClosureApproval } from '../../components/ClosureApproval';
 import { LinkCard } from '../../components/LinkCard';
 import { MediaGallery } from '../../components/MediaGallery';
 import { VoiceProgress } from '../../components/VoiceProgress';
@@ -110,6 +111,7 @@ export function VoiceDetailPage() {
         <VoiceProgress status={voice.status} />
         {voice.tierStages?.length ? <TierStages stages={voice.tierStages} /> : null}
         <HandlingTargetCard voice={voice} />
+        {voice.closureApproval ? <ClosureApproval approval={voice.closureApproval} /> : null}
         <ActionPanel detail={voice} />
       </section>
 

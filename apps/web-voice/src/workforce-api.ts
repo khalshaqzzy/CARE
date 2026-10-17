@@ -409,6 +409,35 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    reportDone: (id: string, body: components['schemas']['CloseVoiceRequest'], key: string) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/report-done', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    approveClosure: (
+      id: string,
+      body: components['schemas']['VersionedMutationRequest'],
+      key: string,
+    ) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/approve-closure', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
+    returnClosure: (
+      id: string,
+      body: components['schemas']['VoiceTextMutationRequest'],
+      key: string,
+    ) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/return-closure', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
     stageEvidence: (id: string, file: File) => {
       const form = new FormData();
       form.append('file', file);

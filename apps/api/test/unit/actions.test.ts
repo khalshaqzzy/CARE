@@ -418,3 +418,64 @@ describe('computeAvailableActions', () => {
     expect(result).toEqual([]);
   });
 });
+
+describe('Closure approval (ADR-0069)', () => {
+  const processing = (overrides: Partial<ActionableVoice> = {}) =>
+    voice({
+      status: 'IN_PROGRESS' as VoiceStatus,
+      currentHandlerId: 'handler',
+      hasHandlingTarget: true,
+      hasConversation: true,
+      ...overrides,
+    });
+
+  it('lets the PIC close Low and report Medium and above done below the closing level', () => {
+    const gl = actor(['GROUP_LEADER'], 'handler');
+    expect(computeAvailableActions(gl, processing({ severity: 'LOW' }))).toContain('CLOSE');
+    for (const severity of ['MEDIUM', 'HIGH', 'CRITICAL'] as const) {
+      const result = computeAvailableActions(gl, processing({ severity }));
+      expect(result).toContain('REPORT_DONE');
+      expect(result).not.toContain('CLOSE');
+    }
+  });
+
+  it('lets a PIC at or above the closing level close directly', () => {
+    const manager = actor(['MANAGER'], 'handler');
+    expect(computeAvailableActions(manager, processing({ severity: 'HIGH' }))).toContain('CLOSE');
+    expect(computeAvailableActions(manager, processing({ severity: 'CRITICAL' }))).toContain(
+      'REPORT_DONE',
+    );
+    const division = actor(['DIVISION_LEADERSHIP'], 'handler');
+    expect(computeAvailableActions(division, processing({ severity: 'CRITICAL' }))).toContain(
+      'CLOSE',
+    );
+  });
+
+  it('waits for the approvers once reported, and only they approve or return', () => {
+    const reported = processing({
+      severity: 'MEDIUM',
+      closureReportedById: 'handler',
+      closureApproverIds: ['section-head'],
+    });
+    const pic = computeAvailableActions(actor(['GROUP_LEADER'], 'handler'), reported);
+    expect(pic).not.toContain('REPORT_DONE');
+    expect(pic).not.toContain('CLOSE');
+    expect(pic).not.toContain('SET_TARGET');
+    expect(computeAvailableActions(actor(['SECTION_HEAD'], 'section-head'), reported)).toEqual(
+      expect.arrayContaining(['APPROVE_CLOSURE', 'RETURN_CLOSURE']),
+    );
+    expect(computeAvailableActions(actor(['MANAGER'], 'manager'), reported)).not.toContain(
+      'APPROVE_CLOSURE',
+    );
+  });
+
+  it('keeps Private closure with the Komite alone', () => {
+    const privateVoice = processing({ visibility: 'PRIVATE' as VoiceVisibility, severity: 'HIGH' });
+    expect(computeAvailableActions(actor(['UNION_HEAD'], 'komite'), privateVoice)).toContain(
+      'CLOSE',
+    );
+    expect(
+      computeAvailableActions(actor(['UNION_OFFICER'], 'handler'), privateVoice),
+    ).not.toContain('CLOSE');
+  });
+});

@@ -224,6 +224,9 @@ enum VoiceEventType {
   REOPENED
   AUTO_ACCEPTED
   DEADLINE_MISSED
+  CLOSURE_REPORTED
+  CLOSURE_APPROVED
+  CLOSURE_RETURNED
 }
 
 enum OutboxStatus {
@@ -251,6 +254,8 @@ enum NotificationType {
   RATED
   REOPENED
   CLOSURE_AUTO_ACCEPTED
+  CLOSURE_APPROVAL
+  CLOSURE_RETURNED
   SECURITY
 }
 
@@ -718,6 +723,10 @@ model Voice {
   tierDueKind                     TierDueKind?
   /// The current holder answered the Voice themselves (vs. received it answered).
   tierHolderResponded             Boolean                 @default(false)
+  /// Medium and above: the PIC reported done and these leaders approve next.
+  closureApproverIds              String[]                @default([]) @db.Uuid
+  /// The PIC whose report waits for approval (counted done for them).
+  closureReportedById             String?                 @db.Uuid
   /// The reporter's Section has a Group Leader the Section Head may assign.
   sectionHasGroupLeader           Boolean                 @default(false)
   /// Fasilitas Kerja reported from another department's shop.
@@ -784,6 +793,7 @@ model Voice {
   handovers                       VoiceHandover[]
   adminHandovers                  AdminHandover[]
   reminders                       VoiceReminder[]
+  closureReports                  ClosureReport[]
 
   @@unique([legacySource, legacyId])
   @@index([reporterId, status, updatedAt])
@@ -796,6 +806,7 @@ model Voice {
   @@index([tierHolderIds], type: Gin)
   @@index([tierObserverIds], type: Gin)
   @@index([tierParticipantIds], type: Gin)
+  @@index([closureApproverIds], type: Gin)
   @@index([tierDueAt, status])
   @@index([severity, submittedAt])
   @@index([title, displayId])
@@ -1058,6 +1069,8 @@ model ClosureCycle {
   actorId          String             @db.Uuid
   note             String             @db.VarChar(4000)
   closedAt         DateTime           @default(now())
+  /// When the PIC finished: their report time when leaders approved first.
+  completedAt      DateTime?
   reopenedAt       DateTime?
   reviewState      ClosureReviewState @default(PENDING)
   reviewDeadline   DateTime?
@@ -1070,6 +1083,58 @@ model ClosureCycle {
   @@unique([voiceId, cycleNumber])
   @@index([voiceId, closedAt])
   @@index([reviewState, reviewDeadline])
+}
+
+enum ClosureReportState {
+  PENDING
+  CLOSED
+  RETURNED
+}
+
+enum ClosureApprovalState {
+  WAITING
+  PENDING
+  APPROVED
+}
+
+/// The PIC reported a Medium+ Voice done; the levels above approve in turn and
+/// the last one closes it. Returned reports stay as history.
+model ClosureReport {
+  id             String               @id @default(uuid()) @db.Uuid
+  voiceId        String               @db.Uuid
+  actorId        String               @db.Uuid
+  note           String               @db.VarChar(4000)
+  evidenceIds    String[]             @default([]) @db.Uuid
+  reportedAt     DateTime             @default(now())
+  state          ClosureReportState   @default(PENDING)
+  resolvedAt     DateTime?
+  resolvedById   String?              @db.Uuid
+  returnNote     String?              @db.VarChar(4000)
+  closureCycleId String?              @unique @db.Uuid
+  voice          Voice                @relation(fields: [voiceId], references: [id])
+  steps          ClosureApprovalStep[]
+
+  @@index([voiceId, state])
+}
+
+model ClosureApprovalStep {
+  id          String               @id @default(uuid()) @db.Uuid
+  reportId    String               @db.Uuid
+  position    Int
+  level       TierLevel
+  approverIds String[]             @db.Uuid
+  state       ClosureApprovalState @default(WAITING)
+  startedAt   DateTime?
+  dueAt       DateTime?
+  /// Last daily reminder, and the one late notice once dueAt passed.
+  remindedAt  DateTime?
+  lateAt      DateTime?
+  decidedById String?              @db.Uuid
+  decidedAt   DateTime?
+  report      ClosureReport        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, position])
+  @@index([state, remindedAt])
 }
 
 model Rating {

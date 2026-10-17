@@ -48,7 +48,7 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                         ? { type: 'string', enum: ['unit', 'team'] }
                         : parameter === 'action' &&
                             operation.operationId === 'VoicesController_workItems'
-                          ? { type: 'string', enum: ['me', 'closed'] }
+                          ? { type: 'string', enum: ['me', 'approve', 'closed'] }
                           : { type: 'string' },
           });
       if (
@@ -459,6 +459,9 @@ function successSchema(operationId: string) {
     VoicesController_markConversationRead: 'SuccessResponse',
     VoicesController_monitoringOptions: 'MonitoringOptions',
     VoicesController_close: 'ClosureResponse',
+    VoicesController_reportDone: 'VoiceMutationResponse',
+    VoicesController_approveClosure: 'VoiceMutationResponse',
+    VoicesController_returnClosure: 'VoiceMutationResponse',
     VoicesController_conversations: 'ConversationList',
     VoicesController_createDraft: 'VoiceDraftResponse',
     VoicesController_deleteDraft: 'SuccessResponse',
@@ -539,6 +542,9 @@ function requestSchema(operationId: string) {
     VoicesController_setTarget: 'HandlingTargetRequest',
     VoicesController_respond: 'VoiceRespondRequest',
     VoicesController_close: 'CloseVoiceRequest',
+    VoicesController_reportDone: 'CloseVoiceRequest',
+    VoicesController_approveClosure: 'VersionedMutationRequest',
+    VoicesController_returnClosure: 'VoiceTextMutationRequest',
     VoicesController_rate: 'RatingRequest',
   };
   const schema = mapping[operationId];
@@ -630,6 +636,34 @@ const baseVoiceProperties = {
   locationReview: {
     allOf: [{ $ref: '#/components/schemas/LocationReviewSnapshot' }],
     nullable: true,
+  },
+  // The PIC reported a Medium+ Voice done; the levels above approve in turn and
+  // the last one closes it. The reporter sees no steps, only that it waits.
+  closureApproval: {
+    type: 'object',
+    nullable: true,
+    required: ['reportedAt', 'steps'],
+    properties: {
+      reportedAt: { type: 'string', format: 'date-time' },
+      // Handlers only: the PIC's report, which becomes the closure note.
+      reportedBy: { type: 'string', nullable: true },
+      note: { type: 'string', nullable: true },
+      evidence: { type: 'array', items: { $ref: '#/components/schemas/AttachmentResponse' } },
+      steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['level', 'names', 'state', 'dueAt', 'late'],
+          properties: {
+            level: { type: 'string', enum: ['SECTION_HEAD', 'MANAGER', 'DIVISION'] },
+            names: { type: 'array', items: { type: 'string' } },
+            state: { type: 'string', enum: ['APPROVED', 'PENDING', 'NEXT'] },
+            dueAt: { type: 'string', format: 'date-time', nullable: true },
+            late: { type: 'boolean' },
+          },
+        },
+      },
+    },
   },
 };
 

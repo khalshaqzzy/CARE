@@ -5,7 +5,7 @@ import type { DashboardPreview } from '../../workforce-api';
 
 /** What the Voice needs next from the viewer, and the urgency markers. */
 export type ActionKind =
-  'open' | 'responded' | 'inProgress' | 'closed' | 'overdue' | 'soon' | 'critical';
+  'open' | 'responded' | 'inProgress' | 'approve' | 'closed' | 'overdue' | 'soon' | 'critical';
 export type AttentionKind = 'overdue' | 'soon' | 'critical';
 type Item = DashboardPreview['items'][number];
 
@@ -19,6 +19,7 @@ export const ACTION_FILTERS: Record<ActionKind, Record<string, string>> = {
   open: { ...ACTION_LIST, view: 'OPEN' },
   responded: { ...ACTION_LIST, view: 'RESPONDED' },
   inProgress: { ...ACTION_LIST, view: 'IN_PROGRESS' },
+  approve: { ...ACTION_LIST, action: 'approve' },
   closed: { tab: 'me', view: 'CLOSED', action: 'closed' },
   overdue: { ...ACTION_LIST, due: 'OVERDUE' },
   soon: { ...ACTION_LIST, due: 'SOON' },
@@ -85,6 +86,10 @@ export function ActionSummaryCard({
         ['open', 'Perlu Direspon', summary.open],
         ['responded', 'Perlu Diproses', summary.responded],
         ['inProgress', 'Perlu Diselesaikan', summary.inProgress],
+        // Only leaders someone can report done to (ADR-0069).
+        ...(summary.approves
+          ? ([['approve', 'Perlu Disetujui', summary.toApprove]] as [ActionKind, string, number][])
+          : []),
         ['closed', 'Selesai oleh saya', summary.closedByMe],
       ]
     : [];
@@ -109,7 +114,7 @@ export function ActionSummaryCard({
         <Skeleton label="Memuat Voice yang butuh tindakan" />
       ) : (
         <>
-          <div className="ops-actions__tiles">
+          <div className="ops-actions__tiles" data-count={tiles.length}>
             {tiles.map(([kind, label, value]) => (
               <button
                 type="button"

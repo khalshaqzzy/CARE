@@ -282,7 +282,8 @@ export class DashboardPeople {
     >(Prisma.sql`
       WITH cohort AS MATERIALIZED (
         SELECT v.id, v."submittedAt", v.status, v."currentHandlerId", v."handlingCycleNumber",
-          v."tierHolderIds", v."tierLowerHolderIds", v."tierObserverIds", v."tierParticipantIds"
+          v."tierHolderIds", v."tierLowerHolderIds", v."tierObserverIds", v."tierParticipantIds",
+          v."closureReportedById"
         FROM "Voice" v WHERE ${sql}
       ),
       people AS (SELECT unnest(${ids}::uuid[]) AS pid),
@@ -330,7 +331,7 @@ export class DashboardPeople {
       ),
       overdue AS (
         SELECT c."currentHandlerId" AS pid, c.id FROM cohort c
-        WHERE c.status = 'IN_PROGRESS' AND EXISTS (
+        WHERE c.status = 'IN_PROGRESS' AND c."closureReportedById" IS NULL AND EXISTS (
           SELECT 1 FROM "VoiceHandlingTarget" t WHERE t."voiceId" = c.id
             AND t."cycleNumber" = c."handlingCycleNumber" AND t."dueAt" < now())
       ),
@@ -369,13 +370,19 @@ export class DashboardPeople {
         SELECT pid, avg(seconds) AS average, count(*) AS n FROM response_times
         WHERE seconds >= 0 GROUP BY pid
       ),
-      -- Closures the person performed, timed over the cycle they closed.
+      -- Closures the person performed, timed over the cycle they closed up to
+      -- when they finished. A report waiting for approval already counts.
       completions AS (
-        SELECT cc."actorId" AS pid, EXTRACT(EPOCH FROM cc."closedAt" - CASE
+        SELECT cc."actorId" AS pid, EXTRACT(EPOCH FROM COALESCE(cc."completedAt", cc."closedAt") - CASE
           WHEN cc."cycleNumber" = 1 THEN c."submittedAt" ELSE prev."reopenedAt" END)::float8 AS seconds
         FROM cohort c JOIN "ClosureCycle" cc ON cc."voiceId" = c.id
         LEFT JOIN "ClosureCycle" prev ON prev."voiceId" = cc."voiceId"
           AND prev."cycleNumber" = cc."cycleNumber" - 1
+        UNION ALL
+        SELECT r."actorId", EXTRACT(EPOCH FROM r."reportedAt" - COALESCE(
+          (SELECT max(p."reopenedAt") FROM "ClosureCycle" p WHERE p."voiceId" = c.id),
+          c."submittedAt"))::float8
+        FROM cohort c JOIN "ClosureReport" r ON r."voiceId" = c.id AND r.state = 'PENDING'
       ),
       completion AS (
         SELECT pid, avg(seconds) AS average, count(*) AS n FROM completions

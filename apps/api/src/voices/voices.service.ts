@@ -7,6 +7,8 @@ import {
   AttachmentPurpose,
   AttachmentState,
   ClassificationSource,
+  ClosureApprovalState,
+  ClosureReportState,
   ClosureReviewState,
   GeneralVoiceCategoryRouteMode,
   HandlerType,
@@ -47,7 +49,13 @@ import { CategoriesService } from '../categories/categories.service';
 import { ShopLocationsService } from '../shops/shop-locations.service';
 import { resolveShop, type ShopResolution } from '../shops/shop-matching';
 import { PrismaService } from '../prisma.service';
-import { actingTierLevel, computeAvailableActions, type ActionActor } from './actions';
+import {
+  actingTierLevel,
+  computeAvailableActions,
+  ownTierLevel,
+  type ActionActor,
+} from './actions';
+import { approvalDueAt, approvalSteps } from './closure-approval';
 import { ratingError, transitionTarget } from './policies';
 import { isValidPosition, positionArea, positionOptions } from './tm-position';
 import {
@@ -315,6 +323,10 @@ const targetInput = (data: { days?: number; specialReason?: string }): TargetInp
   data.days !== undefined ? { days: data.days } : { specialReason: data.specialReason! };
 const closeSchema = z
   .object({ note: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
+  .strict();
+const approvalSchema = z.object({ version: z.number().int().positive() }).strict();
+const returnSchema = z
+  .object({ text: z.string().trim().min(1).max(4000), version: z.number().int().positive() })
   .strict();
 const ratingSchema = z
   .object({
@@ -1085,8 +1097,8 @@ export class VoicesService {
     } = {},
   ) {
     this.assertStatusFilter(query.status, query.statusGroup);
-    if (query.action !== undefined && query.action !== 'me' && query.action !== 'closed')
-      throw badRequest('ACTION_FILTER_INVALID', 'action must be me or closed');
+    if (query.action !== undefined && !['me', 'approve', 'closed'].includes(query.action))
+      throw badRequest('ACTION_FILTER_INVALID', 'action must be me, approve or closed');
     if (query.scope !== undefined && query.scope !== 'unit' && query.scope !== 'team')
       throw badRequest('SCOPE_FILTER_INVALID', 'scope must be unit or team');
     // Director and Deputy/Division Heads: their directorate's Private Voices, read-only.
@@ -1106,28 +1118,30 @@ export class VoicesService {
         ? this.policy.actionNeededScope(actor)
         : query.action === 'closed'
           ? this.policy.closedByScope(actor)
-          : query.scope
-            ? {
-                AND: [
-                  (
-                    await this.organizationDashboard.context(
-                      actor,
-                      {
-                        basis: query.scope === 'team' ? 'REPORTER' : 'HANDLING',
-                        visibility: 'GENERAL',
-                        scopeMode: query.scopeMode,
-                        directorate: query.directorate,
-                        division: query.division,
-                        department: query.department,
-                        section: query.section,
-                      } as DashboardQuery,
-                      'scope',
-                    )
-                  ).where,
-                  await this.policy.detailScope(actor),
-                ],
-              }
-            : this.policy.workItemScope(actor);
+          : query.action === 'approve'
+            ? this.policy.approvalScope(actor)
+            : query.scope
+              ? {
+                  AND: [
+                    (
+                      await this.organizationDashboard.context(
+                        actor,
+                        {
+                          basis: query.scope === 'team' ? 'REPORTER' : 'HANDLING',
+                          visibility: 'GENERAL',
+                          scopeMode: query.scopeMode,
+                          directorate: query.directorate,
+                          division: query.division,
+                          department: query.department,
+                          section: query.section,
+                        } as DashboardQuery,
+                        'scope',
+                      )
+                    ).where,
+                    await this.policy.detailScope(actor),
+                  ],
+                }
+              : this.policy.workItemScope(actor);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
@@ -1261,14 +1275,75 @@ export class VoicesService {
       await this.auditPrivateRead(actor, voice.id, 'PRIVATE_DETAIL_READ');
     const chatMembers = [...voice.tierParticipantIds, ...voice.tierHolderIds];
     const tierHolders = chatMembers.length ? await this.tierHolders(chatMembers) : [];
+    const report = voice.closureReportedById
+      ? await this.prisma.closureReport.findFirst({
+          where: { voiceId: voice.id, state: ClosureReportState.PENDING },
+          include: { steps: { orderBy: { position: 'asc' } } },
+        })
+      : null;
     return {
-      ...this.serialize(actor, { ...voice, tierHolders }),
+      ...this.serialize(actor, {
+        ...voice,
+        tierHolders,
+        closureReportedAt: report?.reportedAt ?? null,
+      }),
+      closureApproval: report ? await this.closureApproval(actor, voice, report) : null,
       ...(voice.tierLevel && voice.reporterId !== actor.accountId
         ? { tierStages: await this.tierStages(voice) }
         : {}),
       unreadMessages: voice.conversation
         ? await this.unreadMessageCount(voice.conversation.id, actor.accountId)
         : 0,
+    };
+  }
+
+  /**
+   * Persetujuan penyelesaian: the PIC's report and each approval level. The
+   * reporter only learns that it waits for the leaders.
+   */
+  private async closureApproval(
+    actor: AuthActor,
+    voice: { reporterId: string },
+    report: Prisma.ClosureReportGetPayload<{ include: { steps: true } }>,
+  ) {
+    if (voice.reporterId === actor.accountId) return { reportedAt: report.reportedAt, steps: [] };
+    const ids = [report.actorId, ...report.steps.flatMap((step) => step.approverIds)];
+    const accounts = await this.prisma.userAccount.findMany({
+      where: { id: { in: [...new Set(ids)] } },
+      select: { id: true, displayName: true },
+    });
+    const names = new Map(accounts.map((account) => [account.id, account.displayName]));
+    const evidence = report.evidenceIds.length
+      ? await this.prisma.attachment.findMany({
+          where: { id: { in: report.evidenceIds } },
+          select: attachmentResponseSelect,
+          orderBy: { createdAt: 'asc' },
+        })
+      : [];
+    const now = Date.now();
+    return {
+      reportedAt: report.reportedAt,
+      reportedBy: names.get(report.actorId) ?? null,
+      note: report.note,
+      evidence,
+      steps: report.steps.map((step) => ({
+        level: step.level,
+        names: (step.state === ClosureApprovalState.APPROVED && step.decidedById
+          ? [step.decidedById]
+          : step.approverIds
+        )
+          .map((id) => names.get(id) ?? null)
+          .filter((name): name is string => Boolean(name)),
+        state:
+          step.state === ClosureApprovalState.APPROVED
+            ? 'APPROVED'
+            : step.state === ClosureApprovalState.PENDING
+              ? 'PENDING'
+              : 'NEXT',
+        dueAt: step.state === ClosureApprovalState.PENDING ? step.dueAt : null,
+        late:
+          step.state === ClosureApprovalState.PENDING && !!step.dueAt && step.dueAt.getTime() < now,
+      })),
     };
   }
 
@@ -3199,84 +3274,414 @@ export class VoicesService {
       canonicalHash(data),
       201,
       async (tx) => {
-        const voice = await this.lockedActionVoice(tx, actor, id, data.version);
-        if (
-          voice.version !== data.version ||
-          transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED
-        )
-          throw invalidTransition('Voice cannot close from its current state');
-        if (
-          voice.handlingTargets.some(
-            (target) =>
-              target.cycleNumber === voice.handlingCycleNumber &&
-              target.kind === HandlingTargetKind.SPECIAL,
-          )
-        )
-          throw conflict(
-            'SPECIAL_HANDLING_REQUIRES_TARGET',
-            'Voice dalam Penanganan Khusus belum dapat ditutup. Tetapkan target hari terlebih dahulu.',
-          );
-        if (!this.actionSet(actor, voice).includes('CLOSE'))
-          throw invalidTransition(
-            'Hanya PIC yang memproses Voice ini yang dapat menyelesaikannya.',
-          );
-        const staged = await tx.attachment.findMany({
-          where: {
-            voiceId: id,
-            purpose: AttachmentPurpose.CLOSURE_EVIDENCE,
-            closureId: null,
-            state: AttachmentState.READY,
-          },
-          orderBy: { createdAt: 'asc' },
-          select: { id: true },
+        const voice = await this.finishableVoice(tx, actor, id, data.version, 'CLOSE');
+        const evidenceIds = await this.stagedEvidence(tx, id);
+        return this.closeVoice(tx, actor, voice, {
+          picId: actor.accountId,
+          note: data.note,
+          evidenceIds,
+          completedAt: new Date(),
         });
-        if (staged.length > 5)
-          throw badRequest('EVIDENCE_LIMIT', 'At most 5 closure evidence files are allowed');
-        const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
-        const closedAt = new Date();
-        const closure = await tx.closureCycle.create({
+      },
+    );
+  }
+  /**
+   * Medium and above (ADR-0069): the PIC reports done with the closure note and
+   * evidence. It counts as their completion now; each level above approves in
+   * turn within two working days and the last one closes the Voice.
+   */
+  async reportDone(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(closeSchema, input);
+    await this.actionVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `report-done:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        const voice = await this.finishableVoice(tx, actor, id, data.version, 'REPORT_DONE');
+        const evidenceIds = await this.stagedEvidence(tx, id);
+        const reportedAt = new Date();
+        const steps = await approvalSteps(
+          tx,
+          voice,
+          actor.accountId,
+          ownTierLevel(actor.capabilities),
+        );
+        // Nobody above to approve: the PIC closes it.
+        if (!steps.length) {
+          await this.closeVoice(tx, actor, voice, {
+            picId: actor.accountId,
+            note: data.note,
+            evidenceIds,
+            completedAt: reportedAt,
+          });
+          return this.mutationResult(await tx.voice.findUniqueOrThrow({ where: { id } }));
+        }
+        const dueAt = await approvalDueAt(tx, reportedAt);
+        const report = await tx.closureReport.create({
           data: {
             voiceId: id,
-            cycleNumber: cycles + 1,
             actorId: actor.accountId,
             note: data.note,
-            closedAt,
-            reviewState: ClosureReviewState.PENDING,
-            reviewDeadline: new Date(
-              closedAt.getTime() + loadConfig().CLOSURE_REVIEW_DAYS * 86_400_000,
-            ),
+            evidenceIds,
+            reportedAt,
+            steps: {
+              create: steps.map((step, position) => ({
+                position,
+                level: step.level,
+                approverIds: step.accountIds,
+                ...(position === 0
+                  ? {
+                      state: ClosureApprovalState.PENDING,
+                      startedAt: reportedAt,
+                      dueAt,
+                      remindedAt: reportedAt,
+                    }
+                  : {}),
+              })),
+            },
           },
         });
-        if (staged.length)
+        // The evidence stays with the Voice until the closure takes it.
+        if (evidenceIds.length)
           await tx.attachment.updateMany({
-            where: { id: { in: staged.map((item) => item.id) } },
-            data: { voiceId: null, closureId: closure.id, state: AttachmentState.REFERENCED },
+            where: { id: { in: evidenceIds } },
+            data: { state: AttachmentState.REFERENCED },
           });
-        await tx.voice.update({
+        const updated = await tx.voice.update({
           where: { id },
-          data: { status: VoiceStatus.CLOSED, version: { increment: 1 } },
+          data: {
+            closureApproverIds: steps[0]!.accountIds,
+            closureReportedById: actor.accountId,
+            version: { increment: 1 },
+          },
         });
         await tx.voiceEvent.create({
           data: {
             voiceId: id,
             actorId: actor.accountId,
             ...this.policy.actorSnapshot(actor),
-            type: VoiceEventType.CLOSED,
-            payload: { closureId: closure.id, evidenceCount: staged.length },
+            type: VoiceEventType.CLOSURE_REPORTED,
+            payload: { reportId: report.id, evidenceCount: evidenceIds.length },
           },
         });
-        await this.cleanupLegacy(tx, id);
-        await this.notify(
-          tx,
-          voice.reporterId,
-          id,
-          NotificationType.CLOSED,
-          'Voice ditutup',
-          'Voice telah ditutup. Beri penilaian dalam 2 hari; tanpa penilaian, penyelesaian diterima otomatis.',
-        );
-        return closure;
+        await this.notifyApprovers(tx, id, steps[0]!.accountIds, actor.accountId);
+        return this.mutationResult(updated);
       },
     );
+  }
+  /** An approver passes the report on; the last level closes the Voice. */
+  async approveClosure(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(approvalSchema, input);
+    return this.idempotentMutation(
+      actor,
+      `approve-closure:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        const { voice, report, step } = await this.pendingApproval(
+          tx,
+          actor,
+          id,
+          data.version,
+          'APPROVE_CLOSURE',
+        );
+        const now = new Date();
+        await tx.closureApprovalStep.update({
+          where: { id: step.id },
+          data: {
+            state: ClosureApprovalState.APPROVED,
+            decidedById: actor.accountId,
+            decidedAt: now,
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.CLOSURE_APPROVED,
+            payload: { reportId: report.id, level: step.level },
+          },
+        });
+        const next = report.steps.find((item) => item.position === step.position + 1);
+        if (!next) {
+          const closure = await this.closeVoice(tx, actor, voice, {
+            picId: report.actorId,
+            note: report.note,
+            evidenceIds: report.evidenceIds,
+            completedAt: report.reportedAt,
+          });
+          await tx.closureReport.update({
+            where: { id: report.id },
+            data: {
+              state: ClosureReportState.CLOSED,
+              resolvedAt: now,
+              resolvedById: actor.accountId,
+              closureCycleId: closure.id,
+            },
+          });
+          if (report.actorId !== actor.accountId)
+            await this.notify(
+              tx,
+              report.actorId,
+              id,
+              NotificationType.CLOSED,
+              'Voice ditutup',
+              'Penyelesaian Anda disetujui dan Voice telah ditutup.',
+            );
+          return this.mutationResult(await tx.voice.findUniqueOrThrow({ where: { id } }));
+        }
+        await tx.closureApprovalStep.update({
+          where: { id: next.id },
+          data: {
+            state: ClosureApprovalState.PENDING,
+            startedAt: now,
+            dueAt: await approvalDueAt(tx, now),
+            remindedAt: now,
+          },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: { closureApproverIds: next.approverIds, version: { increment: 1 } },
+        });
+        await this.notifyApprovers(tx, id, next.approverIds, report.actorId);
+        return this.mutationResult(updated);
+      },
+    );
+  }
+  /** An approver sends the work back; the PIC reports again from the first level. */
+  async returnClosure(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(returnSchema, input);
+    return this.idempotentMutation(
+      actor,
+      `return-closure:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        const { report, step } = await this.pendingApproval(
+          tx,
+          actor,
+          id,
+          data.version,
+          'RETURN_CLOSURE',
+        );
+        const now = new Date();
+        await tx.closureReport.update({
+          where: { id: report.id },
+          data: {
+            state: ClosureReportState.RETURNED,
+            resolvedAt: now,
+            resolvedById: actor.accountId,
+            returnNote: data.text,
+          },
+        });
+        const updated = await tx.voice.update({
+          where: { id },
+          data: { closureApproverIds: [], closureReportedById: null, version: { increment: 1 } },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId: id,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.CLOSURE_RETURNED,
+            payload: { reportId: report.id, level: step.level, note: data.text },
+          },
+        });
+        const sender = await tx.userAccount.findUniqueOrThrow({
+          where: { id: actor.accountId },
+          select: { displayName: true },
+        });
+        await this.notify(
+          tx,
+          report.actorId,
+          id,
+          NotificationType.CLOSURE_RETURNED,
+          'Penyelesaian dikembalikan',
+          `${sender.displayName}: ${data.text}`.slice(0, 500),
+        );
+        return this.mutationResult(updated);
+      },
+    );
+  }
+  private mutationResult(voice: {
+    id: string;
+    displayId: string;
+    status: VoiceStatus;
+    version: number;
+  }) {
+    return {
+      id: voice.id,
+      displayId: voice.displayId,
+      status: voice.status,
+      version: voice.version,
+    };
+  }
+  /** The locked Voice the actor may close or report done now. */
+  private async finishableVoice(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    id: string,
+    version: number,
+    action: 'CLOSE' | 'REPORT_DONE',
+  ) {
+    const voice = await this.lockedActionVoice(tx, actor, id, version);
+    if (voice.version !== version || transitionTarget(voice.status, 'CLOSE') !== VoiceStatus.CLOSED)
+      throw invalidTransition('Voice cannot close from its current state');
+    if (
+      voice.handlingTargets.some(
+        (target) =>
+          target.cycleNumber === voice.handlingCycleNumber &&
+          target.kind === HandlingTargetKind.SPECIAL,
+      )
+    )
+      throw conflict(
+        'SPECIAL_HANDLING_REQUIRES_TARGET',
+        'Voice dalam Penanganan Khusus belum dapat ditutup. Tetapkan target hari terlebih dahulu.',
+      );
+    if (!this.actionSet(actor, voice).includes(action))
+      throw invalidTransition(
+        voice.closureReportedById
+          ? 'Penyelesaian Voice ini menunggu persetujuan atasan.'
+          : action === 'CLOSE' && this.actionSet(actor, voice).includes('REPORT_DONE')
+            ? 'Laporkan selesai agar atasan menyetujui penutupan Voice ini.'
+            : 'Hanya PIC yang memproses Voice ini yang dapat menyelesaikannya.',
+      );
+    return voice;
+  }
+  private async stagedEvidence(tx: Prisma.TransactionClient, voiceId: string) {
+    const staged = await tx.attachment.findMany({
+      where: {
+        voiceId,
+        purpose: AttachmentPurpose.CLOSURE_EVIDENCE,
+        closureId: null,
+        state: AttachmentState.READY,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (staged.length > 5)
+      throw badRequest('EVIDENCE_LIMIT', 'At most 5 closure evidence files are allowed');
+    return staged.map((item) => item.id);
+  }
+  /** The waiting report and the level the actor approves at, under the Voice lock. */
+  private async pendingApproval(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    id: string,
+    version: number,
+    action: 'APPROVE_CLOSURE' | 'RETURN_CLOSURE',
+  ) {
+    if (actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN'))
+      throw forbiddenAsNotFound();
+    await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+    const voice = await tx.voice.findUnique({
+      where: { id },
+      include: { conversation: { select: { id: true } }, handlingTargets: true },
+    });
+    const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+    if (!voice || !voice.closureApproverIds.some((approver) => ids.includes(approver)))
+      throw forbiddenAsNotFound();
+    if (voice.version !== version) throw conflict('VERSION_CONFLICT', 'Voice version changed');
+    if (!this.actionSet(actor, voice).includes(action))
+      throw invalidTransition('Persetujuan tidak tersedia untuk Voice ini.');
+    const report = await tx.closureReport.findFirst({
+      where: { voiceId: id, state: ClosureReportState.PENDING },
+      include: { steps: { orderBy: { position: 'asc' } } },
+    });
+    const step = report?.steps.find((item) => item.state === ClosureApprovalState.PENDING);
+    if (!report || !step) throw invalidTransition('Persetujuan tidak tersedia untuk Voice ini.');
+    return { voice, report, step };
+  }
+  private async notifyApprovers(
+    tx: Prisma.TransactionClient,
+    voiceId: string,
+    approverIds: string[],
+    picId: string,
+  ) {
+    const pic = await tx.userAccount.findUnique({
+      where: { id: picId },
+      select: { displayName: true },
+    });
+    for (const approverId of approverIds)
+      await this.notify(
+        tx,
+        approverId,
+        voiceId,
+        NotificationType.CLOSURE_APPROVAL,
+        'Perlu persetujuan penyelesaian',
+        `${pic?.displayName ?? 'PIC'} melaporkan Voice ini selesai.`,
+      );
+  }
+  /**
+   * Closes the Voice. The closure is credited to the PIC and their completion
+   * time is when they finished (reported done), not when it was approved.
+   */
+  private async closeVoice(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    voice: { id: string; reporterId: string },
+    input: { picId: string; note: string; evidenceIds: string[]; completedAt: Date },
+  ) {
+    const id = voice.id;
+    const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
+    const closedAt = new Date();
+    const closure = await tx.closureCycle.create({
+      data: {
+        voiceId: id,
+        cycleNumber: cycles + 1,
+        actorId: input.picId,
+        note: input.note,
+        closedAt,
+        completedAt: input.completedAt,
+        reviewState: ClosureReviewState.PENDING,
+        reviewDeadline: new Date(
+          closedAt.getTime() + loadConfig().CLOSURE_REVIEW_DAYS * 86_400_000,
+        ),
+      },
+    });
+    if (input.evidenceIds.length)
+      await tx.attachment.updateMany({
+        where: { id: { in: input.evidenceIds } },
+        data: { voiceId: null, closureId: closure.id, state: AttachmentState.REFERENCED },
+      });
+    await tx.voice.update({
+      where: { id },
+      data: {
+        status: VoiceStatus.CLOSED,
+        closureApproverIds: [],
+        closureReportedById: null,
+        version: { increment: 1 },
+      },
+    });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: id,
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        type: VoiceEventType.CLOSED,
+        payload: {
+          closureId: closure.id,
+          evidenceCount: input.evidenceIds.length,
+          ...(input.picId !== actor.accountId ? { picId: input.picId } : {}),
+        },
+      },
+    });
+    await this.cleanupLegacy(tx, id);
+    await this.notify(
+      tx,
+      voice.reporterId,
+      id,
+      NotificationType.CLOSED,
+      'Voice ditutup',
+      'Voice telah ditutup. Beri penilaian dalam 2 hari; tanpa penilaian, penyelesaian diterima otomatis.',
+    );
+    return closure;
   }
   async rate(actor: AuthActor, id: string, input: unknown, key: string) {
     const data = parse(ratingSchema, input);
@@ -3558,15 +3963,18 @@ export class VoicesService {
         },
       });
     // Status counts share the dashboard cohort, so Voice Member and Home agree.
-    const [summary, byStatus, rows, actionRows, unit, closedByMe] = await Promise.all([
-      this.actionSummary(waiting),
-      this.prisma.voice.groupBy({ by: ['status'], where: scoped, _count: { _all: true } }),
-      latest(active),
-      general ? latest(waiting) : null,
-      // Status Voice "Perlu perhatian": the urgent Voices of the whole unit.
-      general ? this.actionSummary(active) : null,
-      general ? this.prisma.voice.count({ where: this.policy.closedByScope(actor) }) : 0,
-    ]);
+    const [summary, byStatus, rows, actionRows, unit, closedByMe, toApprove, approves] =
+      await Promise.all([
+        this.actionSummary(waiting),
+        this.prisma.voice.groupBy({ by: ['status'], where: scoped, _count: { _all: true } }),
+        latest(active),
+        general ? latest(waiting) : null,
+        // Status Voice "Perlu perhatian": the urgent Voices of the whole unit.
+        general ? this.actionSummary(active) : null,
+        general ? this.prisma.voice.count({ where: this.policy.closedByScope(actor) }) : 0,
+        general ? this.prisma.voice.count({ where: this.policy.approvalScope(actor) }) : 0,
+        general ? this.approves(actor) : false,
+      ]);
     const shape = ({
       anonymousAlias,
       tierDueAt,
@@ -3592,6 +4000,10 @@ export class VoicesService {
       nextCursor: null,
       summary: {
         ...summary,
+        // Diproses splits into finishing it yourself and approving a report.
+        inProgress: Math.max(0, summary.inProgress - toApprove),
+        toApprove,
+        approves: approves || toApprove > 0,
         closedByMe,
         attention: {
           overdue: (unit ?? summary).overdue,
@@ -3616,6 +4028,26 @@ export class VoicesService {
    * past the deadline that applies (tier window or the live handling target),
    * due within a day, and Kritis.
    */
+  /**
+   * Whether anyone can report done to this leader: never a Group Leader, and a
+   * Section Head only when their Section has a Group Leader (ADR-0069).
+   */
+  private async approves(actor: AuthActor) {
+    const caps = actor.capabilities;
+    if (caps.includes('MANAGER') || caps.includes('DIVISION_LEADERSHIP')) return true;
+    if (!caps.includes('SECTION_HEAD') || !actor.organizationUnitId || !actor.section) return false;
+    return (
+      (await this.prisma.organizationMembership.count({
+        where: {
+          snapshot: { status: 'ACTIVE' },
+          organizationUnitId: actor.organizationUnitId,
+          section: actor.section,
+          structuralPosition: { equals: 'Group Leader', mode: 'insensitive' },
+          employee: { account: { is: { status: AccountStatus.ACTIVE } } },
+        },
+      })) > 0
+    );
+  }
   private async actionSummary(active: Prisma.VoiceWhereInput) {
     const now = new Date();
     const [overdue, soon] = await Promise.all([
@@ -3647,7 +4079,7 @@ export class VoicesService {
     const late = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       SELECT v.id FROM "Voice" v JOIN "VoiceHandlingTarget" t ON t."voiceId" = v.id
         AND t."cycleNumber" = v."handlingCycleNumber"
-      WHERE v.status = 'IN_PROGRESS' AND t."dueAt" < ${now}`);
+      WHERE v.status = 'IN_PROGRESS' AND v."closureReportedById" IS NULL AND t."dueAt" < ${now}`);
     const lateIds = late.map((row) => row.id);
     const active = {
       status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
@@ -4751,6 +5183,7 @@ export class VoicesService {
       reporterId: string;
       tierHolderIds?: string[];
       tierParticipantIds?: string[];
+      closureApproverIds?: string[];
     },
   ) {
     // A substitute acts with the rights of the away leader.
@@ -4761,7 +5194,8 @@ export class VoicesService {
         (isMe(voice.routeOwnerId) ||
           isMe(voice.currentHandlerId) ||
           (voice.tierHolderIds ?? []).some(isMe) ||
-          (voice.tierParticipantIds ?? []).some(isMe))) ||
+          (voice.tierParticipantIds ?? []).some(isMe) ||
+          (voice.closureApproverIds ?? []).some(isMe))) ||
       (voice.visibility === VoiceVisibility.PRIVATE &&
         (actor.capabilities.includes('UNION_HEAD') || isMe(voice.currentHandlerId))) ||
       actor.accountStatus === AccountStatus.LEGACY_HANDLER;
@@ -4811,6 +5245,9 @@ export class VoicesService {
       sectionHasGroupLeader?: boolean;
       tierParticipantIds?: string[];
       legacySource?: string | null;
+      severity?: Severity;
+      closureReportedById?: string | null;
+      closureApproverIds?: string[];
     },
   ) {
     return computeAvailableActions(
@@ -4978,6 +5415,12 @@ export class VoicesService {
         const closed = voice.closureCycles?.find(
           (cycle: any) => cycle.cycleNumber === target.cycleNumber,
         );
+        // The PIC's finish time: when they reported done, even before approval.
+        const finishedAt = closed
+          ? (closed.completedAt ?? closed.closedAt)
+          : target.cycleNumber === voice.handlingCycleNumber
+            ? (voice.closureReportedAt ?? null)
+            : null;
         return {
           id: target.id,
           cycleNumber: target.cycleNumber,
@@ -4990,7 +5433,7 @@ export class VoicesService {
           state:
             target.kind === HandlingTargetKind.SPECIAL
               ? 'SPECIAL'
-              : handlingTargetState(target.dueAt, closed?.closedAt ?? null),
+              : handlingTargetState(target.dueAt, finishedAt),
         };
       }),
     };

@@ -711,6 +711,7 @@ describe('Voice lifecycle backend completion', () => {
 
   it('falls back to the route owner on reopen when the last PIC is deactivated', async () => {
     const voice = await createVoice({
+      severity: Severity.LOW,
       status: VoiceStatus.IN_PROGRESS,
       currentHandlerId: staleHandler.accountId,
       handlerType: HandlerType.SECTION_HEAD,

@@ -75,6 +75,7 @@ describe('Authorization scopes', () => {
         { visibility: 'GENERAL', routeOwnerId: 'account', tierLevel: null },
         { visibility: 'GENERAL', currentHandlerId: 'account' },
         { visibility: 'GENERAL', tierHolderIds: { has: 'account' } },
+        { visibility: 'GENERAL', closureApproverIds: { has: 'account' } },
       ],
     });
   });
@@ -94,7 +95,11 @@ describe('Authorization scopes', () => {
     });
     // Leadership acts only on tiered Voices that reached the division level.
     expect(policy.workItemScope(leadership)).toEqual({
-      OR: [{ visibility: 'GENERAL', tierHolderIds: { has: 'account' } }],
+      OR: [
+        { visibility: 'GENERAL', tierHolderIds: { has: 'account' } },
+        // ADR-0069: and the report-done Voices waiting for their approval.
+        { visibility: 'GENERAL', closureApproverIds: { has: 'account' } },
+      ],
     });
     // Director reads every General Voice and their directorate's Private, read-only.
     expect(await policy.browseScope(principal(['MEMBER', 'DIRECTOR']))).toEqual({
@@ -115,6 +120,7 @@ describe('Authorization scopes', () => {
       OR: [
         { visibility: 'GENERAL', currentHandlerId: 'account' },
         { visibility: 'GENERAL', tierHolderIds: { has: 'account' } },
+        { visibility: 'GENERAL', closureApproverIds: { has: 'account' } },
       ],
     });
     expect(
