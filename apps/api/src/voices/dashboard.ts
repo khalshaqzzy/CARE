@@ -651,7 +651,9 @@ export class OrganizationDashboard {
       ), closed AS (
         SELECT "voiceId" FROM "ClosureCycle" WHERE "closedAt" >= (SELECT t FROM bound)
       ), cycles AS (
-        SELECT c.id, c."closedAt", CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
+        -- Completion runs to when the PIC finished (reported done), not the approval.
+        SELECT c.id, COALESCE(c."completedAt", c."closedAt") AS "closedAt",
+          CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
           ELSE previous."reopenedAt" END AS started
         FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
         LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
@@ -671,6 +673,7 @@ export class OrganizationDashboard {
             v."tierDueAt" < now() OR v.id IN (
               SELECT t."voiceId" FROM cohort o JOIN "VoiceHandlingTarget" t ON t."voiceId" = o.id
                 AND t."cycleNumber" = o."handlingCycleNumber" AND t."dueAt" < now()
+              JOIN "Voice" r ON r.id = o.id AND r."closureReportedById" IS NULL
               WHERE o.status = 'IN_PROGRESS')))`
               : Prisma.sql`0::bigint`
           } AS overdue

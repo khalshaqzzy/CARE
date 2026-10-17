@@ -214,12 +214,19 @@ export const dashboardSchemas = {
           'dueSoon',
           'critical',
           'closedByMe',
+          'toApprove',
+          'approves',
           'attention',
           'status',
         ],
         properties: {
           // General: Voices whose current closure the viewer made.
           closedByMe: { type: 'integer', minimum: 0 },
+          // General: reported-done Voices waiting for the viewer's approval.
+          toApprove: { type: 'integer', minimum: 0 },
+          // General: the viewer can be an approver (a Section Head with Group
+          // Leaders, a Manager, a Deputy/Division Head); others see no tile.
+          approves: { type: 'boolean' },
           // General: the urgent active Voices of the whole cohort in view.
           attention: {
             type: 'object',

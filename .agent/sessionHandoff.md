@@ -1,5 +1,34 @@
 # CARE Session Handoff
 
+## Tiered closure approval — 17 October 2026
+
+**Objective:** the leaders above the PIC confirm the work before a Voice closes, depending on severity. ADR-0069 and PRD §17.1a hold the rules.
+
+**Product owner decisions:**
+
+- Low: the PIC closes. Medium/High: the Manager closes. Critical: the DDH/DH close. Private: the Komite closes.
+- Below that level the PIC presses **Lapor Sudah Selesai**; every level above approves in turn, 2 working days each, a reminder every day.
+- A missed window keeps waiting at that level (Terlambat).
+- **Kembalikan** returns to the PIC; the next report restarts from the first level.
+- The report counts as done for the PIC (Selesai oleh saya, completion time, timeliness). The closure is credited to the PIC.
+- The reporter sees "Menunggu persetujuan atasan".
+- In-flight Voices follow the new rules at once.
+- The **Perlu Disetujui** tile shows only for leaders who can approve (not Group Leaders, not Section Heads without Group Leaders).
+- UI chosen from rendered previews (`docs/preview-closure-approval/` in the main checkout, not committed).
+
+**Branch:** `feat/tiered-closure-approval` (worktree `../CARE-action`) from `origin/staging` f2194de.
+
+**Changes:**
+
+- **Data:** migration `20261016120000_closure_approval` adds `ClosureReport`, `ClosureApprovalStep`, `Voice.closureApproverIds`/`closureReportedById`, `ClosureCycle.completedAt`, event types `CLOSURE_REPORTED`/`CLOSURE_APPROVED`/`CLOSURE_RETURNED`, notification types `CLOSURE_APPROVAL`/`CLOSURE_RETURNED`.
+- **Rules:** `actions.ts` (`closerLevel`, `needsClosureApproval`, `REPORT_DONE`, `APPROVE_CLOSURE`, `RETURN_CLOSURE`); `closure-approval.ts` (approval steps from the tier chain, 2-working-day due).
+- **API:** `POST /voices/{id}/report-done`, `/approve-closure`, `/return-closure`; detail `closureApproval`; dashboard `summary.toApprove` and `summary.approves`; work items `action=approve`.
+- **Scopes:** approvers join the work-item scope; Butuh Tindakan Saya drops a reported Voice for the PIC and adds it for the approvers; Selesai oleh saya counts pending reports.
+- **Metrics:** completion uses `COALESCE(completedAt, closedAt)` and counts pending reports per person; reported Voices are never overdue; `HandlingTargetService` skips them and sends the approval reminders and late notice.
+- **UI:** `ActionPanel` (Lapor Sudah Selesai, Setujui, Kembalikan, Tutup Voice), `ClosureApproval` card, Perlu Disetujui tile and Voice Member filter.
+
+**Tests:** unit (`actions.test.ts`, `policy.test.ts`), integration ("closes Medium and above through each level above the PIC" in `tiered-routing-foundation.integration.test.ts`).
+
 ## Division Admin (Admin Divisi) — 16 October 2026
 
 **Objective:** one admin per division (the Manufacturing divisions and the Quality Division) watches that division's Voices in CARE Admin, follows up late or critical ones on the floor, and downloads them. They read like a Division Head but never act. ADR-0068 holds the rules.

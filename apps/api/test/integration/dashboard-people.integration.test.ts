@@ -499,6 +499,8 @@ describe('Dashboard people: handling performance and member participation', () =
       dueSoon: 1,
       critical: 1,
       closedByMe: 1,
+      toApprove: 0,
+      approves: true,
       // Everything here waits for the Manager, so the unit shows the same urgency.
       attention: { overdue: 2, dueSoon: 1, critical: 1 },
       // Same cohort as the counts, closed included.

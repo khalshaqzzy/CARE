@@ -93,8 +93,13 @@ export function WorkItemsPage() {
   const tabs: ListTab[] = !canAct ? [] : groupLeaderOnly ? ['me', 'team'] : ['me', 'unit', 'team'];
   const tab = tabs.length ? resolveTab(searchParams, tabs) : undefined;
   // "Tindakan saya" / "Selesai oleh saya": the Voices Butuh Tindakan Saya counts.
+  const rawAction = searchParams.get('action');
   const actionFilter =
-    tab === 'me' ? (searchParams.get('action') === 'closed' ? 'closed' : 'me') : undefined;
+    tab === 'me'
+      ? rawAction === 'closed' || rawAction === 'approve'
+        ? rawAction
+        : 'me'
+      : undefined;
 
   const rawView = searchParams.get('view') ?? (isUnion ? 'ALL' : 'ACTIVE');
   const handoverMode = isManager && rawView === 'HANDOVERS';
@@ -219,8 +224,8 @@ export function WorkItemsPage() {
   const activeKind: ActionKind | null =
     tab !== 'me'
       ? null
-      : actionFilter === 'closed'
-        ? 'closed'
+      : actionFilter === 'closed' || actionFilter === 'approve'
+        ? actionFilter
         : due === 'OVERDUE'
           ? 'overdue'
           : due === 'SOON'
@@ -459,11 +464,14 @@ export function WorkItemsPage() {
                               new URLSearchParams(
                                 value === 'closed'
                                   ? { tab: 'me', view: 'CLOSED', action: 'closed' }
-                                  : { tab: 'me', view: 'ACTIVE' },
+                                  : value === 'approve'
+                                    ? { tab: 'me', view: 'ACTIVE', action: 'approve' }
+                                    : { tab: 'me', view: 'ACTIVE' },
                               ),
                             ),
                           options: [
                             { value: 'me', label: 'Menunggu saya' },
+                            { value: 'approve', label: 'Perlu disetujui' },
                             { value: 'closed', label: 'Selesai oleh saya' },
                           ],
                         },

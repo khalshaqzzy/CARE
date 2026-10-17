@@ -10,6 +10,7 @@ import {
 import { VoicesService } from '../../src/voices/voices.service';
 import { AwayService } from '../../src/away/away.service';
 import { TierEscalationService } from '../../src/voices/tier-escalation.service';
+import { HandlingTargetService } from '../../src/voices/handling-target.service';
 import { jakartaDateKey } from '../../src/escalation/working-time';
 
 const prisma = new PrismaClient();
@@ -360,7 +361,8 @@ describe('Tiered routing foundation', () => {
       code: 'HANDOVER_INVALID_STATE',
     });
 
-    // The Group Leader processes it and becomes the PIC who closes it.
+    // The Group Leader processes it and becomes the PIC, who reports a Medium
+    // Voice done for the levels above to approve (ADR-0069).
     const processed = await voices.respond(
       groupLeader,
       lineA.id,
@@ -372,7 +374,9 @@ describe('Tiered routing foundation', () => {
       currentHandlerId: groupLeader.accountId,
       handlerType: 'GROUP_LEADER',
     });
-    expect((await voices.detail(groupLeader, lineA.id)).availableActions).toContain('CLOSE');
+    expect((await voices.detail(groupLeader, lineA.id)).availableActions).toContain(
+      'REPORT_DONE',
+    );
 
     // Line B has no Group Leader, so the Section Head receives it.
     const lineB = await submitAs('700005', 'tier-line-b');
@@ -440,8 +444,8 @@ describe('Tiered routing foundation', () => {
         'tier-two-leaders-process',
       );
       expect(processed).toMatchObject({ status: 'IN_PROGRESS', currentHandlerId: other.accountId });
-      expect((await voices.detail(other, voice.id)).availableActions).toContain('CLOSE');
-      // The other Group Leader keeps the chat but cannot close.
+      expect((await voices.detail(other, voice.id)).availableActions).toContain('REPORT_DONE');
+      // The other Group Leader keeps the chat but cannot finish it.
       expect((await voices.detail(first, voice.id)).availableActions).toEqual(['MESSAGE']);
     } finally {
       await prisma.userAccount.update({
@@ -1134,6 +1138,203 @@ describe('Tiered routing foundation', () => {
       expect(await waiting(groupLeader)).toContain(answered.id);
       expect(await waiting(divisionHead)).not.toContain(answered.id);
       expect(await waiting(manager)).not.toContain(answered.id);
+    } finally {
+      await prisma.organizationMembership.delete({ where: { id: membership.id } });
+    }
+  });
+
+  it('closes Medium and above through each level above the PIC (ADR-0069)', async () => {
+    const placed = await prisma.organizationMembership.findFirstOrThrow({
+      where: { employee: { noReg: '700001' }, snapshot: { status: 'ACTIVE' } },
+    });
+    const employee = await prisma.employee.create({ data: { noReg: '700013', name: 'DH Close' } });
+    await prisma.userAccount.create({
+      data: {
+        username: '700013',
+        displayName: 'DH Close',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+        employeeId: employee.id,
+      },
+    });
+    const membership = await prisma.organizationMembership.create({
+      data: {
+        snapshotId: placed.snapshotId,
+        employeeId: employee.id,
+        organizationUnitId: placed.organizationUnitId,
+        employeeName: 'DH Close',
+        structuralPosition: 'Division Head',
+        section: 'Office',
+        sourceRow: 995,
+      },
+    });
+    try {
+      const groupLeader = await principal('700003');
+      const sectionHead = await principal('700002');
+      const manager = await principal('700001');
+      const divisionHead = await principal('700013');
+      const reporter = await principal('700004');
+      const targets = new HandlingTargetService(prisma as never);
+      const version = async (id: string) =>
+        (await prisma.voice.findUniqueOrThrow({ where: { id } })).version;
+      const processedByGroupLeader = async (key: string, severity: Severity) => {
+        const voice = await submitAs('700004', key, severity);
+        await voices.respond(
+          groupLeader,
+          voice.id,
+          { text: 'Saya tangani.', version: 1, days: 3 },
+          `${key}-process`,
+        );
+        return voice.id;
+      };
+      const report = (id: string, key: string) =>
+        version(id).then((current) =>
+          voices.reportDone(groupLeader, id, { note: 'Sudah dibayarkan.', version: current }, key),
+        );
+      const approve = (who: Principal, id: string, key: string) =>
+        version(id).then((current) => voices.approveClosure(who, id, { version: current }, key));
+
+      // Low: the PIC closes it.
+      const low = await processedByGroupLeader('close-low', Severity.LOW);
+      expect((await voices.detail(groupLeader, low)).availableActions).toContain('CLOSE');
+      await voices.close(
+        groupLeader,
+        low,
+        { note: 'Selesai.', version: await version(low) },
+        'close-low-close',
+      );
+      expect((await prisma.voice.findUniqueOrThrow({ where: { id: low } })).status).toBe('CLOSED');
+
+      // Medium: the Group Leader reports done instead of closing.
+      const medium = await processedByGroupLeader('close-medium', Severity.MEDIUM);
+      const before = await voices.detail(groupLeader, medium);
+      expect(before.availableActions).toContain('REPORT_DONE');
+      expect(before.availableActions).not.toContain('CLOSE');
+      await expect(
+        voices.close(
+          groupLeader,
+          medium,
+          { note: 'Selesai.', version: await version(medium) },
+          'close-medium-direct',
+        ),
+      ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+      const closedBefore = (await voices.dashboardPreview(groupLeader, {})).summary.closedByMe;
+      await report(medium, 'close-medium-report');
+
+      // It counts as done for the PIC and leaves their action list at once.
+      const glPreview = await voices.dashboardPreview(groupLeader, {});
+      expect(glPreview.summary.closedByMe).toBe(closedBefore + 1);
+      expect(glPreview.summary.approves).toBe(false);
+      const glWaiting = await voices.workItems(groupLeader, { action: 'me', limit: '100' });
+      expect(glWaiting.items.map((item) => item.id)).not.toContain(medium);
+      expect((await voices.detail(groupLeader, medium)).availableActions).not.toContain(
+        'REPORT_DONE',
+      );
+
+      // The Section Head approves first, within two working days.
+      const shPreview = await voices.dashboardPreview(sectionHead, {});
+      expect(shPreview.summary).toMatchObject({ approves: true, toApprove: 1 });
+      const toApprove = await voices.workItems(sectionHead, { action: 'approve', limit: '100' });
+      expect(toApprove.items.map((item) => item.id)).toEqual([medium]);
+      const shDetail = await voices.detail(sectionHead, medium);
+      expect(shDetail.availableActions).toEqual(
+        expect.arrayContaining(['APPROVE_CLOSURE', 'RETURN_CLOSURE']),
+      );
+      expect(shDetail.closureApproval).toMatchObject({
+        note: 'Sudah dibayarkan.',
+        steps: [
+          { level: 'SECTION_HEAD', state: 'PENDING', late: false },
+          { level: 'MANAGER', state: 'NEXT' },
+        ],
+      });
+      // The reporter only sees that it waits.
+      expect((await voices.detail(reporter, medium)).closureApproval).toMatchObject({
+        steps: [],
+      });
+      // The Manager cannot skip ahead.
+      await expect(approve(manager, medium, 'close-medium-skip')).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+
+      // Kembalikan: back to the PIC with a reason, who reports again.
+      await voices.returnClosure(
+        sectionHead,
+        medium,
+        { text: 'Lampirkan bukti transfer.', version: await version(medium) },
+        'close-medium-return',
+      );
+      expect(
+        await prisma.notification.count({
+          where: { voiceId: medium, recipientId: groupLeader.accountId, type: 'CLOSURE_RETURNED' },
+        }),
+      ).toBe(1);
+      expect((await voices.detail(groupLeader, medium)).availableActions).toContain('REPORT_DONE');
+      await report(medium, 'close-medium-report-2');
+      const reportedAt = (
+        await prisma.closureReport.findFirstOrThrow({
+          where: { voiceId: medium, state: 'PENDING' },
+        })
+      ).reportedAt;
+
+      // A missed window keeps waiting at that level, late, with a notice.
+      await prisma.closureApprovalStep.updateMany({
+        where: { report: { voiceId: medium, state: 'PENDING' }, state: 'PENDING' },
+        data: {
+          dueAt: new Date(Date.now() - 60_000),
+          remindedAt: new Date(Date.now() - 25 * 3_600_000),
+        },
+      });
+      await targets.tick();
+      expect(
+        await prisma.notification.count({
+          where: {
+            voiceId: medium,
+            recipientId: sectionHead.accountId,
+            type: 'CLOSURE_APPROVAL',
+            title: 'Persetujuan penyelesaian terlambat',
+          },
+        }),
+      ).toBe(1);
+      expect((await voices.detail(sectionHead, medium)).closureApproval?.steps[0]).toMatchObject({
+        state: 'PENDING',
+        late: true,
+      });
+
+      await approve(sectionHead, medium, 'close-medium-sh');
+      expect(
+        (await prisma.voice.findUniqueOrThrow({ where: { id: medium } })).closureApproverIds,
+      ).toEqual([manager.accountId]);
+      await approve(manager, medium, 'close-medium-mgr');
+      const closed = await prisma.voice.findUniqueOrThrow({
+        where: { id: medium },
+        include: { closureCycles: true },
+      });
+      expect(closed.status).toBe('CLOSED');
+      // Credited to the PIC, finished when they reported.
+      expect(closed.closureCycles.at(-1)).toMatchObject({
+        actorId: groupLeader.accountId,
+        note: 'Sudah dibayarkan.',
+        completedAt: reportedAt,
+      });
+
+      // Critical: up to the Deputy/Division Heads, who close it.
+      const critical = await processedByGroupLeader('close-critical', Severity.CRITICAL);
+      await report(critical, 'close-critical-report');
+      expect(
+        (await voices.detail(sectionHead, critical)).closureApproval?.steps.map(
+          (step) => step.level,
+        ),
+      ).toEqual(['SECTION_HEAD', 'MANAGER', 'DIVISION']);
+      await approve(sectionHead, critical, 'close-critical-sh');
+      await approve(manager, critical, 'close-critical-mgr');
+      expect((await voices.detail(divisionHead, critical)).availableActions).toContain(
+        'APPROVE_CLOSURE',
+      );
+      await approve(divisionHead, critical, 'close-critical-dh');
+      expect((await prisma.voice.findUniqueOrThrow({ where: { id: critical } })).status).toBe(
+        'CLOSED',
+      );
     } finally {
       await prisma.organizationMembership.delete({ where: { id: membership.id } });
     }

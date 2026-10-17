@@ -40,6 +40,7 @@ async function seedVoice(
     handlerType: HandlerType;
     status: VoiceStatus;
     showReporterIdentity: boolean;
+    severity: Severity;
   }> = {},
 ) {
   seq += 1;
@@ -65,7 +66,7 @@ async function seedVoice(
       locationDetail: 'line',
       title: 'matrix voice',
       detail: 'detail',
-      severity: Severity.MEDIUM,
+      severity: overrides.severity ?? Severity.MEDIUM,
       categoryKey: null,
       anonymousAlias: `R-${seq}`,
       version: 1,
@@ -322,7 +323,9 @@ describe('Responder and leadership permission matrix', () => {
   });
 
   it('lets only the processing PIC close a General voice', async () => {
+    // Low: the PIC closes it; Medium and above need approval (ADR-0069).
     const voice = await seedVoice({
+      severity: Severity.LOW,
       status: VoiceStatus.IN_PROGRESS,
       currentHandlerId: sectionHead.accountId,
       handlerType: HandlerType.SECTION_HEAD,

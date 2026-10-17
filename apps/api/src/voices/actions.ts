@@ -1,4 +1,10 @@
-import type { HandlerType, TierLevel, VoiceStatus, VoiceVisibility } from '@prisma/client';
+import type {
+  HandlerType,
+  Severity,
+  TierLevel,
+  VoiceStatus,
+  VoiceVisibility,
+} from '@prisma/client';
 
 export type ActionableVoice = {
   reporterId: string;
@@ -28,6 +34,10 @@ export type ActionableVoice = {
   sectionHasGroupLeader?: boolean;
   /** Former holders who raised the Voice by hand: they keep the chat only. */
   tierParticipantIds?: string[];
+  severity?: Severity;
+  /** The PIC reported done; these leaders approve next (ADR-0069). */
+  closureReportedById?: string | null;
+  closureApproverIds?: string[];
   /** Migrated from an earlier platform: its closure is final, so it is not rated. */
   migrated?: boolean;
   closureCycles?: Array<{
@@ -43,6 +53,25 @@ export type ActionActor = {
   /** Away leaders this actor substitutes for today. */
   actingFor?: string[];
 };
+
+const LEVELS: TierLevel[] = ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'];
+
+/**
+ * Who closes a General Voice (ADR-0069): the PIC for Low, the Manager for
+ * Medium and High, the Deputy/Division Heads for Critical.
+ */
+export function closerLevel(severity: Severity): TierLevel | null {
+  if (severity === 'CRITICAL') return 'DIVISION';
+  if (severity === 'MEDIUM' || severity === 'HIGH') return 'MANAGER';
+  return null;
+}
+
+/** A PIC below the closing level reports done instead of closing. */
+export function needsClosureApproval(severity: Severity, picLevel: TierLevel | null) {
+  const closer = closerLevel(severity);
+  if (!closer) return false;
+  return !picLevel || LEVELS.indexOf(picLevel) < LEVELS.indexOf(closer);
+}
 
 /** The tier a leader holds by position (the highest one they carry). */
 export function ownTierLevel(capabilities: string[]): TierLevel | null {
@@ -151,22 +180,31 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       if (canRemind) actions.push('REMIND');
       if (voice.hasConversation) actions.push('MESSAGE');
     } else if (voice.status === 'IN_PROGRESS') {
+      const reported = !!voice.closureReportedById;
       if (
+        !reported &&
         (!voice.hasHandlingTarget || voice.specialHandling) &&
         (isHandler ||
           (!voice.currentHandlerId &&
             (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD')))))
       )
         actions.push('SET_TARGET');
-      // Only the PIC who started handling closes the Voice. Older Voices that
-      // never recorded a PIC stay closable by their route destination.
-      if (
-        !voice.specialHandling &&
-        (isHandler ||
-          (!voice.currentHandlerId &&
-            (isRouteOwner || (isPrivate && actor.capabilities.includes('UNION_HEAD')))))
-      )
-        actions.push('CLOSE');
+      // Only the PIC who started handling finishes the Voice. Older Voices that
+      // never recorded a PIC stay with their route destination. The Komite
+      // alone closes Private Voices. Below the closing level of the severity
+      // (Manager for Medium/High, DDH/DH for Critical) the PIC reports done
+      // and the levels above approve; the last one closes it.
+      const finishes = isPrivate
+        ? actor.capabilities.includes('UNION_HEAD')
+        : isHandler || (!voice.currentHandlerId && isRouteOwner);
+      if (!voice.specialHandling && !reported && finishes)
+        actions.push(
+          !isPrivate &&
+            voice.severity &&
+            needsClosureApproval(voice.severity, ownTierLevel(actor.capabilities))
+            ? 'REPORT_DONE'
+            : 'CLOSE',
+        );
       if (voice.hasConversation) actions.push('MESSAGE');
     }
     if (canChangeSeverity) actions.push('CHANGE_SEVERITY');
@@ -195,5 +233,8 @@ export function computeAvailableActions(actor: ActionActor, voice: ActionableVoi
       if (latest && !latest.reopenedAt && !latest.rating && !voice.migrated) actions.push('RATE');
     }
   }
+  // Approvers act on a reported Voice wherever they sit in the chain.
+  if (voice.status === 'IN_PROGRESS' && !isReporter && (voice.closureApproverIds ?? []).some(isMe))
+    actions.push('APPROVE_CLOSURE', 'RETURN_CLOSURE');
   return actions;
 }

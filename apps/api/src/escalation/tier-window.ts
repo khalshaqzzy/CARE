@@ -12,7 +12,7 @@ type Db = PrismaClient | Prisma.TransactionClient;
  */
 export type WindowKind = 'RESPOND' | 'PROCESS' | 'FULL';
 
-async function workingCalendar(db: Db): Promise<WorkingCalendar> {
+export async function workingCalendar(db: Db): Promise<WorkingCalendar> {
   const setting = await db.workingCalendarSetting.findFirst();
   const exceptions = setting?.useStandard
     ? []

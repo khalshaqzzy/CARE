@@ -1297,6 +1297,8 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
           dueSoon: 0,
           critical: items.filter((item) => item.severity === 'CRITICAL').length,
           closedByMe: 0,
+          toApprove: 0,
+          approves: false,
           attention: {
             overdue: 0,
             dueSoon: 0,

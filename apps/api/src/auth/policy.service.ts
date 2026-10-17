@@ -238,10 +238,11 @@ export class PolicyService {
         ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION_LEADERSHIP'].includes(c),
       )
     )
-      scopes.push({
-        visibility: VoiceVisibility.GENERAL,
-        tierHolderIds: held,
-      });
+      scopes.push(
+        { visibility: VoiceVisibility.GENERAL, tierHolderIds: held },
+        // Leaders approving a report-done Voice (ADR-0069).
+        { visibility: VoiceVisibility.GENERAL, closureApproverIds: held },
+      );
     if (actor.capabilities.includes('UNION_HEAD'))
       scopes.push({ visibility: VoiceVisibility.PRIVATE });
     if (actor.capabilities.includes('UNION_OFFICER'))
@@ -260,7 +261,8 @@ export class PolicyService {
    * - Terbuka / Direspons: a tier holder, unless a PIC below was assigned and
    *   has not missed their window; the route Manager of a fixed category while
    *   nobody is assigned; the assigned PIC.
-   * - Diproses: only the PIC, who must close it.
+   * - Diproses: the PIC, who must close it or report it done; once reported,
+   *   the leaders whose approval it waits for instead.
    */
   actionNeededScope(actor: Principal): Prisma.VoiceWhereInput {
     const ids = [actor.accountId, ...(actor.actingFor ?? [])];
@@ -279,7 +281,9 @@ export class PolicyService {
         {
           status: { in: [VoiceStatus.OPEN, VoiceStatus.RESPONDED, VoiceStatus.IN_PROGRESS] },
           currentHandlerId: { in: ids },
+          closureReportedById: null,
         },
+        { status: VoiceStatus.IN_PROGRESS, closureApproverIds: { hasSome: ids } },
         {
           status: waiting,
           tierHolderIds: { hasSome: ids },
@@ -300,13 +304,31 @@ export class PolicyService {
     };
   }
 
-  /** "Selesai oleh saya": General Voices whose current closure this responder made. */
+  /**
+   * "Selesai oleh saya": General Voices whose current closure this responder
+   * made, counting a report done that waits for approval (ADR-0069).
+   */
   closedByScope(actor: Principal): Prisma.VoiceWhereInput {
     return {
       visibility: VoiceVisibility.GENERAL,
-      status: VoiceStatus.CLOSED,
-      // Only the latest cycle is never reopened.
-      closureCycles: { some: { actorId: actor.accountId, reopenedAt: null } },
+      OR: [
+        {
+          status: VoiceStatus.CLOSED,
+          // Only the latest cycle is never reopened.
+          closureCycles: { some: { actorId: actor.accountId, reopenedAt: null } },
+        },
+        { status: VoiceStatus.IN_PROGRESS, closureReportedById: actor.accountId },
+      ],
+    };
+  }
+
+  /** "Perlu Disetujui": reported-done Voices waiting for this leader's approval. */
+  approvalScope(actor: Principal): Prisma.VoiceWhereInput {
+    return {
+      visibility: VoiceVisibility.GENERAL,
+      status: VoiceStatus.IN_PROGRESS,
+      closureApproverIds: { hasSome: [actor.accountId, ...(actor.actingFor ?? [])] },
+      NOT: { reporterId: actor.accountId },
     };
   }
 
