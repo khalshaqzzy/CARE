@@ -374,9 +374,7 @@ describe('Tiered routing foundation', () => {
       currentHandlerId: groupLeader.accountId,
       handlerType: 'GROUP_LEADER',
     });
-    expect((await voices.detail(groupLeader, lineA.id)).availableActions).toContain(
-      'REPORT_DONE',
-    );
+    expect((await voices.detail(groupLeader, lineA.id)).availableActions).toContain('REPORT_DONE');
 
     // Line B has no Group Leader, so the Section Head receives it.
     const lineB = await submitAs('700005', 'tier-line-b');
