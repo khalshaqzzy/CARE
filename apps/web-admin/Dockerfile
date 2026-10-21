@@ -37,7 +37,7 @@ USER 0
 # CDN indexes during patched-package rollovers; exact revisions still fail closed.
 RUN apk add --no-cache --repository https://dl-4.alpinelinux.org/v3.24/main \
   libcrypto3=3.5.9-r0 libssl3=3.5.9-r0 libexpat=2.9.0-r0 libuuid=2.42.3-r1 pcre2=10.49-r0 \
-  tiff=4.7.2-r0
+  tiff=4.7.2-r0 libx11=1.8.14-r0
 COPY deploy/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build --chown=101:101 /workspace/apps/web-admin/dist/ /usr/share/nginx/html/
 USER 101

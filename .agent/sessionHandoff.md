@@ -23,7 +23,7 @@
 **CI repairs on the same PR (#98), unrelated to the fix:**
 
 - `Dependency security`: `pnpm audit` reported a new high advisory for `vite` 8.2.0–8.2.3 (launch-editor `fs.existsSync()` bypass on Windows). The root `vite` dev dependency goes from 8.2.2 to 8.2.4 (released 6 October). The local `pnpm audit --audit-level high` then reported 10 moderate findings and no high ones.
-- `Production containers and routing`: Alpine v3.24 main retired `libexpat=2.8.5-r0`. Both web Dockerfiles pin `2.9.0-r0`, and the pinned `apk add` succeeds on the pinned nginx base. ADR-0041 has the addendum.
+- `Production containers and routing`: Alpine v3.24 main retired `libexpat=2.8.5-r0`. Both web Dockerfiles pin `2.9.0-r0`. The next run's Trivy scan then found CVE-2026-88806 (High) in `libx11` 1.8.13-r0 of the web-voice image, so both web images also pin `libx11=1.8.14-r0`. The pinned `apk add` succeeds on the pinned nginx base. ADR-0041 has the addendum.
 
 ## Tiered closure approval — 17 October 2026
 
