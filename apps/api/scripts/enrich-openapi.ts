@@ -1926,7 +1926,20 @@ const schemas: Record<string, any> = {
       ...baseVoiceProperties,
       ...shopVoiceProperties,
       audience: { type: 'string', enum: ['LEADERSHIP_GENERAL_READ_ONLY'] },
-      reporter: { type: 'object', additionalProperties: true },
+      reporter: {
+        type: 'object',
+        required: ['noReg', 'name', 'division', 'department'],
+        additionalProperties: true,
+        properties: {
+          noReg: { type: 'string' },
+          name: { type: 'string' },
+          directorate: { type: 'string', nullable: true },
+          division: { type: 'string' },
+          department: { type: 'string' },
+          section: { type: 'string', nullable: true },
+          position: { type: 'string', nullable: true },
+        },
+      },
     },
   },
   UnionAnonymousVoiceDetail: {

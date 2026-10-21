@@ -1,5 +1,25 @@
 # CARE Session Handoff
 
+## Admin Voice Explorer shows the reporter of General Voices — 21 October 2026
+
+**Problem:** the CARE Admin and Division Admins could not see who sent a General Voice. The API returns the reporter for their `LEADERSHIP_GENERAL_READ_ONLY` audience, but the Voice Explorer drawer only rendered the reporter for `ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY` (Private) and `GENERAL_RESPONDER`.
+
+**Branch:** `fix/admin-voice-reporter` (worktree `../CARE-login`) from `origin/staging` 9a5593d.
+
+**Changes:**
+
+- `VoiceExplorerPage` renders the Reporter row for `LEADERSHIP_GENERAL_READ_ONLY` too.
+- The OpenAPI `LeadershipGeneralVoiceDetail.reporter` now declares the fields the API already sends: `noReg`, `name`, `division` and `department` (required), plus nullable `directorate`, `section` and `position`. It used to be an untyped object. Contracts were regenerated.
+- `e2e/admin-explorer.spec.ts` gains a General Voice test. The browser test inventory goes from 459 to 460.
+
+**Checks (Windows, portable Node 22.23.2):**
+
+- Typecheck and ESLint on changed files.
+- Admin browser specs (journeys, a11y, explorer, division, login tracking): 57/57 on private ports.
+- `verify:ci integration`: 167 integration and 14 security tests passed.
+- Gitleaks `v8.24.3` directory scan, including uncommitted files: no leaks found.
+- Not run locally: workforce browser, legacy, capture and fullstack jobs (CI covers them).
+
 ## Tiered closure approval — 17 October 2026
 
 **Objective:** the leaders above the PIC confirm the work before a Voice closes, depending on severity. ADR-0069 and PRD §17.1a hold the rules.

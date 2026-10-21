@@ -45,3 +45,21 @@ test('renders the Admin Voice Explorer table and read-only drawer', async ({ pag
   // Private reporter identity is shown read-only to Admin.
   await expect(page.getByText(/Budi Santoso \(000128\)/)).toBeVisible();
 });
+
+test('shows the reporter of a General Voice to Admin', async ({ page }) => {
+  const general: MockVoice = {
+    ...voice,
+    id: 'voice-2',
+    displayId: 'CARE-202608-000002',
+    audience: 'LEADERSHIP_GENERAL_READ_ONLY',
+    visibility: 'GENERAL',
+  };
+  await mockAdminApi(page, {
+    voices: { items: [general], nextCursor: null },
+    voiceDetail: voiceDetail(general),
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('http://127.0.0.1:4174/voices');
+  await page.getByRole('button', { name: 'Detail' }).click();
+  await expect(page.getByText(/Budi Santoso \(000128\)/)).toBeVisible();
+});
