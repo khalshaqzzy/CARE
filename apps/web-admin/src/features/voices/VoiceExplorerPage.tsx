@@ -552,7 +552,9 @@ export function VoiceExplorerPage() {
                 <dt>Detail</dt>
                 <dd>{detail.data.detail}</dd>
               </div>
+              {/* CARE Admin and Division Admin read General Voices as leadership. */}
               {detail.data.audience === 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY' ||
+              detail.data.audience === 'LEADERSHIP_GENERAL_READ_ONLY' ||
               detail.data.audience === 'GENERAL_RESPONDER' ? (
                 <div>
                   <dt>Reporter</dt>

@@ -1,5 +1,31 @@
 # CARE Session Handoff
 
+## Admin Voice Explorer shows the reporter of General Voices — 21 October 2026
+
+**Problem:** the CARE Admin and Division Admins could not see who sent a General Voice. The API returns the reporter for their `LEADERSHIP_GENERAL_READ_ONLY` audience, but the Voice Explorer drawer only rendered the reporter for `ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY` (Private) and `GENERAL_RESPONDER`.
+
+**Branch:** `fix/admin-voice-reporter` (worktree `../CARE-login`) from `origin/staging` 9a5593d.
+
+**Changes:**
+
+- `VoiceExplorerPage` renders the Reporter row for `LEADERSHIP_GENERAL_READ_ONLY` too.
+- The OpenAPI `LeadershipGeneralVoiceDetail.reporter` now declares the fields the API already sends: `noReg`, `name`, `division` and `department` (required), plus nullable `directorate`, `section` and `position`. It used to be an untyped object. Contracts were regenerated.
+- `e2e/admin-explorer.spec.ts` gains a General Voice test. The browser test inventory goes from 459 to 460.
+
+**Checks (Windows, portable Node 22.23.2):**
+
+- Typecheck and ESLint on changed files.
+- Admin browser specs (journeys, a11y, explorer, division, login tracking): 57/57 on private ports.
+- `verify:ci integration`: 167 integration and 14 security tests passed.
+- Gitleaks `v8.24.3` directory scan, including uncommitted files: no leaks found.
+- Not run locally: workforce browser, legacy, capture and fullstack jobs (CI covers them).
+
+**CI repairs on the same PR (#98), unrelated to the fix:**
+
+- `Dependency security`: `pnpm audit` reported a new high advisory for `vite` 8.2.0–8.2.3 (launch-editor `fs.existsSync()` bypass on Windows). The root `vite` dev dependency goes from 8.2.2 to 8.2.4 (released 6 October). The local `pnpm audit --audit-level high` then reported 10 moderate findings and no high ones.
+- `Production containers and routing`: Alpine v3.24 main retired `libexpat=2.8.5-r0`. Both web Dockerfiles pin `2.9.0-r0`. The next run's Trivy scan then found CVE-2026-88806 (High) in `libx11` 1.8.13-r0 of the web-voice image, so both web images also pin `libx11=1.8.14-r0`. The pinned `apk add` succeeds on the pinned nginx base. ADR-0041 has the addendum.
+- `Production containers and routing` (third run): Trivy found two High findings in the Caddy binary. They were `klauspost/compress` 1.18.6 (CVE-2026-63209) and Go stdlib 1.26.9 (CVE-2026-111943). `deploy/caddy/Dockerfile` now builds on `golang:1.26.10-alpine` (digest-pinned) and adds `klauspost/compress@v1.18.7`. A local build and a Trivy 0.70.0 scan of the image report 0 High/Critical.
+
 ## Tiered closure approval — 17 October 2026
 
 **Objective:** the leaders above the PIC confirm the work before a Voice closes, depending on severity. ADR-0069 and PRD §17.1a hold the rules.

@@ -47,3 +47,14 @@ rollover still needs an explicit version review and runtime vulnerability scan.
 The package installation was verified on the pinned nginx base for both
 `linux/amd64` and `linux/arm64`; hosted container and Trivy gates remain the
 release acceptance checks.
+
+## 21 October 2026: libexpat 2.9.0 rollover
+
+The container gate failed again because Alpine v3.24 main retired
+`libexpat=2.8.5-r0`; both the CDN and the `dl-4` mirror index now list only
+`2.9.0-r0`. Both web images pin `libexpat=2.9.0-r0`. Trivy then reported
+CVE-2026-88806 (High) in the base image's `libx11` 1.8.13-r0, so both images
+also pin `libx11=1.8.14-r0`. The other pins are still present in the index and
+stay unchanged. The install was verified on the pinned
+nginx base (`linux/amd64`); the hosted container and Trivy gates remain the
+release checks.

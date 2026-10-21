@@ -2892,6 +2892,14 @@ export interface components {
                 source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
             } | null;
             reporter: {
+                noReg: string;
+                name: string;
+                directorate?: string | null;
+                division: string;
+                department: string;
+                section?: string | null;
+                position?: string | null;
+            } & {
                 [key: string]: unknown;
             };
         };
