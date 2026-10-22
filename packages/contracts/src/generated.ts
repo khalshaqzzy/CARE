@@ -2697,6 +2697,7 @@ export interface components {
                 id: string;
                 displayName: string;
             } | null;
+            holderNames: string[];
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             closureApproval: {
@@ -2795,6 +2796,7 @@ export interface components {
                 id: string;
                 displayName: string;
             } | null;
+            holderNames: string[];
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             closureApproval: {
@@ -2891,6 +2893,7 @@ export interface components {
                 id: string;
                 displayName: string;
             } | null;
+            holderNames: string[];
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             closureApproval: {
@@ -2992,6 +2995,7 @@ export interface components {
                 id: string;
                 displayName: string;
             } | null;
+            holderNames: string[];
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             closureApproval: {
@@ -3086,6 +3090,7 @@ export interface components {
                 id: string;
                 displayName: string;
             } | null;
+            holderNames: string[];
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             closureApproval: {
@@ -3182,6 +3187,7 @@ export interface components {
                 id: string;
                 displayName: string;
             } | null;
+            holderNames: string[];
             attachments: components["schemas"]["AttachmentResponse"][];
             locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
             closureApproval: {

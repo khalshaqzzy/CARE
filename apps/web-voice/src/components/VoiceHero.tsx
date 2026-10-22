@@ -50,7 +50,10 @@ export function VoiceHero({
   const pic =
     voice.visibility === 'PRIVATE'
       ? PRIVATE_ROUTE_LABEL
-      : (voice.currentHandler?.displayName ?? voice.routeOwner?.displayName ?? '—');
+      : (voice.currentHandler?.displayName ??
+        (voice.holderNames?.length ? voice.holderNames.join(', ') : null) ??
+        voice.routeOwner?.displayName ??
+        '—');
   const personLabel =
     voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'UNION_IDENTIFIED'
       ? `Pelapor: ${voice.reporter.name}`

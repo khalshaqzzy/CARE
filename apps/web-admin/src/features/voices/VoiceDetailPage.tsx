@@ -96,6 +96,8 @@ type FullDetail = {
   tierDueAt?: string | null;
   routeOwner?: Named;
   currentHandler?: Named | null;
+  /** Tiered Voices nobody processes yet: who holds the current level. */
+  holderNames?: string[];
   shopLocation?: { department: string } | null;
   attachments?: { id: string; state: string; mimeType?: string }[];
   reporter?: {
@@ -155,6 +157,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** Admin read-only Voice page with everything a responder sees. */
+/** The PIC, or whoever holds the current level of a tiered Voice. */
+function picName(voice: { currentHandler?: Named | null; holderNames?: string[] }) {
+  return (
+    voice.currentHandler?.displayName ??
+    (voice.holderNames?.length ? voice.holderNames.join(', ') : 'Belum ada')
+  );
+}
+
 export function VoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { session, transport } = useAuth();
@@ -298,7 +308,7 @@ export function VoiceDetailPage() {
         </div>
         <div>
           <span className="admin-kv__label">PIC</span>
-          <strong>{voice.currentHandler?.displayName ?? 'Belum ada'}</strong>
+          <strong>{picName(voice)}</strong>
         </div>
       </div>
 
@@ -334,7 +344,7 @@ export function VoiceDetailPage() {
           <Card title="Penanganan">
             <div className="admin-kv">
               <Row label="Penanggung jawab rute">{voice.routeOwner?.displayName ?? '–'}</Row>
-              <Row label="PIC">{voice.currentHandler?.displayName ?? 'Belum ada'}</Row>
+              <Row label="PIC">{picName(voice)}</Row>
               <Row label="Target">
                 {target
                   ? target.kind === 'SPECIAL'

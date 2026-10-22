@@ -1454,6 +1454,23 @@ describe('Tiered routing foundation', () => {
     );
     expect(await prisma.voiceHandlingTarget.count({ where: { voiceId: processing.id } })).toBe(0);
     expect((await voices.detail(groupLeader, processing.id)).availableActions).toContain('PROCEED');
+    // The PIC line names whoever holds the Voice now, for the reporter too.
+    const glName = (
+      await prisma.userAccount.findUniqueOrThrow({ where: { id: groupLeader.accountId } })
+    ).displayName;
+    expect((await voices.detail(await principal('700004'), open.id)).holderNames).toEqual([glName]);
+    await voices.proceed(
+      groupLeader,
+      processing.id,
+      {
+        days: 1,
+        version: (await prisma.voice.findUniqueOrThrow({ where: { id: processing.id } })).version,
+      },
+      'reroute-proceed',
+    );
+    const processed = await voices.detail(groupLeader, processing.id);
+    expect(processed.holderNames).toEqual([]);
+    expect(processed.currentHandler?.displayName).toBe(glName);
     expect(
       await prisma.notification.count({
         where: {

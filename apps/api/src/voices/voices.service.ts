@@ -1281,12 +1281,25 @@ export class VoicesService {
           include: { steps: { orderBy: { position: 'asc' } } },
         })
       : null;
+    // The level holding a tiered Voice nobody processes yet; the levels it went
+    // past keep acting but no longer lead it.
+    const holderNames =
+      voice.tierLevel && !voice.currentHandlerId && voice.visibility === VoiceVisibility.GENERAL
+        ? tierHolders
+            .filter(
+              (holder) =>
+                voice.tierHolderIds.includes(holder.id) &&
+                !voice.tierLowerHolderIds.includes(holder.id),
+            )
+            .map((holder) => holder.displayName)
+        : [];
     return {
       ...this.serialize(actor, {
         ...voice,
         tierHolders,
         closureReportedAt: report?.reportedAt ?? null,
       }),
+      holderNames,
       closureApproval: report ? await this.closureApproval(actor, voice, report) : null,
       ...(voice.tierLevel && voice.reporterId !== actor.accountId
         ? { tierStages: await this.tierStages(voice) }
