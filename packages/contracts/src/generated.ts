@@ -340,6 +340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/accounts/responder-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminController_responderSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/login-summary": {
         parameters: {
             query?: never;
@@ -621,6 +637,22 @@ export interface paths {
         };
         get: operations["ImportsController_detail"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/organization-imports/{id}/rows/{noReg}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ImportsController_correctRow"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2687,6 +2719,8 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
             tierStages?: {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
@@ -2783,6 +2817,8 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
             tierStages?: {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
@@ -2877,6 +2913,8 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
             tierStages?: {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
@@ -2976,6 +3014,8 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
             tierStages?: {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
@@ -3068,6 +3108,8 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
             tierStages?: {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
@@ -3162,6 +3204,8 @@ export interface components {
             /** @enum {string|null} */
             tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
             outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
             tierStages?: {
                 /** @enum {string} */
                 level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
@@ -3596,6 +3640,8 @@ export interface components {
             department14Rows: number;
             globalPicInvalid: boolean;
             unionGaps: string[];
+            /** @description Leaders with incomplete unit columns; the import cannot be confirmed until each is completed. */
+            abnormalities?: components["schemas"]["OrganizationAbnormality"][];
             /** @description Advisory Area/Line checks for tiered routing; never blocks the import. */
             tiers?: {
                 columnsPresent: boolean;
@@ -3613,6 +3659,25 @@ export interface components {
             section: string;
             line?: string;
             count: number;
+        };
+        OrganizationAbnormality: {
+            row: number;
+            noReg: string;
+            name: string;
+            structuralPosition: string;
+            values: {
+                line: string | null;
+                section: string | null;
+                department: string | null;
+                division: string | null;
+            };
+            missing: ("line" | "section" | "department" | "division")[];
+        };
+        OrganizationRowCorrection: {
+            line?: string;
+            section?: string;
+            department?: string;
+            division?: string;
         };
         OrganizationImportPreview: {
             /** Format: uuid */
@@ -3779,6 +3844,17 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        ResponderLoginSummary: {
+            total: number;
+            loggedIn: number;
+            levels: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                label: string;
+                total: number;
+                loggedIn: number;
+            }[];
         };
         AccountLoginSummary: {
             division: string | null;
@@ -4130,6 +4206,8 @@ export interface components {
             targetDueAt?: string | null;
             reporterName?: string | null;
             reporterDepartment?: string | null;
+            /** @description Reporter's rating of the latest closure */
+            ratingScore?: number | null;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -4326,6 +4404,8 @@ export interface components {
             payload: {
                 [key: string]: unknown;
             };
+            /** @description Who did it; CARE Admin and Division Admin only */
+            actorName?: string;
         };
         TimelinePage: {
             items: components["schemas"]["TimelineEvent"][];
@@ -7420,6 +7500,7 @@ export interface operations {
                 unitId?: string;
                 position?: string;
                 eligibility?: string;
+                responderLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | "ANY";
                 division?: string;
                 department?: string;
                 section?: string;
@@ -7439,6 +7520,131 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountSummaryList"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    AdminController_responderSummary: {
+        parameters: {
+            query?: {
+                division?: string;
+                department?: string;
+                section?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponderLoginSummary"];
                 };
             };
             /** @description Request validation failed */
@@ -9835,6 +10041,137 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationImportPreview"];
+                };
+            };
+            /** @description Request validation failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VALIDATION_ERROR",
+                     *       "message": "Request validation failed",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication is required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "UNAUTHENTICATED",
+                     *       "message": "Authentication is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "NOT_FOUND",
+                     *       "message": "Resource not found",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The resource changed; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "VERSION_CONFLICT",
+                     *       "message": "The resource changed; reload and retry",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Manual classification is required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                     *       "message": "Manual classification is required",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Too many requests; try again later */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "code": "RATE_LIMITED",
+                     *       "message": "Too many requests; try again later",
+                     *       "errors": [],
+                     *       "correlationId": "01HZZEXAMPLECORRELATION"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    ImportsController_correctRow: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session-bound CSRF token */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                id: string;
+                noReg: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationRowCorrection"];
+            };
+        };
         responses: {
             200: {
                 headers: {

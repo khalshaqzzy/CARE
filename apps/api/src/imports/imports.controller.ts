@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UploadedFile,
   UseInterceptors,
@@ -42,6 +43,15 @@ export class ImportsController {
 
   @Get(':id') detail(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.detail(id);
+  }
+
+  @Put(':id/rows/:noReg') correctRow(
+    @Actor() actor: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('noReg') noReg: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.correctRow(actor, id, noReg, body);
   }
 
   @Get(':id/changes') changes(

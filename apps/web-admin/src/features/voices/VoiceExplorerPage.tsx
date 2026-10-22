@@ -1,15 +1,16 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
-import { Alert, Button, DataTable, Drawer, Input, Pagination, Select, Stack } from '@care/ui';
+import { Alert, DataTable, Input, Pagination, Select, Stack } from '@care/ui';
 import { Funnel, Lock } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AdminFilterBar } from '../../components/AdminFilterBar';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminEmpty } from '../../components/AdminEmpty';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type VoiceItem } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
+import { remainingTime } from './voice-time';
 import {
   DivisionKpis,
   DivisionSummary,
@@ -60,8 +61,6 @@ export function VoiceExplorerPage() {
   const divisionAdmin = !!session?.capabilities.includes('DIVISION_ADMIN');
   const overview = useDivisionOverview();
   const pagination = cursorPagination(searchParams, setSearchParams);
-  const [selected, setSelected] = useState<VoiceItem | null>(null);
-  const [open, setOpen] = useState(false);
 
   const q = useQuery({
     queryKey: careQueryKey(
@@ -98,70 +97,6 @@ export function VoiceExplorerPage() {
         sort: 'updatedAt',
       }),
     enabled: !!session,
-  });
-  const detail = useQuery({
-    queryKey: careQueryKey(
-      session?.sessionId ?? 'anon',
-      'voices',
-      'detail',
-      selected?.id ?? 'none',
-    ),
-    queryFn: () => api.voice(selected!.id),
-    enabled: !!session && !!selected && open,
-  });
-  const timeline = useInfiniteQuery({
-    queryKey: careQueryKey(
-      session?.sessionId ?? 'anon',
-      'voices',
-      'timeline',
-      selected?.id ?? 'none',
-    ),
-    queryFn: ({ pageParam }) =>
-      api.voiceTimeline(selected!.id, {
-        limit: 50,
-        order: 'desc',
-        ...(pageParam ? { cursor: pageParam } : {}),
-      }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: !!session && !!selected && open,
-  });
-  const timelineItems = timeline.data?.pages.flatMap((page) => page.items) ?? [];
-  const messages = useInfiniteQuery({
-    queryKey: careQueryKey(
-      session?.sessionId ?? 'anon',
-      'voices',
-      'messages',
-      selected?.id ?? 'none',
-    ),
-    queryFn: ({ pageParam }) =>
-      api.voiceMessages(selected!.id, {
-        limit: 50,
-        order: 'desc',
-        ...(pageParam ? { cursor: pageParam } : {}),
-      }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: !!session && !!selected && open,
-  });
-  const messageItems = messages.data?.pages.flatMap((page) => page.items) ?? [];
-  const adminHandovers = useQuery({
-    queryKey: careQueryKey(
-      session?.sessionId ?? 'anon',
-      'admin-handover-history',
-      selected?.id ?? 'none',
-    ),
-    queryFn: () => api.adminHandoverHistory(selected!.id),
-    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL' && !divisionAdmin,
-  });
-  const directHandovers = useQuery({
-    queryKey: careQueryKey(
-      session?.sessionId ?? 'anon',
-      'direct-handover-history',
-      selected?.id ?? 'none',
-    ),
-    queryFn: () => api.directHandoverHistory(selected!.id),
-    enabled: !!session && !!selected && open && selected.visibility === 'GENERAL' && !divisionAdmin,
   });
   const updateFilter = (name: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -399,25 +334,29 @@ export function VoiceExplorerPage() {
               },
               {
                 key: 'title',
-                header: 'Judul',
-                cell: (r: VoiceItem) => <span className="admin-clamp-2">{r.title}</span>,
+                header: 'Judul / Pelapor',
+                cell: (r: VoiceItem) => (
+                  <span className="admin-voice-title">
+                    <Link className="admin-clamp-2 admin-voice-link" to={`/voices/${r.id}`}>
+                      {r.title}
+                    </Link>
+                    <span className="admin-meta--xs">
+                      {r.visibility === 'PRIVATE' ? (
+                        <>
+                          <Lock size={11} aria-hidden="true" /> Private ·{' '}
+                        </>
+                      ) : null}
+                      {r.reporterName ?? r.reporterAlias ?? '–'}
+                      {r.reporterDepartment ? ` · ${r.reporterDepartment}` : ''}
+                    </span>
+                  </span>
+                ),
               },
-              ...(divisionAdmin
-                ? []
-                : [
-                    {
-                      key: 'visibility',
-                      header: 'Visibility',
-                      cell: (r: VoiceItem) => (
-                        <span
-                          className="admin-pill"
-                          data-tone={r.visibility === 'PRIVATE' ? 'warning' : 'info'}
-                        >
-                          {r.visibility}
-                        </span>
-                      ),
-                    },
-                  ]),
+              {
+                key: 'category',
+                header: 'Kategori',
+                cell: (r: VoiceItem) => r.categoryNameSnapshot ?? r.category ?? '–',
+              },
               {
                 key: 'severity',
                 header: 'Severity',
@@ -444,42 +383,28 @@ export function VoiceExplorerPage() {
               },
               {
                 key: 'handler',
-                header: 'Handler',
+                header: 'PIC',
                 cell: (r: VoiceItem) => r.currentHandlerName ?? '–',
               },
               {
-                key: 'updatedAt',
-                header: 'Terakhir diperbarui',
-                cell: (r: VoiceItem) =>
-                  r.updatedAt ? (
-                    <span className="admin-nums" style={{ whiteSpace: 'nowrap' }}>
-                      {new Date(r.updatedAt).toLocaleString('id-ID', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                key: 'remaining',
+                header: 'Sisa waktu',
+                cell: (r: VoiceItem) => {
+                  const remaining = remainingTime(r);
+                  return (
+                    <span className="admin-pill" data-tone={remaining.tone}>
+                      {remaining.label}
                     </span>
-                  ) : (
-                    '–'
-                  ),
+                  );
+                },
               },
               {
-                key: 'action',
-                header: '',
-                cell: (r: VoiceItem) => (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setSelected(r);
-                      setOpen(true);
-                    }}
-                  >
-                    Detail
-                  </Button>
-                ),
+                key: 'rating',
+                header: 'Rating',
+                cell: (r: VoiceItem) => {
+                  const score = (r as { ratingScore?: number | null }).ratingScore;
+                  return score ? <span className="admin-nums">★ {score}/5</span> : '–';
+                },
               },
             ]}
             rows={(q.data?.items ?? []) as never}
@@ -512,241 +437,6 @@ export function VoiceExplorerPage() {
           </div>
         </section>
       )}
-
-      <Drawer
-        open={open}
-        onOpenChange={setOpen}
-        title={selected?.displayId ?? 'Detail'}
-        description={selected?.title ?? ''}
-      >
-        {detail.data ? (
-          <Stack gap="sm">
-            <dl className="admin-dl">
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <span className="admin-pill" data-tone={voiceStatusTone(detail.data.status)}>
-                    {STATUS_LABELS[detail.data.status] ?? detail.data.status}
-                    {detail.data.status === 'IN_PROGRESS' &&
-                    detail.data.closureCycles?.at(-1)?.reviewState === 'REJECTED'
-                      ? ' · Dibuka kembali'
-                      : ''}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Area</dt>
-                <dd>{detail.data.area}</dd>
-              </div>
-              <div>
-                <dt>Kategori / severity</dt>
-                <dd>
-                  {detail.data.category ?? '-'} / {detail.data.severity}
-                </dd>
-              </div>
-              <div>
-                <dt>Lokasi</dt>
-                <dd>{detail.data.locationDetail}</dd>
-              </div>
-              <div>
-                <dt>Detail</dt>
-                <dd>{detail.data.detail}</dd>
-              </div>
-              {/* CARE Admin and Division Admin read General Voices as leadership. */}
-              {detail.data.audience === 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY' ||
-              detail.data.audience === 'LEADERSHIP_GENERAL_READ_ONLY' ||
-              detail.data.audience === 'GENERAL_RESPONDER' ? (
-                <div>
-                  <dt>Reporter</dt>
-                  <dd>
-                    {detail.data.reporter.name} ({detail.data.reporter.noReg}) —{' '}
-                    {detail.data.reporter.division} / {detail.data.reporter.department}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-            <div className="admin-card admin-card--subtle">
-              <Stack gap="xs">
-                <strong>Lampiran Voice</strong>
-                {detail.data.attachments.length ? (
-                  <ul className="admin-feed">
-                    {detail.data.attachments.map((attachment) => (
-                      <li key={attachment.id}>
-                        {attachment.state === 'READY' ? (
-                          <a
-                            href={`/api/v1/media/${attachment.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Buka {attachment.purpose.toLowerCase()} (
-                            {Math.ceil(attachment.size / 1024)} KB)
-                          </a>
-                        ) : (
-                          <span>
-                            {attachment.purpose} — {attachment.state}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <span>Tidak ada lampiran.</span>
-                )}
-              </Stack>
-            </div>
-            <div className="admin-card admin-card--subtle">
-              <Stack gap="xs">
-                <strong>Timeline</strong>
-                {timeline.isLoading ? (
-                  <AdminSkeleton lines={3} label="Memuat timeline" />
-                ) : timelineItems.length ? (
-                  <ul className="admin-timeline">
-                    {timelineItems.map((event) => (
-                      <li key={event.id}>
-                        <div>
-                          <strong>{event.type}</strong> —{' '}
-                          {new Date(event.occurredAt).toLocaleString('id-ID')}
-                          {Object.keys(event.payload).length ? (
-                            <div>
-                              <code>{JSON.stringify(event.payload)}</code>
-                            </div>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
-                    {timeline.hasNextPage ? (
-                      <li>
-                        <div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => void timeline.fetchNextPage()}
-                            disabled={timeline.isFetching}
-                          >
-                            {timeline.isFetching ? 'Memuat…' : 'Muat lebih'}
-                          </Button>
-                        </div>
-                      </li>
-                    ) : null}
-                  </ul>
-                ) : (
-                  <span>Belum ada event.</span>
-                )}
-              </Stack>
-            </div>
-            {selected?.visibility === 'GENERAL' && !divisionAdmin ? (
-              <div className="admin-card admin-card--subtle">
-                <Stack gap="xs">
-                  <strong>Riwayat handover</strong>
-                  {adminHandovers.isLoading || directHandovers.isLoading ? (
-                    <AdminSkeleton lines={2} label="Memuat handover" />
-                  ) : adminHandovers.isError || directHandovers.isError ? (
-                    <Alert tone="warning" title="Riwayat gagal dimuat">
-                      Coba buka kembali detail Voice.
-                    </Alert>
-                  ) : (
-                    <>
-                      {(adminHandovers.data?.items.length ?? 0) +
-                        (directHandovers.data?.items.length ?? 0) ===
-                      0 ? (
-                        <span>Belum ada handover.</span>
-                      ) : null}
-                      {adminHandovers.data?.items.map((item) => (
-                        <div key={item.id} className="admin-handover-history-item">
-                          <strong>
-                            Manager → Admin ·{' '}
-                            {item.status === 'PENDING'
-                              ? 'Menunggu'
-                              : item.status === 'ROUTED'
-                                ? 'Diteruskan'
-                                : 'Dikembalikan'}
-                          </strong>
-                          <small>{new Date(item.createdAt).toLocaleString('id-ID')}</small>
-                          <p>
-                            <b>{item.managerName}:</b> {item.managerDetail}
-                          </p>
-                          {item.adminDetail ? (
-                            <p>
-                              <b>{item.adminName ?? 'Admin'}:</b> {item.adminDetail}
-                            </p>
-                          ) : null}
-                          {item.categoryNameSnapshot ? (
-                            <small>Kategori: {item.categoryNameSnapshot}</small>
-                          ) : null}
-                        </div>
-                      ))}
-                      {directHandovers.data?.items.map((item) => (
-                        <div key={item.id} className="admin-handover-history-item">
-                          <strong>
-                            {item.from.pic.displayName} → {item.to.pic.displayName}
-                          </strong>
-                          <small>{new Date(item.createdAt).toLocaleString('id-ID')}</small>
-                          {item.detail ? <p>{item.detail}</p> : null}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </Stack>
-              </div>
-            ) : null}
-            <div className="admin-card admin-card--subtle">
-              <Stack gap="xs">
-                <strong>Percakapan</strong>
-                {messages.isLoading ? (
-                  <AdminSkeleton lines={3} label="Memuat percakapan" />
-                ) : messageItems.length ? (
-                  <ol className="admin-feed">
-                    {messageItems.map((message) => (
-                      <li key={message.id}>
-                        <div>
-                          <strong>{message.sender.alias ?? message.sender.kind}</strong> —{' '}
-                          {new Date(message.createdAt).toLocaleString('id-ID')}
-                        </div>
-                        <p>{message.text || '(hanya lampiran)'}</p>
-                        {message.attachments.length ? (
-                          <ul className="admin-feed">
-                            {message.attachments.map((attachment) => (
-                              <li key={attachment.id}>
-                                <a
-                                  href={`/api/v1/media/${attachment.id}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  Buka lampiran ({Math.ceil(attachment.size / 1024)} KB)
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </li>
-                    ))}
-                    {messages.hasNextPage ? (
-                      <li>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => void messages.fetchNextPage()}
-                          disabled={messages.isFetching}
-                        >
-                          {messages.isFetching ? 'Memuat…' : 'Muat lebih'}
-                        </Button>
-                      </li>
-                    ) : null}
-                  </ol>
-                ) : (
-                  <span>Belum ada pesan.</span>
-                )}
-              </Stack>
-            </div>
-            <p className="admin-meta--xs">
-              Reporter untuk Private menampilkan identitas lengkap immutable (noReg, nama,
-              directorate, division, department, section, posisi). Tidak ada kontrol aksi.
-            </p>
-          </Stack>
-        ) : (
-          <AdminSkeleton lines={4} label="Memuat detail" />
-        )}
-      </Drawer>
     </Stack>
   );
 }

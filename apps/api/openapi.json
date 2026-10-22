@@ -3263,6 +3263,21 @@
             }
           },
           {
+            "name": "responderLevel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GROUP_LEADER",
+                "SECTION_HEAD",
+                "MANAGER",
+                "DIVISION",
+                "ANY"
+              ]
+            }
+          },
+          {
             "name": "division",
             "in": "query",
             "required": false,
@@ -3324,6 +3339,153 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AccountSummaryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/admin/accounts/responder-summary": {
+      "get": {
+        "operationId": "AdminController_responderSummary",
+        "parameters": [
+          {
+            "name": "division",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponderLoginSummary"
                 }
               }
             }
@@ -6257,6 +6419,164 @@
         "tags": [
           "organization-imports"
         ]
+      }
+    },
+    "/api/v1/admin/organization-imports/{id}/rows/{noReg}": {
+      "put": {
+        "operationId": "ImportsController_correctRow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noReg",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "description": "Session-bound CSRF token",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VALIDATION_ERROR",
+                  "message": "Request validation failed",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "UNAUTHENTICATED",
+                  "message": "Authentication is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "NOT_FOUND",
+                  "message": "Resource not found",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The resource changed; reload and retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "VERSION_CONFLICT",
+                  "message": "The resource changed; reload and retry",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Manual classification is required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "MANUAL_CLASSIFICATION_REQUIRED",
+                  "message": "Manual classification is required",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests; try again later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "RATE_LIMITED",
+                  "message": "Too many requests; try again later",
+                  "errors": [],
+                  "correlationId": "01HZZEXAMPLECORRELATION"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "organization-imports"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRowCorrection"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/admin/organization-imports/{id}/changes": {
@@ -23447,6 +23767,11 @@
           "outsideReporter": {
             "type": "boolean"
           },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "tierStages": {
             "type": "array",
             "items": {
@@ -23848,6 +24173,11 @@
           "outsideReporter": {
             "type": "boolean"
           },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "tierStages": {
             "type": "array",
             "items": {
@@ -24244,6 +24574,11 @@
           },
           "outsideReporter": {
             "type": "boolean"
+          },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "tierStages": {
             "type": "array",
@@ -24655,6 +24990,11 @@
           "outsideReporter": {
             "type": "boolean"
           },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "tierStages": {
             "type": "array",
             "items": {
@@ -25040,6 +25380,11 @@
           },
           "outsideReporter": {
             "type": "boolean"
+          },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "tierStages": {
             "type": "array",
@@ -25438,6 +25783,11 @@
           },
           "outsideReporter": {
             "type": "boolean"
+          },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "tierStages": {
             "type": "array",
@@ -27281,6 +27631,13 @@
               "type": "string"
             }
           },
+          "abnormalities": {
+            "type": "array",
+            "description": "Leaders with incomplete unit columns; the import cannot be confirmed until each is completed.",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationAbnormality"
+            }
+          },
           "tiers": {
             "type": "object",
             "description": "Advisory Area/Line checks for tiered routing; never blocks the import.",
@@ -27353,6 +27710,98 @@
           },
           "count": {
             "type": "integer"
+          }
+        }
+      },
+      "OrganizationAbnormality": {
+        "type": "object",
+        "required": [
+          "row",
+          "noReg",
+          "name",
+          "structuralPosition",
+          "values",
+          "missing"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "row": {
+            "type": "integer"
+          },
+          "noReg": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "structuralPosition": {
+            "type": "string"
+          },
+          "values": {
+            "type": "object",
+            "required": [
+              "line",
+              "section",
+              "department",
+              "division"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "line": {
+                "type": "string",
+                "nullable": true
+              },
+              "section": {
+                "type": "string",
+                "nullable": true
+              },
+              "department": {
+                "type": "string",
+                "nullable": true
+              },
+              "division": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "line",
+                "section",
+                "department",
+                "division"
+              ]
+            }
+          }
+        }
+      },
+      "OrganizationRowCorrection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "line": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "department": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "division": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
           }
         }
       },
@@ -27979,6 +28428,60 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ResponderLoginSummary": {
+        "type": "object",
+        "required": [
+          "total",
+          "loggedIn",
+          "levels"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "loggedIn": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "label",
+                "total",
+                "loggedIn"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "loggedIn": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
           }
         }
       },
@@ -29271,6 +29774,13 @@
             "type": "string",
             "nullable": true
           },
+          "ratingScore": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "nullable": true,
+            "description": "Reporter's rating of the latest closure"
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -30079,6 +30589,10 @@
           "payload": {
             "type": "object",
             "additionalProperties": true
+          },
+          "actorName": {
+            "type": "string",
+            "description": "Who did it; CARE Admin and Division Admin only"
           }
         }
       },

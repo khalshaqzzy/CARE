@@ -65,9 +65,9 @@ test.describe('Admin accessibility contract', () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(1);
-    // The title cell is clamped to two lines so it cannot stretch the table.
+    // The title link is clamped to two lines so it cannot stretch the table.
     const lines = await page
-      .getByText(voice.title)
+      .getByRole('link', { name: voice.title })
       .evaluate((el) => Math.ceil(el.getBoundingClientRect().height / 24));
     expect(lines).toBeLessThanOrEqual(2);
   });

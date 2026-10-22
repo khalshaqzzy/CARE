@@ -1291,6 +1291,7 @@ export class VoicesService {
       ...(voice.tierLevel && voice.reporterId !== actor.accountId
         ? { tierStages: await this.tierStages(voice) }
         : {}),
+      ...(voice.reporterId !== actor.accountId ? { tierDueAt: voice.tierDueAt } : {}),
       unreadMessages: voice.conversation
         ? await this.unreadMessageCount(voice.conversation.id, actor.accountId)
         : 0,
@@ -1548,12 +1549,25 @@ export class VoicesService {
       orderBy: descending
         ? [{ occurredAt: 'desc' }, { id: 'desc' }]
         : [{ occurredAt: 'asc' }, { id: 'asc' }],
-      select: { id: true, type: true, occurredAt: true, payload: true },
+      select: {
+        id: true,
+        type: true,
+        occurredAt: true,
+        payload: true,
+        actor: { select: { displayName: true } },
+      },
     });
     const hasNext = items.length > take;
     const data = hasNext ? items.slice(0, take) : items;
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
-    return { items: data, nextCursor };
+    // Admin pages name who did each step; other audiences keep the bare event.
+    const named = actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN');
+    return {
+      items: data.map(({ actor: eventActor, ...event }) =>
+        named ? { ...event, actorName: eventActor.displayName } : event,
+      ),
+      nextCursor,
+    };
   }
 
   async assign(actor: AuthActor, id: string, input: unknown, key: string, reassign = false) {
@@ -4853,7 +4867,7 @@ export class VoicesService {
       closureCycles: {
         orderBy: { cycleNumber: 'desc' },
         take: 1,
-        select: { reviewState: true, reviewDeadline: true },
+        select: { reviewState: true, reviewDeadline: true, rating: { select: { score: true } } },
       },
       // Latest target only; it is overdue when it belongs to the live cycle.
       handlingCycleNumber: true,
@@ -4879,6 +4893,7 @@ export class VoicesService {
       closureCycles?: Array<{
         reviewState: ClosureReviewState;
         reviewDeadline: Date | null;
+        rating?: { score: number } | null;
       }> | null;
       status?: VoiceStatus;
       handlingCycleNumber?: number;
@@ -4923,6 +4938,7 @@ export class VoicesService {
       currentHandlerName: currentHandler?.displayName ?? null,
       closureReviewState,
       closureReviewDeadline: latestReview?.reviewDeadline ?? null,
+      ratingScore: latestReview?.rating?.score ?? null,
       targetOverdue,
       targetDueAt:
         row.status === VoiceStatus.IN_PROGRESS &&

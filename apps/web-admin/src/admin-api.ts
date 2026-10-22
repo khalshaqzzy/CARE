@@ -12,6 +12,8 @@ async function dataOrThrow<T>(request: Promise<ApiResult<T>>): Promise<T> {
 export type Account = components['schemas']['AccountSummary'];
 export type AccountList = components['schemas']['AccountSummaryList'];
 export type AccountLoginSummary = components['schemas']['AccountLoginSummary'];
+export type ResponderLoginSummary = components['schemas']['ResponderLoginSummary'];
+export type OrganizationAbnormality = components['schemas']['OrganizationAbnormality'];
 export type AdminOverview = components['schemas']['AdminOverview'];
 export type ImportPreview = components['schemas']['OrganizationImportPreview'];
 export type ImportList = components['schemas']['OrganizationImportList'];
@@ -197,6 +199,27 @@ export function createAdminApi(transport: CareTransport) {
       dataOrThrow<AccountLoginSummary>(
         client.GET('/api/v1/admin/accounts/login-summary', {
           params: { query: compactQuery(query) },
+        }),
+      ),
+    responderSummary: (query: {
+      division?: string | undefined;
+      department?: string | undefined;
+      section?: string | undefined;
+    }) =>
+      dataOrThrow<ResponderLoginSummary>(
+        client.GET('/api/v1/admin/accounts/responder-summary', {
+          params: { query: compactQuery(query) },
+        }),
+      ),
+    correctImportRow: (
+      id: string,
+      noReg: string,
+      body: components['schemas']['OrganizationRowCorrection'],
+    ) =>
+      dataOrThrow<ImportPreview>(
+        client.PUT('/api/v1/admin/organization-imports/{id}/rows/{noReg}', {
+          params: { path: { id, noReg }, header: { 'X-CSRF-Token': '' } },
+          body,
         }),
       ),
     account: (id: string) =>

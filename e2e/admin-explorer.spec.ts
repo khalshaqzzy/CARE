@@ -39,11 +39,14 @@ test('renders the Admin Voice Explorer table and read-only drawer', async ({ pag
   await expect(page.getByText('Akses Private diaudit', { exact: true })).toBeVisible();
   await expect(page.getByText(voice.title)).toBeVisible();
 
-  await page.getByRole('button', { name: 'Detail' }).click();
-  await expect(page.getByText('SUBMITTED')).toBeVisible();
+  await page.getByRole('link', { name: voice.title }).click();
+  await expect(page).toHaveURL(/\/voices\/voice-1$/);
+  await expect(page.getByLabel('Riwayat')).toContainText('Diajukan');
   await expect(page.getByText('Hello')).toBeVisible();
   // Private reporter identity is shown read-only to Admin.
-  await expect(page.getByText(/Budi Santoso \(000128\)/)).toBeVisible();
+  const reporter = page.getByLabel('Pelapor');
+  await expect(reporter).toContainText('Budi Santoso');
+  await expect(reporter).toContainText('000128');
 });
 
 test('shows the reporter of a General Voice to Admin', async ({ page }) => {
@@ -60,6 +63,8 @@ test('shows the reporter of a General Voice to Admin', async ({ page }) => {
   });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('http://127.0.0.1:4174/voices');
-  await page.getByRole('button', { name: 'Detail' }).click();
-  await expect(page.getByText(/Budi Santoso \(000128\)/)).toBeVisible();
+  await page.getByRole('link', { name: general.title }).click();
+  const reporter = page.getByLabel('Pelapor');
+  await expect(reporter).toContainText('Budi Santoso');
+  await expect(reporter).toContainText('000128');
 });

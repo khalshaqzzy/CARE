@@ -14,7 +14,7 @@ import {
   Stack,
   Textarea,
 } from '@care/ui';
-import { CheckCircle2, ChevronRight, CircleAlert, Lock } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleAlert, KeyRound, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminFilterBar } from '../../components/AdminFilterBar';
@@ -24,6 +24,7 @@ import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type Account } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 import { LoginSummary } from './LoginSummary';
+import { ResponderLoginSummary } from './ResponderLoginSummary';
 
 function orgContext(account: Account): string {
   const membership = account.employee?.memberships?.[0];
@@ -62,6 +63,7 @@ export function AccountsPage() {
   const department = searchParams.get('department') ?? '';
   const section = searchParams.get('section') ?? '';
   const loggedIn = searchParams.get('loggedIn') ?? '';
+  const responderLevel = searchParams.get('responderLevel') ?? '';
   // A Division Admin reads its own division's workforce accounts, read-only.
   const divisionAdmin = !!session?.capabilities.includes('DIVISION_ADMIN');
   const scoped = divisionAdmin || !!division;
@@ -86,6 +88,19 @@ export function AccountsPage() {
     null,
   );
   const [operationKey, setOperationKey] = useState<string | null>(null);
+  // Reset password works from the row or the drawer; the result stays visible once.
+  const [resetTarget, setResetTarget] = useState<{
+    id: string;
+    username: string;
+    accountKind: string;
+  } | null>(null);
+  const [resetDone, setResetDone] = useState(false);
+  const beginReset = (account: { id: string; username: string; accountKind: string }) => {
+    reset.reset();
+    setResetDone(false);
+    setOperationKey(crypto.randomUUID());
+    setResetTarget(account);
+  };
 
   const q = useQuery({
     queryKey: careQueryKey(
@@ -98,6 +113,7 @@ export function AccountsPage() {
       department,
       section,
       loggedIn,
+      responderLevel,
       pagination.cursor ?? 'first',
     ),
     queryFn: () =>
@@ -110,6 +126,7 @@ export function AccountsPage() {
         department: department || undefined,
         section: section || undefined,
         loggedIn: (loggedIn || undefined) as 'true' | 'false' | undefined,
+        responderLevel: (responderLevel || undefined) as never,
         cursor: pagination.cursor,
       }),
     enabled: !!session,
@@ -154,7 +171,7 @@ export function AccountsPage() {
   const reset = useMutation({
     mutationFn: ({ id, key }: { id: string; key: string }) => api.resetPassword(id, key),
     onSuccess: () => {
-      setConfirmAction(null);
+      setResetDone(true);
       void qc.invalidateQueries({
         queryKey: careQueryKey(session?.sessionId ?? 'anon', 'accounts'),
       });
@@ -209,7 +226,7 @@ export function AccountsPage() {
       : !department
         ? updateParams({ department: name, section: '' })
         : updateParams({ section: name });
-  const filtersActive = Boolean(search || kind || status || division || loggedIn);
+  const filtersActive = Boolean(search || kind || status || division || loggedIn || responderLevel);
 
   const exportNotLoggedIn = async () => {
     setExporting(true);
@@ -266,14 +283,34 @@ export function AccountsPage() {
         description={
           divisionAdmin
             ? (summaryQuery.data?.division ?? '')
-            : 'Kelola workflow dan Union. CARE Admin hanya read-only di sini.'
+            : 'Akun workforce, Union, dan Admin Divisi.'
         }
-        badge={
-          <span className="admin-pill" data-tone="neutral">
-            <Lock size={12} aria-hidden="true" /> Hanya baca
-          </span>
-        }
+        {...(divisionAdmin
+          ? {
+              badge: (
+                <span className="admin-pill" data-tone="neutral">
+                  <Lock size={12} aria-hidden="true" /> Hanya baca
+                </span>
+              ),
+            }
+          : {})}
       />
+
+      {divisionAdmin ? null : (
+        <ResponderLoginSummary
+          division={division}
+          department={department}
+          section={section}
+          onShowMissing={(level) =>
+            updateParams({
+              responderLevel: level,
+              loggedIn: 'false',
+              kind: 'WORKFORCE',
+              status: 'ACTIVE',
+            })
+          }
+        />
+      )}
 
       <AdminFilterBar
         controls={
@@ -344,6 +381,21 @@ export function AccountsPage() {
                 ]}
               />
             ) : null}
+            {divisionAdmin ? null : (
+              <Select
+                label="Responder"
+                value={responderLevel || 'ALL'}
+                onValueChange={(v) => updateParam('responderLevel', v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  { value: 'ANY', label: 'Semua responder' },
+                  { value: 'GROUP_LEADER', label: 'Group Leader' },
+                  { value: 'SECTION_HEAD', label: 'Section Head' },
+                  { value: 'MANAGER', label: 'Department Head' },
+                  { value: 'DIVISION', label: 'Deputy / Division Head' },
+                ]}
+              />
+            )}
             <Select
               label="Login"
               value={loggedIn || 'ALL'}
@@ -396,10 +448,12 @@ export function AccountsPage() {
                       key: 'username',
                       header: 'Username / Nama',
                       cell: (r: Account) => (
-                        <span className="admin-id admin-nums">{r.username}</span>
+                        <span className="admin-account-name">
+                          <span className="admin-id admin-nums">{r.username}</span>
+                          {r.displayName}
+                        </span>
                       ),
                     },
-                    { key: 'displayName', header: 'Nama', cell: (r: Account) => r.displayName },
                     {
                       key: 'kind',
                       header: 'Jenis akun',
@@ -483,6 +537,27 @@ export function AccountsPage() {
               ...(divisionAdmin
                 ? []
                 : [
+                    {
+                      key: 'reset',
+                      header: '',
+                      cell: (r: Account) =>
+                        r.accountKind === 'CARE_ADMIN' || r.status === 'INACTIVE' ? null : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            aria-label={`Reset password ${r.username}`}
+                            onClick={() =>
+                              beginReset({
+                                id: r.id,
+                                username: r.username,
+                                accountKind: r.accountKind,
+                              })
+                            }
+                          >
+                            <KeyRound size={14} aria-hidden="true" /> Reset
+                          </Button>
+                        ),
+                    },
                     {
                       key: 'action',
                       header: '',
@@ -573,12 +648,15 @@ export function AccountsPage() {
               <Stack gap="sm">
                 <Button
                   variant="secondary"
-                  onClick={() => {
-                    setOperationKey(crypto.randomUUID());
-                    setConfirmAction('reset');
-                  }}
+                  onClick={() =>
+                    beginReset({
+                      id: detail.id,
+                      username: detail.username,
+                      accountKind: detail.accountKind,
+                    })
+                  }
                 >
-                  Reset password (sementara = noReg/username)
+                  Reset password
                 </Button>
                 {detail.status === 'ACTIVE' || detail.status === 'LEGACY_HANDLER' ? (
                   <Button
@@ -611,24 +689,34 @@ export function AccountsPage() {
       </Drawer>
 
       <Dialog
-        open={confirmAction === 'reset'}
-        onOpenChange={(o) => !o && setConfirmAction(null)}
-        title="Reset password"
-        description="Password sementara akan menjadi noReg (workforce) atau username (Union). Semua sesi dan push dicabut, wajib ganti password."
+        open={!!resetTarget}
+        onOpenChange={(o) => !o && setResetTarget(null)}
+        title={`Reset password ${resetTarget?.username ?? ''}`}
+        description={
+          resetDone
+            ? 'Password lama sudah dihapus.'
+            : 'Password lama dihapus dan semua sesi akun ini keluar.'
+        }
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmAction(null)}>
-              Batal
-            </Button>
-            <Button
-              loading={reset.isPending}
-              onClick={() =>
-                detail && operationKey && reset.mutate({ id: detail.id, key: operationKey })
-              }
-            >
-              Ya, reset
-            </Button>
-          </>
+          resetDone ? (
+            <Button onClick={() => setResetTarget(null)}>Selesai</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => setResetTarget(null)}>
+                Batal
+              </Button>
+              <Button
+                loading={reset.isPending}
+                onClick={() =>
+                  resetTarget &&
+                  operationKey &&
+                  reset.mutate({ id: resetTarget.id, key: operationKey })
+                }
+              >
+                Ya, reset
+              </Button>
+            </>
+          )
         }
       >
         {reset.error ? (
@@ -636,10 +724,12 @@ export function AccountsPage() {
             {String((reset.error as Error).message)}
           </Alert>
         ) : null}
-        {reset.isSuccess ? (
-          <Alert tone="success" title="Berhasil">
-            Password telah direset.
-          </Alert>
+        {resetDone ? (
+          <div className="admin-reset-result">
+            {resetTarget?.accountKind === 'WORKFORCE'
+              ? 'Pengguna masuk dengan No. Reg saja, lalu membuat password baru.'
+              : 'Pengguna masuk dengan username sebagai password, lalu membuat password baru.'}
+          </div>
         ) : null}
       </Dialog>
 

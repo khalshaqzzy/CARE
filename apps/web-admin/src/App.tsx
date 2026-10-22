@@ -37,6 +37,7 @@ import { EscalationSettingsPage } from './features/escalation/EscalationSettings
 import { UnionPage } from './features/union/UnionPage';
 import { AccountsPage } from './features/accounts/AccountsPage';
 import { VoiceExplorerPage } from './features/voices/VoiceExplorerPage';
+import { VoiceDetailPage } from './features/voices/VoiceDetailPage';
 import {
   AdminHandoverQueuePage,
   AdminHandoverDecisionPage,
@@ -74,6 +75,7 @@ export function App() {
         <Route path="division-admins" element={<DivisionAdminsPage />} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="voices" element={<VoiceExplorerPage />} />
+        <Route path="voices/:id" element={<VoiceDetailPage />} />
         <Route path="handovers" element={<AdminHandoverQueuePage />} />
         <Route path="handovers/:id" element={<AdminHandoverDecisionPage />} />
         <Route path="audit" element={<AuditPage />} />
@@ -92,7 +94,8 @@ function DivisionAdminGuard({ children }: { children: ReactElement }) {
   const location = useLocation();
   if (
     session?.capabilities.includes('DIVISION_ADMIN') &&
-    !DIVISION_ADMIN_PATHS.includes(location.pathname)
+    !DIVISION_ADMIN_PATHS.includes(location.pathname) &&
+    !location.pathname.startsWith('/voices/')
   )
     return <Navigate to="/" replace />;
   return children;

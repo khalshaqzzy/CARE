@@ -75,16 +75,20 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   await expect(page.getByText('Union 1').first()).toBeVisible();
   await expect(page.getByText('Union 2').first()).toBeVisible();
 
-  // Accounts: reset a workforce password through the detail drawer; a successful
-  // reset closes the confirm dialog (session revocation is covered in the
-  // integration suite), proving the reset mutation wiring against the real API.
+  // Accounts: reset a workforce password from its row; the dialog confirms the
+  // old password is gone (session revocation is covered in the integration
+  // suite), proving the reset mutation wiring against the real API.
   await page.goto(`${ADMIN}/accounts`);
   await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
-  await page.locator('tr', { hasText: '00000128' }).getByRole('button', { name: 'Detail' }).click();
-  const resetDialog = page.getByRole('dialog', { name: 'Reset password' });
-  await page.getByRole('button', { name: /Reset password/ }).click();
+  await page
+    .locator('tr', { hasText: '00000128' })
+    .getByRole('button', { name: /^Reset password/ })
+    .click();
+  const resetDialog = page.getByRole('dialog', { name: /Reset password/ });
   await expect(resetDialog).toBeVisible();
   await resetDialog.getByRole('button', { name: 'Ya, reset' }).click();
+  await expect(resetDialog).toContainText('Password lama sudah dihapus.');
+  await resetDialog.getByRole('button', { name: 'Selesai' }).click();
   await expect(resetDialog).toBeHidden();
 
   // Voice Explorer: the Private voice shows the full immutable reporter identity
@@ -93,10 +97,12 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   await expect(page.getByRole('heading', { name: 'Voice Explorer' })).toBeVisible();
   const privateRow = page.locator('tr', { hasText: 'Keluhan fasilitas toilet' });
   await expect(privateRow).toBeVisible();
-  await privateRow.getByRole('button', { name: 'Detail' }).click();
-  await expect(page.getByText(/Budi Santoso \(00000128\)/)).toBeVisible({ timeout: 10_000 });
-  // Read-only: no lifecycle action affordance is exposed.
-  await expect(page.getByText(/Tidak ada kontrol aksi/)).toBeVisible();
+  await privateRow.getByRole('link', { name: /Keluhan fasilitas toilet/ }).click();
+  const reporter = page.getByLabel('Pelapor');
+  await expect(reporter).toContainText('Budi Santoso', { timeout: 10_000 });
+  await expect(reporter).toContainText('00000128');
+  // Read-only: the detail page exposes no lifecycle action.
+  await expect(page.getByRole('button', { name: /Respons|Proses|Selesaikan/ })).toHaveCount(0);
 
   // Audit: reading the Private voice recorded a redacted read event. Filter by
   // action before asserting it because earlier CI stages can legitimately add

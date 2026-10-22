@@ -25,6 +25,14 @@ import { badRequest, conflict, forbiddenAsNotFound } from '../common/errors';
 import { parseBirthDate } from '../common/birth-date';
 import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
+import {
+  applyOrgCorrections,
+  missingOrgFields,
+  organizationAbnormalities,
+  type OrgAbnormality,
+  type OrgCorrections,
+  type OrgField,
+} from './organization-completeness';
 import { CategoriesService } from '../categories/categories.service';
 import type { AuthActor } from '../auth/auth.types';
 
@@ -136,6 +144,8 @@ export function parseArea(value: string): Area | null | undefined {
 }
 type ImportRow = {
   area?: Area | null;
+  /** The Department cell was empty; `department` then holds Department 14. */
+  departmentBlank?: boolean;
   line?: string | null;
   birthDate?: string | null;
   noReg: string;
@@ -148,6 +158,14 @@ type ImportRow = {
   sourceRow: number;
 };
 type ImportFormat = 'xlsx' | 'csv';
+const correctionBody = z
+  .object({
+    line: z.string().trim().min(1).max(200).optional(),
+    section: z.string().trim().min(1).max(200).optional(),
+    department: z.string().trim().min(1).max(200).optional(),
+    division: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ');
 const unitKey = (row: Pick<ImportRow, 'directorate' | 'division' | 'department'>) =>
   canonicalHash([
@@ -380,6 +398,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         (slot) => !unionTerms.some((term) => term.slot === slot),
       ),
       tiers: tierSummary(rows),
+      // Leaders with incomplete unit columns; they block the confirmation until edited.
+      abnormalities: organizationAbnormalities(rows),
     };
     const storageKey = `imports/${randomToken(24)}.${format}`;
     const path = resolve(loadConfig().MEDIA_ROOT, storageKey);
@@ -520,9 +540,75 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         if (!batch) throw forbiddenAsNotFound();
       }
     }
-    const { storageKey, ...safeBatch } = batch;
+    const { storageKey, corrections, ...safeBatch } = batch;
     void storageKey;
+    void corrections;
     return safeBatch;
+  }
+
+  /**
+   * Fills the missing unit columns of one incomplete leader on a preview. The
+   * edit is stored with the batch and applied when the import is processed.
+   */
+  async correctRow(actor: AuthActor, id: string, noReg: string, body: unknown) {
+    // The No. Reg becomes a JSON key; never accept a prototype property name.
+    if (['__proto__', 'constructor', 'prototype'].includes(noReg)) throw forbiddenAsNotFound();
+    const parsed = correctionBody.safeParse(body);
+    if (!parsed.success)
+      throw badRequest('VALIDATION_ERROR', 'Isi kolom yang kosong (maksimal 200 karakter)');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id"::text FROM "ImportBatch" WHERE "id" = ${id}::uuid FOR UPDATE`;
+      const batch = await tx.importBatch.findFirst({
+        where: { id, actorId: actor.accountId },
+        select: { status: true, expiresAt: true, summary: true, corrections: true },
+      });
+      if (!batch) throw forbiddenAsNotFound();
+      if (batch.status !== ImportStatus.PREVIEWED || batch.expiresAt.getTime() < Date.now())
+        throw conflict('IMPORT_NOT_EDITABLE', 'Pratinjau sudah tidak bisa diubah');
+      const summary = batch.summary as Record<string, unknown>;
+      const items = (summary.abnormalities ?? []) as OrgAbnormality[];
+      const item = items.find((entry) => entry.noReg === noReg);
+      if (!item) throw forbiddenAsNotFound();
+      const edit = Object.fromEntries(
+        Object.entries(parsed.data).filter(([field]) => item.missing.includes(field as OrgField)),
+      ) as Partial<Record<OrgField, string>>;
+      if (!Object.keys(edit).length) throw badRequest('VALIDATION_ERROR', 'Isi kolom yang kosong');
+      const values = { ...item.values, ...edit };
+      const missing = missingOrgFields(item.structuralPosition, values);
+      // Rebuilt from entries so the stored key is a plain own property.
+      const corrections = new Map(Object.entries((batch.corrections ?? {}) as OrgCorrections));
+      corrections.set(item.noReg, { ...corrections.get(item.noReg), ...edit });
+      await tx.importBatch.update({
+        where: { id },
+        data: {
+          corrections: Object.fromEntries(corrections) as Prisma.InputJsonValue,
+          summary: {
+            ...summary,
+            abnormalities: missing.length
+              ? items.map((entry) =>
+                  entry.noReg === noReg ? { ...entry, values, missing } : entry,
+                )
+              : items.filter((entry) => entry.noReg !== noReg),
+          } as Prisma.InputJsonValue,
+          version: { increment: 1 },
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: actor.accountId,
+          actorAccountKind: actor.accountKind,
+          actorCapabilities: actor.capabilities,
+          action: 'ORGANIZATION_IMPORT_ROW_CORRECTED',
+          result: 'SUCCESS',
+          resourceType: 'IMPORT_BATCH',
+          resourceId: id,
+          summary: { noReg, fields: Object.keys(edit) },
+          correlationId: `import:correct:${id}`,
+          releaseSha: loadConfig().RELEASE_SHA,
+        },
+      });
+    });
+    return this.detail(id);
   }
   async changes(id: string, query?: { cursor?: string; limit?: string | number; filter?: string }) {
     await this.detail(id);
@@ -760,7 +846,14 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       work: async (tx) => {
         const batch = await tx.importBatch.findFirst({
           where: { id, actorId: actor.accountId },
-          select: { errors: true, checksum: true, version: true, expiresAt: true, status: true },
+          select: {
+            errors: true,
+            summary: true,
+            checksum: true,
+            version: true,
+            expiresAt: true,
+            status: true,
+          },
         });
         if (!batch) throw forbiddenAsNotFound();
         if (batch.expiresAt && batch.expiresAt.getTime() < Date.now())
@@ -771,6 +864,12 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
           throw conflict('VERSION_CONFLICT', 'Preview version has changed; reload and retry');
         if (Array.isArray(batch.errors) && batch.errors.length)
           throw conflict('IMPORT_VALIDATION_FAILED', 'Import preview contains blocking errors');
+        const incomplete = (batch.summary as { abnormalities?: unknown[] }).abnormalities;
+        if (Array.isArray(incomplete) && incomplete.length)
+          throw conflict(
+            'IMPORT_INCOMPLETE_ORGANIZATION',
+            `${incomplete.length} data organisasi belum lengkap`,
+          );
         const updated = await tx.importBatch.updateMany({
           where: {
             id,
@@ -849,7 +948,10 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
     const path = resolve(loadConfig().MEDIA_ROOT, batch.storageKey);
     const buffer = await readFile(path);
     if (sha256(buffer) !== batch.checksum) throw new Error('CHECKSUM_MISMATCH');
-    const rows = await this.parse(buffer, batch.storageKey.endsWith('.csv') ? 'csv' : 'xlsx');
+    const rows = applyOrgCorrections(
+      await this.parse(buffer, batch.storageKey.endsWith('.csv') ? 'csv' : 'xlsx'),
+      batch.corrections as OrgCorrections,
+    );
     const uniqueUnitRows = new Map<string, ImportRow>();
     for (const row of rows) uniqueUnitRows.set(unitKey(row), row);
     const [currentAccounts, currentEmployees] = await Promise.all([
@@ -1345,6 +1447,7 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
         directorate,
         division,
         department,
+        departmentBlank: !rawDepartment,
         section,
         ...(hasBirthDate ? { birthDate } : {}),
         ...(layout.tier ? { area, line: rawLine || null } : {}),

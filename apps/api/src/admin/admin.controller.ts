@@ -59,6 +59,7 @@ export class AdminController {
     @Query('unitId') unitId?: string,
     @Query('position') position?: string,
     @Query('eligibility') eligibility?: string,
+    @Query('responderLevel') responderLevel?: string,
     @Query('division') division?: string,
     @Query('department') department?: string,
     @Query('section') section?: string,
@@ -73,6 +74,7 @@ export class AdminController {
       unitId,
       position,
       eligibility,
+      responderLevel,
       division,
       department,
       section,
@@ -80,6 +82,14 @@ export class AdminController {
       cursor,
       limit,
     });
+  }
+
+  @Get('accounts/responder-summary') responderSummary(
+    @Query('division') division?: string,
+    @Query('department') department?: string,
+    @Query('section') section?: string,
+  ) {
+    return this.service.responderSummary({ division, department, section });
   }
 
   @Get('accounts/login-summary') loginSummary(
