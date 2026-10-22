@@ -81,7 +81,7 @@ The exact candidate SHA's `Release candidate gate` remains authoritative for rel
 
 ### Normal development
 
-- Use the pinned Node 22.23.2 and pnpm 11.8.0. Run `pnpm install --frozen-lockfile`
+- Use the pinned Node 22.23.4 and pnpm 11.8.0. Run `pnpm install --frozen-lockfile`
   on initial setup or when package manifests, lockfile or toolchain changes.
 - Run `pnpm verify:local --plan` to inspect the conservative selection, then
   `pnpm verify:local`. Optional `--base=<ref>` includes committed changes since the
