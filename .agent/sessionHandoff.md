@@ -1,5 +1,52 @@
 # CARE Session Handoff
 
+## Admin password reset, responder logins, import completeness, full Voice detail — 22 October 2026
+
+**Objective:** four CARE Admin requests from the product owner. Prototypes were rendered and approved before execution; ADR-0070 holds the rules.
+
+1. Reset password is visible again and shows no temporary password.
+2. Accounts summarizes responder logins, following the unit filters.
+3. The import blocks incomplete leader rows and lets the admin complete them in place.
+4. The Voice Explorer opens a full read-only detail page.
+
+**Branch:** `feat/admin-improvements` (worktree `../CARE-login`) from `origin/staging` 03ceed8. Uncommitted at the time of writing.
+
+**Changes:**
+
+- **API:**
+  - `GET /admin/accounts/responder-summary?division&department&section` and the accounts list `responderLevel` filter (`GROUP_LEADER|SECTION_HEAD|MANAGER|DIVISION|ANY`) match the normalized structural position.
+  - The import preview stores `summary.abnormalities` for leaders with empty unit columns (Group Leader: Line, Section, Department, Division; Section Head: Section up; Department Head: Department up; Deputy/Division Head: Division). A blank Department counts as missing.
+  - `PUT /admin/organization-imports/:id/rows/:noReg` fills missing cells, bumps the preview version and audits `ORGANIZATION_IMPORT_ROW_CORRECTED`. The edits go to `ImportBatch.corrections` (migration `20261022090000_import_row_corrections`), and processing applies them to the stored file's rows.
+  - Confirm returns `IMPORT_INCOMPLETE_ORGANIZATION` while any row is incomplete.
+  - Voice list items gain `ratingScore`, the detail gains `tierDueAt` for non-reporters, and timeline events gain `actorName` for CARE Admin and Division Admin.
+  - OpenAPI and contracts were regenerated.
+- **Admin UI:**
+  - Accounts: a Reset action per row and a dialog without a temporary password; the read-only label is gone for the CARE Admin.
+  - Accounts: a responder login card by level, following Divisi/Departemen/Seksi; a click lists that level's accounts that have not logged in. There is also a Responder filter, and the duplicate Nama column is merged into Username / Nama so actions fit at 1280 px.
+  - Imports: a "data belum lengkap" table with inline inputs; Konfirmasi stays disabled until every row is complete.
+  - Voice Explorer: the list shows reporter, category, PIC, time left and rating, and the title links to `/voices/:id`. That full page shows progress, severity, category, time left, PIC, detail, handling, tier stages, closure approval, chat, the completion comment with rating, reporter, timeline with actors and handover history. The old drawer is removed. Private Voices are marked on the reporter line.
+- **Tests:**
+  - `admin-improvements.integration.test.ts`: import abnormalities, edits, confirm block, applied corrections and audit; responder summary and level filter; list rating, detail `tierDueAt`, timeline `actorName`.
+  - `e2e/admin-improvements.spec.ts`: reset dialog, responder summary following the Divisi filter, import inline edit, and list to detail.
+  - Updated: `admin-explorer`, `admin-a11y` (clamp assertion on the title link) and `admin-fullstack` (reset from the row, reporter card on the detail page).
+  - Mock: `responder-summary` and `login-summary` fixtures in `mock-api.ts`.
+  - The browser test inventory goes from 460 to 463.
+- **Docs:** ADR-0070 and the implementationPhases entry.
+
+**Checks (Windows, portable Node 22.23.2, throwaway `pgvector/pgvector:pg16` on port 54349):**
+
+- Passed:
+  - ESLint, typecheck, `openapi:check`.
+  - Unit tests: API 169, ui 26, frontend-core 14, web-admin 2, web-voice 137.
+  - Admin browser specs (improvements, explorer, journeys, a11y, division, login tracking, pages visual): 71/71 on private ports with a scratch config.
+- `verify:ci integration`: 170 integration and 14 security tests passed.
+- `verify:ci organization`: 5 tests passed.
+- `test:migration:upgrade`: all scripts passed, through the scratchpad `psql` shim.
+- `verify:ci performance`: the first run measured an organization dashboard p95 of 3.7 s. It ran straight after the integration job on a busy laptop; this branch changes no dashboard code. Run alone, it passed at 1.5 s.
+- Gitleaks `v8.24.3` directory scan, including uncommitted files: no leaks found.
+- Windows-only failures, the same on clean staging: `validation.test.mjs` tests 6 and 8.
+- Not run locally: the fullstack job (`admin-fullstack.spec.ts` was updated for the new reset dialog and detail page), workforce browser, legacy and capture. CI covers them.
+
 ## Admin Voice Explorer shows the reporter of General Voices — 21 October 2026
 
 **Problem:** the CARE Admin and Division Admins could not see who sent a General Voice. The API returns the reporter for their `LEADERSHIP_GENERAL_READ_ONLY` audience, but the Voice Explorer drawer only rendered the reporter for `ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY` (Private) and `GENERAL_RESPONDER`.

@@ -17,6 +17,7 @@ import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 import type { AuthActor } from '../auth/auth.types';
 import { PolicyService } from '../auth/policy.service';
+import { divisionLeadershipPositions } from '../auth/capabilities';
 import { AiService } from '../ai/ai.service';
 import { CategoriesService } from '../categories/categories.service';
 import {
@@ -54,6 +55,17 @@ const divisionAdminBody = z
   })
   .strict();
 const slots = new Set(Object.values(UnionSlot));
+/** Responders by level, matched on the normalized structural position. */
+const RESPONDER_LEVELS = [
+  { key: 'GROUP_LEADER', label: 'Group Leader', positions: ['group leader'] },
+  { key: 'SECTION_HEAD', label: 'Section Head', positions: ['section head'] },
+  { key: 'MANAGER', label: 'Department Head', positions: ['department head'] },
+  { key: 'DIVISION', label: 'Deputy / Division Head', positions: [...divisionLeadershipPositions] },
+] as const;
+const responderPositions = (level: string) =>
+  level === 'ANY'
+    ? RESPONDER_LEVELS.flatMap((item) => [...item.positions])
+    : [...(RESPONDER_LEVELS.find((item) => item.key === level)?.positions ?? [])];
 const isDepartmentHead = (value?: string | null) =>
   value?.trim().toLocaleLowerCase('en-US') === 'department head';
 const accountResponseSelect = Prisma.validator<Prisma.UserAccountSelect>()({
@@ -372,6 +384,7 @@ export class AdminService {
           unitId?: string;
           position?: string;
           eligibility?: string;
+          responderLevel?: string;
           directorate?: string;
           division?: string;
           department?: string;
@@ -454,6 +467,25 @@ export class AdminService {
                 snapshot: { status: 'ACTIVE' },
                 ...(params.section ? { section: params.section } : {}),
                 ...(Object.keys(unit).length ? { organizationUnit: unit } : {}),
+              },
+            },
+          },
+        },
+      ];
+    const positions = params.responderLevel ? responderPositions(params.responderLevel) : [];
+    if (params.responderLevel && !positions.length)
+      throw badRequest('RESPONDER_LEVEL_INVALID', 'Unknown responder level');
+    if (positions.length)
+      where.AND = [
+        ...((where.AND as Prisma.UserAccountWhereInput[] | undefined) ?? []),
+        {
+          employee: {
+            memberships: {
+              some: {
+                snapshot: { status: 'ACTIVE' },
+                OR: positions.map((position) => ({
+                  structuralPosition: { equals: position, mode: 'insensitive' as const },
+                })),
               },
             },
           },
@@ -549,6 +581,48 @@ export class AdminService {
         loggedIn: row.loggedIn,
         notLoggedIn: row.total - row.loggedIn,
       })),
+    };
+  }
+
+  /**
+   * Responders (Group Leader up to Division Head) in the active snapshot and how
+   * many have logged in, limited by the same unit filters as the account list.
+   */
+  async responderSummary(query: { division?: string; department?: string; section?: string }) {
+    const division = query.division?.trim() || undefined;
+    const department = query.department?.trim() || undefined;
+    const section = query.section?.trim() || undefined;
+    const all = RESPONDER_LEVELS.flatMap((item) => [...item.positions]);
+    const rows = await this.prisma.$queryRaw<
+      { position: string; total: number; loggedIn: number }[]
+    >`
+      SELECT lower(regexp_replace(btrim(m."structuralPosition"), '\\s+', ' ', 'g')) AS "position",
+        COUNT(*)::int AS "total", COUNT(a."lastLoginAt")::int AS "loggedIn"
+      FROM "UserAccount" a
+      JOIN "OrganizationMembership" m ON m."employeeId" = a."employeeId"
+      JOIN "OrganizationSnapshot" s ON s."id" = m."snapshotId" AND s."status" = 'ACTIVE'
+      JOIN "OrganizationUnit" u ON u."id" = m."organizationUnitId"
+      WHERE a."accountKind" = 'WORKFORCE' AND a."status" = 'ACTIVE'
+        AND lower(regexp_replace(btrim(m."structuralPosition"), '\\s+', ' ', 'g')) IN (${Prisma.join(all)})
+        ${division ? Prisma.sql`AND u."division" = ${division}` : Prisma.empty}
+        ${department ? Prisma.sql`AND u."department" = ${department}` : Prisma.empty}
+        ${section ? Prisma.sql`AND m."section" = ${section}` : Prisma.empty}
+      GROUP BY 1`;
+    const levels = RESPONDER_LEVELS.map((level) => {
+      const matched = rows.filter((row) =>
+        (level.positions as readonly string[]).includes(row.position),
+      );
+      return {
+        level: level.key,
+        label: level.label,
+        total: matched.reduce((sum, row) => sum + row.total, 0),
+        loggedIn: matched.reduce((sum, row) => sum + row.loggedIn, 0),
+      };
+    });
+    return {
+      total: levels.reduce((sum, level) => sum + level.total, 0),
+      loggedIn: levels.reduce((sum, level) => sum + level.loggedIn, 0),
+      levels,
     };
   }
 

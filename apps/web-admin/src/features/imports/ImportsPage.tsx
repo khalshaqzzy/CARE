@@ -29,6 +29,7 @@ import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { AdminStepper } from '../../components/AdminStepper';
 import { createAdminApi, type ImportPreview } from '../../admin-api';
 import { ImportTierSummary } from './ImportTierSummary';
+import { ImportAbnormalities, type ImportAbnormality, type OrgField } from './ImportAbnormalities';
 import { cursorPagination } from '../../use-cursor-pagination';
 
 const STEPS = [
@@ -181,6 +182,14 @@ export function ImportsPage() {
   });
 
   const data = detail.data;
+  // Leaders with incomplete organization columns; they block the confirmation.
+  const abnormalities: ImportAbnormality[] = data?.summary.abnormalities ?? [];
+  const saveAbnormality = async (noReg: string, values: Partial<Record<OrgField, string>>) => {
+    await api.correctImportRow(data!.id, noReg, values);
+    await qc.invalidateQueries({
+      queryKey: careQueryKey(session?.sessionId ?? 'anon', 'imports'),
+    });
+  };
   const step = !data ? 0 : data.errors?.length ? 1 : data.status === 'PREVIEWED' ? 2 : 3;
   const changeItems = (changes.data?.items ?? []) as ChangeRow[];
   const counts = {
@@ -391,6 +400,10 @@ export function ImportsPage() {
         </section>
       </div>
 
+      {data?.status === 'PREVIEWED' ? (
+        <ImportAbnormalities items={abnormalities} onSave={saveAbnormality} />
+      ) : null}
+
       {data?.errors?.length ? (
         <Alert
           tone={
@@ -541,7 +554,7 @@ export function ImportsPage() {
               setConfirmKey(crypto.randomUUID());
               setConfirmOpen(true);
             }}
-            disabled={Boolean(data.errors?.length)}
+            disabled={Boolean(data.errors?.length) || abnormalities.length > 0}
           >
             Konfirmasi import
           </Button>

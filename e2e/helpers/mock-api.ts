@@ -799,6 +799,27 @@ export async function mockAdminApi(
       });
     if (method === 'GET' && path === '/api/v1/admin/accounts')
       return fulfill(200, override('accounts') ?? { items: accountFixtures(), nextCursor: null });
+    if (method === 'GET' && path === '/api/v1/admin/accounts/login-summary')
+      return fulfill(200, {
+        division: url.searchParams.get('division'),
+        department: url.searchParams.get('department'),
+        trackingSince: '2026-10-15T00:30:00.000Z',
+        total: 2,
+        loggedIn: 1,
+        notLoggedIn: 1,
+        groups: [{ name: 'Department A', total: 2, loggedIn: 1, notLoggedIn: 1 }],
+      });
+    if (method === 'GET' && path === '/api/v1/admin/accounts/responder-summary')
+      return fulfill(200, {
+        total: 4,
+        loggedIn: 3,
+        levels: [
+          { level: 'GROUP_LEADER', label: 'Group Leader', total: 1, loggedIn: 1 },
+          { level: 'SECTION_HEAD', label: 'Section Head', total: 1, loggedIn: 1 },
+          { level: 'MANAGER', label: 'Department Head', total: 1, loggedIn: 1 },
+          { level: 'DIVISION', label: 'Deputy / Division Head', total: 1, loggedIn: 0 },
+        ],
+      });
     if (method === 'GET' && path.startsWith('/api/v1/admin/accounts/')) {
       return fulfill(200, override('accountDetail') ?? accountFixtures()[0]);
     }

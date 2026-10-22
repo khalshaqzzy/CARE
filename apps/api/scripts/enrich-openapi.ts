@@ -44,12 +44,17 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                     ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
                     : parameter === 'loggedIn'
                       ? { type: 'string', enum: ['true', 'false'] }
-                      : parameter === 'scope'
-                        ? { type: 'string', enum: ['unit', 'team'] }
-                        : parameter === 'action' &&
-                            operation.operationId === 'VoicesController_workItems'
-                          ? { type: 'string', enum: ['me', 'approve', 'closed'] }
-                          : { type: 'string' },
+                      : parameter === 'responderLevel'
+                        ? {
+                            type: 'string',
+                            enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION', 'ANY'],
+                          }
+                        : parameter === 'scope'
+                          ? { type: 'string', enum: ['unit', 'team'] }
+                          : parameter === 'action' &&
+                              operation.operationId === 'VoicesController_workItems'
+                            ? { type: 'string', enum: ['me', 'approve', 'closed'] }
+                            : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -133,6 +138,7 @@ const queryParameters: Record<string, string[]> = {
     'unitId',
     'position',
     'eligibility',
+    'responderLevel',
     'division',
     'department',
     'section',
@@ -141,6 +147,7 @@ const queryParameters: Record<string, string[]> = {
     'limit',
   ],
   AdminController_loginSummary: ['division', 'department'],
+  AdminController_responderSummary: ['division', 'department', 'section'],
   AdminController_issues: ['status', 'type', 'organizationUnitId', 'batchId', 'cursor', 'limit'],
   AdminController_resolutions: ['cursor', 'limit', 'type', 'status'],
   AdminController_auditEvents: [
@@ -269,6 +276,7 @@ const noBodyOperations = new Set([
   'NotificationsController_read',
   'AdminController_accounts',
   'AdminController_loginSummary',
+  'AdminController_responderSummary',
   'AdminController_overview',
   'AdminController_accountDetail',
   'AdminController_resetPassword',
@@ -368,7 +376,11 @@ function successSchema(operationId: string) {
     return { $ref: '#/components/schemas/MemberDashboard' };
   if (operationId === 'VoicesController_listDrafts')
     return { $ref: '#/components/schemas/DraftListResponse' };
-  if (operationId === 'ImportsController_preview' || operationId === 'ImportsController_detail')
+  if (
+    operationId === 'ImportsController_preview' ||
+    operationId === 'ImportsController_detail' ||
+    operationId === 'ImportsController_correctRow'
+  )
     return { $ref: '#/components/schemas/OrganizationImportPreview' };
   if (operationId === 'HealthController_health') return { $ref: '#/components/schemas/Health' };
   if (operationId === 'HealthController_ready') return { $ref: '#/components/schemas/Readiness' };
@@ -381,6 +393,7 @@ function successSchema(operationId: string) {
     AdminController_overview: 'AdminOverview',
     AdminController_accounts: 'AccountSummaryList',
     AdminController_loginSummary: 'AccountLoginSummary',
+    AdminController_responderSummary: 'ResponderLoginSummary',
     AdminController_accountDetail: 'AccountSummary',
     AdminController_resetPassword: 'AccountResetResponse',
     AdminController_setStatus: 'AccountSummary',
@@ -533,6 +546,7 @@ function requestSchema(operationId: string) {
     AdminEscalationSettingsController_deadlines: 'EscalationDeadlinesRequest',
     VoicesController_confirmShop: 'ShopConfirmationRequest',
     ImportsController_confirm: 'ConfirmImportRequest',
+    ImportsController_correctRow: 'OrganizationRowCorrection',
     AuthController_login: 'LoginRequest',
     AuthController_changePassword: 'ChangePasswordRequest',
     NotificationsController_subscribe: 'PushSubscriptionRequest',
@@ -676,6 +690,8 @@ const shopVoiceProperties = {
   },
   // Fasilitas Kerja reported from another department's shop.
   outsideReporter: { type: 'boolean' },
+  // End of the current holder's window; responders and admins only.
+  tierDueAt: { type: 'string', format: 'date-time', nullable: true },
   // Tahap penanganan for responders on tiered Voices.
   tierStages: {
     type: 'array',
@@ -2255,6 +2271,12 @@ const schemas: Record<string, any> = {
       department14Rows: { type: 'integer' },
       globalPicInvalid: { type: 'boolean' },
       unionGaps: { type: 'array', items: { type: 'string' } },
+      abnormalities: {
+        type: 'array',
+        description:
+          'Leaders with incomplete unit columns; the import cannot be confirmed until each is completed.',
+        items: { $ref: '#/components/schemas/OrganizationAbnormality' },
+      },
       tiers: {
         type: 'object',
         description: 'Advisory Area/Line checks for tiered routing; never blocks the import.',
@@ -2299,6 +2321,42 @@ const schemas: Record<string, any> = {
       section: { type: 'string' },
       line: { type: 'string' },
       count: { type: 'integer' },
+    },
+  },
+  OrganizationAbnormality: {
+    type: 'object',
+    required: ['row', 'noReg', 'name', 'structuralPosition', 'values', 'missing'],
+    additionalProperties: false,
+    properties: {
+      row: { type: 'integer' },
+      noReg: { type: 'string' },
+      name: { type: 'string' },
+      structuralPosition: { type: 'string' },
+      values: {
+        type: 'object',
+        required: ['line', 'section', 'department', 'division'],
+        additionalProperties: false,
+        properties: {
+          line: { type: 'string', nullable: true },
+          section: { type: 'string', nullable: true },
+          department: { type: 'string', nullable: true },
+          division: { type: 'string', nullable: true },
+        },
+      },
+      missing: {
+        type: 'array',
+        items: { type: 'string', enum: ['line', 'section', 'department', 'division'] },
+      },
+    },
+  },
+  OrganizationRowCorrection: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      line: { type: 'string', minLength: 1, maxLength: 200 },
+      section: { type: 'string', minLength: 1, maxLength: 200 },
+      department: { type: 'string', minLength: 1, maxLength: 200 },
+      division: { type: 'string', minLength: 1, maxLength: 200 },
     },
   },
   OrganizationImportPreview: {
@@ -2577,6 +2635,32 @@ const schemas: Record<string, any> = {
       deactivatedAt: { type: 'string', format: 'date-time', nullable: true },
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  ResponderLoginSummary: {
+    type: 'object',
+    required: ['total', 'loggedIn', 'levels'],
+    additionalProperties: false,
+    properties: {
+      total: { type: 'integer', minimum: 0 },
+      loggedIn: { type: 'integer', minimum: 0 },
+      levels: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['level', 'label', 'total', 'loggedIn'],
+          additionalProperties: false,
+          properties: {
+            level: {
+              type: 'string',
+              enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION'],
+            },
+            label: { type: 'string' },
+            total: { type: 'integer', minimum: 0 },
+            loggedIn: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
     },
   },
   AccountLoginSummary: {
@@ -3155,6 +3239,13 @@ const schemas: Record<string, any> = {
       targetDueAt: { type: 'string', format: 'date-time', nullable: true },
       reporterName: { type: 'string', nullable: true },
       reporterDepartment: { type: 'string', nullable: true },
+      ratingScore: {
+        type: 'integer',
+        minimum: 1,
+        maximum: 5,
+        nullable: true,
+        description: "Reporter's rating of the latest closure",
+      },
       updatedAt: { type: 'string', format: 'date-time' },
     },
   },
@@ -3475,6 +3566,7 @@ const schemas: Record<string, any> = {
       type: { type: 'string' },
       occurredAt: { type: 'string', format: 'date-time' },
       payload: { type: 'object', additionalProperties: true },
+      actorName: { type: 'string', description: 'Who did it; CARE Admin and Division Admin only' },
     },
   },
   TimelinePage: {

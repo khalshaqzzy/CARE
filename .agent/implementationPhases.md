@@ -1454,3 +1454,15 @@ counts, downloads the division's Voices as Excel (Voice and Chat sheets), and se
 the division's accounts and login state. The CARE Admin creates one per division
 in Admin › Admin Divisi. ADR-0068 records the decision. Phase 13 remains the only
 `in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.
+
+## Admin reset, responder logins, import completeness, Voice detail — 22 October 2026
+
+Implemented locally on `feat/admin-improvements` (from `origin/staging` 03ceed8).
+CARE Admin resets a password from the account row without showing a temporary
+one. Accounts summarizes responder logins by level within the unit filters. The
+organization import lists leaders with empty unit columns, blocks confirmation
+until the admin completes them in place, and applies those edits when processing.
+The Voice Explorer opens a full read-only Voice page with stages, time left, the
+completion comment and the reporter's rating. ADR-0070 records the decisions.
+Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed.
+Checks are in sessionHandoff.md.

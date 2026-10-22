@@ -566,6 +566,8 @@ model ImportBatch {
   storageKey     String
   summary        Json
   errors         Json
+  /// Admin edits to incomplete leader rows, applied when the file is processed.
+  corrections    Json                  @default("{}")
   baseSnapshotId String?               @db.Uuid
   snapshotId     String?               @unique @db.Uuid
   failureCode    String?               @db.VarChar(100)
