@@ -11,6 +11,7 @@ import { VoicesService } from '../../src/voices/voices.service';
 import { AwayService } from '../../src/away/away.service';
 import { TierEscalationService } from '../../src/voices/tier-escalation.service';
 import { HandlingTargetService } from '../../src/voices/handling-target.service';
+import { commitReroute, planReroute } from '../../src/operations/reroute-reporter-department';
 import { jakartaDateKey } from '../../src/escalation/working-time';
 
 const prisma = new PrismaClient();
@@ -1336,6 +1337,137 @@ describe('Tiered routing foundation', () => {
     } finally {
       await prisma.organizationMembership.delete({ where: { id: membership.id } });
     }
+  });
+
+  it('moves active location-owner Voices back to the reporter department chain', async () => {
+    const groupLeader = await principal('700003');
+    const reporterUnit = (
+      await prisma.organizationMembership.findFirstOrThrow({
+        where: { employee: { noReg: '700004' }, snapshot: { status: 'ACTIVE' } },
+      })
+    ).organizationUnitId;
+    // The shop department the Voices were sent to, with its own Manager.
+    const shopUnit = await prisma.organizationUnit.create({
+      data: { directorate: 'Mfg', division: 'Div A', department: 'Paint Shop' },
+    });
+    const shopManager = await prisma.userAccount.create({
+      data: {
+        username: 'shop-manager',
+        displayName: 'Shop Manager',
+        passwordHash: 'test',
+        accountKind: AccountKind.WORKFORCE,
+        passwordChangeRequired: false,
+      },
+    });
+    const shopRoute = await prisma.routeMapping.create({
+      data: {
+        kind: 'DEPARTMENT_HEAD',
+        organizationUnitId: shopUnit.id,
+        ownerAccountId: shopManager.id,
+      },
+    });
+    await prisma.generalVoiceCategory.upsert({
+      where: { key: 'WORK_DIFFICULTY' },
+      update: { tiered: true },
+      create: {
+        key: 'WORK_DIFFICULTY',
+        tiered: true,
+        revisions: {
+          create: { revision: 1, name: 'Kesulitan Kerja', definition: 'Work', examples: [] },
+        },
+        routes: { create: { mode: 'LOCATION_OWNER_DEPARTMENT' } },
+      },
+    });
+    // Routed to the shop the way the incident-shop mode did.
+    const sentToShop = async (key: string) => {
+      const voice = await submitAs('700004', key, Severity.MEDIUM, 'TIER_WELFARE');
+      return prisma.voice.update({
+        where: { id: voice.id },
+        data: {
+          currentCategoryKey: 'WORK_DIFFICULTY',
+          routeOwnerId: shopManager.id,
+          routeMappingId: shopRoute.id,
+          handlingOrganizationUnitId: shopUnit.id,
+          handlingDepartmentSnapshot: 'Paint Shop',
+          outsideReporter: true,
+          tierLevel: 'MANAGER',
+          tierPath: ['MANAGER'],
+          tierHolderIds: [shopManager.id],
+        },
+      });
+    };
+    const open = await sentToShop('reroute-open');
+    const processing = await sentToShop('reroute-processing');
+    await prisma.voice.update({
+      where: { id: processing.id },
+      data: { status: 'IN_PROGRESS', currentHandlerId: shopManager.id, handlerType: 'MANAGER' },
+    });
+    await prisma.conversation.create({ data: { voiceId: processing.id } });
+    await prisma.voiceHandlingTarget.create({
+      data: {
+        voiceId: processing.id,
+        cycleNumber: processing.handlingCycleNumber,
+        days: 3,
+        dueAt: new Date(Date.now() + 3 * 86_400_000),
+        setById: shopManager.id,
+      },
+    });
+    // Handled in the reporter's own department already: never moved.
+    const home = await submitAs('700004', 'reroute-home', Severity.MEDIUM, 'TIER_WELFARE');
+    await prisma.voice.update({
+      where: { id: home.id },
+      data: { currentCategoryKey: 'WORK_DIFFICULTY' },
+    });
+
+    // Refused while the category still routes to the shop.
+    await expect(planReroute(prisma, 'WORK_DIFFICULTY')).rejects.toThrow('Related Dept');
+    await prisma.generalVoiceCategoryRoute.updateMany({
+      where: { category: { key: 'WORK_DIFFICULTY' }, effectiveTo: null },
+      data: { mode: 'RELATED_REPORTER_DEPARTMENT' },
+    });
+
+    const dry = await planReroute(prisma, 'WORK_DIFFICULTY');
+    expect(dry.map((row) => row.voiceId).sort()).toEqual([open.id, processing.id].sort());
+    expect(dry[0]).toMatchObject({ result: 'SIAP', from: 'Paint Shop', to: 'Assy 1' });
+    // A dry run writes nothing.
+    expect((await prisma.voice.findUniqueOrThrow({ where: { id: open.id } })).routeOwnerId).toBe(
+      shopManager.id,
+    );
+
+    const moved = await commitReroute(prisma, 'WORK_DIFFICULTY');
+    expect(moved.every((row) => row.result === 'DIPINDAH')).toBe(true);
+    const manager = await principal('700001');
+    for (const id of [open.id, processing.id])
+      expect(await prisma.voice.findUniqueOrThrow({ where: { id } })).toMatchObject({
+        routeOwnerId: manager.accountId,
+        handlingOrganizationUnitId: reporterUnit,
+        outsideReporter: false,
+        currentHandlerId: null,
+        tierLevel: 'GROUP_LEADER',
+        tierPath: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER'],
+        tierHolderIds: [groupLeader.accountId],
+      });
+    expect((await prisma.voice.findUniqueOrThrow({ where: { id: open.id } })).status).toBe('OPEN');
+    // Diproses starts over at Direspon without the old PIC's target.
+    expect((await prisma.voice.findUniqueOrThrow({ where: { id: processing.id } })).status).toBe(
+      'RESPONDED',
+    );
+    expect(await prisma.voiceHandlingTarget.count({ where: { voiceId: processing.id } })).toBe(0);
+    expect((await voices.detail(groupLeader, processing.id)).availableActions).toContain('PROCEED');
+    expect(
+      await prisma.notification.count({
+        where: {
+          voiceId: open.id,
+          recipientId: groupLeader.accountId,
+          title: 'Voice dialihkan ke Anda',
+        },
+      }),
+    ).toBe(1);
+    // Running it again finds nothing left to move.
+    expect(await planReroute(prisma, 'WORK_DIFFICULTY')).toEqual([]);
+    expect((await prisma.voice.findUniqueOrThrow({ where: { id: home.id } })).version).toBe(
+      home.version,
+    );
   });
 
   it('exposes seeded defaults and edits the working calendar with versions', async () => {

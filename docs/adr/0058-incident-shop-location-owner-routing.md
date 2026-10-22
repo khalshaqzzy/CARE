@@ -69,3 +69,9 @@ The location owner is the organizational fact the reporter-department mode appro
 - Add an Area column per employee/Section to the organization import, then rank or label assignment candidates matching the incident area.
 - Reconsider routing fixed categories through the shop Manager first if operations request it.
 - Revisit the AI confidence threshold for shop matching if confirmations are frequent.
+
+## Amendment (22 October 2026)
+
+The product owner moved Fasilitas Kerja / Kesulitan Kerja back to **Related Dept (department reporter)** in Admin › Kategori. The problem now goes up the reporter's own chain (Group Leader → Section Head → Manager, ADR-0059) rather than to the Manager of the shop where it happened. The `LOCATION_OWNER_DEPARTMENT` mode and the shop catalog stay available for other categories.
+
+The route change applies to new Voices only. The one-off CLI `reroute-reporter-department` moves the active Voices that went to another department's shop back to the start of the reporter's chain. A Voice in Diproses returns to Direspon without its PIC and target. The runbook is `docs/migration/reroute-reporter-department.md`.

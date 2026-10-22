@@ -1,5 +1,21 @@
 # CARE Session Handoff
 
+## Fasilitas Kerja back to the reporter's department — 22 October 2026
+
+**Objective:** Fasilitas Kerja / Kesulitan Kerja goes up the reporter's own chain, not to the incident shop's Manager. The product owner changed the category route in Admin › Kategori to Related Dept. They asked that every active Voice already sent to a shop move too, including Diproses (ADR-0058 amendment).
+
+**Branch:** `fix/facility-route-reporter-dept` (worktree `../CARE-action`) from `origin/staging` 811c785.
+
+**Changes:**
+
+- `operations/reroute-reporter-department.ts` and CLI `dist/cli/reroute-reporter-department.js` (`--category`, default `WORK_DIFFICULTY`, dry run unless `--commit`).
+- It refuses while the category still routes to the shop. Each Voice restarts at the first level of the reporter chain with a new window. Diproses becomes Direspon without the PIC and current target, and a pending closure report is returned. The move adds a timeline event, a chat note and a notification to the new holders.
+- Runbook: `docs/migration/reroute-reporter-department.md`.
+
+**Tests:** integration "moves active location-owner Voices back to the reporter department chain" in `tiered-routing-foundation.integration.test.ts`.
+
+**Next:** after the deploy, the product owner runs the dry run and then `--commit` on the VPS (Hostinger web console).
+
 ## Admin password reset, responder logins, import completeness, full Voice detail — 22 October 2026
 
 **Objective:** four CARE Admin requests from the product owner. Prototypes were rendered and approved before execution; ADR-0070 holds the rules.
