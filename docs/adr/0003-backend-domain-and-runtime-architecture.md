@@ -68,7 +68,7 @@ Not selected for this release. The accepted validation consists of deterministic
 
 ## Implementation Details
 
-- Node.js 22.23.2 and pnpm 11.8.0 are pinned with a frozen lockfile and explicit native build approvals.
+- Node.js 22.23.4 and pnpm 11.8.0 are pinned with a frozen lockfile and explicit native build approvals.
 - Development Compose uses `pgvector/pgvector:pg16` on loopback port 54329 with a persistent development volume and disposable `care_test` database.
 - `pnpm setup:local` creates an ignored mode-0600 root `.env`, links it into the API workspace for Prisma CLI discovery, generates every local secret and VAPID value, and leaves only `VERTEX_API_KEY` empty. It refuses to overwrite existing setup files.
 - Synthetic Employee and complete-snapshot Manager CSVs plus Union JSON are generated under ignored `local-data/`; the dataset covers all Safety/Facility area routes and the local workforce department without containing actual employee data.
