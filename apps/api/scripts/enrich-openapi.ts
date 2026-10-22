@@ -643,6 +643,9 @@ const baseVoiceProperties = {
       displayName: { type: 'string' },
     },
   },
+  // Tiered Voices nobody processes yet: who holds the current level, so the
+  // PIC line names them instead of the route Manager.
+  holderNames: { type: 'array', items: { type: 'string' } },
   attachments: {
     type: 'array',
     items: { $ref: '#/components/schemas/AttachmentResponse' },

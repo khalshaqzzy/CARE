@@ -23490,6 +23490,7 @@
           "closureCycles",
           "routeOwner",
           "currentHandler",
+          "holderNames",
           "attachments",
           "locationReview",
           "closureApproval",
@@ -23665,6 +23666,12 @@
               "displayName": {
                 "type": "string"
               }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "attachments": {
@@ -23896,6 +23903,7 @@
           "closureCycles",
           "routeOwner",
           "currentHandler",
+          "holderNames",
           "attachments",
           "locationReview",
           "closureApproval",
@@ -24071,6 +24079,12 @@
               "displayName": {
                 "type": "string"
               }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "attachments": {
@@ -24298,6 +24312,7 @@
           "closureCycles",
           "routeOwner",
           "currentHandler",
+          "holderNames",
           "attachments",
           "locationReview",
           "closureApproval",
@@ -24473,6 +24488,12 @@
               "displayName": {
                 "type": "string"
               }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "attachments": {
@@ -24713,6 +24734,7 @@
           "closureCycles",
           "routeOwner",
           "currentHandler",
+          "holderNames",
           "attachments",
           "locationReview",
           "closureApproval",
@@ -24888,6 +24910,12 @@
               "displayName": {
                 "type": "string"
               }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "attachments": {
@@ -25104,6 +25132,7 @@
           "closureCycles",
           "routeOwner",
           "currentHandler",
+          "holderNames",
           "attachments",
           "locationReview",
           "closureApproval",
@@ -25279,6 +25308,12 @@
               "displayName": {
                 "type": "string"
               }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "attachments": {
@@ -25506,6 +25541,7 @@
           "closureCycles",
           "routeOwner",
           "currentHandler",
+          "holderNames",
           "attachments",
           "locationReview",
           "closureApproval",
@@ -25682,6 +25718,12 @@
               "displayName": {
                 "type": "string"
               }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "attachments": {
