@@ -153,6 +153,7 @@ describe('Admin improvements', () => {
         .set('X-CSRF-Token', await csrf(admin))
         .send(body);
     expect((await correct('ai-mb-1', { section: 'X' })).status).toBe(404);
+    expect((await correct('__proto__', { section: 'X' })).status).toBe(404);
     expect((await correct('ai-gl-2', { section: 'Seksi 9' })).body.code).toBe('VALIDATION_ERROR');
     await correct('ai-gl-2', { line: 'Line 9' }).then((res) => expect(res.status).toBe(200));
     await correct('ai-sh-1', { section: 'Seksi 2' });

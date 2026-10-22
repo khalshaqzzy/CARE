@@ -551,6 +551,8 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
    * edit is stored with the batch and applied when the import is processed.
    */
   async correctRow(actor: AuthActor, id: string, noReg: string, body: unknown) {
+    // The No. Reg becomes a JSON key; never accept a prototype property name.
+    if (['__proto__', 'constructor', 'prototype'].includes(noReg)) throw forbiddenAsNotFound();
     const parsed = correctionBody.safeParse(body);
     if (!parsed.success)
       throw badRequest('VALIDATION_ERROR', 'Isi kolom yang kosong (maksimal 200 karakter)');
@@ -573,11 +575,13 @@ export class ImportsService implements OnModuleInit, OnModuleDestroy {
       if (!Object.keys(edit).length) throw badRequest('VALIDATION_ERROR', 'Isi kolom yang kosong');
       const values = { ...item.values, ...edit };
       const missing = missingOrgFields(item.structuralPosition, values);
-      const corrections = (batch.corrections ?? {}) as OrgCorrections;
+      // Rebuilt from entries so the stored key is a plain own property.
+      const corrections = new Map(Object.entries((batch.corrections ?? {}) as OrgCorrections));
+      corrections.set(item.noReg, { ...corrections.get(item.noReg), ...edit });
       await tx.importBatch.update({
         where: { id },
         data: {
-          corrections: { ...corrections, [noReg]: { ...corrections[noReg], ...edit } },
+          corrections: Object.fromEntries(corrections) as Prisma.InputJsonValue,
           summary: {
             ...summary,
             abnormalities: missing.length

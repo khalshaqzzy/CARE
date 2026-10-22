@@ -45,6 +45,7 @@
 - `verify:ci performance`: the first run measured an organization dashboard p95 of 3.7 s. It ran straight after the integration job on a busy laptop; this branch changes no dashboard code. Run alone, it passed at 1.5 s.
 - Gitleaks `v8.24.3` directory scan, including uncommitted files: no leaks found.
 - Windows-only failures, the same on clean staging: `validation.test.mjs` tests 6 and 8.
+- **CodeQL on PR #99:** it reported "Remote property injection" (High) because the URL No. Reg became a JSON key in the stored corrections. `correctRow` now refuses `__proto__`, `constructor` and `prototype` and rebuilds the corrections through a Map with `Object.fromEntries`. The integration test covers `__proto__`.
 - Not run locally: the fullstack job (`admin-fullstack.spec.ts` was updated for the new reset dialog and detail page), workforce browser, legacy and capture. CI covers them.
 
 ## Admin Voice Explorer shows the reporter of General Voices — 21 October 2026
