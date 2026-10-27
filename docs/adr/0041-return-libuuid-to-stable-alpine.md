@@ -58,3 +58,11 @@ also pin `libx11=1.8.14-r0`. The other pins are still present in the index and
 stay unchanged. The install was verified on the pinned
 nginx base (`linux/amd64`); the hosted container and Trivy gates remain the
 release checks.
+
+## 27 October 2026: brotli and curl
+
+Trivy reported CVE-2026-111497 (High) in the base image's `brotli-libs`
+1.2.0-r1 and CVE-2026-92392 (High) in `curl`/`libcurl` 8.21.0-r0. Both web
+images pin `brotli-libs=1.2.1-r0`, `curl=8.23.0-r0` and `libcurl=8.23.0-r0`.
+A local Trivy 0.70.0 scan of the pinned nginx base, the Postgres runtime base
+and the Caddy image reports 0 High/Critical.
