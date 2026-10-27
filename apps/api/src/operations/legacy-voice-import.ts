@@ -640,6 +640,8 @@ export async function commitLegacyImport(prisma: PrismaClient, rows: LegacyRow[]
             handlerType: general ? HandlerType.MANAGER : HandlerType.UNION_HEAD,
             anonymousAlias: `Reporter-${displayId.slice(-6)}`,
             submittedAt: item.submittedAt,
+            // Lists sort by updatedAt: keep history below the Voices that are live now.
+            updatedAt: item.closedAt,
           },
         });
         const migrated = { migrated: true, legacySource: item.platform, legacyId: item.legacyId };

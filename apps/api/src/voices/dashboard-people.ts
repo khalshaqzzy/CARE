@@ -262,6 +262,8 @@ export class DashboardPeople {
   /**
    * Handling figures per person over a handling cohort. Every figure traces
    * to recorded events: who held the Voice, who answered, whose deadline passed.
+   * Migrated Voices stay out: their PIC is today's route owner, not the
+   * historical handler.
    */
   private measure(ids: string[], sql: Prisma.Sql) {
     return this.db.$queryRaw<
@@ -284,7 +286,7 @@ export class DashboardPeople {
         SELECT v.id, v."submittedAt", v.status, v."currentHandlerId", v."handlingCycleNumber",
           v."tierHolderIds", v."tierLowerHolderIds", v."tierObserverIds", v."tierParticipantIds",
           v."closureReportedById"
-        FROM "Voice" v WHERE ${sql}
+        FROM "Voice" v WHERE (${sql}) AND v."legacySource" IS NULL
       ),
       people AS (SELECT unnest(${ids}::uuid[]) AS pid),
       events AS MATERIALIZED (

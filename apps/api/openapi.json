@@ -23479,6 +23479,7 @@
           "severity",
           "status",
           "version",
+          "legacySource",
           "submittedAt",
           "updatedAt",
           "classificationSource",
@@ -23583,6 +23584,10 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "submittedAt": {
             "type": "string",
@@ -23892,6 +23897,7 @@
           "severity",
           "status",
           "version",
+          "legacySource",
           "submittedAt",
           "updatedAt",
           "classificationSource",
@@ -23996,6 +24002,10 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "submittedAt": {
             "type": "string",
@@ -24301,6 +24311,7 @@
           "severity",
           "status",
           "version",
+          "legacySource",
           "submittedAt",
           "updatedAt",
           "classificationSource",
@@ -24405,6 +24416,10 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "submittedAt": {
             "type": "string",
@@ -24723,6 +24738,7 @@
           "severity",
           "status",
           "version",
+          "legacySource",
           "submittedAt",
           "updatedAt",
           "classificationSource",
@@ -24827,6 +24843,10 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "submittedAt": {
             "type": "string",
@@ -25121,6 +25141,7 @@
           "severity",
           "status",
           "version",
+          "legacySource",
           "submittedAt",
           "updatedAt",
           "classificationSource",
@@ -25225,6 +25246,10 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "submittedAt": {
             "type": "string",
@@ -25530,6 +25555,7 @@
           "severity",
           "status",
           "version",
+          "legacySource",
           "submittedAt",
           "updatedAt",
           "classificationSource",
@@ -25635,6 +25661,10 @@
           "version": {
             "type": "integer",
             "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "submittedAt": {
             "type": "string",
@@ -29797,6 +29827,10 @@
           },
           "specialHandling": {
             "type": "boolean"
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
           },
           "tierDueAt": {
             "type": "string",

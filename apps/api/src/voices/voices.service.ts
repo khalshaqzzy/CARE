@@ -4875,6 +4875,7 @@ export class VoicesService {
       severity: true,
       status: true,
       updatedAt: true,
+      legacySource: true,
       // Review state of the latest closure cycle for status chips; at most one
       // cycle can be pending per voice, so the newest row is enough.
       closureCycles: {
@@ -5392,6 +5393,8 @@ export class VoicesService {
       version: voice.version,
       submittedAt: voice.submittedAt,
       updatedAt: voice.updatedAt,
+      // Platform a migrated Voice came from; null for Voices sent in CARE.
+      legacySource: voice.legacySource ?? null,
       classificationSource: voice.classification?.source ?? null,
       routeOwner:
         voice.visibility === VoiceVisibility.PRIVATE

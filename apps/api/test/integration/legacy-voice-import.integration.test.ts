@@ -9,12 +9,14 @@ import {
   readLegacyWorkbook,
 } from '../../src/operations/legacy-voice-import';
 import { OrganizationDashboard } from '../../src/voices/dashboard';
+import { DashboardPeople } from '../../src/voices/dashboard-people';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const db = new PrismaClient();
 const policy = new PolicyService(db as never);
 const voices = new VoicesService(db as never, {} as never, {} as never, policy);
 const dashboard = new OrganizationDashboard(db as never);
+const people = new DashboardPeople(db as never);
 let manager: Principal, reporter: Principal;
 let handling: OrganizationUnit, home: OrganizationUnit;
 
@@ -263,23 +265,41 @@ describe('Legacy voice import', () => {
     expect(former).toMatchObject({ status: 'INACTIVE', accountKind: 'WORKFORCE' });
     expect(await db.notification.count()).toBe(0);
 
+    // Volume only: counted, but out of timeliness, the averages and personal figures.
     const result = await dashboard.aggregate(manager, { basis: 'HANDLING' });
     expect(result.total).toBe(2);
+    expect(result.status).toEqual([{ label: 'CLOSED', value: 2 }]);
     expect(result.handlingUnresolved).toBe(0);
+    expect(result.onTime).toEqual({ onTime: 0, total: 0 });
     expect(result.performance).toMatchObject({
-      averageResponseSeconds: 7200,
-      responseSampleCount: 1,
-      averageCompletionSeconds: 172800,
-      completionSampleCount: 2,
-      averageFeedbackScore: 4,
-      feedbackSampleCount: 1,
+      averageResponseSeconds: null,
+      responseSampleCount: 0,
+      averageCompletionSeconds: null,
+      completionSampleCount: 0,
+      averageFeedbackScore: null,
+      feedbackSampleCount: 0,
     });
+    expect(await people.mine(manager, {})).toMatchObject({
+      held: 0,
+      onTimeRate: null,
+      responseSampleCount: 0,
+      completionSampleCount: 0,
+      ratingCount: 0,
+    });
+
+    // History sorts below live Voices on the member home.
+    expect(voice.updatedAt).toEqual(new Date('2025-03-16T02:00:00Z'));
+    const memberHome = await voices.dashboardMember(reporter);
+    expect(memberHome.counts.CLOSED).toBe(2);
 
     const unrated = await db.voice.findFirstOrThrow({ where: { legacyId: 'OLD-2' } });
     const detail = await voices.detail(reporter, unrated.id);
     expect(detail.availableActions).not.toContain('RATE');
+    // Clients badge migrated Voices with their source platform.
+    expect(detail.legacySource).toBe('Voice App Plant');
     const found = await voices.listMine(reporter, { search: 'old-1' });
     expect(found.items.map((v: { id: string }) => v.id)).toEqual([voice.id]);
+    expect(found.items[0]?.legacySource).toBe('Voice App Plant');
 
     const next = await commitLegacyImport(
       db,

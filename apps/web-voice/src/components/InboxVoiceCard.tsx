@@ -13,6 +13,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import type { VoiceListItem } from '../workforce-api';
+import { LegacySourceBadge } from './LegacySourceBadge';
 import { OverdueBadge } from './OverdueBadge';
 import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 import {
@@ -133,6 +134,7 @@ export function InboxVoiceCard({
           <span className="inbox-card__title">{voice.title}</span>
           <span className="inbox-card__meta">
             {identity ? <span className="inbox-card__id">{voice.displayId}</span> : area}
+            <LegacySourceBadge source={voice.legacySource} />
             {category ? (
               <>
                 <span className="inbox-card__dot" aria-hidden="true" />

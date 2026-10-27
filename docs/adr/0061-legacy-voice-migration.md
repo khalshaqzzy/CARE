@@ -18,10 +18,13 @@ CARE replaces the member-voice platforms already in use. Management wants the Vo
   - a display ID `MIG-<YYYYMM of submit>-<sequence>`, separate from the `CARE-` sequence;
   - status Closed;
   - one closure cycle that is already accepted;
-  - SUBMITTED, RESPONDED, CLOSED, and RATED events at their historical times, so dashboard averages use the old timestamps;
-  - the rating, when one exists.
+  - SUBMITTED, RESPONDED, CLOSED, and RATED events at their historical times;
+  - the rating, when one exists;
+  - `updatedAt` set to the close time, so lists sorted by last update keep them below live Voices.
 
-  An empty response date or rating is left empty and excluded from averages. It is never recorded as zero.
+  An empty response date or rating is left empty. It is never recorded as zero.
+
+- **Dashboards count migrated Voices as volume only** (amended 27 October 2026). They appear in totals, status, severity, category, area, organization, trend, and per-member Voice counts. They stay out of timeliness (Tepat Waktu), the response, completion, and rating averages, Performa Responder, and Kinerja Saya. The recorded PIC is often today's route owner, not the person who handled the Voice, so crediting it would bias who looks like the best responder.
 
 - **Organization:**
   - The handling department of a General Voice must match a current CARE department, because the default dashboard groups by it. The importer stores CARE's own names, with `handlingOrganizationSource = 'LEGACY_IMPORT'`.
@@ -35,6 +38,6 @@ CARE replaces the member-voice platforms already in use. Management wants the Vo
 
 ## Consequences
 
-- The operations dashboard counts every migrated Voice as on time, because the old platforms recorded no deadlines. Timeliness is meaningful only for Voices submitted in CARE.
+- Performance figures cover only Voices handled in CARE. The old platforms recorded no deadlines, and their response times and ratings cannot be traced to a person. The old figures stay in the source workbooks.
 - Organization names that have changed must be rewritten to the current CARE names before import. The dry-run report lists every row that does not match.
 - The CLI runs inside the API image on the server (see `docs/migration/README.md`). It needs no new compose service.
