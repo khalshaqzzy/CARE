@@ -570,6 +570,8 @@ export class OrganizationDashboard {
   // still open past the deadline that applies to them. Both are skipped
   // (zero) without `ops`, for views that do not show them. `metrics` groups
   // the same materialized cohort (carrying `columns`) instead of rescanning Voice.
+  // Migrated Voices count as volume only: their PIC is today's route owner, not
+  // the historical handler, so timeliness and the averages leave them out.
   private async performanceFor(
     sql: Prisma.Sql,
     {
@@ -596,9 +598,11 @@ export class OrganizationDashboard {
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM flags WHERE proceeded)) AS "proceededToday",
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM closed)) AS "closedToday",
           count(*) FILTER (WHERE (v.status <> 'OPEN'
-            OR v.id IN (SELECT "voiceId" FROM flags WHERE missed)) AND NOT ${special}) AS "onTimeTotal",
+            OR v.id IN (SELECT "voiceId" FROM flags WHERE missed)) AND NOT ${special}
+            AND v."legacySource" IS NULL) AS "onTimeTotal",
           count(*) FILTER (WHERE v.status <> 'OPEN'
-            AND v.id NOT IN (SELECT "voiceId" FROM flags WHERE missed) AND NOT ${special}) AS "onTime",
+            AND v.id NOT IN (SELECT "voiceId" FROM flags WHERE missed) AND NOT ${special}
+            AND v."legacySource" IS NULL) AS "onTime",
           count(*) FILTER (WHERE ${special}) AS "specialHandling"`
       : Prisma.sql`0::bigint AS "openedToday", 0::bigint AS "proceededToday", 0::bigint AS "closedToday",
           0::bigint AS "onTimeTotal", 0::bigint AS "onTime", 0::bigint AS "specialHandling"`;
@@ -629,7 +633,7 @@ export class OrganizationDashboard {
       >(Prisma.sql`
       WITH base AS MATERIALIZED (
         SELECT v.id, v."submittedAt", v."handlingOrganizationSource", v.status, v."tierDueAt",
-          v."handlingCycleNumber" ${extra.length ? Prisma.join(extra, '') : Prisma.empty},
+          v."handlingCycleNumber", v."legacySource" ${extra.length ? Prisma.join(extra, '') : Prisma.empty},
           ${other ? Prisma.sql`COALESCE((${sql}), false) AS mine, COALESCE((${other}), false) AS theirs` : Prisma.sql`true AS mine, false AS theirs`}
         FROM "Voice" v WHERE ${other ? Prisma.sql`(${sql}) OR (${other})` : sql}),
       cohort AS NOT MATERIALIZED (SELECT * FROM base WHERE mine),
@@ -637,6 +641,7 @@ export class OrganizationDashboard {
       responses AS (
         SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted
         FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type IN ('MONITORED', 'RESPONDED')
+        WHERE v."legacySource" IS NULL
         GROUP BY v.id, v."submittedAt"
       ), special_targets AS MATERIALIZED (
         SELECT t."voiceId", t."cycleNumber" FROM "VoiceHandlingTarget" t WHERE t.kind = 'SPECIAL'
@@ -658,6 +663,7 @@ export class OrganizationDashboard {
         FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
         LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
           AND previous."cycleNumber" = c."cycleNumber" - 1
+        WHERE v."legacySource" IS NULL
       )
       SELECT summary.*, response.*, completion.*, ${
         other ? Prisma.sql`(SELECT count(*) FROM base WHERE theirs)` : Prisma.sql`NULL::bigint`
