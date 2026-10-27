@@ -786,6 +786,7 @@ model Voice {
   attachments                     Attachment[]
   assignments                     VoiceAssignment[]
   events                          VoiceEvent[]
+  responseTiming                  VoiceResponseTiming?
   conversation                    Conversation?
   closureCycles                   ClosureCycle[]
   handlingTargets                 VoiceHandlingTarget[]
@@ -996,6 +997,16 @@ model VoiceEvent {
   @@index([voiceId, occurredAt, id])
 }
 
+/// First and latest MONITORED/RESPONDED event per Voice, kept by a database
+/// trigger on VoiceEvent so the dashboard reads them without scanning events
+/// (ADR-0071). Never written by application code.
+model VoiceResponseTiming {
+  voiceId         String   @id @db.Uuid
+  firstResponseAt DateTime
+  lastResponseAt  DateTime
+  voice           Voice    @relation(fields: [voiceId], references: [id], onDelete: Cascade)
+}
+
 model Conversation {
   id         String                  @id @default(uuid()) @db.Uuid
   voiceId    String                  @unique @db.Uuid
@@ -1074,6 +1085,10 @@ model ClosureCycle {
   /// When the PIC finished: their report time when leaders approved first.
   completedAt      DateTime?
   reopenedAt       DateTime?
+  /// When this cycle's work began: the Voice's submit time for the first cycle,
+  /// the previous cycle's reopen time after that. Set by a database trigger
+  /// (ADR-0071); never written by application code.
+  startedAt        DateTime?
   reviewState      ClosureReviewState @default(PENDING)
   reviewDeadline   DateTime?
   reviewResolvedAt DateTime?
