@@ -451,6 +451,24 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByText('Pencahayaan area produksi kurang')).toBeVisible();
   });
 
+  test('history tags a migrated voice with its source platform', async ({ page }) => {
+    const migrated = {
+      ...generalVoice,
+      id: 'voice-mig',
+      displayId: 'MIG-202503-000001',
+      title: 'Lantai area welding licin',
+    };
+    await mockWorkforceApi(page, {
+      myVoiceList: {
+        items: [baseVoiceItem(generalVoice), { ...baseVoiceItem(migrated), legacySource: 'PADi' }],
+        nextCursor: null,
+      },
+    });
+    await page.goto('/history');
+    await expect(page.getByTitle('Dari platform PADi')).toHaveText('PADi');
+    await expect(page.locator('.voice-legacy')).toHaveCount(1);
+  });
+
   test('responder history requests only personal voices despite broad browse access', async ({
     page,
   }) => {

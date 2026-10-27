@@ -18,6 +18,7 @@ import {
 } from '../lib/formatters';
 import { categoryIcon, SEVERITY_FLAG_TONES, statusFlagTone } from '../lib/voice-visuals';
 import type { VoiceDetail } from '../workforce-api';
+import { LegacySourceBadge } from './LegacySourceBadge';
 import { OverdueBadge } from './OverdueBadge';
 import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 
@@ -122,6 +123,7 @@ export function VoiceHero({
           ) : null}
           {overdue ? <OverdueBadge /> : null}
           {special ? <SpecialHandlingBadge /> : null}
+          <LegacySourceBadge source={voice.legacySource} />
           {voice.outsideReporter && voice.audience !== 'REPORTER_SELF' ? (
             <span className="voice-outside">Pelapor dari luar department</span>
           ) : null}

@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { DotLabel } from '@care/ui';
 import type { VoiceListItem } from '../workforce-api';
+import { LegacySourceBadge } from './LegacySourceBadge';
 import { OverdueBadge } from './OverdueBadge';
 import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 import {
@@ -48,6 +49,7 @@ export function HistoryVoiceCard({ voice, onOpen }: { voice: VoiceListItem; onOp
       <span className="history-card__body">
         <span className="history-card__meta">
           <span className="history-card__id">{voice.displayId}</span>
+          <LegacySourceBadge source={voice.legacySource} />
           <span className="history-card__vis" data-visibility={voice.visibility}>
             {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility}
           </span>

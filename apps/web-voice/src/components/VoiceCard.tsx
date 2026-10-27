@@ -2,6 +2,7 @@ import { Button, Card } from '@care/ui';
 import { Activity, ArrowRight, Flag, Layers, MapPin } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { VoiceListItem } from '../workforce-api';
+import { LegacySourceBadge } from './LegacySourceBadge';
 import { OverdueBadge } from './OverdueBadge';
 import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 import {
@@ -70,6 +71,7 @@ export function VoiceCard({
     <Card className="voice-card" data-severity={voice.severity} interactive={draggable}>
       <div className="voice-card__meta">
         <span className="voice-card__id">{voice.displayId}</span>
+        <LegacySourceBadge source={voice.legacySource} />
         <span className="voice-card__vis">
           {VISIBILITY_LABELS[voice.visibility] ?? voice.visibility}
         </span>

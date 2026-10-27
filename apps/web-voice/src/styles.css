@@ -6419,6 +6419,18 @@
   font-weight: 600;
   white-space: nowrap;
 }
+.voice-legacy {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 1px 6px;
+  border: 1px solid #c8d0db;
+  border-radius: 4px;
+  color: #3f4b5b;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .voice-outside {
   display: inline-flex;
   width: fit-content;

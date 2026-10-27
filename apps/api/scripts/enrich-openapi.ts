@@ -607,6 +607,8 @@ const baseVoiceProperties = {
   severity: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
   status: { type: 'string', enum: ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] },
   version: { type: 'integer', minimum: 1 },
+  // Platform a migrated Voice came from; null for Voices sent in CARE.
+  legacySource: { type: 'string', nullable: true },
   submittedAt: { type: 'string', format: 'date-time' },
   updatedAt: { type: 'string', format: 'date-time' },
   classificationSource: {
@@ -3235,6 +3237,7 @@ const schemas: Record<string, any> = {
       // The live handling target has passed while the Voice is still Diproses.
       targetOverdue: { type: 'boolean' },
       specialHandling: { type: 'boolean' },
+      legacySource: baseVoiceProperties.legacySource,
       // Dashboard preview of General Voices only: end of the current tier
       // holder's window and the reporter shown to authorized responders.
       tierDueAt: { type: 'string', format: 'date-time', nullable: true },

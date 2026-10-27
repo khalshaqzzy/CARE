@@ -2674,6 +2674,7 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            legacySource: string | null;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -2773,6 +2774,7 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            legacySource: string | null;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -2870,6 +2872,7 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            legacySource: string | null;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -2972,6 +2975,7 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            legacySource: string | null;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -3067,6 +3071,7 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            legacySource: string | null;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -3164,6 +3169,7 @@ export interface components {
             /** @enum {string} */
             status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
             version: number;
+            legacySource: string | null;
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -4206,6 +4212,7 @@ export interface components {
             closureReviewDeadline?: string | null;
             targetOverdue?: boolean;
             specialHandling?: boolean;
+            legacySource?: string | null;
             /** Format: date-time */
             tierDueAt?: string | null;
             /** Format: date-time */

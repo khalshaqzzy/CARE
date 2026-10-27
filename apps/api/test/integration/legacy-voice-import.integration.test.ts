@@ -295,8 +295,11 @@ describe('Legacy voice import', () => {
     const unrated = await db.voice.findFirstOrThrow({ where: { legacyId: 'OLD-2' } });
     const detail = await voices.detail(reporter, unrated.id);
     expect(detail.availableActions).not.toContain('RATE');
+    // Clients badge migrated Voices with their source platform.
+    expect(detail.legacySource).toBe('Voice App Plant');
     const found = await voices.listMine(reporter, { search: 'old-1' });
     expect(found.items.map((v: { id: string }) => v.id)).toEqual([voice.id]);
+    expect(found.items[0]?.legacySource).toBe('Voice App Plant');
 
     const next = await commitLegacyImport(
       db,
