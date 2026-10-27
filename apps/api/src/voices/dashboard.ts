@@ -60,7 +60,7 @@ function parts(id: string): string[] {
   }
   throw badRequest('INVALID_ORGANIZATION', 'Pilihan organisasi tidak valid');
 }
-/** Decode an opaque organization identifier into its directorate → section path. */
+/** Decode an opaque organization identifier into its directorate â†’ section path. */
 export const decodeOrganization = (id: string) => parts(id);
 function parse(input: unknown): Query {
   const result = dashboardQuerySchema.safeParse(input);
@@ -571,7 +571,10 @@ export class OrganizationDashboard {
   // (zero) without `ops`, for views that do not show them. `metrics` groups
   // the same materialized cohort (carrying `columns`) instead of rescanning Voice.
   // Migrated Voices count as volume only: their PIC is today's route owner, not
-  // the historical handler, so timeliness and the averages leave them out.
+  // the historical handler, so timeliness and the averages leave them out. They
+  // are excluded by id from their small indexed set rather than flagged on every
+  // cohort row, and the cohort carries only the columns this view reads: each
+  // extra column widens the materialized rows the joins below rescan.
   private async performanceFor(
     sql: Prisma.Sql,
     {
@@ -588,7 +591,15 @@ export class OrganizationDashboard {
       other?: Prisma.Sql;
     } = {},
   ) {
-    const extra = [...new Set(columns)].map((name) => Prisma.sql`, ${column(name)}`);
+    const extra = [
+      ...new Set([
+        ...(ops || overdue || metrics ? ['status'] : []),
+        ...(overdue ? ['tierDueAt'] : []),
+        ...(ops || overdue ? ['handlingCycleNumber'] : []),
+        ...columns,
+      ]),
+    ].map((name) => Prisma.sql`, ${column(name)}`);
+    const migrated = Prisma.sql`v.id NOT IN (SELECT id FROM migrated)`;
     // Penanganan Khusus has no deadline, so it stays out of timeliness and is counted apart.
     // Looked up once per query (hashed), not per Voice: the set of live special cycles is tiny.
     const special = Prisma.sql`(v.status = 'IN_PROGRESS'
@@ -599,10 +610,10 @@ export class OrganizationDashboard {
           count(*) FILTER (WHERE v.id IN (SELECT "voiceId" FROM closed)) AS "closedToday",
           count(*) FILTER (WHERE (v.status <> 'OPEN'
             OR v.id IN (SELECT "voiceId" FROM flags WHERE missed)) AND NOT ${special}
-            AND NOT v.legacy) AS "onTimeTotal",
+            AND ${migrated}) AS "onTimeTotal",
           count(*) FILTER (WHERE v.status <> 'OPEN'
             AND v.id NOT IN (SELECT "voiceId" FROM flags WHERE missed) AND NOT ${special}
-            AND NOT v.legacy) AS "onTime",
+            AND ${migrated}) AS "onTime",
           count(*) FILTER (WHERE ${special}) AS "specialHandling"`
       : Prisma.sql`0::bigint AS "openedToday", 0::bigint AS "proceededToday", 0::bigint AS "closedToday",
           0::bigint AS "onTimeTotal", 0::bigint AS "onTime", 0::bigint AS "specialHandling"`;
@@ -632,19 +643,17 @@ export class OrganizationDashboard {
         }>
       >(Prisma.sql`
       WITH base AS MATERIALIZED (
-        SELECT v.id, v."submittedAt", v."handlingOrganizationSource", v.status, v."tierDueAt",
-          v."handlingCycleNumber", v."legacySource" IS NOT NULL AS legacy ${extra.length ? Prisma.join(extra, '') : Prisma.empty},
-          ${other ? Prisma.sql`COALESCE((${sql}), false) AS mine, COALESCE((${other}), false) AS theirs` : Prisma.sql`true AS mine, false AS theirs`}
+        SELECT v.id, v."submittedAt", v."handlingOrganizationSource" ${extra.length ? Prisma.join(extra, '') : Prisma.empty}
+          ${other ? Prisma.sql`, COALESCE((${sql}), false) AS mine, COALESCE((${other}), false) AS theirs` : Prisma.empty}
         FROM "Voice" v WHERE ${other ? Prisma.sql`(${sql}) OR (${other})` : sql}),
-      cohort AS NOT MATERIALIZED (SELECT * FROM base WHERE mine),
+      cohort AS NOT MATERIALIZED (SELECT * FROM base ${other ? Prisma.sql`WHERE mine` : Prisma.empty}),
       bound AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta') AS t),
-      -- Migrated Voices ride along as a flag and drop out in the aggregates, so
-      -- these joins plan exactly as before.
+      migrated AS MATERIALIZED (SELECT id FROM "Voice" WHERE "legacySource" IS NOT NULL),
       responses AS (
-        SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted,
-          v.legacy
+        SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted
         FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type IN ('MONITORED', 'RESPONDED')
-        GROUP BY v.id, v."submittedAt", v.legacy
+        WHERE ${migrated}
+        GROUP BY v.id, v."submittedAt"
       ), special_targets AS MATERIALIZED (
         SELECT t."voiceId", t."cycleNumber" FROM "VoiceHandlingTarget" t WHERE t.kind = 'SPECIAL'
       ), flags AS MATERIALIZED (
@@ -661,8 +670,8 @@ export class OrganizationDashboard {
         -- Completion runs to when the PIC finished (reported done), not the approval.
         SELECT c.id, COALESCE(c."completedAt", c."closedAt") AS "closedAt",
           CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
-          ELSE previous."reopenedAt" END AS started, v.legacy
-        FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id
+          ELSE previous."reopenedAt" END AS started
+        FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id AND ${migrated}
         LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
           AND previous."cycleNumber" = c."cycleNumber" - 1
       )
@@ -686,21 +695,18 @@ export class OrganizationDashboard {
           } AS overdue
         FROM cohort v
       ) summary CROSS JOIN (
-        SELECT EXTRACT(EPOCH FROM sum(monitored - submitted)
-            FILTER (WHERE monitored >= submitted AND NOT legacy))::float8
-            / NULLIF(count(*) FILTER (WHERE monitored >= submitted AND NOT legacy), 0) AS "averageResponseSeconds",
-          count(*) FILTER (WHERE monitored >= submitted AND NOT legacy) AS "responseSampleCount",
+        SELECT EXTRACT(EPOCH FROM sum(monitored - submitted) FILTER (WHERE monitored >= submitted))::float8
+            / NULLIF(count(*) FILTER (WHERE monitored >= submitted), 0) AS "averageResponseSeconds",
+          count(*) FILTER (WHERE monitored >= submitted) AS "responseSampleCount",
           count(*) FILTER (WHERE latest >= (SELECT t FROM bound)) AS "respondedToday"
         FROM responses
       ) response CROSS JOIN (
         SELECT
           EXTRACT(EPOCH FROM (sum(c."closedAt" - c.started)
-            FILTER (WHERE c."closedAt" >= c.started AND NOT c.legacy)))::float8 /
-            NULLIF(count(*) FILTER (WHERE c."closedAt" >= c.started AND NOT c.legacy), 0)
-            AS "averageCompletionSeconds",
-          count(*) FILTER (WHERE c."closedAt" >= c.started AND NOT c.legacy) AS "completionSampleCount",
-          avg(r.score) FILTER (WHERE NOT c.legacy)::float8 AS "averageFeedbackScore",
-          count(r.score) FILTER (WHERE NOT c.legacy) AS "feedbackSampleCount"
+            FILTER (WHERE c."closedAt" >= c.started)))::float8 /
+            NULLIF(count(*) FILTER (WHERE c."closedAt" >= c.started), 0) AS "averageCompletionSeconds",
+          count(*) FILTER (WHERE c."closedAt" >= c.started) AS "completionSampleCount",
+          avg(r.score)::float8 AS "averageFeedbackScore", count(r.score) AS "feedbackSampleCount"
         FROM cycles c LEFT JOIN "Rating" r ON r."closureCycleId" = c.id
       ) completion
     `)

@@ -1,5 +1,17 @@
 # CARE Session Handoff
 
+## Organization dashboard performance headroom — 27 October 2026
+
+**Problem:** after PR #103 merged, the staging run failed `API (performance)` three times (p95 3023/3080/3078 ms against 3000 ms), so satucare.com kept the previous release. Staging before #103 already ran at 2875–2947 ms.
+
+**Findings (50k fixture, interleaved psql timing; single runs are too noisy on Windows Docker):**
+
+- The per-row migrated flag cost the organization-wide query about 9%: any extra column in the materialized `base` slows the joins that rescan it.
+- Rewrites that did not help: pre-grouping events, `lag()` or a correlated subselect for the previous cycle, more `work_mem`, a covering index (the warm heap scan is only ~7 ms), grouping wide views from `base`, splitting member scopes, deduplicating scope predicates.
+- The response and closure-cycle joins are about two-thirds of the wide summary query; storing those timings is the remaining large lever (follow-up PR).
+
+**Change (`fix/org-dashboard-headroom`):** `performanceFor` excludes migrated Voices by id from a small `migrated` set (read via the `(legacySource, legacyId)` index) and carries only the columns a view reads (`mine`/`theirs` only with a second basis; `status`, `tierDueAt`, `handlingCycleNumber` only for ops/overdue/metrics). Director 217 vs 227–231 ms, division leadership 275 vs 281–284 ms serial; member unchanged.
+
 ## Legacy Voice migration from earlier member-voice platforms — 5 to 27 October 2026
 
 **Objective:** Management is replacing the existing member-voice platforms with CARE. Every Voice already sent there must appear in CARE, mainly so the dashboard is complete. The user (CARE side) sends one Excel template to each old platform's PIC, who fills it in. The user then imports it.
