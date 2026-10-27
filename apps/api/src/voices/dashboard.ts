@@ -60,7 +60,7 @@ function parts(id: string): string[] {
   }
   throw badRequest('INVALID_ORGANIZATION', 'Pilihan organisasi tidak valid');
 }
-/** Decode an opaque organization identifier into its directorate â†’ section path. */
+/** Decode an opaque organization identifier into its directorate → section path. */
 export const decodeOrganization = (id: string) => parts(id);
 function parse(input: unknown): Query {
   const result = dashboardQuerySchema.safeParse(input);
@@ -560,8 +560,8 @@ export class OrganizationDashboard {
     );
   }
 
-  // Aggregate response samples separately. The closure predecessor and rating
-  // joins are at most one-to-one under their unique constraints, so unrated
+  // Aggregate response samples separately. The rating join is at most
+  // one-to-one under its unique constraint, so unrated
   // closures and ratings with incomplete timestamps keep independent counts.
   // The same cohort also yields today's lifecycle counts (WIB, from today's
   // events only) and timeliness: a Voice counts once someone owed it an answer (it
@@ -649,11 +649,11 @@ export class OrganizationDashboard {
       cohort AS NOT MATERIALIZED (SELECT * FROM base ${other ? Prisma.sql`WHERE mine` : Prisma.empty}),
       bound AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta') AS t),
       migrated AS MATERIALIZED (SELECT id FROM "Voice" WHERE "legacySource" IS NOT NULL),
+      -- Response and cycle-start times are stored at write time (ADR-0071).
       responses AS (
-        SELECT min(e."occurredAt") AS monitored, max(e."occurredAt") AS latest, v."submittedAt" AS submitted
-        FROM cohort v JOIN "VoiceEvent" e ON e."voiceId" = v.id AND e.type IN ('MONITORED', 'RESPONDED')
+        SELECT r."firstResponseAt" AS monitored, r."lastResponseAt" AS latest, v."submittedAt" AS submitted
+        FROM cohort v JOIN "VoiceResponseTiming" r ON r."voiceId" = v.id
         WHERE ${migrated}
-        GROUP BY v.id, v."submittedAt"
       ), special_targets AS MATERIALIZED (
         SELECT t."voiceId", t."cycleNumber" FROM "VoiceHandlingTarget" t WHERE t.kind = 'SPECIAL'
       ), flags AS MATERIALIZED (
@@ -668,12 +668,8 @@ export class OrganizationDashboard {
         SELECT "voiceId" FROM "ClosureCycle" WHERE "closedAt" >= (SELECT t FROM bound)
       ), cycles AS (
         -- Completion runs to when the PIC finished (reported done), not the approval.
-        SELECT c.id, COALESCE(c."completedAt", c."closedAt") AS "closedAt",
-          CASE WHEN c."cycleNumber" = 1 THEN v."submittedAt"
-          ELSE previous."reopenedAt" END AS started
+        SELECT c.id, COALESCE(c."completedAt", c."closedAt") AS "closedAt", c."startedAt" AS started
         FROM cohort v JOIN "ClosureCycle" c ON c."voiceId" = v.id AND ${migrated}
-        LEFT JOIN "ClosureCycle" previous ON previous."voiceId" = c."voiceId"
-          AND previous."cycleNumber" = c."cycleNumber" - 1
       )
       SELECT summary.*, response.*, completion.*, ${
         other ? Prisma.sql`(SELECT count(*) FROM base WHERE theirs)` : Prisma.sql`NULL::bigint`

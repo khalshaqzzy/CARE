@@ -1,5 +1,17 @@
 # CARE Session Handoff
 
+## Dashboard timings stored by triggers — 27 October 2026
+
+**Branch:** `feat/stored-dashboard-timings`, stacked on `fix/org-dashboard-headroom` (PR #104); merge #104 first.
+
+**Change (ADR-0071):** migration `20261027090000_dashboard_stored_timings` adds `VoiceResponseTiming` (first/latest MONITORED/RESPONDED per Voice, cascades with its Voice) and `ClosureCycle.startedAt`, backfills both, and installs the schema's first triggers to keep them exact. `performanceFor` reads them instead of joining events and the previous cycle.
+
+**Numbers (50k fixture):** serial Director 186 ms (staging 228), division leadership 246 ms (285), member unchanged; concurrent CI-style p95 1.5–1.8 s against 2.0–2.05 s.
+
+**Tests:** new `dashboard-stored-timings.integration.test.ts`; full local `test/integration` + `test/security` run: 26 files, 193 tests passed.
+
+**Next:** `dashboard-people.ts` can switch to the stored values too.
+
 ## Organization dashboard performance headroom — 27 October 2026
 
 **Problem:** after PR #103 merged, the staging run failed `API (performance)` three times (p95 3023/3080/3078 ms against 3000 ms), so satucare.com kept the previous release. Staging before #103 already ran at 2875–2947 ms.
