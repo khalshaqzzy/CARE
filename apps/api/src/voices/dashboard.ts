@@ -60,7 +60,7 @@ function parts(id: string): string[] {
   }
   throw badRequest('INVALID_ORGANIZATION', 'Pilihan organisasi tidak valid');
 }
-/** Decode an opaque organization identifier into its directorate â†’ section path. */
+/** Decode an opaque organization identifier into its directorate → section path. */
 export const decodeOrganization = (id: string) => parts(id);
 function parse(input: unknown): Query {
   const result = dashboardQuerySchema.safeParse(input);
