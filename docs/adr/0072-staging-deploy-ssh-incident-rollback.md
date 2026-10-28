@@ -33,7 +33,7 @@ Four interim changes were merged to `staging` while the cause was investigated:
 3. #108 defaulted the port to 2222 and dropped `VM_SSH_PORT`, because `VM_DEPLOY_SSH_PORT=2222` also had no effect on the #107 deploy.
 4. #109 restored the missing space after the #108 deploy reached the remote step.
 
-On the VM, `sshd` was additionally configured to listen on 2222 (`/etc/ssh/sshd_config.d/10-extra-port.conf`) and UFW was opened for `2222/tcp`. Repository variables `VM_SSH_PORT=2222` and `VM_DEPLOY_SSH_PORT=2222` were created. A further change, #110, which logs the runner's public IPv4, the resolved destination and a 20-second TCP check before the upload, was opened but not merged.
+On the VM, `sshd` was additionally configured to listen on 2222 (`/etc/ssh/sshd_config.d/10-0-extra-port.conf`, containing `Port 22` and `Port 2222`) and UFW was opened for `2222/tcp`. Repository variables `VM_SSH_PORT=2222` and `VM_DEPLOY_SSH_PORT=2222` were created. A further change, #110, which logs the runner's public IPv4, the resolved destination and a 20-second TCP check before the upload, was opened but not merged.
 
 None of these changes produced a successful staging release. One upload over port 2222 succeeded, after which the same port timed out for later runners, so a port change alone did not address the failure.
 
@@ -43,7 +43,7 @@ None of these changes produced a successful staging release. One upload over por
 - The repository variables `VM_SSH_PORT` and `VM_DEPLOY_SSH_PORT` are deleted. Secrets were never modified and remain as they were.
 - #110 is closed without merging. Diagnostic logging is to be reintroduced only as a separate, reviewed change if the failure persists.
 - The handoff entries written by #106–#109 are replaced by a single incident record.
-- The VM's additional SSH listener on 2222 and its UFW rule are operator-owned and are to be removed from the VM console, returning the host to its pre-incident SSH configuration.
+- The VM's additional SSH listener on 2222 and its UFW rule are removed from the VM console, returning the host to its pre-incident SSH configuration.
 
 ## Rationale
 
@@ -63,11 +63,12 @@ None of these changes produced a successful staging release. One upload over por
 ## Implementation
 
 - `.github/workflows/deploy-reusable.yml` and `.github/workflows/rehearse-staging.yml` are restored from `da02237`; their contents are byte-identical to that commit.
-- Repository variables are removed under Settings → Secrets and variables → Actions → Variables.
-- VM rollback, from the web console:
-  - `rm /etc/ssh/sshd_config.d/10-extra-port.conf && sshd -t && systemctl restart ssh`
-  - `ufw delete allow 2222/tcp`
-  - if a temporary SYN log rule was added: `iptables -D INPUT -p tcp --dport 2222 --syn -j LOG --log-prefix "SSH2222-SYN "`
+- Repository variables `VM_SSH_PORT` and `VM_DEPLOY_SSH_PORT` were removed under Settings → Secrets and variables → Actions → Variables; the repository now defines no Actions variables. Removal required the account's own browser session; an automated browser session was refused by GitHub.
+- The VM was rolled back from the web console:
+  - `rm /etc/ssh/sshd_config.d/10-0-extra-port.conf`, then `sshd -t && systemctl restart ssh`;
+  - `ufw delete allow 2222/tcp` (IPv4 and IPv6 rules removed);
+  - `ss -tlnp` afterwards shows `sshd` on `:22` only, and an external connection test reaches 22 while 2222 no longer answers.
+  - A temporary SYN log rule would be removed with `iptables -D INPUT -p tcp --dport 2222 --syn -j LOG --log-prefix "SSH2222-SYN "`; it was proposed for #110 and is not part of the rollback state.
 
 ## Consequences
 

@@ -35,10 +35,10 @@
 **Rollback checklist:**
 
 - [x] Workflows restored to `da02237` (`git diff da02237 -- .github/workflows` empty).
-- [ ] Repository variables `VM_SSH_PORT` and `VM_DEPLOY_SSH_PORT` deleted (Settings → Secrets and variables → Actions → Variables). Secrets were never changed.
-- [ ] #110 closed without merging.
-- [ ] VM, from the Hostinger web console: `rm /etc/ssh/sshd_config.d/10-extra-port.conf && sshd -t && systemctl restart ssh`, then `ufw delete allow 2222/tcp`; if added, `iptables -D INPUT -p tcp --dport 2222 --syn -j LOG --log-prefix "SSH2222-SYN "`.
-- [ ] Rollback PR merged; deploy result and `/ready` checked.
+- [x] Repository variables `VM_SSH_PORT` and `VM_DEPLOY_SSH_PORT` deleted (Settings → Secrets and variables → Actions → Variables); none remain. Deletion had to be done in the user's own Chrome: GitHub answered "You can't perform that action at this time" to the in-app browser. Secrets were never changed.
+- [x] #110 closed without merging (its CI had also failed `Workflow, Dockerfile, and deployment scripts`).
+- [x] VM rolled back from the Hostinger web console: the extra listener file was `/etc/ssh/sshd_config.d/10-0-extra-port.conf` (not `10-extra-port.conf`); removed, `sshd -t && systemctl restart ssh`, `ufw delete allow 2222/tcp` (v4 and v6). `ss -tlnp` shows `sshd` on `:22` only; externally 22 answers and 2222 does not. The other files in `sshd_config.d` (`50-cloud-init.conf`, `60-cloudimg-settings.conf`) are system defaults and were not touched.
+- [ ] Rollback PR #111 merged (CI 21/21 green before the doc update); deploy result and `/ready` checked.
 
 **Next recommended action:** ask the repository owner (khalshaqzzy) to inspect the `staging` environment variables and secrets (`VM_SSH_PORT`, `VM_HOST`) and, ideally, grant Candrikadewi the Admin or Maintain role. If the rollback deploy still times out, capture one failing runner's public IPv4 and timestamp and compare it with a SYN log on the VM before choosing between a provider escalation and a private-network deploy path (Tailscale was discussed, not started).
 
