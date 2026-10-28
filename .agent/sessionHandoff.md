@@ -1,5 +1,17 @@
 # CARE Session Handoff
 
+## Android install guide on /install — 28 October 2026
+
+**Problem:** on Android, `/install` often showed only two manual steps. Chrome sends `beforeinstallprompt` only after its own engagement checks (a tap and some time on the page), and phone-maker browsers (Mi Browser, HeyTap, Vivo, UC, Firefox) never send it. A page cannot install itself.
+
+**Change (`feat/android-one-tap-install`, PR to `staging`):**
+
+- `install-prompt.ts`: Android browsers that never send the prompt become `android-other` and get **Buka di Chrome** (Chrome intent), like in-app browsers. The in-app list adds Telegram, TikTok, Snapchat and the Google app. `detectInstalledApp()` uses `getInstalledRelatedApps`; the manifest adds `related_applications` (`webapp`).
+- `InstallPage.tsx`: in Chrome the **Instal CARE** button and the ⋮ menu steps ("Tap ⋮ di pojok kanan atas atau bawah", "Pilih Instal aplikasi atau Tambahkan ke layar utama") show together. A tap before Chrome is ready highlights the steps. Android title: "Pasang CARE di Android".
+- `install-copy.ts`: the guide follows the phone language: Indonesian for `id`/`in`, English for everything else (Android and iPhone, including the Safari mock labels). The Indonesian iPhone mock labels "Tambahkan Penanda" and "Lihat Lainnya" were not checked on a real iPhone.
+
+**Checks:** web-voice build; unit tests `install-prompt`, `install-copy` (9 passed); e2e `install link (/install)` and the `/install` a11y case (8 passed). The user approved the layout from screenshots.
+
 ## Caddy go-jose vulnerability blocked the #112 release — 28 October 2026
 
 **Problem:** PR #112 merged at 07:55 UTC (`39c7450`), but its staging run failed `Production containers and routing` at the Caddy image Trivy step, so the release gate failed and satucare.com stayed on `b16ce82`. The PR's own CI had passed shortly before: CVE-2026-116587 (go-jose JWK RSA parsing DoS, High) became visible in between.

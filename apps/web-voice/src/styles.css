@@ -9749,6 +9749,29 @@
   color: var(--raw-brand-600);
   background: var(--raw-brand-50);
 }
+.install-page .install-or {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: var(--font-size-sm);
+}
+/* A tap on Instal CARE before Chrome offers its dialog flashes the menu steps. */
+.install-steps--nudge .install-step {
+  animation: install-step-nudge 0.9s ease-in-out;
+}
+@keyframes install-step-nudge {
+  0%,
+  100% {
+    box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
+  }
+  35% {
+    box-shadow: 0 0 0 3px var(--raw-brand-500);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .install-steps--nudge .install-step {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--raw-brand-500);
+  }
+}
 
 /* iPhone Safari guide: tighter header, room above Safari's bar for the arrow. */
 .install-page--ios {

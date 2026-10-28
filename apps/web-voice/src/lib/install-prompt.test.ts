@@ -30,6 +30,20 @@ describe('detectInstallPlatform', () => {
     expect(detectInstallPlatform(ANDROID_WEBVIEW, 'Linux armv8l', 5)).toBe('android-in-app');
   });
 
+  it('sends phone-maker and non-Chromium Android browsers to Chrome', () => {
+    const miui =
+      'Mozilla/5.0 (Linux; U; Android 13; id-id; 2201117TG) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/112.0.5615.136 Mobile Safari/537.36 XiaoMi/MiuiBrowser/14.5.0-gn';
+    const firefox = 'Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0';
+    expect(detectInstallPlatform(miui, 'Linux armv8l', 5)).toBe('android-other');
+    expect(detectInstallPlatform(firefox, 'Linux armv8l', 5)).toBe('android-other');
+  });
+
+  it('keeps Samsung Internet on the install prompt path', () => {
+    const samsung =
+      'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.0.0 Mobile Safari/537.36';
+    expect(detectInstallPlatform(samsung, 'Linux armv8l', 5)).toBe('android');
+  });
+
   it('falls back to desktop', () => {
     expect(
       detectInstallPlatform(
