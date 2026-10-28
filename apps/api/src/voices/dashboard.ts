@@ -40,6 +40,8 @@ export type DashboardBucket = {
   name?: string;
 };
 const levels: Level[] = ['directorate', 'division', 'department', 'section'];
+// Organization label marker for migrated Voices, followed by their source platform.
+const MIGRATED_BUCKET = '__MIGRATED__';
 const count = <T extends { value: bigint | number }>(rows: T[]) =>
   rows.map((r) => ({ ...r, value: Number(r.value) }));
 export const organizationKey = (parts: string[]) =>
@@ -738,10 +740,15 @@ export class OrganizationDashboard {
                 ? Prisma.sql`COALESCE(v."handlingSectionSnapshot", CASE WHEN v."handlerType" = 'SECTION_HEAD' THEN '__UNKNOWN_SECTION__' END)`
                 : column(name),
             );
+    // Migrated Voices form their own organization bucket per source platform
+    // (ADR-0061), so the grouping also keys on legacySource for General views.
+    const orgGroup = general ? [...orgColumns, Prisma.sql`v."legacySource"`] : orgColumns;
     const groupExpr =
       q.visibility === 'PRIVATE'
         ? Prisma.sql`v."currentHandlerId"::text`
-        : Prisma.sql`jsonb_build_array(${Prisma.join(orgColumns)})::text`;
+        : Prisma.sql`CASE WHEN v."legacySource" IS NOT NULL
+            THEN jsonb_build_array('${Prisma.raw(MIGRATED_BUCKET)}', v."legacySource")::text
+            ELSE jsonb_build_array(${Prisma.join(orgColumns)})::text END`;
     // The basis switcher shows both totals; scope rules of the other basis apply,
     // and its count rides on the same Voice scan.
     let other: Prisma.Sql | undefined;
@@ -791,7 +798,7 @@ export class OrganizationDashboard {
           WHEN GROUPING(v.severity) = 0 THEN v.severity::text
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN COALESCE(v."currentCategoryKey", v."categoryKey")
           WHEN GROUPING(${orgColumns[0]!}) = 0 THEN ${groupExpr}
-          ${origins ? Prisma.sql`WHEN GROUPING(v."reporterDepartmentSnapshot") = 0 THEN v."reporterDepartmentSnapshot"` : Prisma.empty}
+          ${origins ? Prisma.sql`WHEN GROUPING(v."reporterDepartmentSnapshot") = 0 THEN COALESCE(v."legacySource", v."reporterDepartmentSnapshot")` : Prisma.empty}
           WHEN GROUPING(${day}) = 0 THEN to_char(${day}, 'YYYY-MM-DD')
           ELSE v.area::text
         END AS label,
@@ -800,8 +807,8 @@ export class OrganizationDashboard {
       GROUP BY GROUPING SETS (
         (v.status), (v.severity),
         (COALESCE(v."currentCategoryKey", v."categoryKey")),
-        (${Prisma.join(orgColumns)}), (v.area), (${day})
-        ${origins ? Prisma.sql`, (v."reporterDepartmentSnapshot")` : Prisma.empty}
+        (${Prisma.join(orgGroup)}), (v.area), (${day})
+        ${origins ? Prisma.sql`, (v."reporterDepartmentSnapshot", v."legacySource")` : Prisma.empty}
       )`;
     const summary = await this.performanceFor(sql, {
       ops,
@@ -820,6 +827,7 @@ export class OrganizationDashboard {
                 ? [...col.slice(0, 3), 'handlingSectionSnapshot', 'handlerType']
                 : col.slice(0, orgN)),
             ...(origins ? ['reporterDepartmentSnapshot'] : []),
+            ...(general ? ['legacySource'] : []),
           ],
       metrics: wide ? undefined : grouped,
     });
@@ -926,7 +934,9 @@ export class OrganizationDashboard {
       }
       const p = JSON.parse(b.label) as (string | null)[];
       const last = p.at(-1);
-      if (last === '__UNKNOWN_SECTION__')
+      if (p[0] === MIGRATED_BUCKET && last)
+        push(`migrated-${last}`, `Migrasi Voice ${last}`, b.value);
+      else if (last === '__UNKNOWN_SECTION__')
         push('section-unknown', 'Section belum teridentifikasi', b.value);
       else if (last && p.every((v): v is string => typeof v === 'string'))
         push(organizationKey(p as string[]), last, b.value);
@@ -983,14 +993,17 @@ export class OrganizationDashboard {
       ? { onTime: Number(summary.onTime), total: Number(summary.onTimeTotal) }
       : null;
     const specialHandling = ops ? Number(summary.specialHandling) : undefined;
+    // Migrated Voices name their source platform as the origin; one platform
+    // spans several reporter departments, so equal labels are summed first.
+    const originTotals = new Map<string, number>();
+    for (const m of metrics)
+      if (m.kind === 'origin')
+        originTotals.set(m.label!, (originTotals.get(m.label!) ?? 0) + Number(m.value));
     const reporterOrigins = origins
-      ? count(
-          metrics
-            .filter((m) => m.kind === 'origin')
-            .map((m) => ({ label: m.label!, value: m.value }))
-            .sort((a, b) => Number(b.value) - Number(a.value) || a.label.localeCompare(b.label))
-            .slice(0, 5),
-        )
+      ? [...originTotals]
+          .map(([label, value]) => ({ label, value }))
+          .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+          .slice(0, 5)
       : undefined;
     const teamOverdue = ops && q.basis === 'REPORTER' ? Number(summary.overdue) : undefined;
     const otherBasisTotal =

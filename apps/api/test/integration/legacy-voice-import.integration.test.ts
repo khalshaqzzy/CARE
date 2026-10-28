@@ -271,6 +271,11 @@ describe('Legacy voice import', () => {
     expect(result.status).toEqual([{ label: 'CLOSED', value: 2 }]);
     expect(result.handlingUnresolved).toBe(0);
     expect(result.onTime).toEqual({ onTime: 0, total: 0 });
+    // Kept apart from Voices sent in CARE: one bucket and one origin per platform.
+    expect(result.organization).toEqual([
+      { id: 'migrated-Voice App Plant', label: 'Migrasi Voice Voice App Plant', value: 2 },
+    ]);
+    expect(result.reporterOrigins).toEqual([{ label: 'Voice App Plant', value: 2 }]);
     expect(result.performance).toMatchObject({
       averageResponseSeconds: null,
       responseSampleCount: 0,
