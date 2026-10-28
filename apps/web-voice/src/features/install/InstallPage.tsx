@@ -19,36 +19,44 @@ import { getBrowserCapabilities } from '../../lib/browser-capabilities';
 import {
   chromeIntentUrl,
   detectInstallPlatform,
+  detectInstalledApp,
   installPromptState,
   promptInstall,
   subscribeInstallPrompt,
 } from '../../lib/install-prompt';
+import { INSTALL_COPY, installLanguage, type InstallCopy } from './install-copy';
 
-type View =
-  'prompt' | 'ios-safari' | 'ios-other' | 'android-manual' | 'android-in-app' | 'installed';
+type View = 'install' | 'ios-safari' | 'ios-other' | 'open-chrome' | 'installed';
 
-const TITLES: Record<View, string> = {
-  prompt: 'Pasang CARE di HP',
-  'android-manual': 'Pasang CARE di HP',
-  'ios-safari': 'Pasang CARE di iPhone',
-  'ios-other': 'Buka di Safari',
-  'android-in-app': 'Buka di Chrome',
-  installed: 'CARE sudah terpasang',
-};
-
-function useInstallView(): View {
+function useInstallState() {
   const [state, setState] = useState(installPromptState);
   useEffect(() => subscribeInstallPrompt(() => setState(installPromptState())), []);
+  return state;
+}
+
+function useInstallView(): View {
+  const state = useInstallState();
   if (state.installed) return 'installed';
-  if (state.canPrompt) return 'prompt';
+  if (state.canPrompt) return 'install';
   const platform = detectInstallPlatform(
     navigator.userAgent,
     navigator.platform,
     navigator.maxTouchPoints,
   );
-  if (platform === 'ios-safari' || platform === 'ios-other' || platform === 'android-in-app')
-    return platform;
-  return 'android-manual';
+  if (platform === 'ios-safari' || platform === 'ios-other') return platform;
+  if (platform === 'android-in-app' || platform === 'android-other') return 'open-chrome';
+  return 'install';
+}
+
+/** Renders `**label**` segments in bold; they name the browser's own menu items. */
+function Rich({ text }: { text: string }) {
+  return (
+    <>
+      {text
+        .split('**')
+        .map((part, index) => (index % 2 ? <strong key={index}>{part}</strong> : part))}
+    </>
+  );
 }
 
 function Step({ index, icon, children }: { index: number; icon: ReactNode; children: ReactNode }) {
@@ -75,11 +83,9 @@ function SafariArrow() {
   );
 }
 
-/**
- * iPhone Safari steps with small mockups of Safari's own menus. Labels carry
- * both the Indonesian and English names, since Safari follows the phone language.
- */
-function IosSafariGuide() {
+/** iPhone Safari steps with small mockups of Safari's own menus. */
+function IosSafariGuide({ t }: { t: InstallCopy }) {
+  const [tapMore, tapShare, addHome] = t.iosSteps;
   return (
     <>
       <ol className="install-shots">
@@ -87,7 +93,7 @@ function IosSafariGuide() {
           <p>
             <span className="install-step__index">1</span>
             <span>
-              Tap <strong>⋯</strong> di kanan bawah
+              <Rich text={tapMore} />
             </span>
           </p>
           <div className="install-mock install-mock--bar" aria-hidden="true">
@@ -102,15 +108,15 @@ function IosSafariGuide() {
           <p>
             <span className="install-step__index">2</span>
             <span>
-              Tap <strong>Bagikan</strong> / <strong>Share</strong>
+              <Rich text={tapShare} />
             </span>
           </p>
           <div className="install-mock install-mock--menu" aria-hidden="true">
             <span className="install-mock__row install-mock__hit">
-              <Share size={16} /> Bagikan / Share
+              <Share size={16} /> {t.iosMock.share}
             </span>
             <span className="install-mock__row">
-              <Bookmark size={16} /> Add to Bookmarks
+              <Bookmark size={16} /> {t.iosMock.bookmark}
             </span>
           </div>
         </li>
@@ -118,15 +124,15 @@ function IosSafariGuide() {
           <p>
             <span className="install-step__index">3</span>
             <span>
-              Pilih <strong>Tambahkan ke Layar Utama</strong> / <strong>Add to Home Screen</strong>
+              <Rich text={addHome} />
             </span>
           </p>
           <div className="install-mock install-mock--sheet" aria-hidden="true">
             <span className="install-mock__more">
-              <ChevronDown size={16} /> Lihat Lainnya / View More
+              <ChevronDown size={16} /> {t.iosMock.more}
             </span>
             <span className="install-mock__row install-mock__hit">
-              <SquarePlus size={16} /> Add to Home Screen
+              <SquarePlus size={16} /> {t.iosMock.home}
             </span>
           </div>
         </li>
@@ -136,51 +142,74 @@ function IosSafariGuide() {
   );
 }
 
-function InstallAction({ view }: { view: View }) {
+/** Chrome's ⋮ menu sits top or bottom right depending on the phone and bar setting. */
+function ChromeMenuSteps({ t, nudge }: { t: InstallCopy; nudge: number }) {
+  const [openMenu, pickInstall] = t.chromeSteps;
+  return (
+    <ol key={nudge} className={nudge ? 'install-steps install-steps--nudge' : 'install-steps'}>
+      <Step index={1} icon={<EllipsisVertical size={18} />}>
+        <Rich text={openMenu} />
+      </Step>
+      <Step index={2} icon={<SquarePlus size={18} />}>
+        <Rich text={pickInstall} />
+      </Step>
+    </ol>
+  );
+}
+
+/**
+ * Chromium install: the button opens Chrome's own dialog once Chrome offers
+ * it (after its engagement checks), and the menu steps below always work.
+ * A tap before Chrome is ready points at the steps instead.
+ */
+function ChromeInstall({ t }: { t: InstallCopy }) {
+  const { canPrompt } = useInstallState();
+  const [pending, setPending] = useState(false);
+  const [nudge, setNudge] = useState(0);
+  return (
+    <>
+      <Button
+        className="install-cta"
+        loading={pending}
+        onClick={() => {
+          if (!canPrompt) {
+            setNudge((count) => count + 1);
+            return;
+          }
+          setPending(true);
+          void promptInstall().finally(() => setPending(false));
+        }}
+      >
+        <Download size={18} aria-hidden="true" /> {t.installCta}
+      </Button>
+      <p className="install-or">{t.or}</p>
+      <ChromeMenuSteps t={t} nudge={nudge} />
+    </>
+  );
+}
+
+function InstallAction({ view, t }: { view: View; t: InstallCopy }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [pending, setPending] = useState(false);
   const url = `${window.location.origin}/install`;
   switch (view) {
-    case 'prompt':
-      return (
-        <Button
-          className="install-cta"
-          loading={pending}
-          onClick={() => {
-            setPending(true);
-            void promptInstall().finally(() => setPending(false));
-          }}
-        >
-          <Download size={18} aria-hidden="true" /> Instal CARE
-        </Button>
-      );
+    case 'install':
+      return <ChromeInstall t={t} />;
     case 'installed':
       return (
         <Button className="install-cta" onClick={() => void navigate('/')}>
-          Buka CARE
+          {t.openCare}
         </Button>
       );
     case 'ios-safari':
-      return <IosSafariGuide />;
-    case 'android-manual':
-      return (
-        <ol className="install-steps">
-          <Step index={1} icon={<EllipsisVertical size={18} />}>
-            Tap <strong>menu</strong> browser
-          </Step>
-          <Step index={2} icon={<SquarePlus size={18} />}>
-            Pilih <strong>Instal aplikasi</strong>
-          </Step>
-        </ol>
-      );
-    case 'android-in-app':
+      return <IosSafariGuide t={t} />;
+    case 'open-chrome':
       return (
         <a
           className="care-button care-button--primary care-button--md install-cta"
           href={chromeIntentUrl(url)}
         >
-          <ExternalLink size={18} aria-hidden="true" /> Buka di Chrome
+          <ExternalLink size={18} aria-hidden="true" /> {t.openChrome}
         </a>
       );
     case 'ios-other':
@@ -191,7 +220,7 @@ function InstallAction({ view }: { view: View }) {
           onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true))}
         >
           {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
-          {copied ? 'Link disalin' : 'Salin link'}
+          {copied ? t.linkCopied : t.copyLink}
         </Button>
       );
   }
@@ -200,28 +229,35 @@ function InstallAction({ view }: { view: View }) {
 /**
  * Public install link (`/install`). Browsers do not allow a page to install
  * itself, so this page offers the native prompt where Chromium provides one
- * and short manual steps elsewhere. Opened from the installed app, it goes home.
+ * and short manual steps elsewhere, in the phone's language. Opened from the
+ * installed app, it goes home.
  */
 export function InstallPage() {
   const navigate = useNavigate();
   const view = useInstallView();
+  const [language] = useState(() => installLanguage(navigator.languages, navigator.language));
+  const t = INSTALL_COPY[language];
   const standalone = getBrowserCapabilities().standalone;
   useEffect(() => {
     if (standalone) void navigate('/', { replace: true });
   }, [navigate, standalone]);
+  useEffect(() => {
+    void detectInstalledApp();
+  }, []);
 
   return (
-    <main className={view === 'ios-safari' ? 'install-page install-page--ios' : 'install-page'}>
+    <main
+      lang={language}
+      className={view === 'ios-safari' ? 'install-page install-page--ios' : 'install-page'}
+    >
       <img className="install-icon" src="/icon-192.png" alt="" width={96} height={96} />
       <p className="install-name">
         <strong>CARE</strong>
         <span>Member Voice</span>
       </p>
-      <h1>{TITLES[view]}</h1>
-      {view === 'ios-other' ? (
-        <p className="install-hint">Salin link ini, lalu tempel di Safari.</p>
-      ) : null}
-      <InstallAction view={view} />
+      <h1>{t.titles[view]}</h1>
+      {view === 'ios-other' ? <p className="install-hint">{t.iosOtherHint}</p> : null}
+      <InstallAction view={view} t={t} />
     </main>
   );
 }

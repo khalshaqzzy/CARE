@@ -29,6 +29,28 @@ export function captureInstallPrompt() {
   });
 }
 
+type RelatedAppsNavigator = Navigator & {
+  getInstalledRelatedApps?: () => Promise<unknown[]>;
+};
+
+/**
+ * Chromium on Android reports an installed copy through the manifest's
+ * `related_applications`; elsewhere the API is missing and nothing changes.
+ */
+export async function detectInstalledApp() {
+  const lookup = (navigator as RelatedAppsNavigator).getInstalledRelatedApps;
+  if (!lookup) return;
+  try {
+    const apps = await lookup.call(navigator);
+    if (apps.length > 0 && !installed) {
+      installed = true;
+      notify();
+    }
+  } catch {
+    // Unsupported contexts reject; the install view stays as it is.
+  }
+}
+
 export function installPromptState() {
   return { canPrompt: deferred !== null, installed };
 }
@@ -51,10 +73,19 @@ export async function promptInstall(): Promise<boolean> {
   return choice.outcome === 'accepted';
 }
 
-export type InstallPlatform = 'ios-safari' | 'ios-other' | 'android' | 'android-in-app' | 'desktop';
+export type InstallPlatform =
+  'ios-safari' | 'ios-other' | 'android' | 'android-in-app' | 'android-other' | 'desktop';
 
-/** In-app browsers (Instagram, Facebook, LINE, generic WebView) cannot install. */
-const IN_APP = /FBAN|FBAV|Instagram|Line\/|; wv\)|WhatsApp/i;
+/** In-app browsers (Instagram, Facebook, LINE, TikTok, generic WebView) cannot install. */
+const IN_APP =
+  /FBAN|FBAV|Instagram|Line\/|; wv\)|WhatsApp|Telegram|musical_ly|BytedanceWebview|Snapchat|GSA\//i;
+
+/**
+ * Phone-maker and lite browsers never offer Chromium's install prompt, even
+ * when their user agent mentions Chrome; they are sent to Chrome instead.
+ */
+const NO_INSTALL_PROMPT =
+  /MiuiBrowser|XiaoMi\/|HeyTapBrowser|OppoBrowser|VivoBrowser|UCBrowser|HuaweiBrowser|HONORBrowser|Quark\/|Opera Mini|OPR\/.*Mini|baiduboxapp|Firefox\//i;
 
 export function detectInstallPlatform(
   userAgent: string,
@@ -66,7 +97,12 @@ export function detectInstallPlatform(
       /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//i.test(userAgent) || IN_APP.test(userAgent);
     return otherBrowser || !/Safari/i.test(userAgent) ? 'ios-other' : 'ios-safari';
   }
-  if (/Android/i.test(userAgent)) return IN_APP.test(userAgent) ? 'android-in-app' : 'android';
+  if (/Android/i.test(userAgent)) {
+    if (IN_APP.test(userAgent)) return 'android-in-app';
+    return /Chrome\//.test(userAgent) && !NO_INSTALL_PROMPT.test(userAgent)
+      ? 'android'
+      : 'android-other';
+  }
   return 'desktop';
 }
 

@@ -1,5 +1,17 @@
 # CARE Session Handoff
 
+## Android install guide on /install — 28 October 2026
+
+**Problem:** on Android, `/install` often showed only two manual steps. Chrome sends `beforeinstallprompt` only after its own engagement checks (a tap and some time on the page), and phone-maker browsers (Mi Browser, HeyTap, Vivo, UC, Firefox) never send it. A page cannot install itself.
+
+**Change (`feat/android-one-tap-install`, PR to `staging`):**
+
+- `install-prompt.ts`: Android browsers that never send the prompt become `android-other` and get **Buka di Chrome** (Chrome intent), like in-app browsers. The in-app list adds Telegram, TikTok, Snapchat and the Google app. `detectInstalledApp()` uses `getInstalledRelatedApps`; the manifest adds `related_applications` (`webapp`).
+- `InstallPage.tsx`: in Chrome the **Instal CARE** button and the ⋮ menu steps ("Tap ⋮ di pojok kanan atas atau bawah", "Pilih Instal aplikasi atau Tambahkan ke layar utama") show together. A tap before Chrome is ready highlights the steps. Android title: "Pasang CARE di Android".
+- `install-copy.ts`: the guide follows the phone language: Indonesian for `id`/`in`, English for everything else (Android and iPhone, including the Safari mock labels). The Indonesian iPhone mock labels "Tambahkan Penanda" and "Lihat Lainnya" were not checked on a real iPhone.
+
+**Checks:** web-voice build; unit tests `install-prompt`, `install-copy` (9 passed); e2e `install link (/install)` and the `/install` a11y case (8 passed). The user approved the layout from screenshots.
+
 ## Migrated Voices in their own dashboard buckets — 28 October 2026
 
 **Objective:** after batch 1 of the legacy migration went live, the responder dashboard showed "Anonim" under Asal pengirim (PADi's shared `PADI-ANONIM` account) and mixed migrated Voices into the real handling sections. Migrated Voices are now kept apart from Voices sent in CARE.

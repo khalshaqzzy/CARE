@@ -1020,6 +1020,10 @@ test.describe('workforce journeys (mocked contract)', () => {
 test.describe('install link (/install)', () => {
   const IPHONE_SAFARI =
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
+  const ANDROID_CHROME =
+    'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+  // The guide follows the phone language; most cases run on an Indonesian phone.
+  test.use({ locale: 'id-ID' });
 
   test('Android shows the native install prompt and then opens CARE', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
@@ -1038,7 +1042,7 @@ test.describe('install link (/install)', () => {
       });
     });
     await page.goto('/install');
-    await expect(page.getByRole('heading', { name: 'Pasang CARE di HP' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pasang CARE di Android' })).toBeVisible();
     await page.getByRole('button', { name: 'Instal CARE' }).click();
     await expect
       .poll(() => page.evaluate(() => (window as unknown as { __prompted?: boolean }).__prompted))
@@ -1048,9 +1052,44 @@ test.describe('install link (/install)', () => {
     await expect(page.getByRole('button', { name: 'Buka CARE' })).toBeVisible();
   });
 
+  test.describe('on Android Chrome before it offers the prompt', () => {
+    test.use({ userAgent: ANDROID_CHROME });
+    test('shows the button and the ⋮ menu steps together', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await expect(page.getByRole('heading', { name: 'Pasang CARE di Android' })).toBeVisible();
+      const steps = page.getByRole('listitem');
+      await expect(steps).toHaveText([
+        /Tap ⋮ di pojok kanan atas atau bawah/,
+        /Pilih Instal aplikasi atau Tambahkan ke layar utama/,
+      ]);
+      // A tap before Chrome is ready highlights the menu steps instead.
+      await page.getByRole('button', { name: 'Instal CARE' }).click();
+      await expect(page.locator('.install-steps--nudge')).toBeVisible();
+    });
+  });
+
+  test.describe('in a phone-maker browser', () => {
+    test.use({
+      userAgent:
+        'Mozilla/5.0 (Linux; U; Android 13; id-id; 2201117TG Build/TKQ1.221114.001) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/112.0.5615.136 Mobile Safari/537.36 XiaoMi/MiuiBrowser/14.5.0-gn',
+    });
+    test('sends the user to Chrome first', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await expect(page.getByRole('heading', { name: 'Buka di Chrome' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Buka di Chrome' })).toHaveAttribute(
+        'href',
+        /^intent:\/\/127\.0\.0\.1:\d+\/install#Intent;scheme=https;package=com\.android\.chrome;end$/,
+      );
+    });
+  });
+
   test.describe('on iPhone Safari', () => {
     test.use({ userAgent: IPHONE_SAFARI });
-    test('shows the two Add to Home Screen steps without signing in', async ({ page }) => {
+    test('shows the Add to Home Screen steps without signing in', async ({ page }) => {
       await page.setViewportSize({ width: 360, height: 800 });
       await mockWorkforceApi(page, { unauthenticated: true });
       await page.goto('/install');
@@ -1058,8 +1097,8 @@ test.describe('install link (/install)', () => {
       await expect(page.getByRole('heading', { name: 'Pasang CARE di iPhone' })).toBeVisible();
       await expect(page.getByRole('listitem')).toHaveText([
         /Tap ⋯ di kanan bawah/,
-        /Tap Bagikan \/ Share/,
-        /Pilih Tambahkan ke Layar Utama \/ Add to Home Screen/,
+        /Tap Bagikan/,
+        /Pilih Tambahkan ke Layar Utama/,
       ]);
       // The arrow points at Safari's own ⋯ button; it is decorative only.
       const arrow = page.locator('.install-arrow');
@@ -1068,6 +1107,21 @@ test.describe('install link (/install)', () => {
       const box = await arrow.boundingBox();
       expect(box!.x + box!.width).toBeGreaterThan(300);
       expect(box!.y + box!.height).toBeGreaterThan(700);
+    });
+  });
+
+  test.describe('on an English iPhone', () => {
+    test.use({ userAgent: IPHONE_SAFARI, locale: 'en-US' });
+    test('names Safari menus in English', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await expect(page.getByRole('heading', { name: 'Install CARE on iPhone' })).toBeVisible();
+      await expect(page.getByRole('listitem')).toHaveText([
+        /Tap ⋯ at the bottom right/,
+        /Tap Share/,
+        /Choose Add to Home Screen/,
+      ]);
     });
   });
 
