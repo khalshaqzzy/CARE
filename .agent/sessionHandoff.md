@@ -7,7 +7,7 @@
 **Change:**
 
 - VPS (done by the user in the web console): sshd also listens on 2222 (`/etc/ssh/sshd_config.d/10-extra-port.conf` with `Port 22` and `Port 2222`), and UFW allows 2222/tcp. Port 22 stays open.
-- GitHub: repository variable `VM_SSH_PORT=2222` (the workflows already read it).
+- GitHub: repository variable `VM_DEPLOY_SSH_PORT=2222`. A repository `VM_SSH_PORT=2222` was ignored (the deploy for #106's merge `b083d73` still logged `REMOTE_PORT: 22`) because the `staging` environment defines its own `VM_SSH_PORT`, which takes precedence and which only the repo owner can see. The workflows now read `VM_DEPLOY_SSH_PORT` first.
 - Workflows: `-o HostKeyAlias="$REMOTE_HOST"` on every deploy and rehearsal `ssh`/`scp`, so the pinned `VM_SSH_KNOWN_HOSTS` entry for the plain host also verifies port 2222. Checked against the server: without the alias, port 2222 fails host key verification; with it, the connection reaches authentication. The `staging` environment secrets can only be edited by the repo owner, so the secret itself was not changed.
 
 **Open:**
