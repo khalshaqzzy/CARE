@@ -66,3 +66,28 @@ Trivy reported CVE-2026-111497 (High) in the base image's `brotli-libs`
 images pin `brotli-libs=1.2.1-r0`, `curl=8.23.0-r0` and `libcurl=8.23.0-r0`.
 A local Trivy 0.70.0 scan of the pinned nginx base, the Postgres runtime base
 and the Caddy image reports 0 High/Critical.
+
+## 28 October 2026: go-jose in the Caddy binary
+
+The staging run for `39c7450` failed the Caddy image scan: Trivy reported
+CVE-2026-116587 (High, denial of service when parsing JWKs that contain RSA
+keys) in two modules compiled into `/usr/bin/caddy`:
+
+- `github.com/go-jose/go-jose/v4` 4.1.4, used by ACME (`mholt/acmez`), OIDC and
+  gRPC. A fixed release exists, and `deploy/caddy/Dockerfile` now requires
+  `v4.1.6` alongside the existing module pins.
+- `github.com/go-jose/go-jose/v3` 3.0.5, reached only through Caddy's PKI app
+  (`modules/standard` → `caddypki` → `smallstep/certificates` →
+  `go.step.sm/crypto/jose`). No fixed v3 release exists.
+
+The PKI app cannot be dropped from the build: Caddy issues local certificates
+for `localhost` and IP origins through it, which the production-like local
+stack relies on. The deployed Caddyfile configures no `acme_server`, no `pki`
+app and no internal issuer, so the v3 JWK parsing is not reachable from the
+served routes. The CVE is therefore registered as the first exact entry in
+`.trivyignore`, with its rationale and an expiry of 31 December 2026 in
+`.agent/securityExceptions.json`, as the exception policy requires. Trivy reads
+`.trivyignore` from the workspace root for every scan in the container job.
+
+Before the expiry, the entry is removed once a fixed v3 is released or Caddy no
+longer depends on v3, and re-justified otherwise.
