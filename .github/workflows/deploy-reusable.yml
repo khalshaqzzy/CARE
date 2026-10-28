@@ -138,6 +138,20 @@ jobs:
         run: |
           [[ "$(git ls-remote origin 'refs/heads/${{ inputs.expected_branch }}' | cut -f1)" == "$RELEASE_SHA" ]] && value=true || value=false
           echo "deploy=$value" >> "$GITHUB_OUTPUT"
+      # Evidence for SSH timeouts: the runner's public address and time can be
+      # matched against what reaches the VPS. Never fails the deploy itself.
+      - name: Record runner address and SSH reachability
+        if: steps.final_freshness.outputs.deploy == 'true'
+        run: |
+          echo "Runner public IPv4: $(curl -4 -fsS --max-time 10 https://api.ipify.org || echo unknown)"
+          echo "Checked at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Destination: $(getent ahostsv4 "$REMOTE_HOST" | awk 'NR == 1 { print $1 }') port $REMOTE_PORT"
+          if timeout 20 bash -c 'exec 3<>"/dev/tcp/$1/$2" && head -c 40 <&3' _ "$REMOTE_HOST" "$REMOTE_PORT"; then
+            echo
+            echo "TCP connect succeeded"
+          else
+            echo "TCP connect did not complete within 20 s"
+          fi
       - name: Upload isolated candidate
         if: steps.final_freshness.outputs.deploy == 'true'
         run: |

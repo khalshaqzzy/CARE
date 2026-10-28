@@ -12,6 +12,7 @@
 
 **Open:**
 
+- The #108 deploy (`adc3d76`) uploaded over 2222, then the #109 deploy (`d398f27`, run 40625076651) timed out on 2222 twice (03:35 and 03:43 UTC). Hostinger's agent found no firewall group, both ports reachable from their tests, and successful key logins from Azure/GitHub addresses on 28 Oct, so it does not see a provider block. The deploy now logs the runner's public IPv4, the destination and a 20 s TCP check before uploading; with `iptables -I INPUT -p tcp --dport 2222 --syn -j LOG --log-prefix "SSH2222-SYN "` on the VPS (remove it after with `-D`), `journalctl -k | grep SSH2222-SYN` shows whether that runner's SYNs arrive.
 - If GitHub cannot reach 2222 either, the block covers the whole IP; the next route is a private network (Tailscale) for deploys.
 - The server still offers password authentication (`Permission denied (publickey,password)`); turn it off once key login is confirmed.
 
