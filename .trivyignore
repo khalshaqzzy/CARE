@@ -1,1 +1,2 @@
 # Exact Trivy IDs require a justified, unexpired entry in .agent/securityExceptions.json.
+CVE-2026-116587

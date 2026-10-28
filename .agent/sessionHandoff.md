@@ -11,6 +11,19 @@
 - `install-copy.ts`: the guide follows the phone language: Indonesian for `id`/`in`, English for everything else (Android and iPhone, including the Safari mock labels). The Indonesian iPhone mock labels "Tambahkan Penanda" and "Lihat Lainnya" were not checked on a real iPhone.
 
 **Checks:** web-voice build; unit tests `install-prompt`, `install-copy` (9 passed); e2e `install link (/install)` and the `/install` a11y case (8 passed). The user approved the layout from screenshots.
+## Caddy go-jose vulnerability blocked the #112 release — 28 October 2026
+
+**Problem:** PR #112 merged at 07:55 UTC (`39c7450`), but its staging run failed `Production containers and routing` at the Caddy image Trivy step, so the release gate failed and satucare.com stayed on `b16ce82`. The PR's own CI had passed shortly before: CVE-2026-116587 (go-jose JWK RSA parsing DoS, High) became visible in between.
+
+**Change (`fix/caddy-go-jose`, ADR-0041 addendum):**
+
+- `deploy/caddy/Dockerfile` also requires `github.com/go-jose/go-jose/v4@v4.1.6` (fixed).
+- `go-jose/v3` 3.0.5 has no fix; it enters only via `caddypki` (`smallstep/certificates`, `go.step.sm/crypto/jose`). The deployed Caddyfile has no `acme_server`, `pki` or internal issuer, so it is unreachable. It is the first entry in `.trivyignore` and `.agent/securityExceptions.json` (expires 2026-12-31). `caddypki` stays because local `localhost` certificates need it.
+- The Caddy image scan step passes no `trivyignores`; Trivy picks `.trivyignore` up from the workspace root by default. The PR's `Production containers and routing` job confirms this before merge.
+
+**Checks:** local rebuild of `care-caddy` and Trivy 0.70.0 scan with and without the ignore file; `check-security-exceptions.sh` in an Alpine container with bash and jq.
+
+**Next:** merge, then confirm `/ready` reports the new merge commit, which also delivers #112 (migrated dashboard buckets). Revisit the exception before 31 December 2026.
 
 ## Migrated Voices in their own dashboard buckets — 28 October 2026
 
