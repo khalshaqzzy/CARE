@@ -29,9 +29,10 @@ jobs:
     env:
       REMOTE_HOST: ${{ secrets.VM_HOST }}
       REMOTE_USER: ${{ secrets.VM_USER }}
-      # VM_DEPLOY_SSH_PORT is a repository variable; the staging environment's own
-      # VM_SSH_PORT would otherwise override a repository-level port change.
-      REMOTE_PORT: ${{ vars.VM_DEPLOY_SSH_PORT || vars.VM_SSH_PORT || '22' }}
+      # Deploys use SSH port 2222: the host's network drops GitHub runner traffic
+      # to 22. Repository variables did not reach this job (VM_SSH_PORT and
+      # VM_DEPLOY_SSH_PORT both resolved empty), so the port defaults here.
+      REMOTE_PORT: ${{ vars.VM_DEPLOY_SSH_PORT || '2222' }}
       REMOTE_BASE_DIR: ${{ inputs.remote_base_dir }}
       RELEASE_SHA: ${{ inputs.release_sha }}
       DEPLOY_RUN_NUMBER: ${{ inputs.deploy_run_number }}

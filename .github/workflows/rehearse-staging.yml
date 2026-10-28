@@ -31,7 +31,7 @@ jobs:
     env:
       REMOTE_HOST: ${{ secrets.VM_HOST }}
       REMOTE_USER: ${{ secrets.VM_USER }}
-      REMOTE_PORT: ${{ vars.VM_DEPLOY_SSH_PORT || vars.VM_SSH_PORT || '22' }}
+      REMOTE_PORT: ${{ vars.VM_DEPLOY_SSH_PORT || '2222' }}
       SSH_KEY: /tmp/care-rehearsal-key
       KNOWN_HOSTS: /tmp/care-rehearsal-known-hosts
     steps:
