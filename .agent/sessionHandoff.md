@@ -1,23 +1,63 @@
 # CARE Session Handoff
 
-## Deploy SSH moved to port 2222 — 28 October 2026
+## Staging deploy SSH incident and rollback to the #105 workflows — 27 to 28 October 2026
 
-**Problem:** from 27 Oct ~23:00 UTC every staging deploy failed at the first SSH step (`ssh: connect to host *** port 22: Connection timed out`, three attempts on run 40600421713 for #105's merge `da02237`). The VPS sshd log shows none of those attempts, UFW allows 22/tcp from anywhere, the hPanel firewall has no rules and fail2ban is not installed, while SSH on 22 from other networks works. Port 22 traffic from GitHub runners is dropped upstream, in Hostinger's network. Hostinger support could not be reached.
+**Objective:** restore a known-good staging delivery path after every deploy since #105 failed to reach the VM over SSH, and record the incident (ADR-0072).
 
-**Change:**
+**Current phase:** Phase 13 remains the only `in_progress` phase. This work is release operations; no product scope changed.
 
-- VPS (done by the user in the web console): sshd also listens on 2222 (`/etc/ssh/sshd_config.d/10-extra-port.conf` with `Port 22` and `Port 2222`), and UFW allows 2222/tcp. Port 22 stays open.
-- GitHub: repository variable `VM_DEPLOY_SSH_PORT=2222`. A repository `VM_SSH_PORT=2222` was ignored (the deploy for #106's merge `b083d73` still logged `REMOTE_PORT: 22`) because the `staging` environment defines its own `VM_SSH_PORT`, which takes precedence and which only the repo owner can see. PR #107 then read `VM_DEPLOY_SSH_PORT` first, but its deploy (`3a74679`) also logged `REMOTE_PORT: 22`: neither repository variable reached the reusable deploy job, for reasons not visible to a collaborator. The workflows now default the port to 2222 (`vars.VM_DEPLOY_SSH_PORT || '2222'`) and no longer read `VM_SSH_PORT`. The deploy for #108 (`adc3d76`) then uploaded over 2222 successfully, but the remote step failed with `bash: --: invalid option`: #106's edit had dropped the space in `bash -s -- '<env>'`. The space is restored; the line again matches the version before #106.
-- Workflows: `-o HostKeyAlias="$REMOTE_HOST"` on every deploy and rehearsal `ssh`/`scp`, so the pinned `VM_SSH_KNOWN_HOSTS` entry for the plain host also verifies port 2222. Checked against the server: without the alias, port 2222 fails host key verification; with it, the connection reaches authentication. The `staging` environment secrets can only be edited by the repo owner, so the secret itself was not changed.
+**State at the time of writing:**
 
-**Open:**
+- Live on satucare.com: `d252fc2` (merge of #104). `/ready` reports `database`, `migrations`, `outbox` and `storage` all `ok`.
+- Merged to `staging` but not live: #105 (ADR-0071 stored timings, migration `20261027090000_dashboard_stored_timings`) and the interim deploy fixes #106–#109, which this rollback removes.
+- Branch `revert/deploy-ssh-changes` (from `origin/staging` `d398f27`) restores `.github/workflows/deploy-reusable.yml` and `.github/workflows/rehearse-staging.yml` byte-for-byte to `da02237`, replaces the #106–#109 handoff entries with this one, and adds ADR-0072. Its PR targets `staging`; merging it triggers a deploy on port 22.
 
-- If GitHub cannot reach 2222 either, the block covers the whole IP; the next route is a private network (Tailscale) for deploys.
-- The server still offers password authentication (`Permission denied (publickey,password)`); turn it off once key login is confirmed.
+**Timeline (UTC):**
+
+| Candidate        | When                                           | Port | Result                                                   |
+| ---------------- | ---------------------------------------------- | ---- | -------------------------------------------------------- |
+| `d252fc2` (#104) | 27 Oct                                         | 22   | deployed; CI performance p95 1651 ms                     |
+| `da02237` (#105) | 27 Oct ~23:13, 23:22–23:24; 28 Oct 00:57–01:00 | 22   | `Connection timed out` ×3                                |
+| `b083d73` (#106) | 28 Oct 01:57–02:00                             | 22   | timed out (repository `VM_SSH_PORT=2222` not applied)    |
+| `3a74679` (#107) | 28 Oct 02:23–02:26                             | 22   | timed out (`VM_DEPLOY_SSH_PORT=2222` not applied)        |
+| `adc3d76` (#108) | 28 Oct ~03:00                                  | 2222 | upload succeeded; remote step `bash: --: invalid option` |
+| `d398f27` (#109) | 28 Oct ~03:35, 03:41–03:43                     | 2222 | timed out ×2                                             |
+
+**Evidence:**
+
+- VM: UFW active, `22/tcp` (and `2222/tcp`) allowed from anywhere; hPanel firewall empty; fail2ban not installed; `sshd` answers from an external Indonesian network with the expected host key; the `sshd` journal for 27 Oct 23:00 – 28 Oct 00:55 shows no runner attempts.
+- DNS: `satucare.com`, `admin-pad.satucare.com` and `srv1938802.hstgr.cloud` resolve to `31.97.109.112`; the provider hostname also has an IPv6 record.
+- Hostinger's support agent: no firewall group, both ports reachable from its tests, successful key logins from Azure/GitHub addresses on 28 Oct; no provider-side block found. It suggested matching a failing runner's public IP with what reaches the VM.
+- Repository variables did not reach the reusable deploy job (cause unknown; the `staging` environment is owner-only, and Candrikadewi is a collaborator without Environments access).
+
+**What the interim fixes did (all reverted):** #106 `HostKeyAlias="$REMOTE_HOST"` on every deploy/rehearsal `ssh`/`scp` (and, by mistake, removed the space in `bash -s -- '<env>'`); #107 read `VM_DEPLOY_SSH_PORT` first; #108 defaulted the port to 2222 and dropped `VM_SSH_PORT`; #109 restored the space. #110 (runner IP + TCP check before upload) was opened and is closed unmerged.
+
+**Rollback checklist:**
+
+- [x] Workflows restored to `da02237` (`git diff da02237 -- .github/workflows` empty).
+- [ ] Repository variables `VM_SSH_PORT` and `VM_DEPLOY_SSH_PORT` deleted (Settings → Secrets and variables → Actions → Variables). Secrets were never changed.
+- [ ] #110 closed without merging.
+- [ ] VM, from the Hostinger web console: `rm /etc/ssh/sshd_config.d/10-extra-port.conf && sshd -t && systemctl restart ssh`, then `ufw delete allow 2222/tcp`; if added, `iptables -D INPUT -p tcp --dport 2222 --syn -j LOG --log-prefix "SSH2222-SYN "`.
+- [ ] Rollback PR merged; deploy result and `/ready` checked.
+
+**Next recommended action:** ask the repository owner (khalshaqzzy) to inspect the `staging` environment variables and secrets (`VM_SSH_PORT`, `VM_HOST`) and, ideally, grant Candrikadewi the Admin or Maintain role. If the rollback deploy still times out, capture one failing runner's public IPv4 and timestamp and compare it with a SYN log on the VM before choosing between a provider escalation and a private-network deploy path (Tailscale was discussed, not started).
+
+**Other open items:** the VM still offers SSH password authentication (disable once key-only access is confirmed); the legacy Voice import can run on the VM independently of this deploy (runbook `docs/migration/README.md`); an Admin upload menu for legacy imports was proposed, not approved.
+
+**Lessons for agents:**
+
+- GitHub settings pages and menus shift in the narrow browser pane; widen it, click by element reference, and read a dialog before confirming (an earlier slip deleted one staging run's logs).
+- Edits that end at a trailing space in a shell string can drop it; diff workflow changes against the previous release before committing.
+- On Windows PowerShell 5.1, `Get-Content`/`Out-String` without an explicit UTF-8 encoding corrupts non-ASCII text; swap files with Node or byte-level copies.
+- Unauthenticated GitHub API polling hits the 60-requests-per-hour limit; poll every few minutes or read run pages in the signed-in browser.
+
+**Checks run:** workflow files compared with `da02237` (identical). Hosted Actionlint, ShellCheck and deployment-script tests run on the rollback PR.
 
 ## Dashboard timings stored by triggers — 27 October 2026
 
-**Branch:** `feat/stored-dashboard-timings`, stacked on `fix/org-dashboard-headroom` (PR #104); merge #104 first.
+**Status:** merged as #105 (`da02237`), not yet live: every deploy since has failed to reach the VM (see the incident entry above).
+
+**Branch:** `feat/stored-dashboard-timings`, stacked on `fix/org-dashboard-headroom` (PR #104).
 
 **Change (ADR-0071):** migration `20261027090000_dashboard_stored_timings` adds `VoiceResponseTiming` (first/latest MONITORED/RESPONDED per Voice, cascades with its Voice) and `ClosureCycle.startedAt`, backfills both, and installs the schema's first triggers to keep them exact. `performanceFor` reads them instead of joining events and the previous cycle.
 
@@ -28,6 +68,8 @@
 **Next:** `dashboard-people.ts` can switch to the stored values too.
 
 ## Organization dashboard performance headroom — 27 October 2026
+
+**Status:** merged as #104 and live (`d252fc2`); the staging run passed with CI p95 1651 ms.
 
 **Problem:** after PR #103 merged, the staging run failed `API (performance)` three times (p95 3023/3080/3078 ms against 3000 ms), so satucare.com kept the previous release. Staging before #103 already ran at 2875–2947 ms.
 

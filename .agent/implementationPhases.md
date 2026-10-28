@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Staging deploy SSH incident — 27 to 28 October 2026
+
+Phase 13 remains the only `in_progress` phase. Staging deploys after `d252fc2` (#104) timed out connecting to the VM over SSH; the interim workflow changes (#106–#109) are rolled back to the #105 state on `revert/deploy-ssh-changes`. #104 (dashboard query headroom) is live; #105 (stored dashboard timings, ADR-0071) is merged but blocked on delivery. Release delivery is blocked until the runner-to-VM SSH path is understood. See ADR-0072.
+
 ## iPhone Safari install guide — 16 October 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/ios-install-guide` (from `origin/staging`, not released): `/install` on iPhone Safari shows three illustrated, bilingual steps (⋯ → Bagikan/Share → View More → Add to Home Screen) and an arrow toward Safari's ⋯ button. See the ADR-0067 amendment.

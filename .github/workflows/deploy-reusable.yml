@@ -29,10 +29,7 @@ jobs:
     env:
       REMOTE_HOST: ${{ secrets.VM_HOST }}
       REMOTE_USER: ${{ secrets.VM_USER }}
-      # Deploys use SSH port 2222: the host's network drops GitHub runner traffic
-      # to 22. Repository variables did not reach this job (VM_SSH_PORT and
-      # VM_DEPLOY_SSH_PORT both resolved empty), so the port defaults here.
-      REMOTE_PORT: ${{ vars.VM_DEPLOY_SSH_PORT || '2222' }}
+      REMOTE_PORT: ${{ vars.VM_SSH_PORT || '22' }}
       REMOTE_BASE_DIR: ${{ inputs.remote_base_dir }}
       RELEASE_SHA: ${{ inputs.release_sha }}
       DEPLOY_RUN_NUMBER: ${{ inputs.deploy_run_number }}
@@ -143,12 +140,10 @@ jobs:
         run: |
           remote_archive="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.tar.gz"
           remote_env="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.env"
-          # HostKeyAlias pins the same host key on any SSH port; without it a
-          # non-22 port is looked up as "[host]:port", which the secret lacks.
-          opts=(-i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -o HostKeyAlias="$REMOTE_HOST" -p "$REMOTE_PORT")
+          opts=(-i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -p "$REMOTE_PORT")
           # shellcheck disable=SC2029
           ssh "${opts[@]}" "$REMOTE_USER@$REMOTE_HOST" "umask 077 && mkdir -p '$REMOTE_BASE_DIR/incoming'"
-          scp -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -o HostKeyAlias="$REMOTE_HOST" -P "$REMOTE_PORT" "$ARCHIVE" "$REMOTE_USER@$REMOTE_HOST:$remote_archive"
+          scp -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -P "$REMOTE_PORT" "$ARCHIVE" "$REMOTE_USER@$REMOTE_HOST:$remote_archive"
           # shellcheck disable=SC2029
           ssh "${opts[@]}" "$REMOTE_USER@$REMOTE_HOST" "umask 077 && cat > '$remote_env'" < "$RUNTIME_ENV"
       - name: Deploy under remote lock
@@ -156,7 +151,7 @@ jobs:
         run: |
           remote_archive="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.tar.gz"
           remote_env="$REMOTE_BASE_DIR/incoming/$RELEASE_SHA.$DEPLOY_RUN_NUMBER.$DEPLOY_RUN_ATTEMPT.env"
-          ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -o HostKeyAlias="$REMOTE_HOST" -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+          ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
             "bash -s -- '${{ inputs.app_env }}' '$RELEASE_SHA' '$DEPLOY_RUN_NUMBER' '$DEPLOY_RUN_ATTEMPT' '$REMOTE_BASE_DIR' '$remote_archive' '$remote_env' '$ARCHIVE_SHA' '$REMOTE_HOST'" < deploy/scripts/remote-entrypoint.sh
       - name: Verify externally
         if: steps.final_freshness.outputs.deploy == 'true'
