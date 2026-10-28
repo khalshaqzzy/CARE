@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "scanner": "trivy",
+    "id": "CVE-2026-116587",
+    "rationale": "go-jose JWK RSA parsing DoS. The care-caddy binary carries github.com/go-jose/go-jose/v3 v3.0.5 only through caddypki (smallstep/certificates, go.step.sm/crypto); no fixed v3 release exists. The deployed Caddyfile uses no acme_server, pki app or internal issuer, so that JWK parsing is not reachable. go-jose/v4 is pinned to the fixed 4.1.6. ADR-0041 addendum of 28 October 2026.",
+    "expiresOn": "2026-12-31"
+  }
+]
