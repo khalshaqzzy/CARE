@@ -31,7 +31,7 @@ jobs:
     env:
       REMOTE_HOST: ${{ secrets.VM_HOST }}
       REMOTE_USER: ${{ secrets.VM_USER }}
-      REMOTE_PORT: ${{ vars.VM_DEPLOY_SSH_PORT || '2222' }}
+      REMOTE_PORT: ${{ vars.VM_SSH_PORT || '22' }}
       SSH_KEY: /tmp/care-rehearsal-key
       KNOWN_HOSTS: /tmp/care-rehearsal-known-hosts
     steps:
@@ -70,7 +70,7 @@ jobs:
           CURRENT_SHA: ${{ inputs.current_sha }}
         run: |
           [[ "$(git ls-remote origin refs/heads/staging | cut -f1)" == "$CURRENT_SHA" ]]
-          ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -o HostKeyAlias="$REMOTE_HOST" -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+          ssh -i "$SSH_KEY" -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
             "bash '/opt/care/staging/current/deploy/scripts/rehearse-staging.sh' '$PREVIOUS_SHA' '$CURRENT_SHA' '/opt/care/staging' '$REMOTE_HOST' 'I_ACCEPT_STAGING_INTERRUPTION'"
       - name: Remove runner secret material
         if: always()
