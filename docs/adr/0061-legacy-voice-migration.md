@@ -26,6 +26,8 @@ CARE replaces the member-voice platforms already in use. Management wants the Vo
 
 - **Dashboards count migrated Voices as volume only** (amended 27 October 2026). They appear in totals, status, severity, category, area, organization, trend, and per-member Voice counts. They stay out of timeliness (Tepat Waktu), the response, completion, and rating averages, Performa Responder, and Kinerja Saya. The recorded PIC is often today's route owner, not the person who handled the Voice, so crediting it would bias who looks like the best responder.
 
+- **Dashboards show migrated Voices apart, per source platform** (amended 28 October 2026). In the organization breakdown of General dashboards, at every level and on both bases, a migrated Voice is counted under its own bucket `Migrasi Voice <Platform Asal>` (identifier `migrated-<Platform Asal>`) instead of its handling or reporter unit. In the reporter-origin breakdown its origin is the platform name. The grouping adds `legacySource` as a key; the stored organization snapshots, PIC, dashboard scope and access rules are unchanged, so every head still sees the same Voices and only the breakdown differs. The buckets are not drillable, like the existing "Section belum teridentifikasi" bucket. Without this, shared placeholder reporters (for example an anonymous `PADI-ANONIM` account in organization "Anonim") and historical handling units were mixed with live CARE units. Labels use the Platform Asal text as stored, so each platform must be spelled consistently across batches.
+
 - **Organization:**
   - The handling department of a General Voice must match a current CARE department, because the default dashboard groups by it. The importer stores CARE's own names, with `handlingOrganizationSource = 'LEGACY_IMPORT'`.
   - The reporter's department is matched when it still exists. Otherwise it is kept as written.
@@ -41,3 +43,5 @@ CARE replaces the member-voice platforms already in use. Management wants the Vo
 - Performance figures cover only Voices handled in CARE. The old platforms recorded no deadlines, and their response times and ratings cannot be traced to a person. The old figures stay in the source workbooks.
 - Organization names that have changed must be rewritten to the current CARE names before import. The dry-run report lists every row that does not match.
 - The CLI runs inside the API image on the server (see `docs/migration/README.md`). It needs no new compose service.
+- The per-platform buckets add one grouping key to the dashboard query. On the 50k-Voice performance fixture the organization dashboard p95 stayed within run-to-run variance of the previous release (1.75–1.97 s against 1.84–2.12 s, limit 3 s).
+- The first batch (EPKD 444, PADi 267, QC1 36, SUKI 136; 883 Voices) was imported on 28 October 2026 with no rejected rows.

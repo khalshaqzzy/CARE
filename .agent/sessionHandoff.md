@@ -1,5 +1,21 @@
 # CARE Session Handoff
 
+## Migrated Voices in their own dashboard buckets — 28 October 2026
+
+**Objective:** after batch 1 of the legacy migration went live, the responder dashboard showed "Anonim" under Asal pengirim (PADi's shared `PADI-ANONIM` account) and mixed migrated Voices into the real handling sections. Migrated Voices are now kept apart from Voices sent in CARE.
+
+**Branch:** `feat/migrated-dashboard-buckets` (from `origin/staging` `b16ce82`), PR to `staging`.
+
+**Change (ADR-0061 amendment, `apps/api/src/voices/dashboard.ts`, presentation only):**
+
+- Handling/organization chart, General visibility, every level (directorate, division, department, section) and both bases: a migrated Voice is counted under `id: migrated-<legacySource>`, label `Migrasi Voice <legacySource>` (for example `Migrasi Voice PADi`). The grouping set adds `legacySource`; the label marker is `__MIGRATED__`.
+- Asal pengirim (`reporterOrigins`, handling basis): a migrated Voice's origin is its platform (`COALESCE(legacySource, reporterDepartmentSnapshot)`); equal labels are summed before the top five.
+- Labels use the workbook's Platform Asal text as stored (EPKD, PADi, QC1, SUKI). The stored organization snapshots, PIC, scope and access rules are unchanged, so heads still see the same Voices. The Voice app's organization bars are display-only, so the synthetic buckets need no drill-down handling. Private views (grouped by Union handler) are unchanged.
+
+**Checks:** `legacy-voice-import`, `organization-dashboard`, `dashboard-filter`, `dashboard-people`, `dashboard-stored-timings` integration tests: 51 passed (new assertions for the bucket and the origin). Performance test on the 50k fixture, alternating with staging: p95 1746–1974 ms against 1841–2119 ms. Before/after screenshots of the responder Sebaran card were reviewed and approved.
+
+**Housekeeping in this PR:** the legacy migration entry below now carries the per-platform batch decisions (previously only in the uncommitted handoff on `feat/time-for-team` in the main checkout) and the batch 1 import result.
+
 ## Staging deploy SSH incident and rollback to the #105 workflows — 27 to 28 October 2026
 
 **Objective:** restore a known-good staging delivery path after every deploy since #105 failed to reach the VM over SSH, and record the incident (ADR-0072).
@@ -81,7 +97,7 @@
 
 **Change (`fix/org-dashboard-headroom`):** `performanceFor` excludes migrated Voices by id from a small `migrated` set (read via the `(legacySource, legacyId)` index) and carries only the columns a view reads (`mine`/`theirs` only with a second basis; `status`, `tierDueAt`, `handlingCycleNumber` only for ops/overdue/metrics). Director 217 vs 227–231 ms, division leadership 275 vs 281–284 ms serial; member unchanged.
 
-## Legacy Voice migration from earlier member-voice platforms — 5 to 27 October 2026
+## Legacy Voice migration from earlier member-voice platforms — 5 to 28 October 2026
 
 **Objective:** Management is replacing the existing member-voice platforms with CARE. Every Voice already sent there must appear in CARE, mainly so the dashboard is complete. The user (CARE side) sends one Excel template to each old platform's PIC, who fills it in. The user then imports it.
 
@@ -117,13 +133,6 @@
 - `.gitignore` blocks filled workbooks and report CSVs in `docs/migration/`.
 - Test: `apps/api/test/integration/legacy-voice-import.integration.test.ts`.
 
-**Done on 27 October (`feat/migrated-voice-volume-only`, from `origin/staging` 1ad9d57):**
-
-- The product owner chose "volume only": migrated Voices count in the totals, status, severity, category, area, organization and trend charts. They are left out of Tepat Waktu, the response/completion/rating averages, Performa Responder and Kinerja Saya, because their PIC is today's route owner, not the historical handler (`dashboard.ts` `performanceFor`, `dashboard-people.ts` `measure()`). ADR-0061 is amended.
-- The importer sets `updatedAt` to the close time, so migrated history sorts below live Voices on the member home.
-- Voice list items and detail return `legacySource`. The workforce cards show it as a small outlined tag beside the Voice ID or area, and the detail header shows the same tag (`LegacySourceBadge.tsx`, `.voice-legacy`). The tag text is exactly the "Platform Asal" value, so PICs must spell each platform the same way. Not shown in CARE Admin.
-- Tests: `legacy-voice-import.integration.test.ts` (dashboard exclusions, sort, `legacySource`), and an e2e history case in `workforce-journeys.spec.ts`.
-
 **Template columns (sheet `Voice`; header `*` = required):**
 
 - Platform Asal*, ID Voice Lama*, Tanggal Submit*, Jenis Voice*
@@ -140,45 +149,67 @@ Format rules:
 - Times are WIB, written `YYYY-MM-DD HH:MM`.
 - Column rules are data-validation input messages, never cell comments: ExcelJS cannot load openpyxl comments.
 
-**Open question (latest, not built):** the old platforms have **no "who handled it" data**: no PIC and no handling department. CARE requires a PIC (`Voice.routeOwnerId`, not null). The default dashboard (basis Penanganan) groups by the handling department snapshot; when it is missing, the Voice lands in "Organisasi belum teridentifikasi". The PIC also grants Department Heads detail access through `workItemScope`.
+**Handler data (resolved without importer changes):** the old platforms have no "who handled it" data. Instead of deriving it in the importer, the workbooks are filled before import. The handling department and PIC come from the October HR file (`CARE DATA/CARE_ORG DATA_OCT.xlsx`): the Department Head of the handling department, or the division leadership when the department has none.
 
-Proposed, awaiting the user's OK:
+**Dashboards (PR #103, tuned in #104, live):** migrated Voices count as volume only: totals, status, severity, category, area, organization and trend. They are left out of Tepat Waktu, the response, completion and rating averages, Performa Responder and Kinerja Saya. Cards and detail show a platform tag from `legacySource`. So close dates that equal submit dates do not distort performance. Since `feat/migrated-dashboard-buckets` they also form their own buckets: see the entry above.
 
-- Make the Penanganan and PIC columns optional. A filled value wins. When empty, derive them in the importer with CARE's routing (`resolveRoute` in `voices.service.ts`):
-  - **General:** the category route gives the department. FIXED_DEPARTMENT uses that unit. RELATED_REPORTER_DEPARTMENT uses the reporter's unit. Fasilitas Kerja / Kesulitan Kerja is Related Dept since the ADR-0058 amendment (commit d3bd474), so no shop matching is needed. The PIC is that unit's active route owner (RouteMapping DEPARTMENT_HEAD/DEFAULT_DEPARTMENT, `effectiveTo` null, owner ACTIVE).
-  - **Private:** the PIC is the current active Union Head (UnionAccountTerm HEAD).
-- Trade-offs:
-  - The PIC recorded is the current office-holder, not the historical handler.
-  - A row whose reporter department no longer exists in CARE stays an error until Department Penanganan is filled by hand.
-- The dry-run report says when a value was derived.
-- Alternative rejected: a neutral "Platform Lama" PIC account. Department Heads of other units could not open those Voices.
-- The work would touch:
-  - `planLegacyImport` (derivation; load category routes, route mappings and the union head);
-  - `REQUIRED_HEADERS`;
-  - `build_template.py` (drop `*` on the Penanganan/PIC columns, with input messages saying they may be empty);
-  - the test;
-  - ADR-0061 and the runbook.
+**Imported on satucare.com, 28 October 2026 (release `b16ce82`):** all four workbooks were dry-run and committed on the VPS with zero errors: EPKD 444, PADi 267, QC1 36, SUKI 136 (883 Voices). The workbooks and reports were deleted from `/srv/care-migration`. A `pg_dump` to `/root/care-sebelum-migrasi-*.dump` was recommended before the commit. Copying files to the VPS needs the root password: the laptop has no SSH key on the server.
 
-  It needs a new `feat/` branch from `origin/staging` and a PR (never push to staging directly).
+**Prepared batches (28 October 2026):** files sit in `C:/Users/ASUS/Documents/CARE DATA/`, outside the repo, because they hold personal data. Builders, title/severity tables and match data are in `CARE DATA/_skrip_migrasi_padi/`. All four were checked against the real importer: PADi, QC1 and EPKD by a dry run on a throwaway database seeded with the October HR file, SUKI by the required-column check only.
+
+| File                           | Voices | Platform Asal | Handling / PIC                                                                                                                                                                                                |
+| ------------------------------ | ------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PADi_Migrasi_Voice_CARE.xlsx` | 267    | PADi          | Category route: Safety, Environment, Fasilitas Umum → Plant GA & SHE Dept (Dedi Slamet Riyadi); Facility Repair → Smart Plant Facility Mfg Dept (Teddy Cahyono); Kesulitan Kerja → reporter's Department Head |
+| `QC1_Migrasi_Voice_CARE.xlsx`  | 36     | QC1           | Quality Inspection 1 Dept (Budhy Sugiarto)                                                                                                                                                                    |
+| `EPKD_Migrasi_Voice_CARE.xlsx` | 444    | EPKD          | Reporter's Department Head: Production Dept (Mochammad Hari Murtono), TNGA Production Dept (no Department Head in HR → Taryono Purba, division leadership), Engineering Service Dept                          |
+| `SUKI_Migrasi_Voice_CARE.xlsx` | 136    | SUKI          | Body Production & Insp P#2 Dept (Moch. Reza Pahlevi); the canteen Voice VO-013 → Plant GA & SHE Dept (Dedi Slamet Riyadi)                                                                                     |
+
+The user's decisions per platform:
+
+- **PADi:**
+  - Only Selesai; Ditolak, test rows and complaints about the PADi app itself are skipped.
+  - Anonymous and unidentifiable reporters share one inactive `PADI-ANONIM` account (organization "Anonim"), so they show in the handling dashboard but under no reporter unit.
+  - No ratings.
+  - Kesulitan Kerja goes straight to the Department Head, not up the tier chain.
+- **QC1 (source file `VM_APPD Inspection.xlsx`; platform tag, IDs `QC1-01`… and file renamed from APPD before the first import):**
+  - Only sheet APPD3 (Final Test White), closed rows. APPD1 (empty Result) and APPD2 (no names or dates) are dropped.
+  - All Voices are Kesulitan Kerja.
+  - The source has no submit date, so submit = fix date.
+  - Short titles are written per Voice.
+  - Reporters missing from HR keep their QC1 name on their own inactive `QC1-<NAME>` account.
+- **EPKD (Engine Production Karawang 3):**
+  - The `PIC` column is the reporter, and each Voice goes to the reporter's own Department Head.
+  - Safety rows become Kesulitan Kerja.
+  - `Date` = submit. All rows are migrated as closed: the close date is Actual Date, else Plan Date, else C/M Plan Date, else the submit date.
+  - Only reporters from the EPKD division: Quality Inspection 1 reporters are dropped, and so is the test row "trial power BI".
+  - Unknown NoRegs keep the EPKD name, assumed to be in Production Dept.
+- **SUKI (Welding #2):**
+  - Shop-level pattern, confirmed by the user: DONE only, Kesulitan Kerja, Department Head, close date = voice date.
+  - Canteen Voices are Fasilitas Umum and follow its route; only VO-013 mentions the canteen.
+  - Three rows whose NoReg belongs to someone in another department are dropped.
+  - Two rows without any reporter use `SUKI-ANONIM`.
+- **QD Form:** the export only holds 4 Open Voices (a chart drill-down). It needs a full export before anything can be migrated.
+- **Severity everywhere:** judged per Voice with `CARE DATA/CARE_Definisi_Kategori_dan_Severity.pptx`, not with the old platforms' ranks.
 
 **Caveats:**
 
-- **Local test DB:** port 54329 may be taken by the `CARE-proto` Postgres; use a throwaway `pgvector/pgvector:pg16` on 54339 with `scripts/postgres-init.sql`.
+- **Local dry-run databases:**
+  - Port 54329 is taken by the `CARE-proto` Postgres, and 54339 by `care-migperf-pg` from another worktree. 54349 was refused by Windows; 58432 worked.
+  - `prisma migrate deploy` creates the database on whatever server answers. Check the port is free before running it; once it created `care_dry` inside `care-migperf-pg` (since dropped).
 - **Local test failures:** `admin-safety` (reset replay) and `api.integration` `/ready` fail locally even on clean staging.
-- **CI:** `API (performance)` can fail marginally (p95 about 3.03 s against 3 s); rerun, never change the threshold.
-- **Merging:** clicking Merge in the in-app browser was denied by the auto-mode classifier; the user merges PRs themselves.
-- **Tiered closure (PR #97):** not yet checked against the importer, which writes one accepted closure cycle directly.
+- **CI:** `API (performance)` can fail marginally against the 3 s p95 limit; rerun, never change the threshold.
+- **Merging:** the user merges PRs themselves.
+- **Workbooks open in Excel** cannot be overwritten; ask the user to close them before rebuilding.
 
 **Next:**
 
-1. Get the user's answer on the handler derivation, then build it as above.
-2. When the first filled workbook arrives:
-   1. Import the latest HR file first.
-   2. Fill Severity, Area and Kategori CARE.
-   3. Dry run locally on a copy of the data.
-   4. Run on the VPS following the runbook (Hostinger web console): dry run first, then `--commit`.
-   5. Spot-check by searching the old ID.
-   6. Delete the workbook and report from the server.
+1. Done for batch 1 (see above). Spot-check a few Voices per platform by their old ID, then delete the VPS backup dump once satisfied.
+2. Later batches, imported the same way (`docs/migration/README.md`):
+   - PADi: 17 Diproses, 8 Klarifikasi and 2 Menunggu once closed.
+   - QD Form: needs a full export.
+   - SUKI: 6 Voices still in progress.
+
+   Rebuild with the scripts in `_skrip_migrasi_padi`; rows already imported are skipped.
 
 ## Voice detail shows the current tier holder as PIC — 22 October 2026
 
