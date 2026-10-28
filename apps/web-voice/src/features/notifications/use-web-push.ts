@@ -1,3 +1,4 @@
+import { useAuth } from '@care/frontend-core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -6,11 +7,13 @@ import {
   ensureBrowserSubscription,
   getInstallationId,
   isIos,
+  isPushOptedOut,
   isPushSupported,
   isStandalone,
   permissionState,
   pushPlatform,
   pushProviderHost,
+  setPushOptedOut,
   subscriptionPayload,
   urlBase64ToUint8Array,
 } from '../../lib/push';
@@ -25,11 +28,20 @@ import { SERVICE_WORKER_FAILURE_MARKER } from '../../register-sw';
 
 type PushStatus = Awaited<ReturnType<ReturnType<typeof useApi>['pushStatus']>>;
 
+/** Sessions that already made their one automatic enrollment attempt this page load. */
+const autoEnrollAttempted = new Set<string>();
+/** Rotated endpoints already re-registered, shared by every hook instance. */
+const repairedEndpoints = new Set<string>();
+
 /**
- * Drives the workforce Web Push opt-in/opt-out state machine while keeping the
- * in-app Notification Center authoritative. Subscribe/upsert and unsubscribe
- * are idempotent by nature (backend upsert / updateMany), so they need no
- * Idempotency-Key; they only run from an explicit user gesture.
+ * Drives the workforce Web Push state machine while keeping the in-app
+ * Notification Center authoritative. Push is on by default: with
+ * `autoEnable`, an installation that is not registered and was not switched
+ * off on this device enrolls itself once per session, silently when
+ * permission is already granted, otherwise from the user's next tap anywhere
+ * in the app (the browser prompt needs that tap's user activation).
+ * Subscribe/upsert and unsubscribe are idempotent by nature (backend upsert /
+ * updateMany), so they need no Idempotency-Key.
  *
  * Android/Chrome specifics this flow must respect:
  * - the notification prompt is only shown while the triggering tap still holds
@@ -40,9 +52,10 @@ type PushStatus = Awaited<ReturnType<ReturnType<typeof useApi>['pushStatus']>>;
  * - a rotated push subscription must be re-registered, otherwise the device
  *   keeps showing as active while every delivery fails.
  */
-export function useWebPush() {
+export function useWebPush(options: { autoEnable?: boolean } = {}) {
   const api = useApi();
   const sessionId = useSessionId();
+  const accountId = useAuth().session?.account.id ?? 'anon';
   const queryClient = useQueryClient();
   const capabilities = getBrowserCapabilities();
   const platform = pushPlatform();
@@ -55,7 +68,6 @@ export function useWebPush() {
   });
   const [lastFailure, setLastFailure] = useState<PushSetupGuidance | null>(null);
   const [browserEndpoint, setBrowserEndpoint] = useState<string | null>(null);
-  const repairedEndpoints = useRef(new Set<string>());
   useEffect(() => {
     const degraded = () => setServiceWorkerFailed(true);
     const restored = () => setServiceWorkerFailed(false);
@@ -179,8 +191,8 @@ export function useWebPush() {
         if (!current) return;
         const prefix = await endpointHashPrefix(current.endpoint);
         if (cancelled || !prefix || prefix === storedPrefix) return;
-        if (repairedEndpoints.current.has(current.endpoint)) return;
-        repairedEndpoints.current.add(current.endpoint);
+        if (repairedEndpoints.has(current.endpoint)) return;
+        repairedEndpoints.add(current.endpoint);
         await sessionRef.current.api.subscribePush(browserSubscriptionPayload(current));
         sessionRef.current.invalidate();
       } catch {
@@ -192,12 +204,57 @@ export function useWebPush() {
     };
   }, [canUsePushApi, permission, status.data, sessionId]);
 
+  const installationRegistered = subscriptions.some(
+    (subscription) => subscription.installationId === getInstallationId(),
+  );
+  const subscribeRef = useRef(subscribe.mutate);
+  useEffect(() => {
+    subscribeRef.current = subscribe.mutate;
+  });
+
+  // Default-on enrollment. Runs at most once per session so a dismissed or
+  // failed prompt is not repeated on every tap; a later login (which revokes
+  // the server subscription) enrolls again.
+  const autoEnable = Boolean(options.autoEnable);
+  useEffect(() => {
+    if (!autoEnable || !canUsePushApi || !configured || !status.data) return;
+    if (installationRegistered || permission === 'denied' || permission === 'unsupported') return;
+    if (autoEnrollAttempted.has(sessionId) || isPushOptedOut(accountId)) return;
+    const enroll = () => {
+      autoEnrollAttempted.add(sessionId);
+      subscribeRef.current();
+    };
+    if (permission === 'granted') {
+      enroll();
+      return;
+    }
+    const onTap = (event: MouseEvent) => {
+      // The settings card drives its own explicit opt-in.
+      if (event.target instanceof Element && event.target.closest('.push-settings')) return;
+      window.removeEventListener('click', onTap, true);
+      enroll();
+    };
+    window.addEventListener('click', onTap, true);
+    return () => window.removeEventListener('click', onTap, true);
+  }, [
+    autoEnable,
+    canUsePushApi,
+    configured,
+    status.data,
+    installationRegistered,
+    permission,
+    sessionId,
+    accountId,
+  ]);
+
   const setEnabled = useCallback(
     (next: boolean) => {
+      // Only an explicit switch-off is remembered; switching on clears it.
+      setPushOptedOut(accountId, !next);
       if (next) subscribe.mutate();
       else unsubscribe.mutate();
     },
-    [subscribe, unsubscribe],
+    [accountId, subscribe, unsubscribe],
   );
 
   return {
@@ -218,9 +275,7 @@ export function useWebPush() {
     busy: subscribe.isPending || unsubscribe.isPending,
     error: subscribe.error ?? unsubscribe.error ?? null,
     diagnostics: {
-      installationRegistered: subscriptions.some(
-        (subscription) => subscription.installationId === getInstallationId(),
-      ),
+      installationRegistered,
       providerHost: browserEndpoint ? pushProviderHost(browserEndpoint) : null,
       serviceWorkerSupported: capabilities.serviceWorkerSupported,
       serviceWorkerFailed,
@@ -228,6 +283,12 @@ export function useWebPush() {
     setEnabled,
     refresh: () => void status.refetch(),
   };
+}
+
+/** Mounted once in the signed-in shell so push is enrolled by default. */
+export function PushAutoEnable(): null {
+  useWebPush({ autoEnable: true });
+  return null;
 }
 
 export type WebPushState = ReturnType<typeof useWebPush>;
