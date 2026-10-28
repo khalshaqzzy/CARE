@@ -11,6 +11,7 @@
 - `install-copy.ts`: the guide follows the phone language: Indonesian for `id`/`in`, English for everything else (Android and iPhone, including the Safari mock labels). The Indonesian iPhone mock labels "Tambahkan Penanda" and "Lihat Lainnya" were not checked on a real iPhone.
 
 **Checks:** web-voice build; unit tests `install-prompt`, `install-copy` (9 passed); e2e `install link (/install)` and the `/install` a11y case (8 passed). The user approved the layout from screenshots.
+
 ## Caddy go-jose vulnerability blocked the #112 release — 28 October 2026
 
 **Problem:** PR #112 merged at 07:55 UTC (`39c7450`), but its staging run failed `Production containers and routing` at the Caddy image Trivy step, so the release gate failed and satucare.com stayed on `b16ce82`. The PR's own CI had passed shortly before: CVE-2026-116587 (go-jose JWK RSA parsing DoS, High) became visible in between.
