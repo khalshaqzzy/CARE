@@ -1,5 +1,20 @@
 # CARE Session Handoff
 
+## Deploy SSH moved to port 2222 — 28 October 2026
+
+**Problem:** from 27 Oct ~23:00 UTC every staging deploy failed at the first SSH step (`ssh: connect to host *** port 22: Connection timed out`, three attempts on run 40600421713 for #105's merge `da02237`). The VPS sshd log shows none of those attempts, UFW allows 22/tcp from anywhere, the hPanel firewall has no rules and fail2ban is not installed, while SSH on 22 from other networks works. Port 22 traffic from GitHub runners is dropped upstream, in Hostinger's network. Hostinger support could not be reached.
+
+**Change:**
+
+- VPS (done by the user in the web console): sshd also listens on 2222 (`/etc/ssh/sshd_config.d/10-extra-port.conf` with `Port 22` and `Port 2222`), and UFW allows 2222/tcp. Port 22 stays open.
+- GitHub: repository variable `VM_SSH_PORT=2222` (the workflows already read it).
+- Workflows: `-o HostKeyAlias="$REMOTE_HOST"` on every deploy and rehearsal `ssh`/`scp`, so the pinned `VM_SSH_KNOWN_HOSTS` entry for the plain host also verifies port 2222. Checked against the server: without the alias, port 2222 fails host key verification; with it, the connection reaches authentication. The `staging` environment secrets can only be edited by the repo owner, so the secret itself was not changed.
+
+**Open:**
+
+- If GitHub cannot reach 2222 either, the block covers the whole IP; the next route is a private network (Tailscale) for deploys.
+- The server still offers password authentication (`Permission denied (publickey,password)`); turn it off once key login is confirmed.
+
 ## Dashboard timings stored by triggers — 27 October 2026
 
 **Branch:** `feat/stored-dashboard-timings`, stacked on `fix/org-dashboard-headroom` (PR #104); merge #104 first.
