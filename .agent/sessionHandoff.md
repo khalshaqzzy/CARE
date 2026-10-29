@@ -1,5 +1,17 @@
 # CARE Session Handoff
 
+## Installed state and home screen step on /install — 29 October 2026
+
+**Problem:** after installing on Android, **Buka CARE** opened CARE in the same Chrome tab, not the installed app, and nothing said CARE was now on the home screen. The iPhone guide stopped at Add to Home Screen.
+
+**Change (`feat/installed-open-app`, PR to `staging`):**
+
+- Installed view: a green check on the icon and "Ikon CARE sudah ada di layar utama HP." / "The CARE icon is now on your home screen."
+- Android **Buka CARE** is an `intent://` link with no package and `S.browser_fallback_url` (`installedAppIntentUrl`), so Android can hand it to the WebAPK; without one Chrome stays on the page. Browsers have no API to launch an installed PWA, so this needs a check on a real phone after deploy. Right after install the WebAPK can take a few seconds to finish.
+- iPhone guide step 4: "Buka CARE dari layar utama" / "Open CARE from your home screen", with a home screen mock. The page cannot detect Add to Home Screen on iOS, so the step is always shown.
+
+**Checks:** e2e count in `validation.test.mjs` is now 472 (468 plus the four push tests from #115).
+
 ## Web Push on by default — 28 October 2026
 
 **Objective:** push notifications were off until a member switched them on in Notifikasi, and many members never did. Make push on by default. ADR-0073 and PRD §19.1/§19.4 hold the rules.

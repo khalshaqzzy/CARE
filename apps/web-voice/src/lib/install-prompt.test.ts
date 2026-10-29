@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chromeIntentUrl, detectInstallPlatform } from './install-prompt';
+import { chromeIntentUrl, detectInstallPlatform, installedAppIntentUrl } from './install-prompt';
 
 const IPHONE_SAFARI =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
@@ -59,6 +59,14 @@ describe('chromeIntentUrl', () => {
   it('reopens the same https URL in Chrome', () => {
     expect(chromeIntentUrl('https://satucare.com/install')).toBe(
       'intent://satucare.com/install#Intent;scheme=https;package=com.android.chrome;end',
+    );
+  });
+});
+
+describe('installedAppIntentUrl', () => {
+  it('leaves the app choice to Android and falls back to the same page', () => {
+    expect(installedAppIntentUrl('https://satucare.com/')).toBe(
+      'intent://satucare.com/#Intent;scheme=https;S.browser_fallback_url=https%3A%2F%2Fsatucare.com%2F;end',
     );
   });
 });

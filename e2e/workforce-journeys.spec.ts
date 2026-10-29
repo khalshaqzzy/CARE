@@ -1070,6 +1070,23 @@ test.describe('install link (/install)', () => {
     });
   });
 
+  test.describe('on Android after installing', () => {
+    test.use({ userAgent: ANDROID_CHROME });
+    test('says CARE is on the home screen and opens the installed app', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await mockWorkforceApi(page, { unauthenticated: true });
+      await page.goto('/install');
+      await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+      await expect(page.getByRole('heading', { name: 'CARE sudah terpasang' })).toBeVisible();
+      await expect(page.getByText('Ikon CARE sudah ada di layar utama HP.')).toBeVisible();
+      // No package: Android hands the URL to the installed app, else Chrome keeps it.
+      await expect(page.getByRole('link', { name: 'Buka CARE' })).toHaveAttribute(
+        'href',
+        /^intent:\/\/127\.0\.0\.1:\d+\/#Intent;scheme=https;S\.browser_fallback_url=http%3A%2F%2F127\.0\.0\.1%3A\d+%2F;end$/,
+      );
+    });
+  });
+
   test.describe('in a phone-maker browser', () => {
     test.use({
       userAgent:
@@ -1099,6 +1116,7 @@ test.describe('install link (/install)', () => {
         /Tap ⋯ di kanan bawah/,
         /Tap Bagikan/,
         /Pilih Tambahkan ke Layar Utama/,
+        /Buka CARE dari layar utama/,
       ]);
       // The arrow points at Safari's own ⋯ button; it is decorative only.
       const arrow = page.locator('.install-arrow');
@@ -1121,6 +1139,7 @@ test.describe('install link (/install)', () => {
         /Tap ⋯ at the bottom right/,
         /Tap Share/,
         /Choose Add to Home Screen/,
+        /Open CARE from your home screen/,
       ]);
     });
   });

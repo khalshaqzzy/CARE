@@ -111,3 +111,14 @@ export function chromeIntentUrl(url: string) {
   const target = new URL(url);
   return `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=https;package=com.android.chrome;end`;
 }
+
+/**
+ * Android intent for an in-scope URL with no package, so Android can hand it
+ * to the installed CARE app (Chrome's WebAPK registers the scope). With no app,
+ * Chrome follows the fallback and the page stays in the browser.
+ */
+export function installedAppIntentUrl(url: string) {
+  const target = new URL(url);
+  const fallback = encodeURIComponent(target.href);
+  return `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=https;S.browser_fallback_url=${fallback};end`;
+}

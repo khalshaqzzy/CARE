@@ -20,6 +20,7 @@ import {
   chromeIntentUrl,
   detectInstallPlatform,
   detectInstalledApp,
+  installedAppIntentUrl,
   installPromptState,
   promptInstall,
   subscribeInstallPrompt,
@@ -27,6 +28,10 @@ import {
 import { INSTALL_COPY, installLanguage, type InstallCopy } from './install-copy';
 
 type View = 'install' | 'ios-safari' | 'ios-other' | 'open-chrome' | 'installed';
+
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent);
+}
 
 function useInstallState() {
   const [state, setState] = useState(installPromptState);
@@ -85,7 +90,7 @@ function SafariArrow() {
 
 /** iPhone Safari steps with small mockups of Safari's own menus. */
 function IosSafariGuide({ t }: { t: InstallCopy }) {
-  const [tapMore, tapShare, addHome] = t.iosSteps;
+  const [tapMore, tapShare, addHome, openHome] = t.iosSteps;
   return (
     <>
       <ol className="install-shots">
@@ -134,6 +139,24 @@ function IosSafariGuide({ t }: { t: InstallCopy }) {
             <span className="install-mock__row install-mock__hit">
               <SquarePlus size={16} /> {t.iosMock.home}
             </span>
+          </div>
+        </li>
+        <li className="install-shot">
+          <p>
+            <span className="install-step__index">4</span>
+            <span>
+              <Rich text={openHome} />
+            </span>
+          </p>
+          {/* A home screen row with the new CARE icon among other apps. */}
+          <div className="install-mock install-mock--home" aria-hidden="true">
+            <span className="install-mock__app" />
+            <span className="install-mock__app" />
+            <span className="install-mock__app install-mock__app--care">
+              <img src="/icon-192.png" alt="" width={44} height={44} />
+              CARE
+            </span>
+            <span className="install-mock__app" />
           </div>
         </li>
       </ol>
@@ -196,7 +219,15 @@ function InstallAction({ view, t }: { view: View; t: InstallCopy }) {
     case 'install':
       return <ChromeInstall t={t} />;
     case 'installed':
-      return (
+      // On Android the intent lets the phone open the installed app instead of this tab.
+      return isAndroid() ? (
+        <a
+          className="care-button care-button--primary care-button--md install-cta"
+          href={installedAppIntentUrl(`${window.location.origin}/`)}
+        >
+          {t.openCare}
+        </a>
+      ) : (
         <Button className="install-cta" onClick={() => void navigate('/')}>
           {t.openCare}
         </Button>
@@ -250,13 +281,21 @@ export function InstallPage() {
       lang={language}
       className={view === 'ios-safari' ? 'install-page install-page--ios' : 'install-page'}
     >
-      <img className="install-icon" src="/icon-192.png" alt="" width={96} height={96} />
+      <span className="install-icon-wrap">
+        <img className="install-icon" src="/icon-192.png" alt="" width={96} height={96} />
+        {view === 'installed' ? (
+          <span className="install-icon-badge" aria-hidden="true">
+            <Check size={18} strokeWidth={3} />
+          </span>
+        ) : null}
+      </span>
       <p className="install-name">
         <strong>CARE</strong>
         <span>Member Voice</span>
       </p>
       <h1>{t.titles[view]}</h1>
       {view === 'ios-other' ? <p className="install-hint">{t.iosOtherHint}</p> : null}
+      {view === 'installed' ? <p className="install-hint">{t.installedHint}</p> : null}
       <InstallAction view={view} t={t} />
     </main>
   );
