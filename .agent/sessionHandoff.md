@@ -10,7 +10,42 @@
 - Android **Buka CARE** is an `intent://` link with no package and `S.browser_fallback_url` (`installedAppIntentUrl`), so Android can hand it to the WebAPK; without one Chrome stays on the page. Browsers have no API to launch an installed PWA, so this needs a check on a real phone after deploy. Right after install the WebAPK can take a few seconds to finish.
 - iPhone guide step 4: "Buka CARE dari layar utama" / "Open CARE from your home screen", with a home screen mock. The page cannot detect Add to Home Screen on iOS, so the step is always shown.
 
-**Checks:** e2e count in `validation.test.mjs` is now 468.
+**Checks:** e2e count in `validation.test.mjs` is now 472 (468 plus the four push tests from #115).
+
+## Web Push on by default — 28 October 2026
+
+**Objective:** push notifications were off until a member switched them on in Notifikasi, and many members never did. Make push on by default. ADR-0073 and PRD §19.1/§19.4 hold the rules.
+
+**Why it cannot be literally "on":** browsers only subscribe after the notification permission is granted, and an undecided permission can only be asked inside a user tap. iOS also needs CARE on the Home Screen (16.4+). So "default on" means the app enrolls itself whenever the browser allows it.
+
+**Behaviour now:**
+
+- `PushAutoEnable` is mounted in `WorkforceShell` (`apps/web-voice/src/App.tsx`, both the normal shell and the `submitted` route). It runs `useWebPush({ autoEnable: true })`.
+- Enrollment runs only when push is supported, the server has a VAPID key, the status has loaded, this installation is not registered, and the account has not switched push off on this device.
+  - Permission **granted** → registers silently on load (also re-enrolls after logout/reset/new login, which revoke the server subscription).
+  - Permission **default** → the browser prompt appears on the member's **first tap anywhere** in the app. Taps inside `.push-settings` are ignored so the card's own switch is not doubled.
+  - Permission **denied** / unsupported / iOS outside Home Screen → nothing; the card keeps its guidance.
+- At most **one automatic attempt per session** (module-level set keyed by session id); a dismissed prompt is not repeated on every tap. Next login or app launch tries again.
+- **Opt-out:** switching off in the card writes `localStorage` `care-push-opt-out:<accountId>` = `true`; switching on removes it. Helpers `isPushOptedOut` / `setPushOptedOut` in `apps/web-voice/src/lib/push.ts`; storage errors read as not opted out.
+- The rotated-endpoint repair set moved to module scope so the shell and the card do not both re-register the same endpoint.
+- No API, schema, OpenAPI or service worker change. No new UI or copy.
+
+**Files changed:**
+
+- `apps/web-voice/src/lib/push.ts` — opt-out helpers.
+- `apps/web-voice/src/features/notifications/use-web-push.ts` — `autoEnable` option, default-on effect, opt-out on `setEnabled`, `PushAutoEnable` component, shared repair set.
+- `apps/web-voice/src/App.tsx` — mounts `PushAutoEnable`.
+- `e2e/workforce-push.spec.ts` — stub options `optedOut` and `grantOnRequest`; manual opt-in, failure and VAPID tests now run opted out; four new tests (silent enroll when granted, prompt on first tap, opted-out device stays off, switch-off stores the flag).
+- `docs/adr/0073-web-push-on-by-default.md`, `.agent/PRD.md` (§19.1, §19.4, PWA+Push capability row, acceptance checklist), `.agent/implementationPhases.md`.
+
+**Branch:** `feat/push-default-on` (worktree `../CARE-push`) from `origin/staging` 60a3550. First built in the `feat/time-for-team` working tree and ported here; the copy there is left uncommitted and can be discarded once this merges.
+
+**Checks run (Windows, portable Node 22.23.2 / pnpm 11.8.0):** see the PR; typecheck, ESLint, Prettier, push Vitest suites and the Playwright `push` project were run on this branch. Not run: full `verify:local`, real-device check on Chrome Android and iOS Home Screen.
+
+**Next:**
+
+1. After merge, confirm `satucare.com/ready` `releaseSha`.
+2. Check on a real Android Chrome device and an iOS Home Screen install that the first tap prompts and that switching off survives a reload.
 
 ## Android install guide on /install — 28 October 2026
 

@@ -980,7 +980,9 @@ tidak mempunyai Voice Saya.
 ### 19.1 Channel
 
 - Notification Center in-app adalah authoritative dan selalu tersedia.
-- Web Push adalah best-effort setelah user memberi izin melalui explicit gesture.
+- Web Push adalah best-effort dan **aktif secara default** (ADR-0073). Aplikasi mendaftarkan perangkat sendiri setelah login: langsung bila izin browser sudah `granted`, atau dengan menampilkan prompt izin pada tap pertama user di mana saja dalam aplikasi bila izin belum diputuskan (`default`). Tidak ada percobaan bila izin `denied` atau push tidak didukung (termasuk iOS di luar Home Screen).
+- Percobaan otomatis berjalan paling banyak sekali per sesi; prompt yang ditutup tidak diulang pada setiap tap, dan login berikutnya mencoba lagi.
+- Hanya pilihan mematikan yang diingat: mematikan switch di kartu push menyimpan opt-out per akun pada perangkat tersebut, dan menyalakannya kembali menghapus opt-out. Selama opt-out aktif, aplikasi tidak mendaftarkan akun itu secara otomatis di perangkat tersebut.
 - Kegagalan push tidak menghilangkan notification record.
 
 ### 19.2 Event Minimum
@@ -1004,7 +1006,7 @@ tidak mempunyai Voice Saya.
 
 - Subscription terikat user, session/device identifier aman, environment, dan endpoint hash.
 - Endpoint host memakai allowlist untuk mencegah SSRF. Allowlist menerima hostname exact dan pola `*.suffix`; default mencakup FCM, Mozilla autopush, Apple, dan `*.notify.windows.com` agar browser Edge desktop maupun Android yang memakai Windows Notification Service tetap dapat mendaftar.
-- Permintaan izin notifikasi dijalankan di dalam gesture eksplisit dan sebelum operasi async lain, sehingga dialog izin Chrome (termasuk Chrome Android) tidak tertekan oleh hilangnya transient activation. Prompt yang ditutup atau tidak muncul (`default`) dibedakan dari izin yang diblokir (`denied`) dan masing-masing memiliki guidance yang dapat ditindaklanjuti.
+- Permintaan izin notifikasi dijalankan di dalam tap user (tap pertama di aplikasi untuk aktivasi default, atau switch kartu push) dan sebelum operasi async lain, sehingga dialog izin Chrome (termasuk Chrome Android) tidak tertekan oleh hilangnya transient activation. Prompt yang ditutup atau tidak muncul (`default`) dibedakan dari izin yang diblokir (`denied`) dan masing-masing memiliki guidance yang dapat ditindaklanjuti.
 - Browser subscription yang ada dipakai ulang bila masih terikat ke VAPID key yang berlaku; subscription yang terikat ke key lama (hasil rotasi) diganti, dan race `InvalidStateError` direkonsiliasi sekali.
 - Satu browser profile memiliki satu push endpoint. Registrasi ulang dari installation id baru atau dari akun lain pada perangkat yang sama memindahkan kepemilikan baris endpoint tersebut, bukan menghasilkan kegagalan; endpoint host yang tidak diizinkan ditolak dengan `PUSH_ENDPOINT_NOT_ALLOWED`.
 - Logout, account deactivation, permission loss, atau permanent delivery failure mencabut subscription. Respons 404/410 menonaktifkan subscription segera; kegagalan non-transient lain menaikkan failure counter dan perangkat dihentikan pada batas kegagalan yang ditetapkan; hanya kegagalan transien/5xx yang menjadwalkan retry outbox.
@@ -1273,15 +1275,15 @@ iOS dan pesan pengguna; aktivasi service worker dan Push API tetap berdasarkan
 probe capability runtime. Android tidak dikenai batas versi iOS dan tetap
 didukung sesuai capability browser-nya.
 
-| Tier        | Platform                                                                                             | Perilaku wajib                                                                                                                                                           |
-| ----------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Unsupported | iOS/iPadOS <11.3 atau runtime core tidak memadai                                                     | Shell kompatibilitas statis dengan retry/guidance; root kosong atau white screen dilarang.                                                                               |
-| Core Online | iOS/iPadOS 11.3–16.3, atau browser lain yang lulus core probe tetapi tidak lulus PWA probe           | Login, read, create, upload, chat, dan lifecycle action berjalan online. Notification Center adalah fallback authoritative; offline cache dan Web Push tidak dijanjikan. |
-| PWA         | Browser yang lulus probe Service Worker, Cache Storage, Request/Response, dan runtime worker minimum | Core Online ditambah install/update, privacy-safe offline summary, offline fallback, dan cache cleanup.                                                                  |
-| PWA + Push  | iOS/iPadOS ≥16.4 dalam Home Screen mode dengan Push API, atau browser non-iOS yang lulus push probe  | Seluruh capability PWA ditambah Web Push opt-in; permission hanya diminta setelah gesture eksplisit, di dalam gesture yang sama dan sebelum operasi async lain.          |
+| Tier        | Platform                                                                                             | Perilaku wajib                                                                                                                                                                       |
+| ----------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unsupported | iOS/iPadOS <11.3 atau runtime core tidak memadai                                                     | Shell kompatibilitas statis dengan retry/guidance; root kosong atau white screen dilarang.                                                                                           |
+| Core Online | iOS/iPadOS 11.3–16.3, atau browser lain yang lulus core probe tetapi tidak lulus PWA probe           | Login, read, create, upload, chat, dan lifecycle action berjalan online. Notification Center adalah fallback authoritative; offline cache dan Web Push tidak dijanjikan.             |
+| PWA         | Browser yang lulus probe Service Worker, Cache Storage, Request/Response, dan runtime worker minimum | Core Online ditambah install/update, privacy-safe offline summary, offline fallback, dan cache cleanup.                                                                              |
+| PWA + Push  | iOS/iPadOS ≥16.4 dalam Home Screen mode dengan Push API, atau browser non-iOS yang lulus push probe  | Seluruh capability PWA ditambah Web Push aktif secara default; permission diminta di dalam tap user (tap pertama di aplikasi atau switch kartu push) dan sebelum operasi async lain. |
 
 - Current dan previous major Chrome/Edge desktop dan Android tetap didukung;
-- Provider push browser non-iOS (FCM, Mozilla autopush, Windows Notification Service melalui allowlist `*.notify.windows.com`) diterima selama host endpoint berada pada allowlist environment; kegagalan opt-in menampilkan guidance spesifik platform, dan detail teknis non-sensitif tersedia pada kartu pengaturan push untuk diagnosis perangkat Android;
+- Provider push browser non-iOS (FCM, Mozilla autopush, Windows Notification Service melalui allowlist `*.notify.windows.com`) diterima selama host endpoint berada pada allowlist environment; kegagalan pendaftaran push menampilkan guidance spesifik platform, dan detail teknis non-sensitif tersedia pada kartu pengaturan push untuk diagnosis perangkat Android;
 - `/design` adalah current-browser-only dan menampilkan guidance tanpa memuat design chunk pada legacy iOS;
 - kegagalan registration/update/cache menurunkan runtime ke Core Online dan tidak boleh menggagalkan render;
 - iOS/iPadOS 11.3 real-device tidak menjadi release acceptance requirement. Dukungan legacy ditegakkan melalui lowered production target, bootstrap/probe unit tests, artifact syntax inspection, dan current-WebKit capability emulation; keterbatasan ini wajib dicatat pada release evidence;
@@ -1898,6 +1900,7 @@ Minimum journeys:
 - [ ] Division/Deputy/Pjt. Head, Director, dan Union memperoleh General read-only sesuai scope; Private mengikuti scope Union khusus, kecuali Director yang membaca seluruh Private read-only dengan audit (§18.8.7).
 - [ ] Inbox severity-first lalu newest dengan server pagination/filter.
 - [ ] Notification Center authoritative dan push best-effort/redacted.
+- [ ] Web Push aktif secara default setelah login pada perangkat yang mendukung; switch-off di kartu push diingat per akun per perangkat (ADR-0073).
 - [x] Workforce app dan Admin app memakai generated OpenAPI client bersama tetapi dipisahkan sebagai deployment/origin berbeda.
 - [x] Workforce PWA foundation installable dan update-safe; Admin app bukan PWA/offline surface.
 - [x] Offline state jelas dan tidak membuat queued mutation.
