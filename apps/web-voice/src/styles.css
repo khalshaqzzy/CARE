@@ -9691,6 +9691,27 @@
   border-radius: 1.5rem;
   box-shadow: 0 12px 28px rgb(3 49 122 / 22%);
 }
+.install-icon-wrap {
+  position: relative;
+  display: block;
+}
+/* Installed state: a green check on the app icon, like a finished download. */
+.install-icon-badge {
+  position: absolute;
+  right: -0.5rem;
+  bottom: -0.5rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 3px solid var(--surface-canvas);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: var(--state-success);
+}
+.install-page .install-hint {
+  max-width: 26rem;
+}
 .install-name {
   display: grid;
   gap: var(--space-1);
@@ -9925,6 +9946,38 @@
   padding: 0 var(--space-3);
   color: #c7c7cc;
   font-size: var(--font-size-xs, 0.75rem);
+}
+/* Step 4: a home screen row; CARE is ringed like the other targets. */
+.install-mock--home {
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, #c9d8f2, #e3d9f0);
+}
+.install-mock__app {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 55%);
+}
+.install-mock__app--care {
+  height: auto;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.install-mock__app--care img {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px var(--raw-brand-500);
 }
 .install-mock--sheet .install-mock__hit {
   color: #fff;

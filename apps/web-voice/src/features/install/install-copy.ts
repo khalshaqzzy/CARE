@@ -29,6 +29,7 @@ const id = {
   copyLink: 'Salin link',
   linkCopied: 'Link disalin',
   iosOtherHint: 'Salin link ini, lalu tempel di Safari.',
+  installedHint: 'Ikon CARE sudah ada di layar utama HP.',
   chromeSteps: [
     'Tap **⋮** di pojok kanan atas atau bawah',
     'Pilih **Instal aplikasi** atau **Tambahkan ke layar utama**',
@@ -37,7 +38,8 @@ const id = {
     'Tap **⋯** di kanan bawah',
     'Tap **Bagikan**',
     'Pilih **Tambahkan ke Layar Utama**',
-  ] as [string, string, string],
+    'Buka **CARE** dari layar utama',
+  ] as [string, string, string, string],
   iosMock: {
     share: 'Bagikan',
     bookmark: 'Tambahkan Penanda',
@@ -63,11 +65,17 @@ const en: InstallCopy = {
   copyLink: 'Copy link',
   linkCopied: 'Link copied',
   iosOtherHint: 'Copy this link, then paste it in Safari.',
+  installedHint: 'The CARE icon is now on your home screen.',
   chromeSteps: [
     'Tap **⋮** in the top or bottom right corner',
     'Choose **Install app** or **Add to Home screen**',
   ],
-  iosSteps: ['Tap **⋯** at the bottom right', 'Tap **Share**', 'Choose **Add to Home Screen**'],
+  iosSteps: [
+    'Tap **⋯** at the bottom right',
+    'Tap **Share**',
+    'Choose **Add to Home Screen**',
+    'Open **CARE** from your home screen',
+  ],
   iosMock: {
     share: 'Share',
     bookmark: 'Add Bookmark',
