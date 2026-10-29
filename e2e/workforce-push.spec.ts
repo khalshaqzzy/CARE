@@ -22,6 +22,10 @@ type PushStubOptions = {
   subscribedEndpoint?: string;
   subscribeError?: { name: string; message: string };
   installationId?: string;
+  /** Mark push as switched off on this device for the mock member account. */
+  optedOut?: boolean;
+  /** Make `requestPermission()` grant, as when the member accepts the prompt. */
+  grantOnRequest?: boolean;
 };
 
 type PushStubState = { subscribeCount: number; unsubscribed: boolean; permissionCalls: number };
@@ -36,6 +40,7 @@ async function stubPushApi(
       const state: PushStubState = { subscribeCount: 0, unsubscribed: false, permissionCalls: 0 };
       (window as unknown as { __carePushStub?: PushStubState }).__carePushStub = state;
       if (stub.installationId) localStorage.setItem('care-push-installation', stub.installationId);
+      if (stub.optedOut) localStorage.setItem('care-push-opt-out:member-1', 'true');
       (window as unknown as { __carePushPermission?: string }).__carePushPermission = perm;
       if ('Notification' in window) {
         Object.defineProperty(window.Notification, 'permission', {
@@ -48,6 +53,9 @@ async function stubPushApi(
           window.Notification as unknown as { requestPermission: () => Promise<string> }
         ).requestPermission = () => {
           state.permissionCalls += 1;
+          if (stub.grantOnRequest)
+            (window as unknown as { __carePushPermission?: string }).__carePushPermission =
+              'granted';
           return Promise.resolve(
             (window as unknown as { __carePushPermission?: string }).__carePushPermission ??
               'granted',
@@ -151,7 +159,8 @@ test('shows an unconfigured state when the server has no VAPID key', async ({ pa
 });
 
 test('subscribes with an explicit gesture and posts the push subscription', async ({ page }) => {
-  await stubPushApi(page, 'granted');
+  // Opted out, so the default-on enrollment stays out of the manual opt-in.
+  await stubPushApi(page, 'granted', { optedOut: true });
   await page.setViewportSize({ width: 360, height: 800 });
   const posted: unknown[] = [];
   await mockWorkforceApi(page, {
@@ -243,6 +252,7 @@ test('reports a suppressed or dismissed permission prompt as retryable', async (
 test('explains a device push service failure instead of a generic error', async ({ page }) => {
   await stubPushApi(page, 'granted', {
     subscribeError: { name: 'AbortError', message: 'Registration failed - push service error' },
+    optedOut: true,
   });
   await page.setViewportSize({ width: 360, height: 800 });
   await mockWorkforceApi(page, {
@@ -258,7 +268,7 @@ test('explains a device push service failure instead of a generic error', async 
 });
 
 test('explains a server-side enrollment failure', async ({ page }) => {
-  await stubPushApi(page, 'granted');
+  await stubPushApi(page, 'granted', { optedOut: true });
   await page.setViewportSize({ width: 360, height: 800 });
   await mockWorkforceApi(page, {
     push: {
@@ -284,6 +294,7 @@ test('reuses an existing browser subscription bound to the current key', async (
   await stubPushApi(page, 'granted', {
     boundKey: 'vapid',
     existingEndpoint: 'https://fcm.googleapis.com/fcm/send/already-subscribed',
+    optedOut: true,
   });
   await page.setViewportSize({ width: 360, height: 800 });
   const posted: unknown[] = [];
@@ -308,6 +319,7 @@ test('replaces a subscription bound to a rotated VAPID key', async ({ page }) =>
   await stubPushApi(page, 'granted', {
     boundKey: 'rotated',
     existingEndpoint: 'https://fcm.googleapis.com/fcm/send/stale-key',
+    optedOut: true,
   });
   await page.setViewportSize({ width: 360, height: 800 });
   const posted: unknown[] = [];
@@ -357,6 +369,91 @@ test('re-registers a rotated browser endpoint without user action', async ({ pag
   const body = posted[0] as { installationId: string; endpoint: string };
   expect(body.endpoint).toBe(rotated);
   expect(body.installationId).toBe('inst-android');
+});
+
+test('enrolls by default without a tap when permission is already granted', async ({ page }) => {
+  await stubPushApi(page, 'granted');
+  await page.setViewportSize({ width: 360, height: 800 });
+  const posted: unknown[] = [];
+  await mockWorkforceApi(page, {
+    push: {
+      configured: true,
+      publicKey: VAPID_KEY,
+      status: { configured: true, subscriptions: [] },
+    },
+  });
+  await captureSubscriptions(page, posted);
+  await page.goto('/');
+  await expect.poll(() => posted.length).toBe(1);
+  expect((posted[0] as { endpoint: string }).endpoint).toContain('fcm.googleapis.com');
+  expect((await stubCalls(page)).permissionCalls).toBe(1);
+});
+
+test('asks for permission on the first tap anywhere when not yet decided', async ({ page }) => {
+  await stubPushApi(page, 'default', { grantOnRequest: true });
+  await page.setViewportSize({ width: 360, height: 800 });
+  const posted: unknown[] = [];
+  await mockWorkforceApi(page, {
+    push: {
+      configured: true,
+      publicKey: VAPID_KEY,
+      status: { configured: true, subscriptions: [] },
+    },
+  });
+  await captureSubscriptions(page, posted);
+  await page.goto('/notifications');
+  await expect(page.getByText('Aktifkan notifikasi push')).toBeVisible();
+  // No prompt before the member interacts with the app.
+  expect((await stubCalls(page)).permissionCalls).toBe(0);
+  await page
+    .locator('main')
+    .first()
+    .click({ position: { x: 4, y: 4 } });
+  await expect.poll(() => posted.length).toBe(1);
+  expect((await stubCalls(page)).permissionCalls).toBe(1);
+});
+
+test('keeps push off on a device where the member switched it off', async ({ page }) => {
+  await stubPushApi(page, 'granted', { optedOut: true });
+  await page.setViewportSize({ width: 360, height: 800 });
+  const posted: unknown[] = [];
+  await mockWorkforceApi(page, {
+    push: {
+      configured: true,
+      publicKey: VAPID_KEY,
+      status: { configured: true, subscriptions: [] },
+    },
+  });
+  await captureSubscriptions(page, posted);
+  await page.goto('/notifications');
+  await expect(page.getByText('Aktifkan notifikasi push')).toBeVisible();
+  await page
+    .locator('main')
+    .first()
+    .click({ position: { x: 4, y: 4 } });
+  await page.waitForTimeout(500);
+  expect(posted).toHaveLength(0);
+  expect((await stubCalls(page)).permissionCalls).toBe(0);
+});
+
+test('remembers switching push off so it is not re-enrolled', async ({ page }) => {
+  await stubPushApi(page, 'granted', { installationId: 'inst-1' });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await mockWorkforceApi(page, {
+    push: {
+      configured: true,
+      publicKey: VAPID_KEY,
+      status: {
+        configured: true,
+        subscriptions: [{ id: 'sub-1', installationId: 'inst-1', environment: 'test' }],
+      },
+    },
+  });
+  await page.goto('/notifications');
+  await page.getByText('Notifikasi push aktif').click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('care-push-opt-out:member-1')))
+    .toBe('true');
 });
 
 test('opens the notified Voice when the notification is tapped', async ({ page }) => {

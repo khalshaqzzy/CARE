@@ -72,6 +72,31 @@ export function getInstallationId(): string {
   return next;
 }
 
+const OPT_OUT_KEY_PREFIX = 'care-push-opt-out:';
+
+/**
+ * Push is on by default; only an explicit switch-off on this device is
+ * remembered, per account, so the app does not re-enroll it automatically.
+ * Storage failures (private mode, blocked site data) fall back to "not opted
+ * out", which keeps the default-on behaviour.
+ */
+export function isPushOptedOut(accountId: string): boolean {
+  try {
+    return window.localStorage.getItem(OPT_OUT_KEY_PREFIX + accountId) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setPushOptedOut(accountId: string, optedOut: boolean): void {
+  try {
+    if (optedOut) window.localStorage.setItem(OPT_OUT_KEY_PREFIX + accountId, 'true');
+    else window.localStorage.removeItem(OPT_OUT_KEY_PREFIX + accountId);
+  } catch {
+    // Best-effort; the server subscription remains the source of truth.
+  }
+}
+
 /** Prepare a subscription payload ready to POST to the backend. */
 export function subscriptionPayload(
   endpoint: string,

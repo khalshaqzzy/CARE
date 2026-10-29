@@ -1474,3 +1474,14 @@ The Voice Explorer opens a full read-only Voice page with stages, time left, the
 completion comment and the reporter's rating. ADR-0070 records the decisions.
 Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed.
 Checks are in sessionHandoff.md.
+
+## Web Push on by default — 28 October 2026
+
+Implemented on `feat/push-default-on` (from `origin/staging` 60a3550): the workforce
+shell now enrolls Web Push by default. A device with granted permission registers
+silently after login; an undecided device shows the browser prompt on the member's
+first tap; denied/unsupported devices are left alone. Only an explicit switch-off is
+remembered, per account per device (`care-push-opt-out:<accountId>`). No API or
+schema change. ADR-0073 records the decision and PRD §19.1/§19.4 are updated.
+Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed. Checks
+are in sessionHandoff.md.

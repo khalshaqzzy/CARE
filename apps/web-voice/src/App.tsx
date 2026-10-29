@@ -50,6 +50,7 @@ import { HistoryPage } from './features/history/HistoryPage';
 import { InstallPage } from './features/install/InstallPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { PushAutoEnable } from './features/notifications/use-web-push';
 import { ConversationPage } from './features/voice/ConversationPage';
 import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
 import { HandoverPage } from './features/voice/HandoverPage';
@@ -545,7 +546,13 @@ function WorkforceShell() {
   if (!session) return null;
   const caps = capabilityFor(session);
   const current = resolveCurrent(location.pathname, caps.isUnion);
-  if (current === 'submitted') return <Outlet />;
+  if (current === 'submitted')
+    return (
+      <>
+        <PushAutoEnable />
+        <Outlet />
+      </>
+    );
   const iconFor = (id: string) => {
     const Icon =
       {
@@ -648,6 +655,7 @@ function WorkforceShell() {
             ),
           })}
     >
+      <PushAutoEnable />
       <Outlet />
     </AppShell>
   );
