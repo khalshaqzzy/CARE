@@ -3,7 +3,7 @@ import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { NetworkOnly } from 'workbox-strategies';
-import { buildNotification, parsePushPayloadText } from './lib/push-payload.js';
+import { buildNotification, parsePushPayloadText, updateAppBadge } from './lib/push-payload.js';
 
 declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<never> };
 
@@ -93,8 +93,14 @@ function readPushPayload(data: PushMessageData | null) {
 }
 
 self.addEventListener('push', (event) => {
-  const notification = buildNotification(readPushPayload(event.data));
-  event.waitUntil(self.registration.showNotification(notification.title, notification.options));
+  const payload = readPushPayload(event.data);
+  const notification = buildNotification(payload);
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(notification.title, notification.options),
+      updateAppBadge(self.navigator, payload.badgeCount),
+    ]),
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {

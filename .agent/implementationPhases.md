@@ -1485,3 +1485,13 @@ remembered, per account per device (`care-push-opt-out:<accountId>`). No API or
 schema change. ADR-0073 records the decision and PRD §19.1/§19.4 are updated.
 Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed. Checks
 are in sessionHandoff.md.
+
+## Unread badge on the app icon — 30 October 2026
+
+Implemented on `feat/app-icon-badge` (from `origin/staging` 4e6ff55): each Web Push
+payload carries `badgeCount` (unread total), the service worker sets the Home Screen
+icon badge with the Badging API, and the open app mirrors the unread count onto the
+icon and closes stale tray banners once everything is read. iOS 16.4+ Home Screen and
+installed desktop apps show a number; Android launchers show their own dot. ADR-0074
+records the decision; PRD §19.4 is updated. Phase 13 remains the only `in_progress`
+phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.

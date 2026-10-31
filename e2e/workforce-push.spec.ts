@@ -456,6 +456,23 @@ test('remembers switching push off so it is not re-enrolled', async ({ page }) =
     .toBe('true');
 });
 
+test('mirrors the unread count onto the app icon badge', async ({ page }) => {
+  await page.context().addInitScript(() => {
+    const calls: unknown[] = [];
+    (window as unknown as { __careBadge: unknown[] }).__careBadge = calls;
+    Object.assign(navigator, {
+      setAppBadge: async (count?: number) => void calls.push(count ?? 'dot'),
+      clearAppBadge: async () => void calls.push(0),
+    });
+  });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await mockWorkforceApi(page, { unread: 4 });
+  await page.goto('/notifications');
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __careBadge: unknown[] }).__careBadge))
+    .toContain(4);
+});
+
 test('opens the notified Voice when the notification is tapped', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await mockWorkforceApi(page, {});

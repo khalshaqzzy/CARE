@@ -1,5 +1,29 @@
 # CARE Session Handoff
 
+## Unread badge on the CARE app icon — 30 October 2026
+
+**Objective:** besides the pop-up on the phone, a notification must also show on the CARE icon on the Home Screen. ADR-0074 and PRD §19.4 hold the rules.
+
+**Platform reality:** only the Badging API can mark an installed web app's icon. iOS/iPadOS 16.4+ (CARE added to the Home Screen, notifications allowed) and installed desktop Chrome/Edge show a number. Chrome on Android has no Badging API; Android launchers show their own dot for apps with notifications in the tray (a number only on some launchers, e.g. Samsung with "show count" on).
+
+**Behaviour now:**
+
+- API `NotificationsService.push` adds `badgeCount` (unread notifications of the recipient) to every push payload, also for Private Voices (a number, no content). The count runs only when the recipient has an active device.
+- `sw.ts` push handler shows the banner and calls `updateAppBadge(self.navigator, payload.badgeCount)`. Missing/invalid count → dot; 0 → clear.
+- `AppBadgeSync` (in `NotificationBell.tsx`, mounted next to `PushAutoEnable` in `WorkforceShell`) mirrors the 5-second unread-count query onto the icon. At 0 it also closes CARE banners still in the tray, which clears the Android dot. Unmount (logout) clears the badge.
+- `updateAppBadge` / `badgeCount` parsing live in `apps/web-voice/src/lib/push-payload.ts`.
+
+**Files changed:** `apps/api/src/notifications/notifications.service.ts`, `apps/api/test/unit/notifications-push.test.ts`, `apps/web-voice/src/lib/push-payload.ts` (+ test), `apps/web-voice/src/sw.ts`, `apps/web-voice/src/features/notifications/NotificationBell.tsx`, `apps/web-voice/src/App.tsx`, `apps/web-voice/src/foundation.test.ts` (guard updated to the new handler shape), `e2e/workforce-push.spec.ts` (badge mirror test), `scripts/validation/validation.test.mjs` (inventory 472 → 473), `docs/adr/0074-app-icon-unread-badge.md`, `.agent/PRD.md`, `.agent/implementationPhases.md`.
+
+**Branch:** `feat/app-icon-badge` (worktree `../CARE-badge`) from `origin/staging` 4e6ff55.
+
+**Checks run (Windows, portable Node 22.23.2 / pnpm 11.8.0):** web-voice and API `tsc --noEmit`; ESLint and Prettier on changed files; web-voice Vitest 145/145; API `notifications-push` unit 11/11; Playwright `push` 16/16; Chromium foundation, workforce-journeys, dashboard, workforce-a11y + `pwa` 121/121; CI inventory partition test passes with 473. Not run: full `verify:local`, real-device check.
+
+**Next:**
+
+1. After merge, confirm `satucare.com/ready` `releaseSha`.
+2. On an iPhone Home Screen install: receive a push with CARE closed → number on the icon; open CARE and read all → badge gone. On Android: dot while banners are in the tray, gone after reading all in CARE.
+
 ## Installed state and home screen step on /install — 29 October 2026
 
 **Problem:** after installing on Android, **Buka CARE** opened CARE in the same Chrome tab, not the installed app, and nothing said CARE was now on the home screen. The iPhone guide stopped at Add to Home Screen.

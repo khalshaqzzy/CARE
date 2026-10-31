@@ -50,6 +50,7 @@ import { HistoryPage } from './features/history/HistoryPage';
 import { InstallPage } from './features/install/InstallPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
+import { AppBadgeSync } from './features/notifications/NotificationBell';
 import { PushAutoEnable } from './features/notifications/use-web-push';
 import { ConversationPage } from './features/voice/ConversationPage';
 import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
@@ -550,6 +551,7 @@ function WorkforceShell() {
     return (
       <>
         <PushAutoEnable />
+        <AppBadgeSync />
         <Outlet />
       </>
     );
@@ -656,6 +658,7 @@ function WorkforceShell() {
           })}
     >
       <PushAutoEnable />
+      <AppBadgeSync />
       <Outlet />
     </AppShell>
   );

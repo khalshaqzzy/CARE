@@ -95,7 +95,9 @@ describe('workforce foundation boundaries', () => {
     );
     // The handler delegates payload parsing/option building to the shared,
     // unit-tested module instead of reading fields inline.
-    expect(pushHandler).toContain('buildNotification(readPushPayload(event.data))');
+    expect(pushHandler).toContain('readPushPayload(event.data)');
+    expect(pushHandler).toContain('buildNotification(payload)');
+    expect(pushHandler).toContain('updateAppBadge(self.navigator, payload.badgeCount)');
     expect(payloadBuilder).toContain("'Pembaruan CARE'");
     // The backend redacts Private Voice copy before sending; the client must
     // never derive a push payload locally from a Private reporter identity.

@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { buildNotification, parsePushPayload, parsePushPayloadText } from './push-payload';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  buildNotification,
+  parsePushPayload,
+  parsePushPayloadText,
+  updateAppBadge,
+} from './push-payload';
 
 describe('push payload parsing', () => {
   it('reads the server payload fields', () => {
@@ -63,5 +68,33 @@ describe('notification building', () => {
     const first = buildNotification(parsePushPayload({ deepLink: '/voices/1' }));
     const second = buildNotification(parsePushPayload({ deepLink: '/voices/2' }));
     expect(first.options.tag).not.toBe(second.options.tag);
+  });
+});
+
+describe('app icon badge', () => {
+  it('reads a non-negative integer badge count and ignores anything else', () => {
+    expect(parsePushPayload({ badgeCount: 4 }).badgeCount).toBe(4);
+    expect(parsePushPayload({ badgeCount: 0 }).badgeCount).toBe(0);
+    expect(parsePushPayload({ badgeCount: -1 })).not.toHaveProperty('badgeCount');
+    expect(parsePushPayload({ badgeCount: 1.5 })).not.toHaveProperty('badgeCount');
+    expect(parsePushPayload({ badgeCount: '3' })).not.toHaveProperty('badgeCount');
+    expect(parsePushPayload({})).not.toHaveProperty('badgeCount');
+  });
+
+  it('sets the count, clears at zero and falls back to a dot without a count', async () => {
+    const target = { setAppBadge: vi.fn(async () => {}), clearAppBadge: vi.fn(async () => {}) };
+    await updateAppBadge(target, 5);
+    expect(target.setAppBadge).toHaveBeenLastCalledWith(5);
+    await updateAppBadge(target, undefined);
+    expect(target.setAppBadge).toHaveBeenLastCalledWith(undefined);
+    await updateAppBadge(target, 0);
+    expect(target.clearAppBadge).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op where the Badging API is missing or refuses', async () => {
+    await expect(updateAppBadge({}, 2)).resolves.toBeUndefined();
+    await expect(updateAppBadge(undefined, 2)).resolves.toBeUndefined();
+    const refusing = { setAppBadge: vi.fn(async () => Promise.reject(new Error('denied'))) };
+    await expect(updateAppBadge(refusing, 2)).resolves.toBeUndefined();
   });
 });
