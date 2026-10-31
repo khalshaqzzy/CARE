@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { MediaService } from '../../src/media/media.service';
+import { MAX_STORED_EDGE, MediaService } from '../../src/media/media.service';
 import { NotificationsService } from '../../src/notifications/notifications.service';
 import { resetConfigForTests } from '../../src/config';
 
@@ -122,6 +122,42 @@ describe('media and push security boundaries', () => {
     expect(metadata.format).toBe('webp');
     expect(metadata.orientation).toBeUndefined();
     expect(stored.mimeType).toBe('image/webp');
+  });
+
+  it('shrinks large photos to the stored edge and records the stored size', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'care-media-'));
+    roots.push(root);
+    configure(root);
+    let stored: Record<string, unknown> = {};
+    const prisma = {
+      attachment: {
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          stored = data;
+          return { id: 'attachment-id', ...data };
+        },
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          stored = { ...stored, ...data };
+          return { id: 'attachment-id', storageKey: stored.storageKey, ...stored };
+        },
+      },
+    };
+    const input = await sharp({
+      create: { width: 4000, height: 3000, channels: 3, background: '#336699' },
+    })
+      .jpeg()
+      .toBuffer();
+    const service = new MediaService(prisma as any, {} as any);
+    await service.process(
+      { buffer: input, size: input.length, mimetype: 'image/jpeg' } as Express.Multer.File,
+      'account-id',
+      AttachmentPurpose.VOICE,
+      {},
+    );
+    const metadata = await sharp(
+      await readFile(join(root, 'objects', String(stored.storageKey))),
+    ).metadata();
+    expect([metadata.width, metadata.height]).toEqual([MAX_STORED_EDGE, 1440]);
+    expect([stored.width, stored.height]).toEqual([MAX_STORED_EDGE, 1440]);
   });
 
   it('rejects non-allowlisted push endpoints before persistence', async () => {
