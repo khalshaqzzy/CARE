@@ -13,6 +13,8 @@ export type PushNotificationPayload = {
   body: string;
   /** Same-origin path opened when the notification is tapped. */
   deepLink: string;
+  /** Unread total for the Home Screen icon badge; absent on older payloads. */
+  badgeCount?: number;
 };
 
 export type CareNotificationOptions = NotificationOptions & {
@@ -43,11 +45,39 @@ export function safeDeepLink(value: unknown): string | null {
 export function parsePushPayload(input: unknown): PushNotificationPayload {
   const data =
     typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
+  const badgeCount = data.badgeCount;
   return {
     title: nonEmptyString(data.title) ?? DEFAULT_TITLE,
     body: nonEmptyString(data.body) ?? DEFAULT_BODY,
     deepLink: safeDeepLink(data.deepLink) ?? safeDeepLink(data.url) ?? DEFAULT_DEEP_LINK,
+    ...(typeof badgeCount === 'number' && Number.isInteger(badgeCount) && badgeCount >= 0
+      ? { badgeCount }
+      : {}),
   };
+}
+
+type BadgeNavigator = {
+  setAppBadge?: (count?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+};
+
+/**
+ * Show the unread total on the installed app icon (Badging API: iOS/iPadOS
+ * 16.4+ Home Screen apps, installed desktop Chrome/Edge). Without a count the
+ * icon only gets a dot. Unsupported platforms are a no-op; Android launchers
+ * draw their own dot from the notifications in the tray instead.
+ */
+export async function updateAppBadge(
+  target: BadgeNavigator | undefined,
+  count: number | undefined,
+): Promise<void> {
+  if (!target?.setAppBadge) return;
+  try {
+    if (count === 0) await (target.clearAppBadge?.() ?? target.setAppBadge(0));
+    else await target.setAppBadge(count);
+  } catch {
+    // Badging is cosmetic; permission or platform refusals are ignored.
+  }
 }
 
 /** Parse raw push bytes; any non-JSON/garbage payload falls back to defaults. */

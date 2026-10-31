@@ -266,11 +266,18 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     const subscriptions = await this.prisma.pushSubscription.findMany({
       where: { accountId: notification.recipientId, active: true, environment: config.NODE_ENV },
     });
+    if (!subscriptions.length) return;
     const privatePayload = notification.voice?.visibility === VoiceVisibility.PRIVATE;
+    // The unread total feeds the Home Screen icon badge; a count carries no
+    // Voice content, so Private payloads include it too.
+    const badgeCount = await this.prisma.notification.count({
+      where: { recipientId: notification.recipientId, readAt: null },
+    });
     const payload = JSON.stringify({
       title: privatePayload ? 'CARE' : notification.title,
       body: privatePayload ? 'Ada pembaruan Private Voice' : notification.body,
       deepLink: notification.deepLink,
+      badgeCount,
     });
     let transientFailure = false;
     for (const subscription of subscriptions) {

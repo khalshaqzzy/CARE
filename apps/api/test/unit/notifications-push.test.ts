@@ -29,6 +29,7 @@ type SubscriptionRow = {
 function serviceWithSubscriptions(rows: SubscriptionRow[]) {
   const updates: Array<{ where: { id: string }; data: Record<string, unknown> }> = [];
   const prisma = {
+    notification: { count: async () => 3 },
     pushSubscription: {
       findMany: async () => rows,
       update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
@@ -124,8 +125,20 @@ describe('push delivery per device', () => {
       title: 'Voice diperbarui',
       body: 'Status berubah',
       deepLink: '/voices/1',
+      badgeCount: 3,
     });
     expect(updates[0]?.data).toMatchObject({ failureCount: 0 });
+  });
+
+  it('skips the unread count when the recipient has no device', async () => {
+    const { service, deliver } = serviceWithSubscriptions([]);
+    const count = vi.fn(async () => 0);
+    (
+      service as unknown as { prisma: { notification: { count: typeof count } } }
+    ).prisma.notification.count = count;
+    await deliver(notification);
+    expect(count).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 
   it('redacts Private Voice copy in the payload', async () => {
@@ -135,6 +148,7 @@ describe('push delivery per device', () => {
     const payload = JSON.parse(sendNotification.mock.calls[0][1] as string);
     expect(payload.title).toBe('CARE');
     expect(payload.body).toBe('Ada pembaruan Private Voice');
+    expect(payload.badgeCount).toBe(3);
   });
 
   it('retires a device the provider reports as gone', async () => {

@@ -1013,6 +1013,7 @@ tidak mempunyai Voice Saya.
 - Subscription yang dirotasi browser (misalnya FCM) dideteksi dari endpoint hash prefix pada status dan didaftarkan ulang secara diam-diam saat aplikasi aktif kembali.
 - Multi-device didukung dan duplicate delivery bersifat idempotent. Push dapat terkirim lebih dari sekali pada retry at-least-once; banner untuk satu Voice yang sama memakai `tag` per deep-link sehingga tampil sebagai satu notifikasi.
 - Kartu pengaturan push menyediakan detail teknis non-sensitif (permission, service worker, host penyedia, status registrasi, kegagalan terakhir) untuk diagnosis perangkat tanpa membocorkan endpoint, key, atau identitas.
+- Ikon CARE di Home Screen menampilkan jumlah notifikasi belum dibaca (ADR-0074). Setiap payload push memuat `badgeCount` (jumlah belum dibaca penerima; tidak memuat isi Voice sehingga juga dikirim untuk Private), dan service worker memasang badge lewat Badging API. Saat CARE terbuka, badge mengikuti jumlah belum dibaca; bila semua sudah dibaca, badge dihapus dan banner CARE yang tersisa di tray ditutup. Badging API tersedia di iOS/iPadOS ≥16.4 (Home Screen) dan aplikasi desktop terpasang; di Android launcher menampilkan titik sendiri dari notifikasi di tray.
 - Tap notifikasi menavigasi ke deep-link yang dikirim server (`deepLink`, dengan `url` sebagai alias lama); hanya path same-origin yang diterima, dan aplikasi yang sedang terbuka ikut bernavigasi melalui pesan service worker.
 
 ---
