@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bell,
+  BookOpen,
   Bot,
   FileClock,
   Home,
@@ -45,6 +46,7 @@ import { AwayPage } from './features/account/AwayPage';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
 import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
+import { GuidePage } from './features/guide/GuidePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { InstallPage } from './features/install/InstallPage';
@@ -112,6 +114,7 @@ export function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/away" element={<AwayPage />} />
+          <Route path="panduan" element={<GuidePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -496,6 +499,7 @@ const NAV_ROUTES: Record<string, string> = {
   private: '/work-items',
   general: '/general',
   notifications: '/notifications',
+  guide: '/panduan',
   account: '/account',
 };
 
@@ -535,6 +539,7 @@ function resolveCurrent(pathname: string, isUnion: boolean): string {
   if (p.startsWith('/general')) return 'general';
   if (p.startsWith('/voices/')) return 'voices';
   if (p.startsWith('/notifications')) return 'notifications';
+  if (p.startsWith('/panduan')) return 'guide';
   if (p.startsWith('/account')) return 'account';
   return 'home';
 }
@@ -565,6 +570,7 @@ function WorkforceShell() {
         create: Plus,
         history: FileClock,
         notifications: Bell,
+        guide: BookOpen,
         account: Settings,
       }[id] ?? Home;
     return <Icon size={20} />;

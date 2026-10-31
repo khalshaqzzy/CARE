@@ -1,5 +1,83 @@
 # CARE Session Handoff
 
+## Panduan managed in CARE Admin — 29 October 2026
+
+**Objective:** a place inside CARE to read how the app works: a submit-Voice guide for members and responder guides for anyone who handles or approves Voices. The CARE Admin manages the guides in CARE Admin and only uploads PDFs; changes reach every account at once. ADR-0075 and PRD §11.6 / §23.1 hold the rules.
+
+**User decisions (29 Oct 2026):**
+
+- Audience per guide is two checkboxes: **Member** and/or **Responder** (not per capability).
+- Any number of guides per audience, ordered by the admin.
+- No bundled draft PDFs: the page starts empty and the user will supply the PDFs (to be uploaded through Admin).
+- Icon placement as previewed (hero beside the bell, Pengaturan row, desktop sidebar). The first, static-PDF iteration of this branch was replaced before any commit.
+- 31 Oct 2026: videos are supported as **links** (YouTube/Drive/SharePoint), not uploads, so the VPS carries no video load. The workforce page uses **variant B**: separate **Dokumen** and **Video** groups.
+
+**Behaviour now:**
+
+- **CARE Admin → Panduan** (`/guides`, sidebar between Admin Divisi and Accounts, `CARE_ADMIN` only):
+  - the table shows order arrows, title, a file link with size or "Video · <link>", Member/Responder badges, the last update and uploader, and **Ubah** / **Hapus**;
+  - **Upload PDF** opens a dialog with the title, the "Tampil untuk" checkboxes (at least one) and a PDF of at most 20 MB;
+  - **Tambah video** opens a dialog with the title, **Link video** (`https://` only) and the same checkboxes;
+  - **Ubah** edits the title and audience. For a PDF it can replace the file; for a video it edits the link. The id and position stay the same.
+- **Workforce `/panduan`**:
+  - `GET /api/v1/guides` returns the guides for the actor, in admin order;
+  - the page shows the groups **Dokumen** then **Video**, each in admin order; an empty group is hidden;
+  - a PDF row has a blue document icon and "PDF · size", and links to `/api/v1/guides/{id}/file` in a new tab;
+  - a video row has a red play icon and "Video · YouTube / Google Drive / SharePoint / host", and opens the link in a new tab;
+  - with no guides the page shows the empty state "Belum ada panduan".
+  - Who counts as which audience:
+    - Member: `MEMBER`.
+    - Responder: GL, SH, Manager, Division Leadership, Director, Union Head and Union Officer.
+    - The Komite sees responder guides only.
+- **Entry points** (unchanged from the preview): the hero book icon left of the bell (member, leadership/union and OpsDashboard heroes), the Pengaturan row **Panduan**, and the desktop sidebar item **Panduan**. The mobile dock is unchanged.
+- **API:**
+  - enum `GuideKind` (`PDF`/`VIDEO`) and table `Guide` (migration `20261029090000_guides`, check constraint: a PDF has `storageKey`, a video has `videoUrl`); PDF files in `MEDIA_ROOT/guides/` with mode 0600;
+  - admin CRUD under `/api/v1/admin/guides` (`POST` multipart, `POST videos` JSON, `PATCH`, `PUT {id}/file`, `PUT order`, `DELETE`); `GUIDE_KIND_MISMATCH` covers file-on-video and link-on-PDF;
+  - the PDF must start with `%PDF-`; limit 20 MB; audit events `GUIDE_*`.
+- **The file endpoint is public on purpose.** An iOS Home Screen PWA opens PDFs in a viewer without the PWA cookies. Guides must therefore never hold personal data.
+
+**Files changed:**
+
+- New:
+  - `apps/api/src/guides/` (`guides.service.ts`, `guides.controller.ts`, `guides.module.ts`);
+  - `apps/api/prisma/migrations/20261029090000_guides/`;
+  - `apps/api/test/integration/guides.integration.test.ts`;
+  - `apps/web-admin/src/features/guides/GuidesPage.tsx`;
+  - `apps/web-voice/src/features/guide/` (`GuidePage.tsx`, `GuideButton.tsx`);
+  - `e2e/workforce-guide.spec.ts`, `e2e/admin-guides.spec.ts`;
+  - `docs/adr/0075-panduan-guides.md`.
+- Changed:
+  - API: `apps/api/prisma/schema.prisma`, `apps/api/src/app.module.ts`, `apps/api/scripts/enrich-openapi.ts`, `apps/api/openapi.json`, `packages/contracts/src/generated.ts`;
+  - CARE Admin: `apps/web-admin/src/App.tsx`, `admin-api.ts`, `styles.css`;
+  - workforce: `apps/web-voice/src/App.tsx`, `workforce-api.ts`, `lib/navigation.ts` and its test, `features/home/HomePage.tsx`, `DashboardHome.tsx`, `OpsDashboard.tsx`, `features/account/AccountPage.tsx`, `styles.css`;
+  - `scripts/validation/validation.test.mjs` (inventory 473 → 481 (8 new tests));
+  - `.agent/PRD.md`, `.agent/implementationPhases.md`.
+
+**Checks run (Windows, portable Node 22.23.2 / pnpm 11.8.0):**
+
+- `tsc --noEmit` for api, web-voice and web-admin: pass. ESLint and Prettier (`--end-of-line auto`) on the changed files: pass.
+- `pnpm openapi:generate`: additions only (no removed lines).
+- API integration `guides.integration.test.ts`: 6/6 pass, including video links, on a throwaway `pgvector/pgvector:pg16` container (port 58433, migrated with `prisma migrate deploy`, stopped afterwards). `prisma migrate diff` shows no `Guide` drift.
+- Vitest `src/lib/navigation.test.ts`: 7/7 pass.
+- Playwright `workforce-guide.spec.ts` + `admin-guides.spec.ts` (chromium): 8/8 pass. `admin-journeys.spec.ts` was run alongside: 4 "retryable error" tests failed under parallel load and passed 8/8 when rerun with `--workers=1` (local timing, not this change).
+- Previews in `docs/preview-guide/` (main checkout, not committed): the workforce hero, Pengaturan and Panduan pages, the video variants A/B (`video-a-360.png`, `video-b-360.png`), and the Admin list with the upload and video dialogs.
+- Not run: full `verify:local` and `verify:ci migrations`, Gitleaks, hosted CI, and real-device PDF opening.
+
+**Open questions / caveats:**
+
+- The user will provide the PDFs and video links; until someone adds them in Admin, the Panduan page is empty.
+- Video access follows the host's sharing settings (YouTube unlisted, Drive/SharePoint sharing), not the CARE login.
+- On 360 px the member hero name truncates one button-width earlier because of the extra icon.
+- Android Chrome usually downloads the PDF instead of showing it inline; check on a real phone after deploy.
+- Guide files live in the API media volume, so restore them together with the database.
+
+**Branch:** `feat/panduan` (worktree `../CARE-guide`) from `origin/staging` 4e6ff55, rebased onto 769f507 (#117, #118). ADR renumbered to 0075 because #117 took 0074. PR to `staging`.
+
+**Next:**
+
+1. User approves the Admin page; then commit, run Gitleaks, and open a PR to `staging`.
+2. After deploy, confirm `/ready` `releaseSha`. Add the user's PDFs and video links in CARE Admin → Panduan, then open them from the installed app on Android and iPhone.
+
 ## Smaller Voice photos — 31 October 2026
 
 **Problem:** for the 9,000-employee rollout the VPS has 97 GB disk (79 GB free on 31 Oct 2026). Phone photos (3–5 MB, ~4000 px) were uploaded as-is, and the API re-encoded them to WebP at full resolution, so the disk could fill in months.

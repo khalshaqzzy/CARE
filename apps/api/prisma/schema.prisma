@@ -308,6 +308,7 @@ model UserAccount {
   notifications            Notification[]
   pushSubscriptions        PushSubscription[]
   auditEvents              AuditEvent[]
+  guidesUploaded           Guide[]
   importBatches            ImportBatch[]
   assignmentsMade          VoiceAssignment[]              @relation("AssignmentActor")
   assignmentsReceived      VoiceAssignment[]              @relation("AssignmentHandler")
@@ -1032,6 +1033,33 @@ model AwayPeriod {
 
   @@index([accountId, endedAt, endsOn])
   @@index([substituteId, endedAt, endsOn])
+}
+
+/// Panduan managed in CARE Admin and shown in the workforce app by audience (ADR-0075).
+/// A PDF guide has its file under MEDIA_ROOT/guides; a video guide is an external https link.
+enum GuideKind {
+  PDF
+  VIDEO
+}
+
+model Guide {
+  id           String      @id @default(uuid()) @db.Uuid
+  kind         GuideKind   @default(PDF)
+  title        String      @db.VarChar(120)
+  forMember    Boolean     @default(false)
+  forResponder Boolean     @default(false)
+  sortOrder    Int         @default(0)
+  videoUrl     String?     @db.VarChar(500)
+  storageKey   String?     @unique @db.VarChar(200)
+  fileName     String?     @db.VarChar(200)
+  size         Int?
+  checksum     String?     @db.Char(64)
+  uploadedById String      @db.Uuid
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  uploadedBy   UserAccount @relation(fields: [uploadedById], references: [id])
+
+  @@index([sortOrder, createdAt])
 }
 
 /// Ingatkan: at most one reminder per actor, target and WIB day for a Voice.

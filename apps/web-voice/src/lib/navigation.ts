@@ -16,12 +16,15 @@ export function navigationForCapabilities(
   const isUnion = capabilities.some((capability) =>
     ['UNION_HEAD', 'UNION_OFFICER'].includes(capability),
   );
+  // The mobile dock has no room for Panduan; it opens from the Home hero there.
+  const guide: NavigationItem[] = desktop ? [{ id: 'guide', label: 'Panduan' }] : [];
   if (isUnion)
     return [
       { id: 'home', label: 'Home' },
       { id: 'private', label: 'Private' },
       { id: 'general', label: 'General' },
       { id: 'notifications', label: 'Notifikasi' },
+      ...guide,
       { id: 'account', label: 'Pengaturan' },
     ];
 
@@ -41,6 +44,7 @@ export function navigationForCapabilities(
     ? [
         ...items,
         { id: 'notifications', label: 'Notifikasi' },
+        ...guide,
         { id: 'account', label: 'Pengaturan' },
       ]
     : [...items, { id: 'account', label: 'Pengaturan' }];

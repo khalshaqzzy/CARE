@@ -448,6 +448,14 @@ Workforce PWA dan Admin web memakai navigation serta host authorization yang ber
 
 Workforce mobile memakai bottom navigation untuk primary journeys dan sidebar/topbar pada desktop. Admin app memakai desktop-only sidebar dengan hard gate ≥1280 px, bukan PWA/offline surface. Di bawah gate, protected tree tidak di-mount dan tidak melakukan fetch. Kedua frontend tetap bergantung pada backend authorization.
 
+### 11.6 Panduan (update 29 Oktober 2026, ADR-0075)
+
+- CARE Admin mengelola panduan di menu **Panduan** (`/guides`, hanya `CARE_ADMIN`). Ada dua jenis: **PDF** (upload, maksimal 20 MB) dan **Video** (link `https://` YouTube/Google Drive/SharePoint, tidak diupload ke CARE). Setiap panduan diberi judul dan centang **Member** dan/atau **Responder**. Admin dapat mengubah judul/target, mengganti file PDF atau link video, mengatur urutan, dan menghapus. Setiap perubahan langsung berlaku untuk semua akun dan tercatat di audit (`GUIDE_*`).
+- Halaman workforce `/panduan` menampilkan panduan sesuai capability akun dalam dua kelompok, **Dokumen** lalu **Video**, masing-masing mengikuti urutan Admin; kelompok kosong disembunyikan. Video ditandai ikon play dan sumbernya ("Video · YouTube"), dibuka di tab baru pada host video. Target Member = `MEMBER`; target Responder = Group Leader, Section Head, Manager, Division Leadership, Director, Komite/Union Officer. Komite hanya melihat panduan Responder. Tanpa panduan, halaman menampilkan "Belum ada panduan".
+- Akses: ikon buku di hero Home di samping lonceng notifikasi (semua role), baris **Panduan** di Pengaturan, dan item **Panduan** di sidebar desktop. Dock mobile tidak berubah.
+- Akses video mengikuti pengaturan berbagi di host (YouTube _unlisted_, izin Drive/SharePoint), bukan login CARE.
+- File PDF disimpan di `MEDIA_ROOT/guides` dan dibuka melalui `/api/v1/guides/{id}/file` di tab baru. Endpoint file bersifat publik agar viewer PDF iOS (tanpa cookie PWA) dapat membukanya; karena itu panduan tidak boleh memuat data pribadi atau isi Voice.
+
 ---
 
 ## 12. Create Voice dan Preview
@@ -1252,6 +1260,7 @@ Seluruh kebijakan installability/cache/offline pada bagian ini berlaku untuk wor
 - Satu custom TypeScript service worker mengelola precache, update, offline fallback, push, dan notification click.
 - Update service worker ditawarkan setelah ready dan tidak boleh memotong form/mutation aktif.
 - Link instal publik `/install` (tanpa login) menampilkan jalur instal terpendek per browser: tombol prompt native di Chromium, dua langkah "Bagikan → Tambah ke Layar Utama" di Safari iOS, dan arahan membuka ulang di Safari/Chrome untuk browser lain atau in-app browser. Instal tanpa konfirmasi pengguna tidak dimungkinkan browser (ADR-0067).
+- PDF panduan tidak diprecache dan membutuhkan koneksi (ADR-0075).
 
 ### 23.2 Cache Policy
 
