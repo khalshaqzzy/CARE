@@ -1,5 +1,6 @@
 import type { components, operations } from '@care/contracts';
 import { normalizeApiError, type CareTransport } from '@care/frontend-core';
+import { compressPhoto } from './lib/compress-photo';
 
 type ApiResult<T> = { data?: T; error?: unknown; response: Response };
 
@@ -214,9 +215,9 @@ export function createWorkforceApi(transport: CareTransport) {
       dataOrThrow<LocationReview | null>(
         client.GET('/api/v1/drafts/{id}/location-review', { params: { path: { id } } }),
       ),
-    uploadDraftAttachment: (id: string, file: File) => {
+    uploadDraftAttachment: async (id: string, file: File) => {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', await compressPhoto(file));
       return dataOrThrow<Attachment>(
         client.POST('/api/v1/drafts/{id}/attachments', {
           params: { path: { id }, header: csrfHeader() },
@@ -362,10 +363,10 @@ export function createWorkforceApi(transport: CareTransport) {
           params: { path: { id }, query: compactQuery(query) },
         }),
       ),
-    sendMessage: (id: string, text: string, files: File[], key: string) => {
+    sendMessage: async (id: string, text: string, files: File[], key: string) => {
       const form = new FormData();
       if (text) form.append('text', text);
-      for (const file of files) form.append('files', file);
+      for (const file of await Promise.all(files.map(compressPhoto))) form.append('files', file);
       return dataOrThrow<Message>(
         client.POST('/api/v1/voices/{id}/messages', {
           params: { path: { id }, header: csrfIdempotentHeader(key) },
@@ -438,9 +439,9 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
-    stageEvidence: (id: string, file: File) => {
+    stageEvidence: async (id: string, file: File) => {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', await compressPhoto(file));
       return dataOrThrow<Attachment>(
         client.POST('/api/v1/voices/{id}/closure-evidence', {
           params: { path: { id }, header: csrfHeader() },

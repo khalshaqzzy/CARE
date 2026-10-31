@@ -1,5 +1,19 @@
 # CARE Session Handoff
 
+## Smaller Voice photos — 31 October 2026
+
+**Problem:** for the 9,000-employee rollout the VPS has 97 GB disk (79 GB free on 31 Oct 2026). Phone photos (3–5 MB, ~4000 px) were uploaded as-is, and the API re-encoded them to WebP at full resolution, so the disk could fill in months.
+
+**Change (`feat/compress-voice-photos`, PR to `staging`):**
+
+- API `MediaService.process` resizes to at most 1920 px on the longest edge (`MAX_STORED_EDGE`, never enlarges) before the WebP encode, and records the stored width/height.
+- web-voice `lib/compress-photo.ts`: files above 500 KB are redrawn at max 1920 px as JPEG q0.82 before upload (draft attachments, chat photos, closure evidence via `workforce-api.ts`). Any failure, no `createImageBitmap`, or a result that is not smaller keeps the original. Results are cached per `File` so a retried send uploads the same bytes (idempotency fingerprint).
+- Photos above 10 MB that the API used to reject now pass after shrinking.
+
+**Checks (Windows, portable Node 22.23.4 / pnpm 11.8.0):** web-voice and API `tsc`; ESLint and Prettier on changed files; web-voice Vitest 152/152; API security 15/15 (new resize case). Chromium check of the same steps: 6.8 MB 4000×3000 JPEG → 392 KB 1920×1440 in ~1.4 s. Not run: full `verify:local`, real phone upload.
+
+**Next:** after merge confirm `/ready` `releaseSha`; upload a phone photo on satucare.com and check the attachment is 1920 px.
+
 ## Unread badge on the CARE app icon — 30 October 2026
 
 **Objective:** besides the pop-up on the phone, a notification must also show on the CARE icon on the Home Screen. ADR-0074 and PRD §19.4 hold the rules.

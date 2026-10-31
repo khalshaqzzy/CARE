@@ -15,6 +15,8 @@ const readableStates = new Set<AttachmentState>([
   AttachmentState.READY,
   AttachmentState.REFERENCED,
 ]);
+// Longest edge kept on disk; phone photos arrive at 4000 px and up.
+export const MAX_STORED_EDGE = 1920;
 const formatForMime: Record<string, string> = {
   'image/jpeg': 'jpeg',
   'image/png': 'png',
@@ -51,6 +53,7 @@ export class MediaService {
     });
     let metadata: { format?: string; width?: number; height?: number };
     let output: Buffer;
+    let size: { width: number; height: number };
     try {
       const image = sharp(file.buffer, {
         failOn: 'warning',
@@ -67,7 +70,18 @@ export class MediaService {
         metadata.height > 10_000
       )
         throw badRequest('MEDIA_DIMENSIONS_INVALID', 'Image dimensions are unsupported');
-      output = await image.rotate().webp({ quality: 82, effort: 4 }).toBuffer();
+      const encoded = await image
+        .rotate()
+        .resize({
+          width: MAX_STORED_EDGE,
+          height: MAX_STORED_EDGE,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 82, effort: 4 })
+        .toBuffer({ resolveWithObject: true });
+      output = encoded.data;
+      size = { width: encoded.info.width, height: encoded.info.height };
     } catch (error) {
       await this.prisma.attachment.update({
         where: { id: attachment.id },
@@ -82,8 +96,8 @@ export class MediaService {
         state: AttachmentState.PROCESSED,
         mimeType: 'image/webp',
         size: output.length,
-        width: metadata.width,
-        height: metadata.height,
+        width: size.width,
+        height: size.height,
         checksum: sha256(output),
       },
     });
