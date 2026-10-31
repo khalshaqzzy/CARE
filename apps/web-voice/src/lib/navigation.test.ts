@@ -15,6 +15,7 @@ describe('capability-to-navigation mapping', () => {
       'Buat Voice',
       'Voice Saya',
       'Notifikasi',
+      'Panduan',
       'Pengaturan',
     ]);
   });
@@ -38,6 +39,14 @@ describe('capability-to-navigation mapping', () => {
       'Private',
       'General',
       'Notifikasi',
+      'Pengaturan',
+    ]);
+    expect(labels(['UNION_HEAD'], true)).toEqual([
+      'Home',
+      'Private',
+      'General',
+      'Notifikasi',
+      'Panduan',
       'Pengaturan',
     ]);
   });

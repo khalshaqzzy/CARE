@@ -30,6 +30,7 @@ import { StatusDistribution } from '../../components/StatusDistribution';
 import { TrendCard } from '../../components/TrendCard';
 import { VoiceCard } from '../../components/VoiceCard';
 import { VoiceSummaryCard } from '../../components/VoiceSummaryCard';
+import { GuideButton } from '../guide/GuideButton';
 import { NotificationBellButton } from '../notifications/NotificationBell';
 import {
   AREA_LABELS,
@@ -232,6 +233,7 @@ function MemberHomePage() {
             </div>
           </div>
           <div className="member-hero__actions">
+            <GuideButton />
             <NotificationBellButton />
           </div>
         </div>

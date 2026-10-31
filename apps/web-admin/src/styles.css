@@ -3059,3 +3059,30 @@ button.admin-rows > li:hover,
   color: var(--raw-brand-700);
   text-decoration: underline;
 }
+
+/* Panduan (ADR-0075) */
+.admin-guide-order,
+.admin-guide-audience,
+.admin-guide-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+.admin-guide-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.admin-guide-audience-field {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.admin-guide-audience-field legend {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
