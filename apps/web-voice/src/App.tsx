@@ -31,7 +31,7 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
@@ -46,10 +46,8 @@ import { AwayPage } from './features/account/AwayPage';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
 import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
-import { GuidePage } from './features/guide/GuidePage';
 import { GeneralBrowsePage } from './features/general/GeneralBrowsePage';
 import { HistoryPage } from './features/history/HistoryPage';
-import { InstallPage } from './features/install/InstallPage';
 import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AppBadgeSync } from './features/notifications/NotificationBell';
@@ -83,7 +81,14 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
-        <Route path="/install" element={<InstallPage />} />
+        <Route
+          path="/install"
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <InstallPage />
+            </Suspense>
+          }
+        />
         <Route
           path="*"
           element={
@@ -114,7 +119,14 @@ export function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/away" element={<AwayPage />} />
-          <Route path="panduan" element={<GuidePage />} />
+          <Route
+            path="panduan"
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <GuidePage />
+              </Suspense>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -489,6 +501,15 @@ function WrongApp() {
     </main>
   );
 }
+
+// Rarely opened pages load on demand to keep the workforce main bundle inside its
+// compatibility budget (ADR-0026).
+const GuidePage = lazy(() =>
+  import('./features/guide/GuidePage').then((module) => ({ default: module.GuidePage })),
+);
+const InstallPage = lazy(() =>
+  import('./features/install/InstallPage').then((module) => ({ default: module.InstallPage })),
+);
 
 /** Dock/route map so every mobile bottom-nav tap resolves to a real route. */
 const NAV_ROUTES: Record<string, string> = {

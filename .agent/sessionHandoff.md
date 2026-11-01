@@ -63,6 +63,21 @@
 - Previews in `docs/preview-guide/` (main checkout, not committed): the workforce hero, Pengaturan and Panduan pages, the video variants A/B (`video-a-360.png`, `video-b-360.png`), and the Admin list with the upload and video dialogs.
 - Not run: full `verify:local` and `verify:ci migrations`, Gitleaks, hosted CI, and real-device PDF opening.
 
+**CI fix after the first push (1 Nov 2026):** PR #119 failed four hosted checks:
+
+- **Application build and contracts**: `pwa:compat-check` failed because the workforce main chunk was 167,382 bytes against a 166,640-byte budget. Staging alone was already at 166,513 (127 bytes of headroom).
+  - The fix keeps the budget. `GuidePage` and the public `InstallPage` now load with `React.lazy` in `App.tsx`.
+  - The main chunk is now 164,507 bytes, under staging's size, with about 2.1 KB of headroom.
+- **CodeQL**: two high alerts flagged `host.endsWith('youtube.com' | 'sharepoint.com')` in `videoSource()`.
+  - They are fixed with an exact-or-subdomain `isDomain` check, covered by the new `GuidePage.test.ts`.
+  - One medium alert remains: uploaded bytes are written to disk in `guides.service.ts`. This is intended, uses the same pattern as the organization import, and uses a random server-side key. It may need dismissing in GitHub code scanning.
+- **Browser reports and capture coverage** and **Release candidate gate** failed only as a consequence of the build failure.
+- Local re-checks:
+  - `pwa:compat-check` passed;
+  - Vitest for guide, navigation and foundation: 22/22 pass;
+  - Playwright guide specs plus every spec that opens `/install`: 88/88 pass;
+  - pwa, foundation and legacy specs on all projects: 18/18 pass.
+
 **Open questions / caveats:**
 
 - The user will provide the PDFs and video links; until someone adds them in Admin, the Panduan page is empty.

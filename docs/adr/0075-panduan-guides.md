@@ -135,6 +135,8 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
   - `workforce-api.ts` `guides()`;
   - the route and `guide` navigation id in `App.tsx` and `lib/navigation.ts`;
   - the hero buttons in `HomePage.tsx`, `DashboardHome.tsx` and `OpsDashboard.tsx` (`.ops-profile__bell` becomes a flex row);
+  - `GuidePage` and the existing public `InstallPage` are loaded with `React.lazy` behind a `RouteLoader` fallback (see Consequences);
+  - `videoSource()` matches a host only as the domain itself or a subdomain (`isDomain`), so a look-alike such as `evilyoutube.com` is shown under its own name.
   - the Panduan row in `AccountPage.tsx`.
 
 ## Consequences
@@ -145,6 +147,14 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
 - Opening a PDF depends on the platform. Desktop browsers and iOS show a viewer; Android Chrome usually downloads the file or hands it to a PDF app. In an installed PWA the link leaves the standalone window.
 - The member hero has two icon buttons, so on a 360 px screen a long display name is truncated one button-width earlier.
 - The hero icon is shown even when no guide applies; the page then shows its empty state.
+- **Workforce bundle budget (ADR-0026):**
+  - before this change, staging's main chunk was 166,513 bytes gzip against a budget of 166,640, leaving 127 bytes;
+  - the Panduan entry points alone exceeded that, and the hosted build failed `pwa:compat-check`;
+  - the budget was kept unchanged;
+  - instead, `GuidePage` and the rarely opened public `/install` page (bilingual copy and the iPhone mock) now load on demand;
+  - the main chunk is 164,507 bytes, about 2.1 KB under the budget and smaller than before this feature;
+  - `/install` and `/panduan` show the route loader briefly on first open;
+  - other routes stay in the main chunk.
 - Video links point to third-party hosts. Who can watch follows the host's sharing settings, not the CARE login. A YouTube video should be _unlisted_, and a Drive or SharePoint file must be shared with the intended readers. Members need internet access to the host.
 - CARE does not check that a link still works; a removed video shows the host's own error.
 
@@ -161,6 +171,11 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
 - Browser, `e2e/workforce-guide.spec.ts` (5 tests): the hero entry, the PDF link and size, the Dokumen and Video groups with order, the video link and "Video · YouTube", a hidden Video group, the empty state, and the Pengaturan and sidebar entries.
 - Browser, `e2e/admin-guides.spec.ts` (3 tests): the sidebar entry, the upload dialog (required fields and the multipart fields sent), reorder, delete with confirmation, and the video dialog (https check and the JSON sent).
 - `apps/web-voice/src/lib/navigation.test.ts`: the desktop Panduan item for workforce and Union accounts.
+- `apps/web-voice/src/features/guide/GuidePage.test.ts`: the source label for YouTube, Google Drive, SharePoint, look-alike hosts and malformed links.
+- `pnpm pwa:compat-check`: passes at 164,507 bytes gzip. The `/install`, PWA, foundation and legacy-iOS specs still pass with the lazy routes.
+- CodeQL: the two incomplete-host-check alerts in `GuidePage.tsx` are fixed.
+  - The remaining medium alert concerns writing uploaded bytes to disk in `guides.service.ts`.
+  - That write is intended. The path is a server-generated random key under `MEDIA_ROOT/guides`, checked with the same safe-path guard as other uploads, and the organization import already stores uploads the same way.
 - The CI inventory total in `scripts/validation/validation.test.mjs` is 481.
 - Rendered previews at 360 and 1440 px: the workforce entry points, the Panduan page as a mixed list and in groups, and the Admin list with the upload and video dialogs.
 - Still required after deploy:

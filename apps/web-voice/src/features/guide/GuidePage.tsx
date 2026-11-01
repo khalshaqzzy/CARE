@@ -20,10 +20,15 @@ export function videoSource(url: string) {
   } catch {
     return 'Link';
   }
-  if (host === 'youtu.be' || host.endsWith('youtube.com')) return 'YouTube';
+  if (host === 'youtu.be' || isDomain(host, 'youtube.com')) return 'YouTube';
   if (host === 'drive.google.com') return 'Google Drive';
-  if (host.endsWith('sharepoint.com')) return 'SharePoint';
+  if (isDomain(host, 'sharepoint.com')) return 'SharePoint';
   return host;
+}
+
+/** The domain itself or one of its subdomains, never a look-alike such as evilyoutube.com. */
+function isDomain(host: string, domain: string) {
+  return host === domain || host.endsWith(`.${domain}`);
 }
 
 function GuideRow({ guide }: { guide: Guide }) {
