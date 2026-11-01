@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Panduan managed in CARE Admin — 29 October 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/panduan` (from `origin/staging` 769f507, not released): CARE Admin gains a Panduan page to upload PDF guides and add video links (YouTube/Drive/SharePoint), edit, reorder and delete them, each marked for Member and/or Responder. The workforce `/panduan` page lists the guides for the account's role from `GET /api/v1/guides`, grouped as Dokumen and Video. Entry points: a book icon beside the Home hero bell, a Pengaturan row and a desktop sidebar item. New `Guide` table with `GuideKind` PDF/VIDEO (migration `20261029090000_guides`); PDF files under `MEDIA_ROOT/guides`, videos stay on their host. See ADR-0075; checks are in sessionHandoff.md.
+
 ## Migrated Voices in their own dashboard buckets — 28 October 2026
 
 Phase 13 remains the only `in_progress` phase. Legacy migration batch 1 (883 Voices: EPKD, PADi, QC1, SUKI) is imported on satucare.com. On `feat/migrated-dashboard-buckets`: dashboards group migrated Voices as `Migrasi Voice <platform>` in the organization breakdown and by platform in Asal pengirim (ADR-0061 amendment). Delivery is unblocked again since the #111 rollback deploy (ADR-0072).

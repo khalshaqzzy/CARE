@@ -7767,6 +7767,11 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
+.ops-profile__bell {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
 .ops-profile__bell .care-button {
   width: 38px;
   height: 38px;
@@ -9983,4 +9988,18 @@
   color: #fff;
   background: #48484a;
   box-shadow: 0 0 0 2px var(--raw-brand-500);
+}
+
+/* Panduan (ADR-0075) */
+.guide-row__icon--video {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+.guide-group__title {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted, #64748b);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }

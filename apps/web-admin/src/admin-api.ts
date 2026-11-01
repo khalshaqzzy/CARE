@@ -45,6 +45,8 @@ export type EscalationSettings = components['schemas']['EscalationSettings'];
 export type EscalationDeadline = components['schemas']['EscalationDeadline'];
 export type ShopLocationUnmatched = components['schemas']['ShopLocationUnmatchedList'][number];
 export type AreaKey = ShopLocationAdmin['areas'][number];
+export type AdminGuide = components['schemas']['AdminGuide'];
+export type AdminGuideList = components['schemas']['AdminGuideList'];
 export type AdminHandoverQueue = components['schemas']['AdminHandoverQueue'];
 export type AdminHandoverDetail = components['schemas']['AdminHandoverDetail'];
 export type AdminHandoverOptions = components['schemas']['AdminHandoverOptions'];
@@ -403,6 +405,64 @@ export function createAdminApi(transport: CareTransport) {
             header: { 'X-CSRF-Token': '', 'Idempotency-Key': idempotencyKey },
           },
           body,
+        }),
+      ),
+    guides: () => dataOrThrow<AdminGuideList>(client.GET('/api/v1/admin/guides')),
+    createGuide: (input: {
+      file: File;
+      title: string;
+      forMember: boolean;
+      forResponder: boolean;
+    }) => {
+      const form = new FormData();
+      form.append('title', input.title);
+      form.append('forMember', String(input.forMember));
+      form.append('forResponder', String(input.forResponder));
+      form.append('file', input.file);
+      return dataOrThrow<AdminGuide>(
+        client.POST('/api/v1/admin/guides', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body: { file: '', title: '', forMember: 'false', forResponder: 'false' },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+    createVideoGuide: (body: components['schemas']['GuideVideoRequest']) =>
+      dataOrThrow<AdminGuide>(
+        client.POST('/api/v1/admin/guides/videos', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    updateGuide: (id: string, body: components['schemas']['GuideUpdateRequest']) =>
+      dataOrThrow<AdminGuide>(
+        client.PATCH('/api/v1/admin/guides/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    replaceGuideFile: (id: string, file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return dataOrThrow<AdminGuide>(
+        client.PUT('/api/v1/admin/guides/{id}/file', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+          body: { file: '' },
+          bodySerializer: () => form,
+        }),
+      );
+    },
+    reorderGuides: (ids: string[]) =>
+      dataOrThrow<AdminGuideList>(
+        client.PUT('/api/v1/admin/guides/order', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body: { ids },
+        }),
+      ),
+    deleteGuide: (id: string) =>
+      dataOrThrow(
+        client.DELETE('/api/v1/admin/guides/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
         }),
       ),
     voices: (query: QueryInput<VoicesQuery>) =>

@@ -11,6 +11,7 @@ import {
 import {
   BadgeCheck,
   Bell,
+  BookOpen,
   CalendarOff,
   Briefcase,
   Building2,
@@ -155,6 +156,12 @@ export function AccountPage() {
           title="Notifikasi push"
           description="Kelola izin dan perangkat terdaftar"
           onClick={() => void navigate('/notifications')}
+        />
+        <SettingsRow
+          icon={<BookOpen size={15} />}
+          title="Panduan"
+          description="Panduan penggunaan CARE"
+          onClick={() => void navigate('/panduan')}
         />
         <SettingsRow
           icon={<Lock size={15} />}

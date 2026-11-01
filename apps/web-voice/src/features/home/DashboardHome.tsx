@@ -22,6 +22,7 @@ import { FilterPillRow } from '../../components/FilterPills';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { TrendCard } from '../../components/TrendCard';
 import { VoiceSummaryCard } from '../../components/VoiceSummaryCard';
+import { GuideButton } from '../guide/GuideButton';
 import { NotificationBellButton } from '../notifications/NotificationBell';
 import { bucketValue } from '../../lib/dashboard-math';
 import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
@@ -479,6 +480,7 @@ export function DashboardHome() {
             </div>
           </div>
           <div className="member-hero__actions">
+            <GuideButton />
             <NotificationBellButton />
           </div>
         </div>

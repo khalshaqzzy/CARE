@@ -296,6 +296,7 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    guides: () => dataOrThrow<components['schemas']['GuideList']>(client.GET('/api/v1/guides')),
     away: () => dataOrThrow<components['schemas']['AwayStatus']>(client.GET('/api/v1/me/away')),
     setAway: (body: components['schemas']['AwayRequest']) =>
       dataOrThrow<components['schemas']['AwayStatus']>(

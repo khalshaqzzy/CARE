@@ -21,6 +21,7 @@ import { bucketValue } from '../../lib/dashboard-math';
 import { formatCategoryName, SEVERITY_LABELS, STATUS_LABELS } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { InboxVoiceCard } from '../../components/InboxVoiceCard';
+import { GuideButton } from '../guide/GuideButton';
 import { NotificationBellButton } from '../notifications/NotificationBell';
 import type { DashboardPreview } from '../../workforce-api';
 import {
@@ -280,6 +281,7 @@ function ProfileCard(props: OpsDashboardProps & { mineLine?: ReactNode }) {
           <span className="ops-profile__role">{props.role}</span>
         </span>
         <span className="ops-profile__bell">
+          <GuideButton />
           <NotificationBellButton />
         </span>
       </div>

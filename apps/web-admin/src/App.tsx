@@ -15,6 +15,7 @@ import {
 import {
   Activity,
   Archive,
+  BookOpen,
   Building2,
   CircleGauge,
   FileSearch,
@@ -46,6 +47,7 @@ import { AuditPage } from './features/audit/AuditPage';
 import { SystemStatusPage } from './features/system/SystemStatusPage';
 import { AccountPage } from './features/account/AccountPage';
 import { DivisionAdminsPage } from './features/division/DivisionAdminsPage';
+import { GuidesPage } from './features/guides/GuidesPage';
 import { useDivisionOverview } from './features/division/DivisionPages';
 
 export function App() {
@@ -73,6 +75,7 @@ export function App() {
         <Route path="escalation" element={<EscalationSettingsPage />} />
         <Route path="union" element={<UnionPage />} />
         <Route path="division-admins" element={<DivisionAdminsPage />} />
+        <Route path="guides" element={<GuidesPage />} />
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="voices" element={<VoiceExplorerPage />} />
         <Route path="voices/:id" element={<VoiceDetailPage />} />
@@ -311,6 +314,7 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   escalation: '/escalation',
   union: '/union',
   'division-admins': '/division-admins',
+  guides: '/guides',
   accounts: '/accounts',
   voices: '/voices',
   handovers: '/handovers',
@@ -334,21 +338,23 @@ function AdminShell() {
         ? 'remediation'
         : path.startsWith('/escalation')
           ? 'escalation'
-          : path.startsWith('/union')
-            ? 'union'
-            : path.startsWith('/accounts')
-              ? 'accounts'
-              : path.startsWith('/voices')
-                ? 'voices'
-                : path.startsWith('/handovers')
-                  ? 'handovers'
-                  : path.startsWith('/audit')
-                    ? 'audit'
-                    : path.startsWith('/system')
-                      ? 'system'
-                      : path.startsWith('/account')
-                        ? 'account'
-                        : 'overview';
+          : path.startsWith('/guides')
+            ? 'guides'
+            : path.startsWith('/union')
+              ? 'union'
+              : path.startsWith('/accounts')
+                ? 'accounts'
+                : path.startsWith('/voices')
+                  ? 'voices'
+                  : path.startsWith('/handovers')
+                    ? 'handovers'
+                    : path.startsWith('/audit')
+                      ? 'audit'
+                      : path.startsWith('/system')
+                        ? 'system'
+                        : path.startsWith('/account')
+                          ? 'account'
+                          : 'overview';
   const divisionItems = [
     { id: 'voices', label: 'Voice divisi', icon: <FileSearch size={19} /> },
     { id: 'accounts', label: 'Akun divisi', icon: <UsersRound size={19} /> },
@@ -383,6 +389,11 @@ function AdminShell() {
       id: 'division-admins',
       label: 'Admin Divisi',
       icon: <UserCog size={19} />,
+    },
+    {
+      id: 'guides',
+      label: 'Panduan',
+      icon: <BookOpen size={19} />,
     },
     {
       id: 'accounts',
