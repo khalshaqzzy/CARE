@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Input,
   Loader,
   PasswordInput,
@@ -41,8 +42,10 @@ import { normalizeLoginIdentifier } from './features/auth/normalize-identifier';
 import authHeroAsset from './assets/auth-hero-asset.png';
 import { registerCareServiceWorker } from './register-sw.js';
 import { getBrowserCapabilities } from './lib/browser-capabilities';
+import { setPushOptedOut } from './lib/push';
 import { AccountPage } from './features/account/AccountPage';
 import { AwayPage } from './features/account/AwayPage';
+import { LogoutDialog } from './features/account/LogoutDialog';
 import { CreateVoicePage } from './features/create/CreateVoicePage';
 import { DraftPreviewPage } from './features/create/DraftPreviewPage';
 import { SubmittedVoicePage } from './features/create/SubmittedVoicePage';
@@ -98,6 +101,7 @@ export function App() {
               unauthenticated={<Navigate to="/login" replace />}
               passwordChange={<Navigate to="/change-password" replace />}
               wrongApp={<WrongApp />}
+              unavailable={<SessionUnavailable />}
             >
               <WorkforceShell />
             </SessionGate>
@@ -207,6 +211,20 @@ function RouteLoader() {
   );
 }
 
+// A failed session check keeps the user signed in; it never sends them to login.
+function SessionUnavailable() {
+  const { refresh } = useAuth();
+  return (
+    <main className="route-loader">
+      <ErrorState
+        title="CARE belum terhubung"
+        description="Periksa koneksi Anda, lalu coba lagi."
+        onRetry={() => void refresh()}
+      />
+    </main>
+  );
+}
+
 function LoginPage() {
   const { login, startLogin, logout, session } = useAuth();
   const location = useLocation();
@@ -240,8 +258,10 @@ function LoginPage() {
       if (!expanded) {
         const result = await startLogin(identifier);
         if (version !== requestVersion.current) return;
-        if (result.next === 'CHANGE_PASSWORD') void navigate('/change-password', { replace: true });
-        else setExpanded(true);
+        if (result.next === 'CHANGE_PASSWORD') {
+          setPushOptedOut(result.session.account.id, false);
+          void navigate('/change-password', { replace: true });
+        } else setExpanded(true);
         return;
       }
       const result = await login(identifier, password);
@@ -250,6 +270,8 @@ function LoginPage() {
         setError('Akun CARE Admin hanya dapat digunakan pada aplikasi Admin.');
         return;
       }
+      // Every login starts with push on; a switch-off lasts only until logout.
+      setPushOptedOut(result.account.id, false);
       void navigate(result.passwordChangeRequired ? '/change-password' : '/', { replace: true });
     } catch (cause) {
       if (version === requestVersion.current) setError(authFailureMessage(cause, 'login'));
@@ -566,10 +588,11 @@ function resolveCurrent(pathname: string, isUnion: boolean): string {
 }
 
 function WorkforceShell() {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery(desktopQuery);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   if (!session) return null;
   const caps = capabilityFor(session);
   const current = resolveCurrent(location.pathname, caps.isUnion);
@@ -632,11 +655,7 @@ function WorkforceShell() {
                 </div>
                 <div>
                   <Avatar name={session.account.displayName} />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void logout().then(() => navigate('/login'))}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmLogout(true)}>
                     Keluar
                   </Button>
                 </div>
@@ -662,11 +681,7 @@ function WorkforceShell() {
                 }
                 footer={
                   <Stack gap="sm">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void logout().then(() => navigate('/login'))}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmLogout(true)}>
                       Keluar
                     </Button>
                   </Stack>
@@ -687,6 +702,7 @@ function WorkforceShell() {
       <PushAutoEnable />
       <AppBadgeSync />
       <Outlet />
+      <LogoutDialog open={confirmLogout} onOpenChange={setConfirmLogout} />
     </AppShell>
   );
 }

@@ -1,5 +1,16 @@
 # CARE v1.1 Implementation Phases
 
+## Persistent sessions, push on at login, logout confirmation — 2 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `fix/persistent-sessions` (from `origin/staging` 5760a04, not released):
+
+- every account kind (workforce, CARE Admin, Division Admin) stays signed in until logout (rolling 90-day inactivity limit, cookie renewed daily on use);
+- a failed session check (network/5xx) shows a retry state instead of the login page;
+- each workforce login clears the device push opt-out, so push is on again after every login;
+- every workforce **Keluar** asks for confirmation and warns that Voice update notifications will stop on that device.
+
+See ADR-0076 and PRD §8.5 / §19; checks are in sessionHandoff.md.
+
 ## Panduan managed in CARE Admin — 29 October 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/panduan` (from `origin/staging` 769f507, not released): CARE Admin gains a Panduan page to upload PDF guides and add video links (YouTube/Drive/SharePoint), edit, reorder and delete them, each marked for Member and/or Responder. The workforce `/panduan` page lists the guides for the account's role from `GET /api/v1/guides`, grouped as Dokumen and Video. Entry points: a book icon beside the Home hero bell, a Pengaturan row and a desktop sidebar item. New `Guide` table with `GuideKind` PDF/VIDEO (migration `20261029090000_guides`); PDF files under `MEDIA_ROOT/guides`, videos stay on their host. See ADR-0075; checks are in sessionHandoff.md.

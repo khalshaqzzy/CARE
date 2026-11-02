@@ -1,13 +1,4 @@
-import {
-  Badge,
-  Button,
-  Dialog,
-  DisclosureRow,
-  SectionCard,
-  SettingsGroup,
-  SettingsRow,
-  Stack,
-} from '@care/ui';
+import { Badge, DisclosureRow, SectionCard, SettingsGroup, SettingsRow, Stack } from '@care/ui';
 import {
   BadgeCheck,
   Bell,
@@ -23,6 +14,7 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
+import { LogoutDialog } from './LogoutDialog';
 
 const CAPABILITY_LABELS: Record<string, string> = {
   MEMBER: 'Member',
@@ -49,7 +41,7 @@ const ACCOUNT_KIND_LABELS: Record<string, string> = {
 };
 
 export function AccountPage() {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
   const [confirmLogout, setConfirmLogout] = useState(false);
   if (!session) return null;
@@ -183,31 +175,7 @@ export function AccountPage() {
         />
       </SettingsGroup>
 
-      <Dialog
-        open={confirmLogout}
-        onOpenChange={setConfirmLogout}
-        title="Keluar dari CARE?"
-        description="Sesi pada perangkat ini akan diakhiri. Anda dapat masuk kembali kapan saja."
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmLogout(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                setConfirmLogout(false);
-                void logout().then(() => navigate('/login'));
-              }}
-            >
-              Keluar
-            </Button>
-          </>
-        }
-      >
-        <p className="dialog-copy">Pastikan pekerjaan Anda sudah disimpan sebelum keluar.</p>
-      </Dialog>
+      <LogoutDialog open={confirmLogout} onOpenChange={setConfirmLogout} />
     </Stack>
   );
 }

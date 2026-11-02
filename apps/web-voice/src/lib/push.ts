@@ -75,9 +75,9 @@ export function getInstallationId(): string {
 const OPT_OUT_KEY_PREFIX = 'care-push-opt-out:';
 
 /**
- * Push is on by default; only an explicit switch-off on this device is
- * remembered, per account, so the app does not re-enroll it automatically.
- * Storage failures (private mode, blocked site data) fall back to "not opted
+ * Push is on by default; an explicit switch-off on this device is remembered,
+ * per account, so the app does not re-enroll it automatically. Every login
+ * clears it again, so each signed-in session starts with push on. Storage failures (private mode, blocked site data) fall back to "not opted
  * out", which keeps the default-on behaviour.
  */
 export function isPushOptedOut(accountId: string): boolean {

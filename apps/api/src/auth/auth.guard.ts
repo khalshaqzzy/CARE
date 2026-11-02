@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { loadConfig } from '../config';
 import { forbiddenAsNotFound, unauthorized } from '../common/errors';
 import { hmac256, safeEqual } from '../common/crypto';
@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma.service';
 import { CAPABILITIES_KEY, PUBLIC_KEY } from './auth.decorators';
 import type { Capability } from './capabilities';
 import { PolicyService } from './policy.service';
+import { refreshedSessionExpiry, setSessionCookie } from './session-policy';
 import { ThrottleService } from './throttle.service';
 
 @Injectable()
@@ -65,16 +66,22 @@ export class AuthGuard implements CanActivate {
       ].includes(path)
     )
       throw forbiddenAsNotFound();
-    const refreshed = new Date(
-      Math.min(
-        now.getTime() + loadConfig().SESSION_IDLE_HOURS * 3_600_000,
-        session.absoluteExpiresAt.getTime(),
-      ),
-    );
+    const refreshed = refreshedSessionExpiry(session.absoluteExpiresAt, now.getTime());
     await this.prisma.session.update({
       where: { id: session.id },
-      data: { lastSeenAt: now, expiresAt: refreshed },
+      data: {
+        lastSeenAt: now,
+        expiresAt: refreshed.expiresAt,
+        absoluteExpiresAt: refreshed.absoluteExpiresAt,
+      },
     });
+    // Logout clears the cookie; re-issuing it on the same response would be pointless.
+    if (refreshed.renewed && path !== '/api/v1/auth/logout')
+      setSessionCookie(
+        context.switchToHttp().getResponse<Response>(),
+        token,
+        refreshed.absoluteExpiresAt,
+      );
     return true;
   }
 }

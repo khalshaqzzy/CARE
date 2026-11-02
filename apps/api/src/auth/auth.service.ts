@@ -10,6 +10,7 @@ import { loadConfig } from '../config';
 import { PrismaService } from '../prisma.service';
 import type { AuthActor } from './auth.types';
 import { PolicyService } from './policy.service';
+import { initialSessionExpiry, setSessionCookie } from './session-policy';
 import { ThrottleService } from './throttle.service';
 
 const loginSchema = z.object({
@@ -156,8 +157,7 @@ export class AuthService {
         ipHash: hmac256(config.AUTH_THROTTLE_SECRET, ip),
         userAgent: userAgent?.slice(0, 300),
         passwordRestricted: account.passwordChangeRequired,
-        expiresAt: new Date(now + config.SESSION_IDLE_HOURS * 3_600_000),
-        absoluteExpiresAt: new Date(now + config.SESSION_ABSOLUTE_DAYS * 86_400_000),
+        ...initialSessionExpiry(now),
       },
     });
     return { account, session, token };
@@ -212,14 +212,7 @@ export class AuthService {
     response: Response,
   ) {
     const { account, session, token } = result;
-    const config = loadConfig();
-    response.cookie(config.SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: config.NODE_ENV !== 'development' && config.NODE_ENV !== 'test',
-      sameSite: 'lax',
-      path: '/',
-      expires: session.absoluteExpiresAt,
-    });
+    setSessionCookie(response, token, session.absoluteExpiresAt);
     const principal = await this.policy.resolvePrincipal(account, session);
     return this.sessionShape(account, principal);
   }

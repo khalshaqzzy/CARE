@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Input,
   Loader,
   Sidebar,
@@ -64,6 +65,7 @@ export function App() {
             unauthenticated={<Navigate to="/login" replace />}
             passwordChange={<Navigate to="/change-password" replace />}
             wrongApp={<WrongApp />}
+            unavailable={<SessionUnavailable />}
           >
             <AdminShell />
           </SessionGate>
@@ -115,6 +117,20 @@ function RouteLoader() {
   return (
     <main className="route-loader">
       <Loader label="Memeriksa sesi Admin" />
+    </main>
+  );
+}
+
+// A failed session check keeps the user signed in; it never sends them to login.
+function SessionUnavailable() {
+  const { refresh } = useAuth();
+  return (
+    <main className="route-loader">
+      <ErrorState
+        title="CARE Admin belum terhubung"
+        description="Periksa koneksi Anda, lalu coba lagi."
+        onRetry={() => void refresh()}
+      />
     </main>
   );
 }

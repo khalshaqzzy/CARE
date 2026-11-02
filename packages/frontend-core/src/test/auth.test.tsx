@@ -92,6 +92,67 @@ describe('auth bootstrap and route guards', () => {
     expect(screen.queryByText('protected')).not.toBeInTheDocument();
   });
 
+  it('does not send a signed-in user to login when the session check cannot reach the server', async () => {
+    let sessionRequests = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      sessionRequests += 1;
+      if (sessionRequests <= 4) return errorJson(502);
+      return json(session());
+    });
+    const client = createCareQueryClient();
+    let auth!: ReturnType<typeof useAuth>;
+    function Capture() {
+      auth = useAuth();
+      return null;
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <Capture />
+          <SessionGate
+            app="voice"
+            loading="loading"
+            unauthenticated="login"
+            wrongApp="wrong"
+            passwordChange="change-password"
+            unavailable="unavailable"
+          >
+            <span>protected</span>
+          </SessionGate>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('unavailable', {}, { timeout: 10_000 })).toBeVisible();
+    expect(screen.queryByText('login')).not.toBeInTheDocument();
+    await act(async () => {
+      await auth.refresh();
+    });
+    expect(await screen.findByText('protected')).toBeVisible();
+  }, 15_000);
+
+  it('sends the user to login only when the session check returns 401', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(errorJson(401));
+    const client = createCareQueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <SessionGate
+            app="voice"
+            loading="loading"
+            unauthenticated="login"
+            wrongApp="wrong"
+            passwordChange="change-password"
+            unavailable="unavailable"
+          >
+            <span>protected</span>
+          </SessionGate>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('login')).toBeVisible();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects the wrong app and gates missing capabilities', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       json(

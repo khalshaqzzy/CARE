@@ -1,5 +1,85 @@
 # CARE Session Handoff
 
+## Persistent sessions, push on at login, logout confirmation — 2 November 2026
+
+**Objective:** users who never logged out kept finding themselves logged out of CARE, which broke their notification flow. Requested rules:
+
+- every account (workforce, CARE Admin, Division Admin) stays signed in until the user logs out;
+- each workforce login turns push back on by default;
+- every logout asks for confirmation and warns that Voice update notifications may be missed.
+
+ADR-0076 (`docs/adr/0076-persistent-sessions.md`) and PRD §8.5 / §19 hold the rules.
+
+**Root causes of the unwanted sign-outs:**
+
+1. **Session lifetime.** All accounts shared one policy: an 8-hour sliding idle window (`SESSION_IDLE_HOURS=8`) inside a fixed 7-day absolute limit (`SESSION_ABSOLUTE_DAYS=7`), and the cookie `Expires` was set once at login. So users were signed out after 8 hours of not opening CARE, and always 7 days after login.
+2. **Network failures treated as logout.** `SessionGate` (`packages/frontend-core/src/auth.tsx`) redirected to `/login` whenever the bootstrap `GET /auth/session` failed for any reason, with `retry: false`. A flaky mobile connection, a cold start before the network was up, or a deploy restart (5xx) showed the login page even though the cookie was still valid.
+3. Not a cause: push delivery never checked session validity (the outbox sends to all active subscriptions of the account). Legitimate revocations are unchanged: logout, password reset/change, deactivation, org-import omission, Union slot replacement, Division Admin replacement.
+
+**Behaviour now:**
+
+- **One persistent session policy for all account kinds** (`apps/api/src/auth/session-policy.ts`).
+  - Login sets `expiresAt` = `absoluteExpiresAt` = now + `SESSION_INACTIVE_DAYS` (new config, default 90, max 365).
+  - `AuthGuard` rolls both forward in whole-day steps and re-issues the cookie when it moves: at most once a day per session, never on `/auth/logout`.
+  - A session ends only on logout, a security revocation, or about 90 days with no use.
+  - `SESSION_IDLE_HOURS` and `SESSION_ABSOLUTE_DAYS` are removed from the API config, `.env.example` and `setup-local.ts`. Deploy files (`render-runtime-env.sh`, `docker-compose.remote.yml`, `runtime.staging.env.example`, `.env.local.example`) still write or pass them; the API ignores them. They were left alone to keep the deploy pipeline out of this change. `SESSION_INACTIVE_DAYS` is not in the hosted allowlist, so the default of 90 applies on staging.
+- **Existing sessions:** no migration. A still-valid session is upgraded to the 90-day window on its next request. Sessions that had already expired under the old rule cannot be revived; those users sign in once more.
+- **A failed session check is not a logout.**
+  - The session query retries 3 times unless the answer is 401.
+  - `useAuth()` exposes `unavailable`, and `SessionGate` has an optional `unavailable` prop.
+  - web-voice and web-admin show an `ErrorState`: "CARE belum terhubung" / "CARE Admin belum terhubung", "Periksa koneksi Anda, lalu coba lagi.", with **Coba lagi**.
+  - A 401 still goes to login.
+- **Push on at every workforce login.** In the login page (`apps/web-voice/src/App.tsx`), a successful password login or default-password first login calls `setPushOptedOut(accountId, false)`. Default-on enrollment (ADR-0073) then runs for the new session: silently if permission is granted, otherwise on the first tap. A switch-off in the push card now lasts only until the next login. The browser-level block, unsupported browsers and iOS outside the Home Screen are still out of the app's control.
+- **Logout confirmation.** New `apps/web-voice/src/features/account/LogoutDialog.tsx` is used by all three workforce **Keluar** controls (top bar, desktop sidebar, Akun page).
+  - Title: "Yakin keluar dari CARE?"
+  - Body: "Notifikasi update Voice tidak akan masuk ke perangkat ini, jadi update bisa terlewat."
+  - **Batal** does nothing; **Keluar** (danger) logs out and goes to `/login`.
+  - The Akun page's old dialog is replaced. The Admin app has no confirmation (no push there).
+
+**Files changed:**
+
+- API:
+  - `apps/api/src/config.ts`: `SESSION_INACTIVE_DAYS` replaces the two retired keys.
+  - `apps/api/src/auth/session-policy.ts` (new): `initialSessionExpiry`, `refreshedSessionExpiry`, `setSessionCookie`.
+  - `apps/api/src/auth/auth.service.ts`: session creation and the login cookie use the policy.
+  - `apps/api/src/auth/auth.guard.ts`: rolling refresh of both expiry columns and cookie renewal.
+  - `apps/api/scripts/setup-local.ts`, `.env.example`: retired keys removed.
+- Frontend:
+  - `packages/frontend-core/src/auth.tsx`: retry rule, `unavailable`, `SessionGate` prop.
+  - `apps/web-voice/src/App.tsx`: `SessionUnavailable`, opt-out reset at login, top bar and sidebar Keluar open the dialog. This file also carries uncommitted Time-for-Team and push-default-on edits.
+  - `apps/web-voice/src/features/account/LogoutDialog.tsx` (new), `AccountPage.tsx`.
+  - `apps/web-voice/src/lib/push.ts`, `features/notifications/use-web-push.ts`: comment updates only.
+  - `apps/web-admin/src/App.tsx`: `SessionUnavailable`.
+- Tests:
+  - `apps/api/test/integration/session-persistence.integration.test.ts` (new, 4 tests: workforce rolling renewal and cookie, old-session upgrade, expiry and logout, Admin persistence).
+  - `packages/frontend-core/src/test/auth.test.tsx` (+2 tests: 502 shows unavailable, never login; 401 shows login).
+- Docs: `docs/adr/0076-persistent-sessions.md`, `.agent/PRD.md` (§8.5, §19 opt-out rule, acceptance checklist), `docs/backend.md` env table, `.agent/implementationPhases.md`.
+- No migration, OpenAPI, contract or service worker change.
+
+**Checks run (Windows, portable Node 22.23.4 / pnpm 11.8.0, throwaway `pgvector/pgvector:pg16` on 54339, stopped afterwards):**
+
+- Integration: `session-persistence`, `login-tracking`, `auth-recovery`, `push-subscription`, `division-admin`: 24/24 pass.
+- API unit tests 170/170; frontend-core 16/16; web-voice Vitest 159/159; web-admin Vitest 2/2 (rerun on the branch).
+- `pnpm pwa:compat-check` after a production web-voice build: main gzip 164,734 bytes, under the 166,640 budget (staging was 164,507).
+- Gitleaks directory scan on the branch worktree: no leaks.
+- `tsc --noEmit` for api, frontend-core, web-voice and web-admin: pass. The API needed `prisma generate` first; a stale client had caused unrelated errors. ESLint and Prettier (`--end-of-line auto`) on changed files: pass.
+- One-off Playwright check (built web-voice, `mockWorkforceApi`, Chromium, 390 px Akun page and 1280 px sidebar), deleted afterwards: Keluar opens the dialog with the warning; Batal sends no logout; Keluar logs out and lands on `/login`. 2/2 pass.
+- Not run: full `verify:local`, the Playwright suites, a real-device check. Hosted CI runs on the PR. There is no permanent browser test yet for the login opt-out reset or the logout dialog.
+
+**Branch:** `fix/persistent-sessions` from `origin/staging` 5760a04, built in a separate worktree (`../CARE-persistent-sessions`). The work was first done in the `feat/time-for-team` working tree, then ported. The akun page, both `App.tsx` files and the `.agent` docs were hand-ported onto staging's versions, which include the Panduan row and `AppBadgeSync`. The checks above were rerun on the branch.
+
+**Next:**
+
+1. Merge the PR to `staging` after CI passes, then confirm `/ready` `releaseSha`.
+2. After deploy, on a real phone:
+   - sign in, leave CARE unused for more than 8 hours, reopen: it should still be signed in;
+   - open it in airplane mode: it should show "CARE belum terhubung", not the login page;
+   - switch push off, log out (the confirmation appears), sign in again: push should be on.
+3. Users whose session had already expired before the release must sign in once; after that they stay signed in.
+4. Follow-ups:
+   - remove the retired session keys from the deploy renderer, Compose file and env examples;
+   - add Playwright tests for the logout dialog and the opt-out reset, and bump the inventory count in `scripts/validation/validation.test.mjs`.
+
 ## Panduan managed in CARE Admin — 29 October 2026
 
 **Objective:** a place inside CARE to read how the app works: a submit-Voice guide for members and responder guides for anyone who handles or approves Voices. The CARE Admin manages the guides in CARE Admin and only uploads PDFs; changes reach every account at once. ADR-0075 and PRD §11.6 / §23.1 hold the rules.
