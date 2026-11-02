@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { chromium, expect, test, type Page } from '@playwright/test';
 import { memberSession, mockWorkforceApi } from './helpers/mock-api';
 
 type Guide = {
@@ -40,8 +40,28 @@ async function mockGuides(page: Page, items: Guide[]) {
   await page.route('**/api/v1/guides', (route) => route.fulfill({ json: { items } }));
 }
 
+/** A three-page PDF printed by Chromium, so the viewer renders real pages. */
+let samplePdf: Buffer;
+test.beforeAll(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.setContent(
+    ['Masuk ke CARE', 'Isi Voice dan lampirkan foto', 'Kirim dan pantau']
+      .map((text) => `<section style="page-break-after:always"><h1>${text}</h1></section>`)
+      .join(''),
+  );
+  samplePdf = await page.pdf({ format: 'A4' });
+  await browser.close();
+});
+
+async function mockGuideFile(page: Page) {
+  await page.route(`**/api/v1/guides/${SUBMIT.id}/file`, (route) =>
+    route.fulfill({ body: samplePdf, headers: { 'content-type': 'application/pdf' } }),
+  );
+}
+
 test.describe('Panduan', () => {
-  test('a member opens Panduan from the Home hero and gets the PDF link', async ({ page }) => {
+  test('a member opens Panduan from the Home hero and gets the in-app reader', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await mockWorkforceApi(page, { session: memberSession() });
     await mockGuides(page, [SUBMIT]);
@@ -50,9 +70,54 @@ test.describe('Panduan', () => {
     await expect(page).toHaveURL(/\/panduan$/);
     await expect(page.getByRole('heading', { name: 'Panduan', level: 1 })).toBeVisible();
     const link = page.getByRole('link', { name: /Panduan Submit Voice/ });
-    await expect(link).toHaveAttribute('href', `/api/v1/guides/${SUBMIT.id}/file`);
-    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).toHaveAttribute('href', `/panduan/${SUBMIT.id}`);
+    await expect(link).not.toHaveAttribute('target', '_blank');
     await expect(link).toContainText('245 KB');
+  });
+
+  test('reads a PDF inside CARE, finds a word and goes back', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await mockWorkforceApi(page, { session: memberSession() });
+    await mockGuides(page, [SUBMIT]);
+    await mockGuideFile(page);
+    await page.goto('/panduan');
+    await page.getByRole('link', { name: /Panduan Submit Voice/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/panduan/${SUBMIT.id}$`));
+    await expect(
+      page.getByRole('heading', { name: 'Panduan Submit Voice', level: 1 }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Halaman 1 dari 3' }).locator('canvas'),
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Buka file PDF' })).toHaveAttribute(
+      'href',
+      `/api/v1/guides/${SUBMIT.id}/file`,
+    );
+
+    await page.getByRole('button', { name: 'Cari di panduan' }).click();
+    await page.getByLabel('Cari kata di panduan').fill('foto');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Hal 2 · 1/1')).toBeVisible();
+    await expect(page.locator('.guide-viewer__hit').first()).toBeInViewport();
+    await page.getByLabel('Cari kata di panduan').fill('tidak ada kata ini');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Tidak ada')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Kembali ke Panduan' }).click();
+    await expect(page).toHaveURL(/\/panduan$/);
+  });
+
+  test('older browsers get a button that opens the PDF instead', async ({ page }) => {
+    await page.addInitScript(() => {
+      // Pretend to be a browser pdf.js 4 cannot run on.
+      delete (window as { structuredClone?: unknown }).structuredClone;
+    });
+    await mockWorkforceApi(page, { session: memberSession() });
+    await mockGuides(page, [SUBMIT]);
+    await page.goto(`/panduan/${SUBMIT.id}`);
+    await expect(page.getByRole('button', { name: 'Buka PDF' })).toBeVisible();
+    await expect(page.locator('.guide-viewer__page')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Kembali ke Panduan' })).toBeVisible();
   });
 
   test('groups documents and videos, each in admin order', async ({ page }) => {

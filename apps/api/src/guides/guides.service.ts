@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import type { AuthActor } from '../auth/auth.types';
@@ -226,11 +226,14 @@ export class GuidesService {
     return { id };
   }
 
-  /** The PDF bytes. Guides hold no personal data, so any id that exists is readable. */
+  /**
+   * The stored PDF. Guides hold no personal data, so any id that exists is
+   * readable; the path lets the controller answer range requests.
+   */
   async readFile(id: string) {
     const guide = await this.find(id);
     if (!guide.storageKey) throw forbiddenAsNotFound();
-    return { guide, buffer: await readFile(this.path(guide.storageKey)) };
+    return { guide, path: this.path(guide.storageKey) };
   }
 
   private async find(id: string) {

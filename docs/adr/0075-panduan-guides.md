@@ -196,6 +196,73 @@ This applies to every dialog in CARE Admin and the workforce app.
 
 The e2e test "keeps Simpan reachable on a short laptop screen" checks this at 1366×600. It picks the file through the real file chooser and asserts the button is fully in the viewport.
 
+## Amendment — 2 November 2026: in-app PDF reader
+
+After the first release, workforce users reported two problems with opening a PDF in a new tab:
+
+- it was slow, because the whole file downloaded before anything showed, and Android handed it to another app;
+- in the installed app the tab had no way back to CARE.
+
+They also wanted the text to stay searchable, so turning pages into images was rejected.
+
+**Decision.** A PDF guide now opens in an in-app reader at `/panduan/:id` (`GuideViewerPage`, lazy-loaded).
+
+- **Layout:**
+  - a sticky CARE-blue bar with **Kembali ke Panduan**, the title, **Cari** and a link that opens the original PDF;
+  - below it, the pages render one under another, each with its page number.
+- **Speed:**
+  - pdf.js reads the file with range requests (`disableAutoFetch`, 64 KB chunks), so the first page renders before the whole file arrives;
+  - other pages render when they come within 600 px of the screen;
+  - pages re-render sharply when the width changes;
+  - the API file endpoint now uses `res.sendFile`, which answers `Range` with `206 Partial Content` and `Accept-Ranges: bytes`.
+- **Search:**
+  - the pdf.js text layer keeps the real text;
+  - **Cari** searches every page's text, jumps to the first page with a hit, and centres the hit with a yellow highlight;
+  - it shows "Hal N · i/n", and ▲▼ move between pages with hits.
+- **pdf.js delivery:**
+  - `pdfjs-dist` 4.10.38 (legacy build, MIT/Apache-2.0) is a build-time dependency of web-voice;
+  - the `care-pdfjs-vendor` Vite plugin emits `pdf.min.js`, `pdf.worker.min.js` and `standard_fonts/` to `dist/pdfjs/4.10.38/`;
+  - the files are outside `assets/`, so they are not part of the legacy bootstrap chunk, not checked by `pwa:compat-check`, and not precached by the service worker;
+  - nginx serves `/pdfjs/` with `Cache-Control: public, max-age=31536000, immutable` (not on 404s), so a phone downloads the reader once per pdf.js version;
+  - `isEvalSupported: false` keeps pdf.js inside the existing CSP.
+- **Older browsers:**
+  - pdf.js 4 needs a modern engine;
+  - when `structuredClone`, `ReadableStream` or `Array.prototype.at` is missing (for example iOS before 15.4), the reader shows only the bar and a **Buka PDF** button, the earlier behaviour;
+  - the same button appears if loading fails.
+- **Other parts of the change:**
+  - the list links PDF guides to the reader in the same tab; videos still open on their host;
+  - the workforce shell hides its own top bar on the reader;
+  - the sidebar keeps Panduan highlighted.
+
+**Rationale.** This is the only option that keeps searchable text, gives a back button inside the installed app on every platform, and shows the first page early.
+
+- Android Chrome cannot show a PDF inline, so an `<iframe>` was not enough.
+- Rendering pages to images on upload loses the text.
+- pdf.js inside the main bundle would break the Safari 11.3 compatibility gate, because its legacy build still contains optional chaining, nullish coalescing and private fields.
+
+**Consequences.**
+
+- The workforce main chunk grows by about 240 bytes, to 164,748 bytes gzip, within the budget.
+- The first open of any guide downloads about 530 KB gzip of pdf.js, which is then cached for a year.
+- Caddy still marks `/api/v1/*` responses `no-store`, so the PDF itself is fetched again on each open; range requests keep that to the parts needed.
+- The search highlight covers the whole text run that contains the word, not only the word.
+- Updating pdf.js means changing the dependency version. The path changes with it, so caches turn over automatically.
+- Like the PDFs, the reader assets are public.
+
+**Validation.**
+
+- `guides.integration.test.ts` now also checks `Accept-Ranges` and a `206` partial response; all 6 tests pass.
+- `workforce-guide.spec.ts` has 7 tests. They cover:
+  - the list linking to `/panduan/:id`;
+  - reading a Chromium-printed three-page PDF, with a rendered canvas;
+  - search to "Hal 2 · 1/1", with the hit in view;
+  - "Tidak ada" for a missing word;
+  - **Kembali**;
+  - the **Buka PDF** fallback when `structuredClone` is removed.
+- The CI inventory is 484.
+- `pwa:compat-check`, web-voice Vitest (159 tests), the guide, journey, a11y, PWA, foundation and legacy specs (109 tests) all pass.
+- The nginx config was checked with the production `nginx-unprivileged` image: `nginx -t`, immutable caching on 200, and none on 404.
+
 ## Risks and follow-up
 
 - The CARE team supplies the actual guides and videos. Until the first upload, the Panduan page is empty.

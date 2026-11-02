@@ -125,6 +125,14 @@ describe('Panduan guides', () => {
         .subarray(0, 5)
         .toString(),
     ).toBe('%PDF-');
+    // The in-app viewer reads the first page through range requests.
+    expect(response.headers['accept-ranges']).toBe('bytes');
+    const partial = await http()
+      .get(`/api/v1/guides/${guide.id}/file`)
+      .set('Range', 'bytes=0-4')
+      .expect(206);
+    expect(partial.headers['content-range']).toMatch(/^bytes 0-4\/\d+$/);
+    expect(Buffer.from(partial.body as Buffer).toString()).toBe('%PDF-');
     await http().get('/api/v1/guides/00000000-0000-4000-8000-000000000000/file').expect(404);
   });
 

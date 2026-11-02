@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## In-app PDF reader for Panduan — 2 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/guide-viewer` (from `origin/staging` 83525d1, not released): PDF guides open in an in-app pdf.js reader at `/panduan/:id` with Kembali, text search and range-request loading. The reader files are served from `/pdfjs/<version>/` outside the legacy bundle and cached immutably by nginx; older browsers get a Buka PDF button. See the ADR-0075 amendment; checks are in sessionHandoff.md.
+
 ## Persistent sessions, push on at login, logout confirmation — 2 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `fix/persistent-sessions` (from `origin/staging` 5760a04, not released):
