@@ -131,6 +131,14 @@ export function App() {
               </Suspense>
             }
           />
+          <Route
+            path="panduan/:id"
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <GuideViewerPage />
+              </Suspense>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -529,6 +537,11 @@ function WrongApp() {
 const GuidePage = lazy(() =>
   import('./features/guide/GuidePage').then((module) => ({ default: module.GuidePage })),
 );
+const GuideViewerPage = lazy(() =>
+  import('./features/guide/GuideViewerPage').then((module) => ({
+    default: module.GuideViewerPage,
+  })),
+);
 const InstallPage = lazy(() =>
   import('./features/install/InstallPage').then((module) => ({ default: module.InstallPage })),
 );
@@ -582,6 +595,7 @@ function resolveCurrent(pathname: string, isUnion: boolean): string {
   if (p.startsWith('/general')) return 'general';
   if (p.startsWith('/voices/')) return 'voices';
   if (p.startsWith('/notifications')) return 'notifications';
+  if (p.startsWith('/panduan/')) return 'guide-viewer';
   if (p.startsWith('/panduan')) return 'guide';
   if (p.startsWith('/account')) return 'account';
   return 'home';
@@ -639,7 +653,10 @@ function WorkforceShell() {
   // yields on mobile; the voice detail and conversation surfaces carry their
   // own cobalt hero header (back control + CARE lockup + status) on every
   // breakpoint, so the shared topbar yields there entirely.
-  const showTopbar = !(!isDesktop && current === 'home') && current !== 'voices';
+  // The guide viewer carries its own bar with Kembali, like the Voice detail.
+  const showTopbar =
+    !(!isDesktop && current === 'home') && current !== 'voices' && current !== 'guide-viewer';
+  const navCurrent = current === 'guide-viewer' ? 'guide' : current;
 
   return (
     <AppShell
@@ -668,7 +685,7 @@ function WorkforceShell() {
             sidebar: (
               <Sidebar
                 items={desktopNav}
-                current={current}
+                current={navCurrent}
                 onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
                 header={
                   <div className="workforce-sidebar-brand">
@@ -693,7 +710,7 @@ function WorkforceShell() {
             bottomNav: (
               <BottomNav
                 items={bottomNav}
-                current={current}
+                current={navCurrent}
                 onNavigate={(id) => void navigate(NAV_ROUTES[id] ?? '/')}
               />
             ),

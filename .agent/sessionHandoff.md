@@ -1,5 +1,40 @@
 # CARE Session Handoff
 
+## In-app PDF reader for Panduan — 2 November 2026
+
+**Problem:** opening a guide PDF was slow, because the whole file downloaded first and Android passed it to another app. The installed app also had no way back to CARE. The user wanted to keep real PDFs so the text stays searchable. A "pages as images" approach was previewed and rejected for that reason.
+
+**Change (`feat/guide-viewer`, PR to `staging`):** ADR-0075 amendment "in-app PDF reader".
+
+- **Route `/panduan/:id`** (`GuideViewerPage.tsx`, lazy):
+  - a blue sticky bar with **Kembali ke Panduan**, the title, **Cari** and ↗ to open the original PDF;
+  - pdf.js renders the pages progressively from range requests, with a text layer;
+  - search jumps to the page and centres a yellow highlight, showing "Hal N · i/n" with ▲▼.
+- **pdf.js 4.10.38 legacy build:**
+  - added as a devDependency of web-voice;
+  - the `care-pdfjs-vendor` plugin in `apps/web-voice/vite.config.ts` copies it to `dist/pdfjs/4.10.38/` (outside `assets/`), and the dev server serves the same path;
+  - `__PDFJS_BASE__` is declared in `src/pdfjs-env.d.ts`;
+  - nginx `deploy/nginx/spa.conf` adds `location ^~ /pdfjs/` with an immutable year-long cache (not on 404).
+- **Fallback:** browsers without `structuredClone`, `ReadableStream` or `Array.at` get a **Buka PDF** button.
+- **API:** `GET /api/v1/guides/{id}/file` now uses `res.sendFile` (`dotfiles: 'allow'`; a missing file returns 404), which supports `Range`/`206`. `GuidesService.readFile` returns `{ guide, path }`.
+- **List and shell:** the list links PDFs to `/panduan/:id`. The shell hides its top bar on the reader (`guide-viewer`), and the sidebar keeps Panduan selected.
+
+**Checks (Windows, Node 22.23.2):**
+
+- prettier, eslint, `pnpm typecheck`: pass;
+- web-voice Vitest: 159/159;
+- `guides.integration.test.ts`: 6/6 on a throwaway pgvector container (stopped afterwards);
+- `pwa:compat-check`: passes, main 164,748 bytes gzip;
+- Playwright guide, admin-guides, journeys, a11y, pwa, foundation and legacy: 109/109; CI inventory 482 → 484;
+- nginx config: `nginx -t` passes in the production image.
+- Previews: `docs/preview-guide/viewer-*.png` in the main checkout, not committed.
+
+**Next:**
+
+- after merge, confirm `/ready` `releaseSha`;
+- on a real Android phone and an iPhone, open a guide from the installed app and check that the first page appears quickly, that search works, and that **Kembali** returns to Panduan;
+- check that `/pdfjs/4.10.38/pdf.min.js` is served with the immutable cache header.
+
 ## Dialog footer hidden on short screens — 2 November 2026
 
 **Problem:** after #119 went live, the CARE Admin could not upload a guide. In **Upload PDF** the chosen file and the **Simpan** button sat below the bottom of the screen on a 1080p laptop with Windows scaling, and the dialog could not scroll. Nothing was wrong with the upload itself.

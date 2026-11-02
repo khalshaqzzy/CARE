@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Actor, Capabilities, Public } from '../auth/auth.decorators';
+import { forbiddenAsNotFound } from '../common/errors';
 import type { AuthActor } from '../auth/auth.types';
 import { GUIDE_MAX_BYTES, GuidesService } from './guides.service';
 
@@ -35,17 +36,33 @@ export class GuidesController {
   }
 
   // Public so the device PDF viewer (outside the PWA cookie jar on iOS) can open it.
+  // The in-app viewer (pdf.js) fetches it with Range requests.
   @Public()
   @Get(':id/file')
   @Header('Cache-Control', 'no-store')
   @Header('X-Content-Type-Options', 'nosniff')
   async file(@Param('id', ParseUUIDPipe) id: string, @Res() response: Response) {
-    const { guide, buffer } = await this.guides.readFile(id);
+    const { guide, path } = await this.guides.readFile(id);
     const name = (guide.fileName ?? 'panduan.pdf').replace(/[^\w.\- ]/g, '_');
-    response
-      .type('application/pdf')
-      .setHeader('Content-Disposition', `inline; filename="${name}"`)
-      .send(buffer);
+    // sendFile answers Range requests, so the in-app viewer can show the first
+    // page before the whole PDF has downloaded.
+    await new Promise<void>((resolve, reject) =>
+      response.sendFile(
+        path,
+        {
+          // The path is server-generated under MEDIA_ROOT, which may sit in a dot folder.
+          dotfiles: 'allow',
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `inline; filename="${name}"`,
+          },
+        },
+        (error?: Error & { status?: number }) => {
+          if (!error || response.headersSent) return resolve();
+          reject(error.status === 404 ? forbiddenAsNotFound() : error);
+        },
+      ),
+    );
   }
 }
 

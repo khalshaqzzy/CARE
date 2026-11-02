@@ -1,7 +1,9 @@
 import type { components } from '@care/contracts';
 import { Alert, EmptyState, SettingsGroup, Skeleton, Stack } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, ExternalLink, FileText, PlayCircle } from 'lucide-react';
+import { BookOpen, ChevronRight, ExternalLink, FileText, PlayCircle } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 
 type Guide = components['schemas']['GuideList']['items'][number];
@@ -33,13 +35,8 @@ function isDomain(host: string, domain: string) {
 
 function GuideRow({ guide }: { guide: Guide }) {
   const video = guide.kind === 'VIDEO';
-  return (
-    <a
-      className="care-settings-row"
-      href={video ? guide.videoUrl! : `/api/v1/guides/${guide.id}/file`}
-      target="_blank"
-      rel={video ? 'noopener noreferrer' : 'noopener'}
-    >
+  const content: ReactNode = (
+    <>
       <span
         className={`care-settings-row__icon${video ? ' guide-row__icon--video' : ''}`}
         aria-hidden="true"
@@ -54,15 +51,34 @@ function GuideRow({ guide }: { guide: Guide }) {
             : `PDF · ${sizeLabel(guide.size ?? 0)}`}
         </small>
       </span>
-      <ExternalLink size={16} className="care-settings-row__chevron" aria-hidden="true" />
+      {video ? (
+        <ExternalLink size={16} className="care-settings-row__chevron" aria-hidden="true" />
+      ) : (
+        <ChevronRight size={18} className="care-settings-row__chevron" aria-hidden="true" />
+      )}
+    </>
+  );
+  // PDFs open in the in-app viewer; videos play on their host.
+  return video ? (
+    <a
+      className="care-settings-row"
+      href={guide.videoUrl!}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {content}
     </a>
+  ) : (
+    <Link className="care-settings-row" to={`/panduan/${guide.id}`}>
+      {content}
+    </Link>
   );
 }
 
 /**
  * Guides managed in CARE Admin; the API returns only the ones for this
- * account's role, grouped as Dokumen and Video. PDFs open in the device viewer,
- * videos at their host.
+ * account's role, grouped as Dokumen and Video. PDFs open in the in-app
+ * viewer, videos at their host.
  */
 export function GuidePage() {
   const api = useApi();
