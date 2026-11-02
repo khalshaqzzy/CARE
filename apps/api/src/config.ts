@@ -19,8 +19,8 @@ const schema = z.object({
   SESSION_CSRF_SECRET: z.string().min(32),
   AUTH_THROTTLE_SECRET: z.string().min(32),
   CURSOR_SIGNING_SECRET: z.string().min(32),
-  SESSION_IDLE_HOURS: z.coerce.number().positive().default(8),
-  SESSION_ABSOLUTE_DAYS: z.coerce.number().positive().default(7),
+  // Sessions stay signed in until logout; only this long without use ends them.
+  SESSION_INACTIVE_DAYS: z.coerce.number().positive().max(365).default(90),
   CLOSURE_REVIEW_DAYS: z.coerce.number().int().min(1).max(30).default(2),
   OPENAI_API_KEY: optionalSecret,
   OPENAI_CONFIG_ENCRYPTION_KEY: z

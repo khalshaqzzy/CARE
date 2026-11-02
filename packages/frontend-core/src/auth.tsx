@@ -20,6 +20,8 @@ export type AccountKind = components['schemas']['SessionAccount']['accountKind']
 type AuthContextValue = {
   session: Session | null;
   loading: boolean;
+  /** The session could not be checked (offline, server error); it is not known to be signed out. */
+  unavailable: boolean;
   error: FrontendError | null;
   transport: CareTransport;
   login: (username: string, password: string) => Promise<Session>;
@@ -31,6 +33,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const AUTH_CHANNEL = 'care-auth-events';
+
+const isSignedOut = (error: unknown) =>
+  error instanceof FrontendError && error.kind === 'unauthenticated';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -51,9 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const query = useQuery({
     queryKey: sessionQueryKey,
     queryFn: () => transport.session(),
-    retry: false,
+    // Only a 401 means signed out; a network drop or a restarting server is retried.
+    retry: (failureCount, error) => !isSignedOut(error) && failureCount < 3,
   });
   const { data: sessionData, error: sessionError, isLoading, refetch } = query;
+  const unavailable = !sessionData && !!sessionError && !isSignedOut(sessionError);
   const lastSession = useRef<string | null>(null);
 
   useEffect(() => {
@@ -125,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session: sessionData ?? null,
       loading: isLoading,
+      unavailable,
       error: sessionError instanceof FrontendError ? sessionError : null,
       transport,
       login,
@@ -143,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionData,
       sessionError,
       transport,
+      unavailable,
     ],
   );
 
@@ -171,6 +180,7 @@ export function SessionGate({
   unauthenticated,
   passwordChange,
   wrongApp,
+  unavailable,
   app,
 }: {
   children: ReactNode;
@@ -178,10 +188,13 @@ export function SessionGate({
   unauthenticated: ReactNode;
   passwordChange: ReactNode;
   wrongApp: ReactNode;
+  /** Shown when the session check failed for a reason other than being signed out. */
+  unavailable?: ReactNode;
   app: 'voice' | 'admin';
 }) {
-  const { session, loading: pending } = useAuth();
+  const { session, loading: pending, unavailable: unchecked } = useAuth();
   if (pending) return loading;
+  if (!session && unchecked) return unavailable ?? loading;
   if (!session) return unauthenticated;
   if (!admitsAccount(session, app)) return wrongApp;
   if (session.passwordChangeRequired) return passwordChange;

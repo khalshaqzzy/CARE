@@ -47,8 +47,6 @@ async function main() {
     `SESSION_CSRF_SECRET=${secret()}`,
     `AUTH_THROTTLE_SECRET=${secret()}`,
     `CURSOR_SIGNING_SECRET=${secret()}`,
-    'SESSION_IDLE_HOURS=8',
-    'SESSION_ABSOLUTE_DAYS=7',
     'OPENAI_API_KEY=',
     `OPENAI_CONFIG_ENCRYPTION_KEY=${secret(32)}`,
     'OPENAI_MODEL=',

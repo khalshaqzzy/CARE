@@ -324,7 +324,9 @@ Halaman perubahan password workforce menyediakan Kembali ke Akun untuk sesi bias
 
 - Authentication memakai opaque server-side session dalam cookie `HttpOnly`, `Secure`, dan `SameSite=Lax`.
 - Mutation dilindungi CSRF token yang terikat session.
-- Session memiliki idle dan absolute expiry yang configurable; default idle 8 jam dan absolute 7 hari.
+- Session semua akun (workforce, CARE Admin, Division Admin) bersifat persisten: tetap masuk sampai user logout, sehingga push notification tetap aktif. Session hanya berakhir karena logout, reset/ganti password, account dinonaktifkan/diganti, atau tidak dipakai sama sekali selama `SESSION_INACTIVE_DAYS` (default 90 hari). Setiap pemakaian memperpanjang expiry server dan cookie (dalam langkah harian). Lihat ADR-0076.
+- Gagal memeriksa session karena jaringan atau server (bukan 401) tidak dianggap logout: aplikasi menampilkan state "belum terhubung" dengan **Coba lagi**, bukan halaman login.
+- Setiap tombol **Keluar** di aplikasi workforce menampilkan konfirmasi "Yakin keluar dari CARE?" yang menjelaskan bahwa notifikasi update Voice tidak akan masuk ke perangkat itu dan update bisa terlewat. **Batal** tidak melakukan apa pun.
 - Login dan mutation sensitif memiliki IP/account throttling.
 - Logout dan password reset menghapus push subscription association yang tidak lagi valid.
 
@@ -990,7 +992,7 @@ tidak mempunyai Voice Saya.
 - Notification Center in-app adalah authoritative dan selalu tersedia.
 - Web Push adalah best-effort dan **aktif secara default** (ADR-0073). Aplikasi mendaftarkan perangkat sendiri setelah login: langsung bila izin browser sudah `granted`, atau dengan menampilkan prompt izin pada tap pertama user di mana saja dalam aplikasi bila izin belum diputuskan (`default`). Tidak ada percobaan bila izin `denied` atau push tidak didukung (termasuk iOS di luar Home Screen).
 - Percobaan otomatis berjalan paling banyak sekali per sesi; prompt yang ditutup tidak diulang pada setiap tap, dan login berikutnya mencoba lagi.
-- Hanya pilihan mematikan yang diingat: mematikan switch di kartu push menyimpan opt-out per akun pada perangkat tersebut, dan menyalakannya kembali menghapus opt-out. Selama opt-out aktif, aplikasi tidak mendaftarkan akun itu secara otomatis di perangkat tersebut.
+- Hanya pilihan mematikan yang diingat: mematikan switch di kartu push menyimpan opt-out per akun pada perangkat tersebut, dan menyalakannya kembali menghapus opt-out. Selama opt-out aktif, aplikasi tidak mendaftarkan akun itu secara otomatis di perangkat tersebut. Opt-out hanya berlaku sampai logout: setiap login baru menghapusnya, sehingga push selalu kembali on setelah login (ADR-0076).
 - Kegagalan push tidak menghilangkan notification record.
 
 ### 19.2 Event Minimum
@@ -1910,7 +1912,8 @@ Minimum journeys:
 - [ ] Division/Deputy/Pjt. Head, Director, dan Union memperoleh General read-only sesuai scope; Private mengikuti scope Union khusus, kecuali Director yang membaca seluruh Private read-only dengan audit (§18.8.7).
 - [ ] Inbox severity-first lalu newest dengan server pagination/filter.
 - [ ] Notification Center authoritative dan push best-effort/redacted.
-- [ ] Web Push aktif secara default setelah login pada perangkat yang mendukung; switch-off di kartu push diingat per akun per perangkat (ADR-0073).
+- [ ] Web Push aktif secara default setelah login pada perangkat yang mendukung; switch-off di kartu push diingat per akun per perangkat sampai login berikutnya (ADR-0073, ADR-0076).
+- [ ] Session tetap masuk sampai logout untuk semua akun; tombol Keluar di aplikasi workforce meminta konfirmasi dengan peringatan notifikasi (ADR-0076).
 - [x] Workforce app dan Admin app memakai generated OpenAPI client bersama tetapi dipisahkan sebagai deployment/origin berbeda.
 - [x] Workforce PWA foundation installable dan update-safe; Admin app bukan PWA/offline surface.
 - [x] Offline state jelas dan tidak membuat queued mutation.

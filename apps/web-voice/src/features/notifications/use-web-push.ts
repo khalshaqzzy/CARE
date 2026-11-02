@@ -249,7 +249,7 @@ export function useWebPush(options: { autoEnable?: boolean } = {}) {
 
   const setEnabled = useCallback(
     (next: boolean) => {
-      // Only an explicit switch-off is remembered; switching on clears it.
+      // Only an explicit switch-off is remembered (until the next login); switching on clears it.
       setPushOptedOut(accountId, !next);
       if (next) subscribe.mutate();
       else unsubscribe.mutate();
