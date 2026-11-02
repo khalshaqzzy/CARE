@@ -1,5 +1,25 @@
 # CARE Session Handoff
 
+## Dialog footer hidden on short screens — 2 November 2026
+
+**Problem:** after #119 went live, the CARE Admin could not upload a guide. In **Upload PDF** the chosen file and the **Simpan** button sat below the bottom of the screen on a 1080p laptop with Windows scaling, and the dialog could not scroll. Nothing was wrong with the upload itself.
+
+**Cause:** the shared `.care-dialog` (`packages/ui/src/styles.css`) was a `display: grid` with no row template. Its rows sized to their content, so the body never shrank and `overflow: hidden` clipped the footer whenever a dialog was taller than `100vh - 2rem`. Every dialog in both apps was affected; the Panduan upload dialog was the first one tall enough to hit it.
+
+**Fix (`fix/dialog-footer-visible`, PR to `staging`):**
+
+- `.care-dialog` is now a flex column; header and footer have `flex: 0 0 auto`, and the body has `flex: 1 1 auto; min-height: 0; overflow: auto`.
+- `max-height` also uses `100dvh` (falling back to `100vh`), for the centered dialog and for the mobile sheet.
+- The footer actions now stay visible and the body scrolls.
+
+**Tests:**
+
+- New e2e `admin-guides.spec.ts` "keeps Simpan reachable on a short laptop screen" (1366×600, real file chooser through the dropzone): it fails on the old CSS and passes now. CI inventory 481 → 482.
+- Admin, voice-lifecycle, closure-approval, handover, a11y and legacy specs: 120/120 pass locally.
+- Screenshot: `docs/preview-guide/dialog-fixed-1366x600.png` in the main checkout, not committed.
+
+**Next:** after merge, confirm `/ready` `releaseSha`, then upload the guides in CARE Admin → Panduan.
+
 ## Persistent sessions, push on at login, logout confirmation — 2 November 2026
 
 **Objective:** users who never logged out kept finding themselves logged out of CARE, which broke their notification flow. Requested rules:
