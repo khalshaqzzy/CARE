@@ -182,6 +182,20 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
   - upload a real PDF and add a real video link in Admin;
   - open it from the installed app on a real Android Chrome device and an iPhone Home Screen install.
 
+## Amendment — 2 November 2026: dialog footer on short screens
+
+After release, the **Upload PDF** dialog was taller than a 1080p laptop screen with Windows scaling. The shared dialog used a grid without a row template, so its body could not shrink or scroll, and `overflow: hidden` clipped the footer with **Simpan**. The guide could therefore not be saved.
+
+The shared `.care-dialog` was changed to a flex column:
+
+- the header and footer keep their size;
+- the body takes the remaining height and scrolls (`min-height: 0`);
+- `max-height` uses `100dvh`, falling back to `100vh`.
+
+This applies to every dialog in CARE Admin and the workforce app.
+
+The e2e test "keeps Simpan reachable on a short laptop screen" checks this at 1366×600. It picks the file through the real file chooser and asserts the button is fully in the viewport.
+
 ## Risks and follow-up
 
 - The CARE team supplies the actual guides and videos. Until the first upload, the Panduan page is empty.

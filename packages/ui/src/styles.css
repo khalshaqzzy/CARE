@@ -805,9 +805,12 @@ select,
   z-index: calc(var(--layer-modal) + 1);
   top: 50%;
   left: 50%;
-  display: grid;
+  /* A column whose body scrolls, so the footer actions stay on short screens. */
+  display: flex;
+  flex-direction: column;
   width: min(calc(100vw - var(--space-6)), 36rem);
   max-height: min(calc(100vh - var(--space-8)), 48rem);
+  max-height: min(calc(100dvh - var(--space-8)), 48rem);
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-panel);
@@ -845,6 +848,7 @@ select,
 .care-dialog__header,
 .care-dialog__footer {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
@@ -863,6 +867,8 @@ select,
   color: var(--text-secondary);
 }
 .care-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: var(--space-6);
 }
@@ -1699,6 +1705,7 @@ select,
     left: 0;
     width: 100%;
     max-height: calc(100vh - var(--space-4));
+    max-height: calc(100dvh - var(--space-4));
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
     transform: none;
   }

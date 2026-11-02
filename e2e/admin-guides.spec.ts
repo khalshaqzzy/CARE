@@ -144,6 +144,30 @@ test.describe('Admin Panduan', () => {
     await expect(page.getByText('Panduan Submit Voice', { exact: true })).toHaveCount(0);
   });
 
+  test('keeps Simpan reachable on a short laptop screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 600 });
+    const requests = await mockGuides(page, []);
+    await page.goto(`${ADMIN}/guides`);
+    await page.getByRole('button', { name: 'Upload PDF' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Upload PDF' });
+    await dialog.getByLabel('Judul').fill('Panduan Submit Voice');
+    const chooser = page.waitForEvent('filechooser');
+    await dialog.getByText('Pilih file PDF').click();
+    await (
+      await chooser
+    ).setFiles({
+      name: 'panduan.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7 %%EOF'),
+    });
+    await expect(dialog.getByText('panduan.pdf')).toBeVisible();
+    const save = dialog.getByRole('button', { name: 'Simpan' });
+    await expect(save).toBeInViewport({ ratio: 1 });
+    await save.click();
+    await expect(dialog).toBeHidden();
+    expect(requests.some((request) => request.method === 'POST')).toBe(true);
+  });
+
   test('adds a video link for members', async ({ page }) => {
     const requests = await mockGuides(page, [SUBMIT]);
     await page.goto(`${ADMIN}/guides`);
