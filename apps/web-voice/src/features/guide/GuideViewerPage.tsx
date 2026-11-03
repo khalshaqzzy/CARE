@@ -1,11 +1,38 @@
 import { Alert, Button, IconButton, Skeleton } from '@care/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Search, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Download,
+  Search,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import type * as PdfJs from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
+import {
+  downloadGuide,
+  guideFileUrl,
+  pageAt,
+  scrollParent,
+  ZOOM_DEFAULT,
+  zoomStep,
+} from './guide-viewer-utils';
 
 const PDFJS_BASE = typeof __PDFJS_BASE__ === 'string' ? __PDFJS_BASE__ : '/pdfjs/';
 
@@ -36,9 +63,16 @@ function loadPdfJs() {
 const normalize = (value: string) => value.toLocaleLowerCase('id-ID');
 
 /**
- * Reads a Panduan PDF inside CARE: pages render as they near the screen from
- * range requests, so the first page shows before the whole file arrives, and
- * the text layer keeps the PDF searchable.
+ * Keeps one page canvas under iOS Safari's canvas limit (about 16.7 MP) and
+ * bounds memory at high zoom; off-screen pages also release their canvas.
+ */
+const MAX_CANVAS_PIXELS = 12_000_000;
+
+/**
+ * Reads a Panduan PDF inside CARE with pdf.js, keeping the original file: pages
+ * render as they near the screen from range requests, so the first page shows
+ * before the whole file arrives; the text layer keeps the PDF searchable; zoom
+ * re-renders pages sharp; the original can be downloaded.
  */
 export function GuideViewerPage() {
   const { id = '' } = useParams();
@@ -47,7 +81,8 @@ export function GuideViewerPage() {
   const sessionId = useSessionId();
   const guides = useQuery({ queryKey: voiceQuery(sessionId, 'guides'), queryFn: api.guides });
   const guide = guides.data?.items.find((item) => item.id === id);
-  const fileUrl = `/api/v1/guides/${id}/file`;
+  const title = guide?.title ?? 'Panduan';
+  const fileUrl = guideFileUrl(id);
   const supported = canUseGuideViewer();
 
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
@@ -59,7 +94,16 @@ export function GuideViewerPage() {
   const [matches, setMatches] = useState<number[]>([]);
   const [matchIndex, setMatchIndex] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [zoom, setZoom] = useState(ZOOM_DEFAULT);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageDraft, setPageDraft] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
   const pageTexts = useRef(new Map<number, string>());
+  const head = useRef<HTMLDivElement>(null);
+  const pages = useRef<HTMLDivElement>(null);
+  /** Where the reader was before a zoom change, so the same spot stays in view. */
+  const zoomAnchor = useRef<{ page: number; fraction: number; centre: number } | null>(null);
 
   useEffect(() => {
     if (!supported || !id) return undefined;
@@ -67,11 +111,13 @@ export function GuideViewerPage() {
     let loaded: PDFDocumentProxy | null = null;
     setDoc(null);
     setFailed(false);
+    setCurrentPage(1);
     pageTexts.current = new Map();
     void loadPdfJs()
       .then(
         (pdfjs) =>
           pdfjs.getDocument({
+            // Same-origin, so the session cookie goes with every range request.
             url: fileUrl,
             disableAutoFetch: true,
             disableStream: true,
@@ -111,8 +157,105 @@ export function GuideViewerPage() {
     [doc],
   );
 
-  const goTo = (pageNumber: number) =>
-    document.getElementById(`guide-page-${pageNumber}`)?.scrollIntoView({ block: 'start' });
+  /** The y position (viewport) just under the sticky bars. */
+  const readingLine = () => (head.current?.getBoundingClientRect().bottom ?? 0) + 1;
+  const pageElement = (pageNumber: number) =>
+    document.getElementById(`guide-page-${pageNumber}`) as HTMLElement | null;
+
+  /** Scroll position set by a page jump; the jumped-to page stays current until the reader scrolls. */
+  const jumpedTo = useRef<number | null>(null);
+
+  const goTo = (pageNumber: number) => {
+    const element = pageElement(pageNumber);
+    if (!element) return;
+    const scroller = scrollParent(element);
+    scroller.scrollTop += element.getBoundingClientRect().top - readingLine() - 8;
+    // Near the end the page may not reach the bars; still show the page asked for.
+    jumpedTo.current = scroller.scrollTop;
+    setCurrentPage(pageNumber);
+  };
+
+  // Track the page under the bars while reading, for "N / total".
+  useEffect(() => {
+    if (!doc) return undefined;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const strip = pages.current;
+      if (!strip) return;
+      const scroller = scrollParent(strip);
+      if (jumpedTo.current !== null && Math.abs(scroller.scrollTop - jumpedTo.current) < 2) return;
+      jumpedTo.current = null;
+      if (
+        scroller.scrollTop > 0 &&
+        scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+      )
+        return setCurrentPage(doc.numPages);
+      const bounds = Array.from(
+        strip.querySelectorAll<HTMLElement>('.guide-viewer__page'),
+        (element) => element.getBoundingClientRect(),
+      );
+      setCurrentPage(pageAt(bounds, readingLine() + 24));
+    };
+    const onScroll = () => {
+      frame ||= window.requestAnimationFrame(update);
+    };
+    // Capture catches the scroll of whichever element scrolls (the shell or the page).
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('resize', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [doc]);
+
+  const changeZoom = (next: number) => {
+    if (next === zoom) return;
+    const element = pageElement(currentPage);
+    const strip = pages.current;
+    if (element && strip) {
+      const rect = element.getBoundingClientRect();
+      zoomAnchor.current = {
+        page: currentPage,
+        fraction: rect.height ? (readingLine() - rect.top) / rect.height : 0,
+        centre: (strip.scrollLeft + strip.clientWidth / 2) / Math.max(strip.scrollWidth, 1),
+      };
+    }
+    setZoom(next);
+  };
+
+  // After a zoom change, put the same part of the same page back under the bars.
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    zoomAnchor.current = null;
+    const element = anchor ? pageElement(anchor.page) : null;
+    if (!anchor || !element) return;
+    const rect = element.getBoundingClientRect();
+    scrollParent(element).scrollTop +=
+      rect.top + Math.max(anchor.fraction, 0) * rect.height - readingLine();
+    const strip = pages.current;
+    if (strip) strip.scrollLeft = anchor.centre * strip.scrollWidth - strip.clientWidth / 2;
+  }, [zoom]);
+
+  const commitPage = () => {
+    if (pageDraft === null || !doc) return;
+    const wanted = Number.parseInt(pageDraft, 10);
+    setPageDraft(null);
+    if (Number.isFinite(wanted)) goTo(Math.min(Math.max(wanted, 1), doc.numPages));
+  };
+
+  const download = async () => {
+    setDownloading(true);
+    setDownloadFailed(false);
+    try {
+      await downloadGuide(id, title);
+    } catch {
+      setDownloadFailed(true);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const runSearch = async (event: FormEvent) => {
     event.preventDefault();
@@ -141,80 +284,163 @@ export function GuideViewerPage() {
     setMatches([]);
   };
 
+  const zoomOut = zoomStep(zoom, -1);
+  const zoomIn = zoomStep(zoom, 1);
+
   return (
     <div className="guide-viewer">
-      <header className="guide-viewer__bar">
-        <IconButton
-          aria-label="Kembali ke Panduan"
-          variant="ghost"
-          onClick={() => void navigate('/panduan')}
-        >
-          <ArrowLeft size={20} />
-        </IconButton>
-        <h1 className="guide-viewer__title">{guide?.title ?? 'Panduan'}</h1>
+      <div ref={head} className="guide-viewer__head">
+        <header className="guide-viewer__bar">
+          <IconButton
+            aria-label="Kembali ke Panduan"
+            variant="ghost"
+            onClick={() => void navigate('/panduan')}
+          >
+            <ArrowLeft size={20} />
+          </IconButton>
+          <h1 className="guide-viewer__title">{title}</h1>
+          {supported && doc ? (
+            <IconButton
+              aria-label="Cari di panduan"
+              variant="ghost"
+              aria-expanded={searchOpen}
+              onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+            >
+              {searchOpen ? <X size={20} /> : <Search size={20} />}
+            </IconButton>
+          ) : null}
+          <IconButton
+            aria-label="Unduh PDF"
+            variant="ghost"
+            loading={downloading}
+            disabled={downloading}
+            onClick={() => void download()}
+          >
+            <Download size={20} />
+          </IconButton>
+        </header>
         {supported && doc ? (
-          <IconButton
-            aria-label="Cari di panduan"
-            variant="ghost"
-            aria-expanded={searchOpen}
-            onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
-          >
-            {searchOpen ? <X size={20} /> : <Search size={20} />}
-          </IconButton>
+          <div className="guide-viewer__tools" role="toolbar" aria-label="Halaman dan zoom">
+            <div className="guide-viewer__tool-group">
+              <IconButton
+                aria-label="Halaman sebelumnya"
+                variant="ghost"
+                disabled={currentPage <= 1}
+                onClick={() => goTo(currentPage - 1)}
+              >
+                <ChevronLeft size={18} />
+              </IconButton>
+              <input
+                className="guide-viewer__page-input"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="go"
+                aria-label={`Halaman, 1 sampai ${doc.numPages}`}
+                value={pageDraft ?? String(currentPage)}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => setPageDraft(event.target.value.replace(/\D/g, ''))}
+                onBlur={commitPage}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    commitPage();
+                    event.currentTarget.blur();
+                  } else if (event.key === 'Escape') {
+                    setPageDraft(null);
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+              <span className="guide-viewer__page-total">/ {doc.numPages}</span>
+              <IconButton
+                aria-label="Halaman berikutnya"
+                variant="ghost"
+                disabled={currentPage >= doc.numPages}
+                onClick={() => goTo(currentPage + 1)}
+              >
+                <ChevronRight size={18} />
+              </IconButton>
+            </div>
+            <div className="guide-viewer__tool-group">
+              <IconButton
+                aria-label="Perkecil"
+                variant="ghost"
+                disabled={zoomOut === zoom}
+                onClick={() => changeZoom(zoomOut)}
+              >
+                <ZoomOut size={18} />
+              </IconButton>
+              <button
+                type="button"
+                className="guide-viewer__zoom-level"
+                aria-label={`Zoom ${Math.round(zoom * 100)}%, kembali ke lebar layar`}
+                onClick={() => changeZoom(ZOOM_DEFAULT)}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <IconButton
+                aria-label="Perbesar"
+                variant="ghost"
+                disabled={zoomIn === zoom}
+                onClick={() => changeZoom(zoomIn)}
+              >
+                <ZoomIn size={18} />
+              </IconButton>
+            </div>
+          </div>
         ) : null}
-        <a
-          className="guide-viewer__open"
-          href={fileUrl}
-          target="_blank"
-          rel="noopener"
-          aria-label="Buka file PDF"
-        >
-          <ExternalLink size={19} />
-        </a>
-      </header>
-      {searchOpen ? (
-        <form
-          className="guide-viewer__search"
-          role="search"
-          onSubmit={(event) => void runSearch(event)}
-        >
-          <input
-            type="search"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Cari kata"
-            aria-label="Cari kata di panduan"
-            autoFocus
-            enterKeyHint="search"
-          />
-          <span className="guide-viewer__count" aria-live="polite">
-            {searching
-              ? 'Mencari…'
-              : query
-                ? matches.length
-                  ? `Hal ${matches[matchIndex]} · ${matchIndex + 1}/${matches.length}`
-                  : 'Tidak ada'
-                : ''}
-          </span>
-          <IconButton
-            type="button"
-            aria-label="Hasil sebelumnya"
-            variant="ghost"
-            disabled={matches.length < 2}
-            onClick={() => step(-1)}
+        {searchOpen ? (
+          <form
+            className="guide-viewer__search"
+            role="search"
+            onSubmit={(event) => void runSearch(event)}
           >
-            <ChevronUp size={18} />
-          </IconButton>
-          <IconButton
-            type="button"
-            aria-label="Hasil berikutnya"
-            variant="ghost"
-            disabled={matches.length < 2}
-            onClick={() => step(1)}
-          >
-            <ChevronDown size={18} />
-          </IconButton>
-        </form>
+            <input
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Cari kata"
+              aria-label="Cari kata di panduan"
+              autoFocus
+              enterKeyHint="search"
+            />
+            <span className="guide-viewer__count" aria-live="polite">
+              {searching
+                ? 'Mencari…'
+                : query
+                  ? matches.length
+                    ? `Hal ${matches[matchIndex]} · ${matchIndex + 1}/${matches.length}`
+                    : 'Tidak ada'
+                  : ''}
+            </span>
+            <IconButton
+              type="button"
+              aria-label="Hasil sebelumnya"
+              variant="ghost"
+              disabled={matches.length < 2}
+              onClick={() => step(-1)}
+            >
+              <ChevronUp size={18} />
+            </IconButton>
+            <IconButton
+              type="button"
+              aria-label="Hasil berikutnya"
+              variant="ghost"
+              disabled={matches.length < 2}
+              onClick={() => step(1)}
+            >
+              <ChevronDown size={18} />
+            </IconButton>
+          </form>
+        ) : null}
+      </div>
+      {downloadFailed ? (
+        <div className="guide-viewer__notice">
+          <Alert tone="danger" title="PDF gagal diunduh">
+            Periksa koneksi lalu coba lagi.
+          </Alert>
+        </div>
       ) : null}
       {!supported || failed ? (
         <div className="guide-viewer__fallback">
@@ -222,9 +448,11 @@ export function GuideViewerPage() {
             <Alert tone="danger" title="Panduan gagal dimuat">
               Periksa koneksi lalu coba lagi.
             </Alert>
-          ) : null}
-          <Button onClick={() => window.open(fileUrl, '_blank', 'noopener')}>
-            <ExternalLink size={16} /> Buka PDF
+          ) : (
+            <p>Browser ini belum bisa menampilkan panduan di CARE. Unduh PDF untuk membacanya.</p>
+          )}
+          <Button loading={downloading} disabled={downloading} onClick={() => void download()}>
+            <Download size={16} /> Unduh PDF
           </Button>
         </div>
       ) : !doc ? (
@@ -232,7 +460,11 @@ export function GuideViewerPage() {
           <Skeleton className="guide-viewer__placeholder" label="Memuat panduan" />
         </div>
       ) : (
-        <div className="guide-viewer__pages">
+        <div
+          ref={pages}
+          className="guide-viewer__pages"
+          style={{ '--guide-zoom': zoom } as CSSProperties}
+        >
           {Array.from({ length: doc.numPages }, (_, index) => (
             <PdfPage
               key={index + 1}
@@ -266,11 +498,11 @@ function PdfPage({
   const frame = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const text = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(pageNumber === 1);
+  const [near, setNear] = useState(pageNumber === 1);
   const [rendered, setRendered] = useState(false);
   const [width, setWidth] = useState(0);
 
-  // Re-render sharp after rotation or a window resize.
+  // Re-render sharp after a zoom change, rotation or a window resize.
   useEffect(() => {
     const element = frame.current;
     if (!element) return undefined;
@@ -282,21 +514,31 @@ function PdfPage({
     return () => observer.disconnect();
   }, []);
 
+  // Render pages near the screen and release the canvas of pages far from it,
+  // so a long guide at high zoom does not exhaust a phone's memory.
   useEffect(() => {
     const element = frame.current;
-    if (!element || visible) return undefined;
+    if (!element) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
+        const entry = entries[entries.length - 1];
+        if (entry) setNear(entry.isIntersecting);
       },
       { rootMargin: '600px 0px' },
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [visible]);
+  }, []);
 
   useEffect(() => {
-    if (!visible || !width || !frame.current || !canvas.current || !text.current) return undefined;
+    if (!width || !frame.current || !canvas.current || !text.current) return undefined;
+    if (!near) {
+      canvas.current.width = 0;
+      canvas.current.height = 0;
+      text.current.replaceChildren();
+      setRendered(false);
+      return undefined;
+    }
     let cancelled = false;
     let task: { cancel: () => void } | null = null;
     void (async () => {
@@ -304,7 +546,11 @@ function PdfPage({
       const page = await doc.getPage(pageNumber);
       if (cancelled || !frame.current || !canvas.current || !text.current) return;
       const viewport = page.getViewport({ scale: width / page.getViewport({ scale: 1 }).width });
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const pixelRatio = Math.min(
+        window.devicePixelRatio || 1,
+        2,
+        Math.sqrt(MAX_CANVAS_PIXELS / (viewport.width * viewport.height)),
+      );
       const target = canvas.current;
       target.width = Math.floor(viewport.width * pixelRatio);
       target.height = Math.floor(viewport.height * pixelRatio);
@@ -318,6 +564,7 @@ function PdfPage({
       });
       task = render;
       await render.promise;
+      if (cancelled) return;
       text.current.replaceChildren();
       await new pdfjs.TextLayer({
         textContentSource: page.streamTextContent(),
@@ -330,7 +577,7 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [doc, pageNumber, visible, width]);
+  }, [doc, near, pageNumber, width]);
 
   useEffect(() => {
     if (!rendered || !text.current) return;

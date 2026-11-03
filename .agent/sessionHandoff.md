@@ -1,5 +1,62 @@
 # CARE Session Handoff
 
+## Panduan reader: zoom, pages, download and access control — 2 November 2026
+
+**Problem:** the in-app reader could search but not zoom, jump to a page or save the PDF, and `GET /api/v1/guides/{id}/file` was public. The user wanted original PDFs (no conversion to images), zoom and page navigation, a download of the original, responsive desktop/PWA display and access limited to authorised CARE accounts.
+
+**Change (`feat/guide-viewer-controls`, from `origin/staging` 81c4410):** ADR-0075 amendment "page navigation, zoom, download and access control".
+
+**Delivery (3 November 2026):**
+
+- The code was written and validated in a cloud session that could not push (the Claude GitHub App is installed on `Candrikadewi`, the repo is owned by `khalshaqzzy`, so the push got 403). It was handed over as a `git am` patch.
+- The patch applied cleanly on `origin/staging` 81c4410 (staging had not moved) in a separate worktree, `../CARE-guide-controls`, leaving the `feat/time-for-team` working tree untouched. Author reset to the local git user; `Co-Authored-By` kept.
+- A follow-up docs commit:
+  - PRD §11.6: the stale "file endpoint is public, opened in a new tab" line now states the session + audience rule, 401/404, `?download=1`, `private, no-store`, and that guides cannot be linked before sign-in;
+  - ADR-0075: status/date updated; the old "link a public file URL from the login page" follow-up marked superseded; the amendment gains alternatives considered (server images, iframe/new tab, signed URLs, staying public, a third-party viewer, CSS-scaled zoom, a plain `download` link), implementation details (files; no migration, env var, dependency or proxy change) and risks/follow-up;
+  - this handoff and implementationPhases point at the real branch.
+- Deploy is the standard staging path: PR #123 to `staging`, required CI, merge, `deploy-staging`, then `/ready` `releaseSha`.
+
+**Decisions:**
+
+- PDFs stay byte-identical originals; image conversion stays rejected (ADR-0075).
+- The file endpoint follows the session model; the iOS "viewer outside the PWA cookie jar" reason for keeping it public no longer applies because nothing in the workforce app opens the file outside the app.
+- No signed URLs: one authorisation path (session + audience).
+
+**Local re-check before push (Windows, Node 22.23.4, throwaway `pgvector/pgvector:pg16` on 54349):**
+
+- prettier (`--end-of-line auto`) on every changed file, eslint on the guide API/reader/e2e files, `pnpm typecheck`: pass;
+- web-voice Vitest 163/163; `guide-content-disposition.test.ts` 4/4;
+- after `prisma migrate deploy`: `guides.integration.test.ts` 6/6, API security suite 15/15;
+- `validation.test.mjs`: the CI-partition inventory test (487) passes; "stale SHA" (no API build in a fresh worktree) and "Compose fixtures" (`missing job quality`, CRLF `ci.yml`) fail locally only, as on any unbuilt Windows checkout;
+- Gitleaks `dir` scan: no leaks;
+- Playwright was not rerun locally (the cloud session ran the full chromium suite 274/274); the hosted browser, legacy, capture and fullstack jobs on the PR are the authority.
+
+- **API:**
+  - the file endpoint drops `@Public()`; `GuidesService.readFile(actor, id)` applies the list's audience rule (`audienceOf`), CARE Admin reads all, anything else is 404;
+  - `?download=1` sends `Content-Disposition: attachment`; `contentDisposition()` builds an RFC 6266 header with ASCII and UTF-8 names;
+  - `Cache-Control: private, no-store`;
+  - OpenAPI: the `download` query parameter (`scripts/enrich-openapi.ts`), regenerated `openapi.json` and contracts.
+- **Reader (`GuideViewerPage.tsx`, helpers in `guide-viewer-utils.ts`):**
+  - one sticky head (`.guide-viewer__head`) holds the bar, a toolbar (‹, page box, ›, −, %, +) and the search row;
+  - zoom 50–300 % of fit width via `--guide-zoom`; pages re-render through the existing `ResizeObserver`; the reading position and horizontal centre are kept;
+  - the strip is a block container with `overflow-x: auto`, so zoomed pages scroll sideways inside it;
+  - canvases are capped at 12 MP and released 600 px off-screen;
+  - **Unduh PDF** in the bar (and as the older-browser fallback) fetches `?download=1` same-origin and saves it via a `blob:` link; errors show "PDF gagal diunduh".
+
+**Checks (Linux container, Node 22.23.4, local Postgres 16 + pgvector):**
+
+- prettier, eslint, `pnpm typecheck`: pass;
+- web-voice Vitest: 163/163;
+- `guides.integration.test.ts`: 6/6; `guide-content-disposition.test.ts`: 4/4; API security suite: 15/15;
+- `pwa:compat-check`: passes, main 164,774 bytes gzip;
+- Playwright `workforce-guide` + `admin-guides`: 14/14; CI inventory 484 → 487;
+- in this container Chromium names a `blob:` download with non-ASCII characters "download" because no UTF-8 locale is set; with `LANG=C.UTF-8` the name is kept. The e2e test therefore uses an ASCII name; UTF-8 decoding is unit-tested.
+
+**Next:**
+
+- on a real Android phone and an iPhone Home Screen install: download a guide, zoom to 200 %, use the page box;
+- confirm a signed-out request to a guide file returns 401 on staging.
+
 ## In-app PDF reader for Panduan — 2 November 2026
 
 **Problem:** opening a guide PDF was slow, because the whole file downloaded first and Android passed it to another app. The installed app also had no way back to CARE. The user wanted to keep real PDFs so the text stays searchable. A "pages as images" approach was previewed and rejected for that reason.

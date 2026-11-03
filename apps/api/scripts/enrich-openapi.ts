@@ -42,19 +42,21 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
                   : parameter === 'due'
                     ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
-                    : parameter === 'loggedIn'
-                      ? { type: 'string', enum: ['true', 'false'] }
-                      : parameter === 'responderLevel'
-                        ? {
-                            type: 'string',
-                            enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION', 'ANY'],
-                          }
-                        : parameter === 'scope'
-                          ? { type: 'string', enum: ['unit', 'team'] }
-                          : parameter === 'action' &&
-                              operation.operationId === 'VoicesController_workItems'
-                            ? { type: 'string', enum: ['me', 'approve', 'closed'] }
-                            : { type: 'string' },
+                    : parameter === 'download'
+                      ? { type: 'string', enum: ['1'] }
+                      : parameter === 'loggedIn'
+                        ? { type: 'string', enum: ['true', 'false'] }
+                        : parameter === 'responderLevel'
+                          ? {
+                              type: 'string',
+                              enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION', 'ANY'],
+                            }
+                          : parameter === 'scope'
+                            ? { type: 'string', enum: ['unit', 'team'] }
+                            : parameter === 'action' &&
+                                operation.operationId === 'VoicesController_workItems'
+                              ? { type: 'string', enum: ['me', 'approve', 'closed'] }
+                              : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -167,6 +169,7 @@ const queryParameters: Record<string, string[]> = {
   OrganizationUnitsController_list: ['cursor', 'limit', 'search', 'division'],
   OrganizationUnitsController_divisions: ['search'],
   AdminCategoriesController_list: ['status'],
+  GuidesController_file: ['download'],
   VoicesController_list: [
     'cursor',
     'limit',

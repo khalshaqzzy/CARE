@@ -22392,7 +22392,9 @@ export interface operations {
     };
     GuidesController_file: {
         parameters: {
-            query?: never;
+            query?: {
+                download?: "1";
+            };
             header?: never;
             path: {
                 id: string;

@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -17,7 +18,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Actor, Capabilities, Public } from '../auth/auth.decorators';
+import { Actor, Capabilities } from '../auth/auth.decorators';
 import { forbiddenAsNotFound } from '../common/errors';
 import type { AuthActor } from '../auth/auth.types';
 import { GUIDE_MAX_BYTES, GuidesService } from './guides.service';
@@ -35,15 +36,20 @@ export class GuidesController {
     return this.guides.listForActor(actor);
   }
 
-  // Public so the device PDF viewer (outside the PWA cookie jar on iOS) can open it.
-  // The in-app viewer (pdf.js) fetches it with Range requests.
-  @Public()
+  // Signed-in accounts only, and only guides listed for them (CARE Admin reads all).
+  // The in-app viewer (pdf.js) fetches it same-origin with the session cookie and
+  // Range requests; `?download=1` returns the original bytes as an attachment.
   @Get(':id/file')
-  @Header('Cache-Control', 'no-store')
+  @Header('Cache-Control', 'private, no-store')
   @Header('X-Content-Type-Options', 'nosniff')
-  async file(@Param('id', ParseUUIDPipe) id: string, @Res() response: Response) {
-    const { guide, path } = await this.guides.readFile(id);
-    const name = (guide.fileName ?? 'panduan.pdf').replace(/[^\w.\- ]/g, '_');
+  async file(
+    @Actor() actor: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('download') download: string | undefined,
+    @Res() response: Response,
+  ) {
+    const { guide, path } = await this.guides.readFile(actor, id);
+    const disposition = download === '1' ? 'attachment' : 'inline';
     // sendFile answers Range requests, so the in-app viewer can show the first
     // page before the whole PDF has downloaded.
     await new Promise<void>((resolve, reject) =>
@@ -54,7 +60,7 @@ export class GuidesController {
           dotfiles: 'allow',
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `inline; filename="${name}"`,
+            'Content-Disposition': contentDisposition(disposition, guide.fileName),
           },
         },
         (error?: Error & { status?: number }) => {
@@ -64,6 +70,28 @@ export class GuidesController {
       ),
     );
   }
+}
+
+/**
+ * RFC 6266 header that keeps the uploaded file name: an ASCII `filename` for
+ * old clients and a UTF-8 `filename*` for the rest.
+ */
+export function contentDisposition(type: 'inline' | 'attachment', fileName: string | null) {
+  // Drop control characters (no header injection) and path separators.
+  let name = Array.from(fileName ?? '')
+    .filter(
+      (char) => char.charCodeAt(0) > 0x1f && char !== '\u007f' && char !== '/' && char !== '\\',
+    )
+    .join('')
+    .trim();
+  if (!name) name = 'panduan.pdf';
+  if (!/\.pdf$/i.test(name)) name += '.pdf';
+  const ascii = name.replace(/[^\w.\- ]/g, '_');
+  const encoded = encodeURIComponent(name).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 @ApiTags('admin-guides')

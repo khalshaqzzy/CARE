@@ -116,24 +116,45 @@ describe('Panduan guides', () => {
     expect(audit).toBe(3);
   });
 
-  it('serves the PDF without a session so device viewers can open it', async () => {
-    const guide = await db.guide.findFirstOrThrow({ where: { title: 'FAQ' } });
-    const response = await http().get(`/api/v1/guides/${guide.id}/file`).expect(200);
+  it('serves the original PDF only to signed-in accounts the guide is listed for', async () => {
+    const faq = await db.guide.findFirstOrThrow({ where: { title: 'FAQ' } });
+    const responderOnly = await db.guide.findFirstOrThrow({
+      where: { title: 'Panduan Responder' },
+    });
+    const file = (id: string) => http().get(`/api/v1/guides/${id}/file`);
+
+    // No session: refused before the file is looked up.
+    await file(faq.id).expect(401);
+    // A member cannot read a responder-only guide, even by guessing its id.
+    await file(responderOnly.id).set('Cookie', cookies.member!).expect(404);
+    await file('00000000-0000-4000-8000-000000000000').set('Cookie', cookies.member!).expect(404);
+    // A responder reads it; the CARE Admin reads every guide.
+    await file(responderOnly.id).set('Cookie', cookies.manager!).expect(200);
+    await file(responderOnly.id).set('Cookie', cookies.admin!).expect(200);
+
+    const response = await file(faq.id).set('Cookie', cookies.member!).expect(200);
     expect(response.headers['content-type']).toContain('application/pdf');
-    expect(
-      Buffer.from(response.body as Buffer)
-        .subarray(0, 5)
-        .toString(),
-    ).toBe('%PDF-');
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.headers['content-disposition']).toBe(
+      `inline; filename="FAQ.pdf"; filename*=UTF-8''FAQ.pdf`,
+    );
+    // The stored bytes are the uploaded bytes: no conversion.
+    expect(Buffer.from(response.body as Buffer).equals(PDF)).toBe(true);
     // The in-app viewer reads the first page through range requests.
     expect(response.headers['accept-ranges']).toBe('bytes');
-    const partial = await http()
-      .get(`/api/v1/guides/${guide.id}/file`)
+    const partial = await file(faq.id)
+      .set('Cookie', cookies.member!)
       .set('Range', 'bytes=0-4')
       .expect(206);
     expect(partial.headers['content-range']).toMatch(/^bytes 0-4\/\d+$/);
     expect(Buffer.from(partial.body as Buffer).toString()).toBe('%PDF-');
-    await http().get('/api/v1/guides/00000000-0000-4000-8000-000000000000/file').expect(404);
+
+    const download = await http()
+      .get(`/api/v1/guides/${faq.id}/file?download=1`)
+      .set('Cookie', cookies.member!)
+      .expect(200);
+    expect(download.headers['content-disposition']).toMatch(/^attachment; filename="FAQ.pdf"/);
+    expect(Buffer.from(download.body as Buffer).equals(PDF)).toBe(true);
   });
 
   it('rejects files that are not PDF and a guide with no audience', async () => {
@@ -240,7 +261,10 @@ describe('Panduan guides', () => {
       kind: 'VIDEO',
       videoUrl: 'https://youtu.be/abc',
     });
-    await http().get(`/api/v1/guides/${created.body.id}/file`).expect(404);
+    await http()
+      .get(`/api/v1/guides/${created.body.id}/file`)
+      .set('Cookie', cookies.member!)
+      .expect(404);
     await http()
       .put(`/api/v1/admin/guides/${created.body.id}/file`)
       .set('Cookie', cookies.admin!)

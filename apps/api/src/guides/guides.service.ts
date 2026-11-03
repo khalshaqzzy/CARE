@@ -86,14 +86,7 @@ export class GuidesService {
 
   /** Guides for the signed-in workforce or Union account, in admin order. */
   async listForActor(actor: AuthActor) {
-    const member = actor.capabilities.includes('MEMBER');
-    const responder = actor.capabilities.some((capability) =>
-      RESPONDER_CAPABILITIES.includes(capability),
-    );
-    const audience: Prisma.GuideWhereInput[] = [
-      ...(member ? [{ forMember: true }] : []),
-      ...(responder ? [{ forResponder: true }] : []),
-    ];
+    const audience = this.audienceOf(actor);
     if (!audience.length) return { items: [] };
     const items = await this.prisma.guide.findMany({
       where: { OR: audience },
@@ -227,13 +220,31 @@ export class GuidesService {
   }
 
   /**
-   * The stored PDF. Guides hold no personal data, so any id that exists is
-   * readable; the path lets the controller answer range requests.
+   * The stored PDF, for an account that may read it: CARE Admin reads every
+   * guide, anyone else only a guide listed for them. Any other id answers 404,
+   * so ids cannot be probed. The path lets the controller answer range requests.
    */
-  async readFile(id: string) {
-    const guide = await this.find(id);
-    if (!guide.storageKey) throw forbiddenAsNotFound();
+  async readFile(actor: AuthActor, id: string) {
+    const admin = actor.capabilities.includes('CARE_ADMIN');
+    const audience = this.audienceOf(actor);
+    if (!admin && !audience.length) throw forbiddenAsNotFound();
+    const guide = await this.prisma.guide.findFirst({
+      where: admin ? { id } : { id, OR: audience },
+    });
+    if (!guide?.storageKey) throw forbiddenAsNotFound();
     return { guide, path: this.path(guide.storageKey) };
+  }
+
+  /** The guide flags an account reads: Member, Responder or both. */
+  private audienceOf(actor: AuthActor): Prisma.GuideWhereInput[] {
+    const member = actor.capabilities.includes('MEMBER');
+    const responder = actor.capabilities.some((capability) =>
+      RESPONDER_CAPABILITIES.includes(capability),
+    );
+    return [
+      ...(member ? [{ forMember: true }] : []),
+      ...(responder ? [{ forResponder: true }] : []),
+    ];
   }
 
   private async find(id: string) {
