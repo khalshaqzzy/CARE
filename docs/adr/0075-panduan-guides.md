@@ -66,17 +66,17 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
 - Files are written to `MEDIA_ROOT/guides/<random>.pdf` with mode 0600. This directory is separate from `objects/` and `imports/`, so `reconcile-storage` never touches it.
 - Endpoints:
 
-  | Method and path                      | Who                   | Purpose                                                                                           |
-  | ------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------- |
-  | `GET /api/v1/guides`                 | any signed-in account | guides for the actor's capabilities: `id`, `kind`, `title`, `videoUrl`, `size`, `updatedAt`       |
-  | `GET /api/v1/guides/{id}/file`       | public                | the PDF, `application/pdf`, `Content-Disposition: inline`, `no-store`, `nosniff`; 404 for a video |
-  | `GET /api/v1/admin/guides`           | CARE Admin            | all guides with audience, file and uploader                                                       |
-  | `POST /api/v1/admin/guides`          | CARE Admin            | multipart `file`, `title`, `forMember`, `forResponder`                                            |
-  | `POST /api/v1/admin/guides/videos`   | CARE Admin            | JSON `title`, `videoUrl`, `forMember`, `forResponder`                                             |
-  | `PATCH /api/v1/admin/guides/{id}`    | CARE Admin            | JSON `title`, `forMember`, `forResponder`, optional `videoUrl` (videos only)                      |
-  | `PUT /api/v1/admin/guides/{id}/file` | CARE Admin            | multipart `file`; replaces the PDF (PDF guides only)                                              |
-  | `PUT /api/v1/admin/guides/order`     | CARE Admin            | `ids` must name every guide exactly once                                                          |
-  | `DELETE /api/v1/admin/guides/{id}`   | CARE Admin            | removes the row and then the file, if any                                                         |
+  | Method and path                      | Who                   | Purpose                                                                                             |
+  | ------------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------- |
+  | `GET /api/v1/guides`                 | any signed-in account | guides for the actor's capabilities: `id`, `kind`, `title`, `videoUrl`, `size`, `updatedAt`         |
+  | `GET /api/v1/guides/{id}/file`       | signed-in, audience   | the original PDF (see the access-control amendment); `?download=1` for an attachment; 404 otherwise |
+  | `GET /api/v1/admin/guides`           | CARE Admin            | all guides with audience, file and uploader                                                         |
+  | `POST /api/v1/admin/guides`          | CARE Admin            | multipart `file`, `title`, `forMember`, `forResponder`                                              |
+  | `POST /api/v1/admin/guides/videos`   | CARE Admin            | JSON `title`, `videoUrl`, `forMember`, `forResponder`                                               |
+  | `PATCH /api/v1/admin/guides/{id}`    | CARE Admin            | JSON `title`, `forMember`, `forResponder`, optional `videoUrl` (videos only)                        |
+  | `PUT /api/v1/admin/guides/{id}/file` | CARE Admin            | multipart `file`; replaces the PDF (PDF guides only)                                                |
+  | `PUT /api/v1/admin/guides/order`     | CARE Admin            | `ids` must name every guide exactly once                                                            |
+  | `DELETE /api/v1/admin/guides/{id}`   | CARE Admin            | removes the row and then the file, if any                                                           |
 
 - Validation:
   - an empty file returns `GUIDE_FILE_REQUIRED`;
@@ -101,7 +101,7 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
     An external player also adapts quality to the connection.
 - Documents and videos are shown in separate groups, a layout chosen from rendered previews over one mixed list.
 - Audience selection by two checkboxes (Member, Responder) maps to how the guides are written. Per-capability targeting was considered unnecessary complexity for the admin.
-- The file endpoint is public by design. On iOS, a Home Screen PWA opens links to other documents in a viewer that does not share the PWA's cookies, so an authenticated download would fail there. The guides contain no personal or Voice data. Ids are random UUIDs that are listed only to signed-in accounts, and deleted guides return 404 at once.
+- _(Superseded by the 2 November 2026 access-control amendment.)_ The file endpoint is public by design. On iOS, a Home Screen PWA opens links to other documents in a viewer that does not share the PWA's cookies, so an authenticated download would fail there. The guides contain no personal or Voice data. Ids are random UUIDs that are listed only to signed-in accounts, and deleted guides return 404 at once.
 - The hero icon is the only position visible on mobile for every role without removing a dock item. The Pengaturan row and desktop sidebar item give a second, predictable place.
 
 ## Alternatives considered
@@ -141,7 +141,7 @@ The workforce app is a mobile-first PWA. Its mobile dock already holds five item
 
 ## Consequences
 
-- Guides are effectively public documents. They must never contain personal data, real Voice content or internal contact details.
+- Guides must never contain personal data, real Voice content or internal contact details. Since the access-control amendment the file is readable only by signed-in accounts the guide targets, but a member can still download and share it.
 - Guide files live in the API media volume, so they follow its backup and restore. Restoring the database without the volume leaves rows whose file returns an error, and the admin re-uploads them.
 - PDFs are not precached by the service worker and need a connection. Responses are `no-store`, so a replaced PDF is visible immediately.
 - Opening a PDF depends on the platform. Desktop browsers and iOS show a viewer; Android Chrome usually downloads the file or hands it to a PDF app. In an installed PWA the link leaves the standalone window.
@@ -268,3 +268,68 @@ They also wanted the text to stay searchable, so turning pages into images was r
 - The CARE team supplies the actual guides and videos. Until the first upload, the Panduan page is empty.
 - A FAQ can be published as another PDF. An in-app FAQ section can be added later on the same page if searchable text is wanted.
 - If a guide is ever needed before sign-in (for example a login guide), the login page can link to a guide's public file URL.
+
+## Amendment — 2 November 2026: page navigation, zoom, download and access control
+
+The reader could search but not zoom, jump to a page or save the file, and the file endpoint was still public. The CARE team asked for:
+
+- zoom in and out and page navigation;
+- a download of the original PDF;
+- the documents readable only by authorised CARE accounts;
+- the PDF kept as a PDF, not turned into images.
+
+**Why not images.** Rendering pages to images was previewed during the reader work and rejected, and is still rejected:
+
+- it was attractive only because Android Chrome cannot show a PDF in an `<iframe>`, and images need no PDF engine in the app;
+- it loses the text layer, so search, copy, screen readers and sharp text at any zoom are gone;
+- it adds a server-side rasteriser (poppler/ghostscript/a headless browser) to the API image, with its CVEs and CPU cost on every upload;
+- pages become many image files per guide, in several sizes for phones and desktops, which must be kept in step with the PDF;
+- a "download" would then be a different file from the one the CARE team uploaded.
+
+pdf.js renders the original file in the browser, which already solved all of this; the gaps were in the viewer and the endpoint.
+
+**Decision.**
+
+- **Access control.** `GET /api/v1/guides/{id}/file` is no longer `@Public()`:
+  - it needs a session, like every other workforce endpoint (401 without one);
+  - `GuidesService.readFile(actor, id)` applies the same audience rule as the list: Member guides to `MEMBER`, Responder guides to the responder capabilities; CARE Admin reads every guide (the Admin list links to the file);
+  - a guide outside the account's audience, a video and an unknown id all answer 404, so ids cannot be probed;
+  - `Cache-Control: private, no-store`; Caddy still sets `no-store` on `/api/v1/*`.
+- **Why the iOS reason no longer applies.** The endpoint was public so that the _device_ viewer, opened in a new tab outside the PWA's cookie jar on iOS, could load it. Since the in-app reader, nothing opens it in a new tab from the workforce app:
+  - pdf.js fetches the file same-origin from inside the PWA, so the session cookie goes with every range request;
+  - the download is a same-origin `fetch` turned into a file (below), not a new tab;
+  - the ↗ "open the PDF" link in the reader bar is replaced by **Unduh PDF**.
+- **Download.** `?download=1` returns the same bytes with `Content-Disposition: attachment`. The header keeps the uploaded file name: an ASCII `filename` and a UTF-8 `filename*` (RFC 6266); control characters and path separators are removed. The reader fetches it with the session cookie and saves it through a temporary `blob:` link with the `download` attribute, so:
+  - it works inside the installed app on Android and iOS;
+  - an expired session or a network error shows "PDF gagal diunduh" in the reader instead of navigating to an error page with no way back;
+  - the saved file is byte-identical to the upload.
+- **Page navigation.** A toolbar row under the CARE bar holds ‹ / › and a page box ("2 / 12"):
+  - the box follows scrolling (the page under the bars; the last page once scrolled to the end);
+  - typing a number and Enter jumps there, clamped to the range;
+  - ‹ is disabled on the first page and › on the last.
+- **Zoom.**
+  - Steps 50, 75, 100, 125, 150, 200, 250 and 300 % of "fit width" (100 % = the page fills the column, as before). Tapping the percentage returns to 100 %.
+  - pdf.js re-renders each page at the new size, so text stays sharp; it is not a CSS scale of the bitmap.
+  - The part of the page being read stays under the bars, and the horizontal centre is kept.
+  - A page wider than the screen scrolls sideways inside the reading strip; the app itself never scrolls sideways.
+  - Pinch-zoom of the browser is unchanged.
+- **Memory.** One page canvas is limited to 12 MP (iOS Safari refuses canvases above about 16.7 MP) by lowering the pixel ratio. Pages more than 600 px off-screen release their canvas and text layer and render again when they come back, so a long guide at 300 % does not exhaust a phone.
+- **Older browsers.** The fallback button is now **Unduh PDF**, with a short explanation, because a new tab would not carry the session on iOS.
+
+**Not changed.** Upload, storage (`MEDIA_ROOT/guides/<random>.pdf`, mode 0600, `%PDF-` check, SHA-256), the 20 MB limit, the pdf.js version and delivery, search, and the Admin management page.
+
+**Consequences.**
+
+- A guide can no longer be linked before sign-in. If a login guide is ever needed, it must be published another way (for example as a static page).
+- Every range request is an authenticated request, so it also refreshes the session like any other API call.
+- The workforce main chunk is 164,774 bytes gzip (+26), within the budget; the reader stays lazy-loaded.
+- Admin keeps opening the PDF in a new tab on the Admin host, where the Admin session cookie is sent.
+
+**Validation.**
+
+- `guides.integration.test.ts` (6 tests): 401 without a session; 404 for a member reading a responder-only guide and for an unknown id; 200 for a responder and for CARE Admin; `private, no-store`; the body equals the uploaded bytes; `206` ranges; `?download=1` is an attachment with the same bytes; a video has no file.
+- `test/unit/guide-content-disposition.test.ts` (4 tests): ASCII and UTF-8 names, header-injection and path characters, and the fallback name.
+- `guide-viewer-utils.test.ts` (4 tests): zoom steps and limits, the page under the reading line, and the file name from `Content-Disposition`.
+- `workforce-guide.spec.ts` (10 tests) adds: page navigation (buttons, typed page, the box following scroll, disabled ends); zoom to 150 % with a canvas re-rendered over 1.4× wider, sideways scrolling only inside the strip, back to 100 % and down to 50 %; the download saving the original bytes under the uploaded name; a failed download staying in the reader with a message; and the older-browser **Unduh PDF** fallback.
+- The CI inventory is 487.
+- Still required after deploy: on a real Android phone and an iPhone Home Screen install, download a guide from the reader and check zoom and page navigation.

@@ -1,4 +1,5 @@
 import { chromium, expect, test, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { memberSession, mockWorkforceApi } from './helpers/mock-api';
 
 type Guide = {
@@ -55,9 +56,29 @@ test.beforeAll(async () => {
 });
 
 async function mockGuideFile(page: Page) {
-  await page.route(`**/api/v1/guides/${SUBMIT.id}/file`, (route) =>
-    route.fulfill({ body: samplePdf, headers: { 'content-type': 'application/pdf' } }),
+  // Matches the reader (`/file`) and the download (`/file?download=1`).
+  await page.route(new RegExp(`/api/v1/guides/${SUBMIT.id}/file(\\?.*)?$`), (route) =>
+    route.fulfill({
+      body: samplePdf,
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': new URL(route.request().url()).searchParams.has('download')
+          ? `attachment; filename="Panduan_Submit.pdf"; filename*=UTF-8''Panduan%20Submit%20Voice.pdf`
+          : 'inline; filename="Panduan_Submit.pdf"',
+      },
+    }),
   );
+}
+
+async function openReader(page: Page, width = 360) {
+  await page.setViewportSize({ width, height: 800 });
+  await mockWorkforceApi(page, { session: memberSession() });
+  await mockGuides(page, [SUBMIT]);
+  await mockGuideFile(page);
+  await page.goto(`/panduan/${SUBMIT.id}`);
+  await expect(
+    page.getByRole('group', { name: 'Halaman 1 dari 3' }).locator('canvas'),
+  ).toBeVisible();
 }
 
 test.describe('Panduan', () => {
@@ -89,10 +110,7 @@ test.describe('Panduan', () => {
     await expect(
       page.getByRole('group', { name: 'Halaman 1 dari 3' }).locator('canvas'),
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Buka file PDF' })).toHaveAttribute(
-      'href',
-      `/api/v1/guides/${SUBMIT.id}/file`,
-    );
+    await expect(page.getByRole('button', { name: 'Unduh PDF' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Cari di panduan' }).click();
     await page.getByLabel('Cari kata di panduan').fill('foto');
@@ -107,7 +125,82 @@ test.describe('Panduan', () => {
     await expect(page).toHaveURL(/\/panduan$/);
   });
 
-  test('older browsers get a button that opens the PDF instead', async ({ page }) => {
+  test('moves between pages and zooms with sharp re-rendered pages', async ({ page }) => {
+    await openReader(page);
+    const pageInput = page.getByRole('textbox', { name: 'Halaman, 1 sampai 3' });
+    await expect(pageInput).toHaveValue('1');
+    await expect(page.getByText('/ 3', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Halaman sebelumnya' })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Halaman berikutnya' }).click();
+    await expect(pageInput).toHaveValue('2');
+    await expect(page.getByRole('group', { name: 'Halaman 2 dari 3' })).toBeInViewport();
+
+    await pageInput.fill('3');
+    await pageInput.press('Enter');
+    await expect(pageInput).toHaveValue('3');
+    await expect(page.getByRole('button', { name: 'Halaman berikutnya' })).toBeDisabled();
+    const third = page.getByRole('group', { name: 'Halaman 3 dari 3' });
+    await expect(third.locator('canvas')).toBeVisible();
+
+    // Scrolling back updates the page number.
+    await page.getByRole('group', { name: 'Halaman 1 dari 3' }).scrollIntoViewIfNeeded();
+    await expect(pageInput).toHaveValue('1');
+
+    const canvasWidth = () =>
+      page
+        .getByRole('group', { name: 'Halaman 1 dari 3' })
+        .locator('canvas')
+        .evaluate((canvas: HTMLCanvasElement) => canvas.width);
+    const fitWidth = await canvasWidth();
+    await page.getByRole('button', { name: 'Perbesar' }).click();
+    await page.getByRole('button', { name: 'Perbesar' }).click();
+    await expect(page.getByRole('button', { name: /^Zoom 150%/ })).toBeVisible();
+    // pdf.js re-renders at the new size instead of stretching the bitmap.
+    await expect.poll(canvasWidth).toBeGreaterThan(fitWidth * 1.4);
+    // Wider than the phone: the pages scroll sideways, the page itself does not.
+    const strip = page.locator('.guide-viewer__pages');
+    expect(
+      await strip.evaluate((element) => element.scrollWidth > element.clientWidth),
+    ).toBeTruthy();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBeTruthy();
+    // The page being read stays in view.
+    await expect(page.getByRole('group', { name: 'Halaman 1 dari 3' })).toBeInViewport();
+
+    await page.getByRole('button', { name: /^Zoom 150%/ }).click();
+    await expect(page.getByRole('button', { name: /^Zoom 100%/ })).toBeVisible();
+    for (let i = 0; i < 2; i += 1) await page.getByRole('button', { name: 'Perkecil' }).click();
+    await expect(page.getByRole('button', { name: /^Zoom 50%/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Perkecil' })).toBeDisabled();
+  });
+
+  test('downloads the original PDF with its uploaded name', async ({ page }) => {
+    await openReader(page, 1440);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Unduh PDF' }).click(),
+    ]);
+    // The UTF-8 name wins over the ASCII fallback.
+    expect(download.suggestedFilename()).toBe('Panduan Submit Voice.pdf');
+    const saved = await readFile(await download.path());
+    expect(saved.equals(samplePdf)).toBeTruthy();
+  });
+
+  test('says so when the download fails and stays in the reader', async ({ page }) => {
+    await openReader(page);
+    await page.route(/\/file\?download=1$/, (route) =>
+      route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }),
+    );
+    await page.getByRole('button', { name: 'Unduh PDF' }).click();
+    await expect(page.getByText('PDF gagal diunduh')).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/panduan/${SUBMIT.id}$`));
+  });
+
+  test('older browsers get a button that downloads the PDF instead', async ({ page }) => {
     await page.addInitScript(() => {
       // Pretend to be a browser pdf.js 4 cannot run on.
       delete (window as { structuredClone?: unknown }).structuredClone;
@@ -115,7 +208,8 @@ test.describe('Panduan', () => {
     await mockWorkforceApi(page, { session: memberSession() });
     await mockGuides(page, [SUBMIT]);
     await page.goto(`/panduan/${SUBMIT.id}`);
-    await expect(page.getByRole('button', { name: 'Buka PDF' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unduh PDF' })).toHaveCount(2);
+    await expect(page.getByText('Browser ini belum bisa menampilkan panduan')).toBeVisible();
     await expect(page.locator('.guide-viewer__page')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Kembali ke Panduan' })).toBeVisible();
   });

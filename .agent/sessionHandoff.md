@@ -1,5 +1,37 @@
 # CARE Session Handoff
 
+## Panduan reader: zoom, pages, download and access control — 2 November 2026
+
+**Problem:** the in-app reader could search but not zoom, jump to a page or save the PDF, and `GET /api/v1/guides/{id}/file` was public. The user wanted original PDFs (no conversion to images), zoom and page navigation, a download of the original, responsive desktop/PWA display and access limited to authorised CARE accounts.
+
+**Change (`claude/care-user-guide-pdf-viewer-mm21hx`):** ADR-0075 amendment "page navigation, zoom, download and access control".
+
+- **API:**
+  - the file endpoint drops `@Public()`; `GuidesService.readFile(actor, id)` applies the list's audience rule (`audienceOf`), CARE Admin reads all, anything else is 404;
+  - `?download=1` sends `Content-Disposition: attachment`; `contentDisposition()` builds an RFC 6266 header with ASCII and UTF-8 names;
+  - `Cache-Control: private, no-store`;
+  - OpenAPI: the `download` query parameter (`scripts/enrich-openapi.ts`), regenerated `openapi.json` and contracts.
+- **Reader (`GuideViewerPage.tsx`, helpers in `guide-viewer-utils.ts`):**
+  - one sticky head (`.guide-viewer__head`) holds the bar, a toolbar (‹, page box, ›, −, %, +) and the search row;
+  - zoom 50–300 % of fit width via `--guide-zoom`; pages re-render through the existing `ResizeObserver`; the reading position and horizontal centre are kept;
+  - the strip is a block container with `overflow-x: auto`, so zoomed pages scroll sideways inside it;
+  - canvases are capped at 12 MP and released 600 px off-screen;
+  - **Unduh PDF** in the bar (and as the older-browser fallback) fetches `?download=1` same-origin and saves it via a `blob:` link; errors show "PDF gagal diunduh".
+
+**Checks (Linux container, Node 22.23.4, local Postgres 16 + pgvector):**
+
+- prettier, eslint, `pnpm typecheck`: pass;
+- web-voice Vitest: 163/163;
+- `guides.integration.test.ts`: 6/6; `guide-content-disposition.test.ts`: 4/4; API security suite: 15/15;
+- `pwa:compat-check`: passes, main 164,774 bytes gzip;
+- Playwright `workforce-guide` + `admin-guides`: 14/14; CI inventory 484 → 487;
+- in this container Chromium names a `blob:` download with non-ASCII characters "download" because no UTF-8 locale is set; with `LANG=C.UTF-8` the name is kept. The e2e test therefore uses an ASCII name; UTF-8 decoding is unit-tested.
+
+**Next:**
+
+- on a real Android phone and an iPhone Home Screen install: download a guide, zoom to 200 %, use the page box;
+- confirm a signed-out request to a guide file returns 401 on staging.
+
 ## In-app PDF reader for Panduan — 2 November 2026
 
 **Problem:** opening a guide PDF was slow, because the whole file downloaded first and Android passed it to another app. The installed app also had no way back to CARE. The user wanted to keep real PDFs so the text stays searchable. A "pages as images" approach was previewed and rejected for that reason.
