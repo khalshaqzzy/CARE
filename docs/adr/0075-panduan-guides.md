@@ -1,7 +1,7 @@
 # ADR-0075: Panduan — PDF and video guides managed in CARE Admin and shown by role
 
-- Status: Accepted (implemented on a branch, not released)
-- Date: 29 October 2026 (video links added 31 October 2026)
+- Status: Accepted (released to staging; the reader controls and file access control of the 2 November 2026 amendment are delivered through a pull request to `staging`)
+- Date: 29 October 2026 (video links added 31 October 2026; in-app reader, reader controls and file access control amended 2 November 2026)
 - Related: PRD §11.6 and §23.1, ADR-0069 (tiered closure approval), ADR-0047 (shared validation)
 
 ## Context
@@ -267,11 +267,11 @@ They also wanted the text to stay searchable, so turning pages into images was r
 
 - The CARE team supplies the actual guides and videos. Until the first upload, the Panduan page is empty.
 - A FAQ can be published as another PDF. An in-app FAQ section can be added later on the same page if searchable text is wanted.
-- If a guide is ever needed before sign-in (for example a login guide), the login page can link to a guide's public file URL.
+- _(Superseded by the access-control amendment.)_ If a guide is ever needed before sign-in (for example a login guide), the login page can link to a guide's public file URL. Since that amendment, guide files need a session; a pre-sign-in guide must be published another way.
 
 ## Amendment — 2 November 2026: page navigation, zoom, download and access control
 
-The reader could search but not zoom, jump to a page or save the file, and the file endpoint was still public. The CARE team asked for:
+The reader could search but not zoom, jump to a page or save the file, and the file endpoint was still public. The following were required:
 
 - zoom in and out and page navigation;
 - a download of the original PDF;
@@ -333,3 +333,29 @@ pdf.js renders the original file in the browser, which already solved all of thi
 - `workforce-guide.spec.ts` (10 tests) adds: page navigation (buttons, typed page, the box following scroll, disabled ends); zoom to 150 % with a canvas re-rendered over 1.4× wider, sideways scrolling only inside the strip, back to 100 % and down to 50 %; the download saving the original bytes under the uploaded name; a failed download staying in the reader with a message; and the older-browser **Unduh PDF** fallback.
 - The CI inventory is 487.
 - Still required after deploy: on a real Android phone and an iPhone Home Screen install, download a guide from the reader and check zoom and page navigation.
+
+**Alternatives considered.**
+
+- _Pages rendered to images on the server._ Rejected for the reasons above (text layer lost, rasteriser in the API image, many derived files, a download that differs from the upload).
+- _The browser's own PDF viewer in an `<iframe>` or new tab._ Android Chrome cannot show a PDF in an `<iframe>`, and a new tab leaves the installed app; on iOS Home Screen apps it also loses the session cookie, which access control now requires.
+- _A signed, short-lived file URL instead of the session cookie._ It would keep a public-looking link working outside the app, but adds a token scheme, a second authorisation path and links that can be forwarded while valid. With every workforce read now same-origin inside the app, the session cookie is enough.
+- _Keeping the file endpoint public._ Simpler, but any forwarded id stays readable without an account, and it was the only document endpoint outside the session model.
+- _A third-party viewer component or a newer pdf.js._ Not needed: zoom, page navigation and download are a thin layer over the pdf.js 4.10.38 API already shipped, with no new dependency.
+- _CSS scaling of rendered canvases for zoom._ Cheaper, but text blurs above 100 %; re-rendering at the new size keeps text sharp, with the memory caps described above.
+- _A direct `<a href="?download=1" download>` link._ It would navigate away on failure (an expired session shows a JSON error page with no way back in a standalone PWA); the `fetch` and `blob:` approach keeps errors in the reader.
+
+**Implementation details.**
+
+- API: `apps/api/src/guides/guides.controller.ts` (file endpoint, `contentDisposition()`), `apps/api/src/guides/guides.service.ts` (`readFile(actor, id)`, `audienceOf(actor)` shared with `listForActor`), `apps/api/scripts/enrich-openapi.ts` (the `download` query parameter), regenerated `apps/api/openapi.json` and `packages/contracts/src/generated.ts`.
+- Reader: `apps/web-voice/src/features/guide/GuideViewerPage.tsx`; pure helpers (`guideFileUrl`, `ZOOM_STEPS`/`zoomStep`, `pageAt`, `scrollParent`, `fileNameFrom`, `downloadGuide`) in `guide-viewer-utils.ts`; styles in `apps/web-voice/src/styles.css` (`.guide-viewer__head`, toolbar, `--guide-zoom`, strip as a block container with `overflow-x: auto`; the unused `.guide-viewer__open` rules are removed).
+- No database migration, no new environment variable and no new dependency. The Caddy and nginx configuration are unchanged.
+
+**Risks and follow-up.**
+
+- Each range request validates the session and so touches the database; for 20 MB guides read in chunks this is a handful of extra session lookups per reading, acceptable at current load and to be revisited only if guide traffic shows up in the capacity baseline.
+- A session that expires while the reader is open stops further pages from loading; reopening after sign-in recovers. A clear in-reader message for this case can be added if it is reported.
+- The download is buffered in browser memory (at most 20 MB) before it is saved.
+- Pinch-zoom uses the browser's own zoom without re-rendering; the toolbar zoom is the sharp path.
+- On desktop at high zoom the horizontal scrollbar sits at the bottom of the strip rather than the viewport.
+- Not yet exercised on real Android and iPhone Home Screen installs; this is the first check on staging, together with a signed-out request to a guide file returning 401.
+- A Chromium without a UTF-8 locale names a `blob:` download with non-ASCII characters "download"; real devices use a UTF-8 locale, and the header decoding is unit-tested.

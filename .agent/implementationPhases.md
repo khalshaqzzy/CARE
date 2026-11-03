@@ -2,7 +2,7 @@
 
 ## Panduan reader: zoom, pages, download and access control — 2 November 2026
 
-Phase 13 remains the only `in_progress` phase. On `claude/care-user-guide-pdf-viewer-mm21hx` (not released): the reader gains page navigation, zoom that re-renders pages, and **Unduh PDF** for the original file; the guide file endpoint now needs a session and the guide's audience (CARE Admin reads all). PDFs stay PDFs; image conversion stays rejected. See the ADR-0075 amendment; checks are in sessionHandoff.md.
+Phase 13 remains the only `in_progress` phase. On `feat/guide-viewer-controls` (from `origin/staging` 81c4410; delivered to `staging` through a pull request, 3 November 2026): the reader gains page navigation, zoom that re-renders pages, and **Unduh PDF** for the original file; the guide file endpoint now needs a session and the guide's audience (CARE Admin reads all). PDFs stay PDFs; image conversion stays rejected. See the ADR-0075 amendment; checks are in sessionHandoff.md.
 
 ## In-app PDF reader for Panduan — 2 November 2026
 
