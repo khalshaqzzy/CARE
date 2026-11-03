@@ -7,6 +7,7 @@ import { useAuth } from '@care/frontend-core';
 import { clipParticipantName } from '../../lib/handling-target';
 import { VoiceHero } from '../../components/VoiceHero';
 import { MediaGallery } from '../../components/MediaGallery';
+import { PhotoSourceSheet, usePhotoSource } from '../../components/PhotoSource';
 import { formatDayDivider, formatNotificationTime } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useConversation } from '../../lib/useConversation';
@@ -375,6 +376,7 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const source = usePhotoSource(fileInput);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
 
   // PRD §16: opening the room focuses the composer so the reporter or PIC can
@@ -406,7 +408,7 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
         <IconButton
           aria-label="Lampirkan gambar"
           className="chat-composer__attach"
-          onClick={() => fileInput.current?.click()}
+          onClick={source.start}
           disabled={pending || files.length >= 5}
         >
           <ImagePlus size={19} />
@@ -433,6 +435,14 @@ function Composer({ send }: { send: ReturnType<typeof useConversation>['send'] }
             setFiles((current) => [...current, ...picked]);
             event.currentTarget.value = '';
           }}
+        />
+        <PhotoSourceSheet
+          open={source.open}
+          onOpenChange={source.setOpen}
+          galleryRef={fileInput}
+          onFiles={(picked) =>
+            setFiles((current) => [...current, ...picked.slice(0, 5 - current.length)])
+          }
         />
         <Button
           type="submit"

@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Camera or gallery for photo attachments — 3 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/android-camera-capture` (from `origin/staging` ec44ef7, not released): on touch devices every photo button (Create/Edit Voice, chat, closure evidence) opens a **Tambah foto** sheet with **Ambil foto** (a `capture="environment"` input that opens the rear camera) and **Pilih dari galeri** (the existing multi-file input). This restores direct camera capture on Android 14+, where Chrome's photo picker has no camera entry. Mouse devices keep the direct file dialog. File types, limits, compression and server validation are unchanged. See ADR-0077 and PRD §12; checks are in sessionHandoff.md.
+
 ## Staging container gate: libexpat 2.10.0 rollover — 3 November 2026
 
 Phase 13 remains the only `in_progress` phase. The staging delivery of PR #123 was blocked by a retired Alpine package revision (`libexpat=2.9.0-r0`); `fix/pin-libexpat-2.10` bumps both web images to `2.10.0-r0` (ADR-0041). Release of the Panduan reader controls waits on this fix.

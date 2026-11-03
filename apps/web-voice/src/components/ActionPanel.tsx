@@ -22,6 +22,7 @@ import { formatTargetDate, previewHandlingTarget } from '../lib/handling-target'
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
+import { PhotoSourceSheet, usePhotoSource } from './PhotoSource';
 
 type Action =
   | 'respond-sheet'
@@ -1194,8 +1195,9 @@ function CloseDialog({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const source = usePhotoSource(fileInput);
 
-  const uploadEvidence = async (files: FileList) => {
+  const uploadEvidence = async (files: FileList | File[]) => {
     const room = 5 - evidence.length;
     const picked = Array.from(files).slice(0, room);
     if (!picked.length) return;
@@ -1233,7 +1235,7 @@ function CloseDialog({
           <button
             type="button"
             className="closure-evidence__add"
-            onClick={() => fileInput.current?.click()}
+            onClick={source.start}
             disabled={uploading || evidence.length >= 5}
           >
             <ImagePlus size={16} /> Tambah foto
@@ -1248,6 +1250,12 @@ function CloseDialog({
           onChange={(event) => {
             if (event.target.files) void uploadEvidence(event.target.files);
           }}
+        />
+        <PhotoSourceSheet
+          open={source.open}
+          onOpenChange={source.setOpen}
+          galleryRef={fileInput}
+          onFiles={(files) => void uploadEvidence(files)}
         />
         {uploading ? <p className="dialog-copy">Memproses foto…</p> : null}
         {uploadError ? (

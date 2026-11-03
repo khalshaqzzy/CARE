@@ -503,6 +503,15 @@ Batas lampiran:
 - JPEG, PNG, atau WebP;
 - dapat memilih file atau memakai camera capture yang didukung browser.
 
+Di perangkat sentuh, setiap tombol tambah foto (Buat/Edit Voice, chat, bukti
+penyelesaian) membuka sheet **Tambah foto** dengan dua pilihan: **Ambil foto**
+(input `capture="environment"`, satu foto langsung dari kamera belakang) dan
+**Pilih dari galeri** (input multi-file yang sama seperti sebelumnya). Ini
+diperlukan karena Chrome Android 14+ membuka photo picker sistem tanpa opsi
+kamera untuk input khusus gambar. Perangkat mouse/desktop langsung membuka
+dialog file. Batas format, jumlah, ukuran, dan validasi server tidak berubah
+(ADR-0077).
+
 Detail Lokasi menjalankan location review otomatis setelah debounce/on-blur ketika nilai memenuhi minimum length. Review di-cache berdasarkan content hash. Hasil `INCOMPLETE` menampilkan warning dan maksimal tiga pertanyaan saran di bawah field; pertanyaan tersebut adalah guidance, bukan field/action wajib. Kegagalan review menampilkan degraded state tetapi tidak memblokir form.
 
 Button **Selesai** menyimpan/update `VoiceDraft`, memvalidasi media, lalu meminta AI classification. Private meminta severity saja; General meminta category dan severity. Button tidak mengirim Voice kepada responder.
