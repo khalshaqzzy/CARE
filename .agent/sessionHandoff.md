@@ -1,5 +1,15 @@
 # CARE Session Handoff
 
+## Staging container gate: libexpat 2.10.0 rollover — 3 November 2026
+
+**Problem:** PR #123 (Panduan reader controls) merged into `staging` as `4debef3`, but run 41581160683 (and the PR run 41581041687) failed "Production containers and routing", so the release gate failed and nothing deployed (`/ready` stayed on `81c4410`). Cause: both nginx runtimes pin `libexpat=2.9.0-r0`; Alpine v3.24 main replaced it with `2.10.0-r0` and retired the old revision, so `apk add` could not select it. Unrelated to the Panduan change.
+
+**Change (`fix/pin-libexpat-2.10`, from `origin/staging` 4debef3):** `apps/web-voice/Dockerfile` and `apps/web-admin/Dockerfile` pin `libexpat=2.10.0-r0`; ADR-0041 section "3 November 2026: libexpat 2.10.0 rollover". All other pins are still current in the index.
+
+**Checks:** the full pinned `apk add` on the pinned nginx base (amd64) succeeds; Trivy 0.70.0 on that patched base with CI flags reports 0 High/Critical.
+
+**Next:** merge the fix PR, confirm the staging run passes and `/ready` `releaseSha` moves past `81c4410` (it then also carries #123), then confirm a signed-out `GET /api/v1/guides/{id}/file` returns 401 and do the real-device reader checks listed below.
+
 ## Panduan reader: zoom, pages, download and access control — 2 November 2026
 
 **Problem:** the in-app reader could search but not zoom, jump to a page or save the PDF, and `GET /api/v1/guides/{id}/file` was public. The user wanted original PDFs (no conversion to images), zoom and page navigation, a download of the original, responsive desktop/PWA display and access limited to authorised CARE accounts.

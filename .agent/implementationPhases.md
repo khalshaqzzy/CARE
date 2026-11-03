@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Staging container gate: libexpat 2.10.0 rollover — 3 November 2026
+
+Phase 13 remains the only `in_progress` phase. The staging delivery of PR #123 was blocked by a retired Alpine package revision (`libexpat=2.9.0-r0`); `fix/pin-libexpat-2.10` bumps both web images to `2.10.0-r0` (ADR-0041). Release of the Panduan reader controls waits on this fix.
+
 ## Panduan reader: zoom, pages, download and access control — 2 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/guide-viewer-controls` (from `origin/staging` 81c4410; delivered to `staging` through PR #123, 3 November 2026): the reader gains page navigation, zoom that re-renders pages, and **Unduh PDF** for the original file; the guide file endpoint now needs a session and the guide's audience (CARE Admin reads all). PDFs stay PDFs; image conversion stays rejected. See the ADR-0075 amendment; checks are in sessionHandoff.md.

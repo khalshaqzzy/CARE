@@ -91,3 +91,20 @@ served routes. The CVE is therefore registered as the first exact entry in
 
 Before the expiry, the entry is removed once a fixed v3 is released or Caddy no
 longer depends on v3, and re-justified otherwise.
+
+## 3 November 2026: libexpat 2.10.0 rollover
+
+The staging run for `4debef3` (PR #123) and its pull-request run failed in
+"Production containers and routing": `apk add` in both nginx runtimes could
+not select `libexpat=2.9.0-r0`, because Alpine v3.24 main had replaced it with
+`2.10.0-r0`, and the CDN and `dl-4` indexes no longer listed the old revision.
+The fail-closed pin stopped the build before release, so staging kept serving
+`81c4410`. Both web images now pin `libexpat=2.10.0-r0`. Every other pin
+(`libcrypto3`, `libssl3`, `libuuid`, `pcre2`, `tiff`, `libx11`, `brotli-libs`,
+`curl`, `libcurl`) is still the current index revision and stays unchanged.
+
+The full pinned `apk add` was run on the pinned nginx base (`linux/amd64`)
+against the `dl-4` repository URL used by the Dockerfiles. A local Trivy 0.70.0
+scan of that patched base with the CI flags (vulnerabilities, High/Critical,
+unfixed included) reports 0 findings. The hosted container and Trivy gates
+remain the release checks.
