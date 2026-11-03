@@ -107,7 +107,7 @@ test('iOS 11.3 keeps responder detail and online actions available', async ({ pa
   await expect(page).toHaveURL(/\/voices\/voice-legacy\/chat$/);
   await expect(page.getByRole('heading', { name: 'Percakapan' })).toBeVisible();
   await page.getByPlaceholder('Tulis pesan…').fill('Pesan dari Safari lama');
-  await page.locator('.chat-composer input[type="file"]').setInputFiles({
+  await page.locator('.chat-composer input[type="file"][multiple]').setInputFiles({
     name: 'legacy.png',
     mimeType: 'image/png',
     buffer: Buffer.from('legacy-image'),

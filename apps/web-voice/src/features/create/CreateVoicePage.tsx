@@ -36,6 +36,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DotMatrixOrb } from '../../components/DotMatrixOrb';
+import { PhotoSourceSheet, usePhotoSource } from '../../components/PhotoSource';
 import {
   AREA_LABELS,
   formatCategoryName,
@@ -533,6 +534,7 @@ function MediaInput({
     alt: `Lampiran ${index + 1}`,
   }));
   const viewerOpen = viewerIndex !== null && viewerIndex < attachments.length;
+  const source = usePhotoSource(inputRef);
   return (
     <section className="media-input" aria-label="Foto lampiran">
       <div className="media-input__head">
@@ -569,7 +571,7 @@ function MediaInput({
             <button
               type="button"
               className="media-input__dropzone"
-              onClick={() => inputRef.current?.click()}
+              onClick={source.start}
               disabled={uploading}
               aria-label={`Tambah foto, sisa ${remaining}`}
               aria-describedby="atsg-photo-guidance"
@@ -602,6 +604,12 @@ function MediaInput({
           if (files.length) void onPick(files);
           event.currentTarget.value = '';
         }}
+      />
+      <PhotoSourceSheet
+        open={source.open}
+        onOpenChange={source.setOpen}
+        galleryRef={inputRef}
+        onFiles={(files) => void onPick(files)}
       />
       <Lightbox
         open={viewerOpen}

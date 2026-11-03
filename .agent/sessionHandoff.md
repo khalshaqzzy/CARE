@@ -1,5 +1,63 @@
 # CARE Session Handoff
 
+## Camera or gallery for photo attachments — 3 November 2026
+
+**Objective:** on Android, a reporter could not take a photo directly from CARE when adding photos to a Voice. The fix had to keep the security posture and existing behaviour.
+
+**Cause:** all three photo inputs (Create/Edit Voice, chat composer, closure evidence) were `<input type="file" accept="image/jpeg,image/png,image/webp" multiple>`. Since Android 14, Chrome sends image-only inputs to the system photo picker, which has no camera entry. iOS Safari still offers "Take Photo", so only Android was affected. Not a CARE header or permission issue: `Permissions-Policy: camera=(self)` is already set, and file inputs hand off to the camera app.
+
+**Phase:** Phase 13 stays the only `in_progress` phase. The new entry is in implementationPhases.md.
+
+**Branch:** `feat/android-camera-capture` in worktree `../CARE-camera`, from `origin/staging` ec44ef7. Uncommitted, no PR yet. The `feat/time-for-team` working tree in the main checkout was left as it was; the prototype edits used for the preview there were reverted.
+
+**Design choice:** two layouts were rendered from the real app at 360 px (main checkout `docs/preview-camera/`, untracked): A, separate Kamera/Galeri buttons; B, one unchanged **Tambah foto** button that opens a sheet. The product owner chose **B**.
+
+**Change (ADR-0077, PRD §12):**
+
+- New `apps/web-voice/src/components/PhotoSource.tsx`:
+  - `prefersSourceChoice()` uses `(pointer: coarse)`, read at tap time; missing or throwing `matchMedia` → `false`;
+  - `usePhotoSource(galleryRef)` → `{ open, setOpen, start }`; `start` opens the sheet on touch devices, otherwise clicks the gallery input directly (desktop unchanged);
+  - `PhotoSourceSheet`: a hidden camera input (`capture="environment"`, same accept allowlist, no `multiple`, `data-photo-source="camera"`) plus a `Dialog` sheet titled **Tambah foto** with **Ambil foto** and **Pilih dari galeri**. Each option closes the sheet and clicks its input synchronously, so the picker opens within the tap's user activation.
+- `CreateVoicePage.tsx` (`MediaInput`), `ConversationPage.tsx` (`Composer`) and `ActionPanel.tsx` (closure evidence) call `source.start` from their existing buttons and pass their gallery input and handler to the sheet. `uploadEvidence` now accepts `FileList | File[]`.
+- `styles.css`: `.photo-source`, `.photo-source__option`.
+- No API, schema, migration, env, header or dependency change. Camera photos go through the same paths as gallery photos: five-file limit, `compressPhoto` before upload, and server checks for MIME allowlist, signature, 10 MB, 40 MP and 10,000 px.
+
+**Decisions:**
+
+- Not using `accept="image/*,text/plain"` or `android/allowCamera`: they bring back the old chooser but allow any file type.
+- Not adding `capture` to the existing input: that would remove gallery and multi-select.
+- Not using `getUserMedia`: it would need a custom viewfinder and would fail on legacy iOS.
+
+**Tests:**
+
+- Vitest `PhotoSource.test.ts` (3).
+- Playwright `e2e/workforce-photo-source.spec.ts` (4):
+  - touch on draft edit: sheet with Axe check, camera chooser has `capture`, the allowlist and no `multiple`, upload to the draft; gallery chooser has `multiple` and no `capture`;
+  - touch chat: camera photo is added to the composer;
+  - touch closure: camera photo is uploaded as evidence;
+  - mouse: direct chooser, no sheet.
+- `workforce-legacy.spec.ts` now targets `.chat-composer input[type="file"][multiple]`, because the composer has two file inputs.
+- `validation.test.mjs` inventory goes from 487 to 491.
+- No visual capture change: capture scenarios use a desktop pointer.
+
+**Checks run (Windows, Node 22.23.4, worktree):**
+
+- web-voice `tsc --noEmit`, eslint on changed files, prettier (`--end-of-line auto`) on changed files: pass;
+- web-voice Vitest: 166/166;
+- web-voice and web-admin builds: pass;
+- Playwright:
+  - new spec plus `workforce-legacy` (legacy-ios): 10/10;
+  - `voice-consent`, `workforce-journeys`, `workforce-a11y`, `voice-lifecycle`: pass;
+  - full `chromium` + `pwa`: 273 passed and 7 failed in admin-a11y, admin-journeys and workforce-guide, which this change does not touch. A rerun of those three specs showed different flaky failures; with `--workers=2` they passed 61/61. This is load flakiness on this laptop.
+- `validation.test.mjs` "partitions cover every test exactly once" (491): pass;
+- Gitleaks `dir` scan: no leaks.
+- Not run locally: visual capture, fullstack, integration, performance and hosted-only gates. The hosted PR run is the authority.
+
+**Next:**
+
+1. Commit on `feat/android-camera-capture`, push, open a PR to `staging`, merge after CI passes, and check `/ready` `releaseSha`.
+2. On a real Android 14+ phone (installed PWA and Chrome tab) and an iPhone Home Screen install, confirm that **Ambil foto** opens the rear camera and the photo uploads in Create Voice, chat and Tutup Voice. Installed phones may need the PWA update reload before the change shows.
+
 ## Staging container gate: libexpat 2.10.0 rollover — 3 November 2026
 
 **Problem:** PR #123 (Panduan reader controls) merged into `staging` as `4debef3`, but run 41581160683 (and the PR run 41581041687) failed "Production containers and routing", so the release gate failed and nothing deployed (`/ready` stayed on `81c4410`). Cause: both nginx runtimes pin `libexpat=2.9.0-r0`; Alpine v3.24 main replaced it with `2.10.0-r0` and retired the old revision, so `apk add` could not select it. Unrelated to the Panduan change.
