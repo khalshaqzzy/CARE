@@ -14,7 +14,7 @@
   - PRD §11.6: the stale "file endpoint is public, opened in a new tab" line now states the session + audience rule, 401/404, `?download=1`, `private, no-store`, and that guides cannot be linked before sign-in;
   - ADR-0075: status/date updated; the old "link a public file URL from the login page" follow-up marked superseded; the amendment gains alternatives considered (server images, iframe/new tab, signed URLs, staying public, a third-party viewer, CSS-scaled zoom, a plain `download` link), implementation details (files; no migration, env var, dependency or proxy change) and risks/follow-up;
   - this handoff and implementationPhases point at the real branch.
-- Deploy is the standard staging path: PR to `staging`, required CI, merge, `deploy-staging`, then `/ready` `releaseSha`.
+- Deploy is the standard staging path: PR #123 to `staging`, required CI, merge, `deploy-staging`, then `/ready` `releaseSha`.
 
 **Decisions:**
 
