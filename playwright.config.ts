@@ -50,7 +50,8 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: /(?:\.visual|pwa|fullstack|workforce-legacy|workforce-push)\.spec\.ts/,
+      testIgnore:
+        /(?:\.visual|pwa|fullstack|workforce-legacy|workforce-guide-webkit|workforce-push)\.spec\.ts/,
     },
     {
       name: 'visual',
@@ -75,7 +76,8 @@ export default defineConfig({
           'Mozilla/5.0 (iPhone; CPU iPhone OS 11_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/11.0 Mobile/15E148 Safari/604.1',
         serviceWorkers: 'block',
       },
-      testMatch: /workforce-legacy\.spec\.ts/,
+      // WebKit specs: the iOS 11.3 legacy journey and the Panduan reader on Safari.
+      testMatch: /workforce-(?:legacy|guide-webkit)\.spec\.ts/,
     },
     ...(isFullStack
       ? [

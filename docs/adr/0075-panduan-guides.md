@@ -1,7 +1,7 @@
 # ADR-0075: Panduan — PDF and video guides managed in CARE Admin and shown by role
 
-- Status: Accepted (released to staging; the reader controls and file access control of the 2 November 2026 amendment are delivered through a pull request to `staging`)
-- Date: 29 October 2026 (video links added 31 October 2026; in-app reader, reader controls and file access control amended 2 November 2026)
+- Status: Accepted (released to staging, including the 2 November 2026 reader controls and file access control; the 4 November 2026 pdf.js 6 upgrade is delivered through a pull request to `staging`)
+- Date: 29 October 2026 (video links added 31 October 2026; in-app reader, reader controls and file access control amended 2 November 2026; pdf.js 6 for Safari 4 November 2026)
 - Related: PRD §11.6 and §23.1, ADR-0069 (tiered closure approval), ADR-0047 (shared validation)
 
 ## Context
@@ -220,11 +220,11 @@ They also wanted the text to stay searchable, so turning pages into images was r
   - **Cari** searches every page's text, jumps to the first page with a hit, and centres the hit with a yellow highlight;
   - it shows "Hal N · i/n", and ▲▼ move between pages with hits.
 - **pdf.js delivery:**
-  - `pdfjs-dist` 4.10.38 (legacy build, MIT/Apache-2.0) is a build-time dependency of web-voice;
-  - the `care-pdfjs-vendor` Vite plugin emits `pdf.min.js`, `pdf.worker.min.js` and `standard_fonts/` to `dist/pdfjs/4.10.38/`;
+  - `pdfjs-dist` 4.10.38 (legacy build, MIT/Apache-2.0) is a build-time dependency of web-voice (6.4.299 since the 4 November 2026 amendment);
+  - the `care-pdfjs-vendor` Vite plugin emits `pdf.min.js`, `pdf.worker.min.js` and `standard_fonts/` to `dist/pdfjs/<version>/` (plus `wasm/` JavaScript image decoders since 6.4.299);
   - the files are outside `assets/`, so they are not part of the legacy bootstrap chunk, not checked by `pwa:compat-check`, and not precached by the service worker;
   - nginx serves `/pdfjs/` with `Cache-Control: public, max-age=31536000, immutable` (not on 404s), so a phone downloads the reader once per pdf.js version;
-  - `isEvalSupported: false` keeps pdf.js inside the existing CSP.
+  - `isEvalSupported: false` keeps pdf.js inside the existing CSP (pdf.js 6 removed the option because it no longer uses `eval`).
 - **Older browsers:**
   - pdf.js 4 needs a modern engine;
   - when `structuredClone`, `ReadableStream` or `Array.prototype.at` is missing (for example iOS before 15.4), the reader shows only the bar and a **Buka PDF** button, the earlier behaviour;
@@ -340,7 +340,7 @@ pdf.js renders the original file in the browser, which already solved all of thi
 - _The browser's own PDF viewer in an `<iframe>` or new tab._ Android Chrome cannot show a PDF in an `<iframe>`, and a new tab leaves the installed app; on iOS Home Screen apps it also loses the session cookie, which access control now requires.
 - _A signed, short-lived file URL instead of the session cookie._ It would keep a public-looking link working outside the app, but adds a token scheme, a second authorisation path and links that can be forwarded while valid. With every workforce read now same-origin inside the app, the session cookie is enough.
 - _Keeping the file endpoint public._ Simpler, but any forwarded id stays readable without an account, and it was the only document endpoint outside the session model.
-- _A third-party viewer component or a newer pdf.js._ Not needed: zoom, page navigation and download are a thin layer over the pdf.js 4.10.38 API already shipped, with no new dependency.
+- _A third-party viewer component or a newer pdf.js._ Not needed for these controls: zoom, page navigation and download are a thin layer over the pdf.js API already shipped, with no new dependency. (pdf.js was later upgraded for a Safari rendering defect; see the 4 November 2026 amendment.)
 - _CSS scaling of rendered canvases for zoom._ Cheaper, but text blurs above 100 %; re-rendering at the new size keeps text sharp, with the memory caps described above.
 - _A direct `<a href="?download=1" download>` link._ It would navigate away on failure (an expired session shows a JSON error page with no way back in a standalone PWA); the `fetch` and `blob:` approach keeps errors in the reader.
 
@@ -359,3 +359,54 @@ pdf.js renders the original file in the browser, which already solved all of thi
 - On desktop at high zoom the horizontal scrollbar sits at the bottom of the strip rather than the viewport.
 - Not yet exercised on real Android and iPhone Home Screen installs; this is the first check on staging, together with a signed-out request to a guide file returning 401.
 - A Chromium without a UTF-8 locale names a `blob:` download with non-ASCII characters "download"; real devices use a UTF-8 locale, and the header decoding is unit-tested.
+
+## Amendment — 4 November 2026: pdf.js 6 for correct colours on Safari
+
+**Context.** After the reader controls reached staging, the Panduan Member guide showed a pink background instead of blue when opened in the reader on an iPhone, while **Unduh PDF** saved the correct, byte-identical file. The cause was reproduced locally with the uploaded guide:
+
+- The guides are exported by a Chromium/Skia-based design tool. Each soft blue-purple glow in the background is drawn as a hot-pink (`#ff69b4`) layer seen through a _luminosity_ soft mask whose dark areas hide it.
+- pdf.js 4.10.38 composes luminosity masks by setting `CanvasRenderingContext2D.filter` to an SVG luminosity filter. WebKit (Safari and every browser on iOS) does not implement `ctx.filter`, so the assignment is ignored and the mask is applied by alpha instead of luminosity. The mask is opaque, so nothing is hidden and the pink layer covers the page.
+- Chromium implements `ctx.filter`, so Android Chrome and desktop Chrome showed the guide correctly. Embedded photos and screenshots were never affected; only the vector background was.
+- The guide spec ran only in Chromium, so the defect was not caught before release.
+
+**Decision.**
+
+- `pdfjs-dist` is upgraded from 4.10.38 to **6.4.299** (released 3 October 2026; integrity checked against the registry). Its canvas back end renders luminosity masks correctly in WebKit. The same guide now renders identically in WebKit and Chromium (average page colour within 1–2 levels).
+- API adjustments in `GuideViewerPage`:
+  - `isEvalSupported` is removed (pdf.js 6 no longer uses `eval`; PostScript functions use its own interpreter);
+  - the document is released with `loadingTask.destroy()` (`PDFDocumentProxy.destroy()` was removed);
+  - pages render with `canvas` instead of `canvasContext`.
+- **Image decoders and the CSP.** pdf.js 6 moved its JPEG 2000 (OpenJPEG) and JBIG2 decoders out of the worker into `wasm/`, loaded from `wasmUrl`; without it such images would no longer render. The CSP (`script-src 'self'`, no `wasm-unsafe-eval`) does not allow WebAssembly, so:
+  - the reader sets `useWasm: false` and `wasmUrl: /pdfjs/<version>/wasm/`;
+  - the Vite plugin vendors only `openjpeg_nowasm_fallback.js` and `jbig2_nowasm_fallback.js` (about 600 KB, fetched only for PDFs that contain such images), and its dev middleware serves `.js` as JavaScript;
+  - the `.wasm` files, the ICC colour-management module (`qcms`) and `iccs/` are not shipped. Rendering the current Member and Responder guides with and without them produced identical pixels, and colour management would need `wasm-unsafe-eval`.
+- The older-browser check (`structuredClone`, `ReadableStream`, `Array.prototype.at`) is unchanged; the 6.4.299 legacy build carries polyfills for the newer built-ins it uses.
+
+**Alternatives considered.**
+
+- _Patch pdf.js 4.10 or shim `ctx.filter` in the reader._ A shim would have to re-implement luminosity compositing in JavaScript and track pdf.js internals that are not part of its API. Upgrading uses the maintained implementation.
+- _Ask the CARE team to re-export guides without soft masks._ It hides the defect for one file and breaks again with the next design.
+- _Rasterise pages on the server._ Rejected earlier in this ADR (loses the text layer; the download would differ from the upload).
+- _Ship the WebAssembly decoders and add `wasm-unsafe-eval` to the CSP._ It would add ICC colour management, but widens the script policy for no visible difference on the current guides.
+
+**Consequences.**
+
+- iPhone and iPad users see guides in the colours they were designed with.
+- The reader's first download is about the same size (main module 524 KB vs 398 KB, worker 1.32 MB vs 1.42 MB, before compression); the versioned path `/pdfjs/6.4.299/` turns over the year-long cache automatically.
+- The workforce main chunk is unchanged; the reader stays lazy-loaded.
+- ICC profiles in embedded images are still ignored (as in 4.10), which matches the rest of the app's sRGB rendering.
+- `@napi-rs/canvas` (an optional Node-only dependency of `pdfjs-dist`, never shipped to browsers) moves from 0.1.100 to 1.1.0 in the lockfile.
+
+**Validation.**
+
+- `e2e/workforce-guide-webkit.spec.ts` (2 tests) runs in the `legacy-ios` project (WebKit, modern iPhone user agent):
+  - a hand-built PDF with a blue page and a pink layer behind a luminosity soft mask; the centre (mask white) must be pink and the corner (mask black) blue. With pdf.js 4.10 the corner renders pink in WebKit, which reproduces the defect;
+  - a page filled by a 16 × 16 JPEG 2000 image must render green, proving the vendored JavaScript decoder loads under `useWasm: false`.
+- `playwright.config.ts`: the `legacy-ios` project matches `workforce-(legacy|guide-webkit).spec.ts`; the Chromium project ignores the new spec. CI inventory 491 → 493.
+- Locally (Windows, against the production build): the WebKit spec 8/8 over four repeats; `workforce-guide.spec.ts` (Chromium, 10), the new WebKit spec and `workforce-legacy.spec.ts` (6) all pass together; web-voice Vitest 166/166; typecheck, eslint, prettier; `pwa:compat-check` (main 165,322 bytes gzip).
+- Still required after deploy: open the Member guide in the installed app on an iPhone and confirm the blue background.
+
+**Risks and follow-up.**
+
+- A future pdf.js upgrade must keep the WebKit spec green and re-check which files under `wasm/` are needed.
+- The first WebKit open compiles the larger reader module, so the spec allows 20 s for the first page. The time to the first page on a real iPhone is checked on staging.

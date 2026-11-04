@@ -1,5 +1,28 @@
 # CARE Session Handoff
 
+## Panduan colours on Safari: pdf.js 6 — 4 November 2026
+
+**Problem:** after PR #123/#124 reached staging (`ec44ef7`), search, zoom and download worked, but on an iPhone the in-app reader showed the Panduan Member guide's blue background as pink. **Unduh PDF** saved the correct file.
+
+**Cause (reproduced with `Panduan-Member-CARE-2.pdf`):** the design tool draws each background glow as a `#ff69b4` layer behind a luminosity soft mask. pdf.js 4.10.38 applies luminosity masks through `ctx.filter`, which WebKit does not implement, so the mask was ignored and the pink layer covered the page. Chromium supports `ctx.filter`, so Chrome/Android looked right. The guide spec only ran in Chromium. Not a CMYK/ICC or JPEG problem: images were checked and render the same in both decoders.
+
+**Change (`fix/guide-reader-pdfjs6`, rebased on `origin/staging` 7cd0b6c):** ADR-0075 amendment "pdf.js 6 for correct colours on Safari"; PRD §11.6.
+
+- `apps/web-voice/package.json`: `pdfjs-dist` 4.10.38 → 6.4.299 (lockfile: also optional Node-only `@napi-rs/canvas` 0.1.100 → 1.1.0);
+- `GuideViewerPage.tsx`: drop `isEvalSupported`, `loadingTask.destroy()`, render with `canvas`; `useWasm: false` + `wasmUrl` for the JavaScript JPEG 2000/JBIG2 decoders (the CSP blocks WebAssembly);
+- `vite.config.ts`: vendors `wasm/openjpeg_nowasm_fallback.js` and `wasm/jbig2_nowasm_fallback.js`; dev middleware serves `.js` as JavaScript;
+- `e2e/workforce-guide-webkit.spec.ts` (new, 2 tests, `legacy-ios` WebKit project): soft-masked glow colours and a JPEG 2000 image; `playwright.config.ts` routes it; CI inventory 491 → 493 (#125 had moved it to 491).
+
+**Decisions:** upgrade instead of shimming `ctx.filter`; no `wasm-unsafe-eval`, no `.wasm`/ICC files (no visible difference on the current guides); the older-browser check is unchanged.
+
+**Checks (Windows, Node 22.23.4, production build served on 127.0.0.1:4183 because 4173/4174 belonged to another session):**
+
+- harness: the uploaded guide and a hand-built masked PDF render pink in WebKit with 4.10 and blue with 6.4.299; Chromium blue with both;
+- WebKit spec 8/8 over four repeats; `workforce-guide` (Chromium 10) + new WebKit spec (2) + `workforce-legacy` (6): 18/18 with 2 workers. With many local workers some specs timed out on this laptop; CI uses 2;
+- web-voice Vitest 166/166; typecheck; eslint; prettier; `pwa:compat-check` main 165,322 bytes gzip; inventory test 493.
+
+**Next:** PR to `staging`, merge after CI, confirm `/ready` `releaseSha`; then open the Member guide in the installed app on an iPhone and confirm the blue background.
+
 ## Camera or gallery for photo attachments — 3 November 2026
 
 **Objective:** on Android, a reporter could not take a photo directly from CARE when adding photos to a Voice. The fix had to keep the security posture and existing behaviour.

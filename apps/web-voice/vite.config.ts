@@ -25,6 +25,10 @@ function pdfjsVendor(): Plugin {
     'pdf.min.js': join(pdfjsRoot, 'legacy/build/pdf.min.mjs'),
     'pdf.worker.min.js': join(pdfjsRoot, 'legacy/build/pdf.worker.min.mjs'),
   };
+  // JPEG 2000 and JBIG2 decoders, fetched only for PDFs that use them. The CSP
+  // does not allow WebAssembly, so only the JavaScript builds are served.
+  for (const decoder of ['openjpeg_nowasm_fallback.js', 'jbig2_nowasm_fallback.js'])
+    files[`wasm/${decoder}`] = join(pdfjsRoot, 'wasm', decoder);
   for (const font of readdirSync(join(pdfjsRoot, 'standard_fonts')))
     files[`standard_fonts/${font}`] = join(pdfjsRoot, 'standard_fonts', font);
   const base = `/pdfjs/${pdfjsVersion}/`;
@@ -37,7 +41,7 @@ function pdfjsVendor(): Plugin {
         if (!source) return next();
         response.setHeader(
           'Content-Type',
-          source.endsWith('.mjs') ? 'text/javascript' : 'application/octet-stream',
+          /\.m?js$/.test(source) ? 'text/javascript' : 'application/octet-stream',
         );
         response.end(readFileSync(source));
       });
