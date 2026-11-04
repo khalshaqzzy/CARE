@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
-    "pdfjs-dist": "4.10.38",
+    "pdfjs-dist": "6.4.299",
     "tailwindcss": "4.3.3"
   }
 }

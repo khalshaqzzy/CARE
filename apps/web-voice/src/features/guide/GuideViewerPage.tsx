@@ -36,7 +36,7 @@ import {
 
 const PDFJS_BASE = typeof __PDFJS_BASE__ === 'string' ? __PDFJS_BASE__ : '/pdfjs/';
 
-/** pdf.js 4 needs a modern engine; older browsers keep opening the PDF directly. */
+/** The pdf.js legacy build needs a modern engine; older browsers download the PDF instead. */
 export function canUseGuideViewer() {
   return (
     typeof window !== 'undefined' &&
@@ -122,8 +122,10 @@ export function GuideViewerPage() {
             disableAutoFetch: true,
             disableStream: true,
             rangeChunkSize: 65_536,
-            isEvalSupported: false,
             standardFontDataUrl: `${PDFJS_BASE}standard_fonts/`,
+            // The CSP blocks WebAssembly; JPEG 2000/JBIG2 use the JavaScript decoders.
+            useWasm: false,
+            wasmUrl: `${PDFJS_BASE}wasm/`,
           }).promise,
       )
       .then(async (pdf) => {
@@ -139,7 +141,7 @@ export function GuideViewerPage() {
       });
     return () => {
       cancelled = true;
-      void loaded?.destroy();
+      void loaded?.loadingTask.destroy();
     };
   }, [fileUrl, id, supported]);
 
@@ -558,7 +560,7 @@ function PdfPage({
       frame.current.style.setProperty('--total-scale-factor', String(viewport.scale));
       frame.current.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
       const render = page.render({
-        canvasContext: target.getContext('2d')!,
+        canvas: target,
         viewport,
         transform: pixelRatio === 1 ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
       });
