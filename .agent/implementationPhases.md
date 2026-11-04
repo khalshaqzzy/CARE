@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Panduan colours on Safari: pdf.js 6 — 4 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `fix/guide-reader-pdfjs6` (from `origin/staging` 7cd0b6c, not released): the Panduan reader moves to pdf.js 6.4.299 because pdf.js 4.10 ignored luminosity soft masks in WebKit and showed guide backgrounds pink on iPhone. A WebKit e2e spec now covers the reader. See the ADR-0075 amendment; checks are in sessionHandoff.md.
+
 ## Camera or gallery for photo attachments — 3 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/android-camera-capture` (from `origin/staging` ec44ef7, not released): on touch devices every photo button (Create/Edit Voice, chat, closure evidence) opens a **Tambah foto** sheet with **Ambil foto** (a `capture="environment"` input that opens the rear camera) and **Pilih dari galeri** (the existing multi-file input). This restores direct camera capture on Android 14+, where Chrome's photo picker has no camera entry. Mouse devices keep the direct file dialog. File types, limits, compression and server validation are unchanged. See ADR-0077 and PRD §12; checks are in sessionHandoff.md.
