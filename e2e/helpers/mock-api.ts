@@ -515,7 +515,7 @@ const remediationHistoryFixture = (): RemediationResolutionList => ({
   nextCursor: null,
 });
 
-/** Voices handed over to another category, waiting for CARE Admin (ADR-0079). */
+/** Voices handed over to another category, waiting for CARE Admin (ADR-0080). */
 export const categoryCorrectionsFixture = (): components['schemas']['CategoryCorrectionList'] => ({
   total: 3,
   items: [
@@ -793,7 +793,7 @@ export async function mockAdminApi(
     if (method === 'GET' && /\/api\/v1\/admin\/handovers\/[^/]+$/.test(path))
       return fulfill(200, override('adminHandoverDetail') ?? {});
     if (method === 'GET' && /\/api\/v1\/admin\/voices\/[^/]+\/handover-history$/.test(path))
-      return fulfill(200, { items: [] });
+      return fulfill(200, { items: [], picItems: [] });
     if (method === 'GET' && /\/api\/v1\/voices\/[^/]+\/handovers$/.test(path))
       return fulfill(200, {
         voice: { id: 'voice-1', displayId: 'CARE-202608-000001' },

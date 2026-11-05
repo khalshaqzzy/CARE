@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi } from '../../admin-api';
+import { PicHandover } from './PicHandover';
 import { remainingTime } from './voice-time';
 
 const STATUS = ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const;
@@ -50,6 +51,9 @@ const EVENT_LABELS: Record<string, string> = {
   ASSIGNED: 'Ditugaskan',
   REASSIGNED: 'Dialihkan',
   HANDOVER_COMPLETED: 'Dihandover',
+  ADMIN_HANDOVER_REQUESTED: 'Diserahkan ke Admin',
+  ADMIN_HANDOVER_ROUTED: 'Dialihkan Admin',
+  ADMIN_HANDOVER_RETURNED: 'Dikembalikan Admin',
   ESCALATED: 'Dinaikkan ke atasan',
   SEVERITY_CHANGED: 'Severity diubah',
   REMINDED: 'Diingatkan',
@@ -86,6 +90,7 @@ type FullDetail = {
   title: string;
   detail: string;
   status: string;
+  version: number;
   severity: string;
   area: string;
   locationDetail: string;
@@ -237,6 +242,12 @@ export function VoiceDetailPage() {
         .filter(Boolean)
         .join(' · '),
     })),
+    ...(adminHandovers.data?.picItems ?? []).map((item) => ({
+      id: item.id,
+      at: item.createdAt,
+      title: `Admin · ${item.fromName} → ${item.toName}`,
+      detail: [item.adminName, item.detail].filter(Boolean).join(': '),
+    })),
     ...(directHandovers.data?.items ?? []).map((item) => ({
       id: item.id,
       at: item.createdAt,
@@ -353,6 +364,9 @@ export function VoiceDetailPage() {
                   : 'Belum ditetapkan'}
               </Row>
             </div>
+            {careAdmin && general && voice.status !== 'CLOSED' ? (
+              <PicHandover key={voice.version} voiceId={voice.id} version={voice.version} />
+            ) : null}
             {voice.tierStages?.length ? (
               <>
                 <h3 className="admin-vd__sub">Tahap penanganan</h3>

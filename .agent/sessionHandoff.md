@@ -18,7 +18,7 @@
 **Change (ADR-0078, PRD §13.3, §14.2, §43.1, §43.5):**
 
 - `prompt.ts` → `care-classification-v1.9`: new Definitions/Examples for the five active categories, Environment dropped from the default catalog/schema, location and electrical boundary rules, `locationDetail` as untrusted input, mandatory Private rule (any actor).
-- Migration `20261105090000_category_location_boundaries`: new revision for SAFETY, FACILITY, FACILITY_REPAIR, WORK_DIFFICULTY, WELFARE (supersedes any Admin edits; history kept), archives ENVIRONMENT. SQL generated from `prompt.ts`; `domain.test.ts` asserts they match. Generator script was a scratchpad file (not kept): if Definitions change again, regenerate the CASE lists from `DEFAULT_CATEGORY_CONTEXT`.
+- Migration `20261105100000_category_location_boundaries`: new revision for SAFETY, FACILITY, FACILITY_REPAIR, WORK_DIFFICULTY, WELFARE (supersedes any Admin edits; history kept), archives ENVIRONMENT. SQL generated from `prompt.ts`; `domain.test.ts` asserts they match. Generator script was a scratchpad file (not kept): if Definitions change again, regenerate the CASE lists from `DEFAULT_CATEGORY_CONTEXT`.
 - `voices.service.ts`: General classification sends `locationDetail`, and the classification hash includes it; submit rejects a flagged General draft with `PRIVATE_VOICE_REQUIRED` (422), also after manual classification.
 - Web: `useDraftWizard.switchToPrivate`; review screen shows **Kirim sebagai Private Voice** and **Lanjut ke Private Voice** instead of **Kirim Voice**; form scrolls to **Identitas kepada Komite**.
 
@@ -30,17 +30,45 @@
 - Playwright `workforce-journeys.spec.ts` (Chromium, build served on 4183 because 4173/4174 belonged to another session): 54/54. No new tests, so the inventory count is unchanged.
 - Not run: full `verify:local`, capture, legacy WebKit, Gitleaks (run before commit), hosted CI.
 
-### Same branch: category Examples from handover corrections (ADR-0079, PRD §13.7)
+### Same branch: category Examples from handover corrections (ADR-0080, PRD §13.7)
 
 The product owner asked that the AI learn from handed-over Voices and from Admin catalog edits. Catalog edits already reach the AI on the next analysis. For handovers, option A (Admin approves) was chosen over automatic retrieval, and the dedicated page layout (B) over a section on Remediation & Route (A). Screenshots: main checkout `docs/preview-category-corrections/` (untracked). The product owner asked for this to ride the same PR; a separate worktree created first was removed after unlinking its `node_modules` junctions.
 
-- Schema/migration `20261105090100_category_correction_reviews`: `CategoryCorrectionReview` + enum `CategoryCorrectionDecision`, unique `(voiceId, toCategoryKey)`. Written by hand: `prisma migrate diff` from the migrations also prints older unrelated drift (AuditEvent/ImportBatch/OrganizationUnit/UserAccount indexes and some FKs); only the new table was kept.
+- Schema/migration `20261105100100_category_correction_reviews`: `CategoryCorrectionReview` + enum `CategoryCorrectionDecision`, unique `(voiceId, toCategoryKey)`. Written by hand: `prisma migrate diff` from the migrations also prints older unrelated drift (AuditEvent/ImportBatch/OrganizationUnit/UserAccount indexes and some FKs); only the new table was kept.
 - `CategoriesService.corrections/acceptCorrection/dismissCorrection`, `AdminCategoryCorrectionsController` (`CARE_ADMIN`), OpenAPI schemas in `enrich-openapi.ts`, regenerated `openapi.json` + `generated.ts`.
 - Admin: `features/remediation/CategoryCorrections.tsx` (`CategoryCorrectionsPage`), route `/category-corrections`, sidebar **Koreksi Kategori**, `.admin-correction*` styles; e2e mock + `categoryCorrectionsFixture`.
 
 Checks for this part: API/Admin typecheck; API unit 171/171; Admin Vitest 2/2; `voice-handover.integration` 6/6 (new corrections case); Playwright `admin-journeys` 31/31 and `admin-a11y` 21/21 (Chromium); inventory test 494 (needs a `--require` preload that spawns `pnpm` through a shell on Windows); generated-contract check passes; ESLint/Prettier clean. `validation.test.mjs` "real build verification" and "Compose fixtures" fail here on clean staging code too (Windows environment), not from this change.
 
 **Next:** Gitleaks → commit → PR into `staging` → after merge check `/ready`, the Admin category catalog (five active, Environment archived) and the Koreksi Kategori page. Then re-run the live evaluation set with shop/office pairs and peer harassment.
+
+## Admin moves a General Voice to another PIC — 5 November 2026
+
+**Objective:** in CARE Admin, let the admin hand a Voice from the Voice Explorer to any PIC by typing a name, so the Voice moves to the new PIC.
+
+**Product decisions (asked and answered):** the new PIC replaces the **route owner**; scope is **General Voices not yet Selesai**; targets are **responders only** (Department Head, Section Head, Group Leader, or an active route owner); the reason is **optional**.
+
+**Branch:** `feat/admin-pic-handover` in worktree `../CARE-admin-pic`, from `origin/staging` 50598bc. Uncommitted, no PR yet. The `feat/time-for-team` working tree in the main checkout was not touched; screenshots are in the main checkout `docs/preview-admin-pic-handover/` (untracked).
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry in implementationPhases.md. ADR-0079, PRD §44 (and §18.6 wording).
+
+**Change:**
+
+- API: `adminPicCandidates` and `adminPicHandover` in `voices.service.ts`; routes `GET /admin/voices/:id/pic-candidates?search=` and `POST /admin/voices/:id/pic-handover` (CARE_ADMIN, idempotent, `expectedVersion`, row lock). `adminHandoversForVoice` also returns `picItems`.
+- Effect: `routeOwnerId` = target; Section Head/Group Leader targets also become `currentHandlerId` (their work list only reaches handled General Voices); `handlerType` follows the target; handling unit snapshot moves; tier chain and closure approvers cleared; fresh due window; `IN_PROGRESS` → `RESPONDED` with the cycle target deleted and a pending closure report returned; open assignments ended.
+- Records: table `AdminPicHandover` (migration `20261105090000_admin_pic_handover`), event `ADMIN_HANDOVER_ROUTED` with `source: 'ADMIN_PIC_HANDOVER'` (names only, never the reason, because timeline payloads reach the reporter), audit `ADMIN_PIC_HANDOVER`, system chat note when a conversation exists, notifications to the new and old PICs.
+- OpenAPI: `AdminPicCandidates`, `AdminPicHandoverRequest`, `AdminHandoverHistory.picItems`; `openapi.json` and `generated.ts` regenerated.
+- Admin UI: `features/voices/PicHandover.tsx` inside the **Penanganan** card of `VoiceDetailPage.tsx` (search with 250 ms debounce, radio list, optional reason, success notice); handover history shows Admin moves; event labels for the three Admin handover events. Explorer copy no longer says Admin mutations are rejected (the Explorer page itself on staging has no drawer any more).
+- Tests: integration case in `voice-handover.integration.test.ts`; e2e case in `admin-improvements.spec.ts`; mock `handover-history` returns `picItems`; Playwright inventory 493 → 494.
+
+**Checks (Windows, Node 22.23.4, throwaway pgvector container on 54339):**
+
+- API typecheck, admin typecheck, eslint and prettier (end-of-line auto) on changed files; `prisma validate`; `migrate diff` shows no drift for the new table (only pre-existing unrelated differences).
+- `voice-handover.integration.test.ts` 6/6; API unit 170/170; full integration 180 passed, 1 failed + 1 hook timeout under load (`responder-matrix`, `organization-routing` 5 s transaction); both files pass 14/14 when rerun alone.
+- Playwright `admin-improvements`, `admin-explorer`, `admin-journeys`: 36/36 with one worker (with default workers six timed out on this laptop, including untouched specs); inventory list 494.
+- Not run locally: CodeQL, Trivy, hosted performance, capture gallery.
+
+**Next:** product owner reviews the screenshots; then commit, PR into `staging`, wait for CI, merge, confirm `/ready` `releaseSha`.
 
 ## Panduan colours on Safari: pdf.js 6 — 4 November 2026
 

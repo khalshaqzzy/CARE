@@ -293,6 +293,21 @@ const adminHandoverDecisionSchema = z
   .refine((value) => !(value.categoryId && value.customCategory), {
     message: 'Pilih kategori katalog atau label khusus Voice, bukan keduanya.',
   });
+const adminPicHandoverSchema = z
+  .object({
+    toAccountId: z.string().uuid(),
+    detail: z.string().trim().max(4000).optional(),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict()
+  .transform((value) => ({ ...value, detail: value.detail || undefined }));
+/** Positions a CARE Admin can hand a Voice to, besides any route-owning Manager. */
+const ADMIN_PIC_POSITIONS = ['department head', 'section head', 'group leader'];
+const ADMIN_PIC_STATUSES: VoiceStatus[] = [
+  VoiceStatus.OPEN,
+  VoiceStatus.RESPONDED,
+  VoiceStatus.IN_PROGRESS,
+];
 const HANDOVER_INVALID_STATE_MESSAGE =
   'Handover hanya tersedia sebelum Voice diproses atau ditugaskan';
 const specialReasonSchema = z.string().trim().min(1).max(500);
@@ -2536,7 +2551,347 @@ export class VoicesService {
         adminDetail: row.adminDetail,
         categoryNameSnapshot: row.categoryNameSnapshot,
       })),
+      picItems: (
+        await this.prisma.adminPicHandover.findMany({
+          where: { voiceId },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          include: {
+            fromPic: { select: { displayName: true } },
+            toPic: { select: { displayName: true } },
+            admin: { select: { displayName: true } },
+          },
+        })
+      ).map((row) => ({
+        id: row.id,
+        createdAt: row.createdAt,
+        fromName: row.fromPic.displayName,
+        toName: row.toPic.displayName,
+        adminName: row.admin.displayName,
+        detail: row.detail,
+      })),
     };
+  }
+
+  /** Responders a CARE Admin can hand an active General Voice to, by name or No. Reg. */
+  async adminPicCandidates(actor: AuthActor, voiceId: string, query: { search?: string }) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const voice = await this.prisma.voice.findFirst({
+      where: { id: voiceId, visibility: VoiceVisibility.GENERAL },
+      select: { routeOwnerId: true, currentHandlerId: true },
+    });
+    if (!voice) throw forbiddenAsNotFound();
+    const search = query.search?.trim().slice(0, 100) ?? '';
+    if (search.length < 2) return { items: [] };
+    const accounts = await this.prisma.userAccount.findMany({
+      where: {
+        accountKind: AccountKind.WORKFORCE,
+        status: AccountStatus.ACTIVE,
+        OR: [
+          { displayName: { contains: search, mode: 'insensitive' } },
+          { username: { contains: search, mode: 'insensitive' } },
+          { employee: { noReg: { contains: search, mode: 'insensitive' } } },
+        ],
+        AND: [
+          {
+            OR: [
+              {
+                employee: {
+                  memberships: {
+                    some: {
+                      snapshot: { status: 'ACTIVE' },
+                      OR: ADMIN_PIC_POSITIONS.map((position) => ({
+                        structuralPosition: { equals: position, mode: 'insensitive' as const },
+                      })),
+                    },
+                  },
+                },
+              },
+              { routeMappings: { some: { effectiveTo: null, kind: { not: RouteKind.LEGACY } } } },
+            ],
+          },
+        ],
+      },
+      orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+      take: 10,
+      select: { id: true },
+    });
+    const items = [];
+    for (const account of accounts) {
+      const target = await this.adminPicTarget(this.prisma, account.id);
+      if (!target) continue;
+      items.push({
+        id: target.id,
+        displayName: target.displayName,
+        noReg: target.noReg,
+        position: target.position,
+        department: target.unit?.department ?? null,
+        section: target.section,
+        current:
+          voice.routeOwnerId === target.id &&
+          (target.manager ? !voice.currentHandlerId : voice.currentHandlerId === target.id),
+      });
+    }
+    return { items };
+  }
+
+  /** The responder role a Voice takes on when handed to this account, or null. */
+  private async adminPicTarget(tx: Prisma.TransactionClient | PrismaService, accountId: string) {
+    const account = await tx.userAccount.findFirst({
+      where: { id: accountId, accountKind: AccountKind.WORKFORCE, status: AccountStatus.ACTIVE },
+      select: {
+        id: true,
+        displayName: true,
+        employee: {
+          select: {
+            noReg: true,
+            memberships: {
+              where: { snapshot: { status: 'ACTIVE' } },
+              take: 1,
+              select: { structuralPosition: true, section: true, organizationUnit: true },
+            },
+          },
+        },
+        routeMappings: {
+          where: { effectiveTo: null, kind: { not: RouteKind.LEGACY } },
+          select: { id: true, kind: true, organizationUnitId: true },
+        },
+      },
+    });
+    if (!account) return null;
+    const membership = account.employee?.memberships[0] ?? null;
+    const position = normalizedPosition(membership?.structuralPosition);
+    // Same capability rules as the session principal: a Department Head or a
+    // route owner is a Manager; Section Heads and Group Leaders hold by handler.
+    const manager = position === 'department head' || account.routeMappings.length > 0;
+    const handlerType = manager
+      ? HandlerType.MANAGER
+      : position === 'section head'
+        ? HandlerType.SECTION_HEAD
+        : position === 'group leader'
+          ? HandlerType.GROUP_LEADER
+          : null;
+    if (!handlerType) return null;
+    const departmentRoutes = account.routeMappings.filter(
+      (route) =>
+        route.kind === RouteKind.DEPARTMENT_HEAD || route.kind === RouteKind.DEFAULT_DEPARTMENT,
+    );
+    return {
+      id: account.id,
+      displayName: account.displayName,
+      noReg: account.employee?.noReg ?? null,
+      position: membership?.structuralPosition ?? null,
+      section: membership?.section?.trim() || null,
+      unit: membership?.organizationUnit ?? null,
+      manager,
+      handlerType,
+      routeMappingId: departmentRoutes.length === 1 ? departmentRoutes[0]!.id : null,
+    };
+  }
+
+  /**
+   * CARE Admin hands an active General Voice to another responder. The new PIC
+   * owns the route; a Section Head or Group Leader also becomes the handler,
+   * because they only see Voices they handle. Processing starts over.
+   */
+  async adminPicHandover(actor: AuthActor, voiceId: string, input: unknown, key: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const data = parse(adminPicHandoverSchema, input);
+    return this.idempotentMutation(
+      actor,
+      `admin-pic-handover:${voiceId}`,
+      key,
+      canonicalHash(data),
+      200,
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${voiceId}::uuid FOR UPDATE`;
+        const voice = await tx.voice.findUnique({
+          where: { id: voiceId },
+          include: {
+            routeOwner: { select: { id: true, displayName: true } },
+            conversation: { select: { id: true } },
+          },
+        });
+        if (!voice || voice.visibility !== VoiceVisibility.GENERAL) throw forbiddenAsNotFound();
+        if (
+          !ADMIN_PIC_STATUSES.includes(voice.status) ||
+          voice.handlerType === HandlerType.ADMIN_TRIAGE
+        )
+          throw conflict(
+            'ADMIN_PIC_HANDOVER_INVALID_STATE',
+            voice.handlerType === HandlerType.ADMIN_TRIAGE
+              ? 'Voice sedang menunggu keputusan handover Admin.'
+              : 'Voice yang sudah selesai tidak dapat dipindahkan.',
+          );
+        if (voice.version !== data.expectedVersion)
+          throw conflict('VERSION_CONFLICT', 'Voice telah berubah.');
+        const target = await this.adminPicTarget(tx, data.toAccountId);
+        if (!target)
+          throw conflict('ADMIN_PIC_UNAVAILABLE', 'PIC tujuan tidak aktif atau bukan responder.');
+        const handlerId = target.manager ? null : target.id;
+        if (voice.routeOwnerId === target.id && voice.currentHandlerId === handlerId)
+          throw conflict('HANDOVER_DESTINATION_SELF', 'Voice sudah dipegang PIC ini.');
+
+        const now = new Date();
+        // Diproses starts over: the old PIC's target and pending report go.
+        const processing = voice.status === VoiceStatus.IN_PROGRESS;
+        const status = processing ? VoiceStatus.RESPONDED : voice.status;
+        if (processing)
+          await tx.voiceHandlingTarget.deleteMany({
+            where: { voiceId, cycleNumber: voice.handlingCycleNumber },
+          });
+        await tx.closureReport.updateMany({
+          where: { voiceId, state: ClosureReportState.PENDING },
+          data: {
+            state: ClosureReportState.RETURNED,
+            resolvedAt: now,
+            returnNote: 'Voice dipindahkan Admin ke PIC lain.',
+          },
+        });
+        await tx.voiceAssignment.updateMany({
+          where: { voiceId, endedAt: null },
+          data: { endedAt: now },
+        });
+        if (handlerId)
+          await tx.voiceAssignment.create({
+            data: {
+              voiceId,
+              handlerId,
+              handlerType: target.handlerType,
+              actorId: actor.accountId,
+            },
+          });
+        const window = await tierWindow(
+          tx,
+          voice.severity,
+          status === VoiceStatus.OPEN ? 'RESPOND' : 'FULL',
+          now,
+        );
+        const record = await tx.adminPicHandover.create({
+          data: {
+            voiceId,
+            fromPicId: voice.routeOwnerId,
+            fromHandlerId: voice.currentHandlerId,
+            toPicId: target.id,
+            adminId: actor.accountId,
+            previousStatus: voice.status,
+            detail: data.detail ?? null,
+          },
+        });
+        const updated = await tx.voice.update({
+          where: { id: voiceId },
+          data: {
+            status,
+            routeOwnerId: target.id,
+            routeMappingId: target.routeMappingId,
+            currentHandlerId: handlerId,
+            handlerType: target.handlerType,
+            handlingOrganizationUnitId: target.unit?.id ?? null,
+            handlingDirectorateSnapshot: target.unit?.directorate ?? null,
+            handlingDivisionSnapshot: target.unit?.division ?? null,
+            handlingDepartmentSnapshot: target.unit?.department ?? null,
+            handlingSectionSnapshot: target.manager ? null : target.section,
+            handlingOrganizationSource: 'ADMIN_PIC_HANDOVER',
+            // The tier chain belonged to the old route; the new PIC holds it alone.
+            tierLevel: null,
+            tierPath: [],
+            tierHolderIds: [],
+            tierLowerHolderIds: [],
+            tierObserverIds: [],
+            tierParticipantIds: [],
+            tierHolderResponded: false,
+            tierMissedDueAt: null,
+            closureApproverIds: [],
+            closureReportedById: null,
+            ...(window ?? { tierDueAt: null, tierDueKind: null }),
+            version: { increment: 1 },
+          },
+        });
+        await tx.voiceEvent.create({
+          data: {
+            voiceId,
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            type: VoiceEventType.ADMIN_HANDOVER_ROUTED,
+            payload: {
+              source: 'ADMIN_PIC_HANDOVER',
+              handoverId: record.id,
+              fromPic: voice.routeOwner.displayName,
+              toPic: target.displayName,
+              toDepartment: target.unit?.department ?? null,
+              previousStatus: voice.status,
+            },
+          },
+        });
+        // The chat has no system account: the new PIC carries the note.
+        if (voice.conversation) {
+          const carrier = await tx.userAccount.findUniqueOrThrow({
+            where: { id: target.id },
+            select: { id: true, accountKind: true, displayName: true },
+          });
+          await tx.message.create({
+            data: {
+              conversationId: voice.conversation.id,
+              senderId: carrier.id,
+              senderAccountKind: carrier.accountKind,
+              senderCapabilities: [],
+              senderNameSnapshot: carrier.displayName,
+              kind: MessageKind.SYSTEM,
+              text: `Voice dialihkan ke ${target.displayName}`,
+            },
+          });
+        }
+        await tx.auditEvent.create({
+          data: {
+            actorId: actor.accountId,
+            ...this.policy.actorSnapshot(actor),
+            action: 'ADMIN_PIC_HANDOVER',
+            result: 'SUCCESS',
+            resourceType: 'VOICE',
+            resourceId: voiceId,
+            summary: {
+              handoverId: record.id,
+              fromPicId: record.fromPicId,
+              fromHandlerId: record.fromHandlerId,
+              toPicId: record.toPicId,
+              previousStatus: voice.status,
+              detail: data.detail ? 'redacted' : null,
+            },
+            correlationId: `admin-pic-handover:${record.id}`,
+            releaseSha: loadConfig().RELEASE_SHA,
+          },
+        });
+        await this.notify(
+          tx,
+          target.id,
+          voiceId,
+          NotificationType.HANDOVER_RECEIVED,
+          'Voice dialihkan Admin kepada Anda',
+          `${voice.displayId} kini menjadi tanggung jawab Anda.`,
+        );
+        for (const previous of new Set(
+          [voice.routeOwnerId, voice.currentHandlerId].filter(
+            (id): id is string => !!id && id !== target.id,
+          ),
+        ))
+          await this.notify(
+            tx,
+            previous,
+            voiceId,
+            NotificationType.STATUS_CHANGED,
+            'Voice dialihkan Admin',
+            `${voice.displayId} kini ditangani ${target.displayName}.`,
+          );
+        return {
+          id: updated.id,
+          displayId: updated.displayId,
+          status: updated.status,
+          version: updated.version,
+          currentHandlerId: updated.currentHandlerId,
+          handlerType: updated.handlerType,
+          handoverId: record.id,
+        };
+      },
+    );
   }
 
   async adminHandoverOptions(actor: AuthActor, handoverId: string) {

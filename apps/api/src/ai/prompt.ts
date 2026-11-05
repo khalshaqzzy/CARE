@@ -9,7 +9,7 @@ export const CLASSIFICATION_TOOL_DESCRIPTION =
 
 // Used by standalone provider smoke tests. Production Voice requests always
 // provide the active, revisioned catalog loaded from PostgreSQL. Content is
-// kept aligned with the catalog migration (20261105090000) so smoke behavior
+// kept aligned with the catalog migration (20261105100000) so smoke behavior
 // matches production classification context. Environment is archived: its
 // cleanliness scope moved to Fasilitas Umum and in-shop conditions to
 // Kesulitan Kerja.

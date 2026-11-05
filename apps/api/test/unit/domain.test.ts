@@ -107,7 +107,7 @@ describe('CARE domain contracts', () => {
     const sql = readFileSync(
       resolve(
         __dirname,
-        '../../prisma/migrations/20261105090000_category_location_boundaries/migration.sql',
+        '../../prisma/migrations/20261105100000_category_location_boundaries/migration.sql',
       ),
       'utf8',
     );

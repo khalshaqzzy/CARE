@@ -1,5 +1,5 @@
 -- CARE Admin decisions on General Voices whose category changed after submit
--- (ADR-0079). Accepted corrections add an Example to the target category.
+-- (ADR-0080). Accepted corrections add an Example to the target category.
 CREATE TYPE "CategoryCorrectionDecision" AS ENUM ('ACCEPTED', 'DISMISSED');
 
 CREATE TABLE "CategoryCorrectionReview" (

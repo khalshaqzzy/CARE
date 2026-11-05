@@ -185,3 +185,75 @@ test('Voice list opens the full read-only detail with time left and rating', asy
   await page.getByRole('link', { name: 'Voice Explorer' }).first().click();
   await expect(page).toHaveURL(/\/voices$/);
 });
+
+test('Voice detail lets CARE Admin hand the Voice to a responder typed by name', async ({
+  page,
+}) => {
+  const voice: MockVoice = {
+    id: '00000000-0000-4000-8000-000000000002',
+    displayId: 'CARE-202611-000214',
+    audience: 'GENERAL_RESPONDER',
+    visibility: 'GENERAL',
+    status: 'IN_PROGRESS',
+    area: 'KARAWANG_1',
+    title: 'Lampu area gudang padam',
+    detail: 'Tiga lampu di lorong gudang B padam sejak kemarin.',
+    availableActions: [],
+  };
+  await mockAdminApi(page, { voiceDetail: voiceDetail(voice) as never });
+  const searches: string[] = [];
+  await page.route('**/api/v1/admin/voices/*/pic-candidates**', (route) => {
+    searches.push(new URL(route.request().url()).searchParams.get('search') ?? '');
+    return route.fulfill({
+      json: {
+        items: [
+          {
+            id: '00000000-0000-4000-8000-0000000000c1',
+            displayName: 'Sari Wulandari',
+            noReg: '00012877',
+            position: 'Section Head',
+            department: 'Logistik',
+            section: 'Gudang',
+            current: false,
+          },
+          {
+            id: '00000000-0000-4000-8000-0000000000c2',
+            displayName: 'Sarifudin',
+            noReg: '00013402',
+            position: 'Department Head',
+            department: 'General Affairs',
+            section: null,
+            current: false,
+          },
+        ],
+      },
+    });
+  });
+  let body: unknown = null;
+  await page.route('**/api/v1/admin/voices/*/pic-handover', (route) => {
+    body = route.request().postDataJSON();
+    return route.fulfill({
+      json: { id: voice.id, displayId: voice.displayId, status: 'RESPONDED', version: 4 },
+    });
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${ADMIN}/voices/${voice.id}`);
+
+  const handling = page.getByLabel('Penanganan');
+  await handling.getByRole('button', { name: 'Pindahkan PIC' }).click();
+  await handling.getByLabel('Nama PIC baru').fill('sari');
+  const picks = handling.getByRole('radiogroup', { name: 'PIC baru' });
+  await expect(picks.getByRole('radio')).toHaveCount(2);
+  expect(searches).toContain('sari');
+  await expect(handling.getByRole('button', { name: 'Pindahkan', exact: true })).toBeDisabled();
+  await picks.getByRole('radio', { name: /Sari Wulandari/ }).click();
+  await handling.getByLabel('Alasan (opsional)').fill('PIC lama cuti panjang');
+  await handling.getByRole('button', { name: 'Pindahkan ke Sari Wulandari' }).click();
+
+  await expect(handling).toContainText('Voice kini ditangani Sari Wulandari.');
+  expect(body).toEqual({
+    toAccountId: '00000000-0000-4000-8000-0000000000c1',
+    expectedVersion: 3,
+    detail: 'PIC lama cuti panjang',
+  });
+});

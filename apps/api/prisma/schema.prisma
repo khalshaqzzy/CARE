@@ -325,6 +325,9 @@ model UserAccount {
   adminHandoversRequested  AdminHandover[]                @relation("AdminHandoverManager")
   adminHandoversOwned      AdminHandover[]                @relation("AdminHandoverAdmin")
   adminHandoversResolved   AdminHandover[]                @relation("AdminHandoverResolver")
+  adminPicHandoversFrom    AdminPicHandover[]             @relation("AdminPicHandoverFrom")
+  adminPicHandoversTo      AdminPicHandover[]             @relation("AdminPicHandoverTo")
+  adminPicHandoversActed   AdminPicHandover[]             @relation("AdminPicHandoverAdmin")
   categoryCorrectionReviews CategoryCorrectionReview[]    @relation("CategoryCorrectionReviewer")
 
   awayPeriods       AwayPeriod[] @relation("AwayAccount")
@@ -797,6 +800,7 @@ model Voice {
   legacyAccess                    LegacyVoiceAccess[]
   handovers                       VoiceHandover[]
   adminHandovers                  AdminHandover[]
+  adminPicHandovers               AdminPicHandover[]
   reminders                       VoiceReminder[]
   closureReports                  ClosureReport[]
   categoryCorrections             CategoryCorrectionReview[]
@@ -824,7 +828,7 @@ enum CategoryCorrectionDecision {
 }
 
 /// CARE Admin decision on a General Voice whose category changed after submit
-/// (handover). Accepted ones added an Example to the target category (ADR-0079).
+/// (handover). Accepted ones added an Example to the target category (ADR-0080).
 /// One decision per Voice and target category; a later move to another
 /// category is a new correction.
 model CategoryCorrectionReview {
@@ -1007,6 +1011,25 @@ model AdminHandover {
   @@index([status, createdAt, id])
   @@index([voiceId, createdAt, id])
   @@index([managerId, createdAt, id])
+}
+
+/// A CARE Admin moving an active General Voice to another responder.
+model AdminPicHandover {
+  id             String      @id @default(uuid()) @db.Uuid
+  voiceId        String      @db.Uuid
+  fromPicId      String      @db.Uuid
+  fromHandlerId  String?     @db.Uuid
+  toPicId        String      @db.Uuid
+  adminId        String      @db.Uuid
+  previousStatus VoiceStatus
+  detail         String?     @db.VarChar(4000)
+  createdAt      DateTime    @default(now())
+  voice          Voice       @relation(fields: [voiceId], references: [id])
+  fromPic        UserAccount @relation("AdminPicHandoverFrom", fields: [fromPicId], references: [id])
+  toPic          UserAccount @relation("AdminPicHandoverTo", fields: [toPicId], references: [id])
+  admin          UserAccount @relation("AdminPicHandoverAdmin", fields: [adminId], references: [id])
+
+  @@index([voiceId, createdAt, id])
 }
 
 model VoiceEvent {

@@ -17,7 +17,7 @@ const AREA_LABELS: Record<string, string> = {
 };
 
 /**
- * General Voices handed over to another category (ADR-0079). Accepting one
+ * General Voices handed over to another category (ADR-0080). Accepting one
  * adds an Example to the target category, which the AI reads on the next
  * analysis; dismissing records that the handover was not a category mistake.
  */

@@ -255,6 +255,21 @@ export class VoicesController {
   ) {
     return this.voices.adminHandoversForVoice(a, id);
   }
+  @Get('admin/voices/:id/pic-candidates') @Capabilities('CARE_ADMIN') adminPicCandidates(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('search') search?: string,
+  ) {
+    return this.voices.adminPicCandidates(a, id, { ...(search ? { search } : {}) });
+  }
+  @Post('admin/voices/:id/pic-handover') @Capabilities('CARE_ADMIN') adminPicHandover(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.adminPicHandover(a, id, b, key);
+  }
   @Post('admin/handovers/:id/resolve') @Capabilities('CARE_ADMIN') resolveAdminHandover(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

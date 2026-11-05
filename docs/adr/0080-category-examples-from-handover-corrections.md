@@ -1,4 +1,4 @@
-# ADR-0079: Category Examples from handover corrections
+# ADR-0080: Category Examples from handover corrections
 
 - Status: Accepted (implemented on `feat/voice-category-boundaries`, not released)
 - Date: 5 November 2026
@@ -36,7 +36,7 @@ Not every handover is a category mistake. A Voice can move to another department
 
 ## Implementation details
 
-- Schema: enum `CategoryCorrectionDecision` (`ACCEPTED`, `DISMISSED`) and model `CategoryCorrectionReview` (`voiceId`, `fromCategoryKey`, `toCategoryKey`, `decision`, `example`, `categoryRevisionId`, `reviewedById`, `reviewedAt`), unique on `(voiceId, toCategoryKey)`; migration `20261105090100_category_correction_reviews`.
+- Schema: enum `CategoryCorrectionDecision` (`ACCEPTED`, `DISMISSED`) and model `CategoryCorrectionReview` (`voiceId`, `fromCategoryKey`, `toCategoryKey`, `decision`, `example`, `categoryRevisionId`, `reviewedById`, `reviewedAt`), unique on `(voiceId, toCategoryKey)`; migration `20261105100100_category_correction_reviews`.
 - `CategoriesService.corrections()` selects pending corrections with one SQL query (latest `VoiceHandover` note, else the routed `AdminHandover` note), newest change first, limited to 50 plus a total count. `canAccept` is true only when the target is an active catalog category.
 - `acceptCorrection` locks the category row, refuses a full catalog (`CATEGORY_EXAMPLES_FULL`, 50 Examples), skips duplicates (case- and whitespace-insensitive) and otherwise creates the next revision with the same name and Definition. `dismissCorrection` records the decision and an audit event on the Voice. Both require an Idempotency-Key and reject a Voice whose category changed (`CATEGORY_CORRECTION_CHANGED`) or that was already decided (`CATEGORY_CORRECTION_REVIEWED`).
 - API (`CARE_ADMIN` only): `GET /api/v1/admin/category-corrections`, `POST /api/v1/admin/category-corrections/:voiceId/accept`, `POST /api/v1/admin/category-corrections/:voiceId/dismiss`.

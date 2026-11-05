@@ -68,7 +68,7 @@ export class AdminCategoriesController {
   }
 }
 
-/** Voices handed over to another category, reviewed into category Examples (ADR-0079). */
+/** Voices handed over to another category, reviewed into category Examples (ADR-0080). */
 @ApiTags('administration')
 @ApiCookieAuth()
 @Capabilities('CARE_ADMIN')
