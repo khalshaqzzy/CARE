@@ -26,6 +26,7 @@ import {
   Settings,
   ShieldCheck,
   CalendarClock,
+  Tags,
   UserCog,
   UserRound,
   UsersRound,
@@ -35,6 +36,7 @@ import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react
 import { OverviewPage } from './features/overview/OverviewPage';
 import { ImportsPage } from './features/imports/ImportsPage';
 import { RemediationPage } from './features/remediation/RemediationPage';
+import { CategoryCorrectionsPage } from './features/remediation/CategoryCorrections';
 import { EscalationSettingsPage } from './features/escalation/EscalationSettingsPage';
 import { UnionPage } from './features/union/UnionPage';
 import { AccountsPage } from './features/accounts/AccountsPage';
@@ -81,6 +83,7 @@ export function App() {
         <Route path="accounts" element={<AccountsPage />} />
         <Route path="voices" element={<VoiceExplorerPage />} />
         <Route path="voices/:id" element={<VoiceDetailPage />} />
+        <Route path="category-corrections" element={<CategoryCorrectionsPage />} />
         <Route path="handovers" element={<AdminHandoverQueuePage />} />
         <Route path="handovers/:id" element={<AdminHandoverDecisionPage />} />
         <Route path="audit" element={<AuditPage />} />
@@ -334,6 +337,7 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   accounts: '/accounts',
   voices: '/voices',
   handovers: '/handovers',
+  'category-corrections': '/category-corrections',
   audit: '/audit',
   system: '/system',
 };
@@ -364,13 +368,15 @@ function AdminShell() {
                   ? 'voices'
                   : path.startsWith('/handovers')
                     ? 'handovers'
-                    : path.startsWith('/audit')
-                      ? 'audit'
-                      : path.startsWith('/system')
-                        ? 'system'
-                        : path.startsWith('/account')
-                          ? 'account'
-                          : 'overview';
+                    : path.startsWith('/category-corrections')
+                      ? 'category-corrections'
+                      : path.startsWith('/audit')
+                        ? 'audit'
+                        : path.startsWith('/system')
+                          ? 'system'
+                          : path.startsWith('/account')
+                            ? 'account'
+                            : 'overview';
   const divisionItems = [
     { id: 'voices', label: 'Voice divisi', icon: <FileSearch size={19} /> },
     { id: 'accounts', label: 'Akun divisi', icon: <UsersRound size={19} /> },
@@ -425,6 +431,11 @@ function AdminShell() {
       id: 'handovers',
       label: 'Handover Admin',
       icon: <GitPullRequestArrow size={19} />,
+    },
+    {
+      id: 'category-corrections',
+      label: 'Koreksi Kategori',
+      icon: <Tags size={19} />,
     },
     {
       id: 'audit',

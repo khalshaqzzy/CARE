@@ -1,5 +1,11 @@
 # CARE v1.1 Implementation Phases
 
+## Location-based categories and mandatory Private Voice — 5 November 2026
+
+Same branch, same PR: CARE Admin reviews handed-over Voices on **Koreksi Kategori** and turns them into category Examples (ADR-0080).
+
+Phase 13 remains the only `in_progress` phase. On `feat/voice-category-boundaries` (from `origin/staging` 50598bc, not released): category Definitions now separate shared areas and offices (Safety, Fasilitas Umum → PGA-SHE) from shops (Kesulitan Kerja), Facility Repair owns building and electrical-installation repairs, Environment is archived, the classifier reads the location detail, and harassment-type General drafts must be sent as Private Voice (`care-classification-v1.9`). See ADR-0078; checks are in sessionHandoff.md.
+
 ## Panduan colours on Safari: pdf.js 6 — 4 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `fix/guide-reader-pdfjs6` (from `origin/staging` 7cd0b6c, not released): the Panduan reader moves to pdf.js 6.4.299 because pdf.js 4.10 ignored luminosity soft masks in WebKit and showed guide backgrounds pink on iPhone. A WebKit e2e spec now covers the reader. See the ADR-0075 amendment; checks are in sessionHandoff.md.

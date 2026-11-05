@@ -1,5 +1,47 @@
 # CARE Session Handoff
 
+## Location-based categories and mandatory Private Voice — 5 November 2026
+
+**Objective:** the product owner is tuning Voice categorisation. PGA-SHE handles safety and cleanliness only in shared facilities and offices; SPFM handles all building repairs and building electrics; everything else in a shop goes to the structure. Harassment-type reports must go to the Komite.
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry in implementationPhases.md.
+
+**Branch:** `feat/voice-category-boundaries` in worktree `../CARE-categories`, from `origin/staging` 50598bc (upstream unset). Uncommitted, no PR yet. The `feat/time-for-team` working tree in the main checkout was not touched; screenshots are untracked in the main checkout at `docs/preview-private-required/`.
+
+**Decisions (product owner, this session):**
+
+- Safety → shared facilities and offices only; fire/smoke there is Safety whatever the source, fire/smoke in a shop is Kesulitan Kerja.
+- Environment merged into Fasilitas Umum (cleanliness) and archived; other environment conditions in shops are Kesulitan Kerja.
+- Facility Repair (SPFM) = all repairs and electrics of buildings, offices and shared facilities, including lights/AC in shop buildings; machine electrics stay in Kesulitan Kerja.
+- Harassment, bullying, discrimination, retaliation: removed from Kesulitan Kerja and Kesejahteraan; must be Private. The system cannot pick identity/contact consent, so the reporter is moved to a prefilled Private form and only chooses those.
+
+**Change (ADR-0078, PRD §13.3, §14.2, §43.1, §43.5):**
+
+- `prompt.ts` → `care-classification-v1.9`: new Definitions/Examples for the five active categories, Environment dropped from the default catalog/schema, location and electrical boundary rules, `locationDetail` as untrusted input, mandatory Private rule (any actor).
+- Migration `20261105100000_category_location_boundaries`: new revision for SAFETY, FACILITY, FACILITY_REPAIR, WORK_DIFFICULTY, WELFARE (supersedes any Admin edits; history kept), archives ENVIRONMENT. SQL generated from `prompt.ts`; `domain.test.ts` asserts they match. Generator script was a scratchpad file (not kept): if Definitions change again, regenerate the CASE lists from `DEFAULT_CATEGORY_CONTEXT`.
+- `voices.service.ts`: General classification sends `locationDetail`, and the classification hash includes it; submit rejects a flagged General draft with `PRIVATE_VOICE_REQUIRED` (422), also after manual classification.
+- Web: `useDraftWizard.switchToPrivate`; review screen shows **Kirim sebagai Private Voice** and **Lanjut ke Private Voice** instead of **Kirim Voice**; form scrolls to **Identitas kepada Komite**.
+
+**Checks (Windows, Node 22.23.4):**
+
+- API + web typecheck; API unit 171/171; web Vitest 166/166; ESLint and Prettier (`--end-of-line auto`) on changed files.
+- Migrations from scratch on a throwaway pgvector container (port 54349): all applied; catalog shows five ACTIVE categories at revision 3 and ENVIRONMENT ARCHIVED.
+- Integration: `voice-lifecycle`, `shop-location-routing`, and `organization-routing` (includes the new `PRIVATE_VOICE_REQUIRED` case): 41/42. The failure is the 10,000-account import transaction-budget test (5 s Prisma timeout), a known local-laptop limitation unrelated to this change.
+- Playwright `workforce-journeys.spec.ts` (Chromium, build served on 4183 because 4173/4174 belonged to another session): 54/54. No new tests, so the inventory count is unchanged.
+- Not run: full `verify:local`, capture, legacy WebKit, Gitleaks (run before commit), hosted CI.
+
+### Same branch: category Examples from handover corrections (ADR-0080, PRD §13.7)
+
+The product owner asked that the AI learn from handed-over Voices and from Admin catalog edits. Catalog edits already reach the AI on the next analysis. For handovers, option A (Admin approves) was chosen over automatic retrieval, and the dedicated page layout (B) over a section on Remediation & Route (A). Screenshots: main checkout `docs/preview-category-corrections/` (untracked). The product owner asked for this to ride the same PR; a separate worktree created first was removed after unlinking its `node_modules` junctions.
+
+- Schema/migration `20261105100100_category_correction_reviews`: `CategoryCorrectionReview` + enum `CategoryCorrectionDecision`, unique `(voiceId, toCategoryKey)`. Written by hand: `prisma migrate diff` from the migrations also prints older unrelated drift (AuditEvent/ImportBatch/OrganizationUnit/UserAccount indexes and some FKs); only the new table was kept.
+- `CategoriesService.corrections/acceptCorrection/dismissCorrection`, `AdminCategoryCorrectionsController` (`CARE_ADMIN`), OpenAPI schemas in `enrich-openapi.ts`, regenerated `openapi.json` + `generated.ts`.
+- Admin: `features/remediation/CategoryCorrections.tsx` (`CategoryCorrectionsPage`), route `/category-corrections`, sidebar **Koreksi Kategori**, `.admin-correction*` styles; e2e mock + `categoryCorrectionsFixture`.
+
+Checks for this part: API/Admin typecheck; API unit 171/171; Admin Vitest 2/2; `voice-handover.integration` 6/6 (new corrections case); Playwright `admin-journeys` 31/31 and `admin-a11y` 21/21 (Chromium); inventory test 494 (needs a `--require` preload that spawns `pnpm` through a shell on Windows); generated-contract check passes; ESLint/Prettier clean. `validation.test.mjs` "real build verification" and "Compose fixtures" fail here on clean staging code too (Windows environment), not from this change.
+
+**Next:** Gitleaks → commit → PR into `staging` → after merge check `/ready`, the Admin category catalog (five active, Environment archived) and the Koreksi Kategori page. Then re-run the live evaluation set with shop/office pairs and peer harassment.
+
 ## Admin moves a General Voice to another PIC — 5 November 2026
 
 **Objective:** in CARE Admin, let the admin hand a Voice from the Voice Explorer to any PIC by typing a name, so the Voice moves to the new PIC.

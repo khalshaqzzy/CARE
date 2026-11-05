@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PolicyService, type Principal } from '../../src/auth/policy.service';
+import { CategoriesService } from '../../src/categories/categories.service';
 import { VoicesService } from '../../src/voices/voices.service';
 
 const prisma = new PrismaClient();
@@ -587,6 +588,91 @@ describe('Manager Voice handover', () => {
       currentCategoryNameSnapshot: 'Kualitas proses',
       categoryId: categoryAId,
     });
+  });
+
+  it('lists handed-over Voices for CARE Admin and turns one into a category Example', async () => {
+    const categories = new CategoriesService(prisma as never);
+    const stored = await prisma.voice.findUniqueOrThrow({ where: { id: voiceId } });
+    const targetKey = stored.currentCategoryKey!;
+    expect(targetKey).not.toBe(stored.categoryKey);
+
+    const before = await categories.corrections();
+    const item = before.items.find((entry) => entry.voiceId === voiceId);
+    expect(item).toMatchObject({
+      from: { key: 'ASSEMBLY_HANDOVER' },
+      to: { key: targetKey },
+      canAccept: true,
+    });
+    expect(item?.handoverNote).toBeTruthy();
+    // Reporter identity never reaches the review list.
+    expect(JSON.stringify(before)).not.toContain('Reporter Handover');
+    const custom = before.items.find((entry) => entry.to.name === 'Kualitas proses');
+    expect(custom?.canAccept).toBe(false);
+    expect(before.total).toBe(before.items.length);
+
+    await expect(
+      categories.acceptCorrection(
+        admin,
+        voiceId,
+        { example: 'Contoh basi', expectedCategoryKey: 'SAFETY_HANDOVER' },
+        'correction-stale',
+      ),
+    ).rejects.toMatchObject({ code: 'CATEGORY_CORRECTION_CHANGED' });
+    await expect(
+      categories.acceptCorrection(
+        admin,
+        custom!.voiceId,
+        { example: 'Kategori custom', expectedCategoryKey: custom!.to.key },
+        'correction-custom',
+      ),
+    ).rejects.toMatchObject({ code: 'CATEGORY_CORRECTION_TARGET_UNAVAILABLE' });
+
+    const target = await prisma.generalVoiceCategory.findUniqueOrThrow({
+      where: { key: targetKey },
+      include: { revisions: { where: { effectiveTo: null } } },
+    });
+    const body = {
+      example: '  Guarding mesin perlu dicek ulang  ',
+      expectedCategoryKey: targetKey,
+    };
+    const accepted = await categories.acceptCorrection(admin, voiceId, body, 'correction-accept');
+    expect(accepted).toMatchObject({
+      decision: 'ACCEPTED',
+      categoryKey: targetKey,
+      revision: target.revisions[0]!.revision + 1,
+    });
+    expect(await categories.acceptCorrection(admin, voiceId, body, 'correction-accept')).toEqual(
+      accepted,
+    );
+    await expect(
+      categories.acceptCorrection(admin, voiceId, body, 'correction-accept-again'),
+    ).rejects.toMatchObject({ code: 'CATEGORY_CORRECTION_REVIEWED' });
+
+    const catalog = await categories.activeCatalog();
+    expect(catalog.find((entry) => entry.key === targetKey)?.examples).toContain(
+      'Guarding mesin perlu dicek ulang',
+    );
+    expect(
+      await prisma.auditEvent.count({
+        where: {
+          action: 'GENERAL_VOICE_CATEGORY_UPDATED',
+          resourceId: target.id,
+          summary: { path: ['source'], equals: 'CATEGORY_CORRECTION' },
+        },
+      }),
+    ).toBe(1);
+
+    const dismissed = await categories.dismissCorrection(
+      admin,
+      custom!.voiceId,
+      { expectedCategoryKey: custom!.to.key },
+      'correction-dismiss',
+    );
+    expect(dismissed).toMatchObject({ decision: 'DISMISSED', revision: null });
+    const after = await categories.corrections();
+    expect(after.items.map((entry) => entry.voiceId)).not.toContain(voiceId);
+    expect(after.items.map((entry) => entry.voiceId)).not.toContain(custom!.voiceId);
+    expect(after.total).toBe(before.total - 2);
   });
 
   it('lets CARE Admin hand an active Voice to any responder by name', async () => {

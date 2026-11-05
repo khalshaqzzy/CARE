@@ -88,6 +88,10 @@ Run `pnpm maintenance:reconcile` for a non-mutating storage/database reconciliat
 | `DRAFT_ORGANIZATION_STALE`         | The organization snapshot changed after draft creation.   |
 | `LOCATION_ACKNOWLEDGMENT_REQUIRED` | Current incomplete-location warning needs acknowledgment. |
 | `CLASSIFICATION_REQUIRED`          | Draft needs current AI/manual classification.             |
+| `PRIVATE_VOICE_REQUIRED`           | General draft reports harassment; send it as Private.     |
+| `CATEGORY_CORRECTION_CHANGED`      | Voice category moved after the correction list loaded.    |
+| `CATEGORY_CORRECTION_REVIEWED`     | Another Admin already decided this correction.            |
+| `CATEGORY_EXAMPLES_FULL`           | Target category already has 50 Examples.                  |
 | `MEDIA_INVALID`                    | File type, size, signature, or decoded image is invalid.  |
 | `PUSH_ENDPOINT_NOT_ALLOWED`        | Push endpoint host is outside `PUSH_ENDPOINT_HOSTS`.      |
 

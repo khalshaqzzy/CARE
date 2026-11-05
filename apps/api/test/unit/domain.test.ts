@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { VoiceStatus } from '@prisma/client';
 import { canonicalHash } from '../../src/common/crypto';
@@ -38,12 +40,13 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.8');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.9');
     for (const value of [
       'SAFETY',
-      'ENVIRONMENT',
       'FACILITY',
+      'FACILITY_REPAIR',
       'WORK_DIFFICULTY',
+      'WELFARE',
       'LOW',
       'MEDIUM',
       'HIGH',
@@ -67,36 +70,52 @@ describe('CARE domain contracts', () => {
     );
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('tumpahan besar mengalir ke drainase');
     expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('threshold fallback server');
-    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
-      'Emergency exit di area kami sulit dibuka.',
+    const definition = (key: string) =>
+      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === key)?.definition ?? '';
+    // Environment is archived; its cleanliness scope lives in Fasilitas Umum.
+    expect(DEFAULT_CATEGORY_CONTEXT.map((category) => category.key)).not.toContain('ENVIRONMENT');
+    expect(definition('SAFETY')).toContain(
+      'Jangan memilih Safety hanya karena masalah lain dapat berdampak kepada manusia',
     );
-    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
-      'Aturan penggunaan fasilitas belum jelas.',
+    expect(definition('SAFETY')).toContain(
+      'fasilitas umum, office, atau area bersama di luar shop',
     );
-    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
-      'Sistem sering error saat digunakan.',
+    expect(definition('SAFETY')).toContain(
+      'Api atau asap yang terjadi di fasilitas umum atau office',
     );
-    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
-      'reimbursement biaya berobat tidak masuk dalam penggajian.',
+    expect(definition('FACILITY')).toContain('secara fisik masih berfungsi');
+    expect(definition('FACILITY')).toContain('kebersihan');
+    expect(definition('FACILITY_REPAIR')).toContain('consequence tersebut menentukan severity');
+    expect(definition('FACILITY_REPAIR')).toContain(
+      'Kelistrikan machine atau production equipment',
     );
-    expect(
-      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'SAFETY')?.definition,
-    ).toContain('Jangan memilih Safety hanya karena masalah lain dapat berdampak kepada manusia');
-    expect(
-      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'ENVIRONMENT')?.definition,
-    ).toContain('Tetap pilih Environment ketika paparan menyebabkan pusing');
-    expect(
-      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'FACILITY')?.definition,
-    ).toContain('secara fisik masih berfungsi');
-    expect(
-      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'FACILITY_REPAIR')?.definition,
-    ).toContain('consequence tersebut menentukan severity');
-    expect(
-      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'WORK_DIFFICULTY')?.definition,
-    ).toContain('Dampak produksi akibat kurangnya training tidak otomatis mengubah category');
-    expect(
-      DEFAULT_CATEGORY_CONTEXT.find((category) => category.key === 'WELFARE')?.definition,
-    ).toContain('harassment, discrimination, retaliation');
+    expect(definition('WORK_DIFFICULTY')).toContain(
+      'Dampak produksi akibat kurangnya training tidak otomatis mengubah category',
+    );
+    expect(definition('WORK_DIFFICULTY')).toContain('di dalam shop, line, workstation');
+    for (const key of ['WORK_DIFFICULTY', 'WELFARE'])
+      expect(definition(key)).toContain('harus dibuat sebagai Private Voice');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('Lokasi kejadian ikut menentukan category');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('locationDetail');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('siapa pun pelakunya');
+    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain('Panel mesin press sering trip.');
+    expect(JSON.stringify(DEFAULT_CATEGORY_CONTEXT)).toContain(
+      'Toilet kantin kotor dan jarang dibersihkan.',
+    );
+  });
+  it('ships the same built-in definitions and examples in the catalog migration', () => {
+    const sql = readFileSync(
+      resolve(
+        __dirname,
+        '../../prisma/migrations/20261105100000_category_location_boundaries/migration.sql',
+      ),
+      'utf8',
+    );
+    for (const category of DEFAULT_CATEGORY_CONTEXT) {
+      expect(sql).toContain(`WHEN '${category.key}' THEN '${category.definition}'`);
+      expect(sql).toContain(`WHEN '${category.key}' THEN '${JSON.stringify(category.examples)}'`);
+    }
+    expect(sql).toMatch(/SET "status" = 'ARCHIVED'[\s\S]*WHERE "key" = 'ENVIRONMENT'/);
   });
   it('builds the General tool enum from active stable keys and keeps Private category null', () => {
     const generalSchema = classificationSchema(['CUSTOM_ONE', 'CUSTOM_TWO'], false);

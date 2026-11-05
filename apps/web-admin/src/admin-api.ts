@@ -39,6 +39,8 @@ export type AiConfigurationUpdate = components['schemas']['AiConfigurationUpdate
 export type AiConfigurationTest = components['schemas']['AiConfigurationTestResponse'];
 export type GeneralVoiceCategoryAdmin = components['schemas']['GeneralVoiceCategoryAdmin'];
 export type GeneralVoiceCategoryAdminList = components['schemas']['GeneralVoiceCategoryAdminList'];
+export type CategoryCorrectionList = components['schemas']['CategoryCorrectionList'];
+export type CategoryCorrection = CategoryCorrectionList['items'][number];
 export type OrganizationUnitList = components['schemas']['OrganizationUnitList'];
 export type ShopLocationAdmin = components['schemas']['ShopLocationAdmin'];
 export type EscalationSettings = components['schemas']['EscalationSettings'];
@@ -112,6 +114,30 @@ export function createAdminApi(transport: CareTransport) {
       dataOrThrow<GeneralVoiceCategoryAdmin>(
         client.PUT('/api/v1/admin/general-voice-categories/{id}/status', {
           params: { path: { id }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    categoryCorrections: () =>
+      dataOrThrow<CategoryCorrectionList>(client.GET('/api/v1/admin/category-corrections')),
+    acceptCategoryCorrection: (
+      voiceId: string,
+      body: components['schemas']['CategoryCorrectionAcceptRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['CategoryCorrectionDecisionResponse']>(
+        client.POST('/api/v1/admin/category-corrections/{voiceId}/accept', {
+          params: { path: { voiceId }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
+    dismissCategoryCorrection: (
+      voiceId: string,
+      body: components['schemas']['CategoryCorrectionDismissRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['CategoryCorrectionDecisionResponse']>(
+        client.POST('/api/v1/admin/category-corrections/{voiceId}/dismiss', {
+          params: { path: { voiceId }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
           body,
         }),
       ),

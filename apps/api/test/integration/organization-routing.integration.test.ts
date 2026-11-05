@@ -309,6 +309,36 @@ describe('Organization, remediation, and routing journey', () => {
     });
     expect(generalVoice.handlingOrganizationUnitId).toBe(generalVoice.reporterOrganizationUnitId);
 
+    // A General draft the AI flags as harassment-type cannot be sent as
+    // General, and re-saving a manual classification does not clear the flag.
+    const harassmentDraft = await voices.createDraft(member, {
+      visibility: 'GENERAL',
+      area: 'KARAWANG_1',
+      locationDetail: 'Line A station 4',
+      title: 'Rekan kerja membully',
+      detail: 'Seorang rekan kerja terus mengejek dan mengintimidasi saya di depan tim',
+    });
+    await voices.manualClassification(member, harassmentDraft.id, {
+      category: 'WORK_DIFFICULTY',
+      severity: Severity.HIGH,
+    });
+    await prisma.aIClassification.update({
+      where: { draftId: harassmentDraft.id },
+      data: { privateSuggested: true },
+    });
+    await voices.manualClassification(member, harassmentDraft.id, {
+      category: 'WORK_DIFFICULTY',
+      severity: Severity.HIGH,
+    });
+    await expect(
+      voices.submit(
+        member,
+        harassmentDraft.id,
+        { version: harassmentDraft.version },
+        'organization-routing-private-required',
+      ),
+    ).rejects.toMatchObject({ code: 'PRIVATE_VOICE_REQUIRED' });
+
     let privateDraft = await voices.createDraft(member, {
       visibility: 'PRIVATE',
       showReporterIdentity: false,

@@ -3104,3 +3104,61 @@ button.admin-rows > li:hover,
   max-height: 280px;
   margin-top: 0;
 }
+
+/* Koreksi kategori (ADR-0080) */
+.admin-correction__change {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+}
+.admin-correction-list {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.admin-correction {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-subtle);
+}
+.admin-correction__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.admin-correction__detail {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  white-space: pre-line;
+}
+.admin-correction__note {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+.admin-correction__note small {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+}
+.admin-correction__muted {
+  color: var(--text-secondary);
+}
+.admin-correction__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

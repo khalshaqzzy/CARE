@@ -617,14 +617,24 @@ Dedicated location review hanya mengirim area, detail lokasi, dan—untuk Genera
 
 ### 13.3 Routing Classification
 
-Enam Definition bawaan memakai domain penanganan utama sebagai batas:
+> **Amandemen 5 November 2026 (ADR-0078, `care-classification-v1.9`).** Lokasi
+> kejadian menjadi batas utama antara kategori PGA-SHE dan struktural.
+> Environment diarsipkan; Voice lama tetap menyimpan snapshot kategorinya.
 
-- `SAFETY`: hazard dan safety control seperti unsafe action, guarding, APD, jalur orang/kendaraan, near miss, emergency access, api, asap, atau electrical sparking aktif; risiko manusia semata tidak memindahkan akar masalah Environment atau Facility Repair ke Safety;
-- `ENVIRONMENT`: sumber paparan atau dampak lingkungan seperti limbah, chemical/oli, tumpahan, emisi, bau, debu, kebisingan, temperatur, ventilasi, udara, air, drainase, dan pencemaran; tetap Environment ketika paparan menyebabkan gejala selama sumber lingkungan adalah masalah utama;
-- `FACILITY`: kapasitas, ketersediaan, kualitas layanan, jadwal, akses, atau aturan fasilitas bersama yang secara fisik masih berfungsi;
-- `FACILITY_REPAIR`: kerusakan atau kegagalan fisik gedung, utility, sanitasi, penerangan, AC, pintu, kunci, atap, lantai, pipa, atau fasilitas bersama yang membutuhkan pekerjaan teknis;
-- `WORK_DIFFICULTY`: hambatan machine/equipment/tools, workstation, material handling, manpower, approval, SOP, workflow, sistem IT, atau sumber daya operasional;
-- `WELFARE`: training/skill/career, benefit/kompensasi/reimbursement, employee support, misconduct, bullying, harassment, discrimination, retaliation, ancaman terkait pelaporan, dan konflik people-related yang serius.
+Lima Definition bawaan aktif memakai domain penanganan dan lokasi kejadian sebagai batas:
+
+- `SAFETY` (PGA-SHE): hazard keselamatan di fasilitas umum, office, atau area bersama di luar shop, termasuk emergency readiness dan api/asap di lokasi tersebut apa pun sumbernya;
+- `FACILITY` (Fasilitas Umum, PGA-SHE): ketersediaan, kapasitas, **kebersihan**, kualitas layanan, jadwal, akses, atau aturan fasilitas bersama dan office yang secara fisik masih berfungsi, di luar shop;
+- `FACILITY_REPAIR` (SPFM): kerusakan fisik gedung, office, utility, sanitasi, penerangan, AC, dan instalasi listrik gedung/office/fasilitas bersama, termasuk lampu, bangunan, dan AC ruangan di gedung shop; kelistrikan machine/production equipment tidak termasuk; api atau asap mengikuti lokasi (Safety atau Kesulitan Kerja);
+- `WORK_DIFFICULTY` (Fasilitas Kerja / Kesulitan Kerja, struktural): hambatan machine/equipment (termasuk kelistrikannya), tools, workstation, material handling, manpower, approval, SOP, workflow, sistem IT, ergonomi, dan sumber daya operasional; untuk kejadian di dalam shop juga safety, api/asap, kondisi lingkungan kerja (bising, panas proses, ventilasi, chemical, debu, emisi, tumpahan), serta kebersihan/5S shop;
+- `WELFARE` (Kesejahteraan): training/skill/career, job rotation, benefit/kompensasi/reimbursement, dan employee support;
+- `ENVIRONMENT`: **diarsipkan**. Kebersihan area umum pindah ke Fasilitas Umum; kondisi lingkungan di shop pindah ke Kesulitan Kerja. Admin dapat mengaktifkannya kembali dari katalog.
+
+Harassment, bullying, discrimination, intimidasi, dan retaliation tidak memakai
+kategori General: Voice seperti itu wajib dikirim sebagai Private Voice (§43.5,
+Saran Private Voice). Klasifikasi General membaca area, detail lokasi, judul, dan
+detail agar dapat membedakan shop, office, dan area umum; perubahan detail lokasi
+memicu klasifikasi ulang.
 
 Severity merepresentasikan dampak dan urgensi secara terpisah; dampak HIGH atau
 CRITICAL tidak dengan sendirinya mengganti category akar masalah. Examples tetap
@@ -686,6 +696,32 @@ Setiap submission menyimpan:
 
 Location review menyimpan completeness, warning, pertanyaan, content hash, model/prompt version, latency, timestamp, dan sanitized fallback code. Raw chain-of-thought tidak diminta atau disimpan. Model/base URL upgrade memerlukan deterministic fixtures, live non-sensitive Chat Completions function-call smoke test, dan audit perubahan config.
 
+### 13.7 Koreksi kategori dari handover (5 November 2026, ADR-0080)
+
+AI tidak dilatih ulang; AI belajar dari Definition dan Examples katalog yang
+dibaca setiap klasifikasi. Perubahan Definition/Examples oleh Admin berlaku pada
+analisis berikutnya tanpa deploy.
+
+- **Sumber koreksi:** General Voice yang kategori saat ini berbeda dari kategori
+  saat submit (handover Manager atau Handover Admin). Voice migrasi tidak ikut.
+  Handover ke department lain dengan kategori sama bukan koreksi kategori.
+- **Halaman Admin "Koreksi Kategori"** (hanya CARE Admin, tidak untuk Admin
+  Divisi): kartu per Voice dengan judul, detail, lokasi, kategori awal →
+  tujuan, dan alasan handover; identitas pelapor tidak ditampilkan. Maksimal 50
+  terbaru beserta total.
+- **Jadikan contoh:** teks contoh (default judul Voice, dapat disunting agar
+  tidak memuat nama orang) ditambahkan ke Examples kategori tujuan sebagai
+  revisi katalog baru dan diaudit. Contoh yang sama tidak ditambahkan dua kali;
+  batas 50 Examples per kategori tetap berlaku (`CATEGORY_EXAMPLES_FULL`).
+- **Abaikan:** dicatat tanpa mengubah katalog, untuk handover yang bukan
+  kesalahan kategori.
+- Satu keputusan per Voice per kategori tujuan. Voice yang pindah lagi setelah
+  daftar dimuat ditolak dengan `CATEGORY_CORRECTION_CHANGED`; kategori tujuan
+  custom atau arsip hanya dapat diabaikan.
+- API: `GET /api/v1/admin/category-corrections`,
+  `POST …/:voiceId/accept` (`example`, `expectedCategoryKey`),
+  `POST …/:voiceId/dismiss` (`expectedCategoryKey`), dengan Idempotency-Key.
+
 ---
 
 ## 14. Routing dan Ownership
@@ -710,6 +746,9 @@ Location review menyimpan completeness, warning, pertanyaan, content hash, model
 - Consent identity disnapshot saat submit dan menentukan DTO Komite dan pengamat. Admin DTO selalu memuat profil reporter lengkap secara read-only.
 
 ### 14.2 Route Berbasis Kategori
+
+Route tidak berubah oleh ADR-0078; Environment yang diarsipkan tetap menyimpan
+route-nya untuk Voice lama dan bila diaktifkan kembali.
 
 - Safety, Environment, dan Fasilitas Umum seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Plant GA & SHE Dept`.
 - Facility Repair seed fixed ke `Manufacturing & PE Dir / Plant Administration Div / Smart Plant Facility Mfg Dept`.
@@ -2583,7 +2622,7 @@ Status: **Tahap 1 diimplementasikan dan dirilis ke staging; Tahap 2 dan 3 diimpl
 
 - Berlaku untuk General Voice **Fasilitas Kerja / Kesulitan Kerja** dan **Kesejahteraan**. Kategori fixed (Safety, Environment, Fasilitas Umum, Facility Repair) dan Private Voice tidak berubah.
 - Kesejahteraan selalu mengikuti organisasi pelapor. Fasilitas Kerja mengikuti organisasi pelapor kecuali kejadian berada di shop department lain (§14.5); Voice tersebut langsung ke Manager shop dengan badge **"Pelapor dari luar department"**, lalu dapat naik ke Deputy/Division Head shop.
-- Keluhan tentang atasan (bullying, harassment, konflik) diarahkan AI untuk diganti menjadi Private Voice.
+- Laporan harassment, bullying, discrimination, intimidasi, atau retaliation (siapa pun pelakunya) wajib dikirim sebagai Private Voice (amandemen 5 November 2026, ADR-0078).
 
 ### 43.2 Rantai dan batas waktu
 
@@ -2660,6 +2699,10 @@ Status: **Tahap 1 diimplementasikan dan dirilis ke staging; Tahap 2 dan 3 diimpl
   - Klasifikasi AI (care-classification-v1.8) menandai General Voice yang pokoknya keluhan tentang atasan pelapor sendiri.
   - Halaman Tinjau menampilkan **Keluhan tentang atasan?** dengan tombol **Ubah ke Private Voice**, yang membawa pelapor kembali ke form dengan isi yang sama sebagai Private Voice.
   - Saran ini tidak memaksa: pelapor tetap dapat mengirim sebagai General Voice.
+  - **Amandemen 5 November 2026 (ADR-0078, care-classification-v1.9): Private Voice wajib.**
+    - Penanda berlaku untuk laporan harassment (termasuk pelecehan seksual), bullying, intimidasi, discrimination, retaliation, atau ancaman terkait pelaporan terhadap orang tertentu, siapa pun pelakunya. Keluhan kebijakan, beban kerja, approval, atau keputusan kerja biasa dari atasan tidak ditandai.
+    - Halaman Tinjau menampilkan **Kirim sebagai Private Voice** dan mengganti tombol Kirim Voice dengan **Lanjut ke Private Voice**. Form Private terbuka dengan area, detail lokasi, judul, detail, dan foto tetap terisi; layar bergulir ke **Identitas kepada Komite**, dan pelapor hanya memilih identitas serta persetujuan kontak.
+    - Server menolak submit General yang ditandai dengan `PRIVATE_VOICE_REQUIRED` (422). Klasifikasi manual berikutnya tidak menghapus penanda. Hasil AI dengan confidence di bawah threshold tidak disimpan, sehingga tidak memblokir.
 
 ### 43.6 Tahap 3 — eskalasi otomatis (diimplementasikan, belum dirilis)
 

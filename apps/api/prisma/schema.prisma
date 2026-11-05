@@ -328,6 +328,7 @@ model UserAccount {
   adminPicHandoversFrom    AdminPicHandover[]             @relation("AdminPicHandoverFrom")
   adminPicHandoversTo      AdminPicHandover[]             @relation("AdminPicHandoverTo")
   adminPicHandoversActed   AdminPicHandover[]             @relation("AdminPicHandoverAdmin")
+  categoryCorrectionReviews CategoryCorrectionReview[]    @relation("CategoryCorrectionReviewer")
 
   awayPeriods       AwayPeriod[] @relation("AwayAccount")
   awaySubstitutions AwayPeriod[] @relation("AwaySubstitute")
@@ -802,6 +803,7 @@ model Voice {
   adminPicHandovers               AdminPicHandover[]
   reminders                       VoiceReminder[]
   closureReports                  ClosureReport[]
+  categoryCorrections             CategoryCorrectionReview[]
 
   @@unique([legacySource, legacyId])
   @@index([reporterId, status, updatedAt])
@@ -818,6 +820,31 @@ model Voice {
   @@index([tierDueAt, status])
   @@index([severity, submittedAt])
   @@index([title, displayId])
+}
+
+enum CategoryCorrectionDecision {
+  ACCEPTED
+  DISMISSED
+}
+
+/// CARE Admin decision on a General Voice whose category changed after submit
+/// (handover). Accepted ones added an Example to the target category (ADR-0080).
+/// One decision per Voice and target category; a later move to another
+/// category is a new correction.
+model CategoryCorrectionReview {
+  id                 String                     @id @default(uuid()) @db.Uuid
+  voiceId            String                     @db.Uuid
+  fromCategoryKey    String                     @db.VarChar(80)
+  toCategoryKey      String                     @db.VarChar(80)
+  decision           CategoryCorrectionDecision
+  example            String?                    @db.VarChar(1000)
+  categoryRevisionId String?                    @db.Uuid
+  reviewedById       String                     @db.Uuid
+  reviewedAt         DateTime                   @default(now())
+  voice              Voice                      @relation(fields: [voiceId], references: [id])
+  reviewedBy         UserAccount                @relation("CategoryCorrectionReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([voiceId, toCategoryKey])
 }
 
 model HumanVoiceSequence {

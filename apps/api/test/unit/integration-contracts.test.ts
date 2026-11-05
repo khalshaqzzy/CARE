@@ -188,7 +188,7 @@ describe('DeepSeek Chat Completions adapter', () => {
               questions: ['Di gedung atau line mana?'],
             }
           : {
-              category: 'ENVIRONMENT',
+              category: 'WORK_DIFFICULTY',
               severity: 'HIGH',
               confidence: 0.91,
             };
@@ -239,6 +239,7 @@ describe('DeepSeek Chat Completions adapter', () => {
       const classification = await service.classify({
         visibility: 'GENERAL',
         area: 'KARAWANG_1',
+        locationDetail: 'Shop Assy 1, line 2',
         title: 'Limbah bocor',
         detail: 'Ada kebocoran cairan di area proses',
       });
@@ -246,7 +247,15 @@ describe('DeepSeek Chat Completions adapter', () => {
         area: 'KARAWANG_1',
         locationDetail: 'dekat line',
       });
-      expect(classification).toMatchObject({ source: 'AI', result: { category: 'ENVIRONMENT' } });
+      expect(classification).toMatchObject({
+        source: 'AI',
+        result: { category: 'WORK_DIFFICULTY' },
+      });
+      // The classifier reads the location so it can tell shops from shared areas.
+      expect(
+        requests.find((item) => item.body.tools[0].function.name === 'submit_care_classification')
+          ?.body.messages[1].content,
+      ).toContain('Shop Assy 1, line 2');
       expect(location).toMatchObject({ completeness: 'INCOMPLETE' });
       expect(requests).toHaveLength(2);
       for (const item of requests) {

@@ -551,6 +551,8 @@ export class VoicesService {
     const result = await this.ai.classify({
       visibility: draft.visibility,
       area: draft.visibility === VoiceVisibility.GENERAL ? draft.area : undefined,
+      locationDetail:
+        draft.visibility === VoiceVisibility.GENERAL ? draft.locationDetail : undefined,
       title: draft.title,
       detail: draft.detail,
       categories,
@@ -787,6 +789,15 @@ export class VoicesService {
       throw new AppError(
         'CLASSIFICATION_REQUIRED',
         'A current classification or manual fallback is required',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    // Harassment, bullying, discrimination and retaliation reports go to the
+    // Komite only. A later manual fallback keeps the flag, so it cannot be
+    // used to send such a Voice as General.
+    if (draft.visibility === VoiceVisibility.GENERAL && draft.classification.privateSuggested)
+      throw new AppError(
+        'PRIVATE_VOICE_REQUIRED',
+        'Voice ini perlu dikirim sebagai Private Voice.',
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     if (
@@ -4954,6 +4965,12 @@ export class VoicesService {
       classificationContentHash: canonicalHash({
         visibility: data.visibility,
         area: data.visibility === VoiceVisibility.GENERAL ? data.area : undefined,
+        // General classification reads the location, so a new location
+        // needs a new classification.
+        locationDetail:
+          data.visibility === VoiceVisibility.GENERAL
+            ? data.locationDetail.trim().replace(/\s+/g, ' ')
+            : undefined,
         title: data.title.trim(),
         detail: data.detail.trim(),
         model,
