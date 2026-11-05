@@ -34,7 +34,7 @@ async function main() {
         toolName === 'submit_care_location_review'
           ? { completeness: 'COMPLETE', warning: null, questions: [] }
           : {
-              category: 'ENVIRONMENT',
+              category: 'WORK_DIFFICULTY',
               severity: 'MEDIUM',
               confidence: 0.92,
             };

@@ -23,6 +23,7 @@ async function main() {
     ai.classify({
       visibility: VoiceVisibility.GENERAL,
       area: 'KARAWANG_1',
+      locationDetail: 'Gedung Produksi A, line 2, mesin press nomor 4',
       title: 'Pelindung mesin produksi terlepas',
       detail: 'Pelindung mesin terlepas dan berpotensi mengenai operator saat mesin dijalankan.',
     }),

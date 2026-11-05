@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  CategoryCorrectionDecision,
   GeneralVoiceCategoryRouteMode,
   GeneralVoiceCategoryStatus,
   ImportIssueStatus,
@@ -33,6 +34,81 @@ const statusSchema = z
     expectedVersion: z.number().int().positive(),
   })
   .strict();
+const acceptCorrectionSchema = z
+  .object({
+    example: z.string().trim().min(1).max(1000),
+    expectedCategoryKey: z.string().min(1).max(80),
+  })
+  .strict();
+const dismissCorrectionSchema = z
+  .object({ expectedCategoryKey: z.string().min(1).max(80) })
+  .strict();
+const MAX_EXAMPLES = 50;
+type CorrectionDecisionResponse = {
+  voiceId: string;
+  decision: CategoryCorrectionDecision;
+  categoryKey: string;
+  revision: number | null;
+};
+const CORRECTION_LIST_LIMIT = 50;
+
+type CorrectionRow = {
+  voiceId: string;
+  displayId: string;
+  title: string;
+  detail: string;
+  area: string;
+  locationDetail: string;
+  submittedAt: Date;
+  fromCategoryKey: string;
+  fromCategoryName: string | null;
+  toCategoryKey: string;
+  toCategoryName: string | null;
+  classificationSource: string | null;
+  handoverNote: string | null;
+  changedAt: Date;
+  targetActive: boolean;
+};
+
+// General Voices whose category changed after submit (handover) and that
+// CARE Admin has not decided on for their current category. Migrated Voices
+// are left out: their first category came from another platform.
+const correctionsSql = (limit: number | null) => Prisma.sql`
+  SELECT v."id" AS "voiceId", v."displayId", v."title", v."detail", v."area"::text AS "area",
+         v."locationDetail", v."submittedAt",
+         v."categoryKey" AS "fromCategoryKey", v."categoryNameSnapshot" AS "fromCategoryName",
+         v."currentCategoryKey" AS "toCategoryKey",
+         v."currentCategoryNameSnapshot" AS "toCategoryName",
+         c."source"::text AS "classificationSource",
+         COALESCE(h."detail", a."managerDetail") AS "handoverNote",
+         COALESCE(h."createdAt", a."resolvedAt", v."updatedAt") AS "changedAt",
+         EXISTS (
+           SELECT 1 FROM "GeneralVoiceCategory" g
+           WHERE g."key" = v."currentCategoryKey" AND g."status" = 'ACTIVE'
+         ) AS "targetActive"
+  FROM "Voice" v
+  LEFT JOIN "AIClassification" c ON c."voiceId" = v."id"
+  LEFT JOIN LATERAL (
+    SELECT hv."detail", hv."createdAt" FROM "VoiceHandover" hv
+    WHERE hv."voiceId" = v."id" ORDER BY hv."sequence" DESC LIMIT 1
+  ) h ON TRUE
+  LEFT JOIN LATERAL (
+    SELECT ah."managerDetail", ah."resolvedAt" FROM "AdminHandover" ah
+    WHERE ah."voiceId" = v."id" AND ah."status" = 'ROUTED'
+    ORDER BY ah."resolvedAt" DESC NULLS LAST LIMIT 1
+  ) a ON TRUE
+  WHERE v."visibility" = 'GENERAL'
+    AND v."legacySource" IS NULL
+    AND v."categoryKey" IS NOT NULL
+    AND v."currentCategoryKey" IS NOT NULL
+    AND v."currentCategoryKey" <> v."categoryKey"
+    AND NOT EXISTS (
+      SELECT 1 FROM "CategoryCorrectionReview" r
+      WHERE r."voiceId" = v."id" AND r."toCategoryKey" = v."currentCategoryKey"
+    )
+  ORDER BY "changedAt" DESC, v."id" ASC
+  ${limit === null ? Prisma.empty : Prisma.sql`LIMIT ${limit}`}
+`;
 
 @Injectable()
 export class CategoriesService {
@@ -279,6 +355,190 @@ export class CategoriesService {
     return response;
   }
 
+  /** Pending category corrections for CARE Admin, newest change first. */
+  async corrections() {
+    const [rows, counted] = await Promise.all([
+      this.prisma.$queryRaw<CorrectionRow[]>(correctionsSql(CORRECTION_LIST_LIMIT)),
+      this.prisma.$queryRaw<Array<{ total: bigint }>>(
+        Prisma.sql`SELECT COUNT(*)::bigint AS "total" FROM (${correctionsSql(null)}) pending`,
+      ),
+    ]);
+    return {
+      total: Number(counted[0]?.total ?? 0),
+      items: rows.map((row) => ({
+        voiceId: row.voiceId,
+        displayId: row.displayId,
+        title: row.title,
+        detail: row.detail.length > 600 ? `${row.detail.slice(0, 600)}…` : row.detail,
+        area: row.area,
+        locationDetail: row.locationDetail,
+        submittedAt: row.submittedAt,
+        changedAt: row.changedAt,
+        from: { key: row.fromCategoryKey, name: row.fromCategoryName ?? row.fromCategoryKey },
+        to: { key: row.toCategoryKey, name: row.toCategoryName ?? row.toCategoryKey },
+        classificationSource: row.classificationSource,
+        handoverNote: row.handoverNote,
+        // Custom or archived targets cannot take Examples; Admin can only dismiss.
+        canAccept: row.targetActive,
+      })),
+    };
+  }
+
+  async acceptCorrection(actor: AuthActor, voiceId: string, body: unknown, key?: string) {
+    this.requireKey(key);
+    const data = this.parse(acceptCorrectionSchema, body);
+    const requestHash = canonicalHash({ voiceId, ...data });
+    const scope = `admin:category-correction:${voiceId}`;
+    const replay = await this.replay(actor, scope, key!, requestHash);
+    if (replay) return replay as unknown as CorrectionDecisionResponse;
+    const response = await this.prisma.$transaction(async (tx) => {
+      const voice = await this.pendingCorrection(tx, voiceId, data.expectedCategoryKey);
+      const category = await tx.generalVoiceCategory.findUnique({
+        where: { key: data.expectedCategoryKey },
+      });
+      if (!category || category.status !== GeneralVoiceCategoryStatus.ACTIVE)
+        throw conflict(
+          'CATEGORY_CORRECTION_TARGET_UNAVAILABLE',
+          'Kategori tujuan tidak aktif; contoh tidak dapat ditambahkan.',
+        );
+      // Serialise with catalog edits so no revision is lost.
+      await tx.$queryRaw`SELECT "id" FROM "GeneralVoiceCategory" WHERE "id" = ${category.id}::uuid FOR UPDATE`;
+      const current = await tx.generalVoiceCategoryRevision.findFirst({
+        where: { categoryId: category.id, effectiveTo: null },
+      });
+      if (!current)
+        throw conflict('CATEGORY_CONFIGURATION_INCOMPLETE', 'Prompt context belum lengkap');
+      const examples = current.examples as string[];
+      const normalized = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
+      let revision = current;
+      if (!examples.some((value) => normalized(value) === normalized(data.example))) {
+        if (examples.length >= MAX_EXAMPLES)
+          throw conflict(
+            'CATEGORY_EXAMPLES_FULL',
+            `Contoh kategori sudah ${MAX_EXAMPLES}. Hapus salah satu di Konfigurasi kategori.`,
+          );
+        const now = new Date();
+        await tx.generalVoiceCategory.update({
+          where: { id: category.id },
+          data: { version: { increment: 1 } },
+        });
+        await tx.generalVoiceCategoryRevision.update({
+          where: { id: current.id },
+          data: { effectiveTo: now },
+        });
+        revision = await tx.generalVoiceCategoryRevision.create({
+          data: {
+            categoryId: category.id,
+            revision: current.revision + 1,
+            name: current.name,
+            definition: current.definition,
+            examples: [...examples, data.example],
+            createdById: actor.accountId,
+          },
+        });
+        await this.audit(tx, actor, 'GENERAL_VOICE_CATEGORY_UPDATED', category.id, {
+          revision: revision.revision,
+          source: 'CATEGORY_CORRECTION',
+          voiceId,
+          contentHash: canonicalHash({
+            name: revision.name,
+            definition: revision.definition,
+            examples: revision.examples,
+          }),
+        });
+      }
+      await tx.categoryCorrectionReview.create({
+        data: {
+          voiceId,
+          fromCategoryKey: voice.categoryKey!,
+          toCategoryKey: data.expectedCategoryKey,
+          decision: CategoryCorrectionDecision.ACCEPTED,
+          example: data.example,
+          categoryRevisionId: revision.id,
+          reviewedById: actor.accountId,
+        },
+      });
+      return {
+        voiceId,
+        decision: CategoryCorrectionDecision.ACCEPTED,
+        categoryKey: category.key,
+        revision: revision.revision,
+      };
+    });
+    await this.remember(actor, scope, key!, requestHash, response);
+    return response;
+  }
+
+  async dismissCorrection(actor: AuthActor, voiceId: string, body: unknown, key?: string) {
+    this.requireKey(key);
+    const data = this.parse(dismissCorrectionSchema, body);
+    const requestHash = canonicalHash({ voiceId, dismiss: true, ...data });
+    const scope = `admin:category-correction:${voiceId}`;
+    const replay = await this.replay(actor, scope, key!, requestHash);
+    if (replay) return replay as unknown as CorrectionDecisionResponse;
+    const response = await this.prisma.$transaction(async (tx) => {
+      const voice = await this.pendingCorrection(tx, voiceId, data.expectedCategoryKey);
+      await tx.categoryCorrectionReview.create({
+        data: {
+          voiceId,
+          fromCategoryKey: voice.categoryKey!,
+          toCategoryKey: data.expectedCategoryKey,
+          decision: CategoryCorrectionDecision.DISMISSED,
+          reviewedById: actor.accountId,
+        },
+      });
+      await this.audit(
+        tx,
+        actor,
+        'CATEGORY_CORRECTION_DISMISSED',
+        voiceId,
+        { from: voice.categoryKey, to: data.expectedCategoryKey },
+        'VOICE',
+      );
+      return {
+        voiceId,
+        decision: CategoryCorrectionDecision.DISMISSED,
+        categoryKey: data.expectedCategoryKey,
+        revision: null,
+      };
+    });
+    await this.remember(actor, scope, key!, requestHash, response);
+    return response;
+  }
+
+  /** The Voice must still sit in the category Admin saw, with no decision yet. */
+  private async pendingCorrection(
+    tx: Prisma.TransactionClient,
+    voiceId: string,
+    expectedCategoryKey: string,
+  ) {
+    const voice = await tx.voice.findUnique({
+      where: { id: voiceId },
+      select: {
+        visibility: true,
+        legacySource: true,
+        categoryKey: true,
+        currentCategoryKey: true,
+      },
+    });
+    if (!voice || voice.visibility !== 'GENERAL' || voice.legacySource) throw forbiddenAsNotFound();
+    if (
+      !voice.categoryKey ||
+      voice.currentCategoryKey !== expectedCategoryKey ||
+      voice.categoryKey === expectedCategoryKey
+    )
+      throw conflict(
+        'CATEGORY_CORRECTION_CHANGED',
+        'Kategori Voice sudah berubah; muat ulang daftar koreksi.',
+      );
+    const decided = await tx.categoryCorrectionReview.findUnique({
+      where: { voiceId_toCategoryKey: { voiceId, toCategoryKey: expectedCategoryKey } },
+    });
+    if (decided)
+      throw conflict('CATEGORY_CORRECTION_REVIEWED', 'Koreksi ini sudah diputuskan Admin lain.');
+    return voice;
+  }
+
   private async adminShape(row: any) {
     const revision = row.revisions[0];
     const route = row.routes[0];
@@ -473,6 +733,7 @@ export class CategoriesService {
     action: string,
     resourceId: string,
     summary: Prisma.InputJsonValue,
+    resourceType = 'GENERAL_VOICE_CATEGORY',
   ) {
     return tx.auditEvent.create({
       data: {
@@ -482,7 +743,7 @@ export class CategoriesService {
         actorCapabilities: actor.capabilities,
         action,
         result: 'SUCCESS',
-        resourceType: 'GENERAL_VOICE_CATEGORY',
+        resourceType,
         resourceId,
         summary,
         correlationId: crypto.randomUUID(),

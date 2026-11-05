@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockAdminApi, type MockVoice } from './helpers/mock-api';
+import { categoryCorrectionsFixture, mockAdminApi, type MockVoice } from './helpers/mock-api';
 
 const ADMIN = 'http://127.0.0.1:4174';
 
@@ -46,6 +46,52 @@ const empty: { path: string; message: string }[] = [
 ];
 
 test.describe('Admin mocked-contract journeys', () => {
+  test('Koreksi Kategori turns a handed-over Voice into an edited category Example', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await mockAdminApi(page, { categoryCorrections: categoryCorrectionsFixture() });
+    const sent: { path: string; body: Record<string, unknown> }[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().includes('/admin/category-corrections/'))
+        sent.push({
+          path: new URL(request.url()).pathname,
+          body: request.postDataJSON() as Record<string, unknown>,
+        });
+    });
+    await page.goto(`${ADMIN}/`);
+    await page.getByRole('button', { name: 'Koreksi Kategori' }).click();
+    await expect(page).toHaveURL(/\/category-corrections$/);
+    await expect(page.getByRole('heading', { name: 'Koreksi kategori (3)' })).toBeVisible();
+
+    const shop = page.getByRole('article', { name: 'Koreksi CARE-202611-000412' });
+    await expect(shop.getByText('Kejadian di dalam shop press')).toBeVisible();
+    const example = shop.getByRole('textbox', {
+      name: 'Contoh untuk Fasilitas Kerja / Kesulitan Kerja',
+    });
+    await expect(example).toHaveValue('Lantai shop licin karena oli dari mesin press');
+    await example.fill('Lantai licin karena oli mesin di dalam shop');
+    await shop.getByRole('button', { name: 'Jadikan contoh' }).click();
+    await expect.poll(() => sent.length).toBe(1);
+    expect(sent[0]).toEqual({
+      path: '/api/v1/admin/category-corrections/30000000-0000-4000-8000-000000000001/accept',
+      body: {
+        example: 'Lantai licin karena oli mesin di dalam shop',
+        expectedCategoryKey: 'WORK_DIFFICULTY',
+      },
+    });
+
+    // A custom target category cannot take Examples; it can only be dismissed.
+    const custom = page.getByRole('article', { name: 'Koreksi CARE-202611-000377' });
+    await expect(custom.getByRole('button', { name: 'Jadikan contoh' })).toHaveCount(0);
+    await custom.getByRole('button', { name: 'Abaikan' }).click();
+    await expect.poll(() => sent.length).toBe(2);
+    expect(sent[1]).toEqual({
+      path: '/api/v1/admin/category-corrections/30000000-0000-4000-8000-000000000003/dismiss',
+      body: { expectedCategoryKey: 'ADMIN_CUSTOM_PARKIR' },
+    });
+  });
+
   test('handover requires a Voice-only category for a department without active categories', async ({
     page,
   }) => {

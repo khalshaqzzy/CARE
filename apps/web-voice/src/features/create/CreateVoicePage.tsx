@@ -259,6 +259,13 @@ function FormStep({ wizard }: { wizard: Wizard }) {
 
   useEffect(() => setDirtyGuard(wizard.dirty), [wizard.dirty]);
 
+  const { privacyFocus, clearPrivacyFocus } = wizard;
+  useEffect(() => {
+    if (!privacyFocus || !isPrivate) return;
+    document.getElementById('privacy-checklist')?.scrollIntoView({ block: 'center' });
+    clearPrivacyFocus();
+  }, [privacyFocus, isPrivate, clearPrivacyFocus]);
+
   return (
     <div className="wizard-page">
       <Stepper current={STEP_PROGRESS.form} />
@@ -798,6 +805,13 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
   const severity = classification && 'severity' in classification ? classification.severity : null;
   const category = classification && 'category' in classification ? classification.category : null;
   const isPrivate = form.visibility === 'PRIVATE';
+  // Harassment-type reports cannot be sent as General (server: PRIVATE_VOICE_REQUIRED).
+  const privateRequired = Boolean(
+    !isPrivate &&
+    classification &&
+    'privateSuggested' in classification &&
+    classification.privateSuggested,
+  );
 
   const preview = useQuery({
     queryKey: voiceQuery(sessionId, 'draft', draft?.id ?? 'none', 'review-preview'),
@@ -845,21 +859,9 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           }
         />
 
-        {!isPrivate &&
-        classification &&
-        'privateSuggested' in classification &&
-        classification.privateSuggested ? (
-          <Alert tone="warning" title="Keluhan tentang atasan?">
-            <p>Private Voice hanya dibaca Komite.</p>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                wizard.setField({ visibility: 'PRIVATE' });
-                wizard.setStep('form');
-              }}
-            >
-              Ubah ke Private Voice
-            </Button>
+        {privateRequired ? (
+          <Alert tone="warning" title="Kirim sebagai Private Voice">
+            <p>Laporan seperti ini hanya dibaca Komite. Isian Anda tetap tersimpan.</p>
           </Alert>
         ) : null}
 
@@ -881,7 +883,7 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           <ReviewContactConsent accepted={draft?.privateContactConsent === true} />
         ) : null}
 
-        {isIncomplete ? (
+        {isIncomplete && !privateRequired ? (
           <Alert tone="warning" title="Detail lokasi belum lengkap">
             <Checkbox
               checked={ack}
@@ -894,17 +896,27 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
         <ActionsBar
           onBack={() => wizard.setStep('form')}
           primary={
-            <Button
-              variant="primary"
-              className="wizard-actionsbar__primary"
-              loading={wizard.isSubmitting}
-              disabled={
-                (isIncomplete && !ack) || (isPrivate && draft?.privateContactConsent !== true)
-              }
-              onClick={() => void wizard.submit()}
-            >
-              <Radio size={18} /> Kirim Voice
-            </Button>
+            privateRequired ? (
+              <Button
+                variant="primary"
+                className="wizard-actionsbar__primary"
+                onClick={wizard.switchToPrivate}
+              >
+                <ShieldCheck size={18} /> Lanjut ke Private Voice
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                className="wizard-actionsbar__primary"
+                loading={wizard.isSubmitting}
+                disabled={
+                  (isIncomplete && !ack) || (isPrivate && draft?.privateContactConsent !== true)
+                }
+                onClick={() => void wizard.submit()}
+              >
+                <Radio size={18} /> Kirim Voice
+              </Button>
+            )
           }
         />
       </Stack>

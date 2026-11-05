@@ -86,6 +86,8 @@ export type LocationShopContext = { id: string; name: string; aliases: string[] 
 export type ClassificationInput = {
   visibility: VoiceVisibility;
   area?: string;
+  /** General only: lets the model tell shop incidents from shared areas and offices. */
+  locationDetail?: string;
   title: string;
   detail: string;
   categories?: Array<{

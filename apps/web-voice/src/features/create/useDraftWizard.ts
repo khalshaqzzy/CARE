@@ -66,6 +66,9 @@ export function useDraftWizard(draftId?: string) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [ackDisabled, setAckDisabled] = useState(false);
+  // Set when a General draft must move to Private: the form scrolls to the
+  // identity choices, the only fields left to fill.
+  const [privacyFocus, setPrivacyFocus] = useState(false);
 
   const positionOptions = useQuery({
     queryKey: voiceQuery(sessionId, 'draft-position-options'),
@@ -334,6 +337,15 @@ export function useDraftWizard(draftId?: string) {
     setStep('review');
   }, []);
 
+  // Keeps location, title, detail and photos; only the Private identity and
+  // contact choices remain.
+  const switchToPrivate = useCallback(() => {
+    setError(null);
+    setField({ visibility: 'PRIVATE' });
+    setPrivacyFocus(true);
+    setStep('form');
+  }, [setField]);
+
   const submit = useCallback(async () => {
     setError(null);
     if (draft?.visibility === 'PRIVATE' && draft.privateContactConsent !== true) {
@@ -406,6 +418,9 @@ export function useDraftWizard(draftId?: string) {
     removeAttachment: removeAttachment.mutate,
     runFallback,
     proceedToReview,
+    switchToPrivate,
+    privacyFocus,
+    clearPrivacyFocus: () => setPrivacyFocus(false),
     submit,
     isSubmitting: submitMutation.isPending || submitMutation.isSuccess,
     isUploading: uploadAttachments.isPending,

@@ -67,3 +67,33 @@ export class AdminCategoriesController {
     return this.service.setStatus(actor, id, body, key ?? keyAlt);
   }
 }
+
+/** Voices handed over to another category, reviewed into category Examples (ADR-0079). */
+@ApiTags('administration')
+@ApiCookieAuth()
+@Capabilities('CARE_ADMIN')
+@Controller('admin/category-corrections')
+export class AdminCategoryCorrectionsController {
+  constructor(@Inject(CategoriesService) private readonly service: CategoriesService) {}
+  @Get() list() {
+    return this.service.corrections();
+  }
+  @Post(':voiceId/accept') accept(
+    @Actor() actor: AuthActor,
+    @Param('voiceId', ParseUUIDPipe) voiceId: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+    @Headers('Idempotency-Key') keyAlt?: string,
+  ) {
+    return this.service.acceptCorrection(actor, voiceId, body, key ?? keyAlt);
+  }
+  @Post(':voiceId/dismiss') dismiss(
+    @Actor() actor: AuthActor,
+    @Param('voiceId', ParseUUIDPipe) voiceId: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+    @Headers('Idempotency-Key') keyAlt?: string,
+  ) {
+    return this.service.dismissCorrection(actor, voiceId, body, key ?? keyAlt);
+  }
+}

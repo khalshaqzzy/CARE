@@ -515,6 +515,59 @@ const remediationHistoryFixture = (): RemediationResolutionList => ({
   nextCursor: null,
 });
 
+/** Voices handed over to another category, waiting for CARE Admin (ADR-0079). */
+export const categoryCorrectionsFixture = (): components['schemas']['CategoryCorrectionList'] => ({
+  total: 3,
+  items: [
+    {
+      voiceId: '30000000-0000-4000-8000-000000000001',
+      displayId: 'CARE-202611-000412',
+      title: 'Lantai shop licin karena oli dari mesin press',
+      detail:
+        'Oli dari mesin press nomor 4 menetes ke lantai sejak minggu lalu. Beberapa operator hampir terpeleset saat mengambil material.',
+      area: 'KARAWANG_1',
+      locationDetail: 'Shop Press 1, line 2',
+      submittedAt: '2026-11-03T02:15:00.000Z',
+      changedAt: '2026-11-03T05:40:00.000Z',
+      from: { key: 'SAFETY', name: 'Safety' },
+      to: { key: 'WORK_DIFFICULTY', name: 'Fasilitas Kerja / Kesulitan Kerja' },
+      classificationSource: 'AI',
+      handoverNote: 'Kejadian di dalam shop press, ditangani maintenance shop, bukan PGA-SHE.',
+      canAccept: true,
+    },
+    {
+      voiceId: '30000000-0000-4000-8000-000000000002',
+      displayId: 'CARE-202611-000398',
+      title: 'AC ruang meeting lantai 2 tidak dingin',
+      detail: 'AC sudah dua hari tidak dingin, ruangan panas saat rapat siang.',
+      area: 'SUNTER_1',
+      locationDetail: 'Gedung office, ruang meeting lantai 2',
+      submittedAt: '2026-11-02T07:05:00.000Z',
+      changedAt: '2026-11-02T09:12:00.000Z',
+      from: { key: 'FACILITY', name: 'Fasilitas Umum' },
+      to: { key: 'FACILITY_REPAIR', name: 'Facility Repair' },
+      classificationSource: 'AI',
+      handoverNote: 'Perlu perbaikan unit AC oleh SPFM.',
+      canAccept: true,
+    },
+    {
+      voiceId: '30000000-0000-4000-8000-000000000003',
+      displayId: 'CARE-202611-000377',
+      title: 'Tempat parkir sepeda kurang',
+      detail: 'Banyak sepeda diparkir di jalur pejalan kaki karena rak penuh.',
+      area: 'KARAWANG_2',
+      locationDetail: 'Parkiran gate 3',
+      submittedAt: '2026-11-01T01:30:00.000Z',
+      changedAt: '2026-11-01T04:00:00.000Z',
+      from: { key: 'FACILITY', name: 'Fasilitas Umum' },
+      to: { key: 'ADMIN_CUSTOM_PARKIR', name: 'Parkir & Transportasi' },
+      classificationSource: 'MANUAL_FALLBACK',
+      handoverNote: null,
+      canAccept: false,
+    },
+  ],
+});
+
 const categoryFixture = (): GeneralVoiceCategoryAdmin => ({
   id: '10000000-0000-4000-8000-000000000001',
   key: 'SAFETY',
@@ -699,6 +752,7 @@ export async function mockAdminApi(
     adminHandovers?: components['schemas']['AdminHandoverQueue'];
     adminHandoverDetail?: components['schemas']['AdminHandoverDetail'];
     adminHandoverOptions?: components['schemas']['AdminHandoverOptions'];
+    categoryCorrections?: components['schemas']['CategoryCorrectionList'];
   } = {},
 ) {
   const session = opts.session ?? adminSession();
@@ -748,6 +802,20 @@ export async function mockAdminApi(
       });
     if (method === 'GET' && path === '/api/v1/admin/general-voice-categories')
       return fulfill(200, override('categories') ?? [categoryFixture()]);
+    if (method === 'GET' && path === '/api/v1/admin/category-corrections')
+      return fulfill(200, override('categoryCorrections') ?? { total: 0, items: [] });
+    const correction = /^\/api\/v1\/admin\/category-corrections\/([^/]+)\/(accept|dismiss)$/.exec(
+      path,
+    );
+    if (method === 'POST' && correction) {
+      const body = route.request().postDataJSON() as { expectedCategoryKey: string };
+      return fulfill(201, {
+        voiceId: correction[1],
+        decision: correction[2] === 'accept' ? 'ACCEPTED' : 'DISMISSED',
+        categoryKey: body.expectedCategoryKey,
+        revision: correction[2] === 'accept' ? 4 : null,
+      });
+    }
     if (method === 'GET' && path === '/api/v1/admin/shop-locations')
       return fulfill(200, override('shopLocations') ?? []);
     if (method === 'GET' && path === '/api/v1/admin/shop-locations/unmatched')
