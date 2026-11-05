@@ -1530,3 +1530,14 @@ icon and closes stale tray banners once everything is read. iOS 16.4+ Home Scree
 installed desktop apps show a number; Android launchers show their own dot. ADR-0074
 records the decision; PRD §19.4 is updated. Phase 13 remains the only `in_progress`
 phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.
+
+## Admin moves a General Voice to another PIC — 5 November 2026
+
+Implemented on `feat/admin-pic-handover` (from `origin/staging` 50598bc). CARE Admin
+can move an active General Voice from the Admin Voice detail page to any active
+responder found by name or No. Reg, with an optional reason. The new PIC becomes the
+route owner (and the handler for Section Heads and Group Leaders), the tier chain is
+cleared and Diproses restarts as Direspon. New table `AdminPicHandover`, endpoints
+`GET /admin/voices/:id/pic-candidates` and `POST /admin/voices/:id/pic-handover`.
+ADR-0079 records the decision and PRD §44 is added. Phase 13 remains the only
+`in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.

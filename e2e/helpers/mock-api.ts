@@ -739,7 +739,7 @@ export async function mockAdminApi(
     if (method === 'GET' && /\/api\/v1\/admin\/handovers\/[^/]+$/.test(path))
       return fulfill(200, override('adminHandoverDetail') ?? {});
     if (method === 'GET' && /\/api\/v1\/admin\/voices\/[^/]+\/handover-history$/.test(path))
-      return fulfill(200, { items: [] });
+      return fulfill(200, { items: [], picItems: [] });
     if (method === 'GET' && /\/api\/v1\/voices\/[^/]+\/handovers$/.test(path))
       return fulfill(200, {
         voice: { id: 'voice-1', displayId: 'CARE-202608-000001' },

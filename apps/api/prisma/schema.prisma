@@ -325,6 +325,9 @@ model UserAccount {
   adminHandoversRequested  AdminHandover[]                @relation("AdminHandoverManager")
   adminHandoversOwned      AdminHandover[]                @relation("AdminHandoverAdmin")
   adminHandoversResolved   AdminHandover[]                @relation("AdminHandoverResolver")
+  adminPicHandoversFrom    AdminPicHandover[]             @relation("AdminPicHandoverFrom")
+  adminPicHandoversTo      AdminPicHandover[]             @relation("AdminPicHandoverTo")
+  adminPicHandoversActed   AdminPicHandover[]             @relation("AdminPicHandoverAdmin")
 
   awayPeriods       AwayPeriod[] @relation("AwayAccount")
   awaySubstitutions AwayPeriod[] @relation("AwaySubstitute")
@@ -796,6 +799,7 @@ model Voice {
   legacyAccess                    LegacyVoiceAccess[]
   handovers                       VoiceHandover[]
   adminHandovers                  AdminHandover[]
+  adminPicHandovers               AdminPicHandover[]
   reminders                       VoiceReminder[]
   closureReports                  ClosureReport[]
 
@@ -980,6 +984,25 @@ model AdminHandover {
   @@index([status, createdAt, id])
   @@index([voiceId, createdAt, id])
   @@index([managerId, createdAt, id])
+}
+
+/// A CARE Admin moving an active General Voice to another responder.
+model AdminPicHandover {
+  id             String      @id @default(uuid()) @db.Uuid
+  voiceId        String      @db.Uuid
+  fromPicId      String      @db.Uuid
+  fromHandlerId  String?     @db.Uuid
+  toPicId        String      @db.Uuid
+  adminId        String      @db.Uuid
+  previousStatus VoiceStatus
+  detail         String?     @db.VarChar(4000)
+  createdAt      DateTime    @default(now())
+  voice          Voice       @relation(fields: [voiceId], references: [id])
+  fromPic        UserAccount @relation("AdminPicHandoverFrom", fields: [fromPicId], references: [id])
+  toPic          UserAccount @relation("AdminPicHandoverTo", fields: [toPicId], references: [id])
+  admin          UserAccount @relation("AdminPicHandoverAdmin", fields: [adminId], references: [id])
+
+  @@index([voiceId, createdAt, id])
 }
 
 model VoiceEvent {

@@ -3086,3 +3086,21 @@ button.admin-rows > li:hover,
   font-size: 0.875rem;
   font-weight: 600;
 }
+.admin-pic-handover {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-3);
+}
+.admin-pic-handover__open {
+  align-self: flex-start;
+  justify-self: start;
+}
+.admin-pic-handover__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.admin-pic-handover .admin-handover-units {
+  max-height: 280px;
+  margin-top: 0;
+}

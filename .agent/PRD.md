@@ -965,7 +965,7 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 
 - Aggregate scope dan detail/list scope dihitung dengan policy terpisah di backend.
 - Aggregate lintas detail scope hanya mengembalikan bucket/count/time series yang memenuhi minimum privacy threshold yang ditetapkan implementasi; tidak mengembalikan item identifiers atau identity.
-- CARE Admin mempunyai operational overview dan read-only Voice Explorer seluruh General/Private; Private memuat identity lengkap dan setiap access diaudit.
+- CARE Admin mempunyai operational overview dan Voice Explorer seluruh General/Private; Private memuat identity lengkap, read-only, dan setiap access diaudit. Satu-satunya aksi Admin adalah memindahkan PIC General Voice aktif (§44).
 
 ### 18.7 Voice Member Inbox
 
@@ -2700,3 +2700,13 @@ Kategori fixed (tanpa penanda `tiered`) memakai tabel batas per severity dan kal
 
 - **Tahap 2:** Voice mulai di GL/SH, visibilitas baca-saja dan pemisahan Voice Untuk Saya/Tim Saya, aksi Naikkan/Tugaskan/Ingatkan/Proses di chat bertingkat, badge pelapor dari luar, handover Manager yang dilonggarkan, Sedang tidak masuk, ubah severity, dan saran AI ke Private Voice.
 - **Tahap 3:** worker eskalasi otomatis berbasis kalender kerja, notifikasi eskalasi, dan notifikasi Critical. Setelah Tahap 3, aturan §15.4 "tanpa eskalasi otomatis" tidak lagi berlaku untuk kategori bertingkat.
+
+## 44. CARE Admin memindahkan PIC General Voice — 5 November 2026
+
+Status: **diimplementasikan di `feat/admin-pic-handover`, belum dirilis.** ADR-0079 mencatat keputusan lengkap.
+
+- Di halaman detail Voice Admin (kartu **Penanganan**), CARE Admin memilih **Pindahkan PIC**, mengetik nama atau No. Reg, memilih responder dari hasil pencarian, mengisi alasan (opsional), lalu mengonfirmasi.
+- Berlaku untuk General Voice berstatus Terbuka, Direspon, atau Diproses. Private Voice, Voice Selesai, dan Voice yang sedang menunggu keputusan handover Admin tidak dapat dipindahkan. Admin Divisi tetap read-only.
+- Kandidat hanya responder aktif: Department Head, Section Head, Group Leader, atau pemilik route aktif.
+- PIC baru menjadi pemilik route; PIC lama dilepas. Section Head/Group Leader juga menjadi handler agar Voice masuk ke daftar kerjanya. Rantai bertingkat dihapus dan batas waktu dihitung ulang. Voice Diproses kembali ke Direspon: target lama dihapus dan laporan selesai yang menunggu dikembalikan.
+- Alasan hanya terlihat di riwayat handover Admin; pelapor dan workforce lain hanya melihat event "Tujuan ditentukan Admin" dan pesan sistem "Voice dialihkan ke {nama}". PIC baru menerima notifikasi handover, PIC lama menerima notifikasi perubahan.
