@@ -1,5 +1,33 @@
 # CARE Session Handoff
 
+## Admin moves a General Voice to another PIC — 5 November 2026
+
+**Objective:** in CARE Admin, let the admin hand a Voice from the Voice Explorer to any PIC by typing a name, so the Voice moves to the new PIC.
+
+**Product decisions (asked and answered):** the new PIC replaces the **route owner**; scope is **General Voices not yet Selesai**; targets are **responders only** (Department Head, Section Head, Group Leader, or an active route owner); the reason is **optional**.
+
+**Branch:** `feat/admin-pic-handover` in worktree `../CARE-admin-pic`, from `origin/staging` 50598bc. Uncommitted, no PR yet. The `feat/time-for-team` working tree in the main checkout was not touched; screenshots are in the main checkout `docs/preview-admin-pic-handover/` (untracked).
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry in implementationPhases.md. ADR-0079, PRD §44 (and §18.6 wording).
+
+**Change:**
+
+- API: `adminPicCandidates` and `adminPicHandover` in `voices.service.ts`; routes `GET /admin/voices/:id/pic-candidates?search=` and `POST /admin/voices/:id/pic-handover` (CARE_ADMIN, idempotent, `expectedVersion`, row lock). `adminHandoversForVoice` also returns `picItems`.
+- Effect: `routeOwnerId` = target; Section Head/Group Leader targets also become `currentHandlerId` (their work list only reaches handled General Voices); `handlerType` follows the target; handling unit snapshot moves; tier chain and closure approvers cleared; fresh due window; `IN_PROGRESS` → `RESPONDED` with the cycle target deleted and a pending closure report returned; open assignments ended.
+- Records: table `AdminPicHandover` (migration `20261105090000_admin_pic_handover`), event `ADMIN_HANDOVER_ROUTED` with `source: 'ADMIN_PIC_HANDOVER'` (names only, never the reason, because timeline payloads reach the reporter), audit `ADMIN_PIC_HANDOVER`, system chat note when a conversation exists, notifications to the new and old PICs.
+- OpenAPI: `AdminPicCandidates`, `AdminPicHandoverRequest`, `AdminHandoverHistory.picItems`; `openapi.json` and `generated.ts` regenerated.
+- Admin UI: `features/voices/PicHandover.tsx` inside the **Penanganan** card of `VoiceDetailPage.tsx` (search with 250 ms debounce, radio list, optional reason, success notice); handover history shows Admin moves; event labels for the three Admin handover events. Explorer copy no longer says Admin mutations are rejected (the Explorer page itself on staging has no drawer any more).
+- Tests: integration case in `voice-handover.integration.test.ts`; e2e case in `admin-improvements.spec.ts`; mock `handover-history` returns `picItems`; Playwright inventory 493 → 494.
+
+**Checks (Windows, Node 22.23.4, throwaway pgvector container on 54339):**
+
+- API typecheck, admin typecheck, eslint and prettier (end-of-line auto) on changed files; `prisma validate`; `migrate diff` shows no drift for the new table (only pre-existing unrelated differences).
+- `voice-handover.integration.test.ts` 6/6; API unit 170/170; full integration 180 passed, 1 failed + 1 hook timeout under load (`responder-matrix`, `organization-routing` 5 s transaction); both files pass 14/14 when rerun alone.
+- Playwright `admin-improvements`, `admin-explorer`, `admin-journeys`: 36/36 with one worker (with default workers six timed out on this laptop, including untouched specs); inventory list 494.
+- Not run locally: CodeQL, Trivy, hosted performance, capture gallery.
+
+**Next:** product owner reviews the screenshots; then commit, PR into `staging`, wait for CI, merge, confirm `/ready` `releaseSha`.
+
 ## Panduan colours on Safari: pdf.js 6 — 4 November 2026
 
 **Problem:** after PR #123/#124 reached staging (`ec44ef7`), search, zoom and download worked, but on an iPhone the in-app reader showed the Panduan Member guide's blue background as pink. **Unduh PDF** saved the correct file.

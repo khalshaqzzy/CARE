@@ -237,6 +237,7 @@ const queryParameters: Record<string, string[]> = {
   VoicesController_messages: ['cursor', 'limit', 'order'],
   VoicesController_myHandovers: ['cursor', 'limit', 'search'],
   VoicesController_adminHandoverQueue: ['cursor', 'limit'],
+  VoicesController_adminPicCandidates: ['search'],
   NotificationsController_list: ['cursor', 'limit'],
   DivisionAdminController_export: ['status', 'statusGroup', 'severity', 'due', 'from', 'to'],
   DivisionAccountsController_accounts: [
@@ -503,6 +504,8 @@ function successSchema(operationId: string) {
     VoicesController_adminHandoverOptions: 'AdminHandoverOptions',
     VoicesController_adminHandoversForVoice: 'AdminHandoverHistory',
     VoicesController_resolveAdminHandover: 'VoiceMutationResponse',
+    VoicesController_adminPicCandidates: 'AdminPicCandidates',
+    VoicesController_adminPicHandover: 'VoiceMutationResponse',
     VoicesController_returnAdminHandover: 'VoiceMutationResponse',
     VoicesController_handoverOptions: 'HandoverOptionsResponse',
     VoicesController_handovers: 'HandoverHistoryResponse',
@@ -542,6 +545,7 @@ function requestSchema(operationId: string) {
     VoicesController_handover: 'HandoverRequest',
     VoicesController_requestAdminHandover: 'AdminHandoverNoteRequest',
     VoicesController_resolveAdminHandover: 'AdminHandoverDecisionRequest',
+    VoicesController_adminPicHandover: 'AdminPicHandoverRequest',
     VoicesController_returnAdminHandover: 'AdminHandoverNoteRequest',
     AdminController_defaultPic: 'AccountSelectionRequest',
     AdminController_unionAccount: 'UnionAccountRequest',
@@ -1110,6 +1114,40 @@ const schemas: Record<string, any> = {
       expectedVersion: { type: 'integer', minimum: 1 },
     },
   },
+  AdminPicHandoverRequest: {
+    type: 'object',
+    required: ['toAccountId', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      toAccountId: { type: 'string', format: 'uuid' },
+      detail: { type: 'string', maxLength: 4000 },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  AdminPicCandidates: {
+    type: 'object',
+    required: ['items'],
+    additionalProperties: false,
+    properties: {
+      items: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'displayName', 'noReg', 'position', 'department', 'section', 'current'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            displayName: { type: 'string' },
+            noReg: { type: 'string', nullable: true },
+            position: { type: 'string', nullable: true },
+            department: { type: 'string', nullable: true },
+            section: { type: 'string', nullable: true },
+            current: { type: 'boolean' },
+          },
+        },
+      },
+    },
+  },
   AdminHandoverQueue: {
     type: 'object',
     required: ['items', 'nextCursor'],
@@ -1272,7 +1310,7 @@ const schemas: Record<string, any> = {
   },
   AdminHandoverHistory: {
     type: 'object',
-    required: ['items'],
+    required: ['items', 'picItems'],
     additionalProperties: false,
     properties: {
       items: {
@@ -1301,6 +1339,22 @@ const schemas: Record<string, any> = {
             adminName: { type: 'string', nullable: true },
             adminDetail: { type: 'string', nullable: true },
             categoryNameSnapshot: { type: 'string', nullable: true },
+          },
+        },
+      },
+      picItems: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'createdAt', 'fromName', 'toName', 'adminName', 'detail'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            createdAt: { type: 'string', format: 'date-time' },
+            fromName: { type: 'string' },
+            toName: { type: 'string' },
+            adminName: { type: 'string' },
+            detail: { type: 'string', nullable: true },
           },
         },
       },

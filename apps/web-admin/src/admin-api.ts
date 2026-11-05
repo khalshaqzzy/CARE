@@ -493,6 +493,23 @@ export function createAdminApi(transport: CareTransport) {
       dataOrThrow<components['schemas']['HandoverHistoryResponse']>(
         client.GET('/api/v1/voices/{id}/handovers', { params: { path: { id: voiceId } } }),
       ),
+    adminPicCandidates: (voiceId: string, search: string) =>
+      dataOrThrow<components['schemas']['AdminPicCandidates']>(
+        client.GET('/api/v1/admin/voices/{id}/pic-candidates', {
+          params: { path: { id: voiceId }, query: { search } },
+        }),
+      ),
+    adminPicHandover: (
+      voiceId: string,
+      body: components['schemas']['AdminPicHandoverRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/admin/voices/{id}/pic-handover', {
+          params: { path: { id: voiceId }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
     resolveAdminHandover: (
       id: string,
       body: components['schemas']['AdminHandoverDecisionRequest'],

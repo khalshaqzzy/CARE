@@ -588,4 +588,181 @@ describe('Manager Voice handover', () => {
       categoryId: categoryAId,
     });
   });
+
+  it('lets CARE Admin hand an active Voice to any responder by name', async () => {
+    const snapshot = await prisma.organizationSnapshot.findFirstOrThrow({
+      where: { status: 'ACTIVE' },
+    });
+    const person = async (noReg: string, name: string, structuralPosition: string) => {
+      const employee = await prisma.employee.create({ data: { noReg, name } });
+      const account = await prisma.userAccount.create({
+        data: {
+          username: `handover-${noReg}`,
+          displayName: name,
+          passwordHash: 'test',
+          accountKind: AccountKind.WORKFORCE,
+          passwordChangeRequired: false,
+          employeeId: employee.id,
+        },
+      });
+      await prisma.organizationMembership.create({
+        data: {
+          snapshotId: snapshot.id,
+          employeeId: employee.id,
+          organizationUnitId: managerB.organizationUnitId!,
+          employeeName: name,
+          structuralPosition,
+          section: 'Press',
+          sourceRow: Number(noReg),
+        },
+      });
+      return policy.resolvePrincipal(account, {
+        id: crypto.randomUUID(),
+        passwordRestricted: false,
+      });
+    };
+    const oldHandler = await person('201', 'Pic Lama Section', 'Section Head');
+    const sectionHead = await person('202', 'Pic Baru Section', 'Section Head');
+    await person('203', 'Pic Baru Member', 'Member');
+    const voice = await prisma.voice.create({
+      data: {
+        displayId: 'CARE-202611-990010',
+        reporterId: reporter.accountId,
+        visibility: VoiceVisibility.GENERAL,
+        area: 'KARAWANG_1',
+        reporterOrganizationUnitId: reporterUnitId,
+        reporterNoRegSnapshot: '104',
+        reporterNameSnapshot: 'Reporter Handover',
+        reporterDivisionSnapshot: 'Production',
+        reporterDepartmentSnapshot: 'Production Control',
+        locationDetail: 'Line 4',
+        title: 'Admin PIC fixture',
+        detail: 'Perlu PIC lain',
+        categoryKey: 'ASSEMBLY_HANDOVER',
+        categoryId: categoryAId,
+        categoryNameSnapshot: 'Assembly',
+        currentCategoryKey: 'ASSEMBLY_HANDOVER',
+        currentCategoryId: categoryAId,
+        currentCategoryNameSnapshot: 'Assembly',
+        severity: Severity.MEDIUM,
+        routeOwnerId: managerA.accountId,
+        routeMappingId: routeAId,
+        currentHandlerId: oldHandler.accountId,
+        handlerType: HandlerType.SECTION_HEAD,
+        status: VoiceStatus.IN_PROGRESS,
+        anonymousAlias: 'R-ADMIN-PIC',
+      },
+    });
+
+    // Only responders match the typed name; the Member does not.
+    const found = await voices.adminPicCandidates(admin, voice.id, { search: 'pic baru' });
+    expect(found.items.map((item) => item.displayName)).toEqual(['Pic Baru Section']);
+    const managers = await voices.adminPicCandidates(admin, voice.id, { search: 'manager' });
+    expect(managers.items.map((item) => item.id)).toContain(managerB.accountId);
+    expect((await voices.adminPicCandidates(admin, voice.id, { search: 'p' })).items).toEqual([]);
+
+    await expect(
+      voices.adminPicHandover(
+        managerA,
+        voice.id,
+        { toAccountId: managerB.accountId, expectedVersion: 1 },
+        'admin-pic-forbidden',
+      ),
+    ).rejects.toBeTruthy();
+    const member = await prisma.userAccount.findFirstOrThrow({
+      where: { displayName: 'Pic Baru Member' },
+    });
+    await expect(
+      voices.adminPicHandover(
+        admin,
+        voice.id,
+        { toAccountId: member.id, expectedVersion: 1 },
+        'admin-pic-member',
+      ),
+    ).rejects.toMatchObject({ code: 'ADMIN_PIC_UNAVAILABLE' });
+    await expect(
+      voices.adminPicHandover(
+        admin,
+        voice.id,
+        { toAccountId: managerB.accountId, expectedVersion: 9 },
+        'admin-pic-stale',
+      ),
+    ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+
+    // A Manager takes the route; processing starts over and the old PIC lets go.
+    const toManager = await voices.adminPicHandover(
+      admin,
+      voice.id,
+      {
+        toAccountId: managerB.accountId,
+        detail: 'Alasan internal Admin',
+        expectedVersion: 1,
+      },
+      'admin-pic-1',
+    );
+    expect(toManager).toMatchObject({ status: VoiceStatus.RESPONDED, version: 2 });
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      routeOwnerId: managerB.accountId,
+      currentHandlerId: null,
+      handlerType: HandlerType.MANAGER,
+      handlingDepartmentSnapshot: 'Safety',
+      tierLevel: null,
+    });
+    const inbox = async (actor: Principal) =>
+      prisma.voice.count({ where: { id: voice.id, AND: [policy.workItemScope(actor)] } });
+    expect(await inbox(managerB)).toBe(1);
+    expect(await inbox(oldHandler)).toBe(0);
+    expect(
+      await prisma.notification.count({
+        where: { voiceId: voice.id, recipientId: managerB.accountId, type: 'HANDOVER_RECEIVED' },
+      }),
+    ).toBe(1);
+
+    // A Section Head also becomes the handler, so the Voice reaches them.
+    await voices.adminPicHandover(
+      admin,
+      voice.id,
+      { toAccountId: sectionHead.accountId, expectedVersion: 2 },
+      'admin-pic-2',
+    );
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: voice.id } })).toMatchObject({
+      routeOwnerId: sectionHead.accountId,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+      handlingSectionSnapshot: 'Press',
+    });
+    expect(await inbox(sectionHead)).toBe(1);
+    expect(await inbox(managerB)).toBe(0);
+    await expect(
+      voices.adminPicHandover(
+        admin,
+        voice.id,
+        { toAccountId: sectionHead.accountId, expectedVersion: 3 },
+        'admin-pic-self',
+      ),
+    ).rejects.toMatchObject({ code: 'HANDOVER_DESTINATION_SELF' });
+
+    const history = await voices.adminHandoversForVoice(admin, voice.id);
+    expect(history.picItems).toEqual([
+      expect.objectContaining({ fromName: 'Manager Safety', toName: 'Pic Baru Section' }),
+      expect.objectContaining({
+        fromName: 'Manager Assembly',
+        toName: 'Manager Safety',
+        detail: 'Alasan internal Admin',
+      }),
+    ]);
+    expect(JSON.stringify(await voices.timeline(reporter, voice.id, {}))).not.toContain(
+      'Alasan internal Admin',
+    );
+
+    await prisma.voice.update({ where: { id: voice.id }, data: { status: VoiceStatus.CLOSED } });
+    await expect(
+      voices.adminPicHandover(
+        admin,
+        voice.id,
+        { toAccountId: managerB.accountId, expectedVersion: 3 },
+        'admin-pic-closed',
+      ),
+    ).rejects.toMatchObject({ code: 'ADMIN_PIC_HANDOVER_INVALID_STATE' });
+  });
 });
