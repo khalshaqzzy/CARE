@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Private Voice also on low confidence — 5 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `fix/private-low-confidence` (from `origin/staging` 7221db7, not released): a Private verdict below the confidence threshold now locks General too, the prompt names mocking and insults as bullying (`care-classification-v1.10`), and the draft preview page has the same lock. See the ADR-0078 amendment; checks are in sessionHandoff.md.
+
 ## Location-based categories and mandatory Private Voice — 5 November 2026
 
 Same branch, same PR: CARE Admin reviews handed-over Voices on **Koreksi Kategori** and turns them into category Examples (ADR-0080).

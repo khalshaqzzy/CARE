@@ -1,5 +1,19 @@
 # CARE Session Handoff
 
+## Private Voice also on low confidence — 5 November 2026
+
+**Problem (staging after #128):** "member tidak ramah dan mengolok-olok" came back below the confidence threshold, and with "bullying" added the reporter still sent it as General into Kesejahteraan. Cause: a low-confidence result (including its `privateSuggested`) was never stored; Manual Fallback then let the reporter pick a category, and the manual record had no Private flag.
+
+**Change (`fix/private-low-confidence`, from `origin/staging` 7221db7; ADR-0078 amendment, PRD §43.5):**
+
+- `voices.service.classify`: General + `LOW_CONFIDENCE` + `candidate.privateSuggested` is stored as an AI classification (low confidence kept); `ai.service` returns model/prompt/response id with low-confidence results.
+- Prompt `care-classification-v1.10`: mocking/insulting/humiliating/belittling/shouting/excluding counts as bullying or intimidation; confidence must not drop just because no General category fits.
+- `DraftPreviewPage`: same lock; **Lanjut ke Private Voice** opens `/drafts/:id/edit` with `state.toPrivate`, which `useDraftWizard` turns into `switchToPrivate()` after the draft loads.
+
+**Checks:** API/web typecheck; API unit 171/171; `organization-routing` (incl. new low-confidence case) 4/4 + 1 skipped (10k timing); Playwright `workforce-journeys` 55/55; inventory 496; ESLint/Prettier.
+
+**Not verifiable locally:** whether the live model now flags "tidak ramah dan mengolok-olok" with enough confidence; re-test that sentence on staging after deploy.
+
 ## Location-based categories and mandatory Private Voice — 5 November 2026
 
 **Objective:** the product owner is tuning Voice categorisation. PGA-SHE handles safety and cleanliness only in shared facilities and offices; SPFM handles all building repairs and building electrics; everything else in a shop goes to the structure. Harassment-type reports must go to the Komite.

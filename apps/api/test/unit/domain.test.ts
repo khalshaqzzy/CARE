@@ -40,7 +40,11 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.9');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.10');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('mengolok-olok');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'jangan menurunkan confidence hanya karena tidak ada category General yang cocok',
+    );
     for (const value of [
       'SAFETY',
       'FACILITY',

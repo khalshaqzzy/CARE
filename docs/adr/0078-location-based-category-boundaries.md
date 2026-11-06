@@ -60,7 +60,7 @@ The classification prompt version moves to `care-classification-v1.9`.
 - Kesulitan Kerja outside a shop still routes to the reporter's department (ADR-0056); only safety and cleanliness outside shops move to PGA-SHE.
 - Drafts prepared before the release need a new classification because the prompt version and hash inputs changed (existing `DRAFT_AI_SNAPSHOT_STALE` behaviour).
 - A false positive by the model forces a Voice into Private. The prompt excludes policy, workload, approvals and ordinary decisions by a superior to reduce this risk.
-- A classification below the confidence threshold is not stored, so a low-confidence harassment flag does not block submission.
+- A Private verdict is enforced even below the confidence threshold (amendment below).
 - Any Admin edits to the five built-in Definitions are superseded by a new revision; the edited text stays in revision history.
 
 ## Validation
@@ -74,6 +74,15 @@ The classification prompt version moves to `care-classification-v1.9`.
 
 - Model accuracy for the location rule depends on reporters naming the place; vague locations lower confidence and lead to Manual Fallback.
 - Over-flagging harassment would push ordinary complaints into Private; monitor flagged drafts after release.
+
+## Amendment: low-confidence Private verdicts (5 November 2026)
+
+After release, a General Voice about a member who mocked colleagues was classified below the confidence threshold because no remaining General category fitted. The AI's Private verdict was discarded with the rest of the low-confidence result, the reporter reached Manual Fallback, chose Kesejahteraan and sent the report as General.
+
+- When a General classification is below the threshold but `privateSuggested` is true, the result is stored as an AI classification with its low confidence, so the review screen requires Private Voice and submit keeps rejecting General. Other low-confidence results still go to Manual Fallback.
+- Prompt `care-classification-v1.10` lists mocking, insulting, humiliating, belittling, shouting at and excluding a person as bullying or intimidation, also when the reporter calls it unfriendly, and states that confidence must not drop only because no General category fits.
+- The saved-draft preview page (`/drafts/:id/preview`) shows the same lock; **Lanjut ke Private Voice** opens the edit form as Private with the content kept.
+- Validation: integration case with a stubbed low-confidence Private verdict (`organization-routing`), Playwright case for the draft preview path (inventory 496).
 
 ## Follow-up
 

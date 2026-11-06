@@ -557,7 +557,27 @@ export class VoicesService {
       detail: draft.detail,
       categories,
     });
-    if (result.source === 'AI') {
+    // A Private verdict counts even below the confidence threshold: manual
+    // fallback would let the reporter pick a category and send a harassment
+    // report as General (ADR-0078). The low confidence is kept for audit.
+    const accepted =
+      result.source === 'AI'
+        ? result
+        : draft.visibility === VoiceVisibility.GENERAL &&
+            'candidate' in result &&
+            result.candidate?.privateSuggested === true &&
+            'model' in result
+          ? {
+              source: 'AI' as const,
+              result: result.candidate,
+              model: result.model ?? 'unknown',
+              promptVersion: result.promptVersion ?? CLASSIFICATION_PROMPT_VERSION,
+              responseId: result.responseId ?? null,
+              latencyMs: result.latencyMs,
+            }
+          : null;
+    if (accepted) {
+      const result = accepted;
       const selected = result.result.category
         ? categories.find((category) => category.key === result.result.category)
         : null;

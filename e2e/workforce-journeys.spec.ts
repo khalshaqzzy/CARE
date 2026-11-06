@@ -337,6 +337,58 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('button', { name: 'Simpan & Analisis' })).toBeDisabled();
   });
 
+  test('a saved harassment draft opened from its preview also moves to Private Voice', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const flagged = {
+      id: 'draft-1',
+      visibility: 'GENERAL',
+      area: 'KARAWANG_1',
+      locationDetail: 'Line 2, pos inspeksi',
+      title: 'Member sering mengolok-olok',
+      detail: 'Ada member yang tidak ramah dan sering mengolok-olok saya di depan tim.',
+      showReporterIdentity: null,
+      privateContactConsent: null,
+      version: 2,
+      classificationContentHash: 'a'.repeat(64),
+      locationContentHash: 'b'.repeat(64),
+      classification: {
+        source: 'AI',
+        category: 'WORK_DIFFICULTY',
+        severity: 'MEDIUM',
+        confidence: 0.4,
+        rationaleCode: 'NOT_REQUESTED',
+        privateSuggested: true,
+      },
+      locationReview: {
+        id: 'lr-1',
+        completeness: 'COMPLETE',
+        warning: null,
+        questions: [],
+        contentHash: 'c'.repeat(64),
+      },
+      attachments: [],
+    };
+    await mockWorkforceApi(page, {
+      draft: flagged,
+      draftPreview: {
+        ...flagged,
+        routeReadiness: { ready: true, targetLabel: 'Department Head' },
+        routeTarget: 'Department Head',
+      },
+    });
+    await page.goto('/drafts/draft-1/preview');
+    await expect(page.getByText('Kirim sebagai Private Voice')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kirim Voice' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Lanjut ke Private Voice' }).click();
+    await expect(page.getByRole('heading', { name: 'Detail Voice Private' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toHaveValue(
+      'Member sering mengolok-olok',
+    );
+    await expect(page.getByRole('region', { name: 'Identitas kepada Komite' })).toBeInViewport();
+  });
+
   test('TM reporters confirm their Section and Line before analysis', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     const drafts: Record<string, unknown>[] = [];

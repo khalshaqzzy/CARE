@@ -1,6 +1,6 @@
 import { Alert, Button, Checkbox, Skeleton, Stack } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Radio } from 'lucide-react';
+import { ArrowLeft, Radio, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
@@ -97,7 +97,14 @@ export function DraftPreviewPage() {
   const category = classification && 'category' in classification ? classification.category : null;
   const fallbackCode =
     classification && 'fallbackCode' in classification ? classification.fallbackCode : null;
-  const isIncomplete = data.locationReview?.completeness === 'INCOMPLETE';
+  // Harassment-type reports cannot be sent as General (server: PRIVATE_VOICE_REQUIRED).
+  const privateRequired = Boolean(
+    data.visibility === 'GENERAL' &&
+    classification &&
+    'privateSuggested' in classification &&
+    classification.privateSuggested,
+  );
+  const isIncomplete = data.locationReview?.completeness === 'INCOMPLETE' && !privateRequired;
   const shop = data.shopResolution ?? null;
   const shopPending = !!shop?.applies && shop.status === 'NEEDS_CONFIRMATION';
   const routeLabel = readiness.ready
@@ -137,6 +144,12 @@ export function DraftPreviewPage() {
         showIdentity={data.showReporterIdentity ?? null}
         fallbackCode={source === 'MANUAL_FALLBACK' ? fallbackCode : null}
       />
+
+      {privateRequired ? (
+        <Alert tone="warning" title="Kirim sebagai Private Voice">
+          <p>Laporan seperti ini hanya dibaca Komite. Isian Anda tetap tersimpan.</p>
+        </Alert>
+      ) : null}
 
       <ReviewContent
         title={data.title}
@@ -183,20 +196,30 @@ export function DraftPreviewPage() {
         <Button variant="secondary" onClick={() => void navigate(`/drafts/${id}/edit`)}>
           <ArrowLeft size={18} /> Kembali
         </Button>
-        <Button
-          variant="primary"
-          className="wizard-actionsbar__primary"
-          loading={submit.isPending}
-          disabled={
-            shopPending ||
-            confirmShop.isPending ||
-            (isIncomplete && !ack) ||
-            (data.visibility === 'PRIVATE' && data.privateContactConsent !== true)
-          }
-          onClick={() => void submit.mutate()}
-        >
-          <Radio size={18} /> Kirim Voice
-        </Button>
+        {privateRequired ? (
+          <Button
+            variant="primary"
+            className="wizard-actionsbar__primary"
+            onClick={() => void navigate(`/drafts/${id}/edit`, { state: { toPrivate: true } })}
+          >
+            <ShieldCheck size={18} /> Lanjut ke Private Voice
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            className="wizard-actionsbar__primary"
+            loading={submit.isPending}
+            disabled={
+              shopPending ||
+              confirmShop.isPending ||
+              (isIncomplete && !ack) ||
+              (data.visibility === 'PRIVATE' && data.privateContactConsent !== true)
+            }
+            onClick={() => void submit.mutate()}
+          >
+            <Radio size={18} /> Kirim Voice
+          </Button>
+        )}
       </div>
     </Stack>
   );

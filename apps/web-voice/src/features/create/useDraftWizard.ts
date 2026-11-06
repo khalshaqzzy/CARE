@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import type {
   ClassificationPreview,
@@ -345,6 +345,17 @@ export function useDraftWizard(draftId?: string) {
     setPrivacyFocus(true);
     setStep('form');
   }, [setField]);
+
+  // The draft preview page sends a flagged General draft here to move it to
+  // Private once the saved draft has loaded.
+  const location = useLocation();
+  const toPrivate = (location.state as { toPrivate?: boolean } | null)?.toPrivate === true;
+  const [movedToPrivate, setMovedToPrivate] = useState(false);
+  useEffect(() => {
+    if (!toPrivate || movedToPrivate || loaded.data?.visibility !== 'GENERAL') return;
+    setMovedToPrivate(true);
+    switchToPrivate();
+  }, [toPrivate, movedToPrivate, loaded.data, switchToPrivate]);
 
   const submit = useCallback(async () => {
     setError(null);
