@@ -108,3 +108,15 @@ against the `dl-4` repository URL used by the Dockerfiles. A local Trivy 0.70.0
 scan of that patched base with the CI flags (vulnerabilities, High/Critical,
 unfixed included) reports 0 findings. The hosted container and Trivy gates
 remain the release checks.
+
+## 7 November 2026: musl regcomp overflow
+
+The pull-request run for `88a627b` (PR #129) failed the web-voice image scan:
+Trivy reported CVE-2026-107891 (High, integer overflow in `regcomp`) in `musl`
+and `musl-utils` 1.2.6-r2, fixed in 1.2.6-r3. The Postgres runtime base ships
+the same revision. Both web images and the Postgres runtime now pin
+`musl=1.2.6-r3` and `musl-utils=1.2.6-r3` alongside the existing pins. A local
+Trivy 0.70.0 scan (vulnerabilities, High/Critical, unfixed included, with the
+repository `.trivyignore`) of the pinned nginx base and the pinned Postgres
+runtime base reports 0 findings. The hosted container and Trivy gates remain
+the release checks.
