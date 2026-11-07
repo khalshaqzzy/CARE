@@ -120,3 +120,11 @@ Trivy 0.70.0 scan (vulnerabilities, High/Critical, unfixed included, with the
 repository `.trivyignore`) of the pinned nginx base and the pinned Postgres
 runtime base reports 0 findings. The hosted container and Trivy gates remain
 the release checks.
+
+The following run (`dd6e3e3`) passed both web images and Postgres and failed the
+Caddy scan: CVE-2026-78661 (High, denial of service in `golang.org/x/net/html`)
+in `golang.org/x/net` v0.60.0, fixed in 0.62.0. The Caddy build now pins
+`golang.org/x/net@v0.62.0`, which requires `golang.org/x/crypto@v0.58.0` and
+`golang.org/x/text@v0.43.0`, so those pins move too. The rebuilt image reports
+Caddy v2.11.4, validates the production Caddyfile, and a local Trivy 0.70.0 scan
+with the repository `.trivyignore` reports 0 High/Critical.
