@@ -12,7 +12,7 @@ ADR-0081 (`docs/adr/0081-voice-read-state-and-quick-replies.md`) and PRD §45 (p
 
 **Phase:** Phase 13 stays the only `in_progress` phase; new entry in implementationPhases.md.
 
-**Branch:** `feat/voice-read-quick-answers` in worktree `../CARE-quick`, from `origin/staging` 7221db7 (upstream unset). **Uncommitted, no PR yet.** The `feat/time-for-team` working tree in the main checkout was not changed; design and final screenshots plus the two prototype patches are untracked in the main checkout at `docs/preview-read-receipts/`.
+**Branch:** `feat/voice-read-quick-answers` in worktree `../CARE-quick`, from `origin/staging` 7221db7. PR khalshaqzzy/CARE#129 to `staging` (opened 7 November 2026). The `feat/time-for-team` working tree in the main checkout was not changed; design and final screenshots plus the two prototype patches are untracked in the main checkout at `docs/preview-read-receipts/`.
 
 **Decisions (product owner, this session):**
 
@@ -63,7 +63,8 @@ ADR-0081 (`docs/adr/0081-voice-read-state-and-quick-replies.md`) and PRD §45 (p
 
 1. Review the diff, run Gitleaks, commit on `feat/voice-read-quick-answers`, push and open a PR to `staging`; merge after CI and confirm `/ready` `releaseSha`.
 2. After deploy, on a phone: open a Voice from Voice Member with an unread status notification (bell drops; chat notification stays until the chat is opened); send a chat message and watch the ticks turn blue as the others open it; check **Info pesan**; edit a Jawaban Cepat in Admin and see it in the Respons sheet within five minutes (or after reopening the app).
-3. Follow-ups: optional per-department quick replies; the receipts list current members only, so a former handler drops out after reassignment.
+3. **Trivy exceptions expire 30 November 2026:** the first PR run failed "Production containers and routing" on two new, unfixed `zlib1g` findings in the API Debian 13 runtime (CVE-2026-85091, CVE-2026-76844; staging passed on 5 November, before they were published). Both are exact entries in `.trivyignore` and `.agent/securityExceptions.json` (ADR-0057 addendum: Node bundles its own zlib, libcrypto never calls the gzFile API, and 76844 is a mis-attributed webpack-dev-middleware record). Remove them once Debian ships a fixed `zlib1g` (pin it in the API patch overlay) or re-justify before expiry. `security:exceptions:check` passed locally on LF copies.
+4. Follow-ups: optional per-department quick replies; the receipts list current members only, so a former handler drops out after reassignment.
 
 ## Location-based categories and mandatory Private Voice — 5 November 2026
 
