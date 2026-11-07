@@ -17,6 +17,7 @@ import {
   filterHandoverOptions,
   HandoverDestinationCard,
 } from '../../components/HandoverDestinationCard';
+import { QuickReplies } from '../../components/QuickReplies';
 import { VoiceHero } from '../../components/VoiceHero';
 import { formatCategoryName } from '../../lib/formatters';
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../../lib/query';
@@ -269,6 +270,14 @@ export function HandoverPage() {
                   <p>Berikan konteks yang dibutuhkan PIC baru untuk melanjutkan penanganan.</p>
                 </div>
               </div>
+              <QuickReplies
+                placement="HANDOVER"
+                value={detail}
+                onChange={(value) => {
+                  setDetail(value);
+                  setRecovery(null);
+                }}
+              />
               <Textarea
                 label="Detail handover"
                 required

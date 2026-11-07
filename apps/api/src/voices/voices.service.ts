@@ -390,6 +390,13 @@ const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
   return result.data;
 };
 
+/** A chat member as shown to the actor: masked id, name and role only. */
+const maskedMember = (member: { id: string; displayName: string; role: string }) => ({
+  id: member.id,
+  displayName: member.displayName,
+  role: member.role,
+});
+
 @Injectable()
 export class VoicesService {
   constructor(
@@ -1475,27 +1482,61 @@ export class VoicesService {
     });
   }
 
-  /** Records that the actor has seen the conversation up to now. */
+  /**
+   * Records that the actor has seen the conversation up to now: the unread
+   * badge, the senders' read ticks, and this Voice's chat notifications.
+   */
   async markConversationRead(actor: AuthActor, id: string) {
     const voice = await this.authorizedVoice(actor, id);
     if (!voice.conversation || this.conversationState(actor, voice) === 'UNAVAILABLE')
       throw forbiddenAsNotFound();
+    const conversationId = voice.conversation.id;
     const now = new Date();
-    await this.prisma.conversationReadState.upsert({
-      where: {
-        conversationId_accountId: {
-          conversationId: voice.conversation.id,
-          accountId: actor.accountId,
+    await this.prisma.$transaction([
+      this.prisma.conversationReadState.upsert({
+        where: { conversationId_accountId: { conversationId, accountId: actor.accountId } },
+        create: { conversationId, accountId: actor.accountId, lastReadAt: now },
+        update: { lastReadAt: now },
+      }),
+      // Only the first read of each message counts; later visits keep its time.
+      this.prisma.$executeRaw`
+        INSERT INTO "MessageRead" ("messageId", "accountId", "readAt")
+        SELECT m."id", ${actor.accountId}::uuid, ${now}
+        FROM "Message" m
+        WHERE m."conversationId" = ${conversationId}::uuid
+          AND m."kind" = 'USER'
+          AND m."senderId" <> ${actor.accountId}::uuid
+          AND m."createdAt" <= ${now}
+        ON CONFLICT DO NOTHING`,
+      this.prisma.notification.updateMany({
+        where: {
+          recipientId: actor.accountId,
+          voiceId: id,
+          type: NotificationType.MESSAGE,
+          readAt: null,
         },
-      },
-      create: {
-        conversationId: voice.conversation.id,
-        accountId: actor.accountId,
-        lastReadAt: now,
-      },
-      update: { lastReadAt: now },
-    });
+        data: { readAt: now },
+      }),
+    ]);
     return { success: true };
+  }
+
+  /**
+   * Opening a Voice (detail or chat, from any list) reads its notifications.
+   * Chat notifications stay unread until the chat itself is opened.
+   */
+  async markVoiceSeen(actor: AuthActor, id: string) {
+    await this.authorizedVoice(actor, id);
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        recipientId: actor.accountId,
+        voiceId: id,
+        type: { not: NotificationType.MESSAGE },
+        readAt: null,
+      },
+      data: { readAt: new Date() },
+    });
+    return { updated: result.count };
   }
 
   /**
@@ -3564,6 +3605,14 @@ export class VoicesService {
     });
     const hasNext = messages.length > take;
     const data = hasNext ? messages.slice(0, take) : messages;
+    const ownIds = data
+      .filter(
+        (message) => message.senderId === actor.accountId && message.kind === MessageKind.USER,
+      )
+      .map((message) => message.id);
+    const receipts = ownIds.length
+      ? await this.messageReceipts(actor, voice, ownIds)
+      : new Map<string, unknown>();
     const anonymousUnion =
       voice.visibility === VoiceVisibility.PRIVATE &&
       !voice.showReporterIdentity &&
@@ -3588,9 +3637,73 @@ export class VoicesService {
                         ? voice.reporterNameSnapshot
                         : senderAccount.displayName)),
               },
+        ...(receipts.has(message.id) ? { receipt: receipts.get(message.id) } : {}),
       })),
       nextCursor: hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null,
     };
+  }
+
+  /**
+   * Read ticks for the actor's own messages: which current chat members opened
+   * the chat after each message, and who has not yet. Names follow the same
+   * masking as the participant list (Komite, anonymous alias).
+   */
+  private async messageReceipts(
+    actor: AuthActor,
+    voice: Prisma.VoiceGetPayload<{ include: { conversation: { select: { id: true } } } }>,
+    messageIds: string[],
+  ) {
+    const chatMembers = [...voice.tierParticipantIds, ...voice.tierHolderIds];
+    const [routeOwner, currentHandler, tierHolders] = await Promise.all([
+      this.prisma.userAccount.findUnique({
+        where: { id: voice.routeOwnerId },
+        select: { id: true, displayName: true },
+      }),
+      voice.currentHandlerId
+        ? this.prisma.userAccount.findUnique({
+            where: { id: voice.currentHandlerId },
+            select: { id: true, displayName: true },
+          })
+        : null,
+      chatMembers.length ? this.tierHolders(chatMembers) : [],
+    ]);
+    const members = this.conversationMembers(actor, {
+      ...voice,
+      routeOwner,
+      currentHandler,
+      tierHolders,
+    }).filter((member) => member.accountId !== actor.accountId);
+    const reads = members.length
+      ? await this.prisma.messageRead.findMany({
+          where: {
+            messageId: { in: messageIds },
+            accountId: { in: members.map((member) => member.accountId) },
+          },
+          orderBy: { readAt: 'asc' },
+        })
+      : [];
+    const receipts = new Map<
+      string,
+      {
+        readBy: { id: string; displayName: string; role: string; readAt: Date }[];
+        unread: { id: string; displayName: string; role: string }[];
+      }
+    >();
+    for (const messageId of messageIds) {
+      const readAt = new Map(
+        reads
+          .filter((read) => read.messageId === messageId)
+          .map((read) => [read.accountId, read.readAt]),
+      );
+      receipts.set(messageId, {
+        readBy: members
+          .filter((member) => readAt.has(member.accountId))
+          .map(({ accountId, ...member }) => ({ ...member, readAt: readAt.get(accountId)! }))
+          .sort((a, b) => a.readAt.getTime() - b.readAt.getTime()),
+        unread: members.filter((member) => !readAt.has(member.accountId)).map(maskedMember),
+      });
+    }
+    return receipts;
   }
   async conversations(actor: AuthActor) {
     const scope = await this.policy.detailScope(actor);
@@ -5696,6 +5809,13 @@ export class VoicesService {
     return actions.includes('MESSAGE') ? 'ACTIVE' : 'READ_ONLY';
   }
   private conversationParticipants(actor: AuthActor, voice: any) {
+    return this.conversationMembers(actor, voice).map(maskedMember);
+  }
+  /** Chat members with their real account id beside the masked display identity. */
+  private conversationMembers(
+    actor: AuthActor,
+    voice: any,
+  ): { accountId: string; id: string; displayName: string; role: string }[] {
     const privateVoice = voice.visibility === VoiceVisibility.PRIVATE;
     const hiddenReporter =
       privateVoice &&
@@ -5737,6 +5857,7 @@ export class VoicesService {
           participants.findIndex((other) => other.accountId === item.accountId) === index,
       )
       .map((item) => ({
+        accountId: item.accountId,
         id: hiddenReporter && item.role === 'REPORTER' ? 'anonymous-reporter' : item.accountId,
         displayName: item.displayName,
         role: privateVoice && item.role !== 'REPORTER' ? 'COMMITTEE' : item.role,

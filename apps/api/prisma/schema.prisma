@@ -1147,10 +1147,49 @@ model Message {
   kind                     MessageKind  @default(USER)
   createdAt                DateTime     @default(now())
   conversation             Conversation @relation(fields: [conversationId], references: [id])
-  sender                   UserAccount  @relation(fields: [senderId], references: [id])
+  sender                   UserAccount   @relation(fields: [senderId], references: [id])
   attachments              Attachment[]
+  reads                    MessageRead[]
 
   @@index([conversationId, createdAt, id])
+}
+
+/// First time a participant opened the chat after a message arrived; drives
+/// the sender's read ticks and "Info pesan".
+model MessageRead {
+  messageId String   @db.Uuid
+  accountId String   @db.Uuid
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, accountId])
+}
+
+/// Where a quick reply is offered to responders.
+enum QuickReplyPlacement {
+  REPLY
+  PROCESS
+  ASSIGN
+  ESCALATE
+  HANDOVER
+  CLOSE
+}
+
+/// Jawaban Cepat: CARE Admin-managed sentences a responder can drop into a note.
+model QuickReply {
+  id          String              @id @default(uuid()) @db.Uuid
+  placement   QuickReplyPlacement
+  label       String              @db.VarChar(30)
+  text        String              @db.VarChar(500)
+  sortOrder   Int                 @default(0)
+  active      Boolean             @default(true)
+  version     Int                 @default(1)
+  updatedById String?             @db.Uuid
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([placement, label])
+  @@index([placement, sortOrder])
 }
 
 model ClosureCycle {

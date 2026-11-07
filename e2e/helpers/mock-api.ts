@@ -1048,6 +1048,13 @@ export type MockApiOptions = {
   handoverOptions?: unknown;
   handoverHistory?: unknown;
   myHandovers?: unknown;
+  /** Jawaban Cepat per place for `GET /quick-replies`; empty (no chips) unless supplied. */
+  quickReplies?: Partial<
+    Record<
+      'REPLY' | 'PROCESS' | 'ASSIGN' | 'ESCALATE' | 'HANDOVER' | 'CLOSE',
+      { id: string; label: string; text: string }[]
+    >
+  >;
   handoverError?: { status: number; code: string; message?: string };
   memberDashboard?: unknown;
   generalDashboard?: unknown;
@@ -1601,6 +1608,18 @@ export async function mockWorkforceApi(page: Page, opts: MockApiOptions = {}) {
       if (voice) voice.unreadMessages = 0;
       return satisfy(200, { success: true });
     }
+    if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/seen$/.test(path))
+      return satisfy(200, { updated: 0 });
+    if (method === 'GET' && path === '/api/v1/quick-replies')
+      return satisfy(200, {
+        REPLY: [],
+        PROCESS: [],
+        ASSIGN: [],
+        ESCALATE: [],
+        HANDOVER: [],
+        CLOSE: [],
+        ...opts.quickReplies,
+      });
     if (method === 'POST' && /\/api\/v1\/voices\/[^/]+\/escalate$/.test(path)) {
       // A manual Naikkan answers the Voice; the one who raised it keeps the chat.
       if (voice) {

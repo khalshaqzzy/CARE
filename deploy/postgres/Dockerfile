@@ -23,6 +23,7 @@ LABEL org.opencontainers.image.title="care-postgres" \
 USER 0
 # Stable Alpine now carries the patched libuuid release on both architectures.
 RUN apk add --no-cache libcrypto3=3.5.9-r0 libssl3=3.5.9-r0 libuuid=2.42.3-r1 \
+  musl=1.2.6-r3 musl-utils=1.2.6-r3 \
   && rm -f /usr/local/bin/gosu
 COPY --from=pgvector-build /usr/local/lib/postgresql/vector.so /usr/local/lib/postgresql/vector.so
 COPY --from=pgvector-build /usr/local/share/postgresql/extension/vector* /usr/local/share/postgresql/extension/

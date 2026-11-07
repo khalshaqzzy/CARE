@@ -10205,3 +10205,130 @@
   justify-items: start;
   padding: var(--space-4);
 }
+
+/* Chat read receipts (ticks + Info pesan) and Jawaban Cepat chips. */
+.chat-msg__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px var(--space-1);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+.chat-msg__meta:focus-visible {
+  outline: 2px solid var(--action-primary-bg);
+  outline-offset: 1px;
+}
+.chat-ticks {
+  display: inline-flex;
+  color: #6b7a90;
+}
+.chat-ticks[data-state='all'] {
+  color: #0b74de;
+}
+.message-info {
+  display: grid;
+  gap: 18px;
+}
+.message-info__quote {
+  justify-self: end;
+  max-width: 88%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--action-primary-bg);
+  color: var(--text-inverse);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.message-info h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  color: #344664;
+  font-size: 13px;
+}
+.message-info__read-icon {
+  color: #0b74de;
+}
+.message-info ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.message-info li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf0f5;
+}
+.message-info__name {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.message-info li small,
+.message-info li time,
+.message-info__empty {
+  color: #5b6b82;
+  font-size: 12px;
+}
+.message-info__empty {
+  margin: 0;
+}
+.quick-replies {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.quick-replies__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #5b6b82;
+  font-size: 12px;
+  font-weight: 600;
+}
+.quick-replies__list {
+  display: flex;
+  gap: 8px;
+  margin-inline: -2px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.quick-replies__list::-webkit-scrollbar {
+  display: none;
+}
+.quick-replies__list button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid #dce5f2;
+  border-radius: 999px;
+  background: #f5f8fd;
+  color: #254473;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.quick-replies__list button[aria-pressed='true'] {
+  border-color: #2459cf;
+  background: #eaf1ff;
+  color: #2459cf;
+  font-weight: 600;
+}
+.quick-replies__list button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

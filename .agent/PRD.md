@@ -442,6 +442,7 @@ Workforce PWA dan Admin web memakai navigation serta host authorization yang ber
 - Import dan Master Data;
 - Remediation dan Route Mapping;
 - Union Accounts;
+- Jawaban Cepat (template kalimat responder, §45);
 - Accounts;
 - Voice Explorer;
 - Audit;
@@ -860,7 +861,8 @@ Sebagian Voice membutuhkan diskusi panjang (misalnya budget) sehingga durasi tid
 - Header ringkas memuat konteks, status, avatar dan peran peserta. Pesan dikelompokkan per hari WIB; composer tetap terjangkau di atas dock/safe area.
 - Draft teks/lampiran baru dibersihkan setelah kirim berhasil; retry memakai idempotency yang sama untuk payload sama. Pesan baru tidak memaksa scroll ketika pengguna membaca riwayat.
 - Text 1–4.000 karakter; maksimum lima gambar, 10 MB/file. Pesan kosong tanpa attachment ditolak. Pesan tidak diedit/dihapus. Close dan message menggunakan lock Voice yang sama.
-- Aksesibilitas, responsive layout dan legacy WebKit tetap wajib. Presence/read receipt tidak ditambahkan.
+- Aksesibilitas, responsive layout dan legacy WebKit tetap wajib. Presence (online/typing) tidak ditambahkan.
+- **Tanda dibaca (update 7 November 2026, ADR-0081):** pesan milik pengirim menampilkan centang: satu centang abu-abu = terkirim, dua centang abu-abu = dibaca sebagian peserta, dua centang biru = dibaca semua peserta. Tap jam/centang membuka **Info pesan** berisi **Dibaca oleh** (nama, peran, jam baca pertama) dan **Belum dibaca**. Yang dihitung hanya peserta percakapan saat ini (bukan Admin, Division Admin, leadership, atau observer tier); nama mengikuti masking peserta (Komite, alias pelapor anonim). Pesan sistem tidak memiliki centang. Detail lengkap di §45.
 
 ---
 
@@ -1042,6 +1044,7 @@ tidak mempunyai Voice Saya.
 - Percobaan otomatis berjalan paling banyak sekali per sesi; prompt yang ditutup tidak diulang pada setiap tap, dan login berikutnya mencoba lagi.
 - Hanya pilihan mematikan yang diingat: mematikan switch di kartu push menyimpan opt-out per akun pada perangkat tersebut, dan menyalakannya kembali menghapus opt-out. Selama opt-out aktif, aplikasi tidak mendaftarkan akun itu secara otomatis di perangkat tersebut. Opt-out hanya berlaku sampai logout: setiap login baru menghapusnya, sehingga push selalu kembali on setelah login (ADR-0076).
 - Kegagalan push tidak menghilangkan notification record.
+- **Status baca mengikuti Voice yang dibuka (update 7 November 2026, ADR-0081):** membuka detail atau chat sebuah Voice dari halaman mana pun (Home, Voice Member, Voice Saya, Daftar Kerja, push, atau Notification Center) menandai notifikasi Voice tersebut sudah dibaca, sehingga angka bel, halaman Notifikasi, dan badge ikon berkurang. Notifikasi pesan chat (MESSAGE) baru terbaca setelah chat Voice tersebut dibuka; membuka detail saja tidak menghapusnya. Lihat §45.
 
 ### 19.2 Event Minimum
 
@@ -2753,3 +2756,29 @@ Status: **diimplementasikan di `feat/admin-pic-handover`, belum dirilis.** ADR-0
 - Kandidat hanya responder aktif: Department Head, Section Head, Group Leader, atau pemilik route aktif.
 - PIC baru menjadi pemilik route; PIC lama dilepas. Section Head/Group Leader juga menjadi handler agar Voice masuk ke daftar kerjanya. Rantai bertingkat dihapus dan batas waktu dihitung ulang. Voice Diproses kembali ke Direspon: target lama dihapus dan laporan selesai yang menunggu dikembalikan.
 - Alasan hanya terlihat di riwayat handover Admin; pelapor dan workforce lain hanya melihat event "Tujuan ditentukan Admin" dan pesan sistem "Voice dialihkan ke {nama}". PIC baru menerima notifikasi handover, PIC lama menerima notifikasi perubahan.
+
+## 45. Status baca notifikasi, tanda dibaca chat, dan Jawaban Cepat — 7 November 2026
+
+Status: **diimplementasikan di `feat/voice-read-quick-answers`, belum dirilis.** ADR-0081 mencatat keputusan lengkap.
+
+### 45.1 Notifikasi terbaca saat Voice dibuka
+
+- `POST /voices/{id}/seen` menandai semua notifikasi belum dibaca milik akun untuk Voice tersebut, **kecuali** jenis `MESSAGE`, sebagai dibaca. Akses mengikuti scope detail; Voice di luar scope dijawab 404.
+- `POST /voices/{id}/conversation/read` kini juga menandai notifikasi `MESSAGE` Voice tersebut sebagai dibaca, selain menghapus badge pesan belum dibaca.
+- Workforce memanggil keduanya saat halaman detail/chat terbuka dan terlihat, saat Voice berubah, saat notifikasi baru masuk, dan saat aplikasi kembali ke foreground. Angka bel, Notification Center, dan badge ikon diperbarui segera.
+- Tombol **Buka** dan **Tandai semua dibaca** di Notification Center tetap berlaku seperti sebelumnya.
+
+### 45.2 Tanda dibaca chat
+
+- Tabel `MessageRead` (pesan, akun, waktu baca) diisi saat peserta membuka chat, hanya untuk pesan `USER` dari orang lain yang belum tercatat; waktu baca pertama tidak berubah pada kunjungan berikutnya.
+- Respons `GET /voices/{id}/messages` menambahkan `receipt` (`readBy`, `unread`) hanya pada pesan milik peminta. Peserta yang dihitung: pelapor, pemilik route atau pemegang tier, dan PIC aktif, tanpa pengirim. Nama dan peran mengikuti masking `participants`.
+- Migrasi mengisi data lama dari `ConversationReadState`: pesan yang dibuat sebelum kunjungan terakhir dianggap dibaca pada waktu kunjungan terakhir itu (perkiraan).
+- Tampilan: centang di samping jam pesan sendiri; tap membuka sheet **Info pesan**. Tidak ada status "terkirim ke perangkat" terpisah.
+
+### 45.3 Jawaban Cepat
+
+- CARE Admin mengelola template di menu **Jawaban Cepat**: tempat, nama (tombol, 1–30 karakter), isi (1–500 karakter), aktif/nonaktif, urutan, dan hapus. Setiap perubahan tercatat di Audit (`resourceType = QUICK_REPLY`). Division Admin tidak memiliki akses.
+- Tempat: Respons · Balas pesan (`REPLY`), Respons · Proses sendiri (`PROCESS`), Respons · Tugaskan PIC (`ASSIGN`), Respons · Naikkan ke atasan (`ESCALATE`, juga dialog Naikkan di luar sheet Respons), Handover (`HANDOVER`), dan Selesaikan Voice (`CLOSE`, dipakai Lapor Sudah Selesai dan Tutup Voice).
+- Batas 10 template per tempat; nama unik per tempat; ubah memakai `expectedVersion`. Isi awal dimasukkan oleh migrasi dan dapat diubah Admin.
+- Responder melihat template aktif sebagai chip **Jawaban cepat** di atas kolom isian. Tap chip mengisi kolom kosong, mengganti template yang belum diubah, atau menambahkan kalimat di baris baru bila responder sudah menulis sendiri. Isi tetap dapat diedit sebelum dikirim; tempat tanpa template aktif tidak menampilkan baris chip.
+- Endpoint: `GET /quick-replies` (workforce, template aktif per tempat); `GET/POST /admin/quick-replies`, `PATCH/DELETE /admin/quick-replies/{id}`, `PUT /admin/quick-replies/order` (CARE Admin).
