@@ -1547,3 +1547,18 @@ cleared and Diproses restarts as Direspon. New table `AdminPicHandover`, endpoin
 `GET /admin/voices/:id/pic-candidates` and `POST /admin/voices/:id/pic-handover`.
 ADR-0079 records the decision and PRD §44 is added. Phase 13 remains the only
 `in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.
+
+## Voice read state, chat read receipts and Jawaban Cepat — 7 November 2026
+
+Implemented on `feat/voice-read-quick-answers` (from `origin/staging` 7221db7).
+Opening a Voice's detail or chat from any page reads its notifications
+(`POST /voices/:id/seen`); chat notifications are read only when the chat is opened
+(`conversation/read`). Own chat messages show WhatsApp-style ticks with an "Info pesan"
+sheet listing who read them and when (new table `MessageRead`, `receipt` on
+`GET /voices/:id/messages`). CARE Admin manages Jawaban Cepat per place on a new Admin
+page (table `QuickReply`, `/quick-replies` and `/admin/quick-replies` endpoints); the
+Respons sheet, Naikkan dialog, Handover page and Lapor Sudah Selesai / Tutup Voice
+dialogs show them as chips. Handover routes are now lazy-loaded to stay inside the
+workforce bundle budget. ADR-0081 records the decision; PRD §16, §19.1, §11.5 and the
+new §45 are updated. Phase 13 remains the only `in_progress` phase; no hosted delivery
+is claimed. Checks are in sessionHandoff.md.

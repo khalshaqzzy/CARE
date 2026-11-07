@@ -16,6 +16,7 @@ import { ShopsModule } from './shops/shops.module';
 import { EscalationModule } from './escalation/escalation.module';
 import { AwayModule } from './away/away.module';
 import { GuidesModule } from './guides/guides.module';
+import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { GuidesModule } from './guides/guides.module';
     EscalationModule,
     AwayModule,
     GuidesModule,
+    QuickRepliesModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [PrismaService, { provide: APP_FILTER, useClass: HttpErrorFilter }],

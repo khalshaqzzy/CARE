@@ -34,6 +34,7 @@ import { useApi, useMutationKey, useSessionId, voiceQuery } from '../../lib/quer
 import { useConversation } from '../../lib/useConversation';
 import { VOICE_ACTION_LABELS } from '../../lib/formatters';
 import { useCursorFeed } from '../../lib/useCursorFeed';
+import { useMarkVoiceSeen } from '../../lib/useVoiceSeen';
 import type { Attachment, TimelineEvent, VoiceDetail } from '../../workforce-api';
 
 type ClosureCycle = {
@@ -68,6 +69,7 @@ export function VoiceDetailPage() {
     enabled: !!id && !!session,
     refetchInterval: 3000,
   });
+  useMarkVoiceSeen(detail.data?.id, detail.data?.updatedAt);
 
   if (detail.isLoading) {
     return (

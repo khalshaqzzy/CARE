@@ -22,6 +22,7 @@ import { formatTargetDate, previewHandlingTarget } from '../lib/handling-target'
 import { useApi, useMutationKey, useSessionId, voiceQuery } from '../lib/query';
 import type { Attachment, VoiceDetail } from '../workforce-api';
 import { MediaGallery } from './MediaGallery';
+import { QuickReplies, type QuickReplyPlacement } from './QuickReplies';
 import { PhotoSourceSheet, usePhotoSource } from './PhotoSource';
 
 type Action =
@@ -54,6 +55,13 @@ const RESPONSE_CHOICES: Record<ResponseChoice, { label: string; icon: ReactNode 
     label: 'Naikkan ke atasan',
     icon: <ArrowUpCircle size={18} aria-hidden="true" />,
   },
+};
+/** Which Jawaban Cepat set each Respons option offers. */
+const RESPONSE_PLACEMENTS: Record<Exclude<ResponseChoice, 'handover'>, QuickReplyPlacement> = {
+  reply: 'REPLY',
+  assign: 'ASSIGN',
+  process: 'PROCESS',
+  escalate: 'ESCALATE',
 };
 
 export function ActionPanel({ detail }: { detail: VoiceDetail }) {
@@ -544,6 +552,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               {error}
             </Alert>
           ) : null}
+          <QuickReplies placement="ESCALATE" value={text} onChange={setText} disabled={pending} />
           <Textarea
             label="Alasan"
             value={text}
@@ -935,6 +944,15 @@ function RespondSheet({
         {choice === 'handover' ? (
           <p className="dialog-copy">Pilih kategori tujuan di langkah berikutnya.</p>
         ) : (
+          <QuickReplies
+            key={choice}
+            placement={RESPONSE_PLACEMENTS[choice]}
+            value={text}
+            onChange={onText}
+            disabled={loading}
+          />
+        )}
+        {choice === 'handover' ? null : (
           <Textarea
             key={choice === 'escalate' ? 'reason' : 'message'}
             label={choice === 'escalate' ? 'Alasan' : 'Pesan'}
@@ -1218,6 +1236,7 @@ function CloseDialog({
   return (
     <Stack gap="md">
       <div className="closure-evidence">
+        <QuickReplies placement="CLOSE" value={note} onChange={setNote} disabled={loading} />
         <Textarea
           label="Catatan penyelesaian"
           value={note}

@@ -939,6 +939,73 @@ describe('Voice lifecycle backend completion', () => {
     expect((await voices.detail(manager, voice.id)).unreadMessages).toBe(1);
   });
 
+  it('shows the sender who of the chat members has read each of their messages', async () => {
+    const voice = await createVoice({
+      status: VoiceStatus.IN_PROGRESS,
+      currentHandlerId: sectionHead.accountId,
+      handlerType: HandlerType.SECTION_HEAD,
+    });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+    const sent = await voices.addMessage(manager, voice.id, { text: 'Mohon dicek' }, [], 'rr-1');
+    await voices.addMessage(reporter, voice.id, { text: 'Baik' }, [], 'rr-2');
+
+    const receiptOf = async (viewer: Principal, messageId: string) =>
+      (await voices.messages(viewer, voice.id, {})).items.find((item) => item.id === messageId)
+        ?.receipt as
+        { readBy: { id: string; readAt: Date }[]; unread: { id: string }[] } | undefined;
+
+    const fresh = await receiptOf(manager, sent.id);
+    expect(fresh?.readBy).toEqual([]);
+    expect(fresh?.unread.map((member) => member.id).sort()).toEqual(
+      [reporter.accountId, sectionHead.accountId].sort(),
+    );
+
+    await voices.markConversationRead(reporter, voice.id);
+    const partial = await receiptOf(manager, sent.id);
+    expect(partial?.readBy.map((member) => member.id)).toEqual([reporter.accountId]);
+    expect(partial?.unread.map((member) => member.id)).toEqual([sectionHead.accountId]);
+    const firstRead = partial!.readBy[0]!.readAt;
+
+    await voices.markConversationRead(sectionHead, voice.id);
+    await voices.markConversationRead(reporter, voice.id);
+    const all = await receiptOf(manager, sent.id);
+    expect(all?.unread).toEqual([]);
+    expect(all?.readBy.map((member) => member.id)).toEqual([
+      reporter.accountId,
+      sectionHead.accountId,
+    ]);
+    // A later visit keeps the time of the first read.
+    expect(all?.readBy[0]?.readAt).toEqual(firstRead);
+    // Receipts belong to the sender only.
+    expect(await receiptOf(reporter, sent.id)).toBeUndefined();
+  });
+
+  it('reads Voice notifications on open and chat notifications only in the chat', async () => {
+    const voice = await createVoice({ status: VoiceStatus.RESPONDED });
+    await prisma.conversation.create({ data: { voiceId: voice.id } });
+    const note = (type: 'STATUS_CHANGED' | 'MESSAGE', voiceId: string | null = voice.id) =>
+      prisma.notification.create({
+        data: { recipientId: manager.accountId, voiceId, type, title: type, body: type },
+      });
+    const status = await note('STATUS_CHANGED');
+    const chat = await note('MESSAGE');
+    const other = await note('STATUS_CHANGED', (await createVoice()).id);
+    const readAt = async (id: string) =>
+      (await prisma.notification.findUniqueOrThrow({ where: { id } })).readAt;
+
+    expect(await voices.markVoiceSeen(manager, voice.id)).toEqual({ updated: 1 });
+    expect(await readAt(status.id)).not.toBeNull();
+    expect(await readAt(chat.id)).toBeNull();
+    expect(await readAt(other.id)).toBeNull();
+
+    await voices.markConversationRead(manager, voice.id);
+    expect(await readAt(chat.id)).not.toBeNull();
+    expect(await readAt(other.id)).toBeNull();
+    await expect(
+      voices.markVoiceSeen(manager, '00000000-0000-4000-8000-000000000000'),
+    ).rejects.toBeDefined();
+  });
+
   it('lets the route Manager take over only once the PIC account is inactive', async () => {
     const voice = await createVoice({
       status: VoiceStatus.IN_PROGRESS,

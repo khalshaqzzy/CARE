@@ -30,6 +30,7 @@ import {
   UserCog,
   UserRound,
   UsersRound,
+  Zap,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -51,6 +52,7 @@ import { SystemStatusPage } from './features/system/SystemStatusPage';
 import { AccountPage } from './features/account/AccountPage';
 import { DivisionAdminsPage } from './features/division/DivisionAdminsPage';
 import { GuidesPage } from './features/guides/GuidesPage';
+import { QuickRepliesPage } from './features/quick-replies/QuickRepliesPage';
 import { useDivisionOverview } from './features/division/DivisionPages';
 
 export function App() {
@@ -77,6 +79,7 @@ export function App() {
         <Route path="imports" element={<ImportsPage />} />
         <Route path="remediation" element={<RemediationPage />} />
         <Route path="escalation" element={<EscalationSettingsPage />} />
+        <Route path="quick-replies" element={<QuickRepliesPage />} />
         <Route path="union" element={<UnionPage />} />
         <Route path="division-admins" element={<DivisionAdminsPage />} />
         <Route path="guides" element={<GuidesPage />} />
@@ -331,6 +334,7 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   imports: '/imports',
   remediation: '/remediation',
   escalation: '/escalation',
+  'quick-replies': '/quick-replies',
   union: '/union',
   'division-admins': '/division-admins',
   guides: '/guides',
@@ -358,25 +362,27 @@ function AdminShell() {
         ? 'remediation'
         : path.startsWith('/escalation')
           ? 'escalation'
-          : path.startsWith('/guides')
-            ? 'guides'
-            : path.startsWith('/union')
-              ? 'union'
-              : path.startsWith('/accounts')
-                ? 'accounts'
-                : path.startsWith('/voices')
-                  ? 'voices'
-                  : path.startsWith('/handovers')
-                    ? 'handovers'
-                    : path.startsWith('/category-corrections')
-                      ? 'category-corrections'
-                      : path.startsWith('/audit')
-                        ? 'audit'
-                        : path.startsWith('/system')
-                          ? 'system'
-                          : path.startsWith('/account')
-                            ? 'account'
-                            : 'overview';
+          : path.startsWith('/quick-replies')
+            ? 'quick-replies'
+            : path.startsWith('/guides')
+              ? 'guides'
+              : path.startsWith('/union')
+                ? 'union'
+                : path.startsWith('/accounts')
+                  ? 'accounts'
+                  : path.startsWith('/voices')
+                    ? 'voices'
+                    : path.startsWith('/handovers')
+                      ? 'handovers'
+                      : path.startsWith('/category-corrections')
+                        ? 'category-corrections'
+                        : path.startsWith('/audit')
+                          ? 'audit'
+                          : path.startsWith('/system')
+                            ? 'system'
+                            : path.startsWith('/account')
+                              ? 'account'
+                              : 'overview';
   const divisionItems = [
     { id: 'voices', label: 'Voice divisi', icon: <FileSearch size={19} /> },
     { id: 'accounts', label: 'Akun divisi', icon: <UsersRound size={19} /> },
@@ -401,6 +407,11 @@ function AdminShell() {
       id: 'escalation',
       label: 'Kalender & Eskalasi',
       icon: <CalendarClock size={19} />,
+    },
+    {
+      id: 'quick-replies',
+      label: 'Jawaban Cepat',
+      icon: <Zap size={19} />,
     },
     {
       id: 'union',

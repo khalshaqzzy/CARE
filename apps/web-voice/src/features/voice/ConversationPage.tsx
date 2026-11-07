@@ -1,6 +1,6 @@
 import { Alert, Button, Dialog, IconButton, Skeleton, Stack, Textarea, EmptyState } from '@care/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, ImagePlus, Send, UserRound } from 'lucide-react';
+import { Check, CheckCheck, ChevronRight, ImagePlus, Send, UserRound } from 'lucide-react';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
@@ -11,6 +11,7 @@ import { PhotoSourceSheet, usePhotoSource } from '../../components/PhotoSource';
 import { formatDayDivider, formatNotificationTime } from '../../lib/formatters';
 import { useApi, useSessionId, voiceQuery } from '../../lib/query';
 import { useConversation } from '../../lib/useConversation';
+import { useMarkVoiceSeen } from '../../lib/useVoiceSeen';
 import type { Message, VoiceDetail } from '../../workforce-api';
 
 /**
@@ -33,6 +34,7 @@ export function ConversationPage() {
     enabled: !!id && !!session,
     refetchInterval: 3000,
   });
+  useMarkVoiceSeen(detail.data?.id, detail.data?.updatedAt);
 
   const back = () => {
     // Opened from the detail: step back to it, so its own back still reaches the
@@ -87,6 +89,7 @@ function ConversationSurface({
   const { feed, items, send } = useConversation(voice.id);
   const [showParticipants, setShowParticipants] = useState(false);
   const [showLatest, setShowLatest] = useState(false);
+  const [info, setInfo] = useState<Message | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
   const previousRef = useRef<{ first: string; last: string; height: number } | null>(null);
@@ -96,15 +99,26 @@ function ConversationSurface({
   const queryClient = useQueryClient();
   const latestId = items.at(-1)?.id;
 
-  // Opening the room (and every newly arrived message) clears the unread badge.
+  // Opening the room, every newly arrived message, and coming back to the app
+  // mark the chat read: the unread badge, the senders' ticks and this Voice's
+  // chat notifications.
   useEffect(() => {
-    if (!latestId || document.visibilityState !== 'visible') return;
-    void api
-      .markConversationRead(voice.id)
-      .then(() =>
-        queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', voice.id) }),
-      )
-      .catch(() => undefined);
+    if (!latestId) return;
+    const mark = () => {
+      if (document.visibilityState !== 'visible') return;
+      void api
+        .markConversationRead(voice.id)
+        .then(() =>
+          Promise.all([
+            queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'voice', voice.id) }),
+            queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId, 'notifications') }),
+          ]),
+        )
+        .catch(() => undefined);
+    };
+    mark();
+    document.addEventListener('visibilitychange', mark);
+    return () => document.removeEventListener('visibilitychange', mark);
   }, [api, latestId, queryClient, sessionId, voice.id]);
 
   useEffect(() => {
@@ -267,7 +281,7 @@ function ConversationSurface({
                   <span>{group.label}</span>
                 </div>
                 {group.messages.map((message) => (
-                  <ChatMessage key={message.id} message={message} voice={voice} />
+                  <ChatMessage key={message.id} message={message} voice={voice} onInfo={setInfo} />
                 ))}
               </Fragment>
             ))}
@@ -297,6 +311,10 @@ function ConversationSurface({
         ) : null}
       </div>
       {state === 'ACTIVE' ? <Composer send={send} /> : null}
+      <MessageInfo
+        message={info ? (items.find((item) => item.id === info.id) ?? info) : null}
+        onClose={() => setInfo(null)}
+      />
     </div>
   );
 }
@@ -328,9 +346,18 @@ function senderLabel(message: Message, voice: VoiceDetail): string {
   return 'reporter' in voice && 'name' in voice.reporter ? String(voice.reporter.name) : 'Pelapor';
 }
 
-function ChatMessage({ message, voice }: { message: Message; voice: VoiceDetail }) {
+function ChatMessage({
+  message,
+  voice,
+  onInfo,
+}: {
+  message: Message;
+  voice: VoiceDetail;
+  onInfo: (message: Message) => void;
+}) {
   const { session } = useAuth();
   const isMine = message.senderId === session?.account.id;
+  const receipt = message.receipt;
   const label =
     message.sender?.alias ??
     (isMine
@@ -364,11 +391,109 @@ function ChatMessage({ message, voice }: { message: Message; voice: VoiceDetail 
             <MediaGallery attachments={message.attachments} label="Lampiran" />
           ) : null}
         </div>
-        <time className="chat-msg__time" dateTime={message.createdAt}>
-          {formatNotificationTime(message.createdAt)}
-        </time>
+        {isMine && receipt ? (
+          <button
+            type="button"
+            className="chat-msg__meta"
+            onClick={() => onInfo(message)}
+            aria-label={`${formatNotificationTime(message.createdAt)}, ${receiptLabel(receipt)}. Info pesan`}
+          >
+            <time dateTime={message.createdAt}>{formatNotificationTime(message.createdAt)}</time>
+            <ReadTicks receipt={receipt} />
+          </button>
+        ) : (
+          <time className="chat-msg__time" dateTime={message.createdAt}>
+            {formatNotificationTime(message.createdAt)}
+          </time>
+        )}
       </div>
     </article>
+  );
+}
+
+type Receipt = NonNullable<Message['receipt']>;
+
+function receiptLabel(receipt: Receipt) {
+  if (!receipt.readBy.length) return 'Terkirim';
+  if (!receipt.unread.length) return 'Dibaca semua';
+  return `Dibaca ${receipt.readBy.length} dari ${receipt.readBy.length + receipt.unread.length}`;
+}
+
+/** WhatsApp-style ticks: sent, read by some members, read by every member. */
+function ReadTicks({ receipt }: { receipt: Receipt }) {
+  const state = !receipt.readBy.length ? 'sent' : receipt.unread.length ? 'partial' : 'all';
+  return (
+    <span className="chat-ticks" data-state={state} aria-hidden="true">
+      {state === 'sent' ? <Check size={15} /> : <CheckCheck size={15} />}
+    </span>
+  );
+}
+
+/** "Info pesan": who of the chat members read the message, and when. */
+function MessageInfo({ message, onClose }: { message: Message | null; onClose: () => void }) {
+  const receipt = message?.receipt;
+  return (
+    <Dialog
+      open={Boolean(message && receipt)}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      mobileSheet
+      title="Info pesan"
+    >
+      {message && receipt ? (
+        <div className="message-info">
+          {message.text ? <p className="message-info__quote">{message.text}</p> : null}
+          <section aria-labelledby="message-info-read">
+            <h3 id="message-info-read">
+              <CheckCheck size={16} aria-hidden="true" className="message-info__read-icon" />
+              Dibaca oleh
+            </h3>
+            {receipt.readBy.length ? (
+              <ul>
+                {receipt.readBy.map((reader) => (
+                  <li key={reader.id}>
+                    <ReaderName name={reader.displayName} role={reader.role} />
+                    <time dateTime={reader.readAt}>{formatNotificationTime(reader.readAt)}</time>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="message-info__empty">Belum ada</p>
+            )}
+          </section>
+          {receipt.unread.length ? (
+            <section aria-labelledby="message-info-unread">
+              <h3 id="message-info-unread">
+                <Check size={16} aria-hidden="true" />
+                Belum dibaca
+              </h3>
+              <ul>
+                {receipt.unread.map((reader) => (
+                  <li key={reader.id}>
+                    <ReaderName name={reader.displayName} role={reader.role} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+    </Dialog>
+  );
+}
+
+function ReaderName({ name, role }: { name: string; role: string }) {
+  return (
+    <>
+      <span className="chat-participant__avatar" aria-hidden="true">
+        {name.slice(0, 1)}
+      </span>
+      <span className="message-info__name">
+        <strong>{name}</strong>
+        <small>{participantRole(role)}</small>
+      </span>
+    </>
   );
 }
 

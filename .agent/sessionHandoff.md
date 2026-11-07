@@ -1,5 +1,70 @@
 # CARE Session Handoff
 
+## Voice read state, chat read receipts and Jawaban Cepat — 7 November 2026
+
+**Objective:** three responder/member improvements requested by the product owner, designed with screenshot previews first and then executed:
+
+1. A notification counts as read once its Voice/update has been seen from anywhere (Home, Voice Member, Voice Saya, Daftar Kerja, push), not only via **Buka** in the Notification Center; the bell, Notification Center and icon badge must drop.
+2. WhatsApp-style read state in the chat: whether each own message was read, and by whom.
+3. Quick answers when responding, handing over and finishing a Voice, managed by CARE Admin (place, name, text).
+
+ADR-0081 (`docs/adr/0081-voice-read-state-and-quick-replies.md`) and PRD §45 (plus §11.5, §16, §19.1) hold the rules.
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry in implementationPhases.md.
+
+**Branch:** `feat/voice-read-quick-answers` in worktree `../CARE-quick`, from `origin/staging` 7221db7 (upstream unset). **Uncommitted, no PR yet.** The `feat/time-for-team` working tree in the main checkout was not changed; design and final screenshots plus the two prototype patches are untracked in the main checkout at `docs/preview-read-receipts/`.
+
+**Decisions (product owner, this session):**
+
+- Chat notifications (`MESSAGE`) become read only when the chat is opened. All other notification types for a Voice become read when its detail or chat is opened.
+- Ticks: one grey = sent, two grey = read by some members, two blue = read by all members. Tap opens **Info pesan** with **Dibaca oleh** (name, role, time) and **Belum dibaca**.
+- Quick replies are not hard-coded: CARE Admin adds/edits the place, the name (chip label) and the text. The approved starting set is seeded by the migration.
+
+**Behaviour now:**
+
+- **Notifications.**
+  - `POST /api/v1/voices/{id}/seen` reads the actor's unread notifications for that Voice except `MESSAGE` (detail scope; 404 outside it); returns `{ updated }`.
+  - `POST /voices/{id}/conversation/read` additionally reads that Voice's `MESSAGE` notifications.
+  - Workforce hook `useMarkVoiceSeen` (`apps/web-voice/src/lib/useVoiceSeen.ts`) runs on the detail and chat pages when visible, when the Voice's `updatedAt` changes, when the unread count changes, and on return to the foreground. The chat page now also marks the chat read on return to the foreground. Both invalidate the notification queries, so the bell, the Notification Center and `AppBadgeSync` update at once.
+- **Read receipts.**
+  - New table `MessageRead (messageId, accountId, readAt)`; `markConversationRead` inserts first-read rows for others' `USER` messages (`ON CONFLICT DO NOTHING`, so the first read time is kept).
+  - `GET /voices/{id}/messages` adds `receipt { readBy[], unread[] }` only on the requester's own `USER` messages. Counted members: reporter, route owner or tier participants/holders, current handler, minus the sender. Admin, Division Admin, leadership and tier observers never appear. Names use the participant masking (Komite, anonymous alias) via the new `conversationMembers` helper.
+  - The migration backfills reads from `ConversationReadState.lastReadAt` (approximate times for old messages).
+  - UI in `ConversationPage.tsx`: ticks next to the time of own messages (button with aria-label "08.35, Dibaca 1 dari 2. Info pesan"), `MessageInfo` sheet.
+- **Jawaban Cepat.**
+  - Enum `QuickReplyPlacement` (`REPLY`, `PROCESS`, `ASSIGN`, `ESCALATE`, `HANDOVER`, `CLOSE`) and table `QuickReply`; module `apps/api/src/quick-replies/`.
+  - Workforce: `GET /quick-replies` (active entries per place).
+  - Admin (CARE_ADMIN only): `GET/POST /admin/quick-replies`, `PATCH/DELETE /admin/quick-replies/{id}` (`expectedVersion`), `PUT /admin/quick-replies/order`. Limit 10 per place, unique name per place, advisory lock per place, audit `resourceType = QUICK_REPLY`.
+  - Admin page `apps/web-admin/src/features/quick-replies/QuickRepliesPage.tsx`, nav item **Jawaban Cepat** (`/quick-replies`).
+  - Responder chips (`apps/web-voice/src/components/QuickReplies.tsx`) in the Respons sheet (per option), the standalone Naikkan dialog, the Handover page and the Lapor Sudah Selesai / Tutup Voice dialog. Tap fills an empty note, swaps an untouched template, or appends on a new line.
+- **Bundle budget.** The change put the workforce main chunk 11 bytes over the 166,640-byte gate. Handover and Handover history routes are now `React.lazy` in `apps/web-voice/src/App.tsx`; main chunk is 147,036 bytes.
+
+**Files changed (worktree `../CARE-quick`):**
+
+- API: `prisma/schema.prisma`, migration `20261107090000_message_reads_quick_replies`, `src/quick-replies/*` (new), `src/app.module.ts`, `src/voices/voices.service.ts` (`markConversationRead`, `markVoiceSeen`, `messageReceipts`, `conversationMembers`, `maskedMember`), `src/voices/voices.controller.ts`, `scripts/enrich-openapi.ts`, `openapi.json`; `packages/contracts/src/generated.ts`.
+- Workforce: `workforce-api.ts`, `App.tsx` (lazy handover routes), `lib/useVoiceSeen.ts` (new), `components/QuickReplies.tsx` (new), `components/ActionPanel.tsx`, `features/voice/{VoiceDetailPage,ConversationPage,HandoverPage}.tsx`, `styles.css`.
+- Admin: `admin-api.ts`, `App.tsx`, `features/quick-replies/QuickRepliesPage.tsx` (new), `styles.css`.
+- Tests: `apps/api/test/integration/quick-replies.integration.test.ts` (new, 3), `voice-lifecycle.integration.test.ts` (+2), `e2e/voice-read-quick-replies.spec.ts` (new, 5), `e2e/helpers/mock-api.ts` (`quickReplies` option, `seen` and `/quick-replies` routes), `scripts/validation/validation.test.mjs` (inventory 495 → 500).
+- Docs: ADR-0081, PRD, implementationPhases.md, this handoff.
+
+**Checks run (Windows, portable Node 22.23.4 / pnpm 11.8.0; throwaway `pgvector/pgvector:pg16` on 54339, stopped afterwards):**
+
+- `prisma migrate deploy` on a fresh DB; `prisma migrate diff` from the migrated DB to the schema shows no drift for the new tables (the remaining diff lines are pre-existing and unrelated).
+- Integration: `quick-replies` + `voice-lifecycle` 32/32 pass. API unit tests 175/175.
+- `tsc --noEmit` for api, web-voice and web-admin; ESLint on changed files; Prettier `--check --end-of-line auto` on all changed files: pass.
+- web-voice Vitest 166/166; web-admin Vitest 2/2.
+- Playwright Chromium: new spec 5/5. Full Chromium project: 278 passed, 6 failed while API unit tests ran in parallel; the 6 (admin-explorer, admin-improvements ×3, workforce-guide ×2) passed 16/16 on a rerun, so they were load flakes. After the lazy-route change: workforce-handover, voice-lifecycle, closure-approval and the new spec 32/32.
+- `pnpm pwa:compat-check` after a production build: pass (main gzip 147,036).
+- Validation test "actual CI browser partitions cover every test exactly once": pass with 500.
+- Gitleaks v8.24.3 directory scan of the worktree: no leaks.
+- Not run: full `verify:local`, legacy WebKit, visual capture, fullstack, migration upgrade harness, Gitleaks commit scan (no commit yet), hosted CI, real-device check.
+
+**Next:**
+
+1. Review the diff, run Gitleaks, commit on `feat/voice-read-quick-answers`, push and open a PR to `staging`; merge after CI and confirm `/ready` `releaseSha`.
+2. After deploy, on a phone: open a Voice from Voice Member with an unread status notification (bell drops; chat notification stays until the chat is opened); send a chat message and watch the ticks turn blue as the others open it; check **Info pesan**; edit a Jawaban Cepat in Admin and see it in the Respons sheet within five minutes (or after reopening the app).
+3. Follow-ups: optional per-department quick replies; the receipts list current members only, so a former handler drops out after reassignment.
+
 ## Location-based categories and mandatory Private Voice — 5 November 2026
 
 **Objective:** the product owner is tuning Voice categorisation. PGA-SHE handles safety and cleanliness only in shared facilities and offices; SPFM handles all building repairs and building electrics; everything else in a shop goes to the structure. Harassment-type reports must go to the Komite.

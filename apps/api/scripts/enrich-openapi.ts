@@ -273,6 +273,7 @@ const idempotentOperations = new Set([
 
 const noBodyOperations = new Set([
   'VoicesController_markConversationRead',
+  'VoicesController_markVoiceSeen',
   'AwayController_end',
   'VoicesController_remind',
   'AuthController_logout',
@@ -491,6 +492,13 @@ function successSchema(operationId: string) {
     VoicesController_changeSeverity: 'VoiceMutationResponse',
     VoicesController_remind: 'RemindResponse',
     VoicesController_markConversationRead: 'SuccessResponse',
+    VoicesController_markVoiceSeen: 'UpdatedCountResponse',
+    QuickRepliesController_list: 'QuickReplyGroups',
+    AdminQuickRepliesController_list: 'AdminQuickReplyList',
+    AdminQuickRepliesController_create: 'AdminQuickReplyList',
+    AdminQuickRepliesController_update: 'AdminQuickReplyList',
+    AdminQuickRepliesController_reorder: 'AdminQuickReplyList',
+    AdminQuickRepliesController_delete: 'IdResponse',
     VoicesController_monitoringOptions: 'MonitoringOptions',
     VoicesController_close: 'ClosureResponse',
     VoicesController_reportDone: 'VoiceMutationResponse',
@@ -571,6 +579,9 @@ function requestSchema(operationId: string) {
     AdminGuidesController_update: 'GuideUpdateRequest',
     AdminGuidesController_createVideo: 'GuideVideoRequest',
     AdminGuidesController_reorder: 'GuideOrderRequest',
+    AdminQuickRepliesController_create: 'QuickReplyCreateRequest',
+    AdminQuickRepliesController_update: 'QuickReplyUpdateRequest',
+    AdminQuickRepliesController_reorder: 'QuickReplyOrderRequest',
     AdminEscalationSettingsController_addException: 'CalendarExceptionRequest',
     AdminEscalationSettingsController_deadlines: 'EscalationDeadlinesRequest',
     VoicesController_confirmShop: 'ShopConfirmationRequest',
@@ -3900,6 +3911,132 @@ const schemas: Record<string, any> = {
         type: 'array',
         items: { $ref: '#/components/schemas/AttachmentResponse' },
       },
+      receipt: { $ref: '#/components/schemas/MessageReceipt' },
+    },
+  },
+  MessageReceipt: {
+    type: 'object',
+    description:
+      "Read state of the requester's own message across the current chat members; names follow the participant masking.",
+    required: ['readBy', 'unread'],
+    additionalProperties: false,
+    properties: {
+      readBy: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'displayName', 'role', 'readAt'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string' },
+            displayName: { type: 'string' },
+            role: { type: 'string' },
+            readAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+      unread: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['id', 'displayName', 'role'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string' },
+            displayName: { type: 'string' },
+            role: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
+  QuickReplyItem: {
+    type: 'object',
+    required: ['id', 'label', 'text'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      label: { type: 'string', maxLength: 30 },
+      text: { type: 'string', maxLength: 500 },
+    },
+  },
+  QuickReplyGroups: {
+    type: 'object',
+    description: 'Active quick replies per responder action, in display order.',
+    required: ['REPLY', 'PROCESS', 'ASSIGN', 'ESCALATE', 'HANDOVER', 'CLOSE'],
+    additionalProperties: false,
+    properties: Object.fromEntries(
+      ['REPLY', 'PROCESS', 'ASSIGN', 'ESCALATE', 'HANDOVER', 'CLOSE'].map((placement) => [
+        placement,
+        { type: 'array', items: { $ref: '#/components/schemas/QuickReplyItem' } },
+      ]),
+    ),
+  },
+  AdminQuickReply: {
+    type: 'object',
+    required: ['id', 'placement', 'label', 'text', 'active', 'sortOrder', 'version', 'updatedAt'],
+    additionalProperties: false,
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      placement: {
+        type: 'string',
+        enum: ['REPLY', 'PROCESS', 'ASSIGN', 'ESCALATE', 'HANDOVER', 'CLOSE'],
+      },
+      label: { type: 'string', maxLength: 30 },
+      text: { type: 'string', maxLength: 500 },
+      active: { type: 'boolean' },
+      sortOrder: { type: 'integer' },
+      version: { type: 'integer', minimum: 1 },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  AdminQuickReplyList: {
+    type: 'object',
+    required: ['items'],
+    additionalProperties: false,
+    properties: {
+      items: { type: 'array', items: { $ref: '#/components/schemas/AdminQuickReply' } },
+    },
+  },
+  QuickReplyCreateRequest: {
+    type: 'object',
+    required: ['placement', 'label', 'text', 'active'],
+    additionalProperties: false,
+    properties: {
+      placement: {
+        type: 'string',
+        enum: ['REPLY', 'PROCESS', 'ASSIGN', 'ESCALATE', 'HANDOVER', 'CLOSE'],
+      },
+      label: { type: 'string', minLength: 1, maxLength: 30 },
+      text: { type: 'string', minLength: 1, maxLength: 500 },
+      active: { type: 'boolean' },
+    },
+  },
+  QuickReplyUpdateRequest: {
+    type: 'object',
+    required: ['placement', 'label', 'text', 'active', 'expectedVersion'],
+    additionalProperties: false,
+    properties: {
+      placement: {
+        type: 'string',
+        enum: ['REPLY', 'PROCESS', 'ASSIGN', 'ESCALATE', 'HANDOVER', 'CLOSE'],
+      },
+      label: { type: 'string', minLength: 1, maxLength: 30 },
+      text: { type: 'string', minLength: 1, maxLength: 500 },
+      active: { type: 'boolean' },
+      expectedVersion: { type: 'integer', minimum: 1 },
+    },
+  },
+  QuickReplyOrderRequest: {
+    type: 'object',
+    required: ['placement', 'ids'],
+    additionalProperties: false,
+    properties: {
+      placement: {
+        type: 'string',
+        enum: ['REPLY', 'PROCESS', 'ASSIGN', 'ESCALATE', 'HANDOVER', 'CLOSE'],
+      },
+      ids: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'string', format: 'uuid' } },
     },
   },
   MessagePage: {

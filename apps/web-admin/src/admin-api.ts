@@ -49,6 +49,8 @@ export type ShopLocationUnmatched = components['schemas']['ShopLocationUnmatched
 export type AreaKey = ShopLocationAdmin['areas'][number];
 export type AdminGuide = components['schemas']['AdminGuide'];
 export type AdminGuideList = components['schemas']['AdminGuideList'];
+export type AdminQuickReply = components['schemas']['AdminQuickReply'];
+export type AdminQuickReplyList = components['schemas']['AdminQuickReplyList'];
 export type AdminHandoverQueue = components['schemas']['AdminHandoverQueue'];
 export type AdminHandoverDetail = components['schemas']['AdminHandoverDetail'];
 export type AdminHandoverOptions = components['schemas']['AdminHandoverOptions'];
@@ -488,6 +490,34 @@ export function createAdminApi(transport: CareTransport) {
     deleteGuide: (id: string) =>
       dataOrThrow(
         client.DELETE('/api/v1/admin/guides/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+        }),
+      ),
+    quickReplies: () => dataOrThrow<AdminQuickReplyList>(client.GET('/api/v1/admin/quick-replies')),
+    createQuickReply: (body: components['schemas']['QuickReplyCreateRequest']) =>
+      dataOrThrow<AdminQuickReplyList>(
+        client.POST('/api/v1/admin/quick-replies', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    updateQuickReply: (id: string, body: components['schemas']['QuickReplyUpdateRequest']) =>
+      dataOrThrow<AdminQuickReplyList>(
+        client.PATCH('/api/v1/admin/quick-replies/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    reorderQuickReplies: (body: components['schemas']['QuickReplyOrderRequest']) =>
+      dataOrThrow<AdminQuickReplyList>(
+        client.PUT('/api/v1/admin/quick-replies/order', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    deleteQuickReply: (id: string) =>
+      dataOrThrow(
+        client.DELETE('/api/v1/admin/quick-replies/{id}', {
           params: { path: { id }, header: { 'X-CSRF-Token': '' } },
         }),
       ),

@@ -336,6 +336,14 @@ export function createWorkforceApi(transport: CareTransport) {
           params: { path: { id }, header: csrfIdempotentHeader(crypto.randomUUID()) },
         }),
       ),
+    markVoiceSeen: (id: string) =>
+      dataOrThrow<components['schemas']['UpdatedCountResponse']>(
+        client.POST('/api/v1/voices/{id}/seen', {
+          params: { path: { id }, header: csrfIdempotentHeader(crypto.randomUUID()) },
+        }),
+      ),
+    quickReplies: () =>
+      dataOrThrow<components['schemas']['QuickReplyGroups']>(client.GET('/api/v1/quick-replies')),
     assign: (id: string, body: components['schemas']['AssignmentRequest'], key: string) =>
       dataOrThrow<components['schemas']['VoiceMutationResponse']>(
         client.POST('/api/v1/voices/{id}/assignments', {
