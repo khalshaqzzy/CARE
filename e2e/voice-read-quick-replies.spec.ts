@@ -125,6 +125,17 @@ test.describe('Voice read state and Jawaban Cepat', () => {
     await expect(read.getByText('Rina Kartika')).toBeVisible();
     await expect(read.locator('time')).toHaveText('08.25');
     await expect(info.getByRole('region', { name: 'Belum dibaca' })).toContainText('Andi Pratama');
+    // Scan only once the sheet has faded in: mid-animation colours are blended and fail contrast.
+    await expect
+      .poll(() =>
+        info.evaluate((el) => {
+          let opacity = 1;
+          for (let node: Element | null = el; node; node = node.parentElement)
+            opacity *= Number(getComputedStyle(node).opacity);
+          return opacity;
+        }),
+      )
+      .toBe(1);
     expect(
       (await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations,
     ).toEqual([]);
