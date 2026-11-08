@@ -13,7 +13,7 @@ ADR-0082 (`docs/adr/0082-admin-navigation-and-report-dashboards.md`) and PRD §1
 
 **Phase:** Phase 13 stays the only `in_progress` phase; new entries at the top and bottom of implementationPhases.md.
 
-**Branch:** `feat/admin-dashboards` in worktree `../CARE-admin-dash`, from `origin/staging` 5061bd2 (after PR #129). Not committed or pushed yet. Mockups (v1, v2) and final screenshots of the built pages with mock data are untracked in the main checkout at `docs/preview-admin-redesign/` (`mock.html`, `final/*.png`). The `feat/time-for-team` working tree in the main checkout was not touched.
+**Branch:** `feat/admin-dashboards` in worktree `../CARE-admin-dash`, from `origin/staging` 5061bd2 (after PR #129). Commit e451077 pushed; PR khalshaqzzy/CARE#130 to `staging` opened 8 November 2026 (hosted CI not yet confirmed). Mockups (v1, v2) and final screenshots of the built pages with mock data are untracked in the main checkout at `docs/preview-admin-redesign/` (`mock.html`, `final/*.png`). The `feat/time-for-team` working tree in the main checkout was not touched.
 
 **Decisions (product owner, this session):**
 
