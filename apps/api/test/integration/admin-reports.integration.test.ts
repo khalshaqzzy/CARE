@@ -203,7 +203,7 @@ describe('CARE Admin reports', () => {
       .expect(200);
     expect(file.headers['content-disposition']).toMatch(/voice-\d{4}-\d{2}-\d{2}\.xlsx/);
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(file.body as Buffer);
+    await workbook.xlsx.load(file.body as ExcelJS.Buffer);
     const sheet = workbook.getWorksheet('Voice')!;
     expect(sheet.rowCount).toBe(5);
     const rows = sheet.getSheetValues().slice(2) as unknown[][];
