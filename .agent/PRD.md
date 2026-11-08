@@ -438,16 +438,16 @@ Workforce PWA dan Admin web memakai navigation serta host authorization yang ber
 
 ### 11.5 CARE Admin
 
-- Overview operasional;
-- Import dan Master Data;
-- Remediation dan Route Mapping;
-- Union Accounts;
-- Jawaban Cepat (template kalimat responder, §45);
-- Accounts;
-- Voice Explorer;
-- Audit;
-- System Status;
-- Akun.
+Menu Admin dikelompokkan dalam lima bagian berjudul (update 8 November 2026, ADR-0082, §46):
+
+- **Ringkasan:** Overview (Voice bulan ini, Perlu tindakan, Akun workforce aktif, status sistem);
+- **Voice:** Voice Explorer (tab Semua Voice dengan Ringkasan Voice · Handover Admin · Koreksi Kategori; badge jumlah handover menunggu), Voice Migrasi;
+- **Akun & Akses:** Akun (dengan Ringkasan Akun), Akun Komite, Admin Divisi;
+- **Konfigurasi:** Data Organisasi, Route & Kategori, Pengaturan Sistem (tab Kalender & Eskalasi · Jawaban Cepat (§45) · Panduan);
+- **Sistem:** Audit, Status Sistem;
+- Akun Saya dan Keluar di kaki sidebar.
+
+URL lama halaman yang kini menjadi tab dialihkan ke tab tersebut (`/handovers`, `/category-corrections`, `/escalation`, `/quick-replies`, `/guides`); route lain tidak berubah. Halaman yang berisi beberapa pekerjaan terpisah memakai tab (`?tab=`, tab di dalam tab memakai `?section=`).
 
 Workforce mobile memakai bottom navigation untuk primary journeys dan sidebar/topbar pada desktop. Admin app memakai desktop-only sidebar dengan hard gate ≥1280 px, bukan PWA/offline surface. Di bawah gate, protected tree tidak di-mount dan tidak melakukan fetch. Kedua frontend tetap bergantung pada backend authorization.
 
@@ -2782,3 +2782,19 @@ Status: **diimplementasikan di `feat/voice-read-quick-answers`, belum dirilis.**
 - Batas 10 template per tempat; nama unik per tempat; ubah memakai `expectedVersion`. Isi awal dimasukkan oleh migrasi dan dapat diubah Admin.
 - Responder melihat template aktif sebagai chip **Jawaban cepat** di atas kolom isian. Tap chip mengisi kolom kosong, mengganti template yang belum diubah, atau menambahkan kalimat di baris baru bila responder sudah menulis sendiri. Isi tetap dapat diedit sebelum dikirim; tempat tanpa template aktif tidak menampilkan baris chip.
 - Endpoint: `GET /quick-replies` (workforce, template aktif per tempat); `GET/POST /admin/quick-replies`, `PATCH/DELETE /admin/quick-replies/{id}`, `PUT /admin/quick-replies/order` (CARE Admin).
+
+---
+
+## 46. Menu Admin berkelompok dan dashboard laporan — 8 November 2026
+
+Tujuan: laporan dapat dibaca langsung dari CARE Admin tanpa olah data terpisah. Keputusan rinci di ADR-0082.
+
+- **Menu.** Lima bagian berjudul (§11.5). "Union" di Admin menjadi **Komite** (menu Akun Komite, slot Ketua Komite / Komite 1 / Komite 2, jenis akun Komite); nilai enum dan endpoint tidak berubah.
+- **Voice Explorer.** Filter: cari, status, visibility, severity, area, kategori (daftar kategori General yang dikonfigurasi), handler, **Dikirim dari / Sampai** (hari WIB). Di bawah filter ada **Ringkasan Voice** yang selalu mengikuti filter: Total, Terbuka, Direspon, Diproses, Selesai (dengan %), Terlambat; rata-rata respon pertama, rata-rata penyelesaian, dan rata-rata rating (dengan jumlah sampel, ukuran sama dengan dashboard organisasi); batang Kategori, Severity, Area. Klik status/kategori/severity/area menyaring daftar dan ringkasan sekaligus. Tombol **Sembunyikan** menggeser ringkasan ke atas menjadi satu baris angka sehingga tabel mendapat ruang; pilihan diingat per halaman di browser. **Unduh Excel** mengekspor Voice sesuai filter.
+- **Voice Migrasi.** Voice dari platform lama (ADR-0061) tidak lagi tampil di Voice Explorer. Halaman sendiri berisi daftar (ID CARE, platform, ID lama, judul, kategori, severity, PIC), filter cari/kategori/severity/tanggal, dan ekspor; tanpa ringkasan.
+- **Ekspor Voice (Admin).** Maksimal 10.000 Voice per ekspor. Identitas pelapor Private tidak ikut ekspor (ditulis "Private", PIC "Komite"); identitas Private tetap hanya dibaca per Voice dengan audit. Setiap ekspor tercatat `ADMIN_VOICE_EXPORT`.
+- **Akun.** **Ringkasan Akun** mengikuti filter daftar: Total, Aktif, Legacy handler, Nonaktif, Sudah login (%), Belum login; batang Peran (Member, Group Leader, Section Head, Department Head, Deputy/Division Head; sudah login/total), Jenis akun, dan Login per divisi/departemen/seksi (satu tingkat di bawah unit terpilih). Klik angka atau batang menyaring daftar. **Ekspor belum login** di kepala halaman. Ringkasan dapat disembunyikan seperti Voice Explorer. Tampilan Admin Divisi tidak berubah.
+- **Overview.** Voice bulan ini (sejak tanggal 1 bulan WIB berjalan), Perlu tindakan (handover menunggu, Voice terlambat, Critical belum selesai, remediation terbuka, Akun Komite, audit gagal), Akun workforce aktif (login terendah per divisi), dan satu baris status sistem; setiap baris membuka halaman terkait.
+- **Menu digabung (revisi 8 November 2026).** Handover Admin dan Koreksi Kategori menjadi tab di Voice Explorer (Semua Voice · Handover Admin · Koreksi Kategori). Kalender & Eskalasi, Jawaban Cepat, dan Panduan menjadi satu menu **Pengaturan Sistem** dengan tiga tab. Halaman di dalam tab memakai judul bagian kecil; tombol aksinya (Tambah jawaban cepat, Upload PDF, Unduh Excel) tetap ada.
+- **Tab per pekerjaan.** Route & Kategori: Remediation · Kategori · Lokasi shop (baris status route di atas). Kalender & Eskalasi: Kalender kerja · Batas waktu. Data Organisasi: Impor baru · Riwayat impor. Status Sistem: Kesehatan · Konfigurasi AI.
+- **Endpoint baru (CARE Admin saja, akun lain 404):** `GET /admin/voices/summary`, `GET /admin/voices/export` (filter Voice Explorer + `origin`), `GET /admin/accounts/summary` (filter daftar akun). `GET /voices` menerima `origin=CARE|MIGRATED`; item daftar Voice membawa `legacyId`.

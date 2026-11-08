@@ -11,8 +11,8 @@ type UnionTerm = UnionAccountList[number];
 
 const SLOT_META: Record<UnionTerm['slot'], { title: string; impact: string; index?: string }> = {
   HEAD: { title: 'Komite (Head)', impact: 'Seluruh Private Voice ditangani akun ini' },
-  OFFICER_1: { title: 'Union 1', impact: 'Tidak dipakai untuk Private Voice baru', index: '1' },
-  OFFICER_2: { title: 'Union 2', impact: 'Tidak dipakai untuk Private Voice baru', index: '2' },
+  OFFICER_1: { title: 'Komite 1', impact: 'Tidak dipakai untuk Private Voice baru', index: '1' },
+  OFFICER_2: { title: 'Komite 2', impact: 'Tidak dipakai untuk Private Voice baru', index: '2' },
 };
 
 export function UnionPage() {
@@ -64,9 +64,9 @@ export function UnionPage() {
   return (
     <Stack gap="lg">
       <AdminPageHeader
-        eyebrow="Union"
-        title="Union Accounts"
-        description="Kelola akun Head dan slot Union. Penggantian akun akan memengaruhi akses sistem."
+        eyebrow="Akun & Akses"
+        title="Akun Komite"
+        description="Akun Ketua dan anggota Komite. Penggantian akun memengaruhi akses."
         badge={
           <span className="admin-count-pill">
             <TrendingUp size={14} aria-hidden="true" /> Workload <strong>—</strong> Tidak tersedia
@@ -80,7 +80,7 @@ export function UnionPage() {
           {String((q.error as Error).message)}
         </Alert>
       ) : (
-        <div className="admin-tree" role="list" aria-label="Slot Union">
+        <div className="admin-tree" role="list" aria-label="Slot Komite">
           {(['HEAD', 'OFFICER_1', 'OFFICER_2'] as const).map((s) => {
             const term = bySlot(s);
             const meta = SLOT_META[s];
@@ -165,7 +165,7 @@ export function UnionPage() {
       <Dialog
         open={open}
         onOpenChange={setOpen}
-        title={`Atur ${slot === 'HEAD' ? 'Union Head' : slot === 'OFFICER_1' ? 'Union 1' : 'Union 2'}`}
+        title={`Atur ${slot === 'HEAD' ? 'Ketua Komite' : slot === 'OFFICER_1' ? 'Komite 1' : 'Komite 2'}`}
         description="Username unik, displayName, dan akan mewajibkan ganti password."
         footer={
           <>
@@ -199,7 +199,7 @@ export function UnionPage() {
             label="Display name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Union Head"
+            placeholder="Ketua Komite"
           />
           <Textarea
             label="Alasan"

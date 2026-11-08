@@ -1,47 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth, careQueryKey } from '@care/frontend-core';
-import { Alert, Badge, Button, Stack } from '@care/ui';
+import { Alert, Button, Stack } from '@care/ui';
 import {
-  Activity,
-  Archive,
+  AlarmClock,
   ArrowRight,
-  BellRing,
+  Bell,
   CheckCircle2,
   CircleAlert,
-  CircleGauge,
+  CircleDashed,
+  CircleDot,
   CloudUpload,
   FileSearch,
-  Info,
+  GitPullRequestArrow,
+  Inbox,
+  LoaderCircle,
+  LogIn,
   Route as RouteIcon,
-  Settings,
   ShieldCheck,
-  TriangleAlert,
+  ShieldAlert,
+  Timer,
+  UserCheck,
   UsersRound,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminKpi } from '../../components/AdminKpi';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
+import { AdminBars, formatCount, formatDuration } from '../../components/AdminSummary';
 import { createAdminApi } from '../../admin-api';
-
-const QUICK_ACTIONS = [
-  { label: 'Import & Master Data', to: '/imports', icon: <Archive size={20} /> },
-  { label: 'Remediation & Route', to: '/remediation', icon: <RouteIcon size={20} /> },
-  { label: 'Union Accounts', to: '/union', icon: <ShieldCheck size={20} /> },
-  { label: 'Accounts', to: '/accounts', icon: <UsersRound size={20} /> },
-  { label: 'Voice Explorer', to: '/voices', icon: <FileSearch size={20} /> },
-  { label: 'Audit', to: '/audit', icon: <Activity size={20} /> },
-  { label: 'System Status', to: '/system', icon: <Settings size={20} /> },
-];
-
-type PriorityAction = {
-  title: string;
-  description: string;
-  severity: 'Tinggi' | 'Sedang' | 'Rendah';
-  owner: string;
-  to: string;
-};
 
 const IMPORT_STATUS_LABELS: Record<string, string> = {
   PREVIEWED: 'Siap divalidasi',
@@ -52,423 +39,363 @@ const IMPORT_STATUS_LABELS: Record<string, string> = {
   EXPIRED: 'Kedaluwarsa',
 };
 
-const importStatusLabel = (status: string) => IMPORT_STATUS_LABELS[status] ?? status;
-
-function formatDateTime(value: string | number | null | undefined) {
-  if (value == null) return '-';
-  return new Date(value).toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+/** First day of the current WIB month, as the Voice Explorer date filter value. */
+function wibMonthStart(now = new Date()) {
+  const wib = new Date(now.getTime() + 7 * 3_600_000);
+  return `${wib.getUTCFullYear()}-${String(wib.getUTCMonth() + 1).padStart(2, '0')}-01`;
 }
 
+const percent = (part: number, total: number) => (total ? Math.round((part / total) * 100) : 0);
+
+function CardHead({
+  icon,
+  title,
+  meta,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  meta?: string | undefined;
+  action?: ReactNode | undefined;
+}) {
+  return (
+    <div className="admin-overview__head">
+      <h2 className="admin-card__title" style={{ margin: 0 }}>
+        {icon} {title}
+      </h2>
+      {meta ? <span className="admin-meta--xs">{meta}</span> : null}
+      {action ? <span className="admin-overview__action">{action}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * CARE Admin home: this month's Voices, what needs the Admin now, account
+ * adoption and system state, each linking to the page that holds the detail.
+ */
 export function OverviewPage() {
   const { session, transport } = useAuth();
   const api = useMemo(() => createAdminApi(transport), [transport]);
   const navigate = useNavigate();
+  const monthStart = wibMonthStart();
+  const sid = session?.sessionId ?? 'anon';
   const overview = useQuery({
-    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'overview'),
+    queryKey: careQueryKey(sid, 'overview'),
     queryFn: api.overview,
     enabled: !!session,
     staleTime: 30_000,
   });
-  const health = useQuery({ queryKey: ['health'], queryFn: api.health, enabled: !!session });
+  const month = useQuery({
+    queryKey: careQueryKey(sid, 'overview', 'voices-month', monthStart),
+    queryFn: () => api.voiceSummary({ origin: 'CARE', from: `${monthStart}T00:00:00.000+07:00` }),
+    enabled: !!session,
+    staleTime: 30_000,
+  });
+  const accounts = useQuery({
+    queryKey: careQueryKey(sid, 'overview', 'accounts'),
+    queryFn: () => api.accountSummary({ kind: 'WORKFORCE', status: 'ACTIVE' }),
+    enabled: !!session,
+    staleTime: 60_000,
+  });
+  const login = useQuery({
+    queryKey: careQueryKey(sid, 'accounts', 'login', '', ''),
+    queryFn: () => api.loginSummary({}),
+    enabled: !!session,
+    staleTime: 60_000,
+  });
+  const handovers = useQuery({
+    queryKey: careQueryKey(sid, 'admin-handovers', 'menu-count'),
+    queryFn: () => api.adminHandovers(),
+    enabled: !!session,
+    staleTime: 60_000,
+  });
   const ready = useQuery({ queryKey: ['ready'], queryFn: api.ready, enabled: !!session });
   const release = useQuery({ queryKey: ['release'], queryFn: api.release, enabled: !!session });
+
   const data = overview.data;
-  const active = data?.accounts.active ?? 0;
-  const legacy = data?.accounts.legacy ?? 0;
-  const inactive = data?.accounts.inactive ?? 0;
-  const totalAccounts = active + legacy + inactive;
-  const remediation = data?.openRemediation ?? 0;
-  const unionSlots = data?.unionSlots ?? 0;
-  const latestImport = data?.latestImport ?? null;
-  const importSummary = latestImport?.summary ?? null;
-  const voices = data?.voices ?? null;
-  const failedAudits = data?.failedAudits ?? 0;
+  const voices = month.data;
+  const count = (key: string) => voices?.status.find((row) => row.key === key)?.value ?? 0;
   const readyOk = ready.data?.status === 'ready';
-  const checks = ready.data?.checks;
+  const latestImport = data?.latestImport ?? null;
+  const pendingHandovers = handovers.data?.items.length ?? 0;
   const lastUpdated = Math.max(
     overview.dataUpdatedAt,
-    health.dataUpdatedAt,
+    month.dataUpdatedAt,
+    accounts.dataUpdatedAt,
     ready.dataUpdatedAt,
-    release.dataUpdatedAt,
   );
-  const refreshing = overview.isFetching || health.isFetching || ready.isFetching;
-  const refetchAll = () => {
-    void Promise.all([overview.refetch(), health.refetch(), ready.refetch(), release.refetch()]);
-  };
+  const refetchAll = () =>
+    void Promise.all([
+      overview.refetch(),
+      month.refetch(),
+      accounts.refetch(),
+      login.refetch(),
+      handovers.refetch(),
+      ready.refetch(),
+      release.refetch(),
+    ]);
 
-  const share = (part: number) =>
-    totalAccounts > 0 ? `${((part / totalAccounts) * 100).toFixed(1).replace('.', ',')}%` : '—';
-
-  const priorities: PriorityAction[] = [];
-  if (remediation > 0)
-    priorities.push({
-      title: `${remediation} isu remediation menunggu tindakan`,
-      description: 'Selesaikan route gap agar submission baru tidak terblokir.',
-      severity: 'Tinggi',
-      owner: 'CARE Admin',
+  const attention: {
+    key: string;
+    icon: ReactNode;
+    label: string;
+    value: string;
+    tone: 'danger' | 'warning' | 'success';
+    to: string;
+  }[] = [
+    {
+      key: 'handovers',
+      icon: <GitPullRequestArrow size={16} />,
+      label: 'Handover menunggu keputusan',
+      value: `${pendingHandovers}${handovers.data?.nextCursor ? '+' : ''}`,
+      tone: pendingHandovers ? 'danger' : 'success',
+      to: '/voices?tab=handovers',
+    },
+    {
+      key: 'overdue',
+      icon: <AlarmClock size={16} />,
+      label: 'Voice terlambat bulan ini',
+      value: formatCount(voices?.overdue ?? 0),
+      tone: voices?.overdue ? 'danger' : 'success',
+      to: `/voices?dateFrom=${monthStart}`,
+    },
+    {
+      key: 'critical',
+      icon: <ShieldAlert size={16} />,
+      label: 'Voice Critical belum selesai',
+      value: formatCount(data?.voices.critical ?? 0),
+      tone: data?.voices.critical ? 'danger' : 'success',
+      to: '/voices?severity=CRITICAL',
+    },
+    {
+      key: 'remediation',
+      icon: <RouteIcon size={16} />,
+      label: 'Remediation route terbuka',
+      value: formatCount(data?.openRemediation ?? 0),
+      tone: data?.openRemediation ? 'warning' : 'success',
       to: '/remediation',
-    });
-  if (unionSlots < 1)
-    priorities.push({
-      title: 'Akun Komite belum ada',
-      description: 'Private Voice membutuhkan satu akun Komite (Union Head) aktif.',
-      severity: 'Tinggi',
-      owner: 'CARE Admin',
+    },
+    {
+      key: 'committee',
+      icon: <ShieldCheck size={16} />,
+      label: 'Akun Komite',
+      value: data?.unionSlots ? 'Lengkap' : 'Belum ada',
+      tone: data?.unionSlots ? 'success' : 'danger',
       to: '/union',
-    });
-  if (!latestImport)
-    priorities.push({
-      title: 'Belum ada impor master data',
-      description: 'Unggah snapshot organisasi authoritative pertama.',
-      severity: 'Sedang',
-      owner: 'Data Operator',
-      to: '/imports',
-    });
-  else if (latestImport.status !== 'CONFIRMED')
-    priorities.push({
-      title: `Impor terakhir: ${importStatusLabel(latestImport.status).toLowerCase()}`,
-      description: 'Tinjau pratinjau dan konfirmasi batch terbaru.',
-      severity: 'Sedang',
-      owner: 'Data Operator',
-      to: '/imports',
-    });
-  if (!readyOk)
-    priorities.push({
-      title: 'Readiness sistem belum OK',
-      description: 'Periksa database, migrasi, outbox, dan storage pada System Status.',
-      severity: 'Tinggi',
-      owner: 'CARE Admin',
-      to: '/system',
-    });
-  if ((voices?.critical ?? 0) > 0)
-    priorities.push({
-      title: `${voices?.critical} Voice kritis belum selesai`,
-      description: 'Tinjau Voice severity Critical yang belum Closed pada Voice Explorer.',
-      severity: 'Tinggi',
-      owner: 'CARE Admin',
-      to: '/voices',
-    });
-  if (failedAudits > 0)
-    priorities.push({
-      title: `${failedAudits} audit gagal tercatat`,
-      description: 'Tinjau kejadian Result FAILED pada halaman Audit.',
-      severity: 'Sedang',
-      owner: 'Security Admin',
-      to: '/audit',
-    });
-  priorities.push({
-    title: 'Tinjau jejak audit terbaru',
-    description: 'Pastikan akses Private dan mutasi sensitif tercatat.',
-    severity: 'Rendah',
-    owner: 'Security Admin',
-    to: '/audit',
-  });
-  const visiblePriorities = priorities.slice(0, 4);
+    },
+    ...(data?.failedAudits
+      ? [
+          {
+            key: 'audit',
+            icon: <CircleAlert size={16} />,
+            label: 'Audit gagal',
+            value: formatCount(data.failedAudits),
+            tone: 'warning' as const,
+            to: '/audit',
+          },
+        ]
+      : []),
+  ];
 
-  const severityTone = (severity: PriorityAction['severity']) =>
-    severity === 'Tinggi' ? 'danger' : severity === 'Sedang' ? 'warning' : 'info';
-
-  const checkNodes = checks
-    ? Object.entries(checks).map(([name, value]) => ({
-        name: name === 'database' ? 'Database' : name,
-        ok: value === 'ok',
-        detail: value,
-      }))
-    : [];
+  const divisions = [...(login.data?.groups ?? [])]
+    .filter((group) => group.total > 0)
+    .sort((a, b) => a.loggedIn / a.total - b.loggedIn / b.total)
+    .slice(0, 6);
 
   return (
     <Stack gap="lg">
       <AdminPageHeader
-        eyebrow="Operasional"
-        title="Overview Operasional"
-        description="Ringkasan akun, impor, remediation, dan kesehatan sistem."
-        updatedLabel={lastUpdated ? formatDateTime(lastUpdated) : undefined}
+        eyebrow="Ringkasan"
+        title="Overview"
+        description="Voice bulan ini, hal yang perlu tindakan, dan adopsi akun."
+        updatedLabel={lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : undefined}
         onRefresh={refetchAll}
-        refreshing={refreshing}
+        refreshing={overview.isFetching || month.isFetching}
       />
-      {overview.isLoading ? (
-        <section className="admin-card" aria-label="Memuat overview">
-          <AdminSkeleton lines={4} label="Memuat overview" />
-        </section>
-      ) : null}
       {overview.error ? (
         <Alert tone="danger" title="Gagal memuat overview">
           {String((overview.error as Error).message)}
         </Alert>
       ) : null}
-      {data ? (
-        <section className="admin-card admin-card--hero" aria-label="Ringkasan operasional">
-          <h2 className="admin-card__title">
-            <UsersRound size={18} aria-hidden="true" /> Ringkasan operasional
-          </h2>
+
+      <section className="admin-card" aria-label="Voice bulan ini">
+        <CardHead
+          icon={<FileSearch size={18} aria-hidden="true" />}
+          title="Voice bulan ini"
+          meta={`Sejak ${new Date(`${monthStart}T00:00:00+07:00`).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}`}
+          action={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void navigate(`/voices?dateFrom=${monthStart}`)}
+            >
+              Buka Voice Explorer <ArrowRight size={14} aria-hidden="true" />
+            </Button>
+          }
+        />
+        {voices ? (
           <div className="admin-kpi-strip">
             <AdminKpi
-              icon={<UsersRound size={20} />}
-              iconTone="brand"
-              value={
-                <>
-                  {active.toLocaleString('id-ID')}{' '}
-                  <span className="admin-kpi__sub">/ {totalAccounts.toLocaleString('id-ID')}</span>
-                </>
-              }
-              label="akun aktif"
+              icon={<Inbox size={18} />}
+              value={formatCount(voices.total)}
+              label="Voice masuk"
             />
             <AdminKpi
-              icon={<ShieldCheck size={20} />}
-              iconTone="danger"
-              value={remediation}
-              valueTone={remediation > 0 ? 'danger' : undefined}
-              label="remediation"
+              icon={<CircleDot size={18} />}
+              iconTone="warning"
+              valueTone="warning"
+              value={formatCount(count('OPEN') + count('RESPONDED'))}
+              label="Terbuka / direspon"
             />
             <AdminKpi
-              icon={<Archive size={20} />}
+              icon={<LoaderCircle size={18} />}
               iconTone="info"
-              value={`${unionSlots} / 1`}
-              label="akun Komite"
+              valueTone="info"
+              value={formatCount(count('IN_PROGRESS'))}
+              label="Diproses"
             />
             <AdminKpi
-              icon={<CloudUpload size={20} />}
-              iconTone="brand"
-              value={latestImport ? importStatusLabel(latestImport.status) : '-'}
-              valueTone={
-                latestImport
-                  ? latestImport.status === 'CONFIRMED'
-                    ? 'success'
-                    : 'warning'
-                  : undefined
-              }
-              label="impor terakhir"
-              sub={latestImport ? undefined : 'Belum ada impor'}
-            />
-            <AdminKpi
-              icon={<CheckCircle2 size={20} />}
+              icon={<CheckCircle2 size={18} />}
               iconTone="success"
-              value={readyOk ? 'Siap' : (ready.data?.status ?? '-')}
-              valueTone={readyOk ? 'success' : 'warning'}
-              label="status sistem"
+              valueTone="success"
+              value={formatCount(count('CLOSED'))}
+              label="Selesai"
+              sub={`${percent(count('CLOSED'), voices.total)}%`}
+            />
+            <AdminKpi
+              icon={<AlarmClock size={18} />}
+              iconTone="danger"
+              valueTone={voices.overdue ? 'danger' : undefined}
+              value={formatCount(voices.overdue)}
+              label="Terlambat"
+            />
+            <AdminKpi
+              icon={<Timer size={18} />}
+              value={formatDuration(voices.averageResponseSeconds, true)}
+              label="Rata-rata respon"
+              sub={`Selesai ${formatDuration(voices.averageCompletionSeconds, true)}`}
             />
           </div>
-        </section>
-      ) : null}
-
-      <section className="admin-card admin-card--subtle" aria-label="Kesehatan sistem">
-        <div className="admin-kpi-strip">
-          <AdminKpi
-            icon={<CheckCircle2 size={20} />}
-            iconTone="success"
-            value={readyOk ? 'Siap' : (ready.data?.status ?? '-')}
-            valueTone={readyOk ? 'success' : 'warning'}
-            label="Kesehatan sistem"
-            sub="Semua layanan beroperasi normal"
-          />
-          <AdminKpi
-            icon={<ShieldCheck size={20} />}
-            iconTone="info"
-            value={release.data?.releaseSha ? 'OK' : '-'}
-            label="Validasi konfigurasi"
-            sub="Identitas tersedia di halaman System Status"
-          />
-          <AdminKpi
-            icon={<Activity size={20} />}
-            iconTone="brand"
-            value={
-              lastUpdated
-                ? new Date(lastUpdated).toLocaleString('id-ID', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '-'
-            }
-            label="Terakhir validasi"
-            sub="Otomatis setiap 15 menit"
-          />
-        </div>
+        ) : (
+          <AdminSkeleton lines={2} label="Memuat Voice bulan ini" />
+        )}
       </section>
 
-      <div
-        className="care-grid"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(22rem, 1fr))', gap: '1rem' }}
-      >
-        <section className="admin-card admin-card--lift" aria-label="Aksi prioritas">
-          <h2 className="admin-card__title">
-            <CircleGauge size={18} aria-hidden="true" /> Aksi prioritas
-          </h2>
-          <ul className="admin-rows">
-            {visiblePriorities.map((item) => (
-              <li key={item.title}>
-                <span className="admin-rowmark" data-tone={severityTone(item.severity)}>
-                  {item.severity === 'Tinggi' ? (
-                    <CircleAlert size={16} aria-hidden="true" />
-                  ) : item.severity === 'Sedang' ? (
-                    <TriangleAlert size={16} aria-hidden="true" />
-                  ) : (
-                    <Info size={16} aria-hidden="true" />
-                  )}
-                </span>
-                <span className="admin-rowbody">
-                  <strong>{item.title}</strong>
-                  <span>{item.description}</span>
-                </span>
-                <span className="admin-rowside">
-                  <span className="admin-pill" data-tone={severityTone(item.severity)}>
-                    {item.severity}
-                  </span>
-                  <small>{item.owner}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <Button variant="ghost" size="sm" onClick={() => void navigate('/remediation')}>
-            Lihat semua aksi <ArrowRight size={14} />
-          </Button>
+      <div className="admin-overview__split">
+        <section className="admin-card" aria-label="Perlu tindakan">
+          <CardHead icon={<Bell size={18} aria-hidden="true" />} title="Perlu tindakan" />
+          {data ? (
+            <ul className="admin-attention">
+              {attention.map((item) => (
+                <li key={item.key}>
+                  <button type="button" onClick={() => void navigate(item.to)}>
+                    <span
+                      className="admin-attention__icon"
+                      data-tone={item.tone}
+                      aria-hidden="true"
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="admin-attention__label">{item.label}</span>
+                    <b className="admin-nums" data-tone={item.tone}>
+                      {item.value}
+                    </b>
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <AdminSkeleton lines={4} label="Memuat tindakan" />
+          )}
         </section>
 
-        <section className="admin-card admin-card--lift" aria-label="Impor terbaru">
-          <div className="admin-section__head">
-            <h2 className="admin-card__title" style={{ margin: 0 }}>
-              <CloudUpload size={18} aria-hidden="true" /> Impor terbaru
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => void navigate('/imports')}>
-              Lihat riwayat impor
-            </Button>
-          </div>
-          {latestImport ? (
-            <Stack gap="sm">
-              <div className="admin-section__head">
-                <Badge tone={latestImport.status === 'CONFIRMED' ? 'success' : 'warning'}>
-                  {importStatusLabel(latestImport.status)}
-                </Badge>
+        <section className="admin-card" aria-label="Akun workforce">
+          <CardHead
+            icon={<UsersRound size={18} aria-hidden="true" />}
+            title="Akun workforce aktif"
+            action={
+              <Button variant="ghost" size="sm" onClick={() => void navigate('/accounts')}>
+                Buka Akun <ArrowRight size={14} aria-hidden="true" />
+              </Button>
+            }
+          />
+          {accounts.data ? (
+            <Stack gap="md">
+              <div className="admin-kpi-strip">
+                <AdminKpi
+                  icon={<UserCheck size={18} />}
+                  iconTone="success"
+                  value={formatCount(accounts.data.total)}
+                  label="Aktif"
+                />
+                <AdminKpi
+                  icon={<LogIn size={18} />}
+                  iconTone="success"
+                  valueTone="success"
+                  value={`${percent(accounts.data.loggedIn, accounts.data.total)}%`}
+                  label="Sudah login"
+                />
+                <AdminKpi
+                  icon={<CircleDashed size={18} />}
+                  iconTone="warning"
+                  valueTone="warning"
+                  value={formatCount(accounts.data.total - accounts.data.loggedIn)}
+                  label="Belum login"
+                />
               </div>
-              <p className="admin-meta--xs">
-                {formatDateTime(latestImport.createdAt)} • ID {latestImport.id.slice(0, 8)}
-              </p>
-              <div
-                className="admin-table-scroll"
-                tabIndex={0}
-                role="region"
-                aria-label="Tabel ringkasan impor terbaru"
-              >
-                <table className="care-table" style={{ width: '100%' }}>
-                  <thead>
-                    <tr>
-                      <th scope="col">Kategori</th>
-                      <th scope="col">Baru</th>
-                      <th scope="col">Legacy</th>
-                      <th scope="col">Nonaktif</th>
-                      <th scope="col">Remediation</th>
-                      <th scope="col">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Akun</td>
-                      <td>{(importSummary?.create ?? active).toLocaleString('id-ID')}</td>
-                      <td>{(importSummary?.update ?? legacy).toLocaleString('id-ID')}</td>
-                      <td>{(importSummary?.deactivate ?? inactive).toLocaleString('id-ID')}</td>
-                      <td>{remediation.toLocaleString('id-ID')}</td>
-                      <td>
-                        <strong>
-                          {(importSummary?.rowCount ?? totalAccounts).toLocaleString('id-ID')}
-                        </strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Persentase</td>
-                      <td>{share(active)}</td>
-                      <td>{share(legacy)}</td>
-                      <td>{share(inactive)}</td>
-                      <td>{totalAccounts > 0 ? share(remediation) : '—'}</td>
-                      <td>
-                        <strong>100%</strong>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <AdminBars
+                title="Login terendah per divisi"
+                rows={divisions.map((group) => {
+                  const share = group.loggedIn / group.total;
+                  return {
+                    key: group.name,
+                    label: group.name,
+                    value: group.total,
+                    share,
+                    display: `${percent(group.loggedIn, group.total)}%`,
+                    tone: share >= 0.6 ? ('success' as const) : ('warning' as const),
+                  };
+                })}
+                onPick={(name) => void navigate(`/accounts?division=${encodeURIComponent(name)}`)}
+              />
             </Stack>
           ) : (
-            <Stack gap="sm">
-              <Alert tone="info" title="Belum ada impor">
-                Unggah snapshot organisasi authoritative pertama pada halaman Import & Master Data.
-              </Alert>
-              <Button size="sm" onClick={() => void navigate('/imports')}>
-                Buka Import & Master Data
-              </Button>
-            </Stack>
+            <AdminSkeleton lines={4} label="Memuat akun" />
           )}
         </section>
       </div>
 
-      <section className="admin-card admin-card--subtle" aria-label="Rute dan dependensi kritis">
-        <div className="admin-section__head">
-          <h2 className="admin-card__title" style={{ margin: 0 }}>
-            <RouteIcon size={18} aria-hidden="true" /> Rute &amp; dependensi kritis
-          </h2>
+      <section className="admin-card admin-card--subtle" style={{ padding: 0 }}>
+        <div className="admin-status-strip" aria-label="Status sistem">
+          <span className="admin-inline-icon">
+            {readyOk ? (
+              <CheckCircle2 size={14} aria-hidden="true" color="var(--state-success)" />
+            ) : (
+              <CircleAlert size={14} aria-hidden="true" color="var(--state-danger)" />
+            )}
+            Sistem <b data-tone={readyOk ? 'success' : 'danger'}>{readyOk ? 'Siap' : 'Periksa'}</b>
+          </span>
+          <span className="admin-inline-icon">
+            <CloudUpload size={14} aria-hidden="true" /> Impor organisasi terakhir{' '}
+            <b>
+              {latestImport
+                ? `${IMPORT_STATUS_LABELS[latestImport.status] ?? latestImport.status} · ${new Date(
+                    latestImport.createdAt,
+                  ).toLocaleDateString('id-ID')}`
+                : 'Belum ada'}
+            </b>
+          </span>
+          <span>
+            Release <b className="admin-nums">{release.data?.releaseSha.slice(0, 7) ?? '–'}</b>
+          </span>
           <Button variant="ghost" size="sm" onClick={() => void navigate('/system')}>
-            Lihat System Status
+            Status Sistem <ArrowRight size={14} aria-hidden="true" />
           </Button>
-        </div>
-        {ready.isLoading ? (
-          <AdminSkeleton lines={2} label="Memuat dependensi" />
-        ) : checkNodes.length ? (
-          <ul className="admin-nodes">
-            {checkNodes.map((node) => (
-              <li key={node.name}>
-                <span
-                  className="admin-rowmark"
-                  data-tone={node.ok ? 'success' : 'warning'}
-                  aria-hidden="true"
-                >
-                  {node.ok ? <CheckCircle2 size={14} /> : <TriangleAlert size={14} />}
-                </span>
-                <span>
-                  <strong>{node.name}</strong>
-                  <small>{node.ok ? 'OK' : node.detail}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Alert tone="warning" title="Status dependensi tidak tersedia">
-            {ready.error
-              ? String((ready.error as Error).message)
-              : 'Muat ulang untuk memeriksa database, migrasi, outbox, dan storage.'}
-          </Alert>
-        )}
-        <p className="admin-meta--xs" style={{ marginTop: '0.75rem' }}>
-          <BellRing size={12} aria-hidden="true" /> Admin selalu network-only: tidak ada service
-          worker, offline cache, atau persistent protected data.
-        </p>
-      </section>
-
-      <section className="admin-quick" aria-label="Aksi cepat">
-        <div className="admin-section__head">
-          <h2 className="admin-section__title">Aksi cepat</h2>
-        </div>
-        <div className="admin-quick__grid">
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              className="admin-quick__tile"
-              onClick={() => void navigate(action.to)}
-            >
-              <span className="admin-quick__tile__icon" aria-hidden="true">
-                {action.icon}
-              </span>
-              <span>{action.label}</span>
-            </button>
-          ))}
         </div>
       </section>
     </Stack>

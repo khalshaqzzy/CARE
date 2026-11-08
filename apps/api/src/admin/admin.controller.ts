@@ -84,6 +84,28 @@ export class AdminController {
     });
   }
 
+  @Get('accounts/summary') accountSummary(
+    @Query('search') search?: string,
+    @Query('kind') kind?: string,
+    @Query('status') status?: string,
+    @Query('responderLevel') responderLevel?: string,
+    @Query('division') division?: string,
+    @Query('department') department?: string,
+    @Query('section') section?: string,
+    @Query('loggedIn') loggedIn?: string,
+  ) {
+    return this.service.accountSummary({
+      search,
+      kind,
+      status,
+      responderLevel,
+      division,
+      department,
+      section,
+      loggedIn,
+    });
+  }
+
   @Get('accounts/responder-summary') responderSummary(
     @Query('division') division?: string,
     @Query('department') department?: string,

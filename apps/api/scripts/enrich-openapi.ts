@@ -40,23 +40,31 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                 ? { type: 'integer', minimum: 1, maximum: 100 }
                 : parameter === 'statusGroup'
                   ? { type: 'string', enum: ['ACTIVE', 'CLOSED', 'ALL'] }
-                  : parameter === 'due'
-                    ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
-                    : parameter === 'download'
-                      ? { type: 'string', enum: ['1'] }
-                      : parameter === 'loggedIn'
-                        ? { type: 'string', enum: ['true', 'false'] }
-                        : parameter === 'responderLevel'
-                          ? {
-                              type: 'string',
-                              enum: ['GROUP_LEADER', 'SECTION_HEAD', 'MANAGER', 'DIVISION', 'ANY'],
-                            }
-                          : parameter === 'scope'
-                            ? { type: 'string', enum: ['unit', 'team'] }
-                            : parameter === 'action' &&
-                                operation.operationId === 'VoicesController_workItems'
-                              ? { type: 'string', enum: ['me', 'approve', 'closed'] }
-                              : { type: 'string' },
+                  : parameter === 'origin'
+                    ? { type: 'string', enum: ['CARE', 'MIGRATED'] }
+                    : parameter === 'due'
+                      ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
+                      : parameter === 'download'
+                        ? { type: 'string', enum: ['1'] }
+                        : parameter === 'loggedIn'
+                          ? { type: 'string', enum: ['true', 'false'] }
+                          : parameter === 'responderLevel'
+                            ? {
+                                type: 'string',
+                                enum: [
+                                  'GROUP_LEADER',
+                                  'SECTION_HEAD',
+                                  'MANAGER',
+                                  'DIVISION',
+                                  'ANY',
+                                ],
+                              }
+                            : parameter === 'scope'
+                              ? { type: 'string', enum: ['unit', 'team'] }
+                              : parameter === 'action' &&
+                                  operation.operationId === 'VoicesController_workItems'
+                                ? { type: 'string', enum: ['me', 'approve', 'closed'] }
+                                : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -132,6 +140,20 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
   return document;
 }
 
+const adminVoiceFilters = [
+  'search',
+  'status',
+  'statusGroup',
+  'visibility',
+  'severity',
+  'area',
+  'category',
+  'handler',
+  'from',
+  'to',
+  'origin',
+];
+
 const queryParameters: Record<string, string[]> = {
   AdminController_accounts: [
     'search',
@@ -149,6 +171,16 @@ const queryParameters: Record<string, string[]> = {
     'limit',
   ],
   AdminController_loginSummary: ['division', 'department'],
+  AdminController_accountSummary: [
+    'search',
+    'kind',
+    'status',
+    'responderLevel',
+    'division',
+    'department',
+    'section',
+    'loggedIn',
+  ],
   AdminController_responderSummary: ['division', 'department', 'section'],
   AdminController_issues: ['status', 'type', 'organizationUnitId', 'batchId', 'cursor', 'limit'],
   AdminController_resolutions: ['cursor', 'limit', 'type', 'status'],
@@ -185,7 +217,10 @@ const queryParameters: Record<string, string[]> = {
     'to',
     'sort',
     'due',
+    'origin',
   ],
+  AdminVoicesController_summary: adminVoiceFilters,
+  AdminVoicesController_export: adminVoiceFilters,
   VoicesController_listMine: [
     'cursor',
     'limit',
@@ -282,7 +317,10 @@ const noBodyOperations = new Set([
   'NotificationsController_readAll',
   'NotificationsController_read',
   'AdminController_accounts',
+  'AdminController_accountSummary',
   'AdminController_loginSummary',
+  'AdminVoicesController_summary',
+  'AdminVoicesController_export',
   'AdminController_responderSummary',
   'AdminController_overview',
   'AdminController_accountDetail',
@@ -419,6 +457,9 @@ function successSchema(operationId: string) {
     AdminController_setDivisionAdmin: 'DivisionAdminProvisionResponse',
     DivisionAdminController_overview: 'DivisionOverview',
     DivisionAdminController_export: 'MediaBinary',
+    AdminVoicesController_summary: 'AdminVoiceSummary',
+    AdminVoicesController_export: 'MediaBinary',
+    AdminController_accountSummary: 'AccountOverviewSummary',
     DivisionAccountsController_accounts: 'AccountSummaryList',
     DivisionAccountsController_loginSummary: 'AccountLoginSummary',
     AdminController_aiConfiguration: 'AiConfigurationResponse',
@@ -3527,6 +3568,8 @@ const schemas: Record<string, any> = {
       targetOverdue: { type: 'boolean' },
       specialHandling: { type: 'boolean' },
       legacySource: baseVoiceProperties.legacySource,
+      // The Voice's ID on the platform it was migrated from; null for CARE Voices.
+      legacyId: { type: 'string', nullable: true },
       // Dashboard preview of General Voices only: end of the current tier
       // holder's window and the reporter shown to authorized responders.
       tierDueAt: { type: 'string', format: 'date-time', nullable: true },
@@ -3542,6 +3585,85 @@ const schemas: Record<string, any> = {
         description: "Reporter's rating of the latest closure",
       },
       updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+  AdminVoiceSummary: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'total',
+      'overdue',
+      'migrated',
+      'status',
+      'severity',
+      'area',
+      'category',
+      'averageResponseSeconds',
+      'responseSampleCount',
+      'averageCompletionSeconds',
+      'completionSampleCount',
+      'averageFeedbackScore',
+      'feedbackSampleCount',
+    ],
+    properties: {
+      total: { type: 'integer', minimum: 0 },
+      // Not closed and past the deadline that applies to them.
+      overdue: { type: 'integer', minimum: 0 },
+      // Migrated Voices count as volume only; the averages leave them out.
+      migrated: { type: 'integer', minimum: 0 },
+      status: { type: 'array', items: { $ref: '#/components/schemas/AdminVoiceBucket' } },
+      severity: { type: 'array', items: { $ref: '#/components/schemas/AdminVoiceBucket' } },
+      area: { type: 'array', items: { $ref: '#/components/schemas/AdminVoiceBucket' } },
+      // General Voices only; Private Voices carry no category.
+      category: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['key', 'label', 'value'],
+          properties: {
+            key: { type: 'string' },
+            label: { type: 'string' },
+            value: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+      averageResponseSeconds: { type: 'number', nullable: true },
+      responseSampleCount: { type: 'integer', minimum: 0 },
+      averageCompletionSeconds: { type: 'number', nullable: true },
+      completionSampleCount: { type: 'integer', minimum: 0 },
+      averageFeedbackScore: { type: 'number', nullable: true },
+      feedbackSampleCount: { type: 'integer', minimum: 0 },
+    },
+  },
+  AdminVoiceBucket: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['key', 'value'],
+    properties: { key: { type: 'string' }, value: { type: 'integer', minimum: 0 } },
+  },
+  AccountOverviewSummary: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['total', 'loggedIn', 'status', 'kind', 'role'],
+    properties: {
+      total: { type: 'integer', minimum: 0 },
+      loggedIn: { type: 'integer', minimum: 0 },
+      status: { type: 'array', items: { $ref: '#/components/schemas/AccountSummaryBucket' } },
+      kind: { type: 'array', items: { $ref: '#/components/schemas/AccountSummaryBucket' } },
+      // Workforce accounts by position: Member, then the responder levels.
+      role: { type: 'array', items: { $ref: '#/components/schemas/AccountSummaryBucket' } },
+    },
+  },
+  AccountSummaryBucket: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['key', 'label', 'total', 'loggedIn'],
+    properties: {
+      key: { type: 'string' },
+      label: { type: 'string' },
+      total: { type: 'integer', minimum: 0 },
+      loggedIn: { type: 'integer', minimum: 0 },
     },
   },
   VoiceListResponse: {

@@ -110,6 +110,8 @@ test.describe('Voice read state and Jawaban Cepat', () => {
         ? route.fulfill({ json: { items, nextCursor: null } })
         : route.fallback(),
     );
+    // Read times are shown relative to today; pin today to the fixture's day.
+    await page.clock.setFixedTime(new Date('2026-11-07T03:00:00Z'));
     await page.goto('/voices/voice-1/chat');
 
     await expect(page.getByRole('button', { name: /Terkirim\. Info pesan/ })).toBeVisible();
@@ -269,8 +271,10 @@ test('CARE Admin manages Jawaban Cepat per place', async ({ page }) => {
   });
 
   await page.goto(`${ADMIN}/`);
-  await page.getByRole('navigation').getByRole('button', { name: 'Jawaban Cepat' }).click();
-  await expect(page).toHaveURL(/\/quick-replies$/);
+  // Jawaban Cepat is a tab of Pengaturan Sistem.
+  await page.getByRole('navigation').getByRole('button', { name: 'Pengaturan Sistem' }).click();
+  await page.getByRole('tab', { name: 'Jawaban Cepat' }).click();
+  await expect(page).toHaveURL(/\/settings\?tab=quick-replies$/);
   await expect(page.getByText('Terima kasih.')).toBeVisible();
 
   await page.getByRole('button', { name: /Selesaikan Voice/ }).click();

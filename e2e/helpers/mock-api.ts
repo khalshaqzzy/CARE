@@ -753,6 +753,8 @@ export async function mockAdminApi(
     adminHandoverDetail?: components['schemas']['AdminHandoverDetail'];
     adminHandoverOptions?: components['schemas']['AdminHandoverOptions'];
     categoryCorrections?: components['schemas']['CategoryCorrectionList'];
+    accountSummary?: components['schemas']['AccountOverviewSummary'];
+    voiceSummary?: components['schemas']['AdminVoiceSummary'];
   } = {},
 ) {
   const session = opts.session ?? adminSession();
@@ -876,6 +878,81 @@ export async function mockAdminApi(
         loggedIn: 1,
         notLoggedIn: 1,
         groups: [{ name: 'Department A', total: 2, loggedIn: 1, notLoggedIn: 1 }],
+      });
+    if (method === 'GET' && path === '/api/v1/admin/accounts/summary')
+      return fulfill(
+        200,
+        override('accountSummary') ?? {
+          total: 9214,
+          loggedIn: 6402,
+          status: [
+            { key: 'ACTIVE', label: 'Aktif', total: 8977, loggedIn: 6390 },
+            { key: 'LEGACY_HANDLER', label: 'Legacy handler', total: 41, loggedIn: 12 },
+            { key: 'INACTIVE', label: 'Nonaktif', total: 196, loggedIn: 0 },
+          ],
+          kind: [
+            { key: 'WORKFORCE', label: 'Workforce', total: 9168, loggedIn: 6362 },
+            { key: 'UNION', label: 'Komite', total: 22, loggedIn: 20 },
+            { key: 'DIVISION_ADMIN', label: 'Admin Divisi', total: 16, loggedIn: 12 },
+            { key: 'CARE_ADMIN', label: 'Admin', total: 8, loggedIn: 8 },
+          ],
+          role: [
+            { key: 'MEMBER', label: 'Member', total: 8512, loggedIn: 5810 },
+            { key: 'GROUP_LEADER', label: 'Group Leader', total: 402, loggedIn: 351 },
+            { key: 'SECTION_HEAD', label: 'Section Head', total: 168, loggedIn: 150 },
+            { key: 'MANAGER', label: 'Department Head', total: 64, loggedIn: 60 },
+            { key: 'DIVISION', label: 'Deputy / Division Head', total: 22, loggedIn: 18 },
+          ],
+        },
+      );
+    if (method === 'GET' && path === '/api/v1/admin/voices/summary')
+      return fulfill(
+        200,
+        override('voiceSummary') ?? {
+          total: 1284,
+          overdue: 38,
+          migrated: 0,
+          status: [
+            { key: 'OPEN', value: 96 },
+            { key: 'RESPONDED', value: 142 },
+            { key: 'IN_PROGRESS', value: 311 },
+            { key: 'CLOSED', value: 735 },
+          ],
+          severity: [
+            { key: 'CRITICAL', value: 36 },
+            { key: 'HIGH', value: 188 },
+            { key: 'MEDIUM', value: 604 },
+            { key: 'LOW', value: 456 },
+          ],
+          area: [
+            { key: 'KARAWANG_1', value: 402 },
+            { key: 'KARAWANG_2', value: 266 },
+            { key: 'KARAWANG_3', value: 318 },
+            { key: 'SUNTER_1', value: 190 },
+            { key: 'SUNTER_2', value: 108 },
+          ],
+          category: [
+            { key: 'FACILITY', label: 'Fasilitas Kerja', value: 412 },
+            { key: 'WORK_DIFFICULTY', label: 'Kesulitan Kerja', value: 356 },
+            { key: 'SAFETY', label: 'Safety', value: 214 },
+            { key: 'GENERAL_FACILITY', label: 'Fasilitas Umum', value: 168 },
+          ],
+          averageResponseSeconds: 18_720,
+          responseSampleCount: 1188,
+          averageCompletionSeconds: 293_760,
+          completionSampleCount: 735,
+          averageFeedbackScore: 4.3,
+          feedbackSampleCount: 402,
+        },
+      );
+    if (method === 'GET' && path === '/api/v1/admin/voices/export')
+      return route.fulfill({
+        status: 200,
+        headers: {
+          'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'content-disposition': 'attachment; filename="voice-2026-11-07.xlsx"',
+        },
+        body: 'xlsx',
       });
     if (method === 'GET' && path === '/api/v1/admin/accounts/responder-summary')
       return fulfill(200, {
