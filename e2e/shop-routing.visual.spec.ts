@@ -257,7 +257,7 @@ test('admin configures shop locations per area', async ({ page }) => {
       body: JSON.stringify(logistic),
     });
   });
-  await page.goto('http://127.0.0.1:4174/remediation');
+  await page.goto('http://127.0.0.1:4174/remediation?tab=shops');
   const section = page.getByRole('region', { name: 'Lokasi shop' });
   await expect(section).toContainText('Logistic Operation Unit Dept');
   await expect(section).toContainText('area perakitan dekat pos 3');

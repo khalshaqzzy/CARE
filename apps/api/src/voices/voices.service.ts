@@ -138,7 +138,10 @@ type VoiceListQuery = {
   to?: string;
   sort?: string;
   due?: string;
+  // CARE: Voices sent in CARE; MIGRATED: Voices imported from an earlier platform.
+  origin?: string;
 };
+export type { VoiceListQuery };
 
 // Draft fields needed to resolve a General route, including the incident shop.
 type ShopDraft = {
@@ -1039,10 +1042,48 @@ export class VoicesService {
   }
 
   private async listScoped(actor: AuthActor, query: VoiceListQuery, scope: Prisma.VoiceWhereInput) {
-    this.assertStatusFilter(query.status, query.statusGroup);
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
+    const combinedWhere = await this.listWhere(query, scope);
+    const orderBy: Prisma.VoiceOrderByWithRelationInput[] =
+      query.sort === 'severity' || query.sort === 'action' || query.sort === 'newest'
+        ? listOrder(query.sort)
+        : [{ updatedAt: 'desc' }, { id: 'desc' }];
+    const items = await this.prisma.voice.findMany({
+      where: combinedWhere,
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      orderBy,
+      select: this.listSelect(true),
+    });
+    const hasNext = items.length > take;
+    const rows = hasNext ? items.slice(0, take) : items;
+    const data = rows.map((row) => this.toListItem(row));
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    // audit admin and Director private list reads
+    if (this.auditsPrivateReads(actor)) {
+      const hasPrivate =
+        data.some((v) => (v as { visibility: string }).visibility === 'PRIVATE') ||
+        query.visibility === 'PRIVATE';
+      if (hasPrivate) await this.auditPrivateRead(actor, 'list', 'PRIVATE_LIST_READ');
+    }
+    return { items: data, nextCursor };
+  }
+
+  /**
+   * The browse filters shared by the Voice list, the Admin Voice summary and
+   * the Admin export, so their counts always describe the same Voices.
+   */
+  async listWhere(
+    query: VoiceListQuery,
+    scope: Prisma.VoiceWhereInput,
+  ): Promise<Prisma.VoiceWhereInput> {
+    this.assertStatusFilter(query.status, query.statusGroup);
+    if (query.origin !== undefined && query.origin !== 'CARE' && query.origin !== 'MIGRATED')
+      throw badRequest('ORIGIN_FILTER_INVALID', 'origin must be CARE or MIGRATED');
     const and: Prisma.VoiceWhereInput[] = [scope];
+    if (query.origin === 'CARE') and.push({ legacySource: null });
+    if (query.origin === 'MIGRATED') and.push({ legacySource: { not: null } });
     if (query.due) and.push(await this.dueFilter(query.due));
     if (query.status) and.push({ status: query.status });
     else if (query.statusGroup === 'ACTIVE')
@@ -1077,30 +1118,7 @@ export class VoicesService {
       if (query.to) submittedAt.lte = new Date(query.to);
       and.push({ submittedAt });
     }
-    const combinedWhere: Prisma.VoiceWhereInput = and.length === 1 ? and[0]! : { AND: and };
-    const orderBy: Prisma.VoiceOrderByWithRelationInput[] =
-      query.sort === 'severity' || query.sort === 'action' || query.sort === 'newest'
-        ? listOrder(query.sort)
-        : [{ updatedAt: 'desc' }, { id: 'desc' }];
-    const items = await this.prisma.voice.findMany({
-      where: combinedWhere,
-      take: take + 1,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      orderBy,
-      select: this.listSelect(true),
-    });
-    const hasNext = items.length > take;
-    const rows = hasNext ? items.slice(0, take) : items;
-    const data = rows.map((row) => this.toListItem(row));
-    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
-    // audit admin and Director private list reads
-    if (this.auditsPrivateReads(actor)) {
-      const hasPrivate =
-        data.some((v) => (v as { visibility: string }).visibility === 'PRIVATE') ||
-        query.visibility === 'PRIVATE';
-      if (hasPrivate) await this.auditPrivateRead(actor, 'list', 'PRIVATE_LIST_READ');
-    }
-    return { items: data, nextCursor };
+    return and.length === 1 ? and[0]! : { AND: and };
   }
   async workItems(
     actor: AuthActor,
@@ -5361,6 +5379,7 @@ export class VoicesService {
       status: true,
       updatedAt: true,
       legacySource: true,
+      legacyId: true,
       // Review state of the latest closure cycle for status chips; at most one
       // cycle can be pending per voice, so the newest row is enough.
       closureCycles: {

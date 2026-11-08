@@ -87,9 +87,9 @@ test('Admin shell visual', async ({ page }) => {
   // Pin the clock so the "Validasi terakhir" timestamp is pixel-stable.
   await page.clock.setFixedTime(new Date('2026-08-01T10:00:00Z'));
   await page.goto('http://127.0.0.1:4174/');
-  await expect(page.getByRole('heading', { name: 'Overview operasional' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
   // Wait until the overview data (operational summary card) has rendered before capturing.
-  await expect(page.getByText('Ringkasan operasional', { exact: true })).toBeVisible();
+  await expect(page.getByText('Voice bulan ini', { exact: true })).toBeVisible();
   await capture(page, 'admin-shell-1440.png', {
     animations: 'disabled',
     // Dense admin typography accumulates font rasterization drift between

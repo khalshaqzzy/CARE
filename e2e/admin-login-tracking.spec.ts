@@ -75,14 +75,14 @@ test('Akun filters by division and login state and exports who has not logged in
   await page.goto('http://127.0.0.1:4174/accounts');
   await expect(page.getByRole('columnheader', { name: 'Login terakhir' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Citra Lestari/ })).toContainText('Belum pernah');
-  await expect(page.getByLabel('Ringkasan login')).toHaveCount(0);
+  // The account summary shows login adoption one level below the chosen unit.
+  const card = page.getByRole('region', { name: 'Ringkasan Akun' });
+  await expect(card.getByRole('heading', { name: 'Login per divisi' })).toBeVisible();
 
   await page.getByRole('combobox', { name: 'Divisi' }).click();
   await page.getByRole('option', { name: 'Divisi A', exact: true }).click();
-  const card = page.getByLabel('Ringkasan login');
-  await expect(card.getByRole('heading', { name: 'Login · Divisi A' })).toBeVisible();
-  await expect(card).toContainText('136');
-  await expect(card).toContainText('Sudah login · 71%');
+  await expect(card.getByRole('heading', { name: 'Login per departemen' })).toBeVisible();
+  await expect(card.getByRole('button', { name: /^Produksi 1/ })).toContainText('80%');
   await expect.poll(() => accountQueries.at(-1)?.get('division')).toBe('Divisi A');
 
   const filtered = page.waitForRequest((request) =>
@@ -99,7 +99,7 @@ test('Akun filters by division and login state and exports who has not logged in
   await expect(page.getByRole('combobox', { name: 'Login' })).toContainText('Belum login');
 
   const download = page.waitForEvent('download');
-  await card.getByRole('button', { name: 'Ekspor belum login' }).click();
+  await page.getByRole('button', { name: 'Ekspor belum login' }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe('belum-login-Divisi-A.csv');
   const csv = await readFile((await file.path())!, 'utf8');
@@ -108,8 +108,8 @@ test('Akun filters by division and login state and exports who has not logged in
     '"000207","Citra Lestari","Divisi A","Produksi 1","Assembly","Member"',
   ]);
 
-  await card.getByRole('button', { name: /^Produksi 1:/ }).click();
+  await card.getByRole('button', { name: /^Produksi 1/ }).click();
   await expect(page).toHaveURL(/department=Produksi\+1/);
   await expect(page.getByRole('combobox', { name: 'Seksi' })).toBeVisible();
-  await expect(card.getByRole('heading', { name: 'Login · Produksi 1' })).toBeVisible();
+  await expect(card.getByRole('heading', { name: 'Login per seksi' })).toBeVisible();
 });

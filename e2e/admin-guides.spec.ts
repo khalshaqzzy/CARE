@@ -101,8 +101,10 @@ test.describe('Admin Panduan', () => {
   test('uploads a PDF for members and responders', async ({ page }) => {
     const requests = await mockGuides(page, [SUBMIT, RESPONDER]);
     await page.goto(`${ADMIN}/`);
-    await page.getByRole('navigation').getByRole('button', { name: 'Panduan' }).click();
-    await expect(page).toHaveURL(/\/guides$/);
+    // Panduan is a tab of Pengaturan Sistem.
+    await page.getByRole('navigation').getByRole('button', { name: 'Pengaturan Sistem' }).click();
+    await page.getByRole('tab', { name: 'Panduan' }).click();
+    await expect(page).toHaveURL(/\/settings\?tab=guides$/);
     await expect(page.getByText('Panduan Submit Voice', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Upload PDF' }).click();

@@ -3,26 +3,15 @@ import { mockAdminApi, voiceDetail, type MockVoice } from './helpers/mock-api';
 
 const ADMIN = 'http://127.0.0.1:4174';
 
-const responders = {
-  total: 1240,
-  loggedIn: 868,
-  levels: [
-    { level: 'GROUP_LEADER', label: 'Group Leader', total: 812, loggedIn: 498 },
-    { level: 'SECTION_HEAD', label: 'Section Head', total: 301, loggedIn: 252 },
-    { level: 'MANAGER', label: 'Department Head', total: 98, loggedIn: 91 },
-    { level: 'DIVISION', label: 'Deputy / Division Head', total: 29, loggedIn: 27 },
-  ],
-};
-
 test('Accounts resets a password without a temporary one and follows the filters', async ({
   page,
 }) => {
   const summaryQueries: URLSearchParams[] = [];
   const accountQueries: URLSearchParams[] = [];
   await mockAdminApi(page);
-  await page.route('**/api/v1/admin/accounts/responder-summary**', (route) => {
+  await page.route('**/api/v1/admin/accounts/summary**', (route) => {
     summaryQueries.push(new URL(route.request().url()).searchParams);
-    return route.fulfill({ json: responders });
+    return route.fallback();
   });
   await page.route('**/api/v1/admin/organization-units/filters/divisions**', (route) =>
     route.fulfill({ json: ['Produksi 1'] }),
@@ -44,14 +33,17 @@ test('Accounts resets a password without a temporary one and follows the filters
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${ADMIN}/accounts`);
 
-  const card = page.getByLabel('Login responder');
-  await expect(card).toContainText('868');
+  const card = page.getByRole('region', { name: 'Ringkasan Akun' });
+  await expect(card).toContainText('9.214');
   await page.getByRole('combobox', { name: 'Divisi' }).click();
   await page.getByRole('option', { name: 'Produksi 1', exact: true }).click();
   await expect.poll(() => summaryQueries.at(-1)?.get('division')).toBe('Produksi 1');
 
-  await card.getByRole('button', { name: /^Group Leader:/ }).click();
+  // A role bar narrows the list to that responder level; "Belum login" to who has not.
+  await card.getByRole('button', { name: /^Group Leader/ }).click();
   await expect(page).toHaveURL(/responderLevel=GROUP_LEADER/);
+  await card.getByRole('button', { name: /Belum login/ }).click();
+  await expect(page).toHaveURL(/loggedIn=false/);
   await expect
     .poll(() => {
       const query = accountQueries.at(-1);

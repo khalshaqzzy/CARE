@@ -138,6 +138,8 @@ test('admin edits the working calendar and severity deadlines', async ({ page })
   await calendar.getByRole('button', { name: 'Hapus 20 Okt 2026' }).click();
   await expect(calendar.getByText('Libur perusahaan')).toHaveCount(0);
 
+  // Deadlines have their own tab beside the working calendar.
+  await page.getByRole('tab', { name: 'Batas waktu' }).click();
   const deadlines = page.getByRole('region', { name: 'Batas waktu per jenjang' });
   const save = deadlines.getByRole('button', { name: 'Simpan batas waktu' });
   await expect(save).toBeDisabled();
@@ -145,6 +147,7 @@ test('admin edits the working calendar and severity deadlines', async ({ page })
   await save.click();
   await expect(save).toBeDisabled();
 
+  await page.getByRole('tab', { name: 'Kalender kerja' }).click();
   await calendar.getByRole('switch').click();
   await expect(calendar.getByText('Kalender standar aktif')).toBeVisible();
   await expect(calendar.getByRole('button', { name: '20', exact: true })).toBeDisabled();

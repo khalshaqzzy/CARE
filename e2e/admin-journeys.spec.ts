@@ -17,27 +17,30 @@ const voice: MockVoice = {
 
 // Each page with its data endpoint(s) mocked so the happy path renders content.
 const happy: { path: string; heading: RegExp | string; anchor: string }[] = [
-  { path: '/', heading: 'Overview operasional', anchor: 'Akun aktif' },
-  { path: '/imports', heading: 'Import & Master Data', anchor: 'Unggah file organisasi' },
+  { path: '/', heading: 'Overview', anchor: 'Voice bulan ini' },
+  { path: '/imports', heading: 'Data Organisasi', anchor: 'Unggah file organisasi' },
   {
     path: '/remediation',
-    heading: 'Remediation & Route',
+    heading: 'Route & Kategori',
     anchor: 'Department Head belum tersedia',
   },
-  { path: '/union', heading: 'Union Accounts', anchor: 'Union Head' },
-  { path: '/accounts', heading: 'Accounts', anchor: '000128' },
+  { path: '/union', heading: 'Akun Komite', anchor: 'Union Head' },
+  { path: '/accounts', heading: 'Akun', anchor: '000128' },
   { path: '/voices', heading: 'Voice Explorer', anchor: voice.title },
   { path: '/audit', heading: 'Audit', anchor: 'VOICE_PRIVATE_DETAIL_READ' },
-  { path: '/system', heading: 'System Status', anchor: '/health' },
+  { path: '/system', heading: 'Status Sistem', anchor: '/health' },
   { path: '/account', heading: 'Akun Saya', anchor: 'care-admin' },
 ];
 
 // Error-mode pages (everything but the session returns a safe 500 envelope).
-const errorPages = happy.filter((p) => p.path !== '/account');
+// Import history (whose list surfaces the error) sits on its own tab.
+const errorPages = happy
+  .filter((p) => p.path !== '/account')
+  .map((p) => (p.path === '/imports' ? { ...p, path: '/imports?tab=history' } : p));
 
 // Empty-state pages (list-backed endpoints) with their empty message.
 const empty: { path: string; message: string }[] = [
-  { path: '/imports', message: 'Belum ada import' },
+  { path: '/imports?tab=history', message: 'Belum ada import' },
   { path: '/remediation', message: 'Tidak ada isu' },
   { path: '/union', message: 'Belum ada akun' },
   { path: '/accounts', message: 'Tidak ada akun' },
@@ -60,8 +63,10 @@ test.describe('Admin mocked-contract journeys', () => {
         });
     });
     await page.goto(`${ADMIN}/`);
-    await page.getByRole('button', { name: 'Koreksi Kategori' }).click();
-    await expect(page).toHaveURL(/\/category-corrections$/);
+    // Koreksi Kategori is a tab of Voice Explorer.
+    await page.getByRole('navigation').getByRole('button', { name: 'Voice Explorer' }).click();
+    await page.getByRole('tab', { name: 'Koreksi Kategori' }).click();
+    await expect(page).toHaveURL(/\/voices\?tab=corrections$/);
     await expect(page.getByRole('heading', { name: 'Koreksi kategori (3)' })).toBeVisible();
 
     const shop = page.getByRole('article', { name: 'Koreksi CARE-202611-000412' });
@@ -158,7 +163,7 @@ test.describe('Admin mocked-contract journeys', () => {
       .getByRole('textbox', { name: 'Kategori operasional khusus Voice' })
       .fill('Perbaikan pencahayaan');
     await page.getByRole('button', { name: /Teruskan ke department/ }).click();
-    await expect(page).toHaveURL(`${ADMIN}/handovers`);
+    await expect(page).toHaveURL(`${ADMIN}/voices?tab=handovers`);
     expect(submitted).toMatchObject({
       organizationUnitId: 'unit-1',
       customCategory: 'Perbaikan pencahayaan',
@@ -172,7 +177,7 @@ test.describe('Admin mocked-contract journeys', () => {
         await mockAdminApi(page, { voices: { items: [voice], nextCursor: null } });
         await page.setViewportSize({ width: 1280, height: 900 });
         await page.goto(`${ADMIN}${p.path}`);
-        await expect(page.getByRole('heading', { name: p.heading })).toBeVisible();
+        await expect(page.getByRole('heading', { name: p.heading, exact: true })).toBeVisible();
         await expect(page.getByText(p.anchor).first()).toBeVisible();
       });
     }
@@ -183,17 +188,19 @@ test.describe('Admin mocked-contract journeys', () => {
       await page.goto(ADMIN);
       const sidebar = page.getByRole('navigation', { name: 'Navigasi aplikasi' });
       for (const destination of [
-        { label: 'Import & Master Data', heading: 'Import & Master Data' },
-        { label: 'Remediation & Route', heading: 'Remediation & Route' },
-        { label: 'Union Accounts', heading: 'Union Accounts' },
-        { label: 'Accounts', heading: 'Accounts' },
+        { label: 'Data Organisasi', heading: 'Data Organisasi' },
+        { label: 'Route & Kategori', heading: 'Route & Kategori' },
+        { label: 'Akun Komite', heading: 'Akun Komite' },
+        { label: 'Akun', heading: 'Akun' },
         { label: 'Voice Explorer', heading: 'Voice Explorer' },
         { label: 'Audit', heading: 'Audit' },
-        { label: 'System Status', heading: 'System Status' },
-        { label: 'Overview', heading: 'Overview operasional' },
+        { label: 'Status Sistem', heading: 'Status Sistem' },
+        { label: 'Overview', heading: 'Overview' },
       ]) {
         await sidebar.getByRole('button', { name: destination.label, exact: true }).click();
-        await expect(page.getByRole('heading', { name: destination.heading })).toBeVisible();
+        await expect(
+          page.getByRole('heading', { name: destination.heading, exact: true }),
+        ).toBeVisible();
       }
     });
 
@@ -207,7 +214,7 @@ test.describe('Admin mocked-contract journeys', () => {
         if (request.method() === 'PUT' && request.url().endsWith('/api/v1/admin/ai-configuration'))
           submitted = request.postDataJSON() as Record<string, unknown>;
       });
-      await page.goto(`${ADMIN}/system`);
+      await page.goto(`${ADMIN}/system?tab=ai`);
       const key = 'browser-only-provider-key-never-echoed';
       await page.getByLabel('Base URL').fill('https://inference.qd-tmmin.site/v1');
       await page.getByLabel('Model').fill('ibm-granite/granite-4.2-3b');
@@ -273,7 +280,7 @@ test.describe('Admin mocked-contract journeys', () => {
         )
           submittedBody = request.postDataJSON();
       });
-      await page.goto(`${ADMIN}/remediation`);
+      await page.goto(`${ADMIN}/remediation?tab=categories`);
       await page.getByRole('button', { name: 'Tambah kategori' }).click();
       await page.getByLabel('Nama kategori').fill('Kualitas Produk');
       await page.getByLabel('Definition').fill('Masalah kualitas produk atau proses inspeksi.');
@@ -301,6 +308,7 @@ test.describe('Admin mocked-contract journeys', () => {
         await page.goto(`${ADMIN}/imports?previewId=batch-1`);
         await expect(page.getByText('PROCESSING').first()).toBeVisible();
         await expect(page.getByText(terminal).first()).toBeVisible({ timeout: 10_000 });
+        await page.getByRole('tab', { name: 'Riwayat impor' }).click();
         const history = page.getByRole('table').last();
         await expect(history.getByText(terminal)).toBeVisible();
         if (terminal === 'FAILED')
@@ -316,7 +324,8 @@ test.describe('Admin mocked-contract journeys', () => {
         await page.setViewportSize({ width: 1280, height: 900 });
         await page.goto(`${ADMIN}${p.path}`);
         const alert = page.getByRole('alert').first();
-        await expect(alert).toBeVisible();
+        // The shared query client retries twice (with backoff) before it surfaces an error.
+        await expect(alert).toBeVisible({ timeout: 20_000 });
         // No raw stack frame / machine code leaks into the error surface.
         await expect(alert).not.toContainText(/at\s+\S+:\d+/);
         await expect(alert).not.toContainText('INTERNAL');

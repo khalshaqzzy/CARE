@@ -136,7 +136,7 @@ test('Admin origin stays network-only at runtime (no service worker / cache / In
   await mockAdminApi(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('http://127.0.0.1:4174/');
-  await expect(page.getByRole('heading', { name: 'Overview operasional' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
 
   const registration = await page.evaluate(async () => {
     const worker = await navigator.serviceWorker.getRegistration('/');

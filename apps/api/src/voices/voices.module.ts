@@ -8,16 +8,19 @@ import { ClosureReviewService } from './closure-review.service';
 import { VoicesController } from './voices.controller';
 import { DivisionAdminController } from './division-admin.controller';
 import { DivisionAdminService } from './division-admin.service';
+import { AdminVoicesController } from './admin-voices.controller';
+import { AdminVoiceReportService } from './admin-voice-report.service';
 import { VoicesService } from './voices.service';
 import { CategoriesModule } from '../categories/categories.module';
 import { ShopsModule } from '../shops/shops.module';
 @Module({
   imports: [AiModule, MediaModule, CategoriesModule, ShopsModule],
-  controllers: [VoicesController, DivisionAdminController],
+  controllers: [VoicesController, DivisionAdminController, AdminVoicesController],
   providers: [
     PrismaService,
     VoicesService,
     DivisionAdminService,
+    AdminVoiceReportService,
     ClosureReviewService,
     HandlingTargetService,
     TierEscalationService,

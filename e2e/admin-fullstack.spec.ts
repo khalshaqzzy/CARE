@@ -36,22 +36,24 @@ async function loginAndChangePassword(page: import('@playwright/test').Page) {
   await page.getByLabel('Konfirmasi password').fill(NEW_PASSWORD);
   await page.getByRole('button', { name: 'Simpan password' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Overview operasional' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
 }
 
 test('Admin full-stack journey: login, forced password, per-page wiring', async ({ page }) => {
   await loginAndChangePassword(page);
 
   // Overview renders real aggregate data written by the seed.
-  await expect(page.getByText('Akun aktif')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Voice bulan ini' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Akun workforce' })).toContainText('Sudah login');
 
   // Imports (read-only): the seeded CONFIRMED batch shows, and an invalid file
   // is rejected. The mutating valid-import confirm runs last, after the other
   // pages, because confirming a snapshot supersedes the seeded organization and
   // would deactivate the seeded workforce.
-  await page.goto(`${ADMIN}/imports`);
-  await expect(page.getByRole('heading', { name: 'Import & Master Data' })).toBeVisible();
+  await page.goto(`${ADMIN}/imports?tab=history`);
+  await expect(page.getByRole('heading', { name: 'Data Organisasi' })).toBeVisible();
   await expect(page.getByText('CONFIRMED').first()).toBeVisible();
+  await page.getByRole('tab', { name: 'Impor baru' }).click();
 
   await page.setInputFiles('input[type="file"]', {
     name: 'invalid.csv',
@@ -63,14 +65,14 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
 
   // Remediation shows the open routing issue.
   await page.goto(`${ADMIN}/remediation`);
-  await expect(page.getByRole('heading', { name: 'Remediation & Route' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Route & Kategori' })).toBeVisible();
   await expect(page.getByText('Department Head belum tersedia').first()).toBeVisible();
 
   // Union: the three fixed slots are populated from the seed. The Head node
   // carries the design title "Komite (Head)", so match the account names
   // as substrings rather than exact node titles.
   await page.goto(`${ADMIN}/union`);
-  await expect(page.getByRole('heading', { name: 'Union Accounts' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Akun Komite' })).toBeVisible();
   await expect(page.getByText('Union Head').first()).toBeVisible();
   await expect(page.getByText('Union 1').first()).toBeVisible();
   await expect(page.getByText('Union 2').first()).toBeVisible();
@@ -79,7 +81,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   // old password is gone (session revocation is covered in the integration
   // suite), proving the reset mutation wiring against the real API.
   await page.goto(`${ADMIN}/accounts`);
-  await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Akun', exact: true })).toBeVisible();
   await page
     .locator('tr', { hasText: '00000128' })
     .getByRole('button', { name: /^Reset password/ })
@@ -108,7 +110,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
   // action before asserting it because earlier CI stages can legitimately add
   // enough audit rows to move the event beyond the first unfiltered page.
   await page.goto(`${ADMIN}/audit`);
-  await expect(page.getByRole('heading', { name: 'Audit' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Audit', exact: true })).toBeVisible();
   // Filters are URL-driven; navigate with the action param (the Action control
   // is a Radix select, not a native <select>).
   await page.goto(`${ADMIN}/audit?action=VOICE_PRIVATE_DETAIL_READ`);
@@ -116,7 +118,7 @@ test('Admin full-stack journey: login, forced password, per-page wiring', async 
 
   // System Status surface renders the real health/readiness/release.
   await page.goto(`${ADMIN}/system`);
-  await expect(page.getByRole('heading', { name: 'System Status' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Status Sistem' })).toBeVisible();
   await expect(page.getByText('/health')).toBeVisible();
   await expect(page.getByText('/ready')).toBeVisible();
   await expect(page.getByText('/release.json')).toBeVisible();

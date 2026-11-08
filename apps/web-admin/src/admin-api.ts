@@ -13,6 +13,14 @@ export type Account = components['schemas']['AccountSummary'];
 export type AccountList = components['schemas']['AccountSummaryList'];
 export type AccountLoginSummary = components['schemas']['AccountLoginSummary'];
 export type ResponderLoginSummary = components['schemas']['ResponderLoginSummary'];
+export type AccountOverviewSummary = components['schemas']['AccountOverviewSummary'];
+export type AdminVoiceSummary = components['schemas']['AdminVoiceSummary'];
+export type AdminVoiceReportQuery = NonNullable<
+  operations['AdminVoicesController_summary']['parameters']['query']
+>;
+type AccountSummaryQuery = NonNullable<
+  operations['AdminController_accountSummary']['parameters']['query']
+>;
 export type OrganizationAbnormality = components['schemas']['OrganizationAbnormality'];
 export type AdminOverview = components['schemas']['AdminOverview'];
 export type ImportPreview = components['schemas']['OrganizationImportPreview'];
@@ -231,6 +239,25 @@ export function createAdminApi(transport: CareTransport) {
           params: { query: compactQuery(query) },
         }),
       ),
+    accountSummary: (query: QueryInput<AccountSummaryQuery>) =>
+      dataOrThrow<AccountOverviewSummary>(
+        client.GET('/api/v1/admin/accounts/summary', {
+          params: { query: compactQuery(query) },
+        }),
+      ),
+    voiceSummary: (query: QueryInput<AdminVoiceReportQuery>) =>
+      dataOrThrow<AdminVoiceSummary>(
+        client.GET('/api/v1/admin/voices/summary', { params: { query: compactQuery(query) } }),
+      ),
+    voiceExport: async (query: QueryInput<AdminVoiceReportQuery>) => {
+      const { data, error, response } = await client.GET('/api/v1/admin/voices/export', {
+        params: { query: compactQuery(query) },
+        parseAs: 'blob',
+      });
+      if (!data) throw normalizeApiError(error, response.status);
+      const name = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '');
+      return { blob: data as Blob, filename: name?.[1] ?? 'voice.xlsx' };
+    },
     responderSummary: (query: {
       division?: string | undefined;
       department?: string | undefined;

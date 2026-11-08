@@ -37,4 +37,21 @@ describe('Dashboard query contract', () => {
     expect(sql.text).toContain('v."area" = $4::"Area"');
     expect(sql.values).toEqual(['GENERAL', 'CLOSED', 'HIGH', 'SUNTER_1']);
   });
+  it('serializes the Admin explorer origin and search filters with escaped patterns', () => {
+    const sql = dashboardSql({
+      AND: [
+        { legacySource: { not: null } },
+        {
+          OR: [
+            { displayId: { contains: '50%_off\\', mode: 'insensitive' } },
+            { title: { contains: "x' OR TRUE --", mode: 'insensitive' } },
+          ],
+        },
+      ],
+    });
+    expect(sql.text).toContain('v."legacySource" IS NOT NULL');
+    expect(sql.text).toContain('v."displayId" ILIKE $1');
+    expect(sql.text).toContain('v."title" ILIKE $2');
+    expect(sql.values).toEqual(['%50\\%\\_off\\\\%', "%x' OR TRUE --%"]);
+  });
 });

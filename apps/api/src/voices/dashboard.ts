@@ -113,7 +113,17 @@ export function dashboardSql(where: Prisma.VoiceWhereInput): Prisma.Sql {
       if (dates.lte) result.push(Prisma.sql`v."submittedAt" <= ${dates.lte}`);
       if (dates.lt) result.push(Prisma.sql`v."submittedAt" < ${dates.lt}`);
     } else if (value === null) result.push(Prisma.sql`${column(key)} IS NULL`);
-    else if (typeof value === 'object') {
+    else if (
+      typeof value === 'object' &&
+      'not' in (value as object) &&
+      (value as { not: unknown }).not === null
+    )
+      result.push(Prisma.sql`${column(key)} IS NOT NULL`);
+    else if (typeof value === 'object' && 'contains' in (value as object)) {
+      // Case-insensitive substring search, as Prisma's `contains` + `insensitive`.
+      const text = String((value as { contains: string }).contains).replace(/[\\%_]/g, '\\$&');
+      result.push(Prisma.sql`${column(key)} ILIKE ${`%${text}%`}`);
+    } else if (typeof value === 'object') {
       const values = (value as { in?: string[] }).in;
       if (!values) throw new Error(`Unsupported dashboard predicate: ${key}`);
       result.push(
@@ -709,6 +719,25 @@ export class OrganizationDashboard {
       ) completion
     `)
     )[0]!;
+  }
+
+  /**
+   * Volume, overdue count and the response / completion / rating averages of an
+   * arbitrary Voice cohort, measured exactly as the organization dashboards do.
+   * `where` must only use predicates `dashboardSql` serializes.
+   */
+  async cohortPerformance(where: Prisma.VoiceWhereInput) {
+    const summary = await this.performanceFor(dashboardSql(where), { overdue: true });
+    return {
+      total: Number(summary.total),
+      overdue: Number(summary.overdue),
+      averageResponseSeconds: summary.averageResponseSeconds,
+      responseSampleCount: Number(summary.responseSampleCount),
+      averageCompletionSeconds: summary.averageCompletionSeconds,
+      completionSampleCount: Number(summary.completionSampleCount),
+      averageFeedbackScore: summary.averageFeedbackScore,
+      feedbackSampleCount: Number(summary.feedbackSampleCount),
+    };
   }
 
   private async aggregateSnapshot(actor: AuthActor, input: DashboardQuery) {

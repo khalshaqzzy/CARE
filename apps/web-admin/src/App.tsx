@@ -16,43 +16,37 @@ import {
 import {
   Activity,
   Archive,
-  BookOpen,
+  ArchiveRestore,
   Building2,
   CircleGauge,
   FileSearch,
-  GitPullRequestArrow,
   LogOut,
   Route as RouteIcon,
   Settings,
   ShieldCheck,
-  CalendarClock,
-  Tags,
+  SlidersHorizontal,
   UserCog,
   UserRound,
   UsersRound,
-  Zap,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { OverviewPage } from './features/overview/OverviewPage';
 import { ImportsPage } from './features/imports/ImportsPage';
 import { RemediationPage } from './features/remediation/RemediationPage';
-import { CategoryCorrectionsPage } from './features/remediation/CategoryCorrections';
-import { EscalationSettingsPage } from './features/escalation/EscalationSettingsPage';
 import { UnionPage } from './features/union/UnionPage';
 import { AccountsPage } from './features/accounts/AccountsPage';
 import { VoiceExplorerPage } from './features/voices/VoiceExplorerPage';
 import { VoiceDetailPage } from './features/voices/VoiceDetailPage';
-import {
-  AdminHandoverQueuePage,
-  AdminHandoverDecisionPage,
-} from './features/handovers/AdminHandoverPage';
+import { VoiceMigrationPage } from './features/voices/VoiceMigrationPage';
+import { AdminHandoverDecisionPage } from './features/handovers/AdminHandoverPage';
 import { AuditPage } from './features/audit/AuditPage';
 import { SystemStatusPage } from './features/system/SystemStatusPage';
 import { AccountPage } from './features/account/AccountPage';
 import { DivisionAdminsPage } from './features/division/DivisionAdminsPage';
-import { GuidesPage } from './features/guides/GuidesPage';
-import { QuickRepliesPage } from './features/quick-replies/QuickRepliesPage';
+import { SystemSettingsPage } from './features/settings/SystemSettingsPage';
+import { VoiceHubPage } from './features/voices/VoiceHubPage';
+import { useHandoverCount } from './use-handover-count';
 import { useDivisionOverview } from './features/division/DivisionPages';
 
 export function App() {
@@ -78,16 +72,25 @@ export function App() {
         <Route index element={<HomePage />} />
         <Route path="imports" element={<ImportsPage />} />
         <Route path="remediation" element={<RemediationPage />} />
-        <Route path="escalation" element={<EscalationSettingsPage />} />
-        <Route path="quick-replies" element={<QuickRepliesPage />} />
+        <Route path="settings" element={<SystemSettingsPage />} />
+        {/* Former pages, now tabs of Pengaturan Sistem and Voice Explorer. */}
+        <Route path="escalation" element={<Navigate to="/settings" replace />} />
+        <Route
+          path="quick-replies"
+          element={<Navigate to="/settings?tab=quick-replies" replace />}
+        />
+        <Route path="guides" element={<Navigate to="/settings?tab=guides" replace />} />
         <Route path="union" element={<UnionPage />} />
         <Route path="division-admins" element={<DivisionAdminsPage />} />
-        <Route path="guides" element={<GuidesPage />} />
         <Route path="accounts" element={<AccountsPage />} />
-        <Route path="voices" element={<VoiceExplorerPage />} />
+        <Route path="voices" element={<VoicesPage />} />
         <Route path="voices/:id" element={<VoiceDetailPage />} />
-        <Route path="category-corrections" element={<CategoryCorrectionsPage />} />
-        <Route path="handovers" element={<AdminHandoverQueuePage />} />
+        <Route path="voice-migrations" element={<VoiceMigrationPage />} />
+        <Route
+          path="category-corrections"
+          element={<Navigate to="/voices?tab=corrections" replace />}
+        />
+        <Route path="handovers" element={<Navigate to="/voices?tab=handovers" replace />} />
         <Route path="handovers/:id" element={<AdminHandoverDecisionPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="system" element={<SystemStatusPage />} />
@@ -110,6 +113,17 @@ function DivisionAdminGuard({ children }: { children: ReactElement }) {
   )
     return <Navigate to="/" replace />;
   return children;
+}
+
+/** CARE Admin gets the Voice workspace with tabs; a Division Admin its division's Voices. */
+function VoicesPage() {
+  const { session } = useAuth();
+  const pendingHandovers = useHandoverCount();
+  return session?.capabilities.includes('DIVISION_ADMIN') ? (
+    <VoiceExplorerPage />
+  ) : (
+    <VoiceHubPage pendingHandovers={pendingHandovers} />
+  );
 }
 
 function HomePage() {
@@ -333,131 +347,88 @@ const ADMIN_NAV_ROUTES: Record<string, string> = {
   overview: '/',
   imports: '/imports',
   remediation: '/remediation',
-  escalation: '/escalation',
-  'quick-replies': '/quick-replies',
+  settings: '/settings',
   union: '/union',
   'division-admins': '/division-admins',
-  guides: '/guides',
   accounts: '/accounts',
   voices: '/voices',
-  handovers: '/handovers',
-  'category-corrections': '/category-corrections',
+  'voice-migrations': '/voice-migrations',
   audit: '/audit',
   system: '/system',
 };
+
+/** Menu item for a path; pages folded into another page's tabs keep their parent highlighted. */
+function navItemFor(path: string) {
+  const prefixes: [string, string][] = [
+    ['/voice-migrations', 'voice-migrations'],
+    ['/voices', 'voices'],
+    ['/handovers', 'voices'],
+    ['/category-corrections', 'voices'],
+    ['/division-admins', 'division-admins'],
+    ['/imports', 'imports'],
+    ['/remediation', 'remediation'],
+    ['/settings', 'settings'],
+    ['/union', 'union'],
+    ['/accounts', 'accounts'],
+    ['/audit', 'audit'],
+    ['/system', 'system'],
+    ['/account', 'account'],
+  ];
+  return prefixes.find(([prefix]) => path.startsWith(prefix))?.[1] ?? 'overview';
+}
 
 function AdminShell() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const division = useDivisionOverview();
+  const handoverCount = useHandoverCount();
   if (!session) return null;
   const divisionAdmin = session.capabilities.includes('DIVISION_ADMIN');
   const path = location.pathname;
-  const current = path.startsWith('/division-admins')
-    ? 'division-admins'
-    : path.startsWith('/imports')
-      ? 'imports'
-      : path.startsWith('/remediation')
-        ? 'remediation'
-        : path.startsWith('/escalation')
-          ? 'escalation'
-          : path.startsWith('/quick-replies')
-            ? 'quick-replies'
-            : path.startsWith('/guides')
-              ? 'guides'
-              : path.startsWith('/union')
-                ? 'union'
-                : path.startsWith('/accounts')
-                  ? 'accounts'
-                  : path.startsWith('/voices')
-                    ? 'voices'
-                    : path.startsWith('/handovers')
-                      ? 'handovers'
-                      : path.startsWith('/category-corrections')
-                        ? 'category-corrections'
-                        : path.startsWith('/audit')
-                          ? 'audit'
-                          : path.startsWith('/system')
-                            ? 'system'
-                            : path.startsWith('/account')
-                              ? 'account'
-                              : 'overview';
+  const current = navItemFor(path);
   const divisionItems = [
     { id: 'voices', label: 'Voice divisi', icon: <FileSearch size={19} /> },
     { id: 'accounts', label: 'Akun divisi', icon: <UsersRound size={19} /> },
   ];
   const adminItems = [
+    { group: 'Ringkasan', id: 'overview', label: 'Overview', icon: <CircleGauge size={19} /> },
     {
-      id: 'overview',
-      label: 'Overview',
-      icon: <CircleGauge size={19} />,
+      group: 'Voice',
+      id: 'voices',
+      label: 'Voice Explorer',
+      icon: <FileSearch size={19} />,
+      ...(handoverCount ? { badge: handoverCount } : {}),
     },
     {
-      id: 'imports',
-      label: 'Import & Master Data',
-      icon: <Archive size={19} />,
+      group: 'Voice',
+      id: 'voice-migrations',
+      label: 'Voice Migrasi',
+      icon: <ArchiveRestore size={19} />,
     },
+    { group: 'Akun & Akses', id: 'accounts', label: 'Akun', icon: <UsersRound size={19} /> },
+    { group: 'Akun & Akses', id: 'union', label: 'Akun Komite', icon: <ShieldCheck size={19} /> },
     {
-      id: 'remediation',
-      label: 'Remediation & Route',
-      icon: <RouteIcon size={19} />,
-    },
-    {
-      id: 'escalation',
-      label: 'Kalender & Eskalasi',
-      icon: <CalendarClock size={19} />,
-    },
-    {
-      id: 'quick-replies',
-      label: 'Jawaban Cepat',
-      icon: <Zap size={19} />,
-    },
-    {
-      id: 'union',
-      label: 'Union Accounts',
-      icon: <ShieldCheck size={19} />,
-    },
-    {
+      group: 'Akun & Akses',
       id: 'division-admins',
       label: 'Admin Divisi',
       icon: <UserCog size={19} />,
     },
+    { group: 'Konfigurasi', id: 'imports', label: 'Data Organisasi', icon: <Archive size={19} /> },
     {
-      id: 'guides',
-      label: 'Panduan',
-      icon: <BookOpen size={19} />,
+      group: 'Konfigurasi',
+      id: 'remediation',
+      label: 'Route & Kategori',
+      icon: <RouteIcon size={19} />,
     },
     {
-      id: 'accounts',
-      label: 'Accounts',
-      icon: <UsersRound size={19} />,
+      group: 'Konfigurasi',
+      id: 'settings',
+      label: 'Pengaturan Sistem',
+      icon: <SlidersHorizontal size={19} />,
     },
-    {
-      id: 'voices',
-      label: 'Voice Explorer',
-      icon: <FileSearch size={19} />,
-    },
-    {
-      id: 'handovers',
-      label: 'Handover Admin',
-      icon: <GitPullRequestArrow size={19} />,
-    },
-    {
-      id: 'category-corrections',
-      label: 'Koreksi Kategori',
-      icon: <Tags size={19} />,
-    },
-    {
-      id: 'audit',
-      label: 'Audit',
-      icon: <Activity size={19} />,
-    },
-    {
-      id: 'system',
-      label: 'System Status',
-      icon: <Settings size={19} />,
-    },
+    { group: 'Sistem', id: 'audit', label: 'Audit', icon: <Activity size={19} /> },
+    { group: 'Sistem', id: 'system', label: 'Status Sistem', icon: <Settings size={19} /> },
   ];
   return (
     <AppShell

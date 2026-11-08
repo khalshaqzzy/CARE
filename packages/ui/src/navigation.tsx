@@ -8,7 +8,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { type ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { springTokens } from './tokens.js';
 import { IconButton } from './primitives.js';
 import { cn, useControllableState } from './utils.js';
@@ -136,7 +136,15 @@ export function Sidebar({
   footer,
   label = 'Navigasi aplikasi',
 }: {
-  items: { id: string; label: string; icon: ReactNode; disabled?: boolean }[];
+  /** Consecutive items sharing a `group` render under one section heading. */
+  items: {
+    id: string;
+    label: string;
+    icon: ReactNode;
+    disabled?: boolean;
+    group?: string;
+    badge?: ReactNode;
+  }[];
   current: string;
   collapsed?: boolean;
   defaultCollapsed?: boolean;
@@ -164,18 +172,25 @@ export function Sidebar({
         </IconButton>
       </div>
       <nav aria-label={label}>
-        {items.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            aria-current={current === item.id ? 'page' : undefined}
-            disabled={item.disabled}
-            title={isCollapsed ? item.label : undefined}
-            onClick={() => onNavigate?.(item.id)}
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </button>
+        {items.map((item, index) => (
+          <Fragment key={item.id}>
+            {item.group && item.group !== items[index - 1]?.group ? (
+              <p className="care-sidebar__group" aria-hidden={isCollapsed || undefined}>
+                <span>{item.group}</span>
+              </p>
+            ) : null}
+            <button
+              type="button"
+              aria-current={current === item.id ? 'page' : undefined}
+              disabled={item.disabled}
+              title={isCollapsed ? item.label : undefined}
+              onClick={() => onNavigate?.(item.id)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+              {item.badge ? <em className="care-sidebar__badge">{item.badge}</em> : null}
+            </button>
+          </Fragment>
         ))}
       </nav>
       {footer ? <div className="care-sidebar__footer">{footer}</div> : null}

@@ -56,6 +56,20 @@ const divisionAdminBody = z
   .strict();
 const slots = new Set(Object.values(UnionSlot));
 /** Responders by level, matched on the normalized structural position. */
+type AccountFilters = {
+  search?: string;
+  kind?: string;
+  status?: string;
+  unitId?: string;
+  position?: string;
+  eligibility?: string;
+  responderLevel?: string;
+  directorate?: string;
+  division?: string;
+  department?: string;
+  section?: string;
+  loggedIn?: string;
+};
 const RESPONDER_LEVELS = [
   { key: 'GROUP_LEADER', label: 'Group Leader', positions: ['group leader'] },
   { key: 'SECTION_HEAD', label: 'Section Head', positions: ['section head'] },
@@ -397,6 +411,149 @@ export class AdminService {
     const params = typeof query === 'string' ? { search: query } : (query ?? {});
     const take = Math.min(Math.max(Number(params.limit ?? 20), 1), 100);
     const cursorId = params.cursor ? decodeCursor(params.cursor) : undefined;
+    const where = this.accountWhere(params);
+    const items = await this.prisma.userAccount.findMany({
+      where,
+      orderBy: [{ username: 'asc' }, { id: 'asc' }],
+      take: take + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        accountKind: true,
+        status: true,
+        passwordChangeRequired: true,
+        version: true,
+        firstLoginAt: true,
+        lastLoginAt: true,
+        adminDirectorate: true,
+        adminDivision: true,
+        createdAt: true,
+        updatedAt: true,
+        employee: {
+          select: {
+            noReg: true,
+            name: true,
+            memberships: {
+              where: { snapshot: { status: 'ACTIVE' } },
+              select: {
+                structuralPosition: true,
+                section: true,
+                organizationUnit: {
+                  select: { id: true, directorate: true, division: true, department: true },
+                },
+              },
+            },
+          },
+        },
+        unionTerms: { where: { effectiveTo: null }, select: { slot: true, effectiveFrom: true } },
+      },
+    });
+    const hasNext = items.length > take;
+    const data = hasNext ? items.slice(0, take) : items;
+    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
+    // For backward compat, if called with legacy string and no pagination requested, return array directly; but we now always return paginated object for new callers.
+    // Detect legacy call: if typeof query === 'string' and no cursor/limit in params beyond search, return array for compatibility with old tests that expect array.
+    if (typeof query === 'string')
+      return data as unknown as ReturnType<PrismaService['userAccount']['findMany']>;
+    return { items: data, nextCursor };
+  }
+
+  /**
+   * Counts behind the Akun dashboard, over exactly the accounts the list shows
+   * for the same filters: totals by status and kind, logins, and workforce
+   * accounts by position (Member, then each responder level).
+   */
+  async accountSummary(params: AccountFilters) {
+    const where = this.accountWhere(params);
+    const and = (extra: Prisma.UserAccountWhereInput): Prisma.UserAccountWhereInput => ({
+      AND: [where, extra],
+    });
+    const atPositions = (positions: string[]): Prisma.UserAccountWhereInput => ({
+      accountKind: AccountKind.WORKFORCE,
+      employee: {
+        memberships: {
+          some: {
+            snapshot: { status: 'ACTIVE' },
+            OR: positions.map((position) => ({
+              structuralPosition: { equals: position, mode: 'insensitive' as const },
+            })),
+          },
+        },
+      },
+    });
+    const pair = (extra: Prisma.UserAccountWhereInput) =>
+      Promise.all([
+        this.prisma.userAccount.count({ where: and(extra) }),
+        this.prisma.userAccount.count({ where: and({ ...extra, lastLoginAt: { not: null } }) }),
+      ]);
+    const logged = and({ lastLoginAt: { not: null } });
+    const [total, loggedIn, byStatus, byKind, loginByStatus, loginByKind, workforce, levels] =
+      await Promise.all([
+        this.prisma.userAccount.count({ where }),
+        this.prisma.userAccount.count({ where: logged }),
+        this.prisma.userAccount.groupBy({ by: ['status'], where, _count: { _all: true } }),
+        this.prisma.userAccount.groupBy({ by: ['accountKind'], where, _count: { _all: true } }),
+        this.prisma.userAccount.groupBy({ by: ['status'], where: logged, _count: { _all: true } }),
+        this.prisma.userAccount.groupBy({
+          by: ['accountKind'],
+          where: logged,
+          _count: { _all: true },
+        }),
+        pair({ accountKind: AccountKind.WORKFORCE }),
+        Promise.all(RESPONDER_LEVELS.map((level) => pair(atPositions([...level.positions])))),
+      ]);
+    const statusLabels: Record<AccountStatus, string> = {
+      ACTIVE: 'Aktif',
+      LEGACY_HANDLER: 'Legacy handler',
+      INACTIVE: 'Nonaktif',
+    };
+    const kindLabels: Record<AccountKind, string> = {
+      WORKFORCE: 'Workforce',
+      UNION: 'Komite',
+      DIVISION_ADMIN: 'Admin Divisi',
+      CARE_ADMIN: 'Admin',
+    };
+    const responders = levels.reduce(
+      (sum, [count, login]) => ({ total: sum.total + count, loggedIn: sum.loggedIn + login }),
+      { total: 0, loggedIn: 0 },
+    );
+    return {
+      total,
+      loggedIn,
+      status: (Object.keys(statusLabels) as AccountStatus[]).map((key) => ({
+        key,
+        label: statusLabels[key],
+        total: byStatus.find((row) => row.status === key)?._count._all ?? 0,
+        loggedIn: loginByStatus.find((row) => row.status === key)?._count._all ?? 0,
+      })),
+      kind: (Object.keys(kindLabels) as AccountKind[])
+        .map((key) => ({
+          key,
+          label: kindLabels[key],
+          total: byKind.find((row) => row.accountKind === key)?._count._all ?? 0,
+          loggedIn: loginByKind.find((row) => row.accountKind === key)?._count._all ?? 0,
+        }))
+        .filter((row) => row.total > 0),
+      role: [
+        {
+          key: 'MEMBER',
+          label: 'Member',
+          total: Math.max(workforce[0] - responders.total, 0),
+          loggedIn: Math.max(workforce[1] - responders.loggedIn, 0),
+        },
+        ...RESPONDER_LEVELS.map((level, index) => ({
+          key: level.key,
+          label: level.label,
+          total: levels[index]![0],
+          loggedIn: levels[index]![1],
+        })),
+      ],
+    };
+  }
+
+  private accountWhere(params: AccountFilters): Prisma.UserAccountWhereInput {
     const where: Prisma.UserAccountWhereInput = {};
     if (params.search) {
       where.OR = [
@@ -493,52 +650,7 @@ export class AdminService {
       ];
     if (params.loggedIn === 'true') where.lastLoginAt = { not: null };
     if (params.loggedIn === 'false') where.lastLoginAt = null;
-    const items = await this.prisma.userAccount.findMany({
-      where,
-      orderBy: [{ username: 'asc' }, { id: 'asc' }],
-      take: take + 1,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        accountKind: true,
-        status: true,
-        passwordChangeRequired: true,
-        version: true,
-        firstLoginAt: true,
-        lastLoginAt: true,
-        adminDirectorate: true,
-        adminDivision: true,
-        createdAt: true,
-        updatedAt: true,
-        employee: {
-          select: {
-            noReg: true,
-            name: true,
-            memberships: {
-              where: { snapshot: { status: 'ACTIVE' } },
-              select: {
-                structuralPosition: true,
-                section: true,
-                organizationUnit: {
-                  select: { id: true, directorate: true, division: true, department: true },
-                },
-              },
-            },
-          },
-        },
-        unionTerms: { where: { effectiveTo: null }, select: { slot: true, effectiveFrom: true } },
-      },
-    });
-    const hasNext = items.length > take;
-    const data = hasNext ? items.slice(0, take) : items;
-    const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
-    // For backward compat, if called with legacy string and no pagination requested, return array directly; but we now always return paginated object for new callers.
-    // Detect legacy call: if typeof query === 'string' and no cursor/limit in params beyond search, return array for compatibility with old tests that expect array.
-    if (typeof query === 'string')
-      return data as unknown as ReturnType<PrismaService['userAccount']['findMany']>;
-    return { items: data, nextCursor };
+    return where;
   }
 
   // Active workforce accounts in the active snapshot, grouped one level below the chosen unit.

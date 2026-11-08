@@ -1,5 +1,79 @@
 # CARE Session Handoff
 
+## CARE Admin menu sections and report dashboards — 8 November 2026
+
+**Objective:** make CARE Admin usable for reporting and easier to navigate. Requests from the product owner, agreed through HTML mockups before execution:
+
+1. Tidy the long Admin menu into clearly labelled sections.
+2. Voice Explorer: a summary dashboard above the list (totals per status, category, severity, average response and completion) that follows the filters; separate migrated Voices from the explorer.
+3. Akun: a dashboard above the list covering all accounts, not only responders.
+4. Summaries must slide up (collapse) so the list has room; Voice Migrasi needs no summary; rename Union to **Komite**; pages with several sections (e.g. Route & Kategori) must separate them clearly.
+
+ADR-0082 (`docs/adr/0082-admin-navigation-and-report-dashboards.md`) and PRD §11.5 / new §46 hold the rules.
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entries at the top and bottom of implementationPhases.md.
+
+**Branch:** `feat/admin-dashboards` in worktree `../CARE-admin-dash`, from `origin/staging` 5061bd2 (after PR #129). Not committed or pushed yet. Mockups (v1, v2) and final screenshots of the built pages with mock data are untracked in the main checkout at `docs/preview-admin-redesign/` (`mock.html`, `final/*.png`). The `feat/time-for-team` working tree in the main checkout was not touched.
+
+**Decisions (product owner, this session):**
+
+- Menu sections approved as shown: Ringkasan · Voice · Akun & Akses · Konfigurasi · Sistem.
+- Summaries on Voice Explorer and Akun only, collapsible ("Sembunyikan / Tampilkan"); Voice Migrasi has no summary.
+- "Akun Union" becomes "Akun Komite".
+- Pages with several jobs are split clearly (implemented as tabs).
+- Follow-up the same day: Handover Admin and Koreksi Kategori become tabs inside Voice Explorer; Kalender & Eskalasi, Jawaban Cepat and Panduan become one menu, **Pengaturan Sistem**, with three tabs.
+
+**Behaviour now:**
+
+- **Menu** (`apps/web-admin/src/App.tsx`, `packages/ui/src/navigation.tsx` + `styles.css`): `Sidebar` items accept `group` (section heading; divider when collapsed) and `badge`. Admin items and labels: Overview | Voice Explorer, Voice Migrasi (`/voice-migrations`, new), Handover Admin (badge = pending queue first page, `N`/`N+`), Koreksi Kategori | Akun, Akun Komite, Admin Divisi | Data Organisasi, Route & Kategori, Kalender & Eskalasi, Jawaban Cepat, Panduan | Audit, Status Sistem. Routes unchanged. Division Admin menu unchanged.
+- **Voice Explorer** (`features/voices/VoiceExplorerPage.tsx`, new `VoiceSummary.tsx`): always sends `origin=CARE`; category filter from `GET /admin/general-voice-categories`; date filter is **Dikirim dari / Sampai** as WIB day bounds (`wibRange`); warning alert replaced by "Akses Private diaudit"; **Unduh Excel** in the header. **Ringkasan Voice** below the filters: KPI tiles (status tiles toggle the status filter), Waktu penanganan, bars for Kategori / Severity / Area (click toggles the filter).
+- **Collapsible summary** (`components/AdminSummary.tsx`): header with title, meta, and Sembunyikan/Tampilkan (`aria-expanded`); hidden = one line of chips, body folds via CSS grid rows; state in `localStorage` key `care-admin-summary:<id>` inside try/catch. Also `AdminBars` and `formatDuration` (`short` form "5j 12m" for tiles/chips).
+- **Voice Migrasi** (`features/voices/VoiceMigrationPage.tsx`): `origin=MIGRATED`, newest first, columns ID CARE, platform / earlier ID, title (links to `/voices/:id`), category, severity, PIC; filters search/category/severity/dates; export.
+- **API — Voice:**
+  - `VoicesService.listWhere(query, scope)` now builds the browse filter for the list, the summary and the export; `VoiceListQuery.origin` (`CARE`/`MIGRATED`, else 400 `ORIGIN_FILTER_INVALID`); list items include `legacyId`.
+  - New `AdminVoicesController` (`/admin/voices/summary`, `/admin/voices/export`, CARE_ADMIN) and `AdminVoiceReportService` (`apps/api/src/voices/admin-voice-report.service.ts`). Summary = Prisma `groupBy` counts on `listWhere` + `OrganizationDashboard.cohortPerformance(where)` (new public wrapper around `performanceFor` with `overdue: true`).
+  - `dashboardSql` additionally serializes `{ not: null }` and `{ contains, mode: 'insensitive' }` (escaped `ILIKE`).
+  - Export: one `Voice` sheet, limit 10 000 (400 `EXPORT_TOO_LARGE`), Private reporter/category redacted, audit `ADMIN_VOICE_EXPORT` (`resourceType VOICE`, `resourceId export`).
+- **API — Akun:** `AdminService.accountWhere(params)` extracted from `accounts()`; new `accountSummary` + `GET /admin/accounts/summary` (status, kind, role = Member + responder levels, each with logged-in counts). OpenAPI: `AdminVoiceSummary`, `AdminVoiceBucket`, `AccountOverviewSummary`, `AccountSummaryBucket`; `origin` param on `VoicesController_list`.
+- **Akun page** (`features/accounts/AccountsPage.tsx`, new `AccountsSummary.tsx`): Ringkasan Akun replaces `ResponderLoginSummary` (deleted) and, for CARE Admin, the per-unit `LoginSummary`; "Ekspor belum login" moved to the header; jenis akun option "Union" shown as "Komite". Division Admin keeps `LoginSummary`.
+- **Overview** (`features/overview/OverviewPage.tsx`, rewritten): Voice bulan ini, Perlu tindakan, Akun workforce aktif, status line.
+- **Tabs** (`components/AdminSections.tsx`, `?tab=`; keeps other params, drops `cursor`/`cursorHistory`): Route & Kategori (`remediation`/`categories`/`shops`, status strip above), Kalender & Eskalasi (`calendar`/`deadlines`), Data Organisasi (`import`/`history`), Status Sistem (`health`/`ai`).
+- **Merged pages:** new `features/voices/VoiceHubPage.tsx` (CARE Admin `/voices`: tabs `voices` / `handovers` / `corrections`; Division Admin still gets `VoiceExplorerPage` directly via `VoicesPage` in `App.tsx`) and `features/settings/SystemSettingsPage.tsx` (`/settings`: tabs `escalation` / `quick-replies` / `guides`). Old routes redirect to the tab; `/handovers/:id` stays and returns to `/voices?tab=handovers`. `useHandoverCount` moved to `src/use-handover-count.ts`; menu highlighting via `navItemFor(path)`. `AdminSections` now provides a depth context: inner tabs use `?section=`, and `AdminPageHeader` inside a tab renders as a section header (`admin-pagehead--section`, h2, actions kept). The explorer tab's header reads "Semua Voice".
+- **Komite naming:** Union page title/slots (Ketua Komite, Komite 1/2), remediation drawer links.
+- `features/division/DivisionPages.tsx`: `ExportButton` takes an optional `download` function (reused for the Admin export).
+
+**Files changed (worktree `../CARE-admin-dash`):**
+
+- API: `src/voices/{voices.service,dashboard,voices.module}.ts`, new `src/voices/admin-voice-report.service.ts`, `src/voices/admin-voices.controller.ts`; `src/admin/{admin.service,admin.controller}.ts`; `scripts/enrich-openapi.ts`; `openapi.json`; `packages/contracts/src/generated.ts`.
+- UI package: `packages/ui/src/navigation.tsx`, `styles.css`.
+- Admin: `App.tsx`, `admin-api.ts`, `styles.css`, new `components/{AdminSummary,AdminSections}.tsx`, `features/accounts/{AccountsPage,AccountsSummary(new)}.tsx` (`ResponderLoginSummary.tsx` deleted), `features/voices/{VoiceExplorerPage,VoiceSummary(new),VoiceMigrationPage(new)}.tsx`, `features/overview/OverviewPage.tsx`, `features/remediation/RemediationPage.tsx`, `features/escalation/EscalationSettingsPage.tsx`, `features/imports/ImportsPage.tsx`, `features/system/SystemStatusPage.tsx`, `features/union/UnionPage.tsx`, `features/division/DivisionPages.tsx`.
+- Merged-pages follow-up: `App.tsx`, `use-handover-count.ts` (new), `components/{AdminSections,AdminPageHeader}.tsx`, `features/voices/{VoiceHubPage(new),VoiceExplorerPage}.tsx`, `features/settings/SystemSettingsPage.tsx` (new), `features/handovers/AdminHandoverPage.tsx`, `features/overview/OverviewPage.tsx`, `styles.css`; specs `admin-dashboards` (menu/hub assertions), `admin-journeys`, `admin-guides`, `voice-read-quick-replies` (menu → tab navigation, plus a pinned clock: the read-receipt test showed "Kemarin, 08.25" once the fixture date of 7 November was in the past).
+- Tests: new `apps/api/test/integration/admin-reports.integration.test.ts` (5), `apps/api/src/voices/dashboard.test.ts` (+1), new `e2e/admin-dashboards.spec.ts` (3); updated `e2e/helpers/mock-api.ts` (account/voice summary + export routes), `admin-a11y`, `admin-journeys`, `admin-improvements`, `admin-login-tracking`, `admin-fullstack`, `admin-pages.visual`, `design.visual`, `escalation-settings.visual`, `shop-routing.visual`, `foundation` specs (new headings, exact heading matches, tab navigation); `scripts/validation/validation.test.mjs` inventory 500 → 503.
+- Docs: ADR-0082, PRD §11.5 + §46, implementationPhases.md, this handoff.
+
+**Checks run (Windows, portable Node 22.23.4 / pnpm 11.8.0; throwaway `pgvector/pgvector:pg16` on 54339, stopped afterwards):**
+
+- `tsc` typecheck api, ui, web-admin; ESLint on changed admin/ui/api sources; Prettier `--check --end-of-line auto` on all changed files: pass.
+- `pnpm openapi:generate` + `scripts/validation/generated-contract.mjs`: pass.
+- Integration: `admin-reports` 5/5; voice-pagination, division-admin, login-tracking, admin-improvements, dashboard-filter, organization-dashboard, legacy-voice-import, responder-matrix 57/57.
+- Unit: API 176/176 (incl. new `dashboardSql` case), UI 26/26, web-admin 2/2.
+- Playwright: all `e2e/admin-*.spec.ts` on Chromium 66/66 plus new spec 3/3; design, escalation-settings, foundation, shop-routing, voice-read-quick-replies specs pass; visual project (admin-pages, design, escalation-settings, shop-routing) 27/27; full-stack `admin-fullstack` 1/1 (API pre-started, because it needs about 45 s to boot on this laptop and the web-server wait timed out when started by Playwright).
+- `scripts/check-pwa-compatibility.mjs` after builds: pass (workforce main gzip 147,038).
+- Validation test "actual CI browser partitions cover every test exactly once": pass with 503.
+- Gitleaks v8.24.3 directory scan of the worktree: no leaks.
+- After the merged-pages follow-up: web-admin typecheck, ESLint and Prettier pass; every admin-related spec (Chromium + visual) 110/111 in one parallel run; the single failure was a different `admin-a11y` case each run (30 s timeouts while loading under laptop load); `admin-a11y` repeated twice with 2 workers (CI setting) 42/42. `voice-read-quick-replies` 5/5 with the pinned clock. The full-stack journey does not visit the merged pages and was not rerun.
+- Not run: full `verify:local`, legacy WebKit, workforce full browser suite, migration upgrade harness, performance gate (the summary endpoint is not part of it), Gitleaks commit scan (no commit yet), hosted CI, check against real staging data.
+
+**Notes / gotchas:**
+
+- `sed -i` over `e2e/*.spec.ts` on Windows rewrote every spec with LF line endings; files without content changes were restored with `git checkout`. Use targeted Python edits instead.
+- The shared query client retries twice before surfacing an error, so error-state alerts can take about 7–14 s; the mocked error-state journey waits up to 20 s.
+- The default `mockAdminApi` does not mock `/admin/escalation-settings`; that page shows an error in ad-hoc screenshots unless the spec routes it (as `escalation-settings.visual.spec.ts` does).
+
+**Next recommended action:** review the final screenshots, then commit on `feat/admin-dashboards`, run the Gitleaks commit scan, push and open a PR to `staging`; after merge check `/ready` releaseSha and the Admin pages on satucare.com with real data (especially summary speed on the full Voice set and migrated Voices appearing only under Voice Migrasi).
+
+---
+
 ## Voice read state, chat read receipts and Jawaban Cepat — 7 November 2026
 
 **Objective:** three responder/member improvements requested by the product owner, designed with screenshot previews first and then executed:
