@@ -82,7 +82,16 @@ After release, a General Voice about a member who mocked colleagues was classifi
 - When a General classification is below the threshold but `privateSuggested` is true, the result is stored as an AI classification with its low confidence, so the review screen requires Private Voice and submit keeps rejecting General. Other low-confidence results still go to Manual Fallback.
 - Prompt `care-classification-v1.10` lists mocking, insulting, humiliating, belittling, shouting at and excluding a person as bullying or intimidation, also when the reporter calls it unfriendly, and states that confidence must not drop only because no General category fits.
 - The saved-draft preview page (`/drafts/:id/preview`) shows the same lock; **Lanjut ke Private Voice** opens the edit form as Private with the content kept.
-- Validation: integration case with a stubbed low-confidence Private verdict (`organization-routing`), Playwright case for the draft preview path (inventory 496).
+- Validation: integration case with a stubbed low-confidence Private verdict (`organization-routing`), Playwright case for the draft preview path.
+
+## Amendment: General Voice offered for general issues sent as Private (9 November 2026)
+
+Reporters also chose Private for ordinary workplace problems such as a broken AC, which then reached only the Komite instead of the team that fixes them.
+
+- The classification tool gains `generalSuggested`. For a PRIVATE Voice the model sets it only when the content is clearly a general workplace issue (facilities, AC, lighting, electrics, machines, tools, processes, SOP, IT, shared services, general policy, safety or environment hazards) and does not involve a specific person, conduct, conflict, a complaint about a superior, health, finances, family, the reporter's own pay or rights, threats or anything sensitive; when unsure it stays false. It is always false for GENERAL.
+- `AIClassification.generalSuggested` (migration `20261109090000_private_general_suggestion`) stores it.
+- Unlike the Private requirement, this is a suggestion only: identity visibility is the reporter's decision. Review and the saved-draft preview show a **Cocok sebagai General Voice?** dialog that states the reporter's name becomes visible to the handling team. **Pindah ke General** reopens the form as General with the content kept and Private choices cleared, and the Voice is analysed again; **Tetap Private** closes the dialog and the Voice can be sent as Private.
+- Validation: unit checks on prompt and schema, Playwright case for keeping Private and for moving to General; browser inventory 505.
 
 ## Follow-up
 

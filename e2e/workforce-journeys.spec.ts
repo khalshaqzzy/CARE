@@ -389,6 +389,66 @@ test.describe('workforce journeys (mocked contract)', () => {
     await expect(page.getByRole('region', { name: 'Identitas kepada Komite' })).toBeInViewport();
   });
 
+  test('a Private Voice about a general issue offers General Voice without forcing it', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const offerClassification = {
+      source: 'AI',
+      category: null,
+      severity: 'LOW',
+      confidence: 0.9,
+      rationaleCode: 'NOT_REQUESTED',
+      privateSuggested: false,
+      generalSuggested: true,
+    };
+    await mockWorkforceApi(page, {
+      draft: {
+        id: 'draft-1',
+        visibility: 'PRIVATE',
+        area: 'KARAWANG_1',
+        locationDetail: 'Gedung office lantai 2',
+        title: 'AC ruang meeting tidak dingin',
+        detail: 'AC ruang meeting lantai 2 sudah dua hari tidak dingin.',
+        showReporterIdentity: null,
+        privateContactConsent: null,
+        version: 1,
+        classificationContentHash: 'a'.repeat(64),
+        locationContentHash: 'b'.repeat(64),
+        // The edit route re-reads the saved draft after analysis; a real
+        // server returns the stored classification with it.
+        classification: offerClassification,
+        locationReview: null,
+        attachments: [],
+      },
+      classification: offerClassification,
+    });
+    await page.goto('/drafts/draft-1/edit');
+    const analyse = async () => {
+      await page.getByRole('radio', { name: /Sembunyikan identitas/ }).click();
+      await page.getByRole('checkbox', { name: /bersedia diajak komunikasi/ }).check();
+      await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+    };
+    await analyse();
+    const offer = page.getByRole('dialog', { name: 'Cocok sebagai General Voice?' });
+    await expect(offer).toBeVisible();
+    await expect(offer).toContainText('nama Anda terlihat');
+
+    // Keeping Private closes the offer and still allows sending as Private.
+    await offer.getByRole('button', { name: 'Tetap Private' }).click();
+    await expect(offer).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Kirim Voice' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Kembali', exact: true }).click();
+    await page.getByRole('button', { name: 'Simpan & Analisis' }).click();
+    await page.getByRole('button', { name: 'Pindah ke General' }).click();
+    await expect(page.getByRole('heading', { name: 'Detail Voice General' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /Judul Voice/ })).toHaveValue(
+      'AC ruang meeting tidak dingin',
+    );
+    await expect(page.getByRole('region', { name: 'Identitas kepada Komite' })).toHaveCount(0);
+  });
+
   test('TM reporters confirm their Section and Line before analysis', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     const drafts: Record<string, unknown>[] = [];

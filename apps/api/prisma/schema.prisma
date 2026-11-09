@@ -872,8 +872,10 @@ model AIClassification {
   inputTokens            Int?
   outputTokens           Int?
   fallbackCode           String?                       @db.VarChar(80)
-  /// General Voice about the reporter's superior: suggest Private Voice.
+  /// General Voice reporting harassment-type conduct: must be Private (ADR-0078).
   privateSuggested       Boolean                       @default(false)
+  /// Private Voice about a general workplace issue: offer General (ADR-0078).
+  generalSuggested       Boolean                       @default(false)
   legacyProviderMetadata Json?
   createdAt              DateTime                      @default(now())
   draft                  VoiceDraft?                   @relation(fields: [draftId], references: [id])

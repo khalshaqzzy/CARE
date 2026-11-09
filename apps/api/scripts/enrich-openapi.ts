@@ -2222,6 +2222,8 @@ const schemas: Record<string, any> = {
           // General Voice reporting harassment, bullying, discrimination or
           // retaliation: it must be sent as Private Voice.
           privateSuggested: { type: 'boolean' },
+          // Private Voice about a general workplace issue: General is offered.
+          generalSuggested: { type: 'boolean' },
         },
       },
       {

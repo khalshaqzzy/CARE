@@ -346,16 +346,30 @@ export function useDraftWizard(draftId?: string) {
     setStep('form');
   }, [setField]);
 
-  // The draft preview page sends a flagged General draft here to move it to
-  // Private once the saved draft has loaded.
+  // A Private draft the reporter chose to send as General after the AI
+  // suggestion: content is kept and re-analysed; Private choices are cleared.
+  const switchToGeneral = useCallback(() => {
+    setError(null);
+    setField({ visibility: 'GENERAL' });
+    setStep('form');
+    window.scrollTo({ top: 0 });
+  }, [setField]);
+
+  // The draft preview page sends a draft here to change visibility once the
+  // saved draft has loaded.
   const location = useLocation();
-  const toPrivate = (location.state as { toPrivate?: boolean } | null)?.toPrivate === true;
-  const [movedToPrivate, setMovedToPrivate] = useState(false);
+  const moveTo = (location.state as { toPrivate?: boolean; toGeneral?: boolean } | null) ?? {};
+  const [moved, setMoved] = useState(false);
   useEffect(() => {
-    if (!toPrivate || movedToPrivate || loaded.data?.visibility !== 'GENERAL') return;
-    setMovedToPrivate(true);
-    switchToPrivate();
-  }, [toPrivate, movedToPrivate, loaded.data, switchToPrivate]);
+    if (moved || !loaded.data) return;
+    if (moveTo.toPrivate && loaded.data.visibility === 'GENERAL') {
+      setMoved(true);
+      switchToPrivate();
+    } else if (moveTo.toGeneral && loaded.data.visibility === 'PRIVATE') {
+      setMoved(true);
+      switchToGeneral();
+    }
+  }, [moveTo.toPrivate, moveTo.toGeneral, moved, loaded.data, switchToPrivate, switchToGeneral]);
 
   const submit = useCallback(async () => {
     setError(null);
@@ -430,6 +444,7 @@ export function useDraftWizard(draftId?: string) {
     runFallback,
     proceedToReview,
     switchToPrivate,
+    switchToGeneral,
     privacyFocus,
     clearPrivacyFocus: () => setPrivacyFocus(false),
     submit,

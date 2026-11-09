@@ -10332,3 +10332,23 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* General Voice suggestion for a Private Voice (ADR-0078): two equal buttons,
+   stacked with the main action first on phones. */
+.general-suggestion__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  width: 100%;
+}
+.general-suggestion__actions > * {
+  min-width: 0;
+}
+@media (max-width: 400px) {
+  .general-suggestion__actions {
+    grid-template-columns: 1fr;
+  }
+  .general-suggestion__actions > :last-child {
+    order: -1;
+  }
+}

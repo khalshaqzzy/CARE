@@ -2,7 +2,7 @@
 
 ## Private Voice also on low confidence — 5 November 2026
 
-Phase 13 remains the only `in_progress` phase. On `fix/private-low-confidence` (from `origin/staging` 7221db7, not released): a Private verdict below the confidence threshold now locks General too, the prompt names mocking and insults as bullying (`care-classification-v1.10`), and the draft preview page has the same lock. See the ADR-0078 amendment; checks are in sessionHandoff.md.
+Phase 13 remains the only `in_progress` phase. On `fix/private-low-confidence` (from `origin/staging` 7221db7, not released): a Private verdict below the confidence threshold now locks General too, the prompt names mocking and insults as bullying (`care-classification-v1.10`), and the draft preview page has the same lock. The same branch also offers General Voice (never forced) for Private Voices about clearly general issues. See the ADR-0078 amendments; checks are in sessionHandoff.md.
 
 ## CARE Admin menu sections and report dashboards — 8 November 2026
 

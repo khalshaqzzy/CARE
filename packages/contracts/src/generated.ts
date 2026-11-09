@@ -3114,6 +3114,7 @@ export interface components {
             confidence: number;
             rationaleCode: string;
             privateSuggested?: boolean;
+            generalSuggested?: boolean;
         } | {
             /** @enum {string} */
             source: "MANUAL_FALLBACK";

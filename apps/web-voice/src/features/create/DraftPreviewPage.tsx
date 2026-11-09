@@ -13,6 +13,7 @@ import {
   ReviewMetaBar,
   ReviewSummary,
 } from './ReviewParts';
+import { GeneralSuggestionDialog } from './GeneralSuggestionDialog';
 import { ShopClarification } from './ShopClarification';
 
 export function DraftPreviewPage() {
@@ -25,6 +26,7 @@ export function DraftPreviewPage() {
   const [ack, setAck] = useState(false);
   const [shopError, setShopError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [keepPrivate, setKeepPrivate] = useState(false);
   const submitKey = useMutationKey('submit');
 
   const preview = useQuery({
@@ -103,6 +105,12 @@ export function DraftPreviewPage() {
     classification &&
     'privateSuggested' in classification &&
     classification.privateSuggested,
+  );
+  const generalSuggested = Boolean(
+    data.visibility === 'PRIVATE' &&
+    classification &&
+    'generalSuggested' in classification &&
+    classification.generalSuggested,
   );
   const isIncomplete = data.locationReview?.completeness === 'INCOMPLETE' && !privateRequired;
   const shop = data.shopResolution ?? null;
@@ -221,6 +229,11 @@ export function DraftPreviewPage() {
           </Button>
         )}
       </div>
+      <GeneralSuggestionDialog
+        open={generalSuggested && !keepPrivate}
+        onKeepPrivate={() => setKeepPrivate(true)}
+        onMoveToGeneral={() => void navigate(`/drafts/${id}/edit`, { state: { toGeneral: true } })}
+      />
     </Stack>
   );
 }

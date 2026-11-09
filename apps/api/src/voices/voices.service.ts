@@ -609,6 +609,8 @@ export class VoicesService {
           latencyMs: result.latencyMs,
           privateSuggested:
             draft.visibility === VoiceVisibility.GENERAL && result.result.privateSuggested === true,
+          generalSuggested:
+            draft.visibility === VoiceVisibility.PRIVATE && result.result.generalSuggested === true,
         },
         update: {
           model: result.model,
@@ -626,6 +628,8 @@ export class VoicesService {
           fallbackCode: null,
           privateSuggested:
             draft.visibility === VoiceVisibility.GENERAL && result.result.privateSuggested === true,
+          generalSuggested:
+            draft.visibility === VoiceVisibility.PRIVATE && result.result.generalSuggested === true,
         },
       });
       return this.publicClassification(record);

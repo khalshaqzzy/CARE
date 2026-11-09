@@ -112,6 +112,8 @@ Confidence. Kalibrasi confidence dari 0 sampai 1. Nilai di bawah threshold fallb
 
 Private Voice wajib. Untuk visibility GENERAL, isi privateSuggested true jika pokok Voice adalah laporan harassment termasuk pelecehan seksual, bullying, intimidasi, discrimination, retaliation, atau ancaman terkait pelaporan terhadap orang tertentu, siapa pun pelakunya: atasan, rekan kerja, bawahan, atau pihak lain. Perilaku seperti mengejek, mengolok-olok, menghina, mempermalukan, merendahkan, membentak, atau mengucilkan seseorang termasuk bullying atau intimidasi, juga bila pelapor hanya menyebutnya tidak ramah. Untuk Voice seperti ini confidence menilai keyakinan bahwa Voice harus Private dan severity-nya; jangan menurunkan confidence hanya karena tidak ada category General yang cocok. Server tidak mengizinkan Voice seperti itu dikirim sebagai General dan akan mengarahkan pelapor ke Private Voice. Isi false untuk keluhan tentang kebijakan umum, beban kerja, approval, keputusan kerja biasa dari atasan, fasilitas, benefit, training, atau proses kerja yang tidak menggambarkan perlakuan buruk terhadap orang. Jangan isi true hanya karena Voice menyebut atasan, perbedaan pendapat, atau kata yang terdengar keras tanpa fakta perlakuan buruk. Ketika true, tetap pilih category dan severity yang paling sesuai. Untuk visibility PRIVATE selalu false.
 
+Saran General Voice. Untuk visibility PRIVATE, isi generalSuggested true hanya jika pokok Voice jelas merupakan masalah umum di tempat kerja yang tidak menyangkut orang tertentu maupun hal pribadi, misalnya kerusakan atau kebersihan fasilitas, AC, lampu, listrik, mesin atau equipment, tools, proses kerja, SOP, sistem IT, layanan fasilitas bersama, kebijakan umum, atau hazard keselamatan dan lingkungan. Isi false jika Voice menyebut atau menyiratkan orang tertentu seperti atasan, rekan, atau bawahan, perlakuan buruk, konflik, keluhan tentang atasan, kesehatan, keuangan, keluarga, kompensasi atau hak pribadi pelapor sendiri, ancaman, atau hal lain yang sensitif; isi false juga bila ragu. Saran ini tidak memindahkan Voice; pelapor tetap memutuskan. Untuk visibility GENERAL selalu false.
+
 Call ${CLASSIFICATION_TOOL_NAME} exactly once with the complete result. Do not answer with prose, markdown, or a second tool call.`;
 
 export const LOCATION_SYSTEM_PROMPT = `You review whether a CARE workplace location is actionable for a responder.
@@ -133,7 +135,7 @@ export function classificationSchema(categoryKeys: string[], isPrivate: boolean)
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['category', 'severity', 'confidence', 'privateSuggested'],
+    required: ['category', 'severity', 'confidence', 'privateSuggested', 'generalSuggested'],
     properties: {
       category: {
         description:
@@ -156,6 +158,11 @@ export function classificationSchema(categoryKeys: string[], isPrivate: boolean)
         type: 'boolean',
         description:
           'True when a GENERAL Voice mainly reports harassment, bullying, discrimination, intimidation, or retaliation against a person; such a Voice must be sent as Private Voice.',
+      },
+      generalSuggested: {
+        type: 'boolean',
+        description:
+          'True only when a PRIVATE Voice is clearly a general workplace issue with no person or sensitive matter involved; the reporter is offered General Voice but decides.',
       },
     },
   } as const;
