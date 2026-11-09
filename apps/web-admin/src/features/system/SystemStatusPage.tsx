@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createAdminApi } from '../../admin-api';
 import type { AiConfiguration } from '../../admin-api';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSections } from '../../components/AdminSections';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 
 function statusTone(value: string | undefined): 'success' | 'warning' {
@@ -143,9 +144,9 @@ export function SystemStatusPage() {
   return (
     <Stack gap="lg">
       <AdminPageHeader
-        eyebrow="Operability"
-        title="System Status"
-        description="Kesehatan API, database, storage, release, dan konfigurasi AI runtime."
+        eyebrow="Sistem"
+        title="Status Sistem"
+        description="Kesehatan API, database, storage, release, dan konfigurasi AI."
         updatedLabel={lastUpdated ? new Date(lastUpdated).toLocaleString('id-ID') : undefined}
         onRefresh={() => {
           void health.refetch();
@@ -160,239 +161,267 @@ export function SystemStatusPage() {
           Masuk sebagai Admin untuk melihat status.
         </Alert>
       ) : null}
-      <div className="care-grid admin-system-grid">
-        <section className="admin-card admin-card--lift" aria-label="Status health">
-          <Stack gap="sm">
-            <div className="admin-section__head">
-              <h2 className="admin-card__title" style={{ margin: 0 }}>
-                /health
-              </h2>
-              {health.data ? (
-                <Badge tone={statusTone(health.data.status)}>{health.data.status}</Badge>
-              ) : null}
-            </div>
-            {health.isLoading ? (
-              <AdminSkeleton lines={3} label="Memuat health" />
-            ) : health.error ? (
-              <Alert tone="danger" title="Gagal">
-                {String((health.error as Error).message)}
-              </Alert>
-            ) : (
-              <div className="admin-kv">
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">
-                    <ShieldCheck size={14} aria-hidden="true" /> Status API
-                  </span>
-                  <span className="admin-kv__value">{health.data?.status ?? '-'}</span>
+      <AdminSections
+        label="Bagian Status Sistem"
+        sections={[
+          {
+            value: 'health',
+            label: 'Kesehatan',
+            content: (
+              <>
+                <div className="care-grid admin-system-grid">
+                  <section className="admin-card admin-card--lift" aria-label="Status health">
+                    <Stack gap="sm">
+                      <div className="admin-section__head">
+                        <h2 className="admin-card__title" style={{ margin: 0 }}>
+                          /health
+                        </h2>
+                        {health.data ? (
+                          <Badge tone={statusTone(health.data.status)}>{health.data.status}</Badge>
+                        ) : null}
+                      </div>
+                      {health.isLoading ? (
+                        <AdminSkeleton lines={3} label="Memuat health" />
+                      ) : health.error ? (
+                        <Alert tone="danger" title="Gagal">
+                          {String((health.error as Error).message)}
+                        </Alert>
+                      ) : (
+                        <div className="admin-kv">
+                          <div className="admin-kv__row">
+                            <span className="admin-kv__label">
+                              <ShieldCheck size={14} aria-hidden="true" /> Status API
+                            </span>
+                            <span className="admin-kv__value">{health.data?.status ?? '-'}</span>
+                          </div>
+                        </div>
+                      )}
+                    </Stack>
+                  </section>
+                  <section className="admin-card admin-card--lift" aria-label="Status readiness">
+                    <Stack gap="sm">
+                      <div className="admin-section__head">
+                        <h2 className="admin-card__title" style={{ margin: 0 }}>
+                          /ready
+                        </h2>
+                        {ready.data ? (
+                          <Badge tone={statusTone(ready.data.status)}>{ready.data.status}</Badge>
+                        ) : null}
+                      </div>
+                      {ready.isLoading ? (
+                        <AdminSkeleton lines={3} label="Memuat ready" />
+                      ) : ready.error ? (
+                        <Alert tone="danger" title="Gagal">
+                          {String((ready.error as Error).message)}
+                        </Alert>
+                      ) : (
+                        <div className="admin-kv">
+                          <div className="admin-kv__row">
+                            <span className="admin-kv__label">Status readiness</span>
+                            <Badge tone={statusTone(ready.data?.status)}>
+                              {ready.data?.status ?? '-'}
+                            </Badge>
+                          </div>
+                          <div className="admin-kv__row">
+                            <span className="admin-kv__label">
+                              <Database size={14} aria-hidden="true" /> Database
+                            </span>
+                            <Badge tone={statusTone(ready.data?.checks.database)}>
+                              {ready.data?.checks.database ?? '-'}
+                            </Badge>
+                          </div>
+                          <div className="admin-kv__row">
+                            <span className="admin-kv__label">
+                              <HardDrive size={14} aria-hidden="true" /> Storage
+                            </span>
+                            <Badge tone={statusTone(ready.data?.checks.storage)}>
+                              {ready.data?.checks.storage ?? '-'}
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                    </Stack>
+                  </section>
+                  <section className="admin-card admin-card--lift" aria-label="Release identity">
+                    <Stack gap="sm">
+                      <div className="admin-section__head">
+                        <h2 className="admin-card__title" style={{ margin: 0 }}>
+                          /release.json
+                        </h2>
+                      </div>
+                      {release.isLoading ? (
+                        <AdminSkeleton lines={2} label="Memuat release" />
+                      ) : release.error ? (
+                        <Alert tone="danger" title="Gagal">
+                          {String((release.error as Error).message)}
+                        </Alert>
+                      ) : (
+                        <div className="admin-kv">
+                          <div className="admin-kv__row">
+                            <span className="admin-kv__label">
+                              <Rocket size={14} aria-hidden="true" /> Release SHA
+                            </span>
+                            <span className="admin-kv__value admin-id admin-nums">
+                              {release.data?.releaseSha ?? '-'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </Stack>
+                  </section>
                 </div>
-              </div>
-            )}
-          </Stack>
-        </section>
-        <section className="admin-card admin-card--lift" aria-label="Status readiness">
-          <Stack gap="sm">
-            <div className="admin-section__head">
-              <h2 className="admin-card__title" style={{ margin: 0 }}>
-                /ready
-              </h2>
-              {ready.data ? (
-                <Badge tone={statusTone(ready.data.status)}>{ready.data.status}</Badge>
-              ) : null}
-            </div>
-            {ready.isLoading ? (
-              <AdminSkeleton lines={3} label="Memuat ready" />
-            ) : ready.error ? (
-              <Alert tone="danger" title="Gagal">
-                {String((ready.error as Error).message)}
-              </Alert>
-            ) : (
-              <div className="admin-kv">
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">Status readiness</span>
-                  <Badge tone={statusTone(ready.data?.status)}>{ready.data?.status ?? '-'}</Badge>
-                </div>
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">
-                    <Database size={14} aria-hidden="true" /> Database
-                  </span>
-                  <Badge tone={statusTone(ready.data?.checks.database)}>
-                    {ready.data?.checks.database ?? '-'}
-                  </Badge>
-                </div>
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">
-                    <HardDrive size={14} aria-hidden="true" /> Storage
-                  </span>
-                  <Badge tone={statusTone(ready.data?.checks.storage)}>
-                    {ready.data?.checks.storage ?? '-'}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </Stack>
-        </section>
-        <section className="admin-card admin-card--lift" aria-label="Release identity">
-          <Stack gap="sm">
-            <div className="admin-section__head">
-              <h2 className="admin-card__title" style={{ margin: 0 }}>
-                /release.json
-              </h2>
-            </div>
-            {release.isLoading ? (
-              <AdminSkeleton lines={2} label="Memuat release" />
-            ) : release.error ? (
-              <Alert tone="danger" title="Gagal">
-                {String((release.error as Error).message)}
-              </Alert>
-            ) : (
-              <div className="admin-kv">
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">
-                    <Rocket size={14} aria-hidden="true" /> Release SHA
-                  </span>
-                  <span className="admin-kv__value admin-id admin-nums">
-                    {release.data?.releaseSha ?? '-'}
-                  </span>
-                </div>
-              </div>
-            )}
-          </Stack>
-        </section>
-      </div>
-
-      <section className="admin-card admin-card--hero" aria-label="Konfigurasi AI">
-        <Stack gap="md">
-          <div className="admin-section__head">
-            <div>
-              <h2 className="admin-card__title" style={{ margin: 0 }}>
-                <BrainCircuit size={18} aria-hidden="true" /> Konfigurasi AI
-              </h2>
-              <p className="admin-meta--xs">Aktif untuk request berikutnya tanpa restart.</p>
-            </div>
-            <Badge tone={aiConfiguration.data?.source === 'ADMIN_OVERRIDE' ? 'success' : 'neutral'}>
-              {aiConfiguration.data?.source ?? 'MEMUAT'}
-            </Badge>
-          </div>
-          {aiConfiguration.isLoading ? (
-            <AdminSkeleton lines={4} label="Memuat konfigurasi AI" />
-          ) : aiConfiguration.error ? (
-            <Alert tone="danger" title="Konfigurasi AI tidak tersedia">
-              {String((aiConfiguration.error as Error).message)}
-            </Alert>
-          ) : (
-            <>
-              <div className="admin-ai-form">
-                <Input
-                  label="Base URL"
-                  type="url"
-                  value={baseUrl}
-                  onChange={(event) => setBaseUrl(event.target.value)}
-                  {...(baseUrl && !validUrl ? { errorText: 'Gunakan URL HTTPS yang valid.' } : {})}
-                  placeholder="https://provider.example/v1"
-                />
-                <Input
-                  label="Model"
-                  value={model}
-                  onChange={(event) => setModel(event.target.value)}
-                  placeholder="nama/model"
-                />
-                <PasswordInput
-                  label="API key"
-                  autoComplete="new-password"
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                  helperText={`${aiConfiguration.data?.apiKeyConfigured ? 'Key sudah dikonfigurasi. ' : 'Key belum dikonfigurasi. '}Kosongkan untuk mempertahankan key saat ini.`}
-                />
-                <Select
-                  label="Reasoning effort"
-                  value={reasoningEffort}
-                  onValueChange={(value) =>
-                    setReasoningEffort(value as AiConfiguration['reasoningEffort'])
-                  }
-                  options={reasoningOptions}
-                />
-                <Input
-                  label="Confidence threshold"
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={confidence}
-                  onChange={(event) => setConfidence(event.target.value)}
-                  {...(confidence !== '' && (confidenceNumber < 0 || confidenceNumber > 1)
-                    ? { errorText: 'Nilai harus antara 0 dan 1.' }
-                    : {})}
-                />
-              </div>
-              <div className="admin-kv">
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">Version</span>
-                  <span className="admin-kv__value">
-                    {aiConfiguration.data?.version ?? 'environment'}
-                  </span>
-                </div>
-                <div className="admin-kv__row">
-                  <span className="admin-kv__label">Terakhir diubah</span>
-                  <span className="admin-kv__value">
-                    {aiConfiguration.data?.updatedAt
-                      ? new Date(aiConfiguration.data.updatedAt).toLocaleString('id-ID')
-                      : 'environment bootstrap'}
-                  </span>
-                </div>
-              </div>
-              {save.isSuccess ? (
-                <Alert tone="success" title="Tersimpan">
-                  Konfigurasi AI sudah aktif.
+                <Alert tone="info" title="Polling 30 detik">
+                  Polling health hanya berjalan saat tab terlihat; API key tidak pernah dikembalikan
+                  ke browser.
                 </Alert>
-              ) : null}
-              {test.data ? (
-                <Alert
-                  tone={test.data.ok ? 'success' : 'warning'}
-                  title={test.data.ok ? 'Uji koneksi berhasil' : 'Provider degraded'}
-                >
-                  Classification: {test.data.classification.source}; location:{' '}
-                  {test.data.location.completeness}; {test.data.latencyMs} ms.
-                </Alert>
-              ) : null}
-              {save.error || reset.error || test.error ? (
-                <Alert tone="danger" title="Operasi gagal">
-                  {String(((save.error || reset.error || test.error) as Error).message)} Muat ulang
-                  bila konfigurasi berubah di tab lain.
-                </Alert>
-              ) : null}
-              <div className="admin-actions">
-                <Button
-                  ref={testButtonRef}
-                  variant="secondary"
-                  onClick={() => test.mutate()}
-                  loading={test.isPending}
-                >
-                  Uji koneksi
-                </Button>
-                <Button
-                  onClick={() => beginConfirmation('save')}
-                  disabled={!formValid}
-                  loading={save.isPending}
-                >
-                  Simpan
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => beginConfirmation('reset')}
-                  disabled={aiConfiguration.data?.source !== 'ADMIN_OVERRIDE'}
-                  loading={reset.isPending}
-                >
-                  Kembali ke environment
-                </Button>
-              </div>
-            </>
-          )}
-        </Stack>
-      </section>
-      <Alert tone="info" title="Polling 30 detik">
-        Polling health hanya berjalan saat tab terlihat; API key tidak pernah dikembalikan ke
-        browser.
-      </Alert>
+              </>
+            ),
+          },
+          {
+            value: 'ai',
+            label: 'Konfigurasi AI',
+            content: (
+              <section className="admin-card admin-card--hero" aria-label="Konfigurasi AI">
+                <Stack gap="md">
+                  <div className="admin-section__head">
+                    <div>
+                      <h2 className="admin-card__title" style={{ margin: 0 }}>
+                        <BrainCircuit size={18} aria-hidden="true" /> Konfigurasi AI
+                      </h2>
+                      <p className="admin-meta--xs">
+                        Aktif untuk request berikutnya tanpa restart.
+                      </p>
+                    </div>
+                    <Badge
+                      tone={
+                        aiConfiguration.data?.source === 'ADMIN_OVERRIDE' ? 'success' : 'neutral'
+                      }
+                    >
+                      {aiConfiguration.data?.source ?? 'MEMUAT'}
+                    </Badge>
+                  </div>
+                  {aiConfiguration.isLoading ? (
+                    <AdminSkeleton lines={4} label="Memuat konfigurasi AI" />
+                  ) : aiConfiguration.error ? (
+                    <Alert tone="danger" title="Konfigurasi AI tidak tersedia">
+                      {String((aiConfiguration.error as Error).message)}
+                    </Alert>
+                  ) : (
+                    <>
+                      <div className="admin-ai-form">
+                        <Input
+                          label="Base URL"
+                          type="url"
+                          value={baseUrl}
+                          onChange={(event) => setBaseUrl(event.target.value)}
+                          {...(baseUrl && !validUrl
+                            ? { errorText: 'Gunakan URL HTTPS yang valid.' }
+                            : {})}
+                          placeholder="https://provider.example/v1"
+                        />
+                        <Input
+                          label="Model"
+                          value={model}
+                          onChange={(event) => setModel(event.target.value)}
+                          placeholder="nama/model"
+                        />
+                        <PasswordInput
+                          label="API key"
+                          autoComplete="new-password"
+                          value={apiKey}
+                          onChange={(event) => setApiKey(event.target.value)}
+                          helperText={`${aiConfiguration.data?.apiKeyConfigured ? 'Key sudah dikonfigurasi. ' : 'Key belum dikonfigurasi. '}Kosongkan untuk mempertahankan key saat ini.`}
+                        />
+                        <Select
+                          label="Reasoning effort"
+                          value={reasoningEffort}
+                          onValueChange={(value) =>
+                            setReasoningEffort(value as AiConfiguration['reasoningEffort'])
+                          }
+                          options={reasoningOptions}
+                        />
+                        <Input
+                          label="Confidence threshold"
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={confidence}
+                          onChange={(event) => setConfidence(event.target.value)}
+                          {...(confidence !== '' && (confidenceNumber < 0 || confidenceNumber > 1)
+                            ? { errorText: 'Nilai harus antara 0 dan 1.' }
+                            : {})}
+                        />
+                      </div>
+                      <div className="admin-kv">
+                        <div className="admin-kv__row">
+                          <span className="admin-kv__label">Version</span>
+                          <span className="admin-kv__value">
+                            {aiConfiguration.data?.version ?? 'environment'}
+                          </span>
+                        </div>
+                        <div className="admin-kv__row">
+                          <span className="admin-kv__label">Terakhir diubah</span>
+                          <span className="admin-kv__value">
+                            {aiConfiguration.data?.updatedAt
+                              ? new Date(aiConfiguration.data.updatedAt).toLocaleString('id-ID')
+                              : 'environment bootstrap'}
+                          </span>
+                        </div>
+                      </div>
+                      {save.isSuccess ? (
+                        <Alert tone="success" title="Tersimpan">
+                          Konfigurasi AI sudah aktif.
+                        </Alert>
+                      ) : null}
+                      {test.data ? (
+                        <Alert
+                          tone={test.data.ok ? 'success' : 'warning'}
+                          title={test.data.ok ? 'Uji koneksi berhasil' : 'Provider degraded'}
+                        >
+                          Classification: {test.data.classification.source}; location:{' '}
+                          {test.data.location.completeness}; {test.data.latencyMs} ms.
+                        </Alert>
+                      ) : null}
+                      {save.error || reset.error || test.error ? (
+                        <Alert tone="danger" title="Operasi gagal">
+                          {String(((save.error || reset.error || test.error) as Error).message)}{' '}
+                          Muat ulang bila konfigurasi berubah di tab lain.
+                        </Alert>
+                      ) : null}
+                      <div className="admin-actions">
+                        <Button
+                          ref={testButtonRef}
+                          variant="secondary"
+                          onClick={() => test.mutate()}
+                          loading={test.isPending}
+                        >
+                          Uji koneksi
+                        </Button>
+                        <Button
+                          onClick={() => beginConfirmation('save')}
+                          disabled={!formValid}
+                          loading={save.isPending}
+                        >
+                          Simpan
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => beginConfirmation('reset')}
+                          disabled={aiConfiguration.data?.source !== 'ADMIN_OVERRIDE'}
+                          loading={reset.isPending}
+                        >
+                          Kembali ke environment
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </Stack>
+              </section>
+            ),
+          },
+        ]}
+      />
 
       <Dialog
         open={confirm !== null}

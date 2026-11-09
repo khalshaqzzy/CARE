@@ -85,3 +85,12 @@ The policy and registry entry reached their 7 October deadline, and `security:ex
 - **Feed check:** Trivy 0.75.0 with the 8 October database scans `debian:trixie-slim`, which ships `libssl3t64` and `openssl-provider-legacy` `3.5.7-1~deb13u3`, with no CVE-2026-84782 finding. The feed now recognizes the official patch.
 - **Removed:** following the decision above, the scoped `deploy/security/trivy-patched-openssl.rego`, its `ignore-policy` on the API image scan, the validator's policy branch, and the registry entry. The registry is now empty.
 - **Kept:** the exact patched package overlay. The API image still ships the officially fixed OpenSSL, and the scan enforces it with no exception.
+
+## Addendum — 7 November 2026: unfixed zlib in the Debian 13 runtime
+
+The pull-request run for `94b473e` (PR #129) failed "Production containers and routing": Trivy 0.70.0 reported two High findings in `zlib1g` `1:1.3.dfsg+really1.3.1-1+b1`, which the frozen `gcr.io/distroless/cc-debian13` runtime ships. Staging had passed the same scan on 5 November; both records were added to the feed afterwards. Debian marks the package `affected` with no fixed version, so the overlay approach above (installing an official fixed package) is not available.
+
+- **CVE-2026-85091** (heap overflow in `gz_vacate()`): the flaw is in zlib's gzFile write API. The API's `node` binary does not load the system zlib at all (`ldd` shows no `libz.so`; Node bundles zlib 1.3.1). The system `libz.so.1` is loaded only by `libcrypto.so.3`, which uses `compress`/`uncompress` and never the gzFile API. The vulnerable path is therefore not reachable.
+- **CVE-2026-76844**: the record is filed against `zlib1g`, but its title describes a path traversal in `webpack-dev-middleware`, a development-server package that is not part of any runtime image. It is treated as a feed mis-attribution.
+
+Both IDs are registered as exact entries in `.trivyignore` with their rationale in `.agent/securityExceptions.json`, expiring on **30 November 2026**. Before then, each entry is removed as soon as Debian publishes a fixed `zlib1g` (and the patch overlay pins it, as was done for OpenSSL) or the record is corrected; otherwise it is re-justified. No other scanner policy or threshold changes.

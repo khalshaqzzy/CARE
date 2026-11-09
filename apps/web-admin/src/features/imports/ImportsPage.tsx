@@ -24,6 +24,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { AdminSections } from '../../components/AdminSections';
 import { AdminEmpty } from '../../components/AdminEmpty';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { AdminStepper } from '../../components/AdminStepper';
@@ -222,9 +223,9 @@ export function ImportsPage() {
   return (
     <Stack gap="lg">
       <AdminPageHeader
-        eyebrow="Master Data"
-        title="Import & Master Data"
-        description="Unggah, validasi, pratinjau perubahan, dan konfirmasi impor data master."
+        eyebrow="Konfigurasi"
+        title="Data Organisasi"
+        description="Unggah, periksa, dan konfirmasi impor data organisasi."
         updatedLabel={
           snapshot.data?.effectiveAt
             ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
@@ -238,426 +239,474 @@ export function ImportsPage() {
         refreshing={list.isFetching || detail.isFetching}
       />
 
-      <AdminStepper steps={STEPS} step={step} />
+      <AdminSections
+        label="Bagian Data Organisasi"
+        sections={[
+          {
+            value: 'import',
+            label: 'Impor baru',
+            content: (
+              <>
+                <AdminStepper steps={STEPS} step={step} />
 
-      <div
-        className="care-grid"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(24rem, 1fr))', gap: '1rem' }}
-      >
-        <section className="admin-card admin-card--lift" aria-label="Upload file">
-          <h2 className="admin-card__title">
-            <CloudUpload size={18} aria-hidden="true" /> Upload CSV
-          </h2>
-          <p className="admin-card__subtitle">
-            Unggah file .xlsx (sheet “CARE_ORG DATA_[Bulan]”) atau .csv UTF-8, maksimal 10 MB.
-            Kolom: Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division, Department,
-            Section, Line, Tgl Lahir (dd/mm/yyyy). Urutan kolom bebas.
-          </p>
-          <FileUpload
-            label="Unggah file organisasi"
-            accept=".xlsx,.csv"
-            maxFiles={1}
-            onFilesAdded={(files) => setFile(files[0] ?? null)}
-          />
-          {file ? (
-            <p className="admin-meta" style={{ marginTop: '0.5rem' }}>
-              <FileSpreadsheet size={14} aria-hidden="true" /> Terpilih: {file.name} (
-              {(file.size / 1024).toFixed(1)} KB){' '}
-              <Button variant="ghost" size="sm" onClick={() => setFile(null)}>
-                Ganti file
-              </Button>
-            </p>
-          ) : null}
-          {previewMutation.error ? (
-            <Alert tone="danger" title="Gagal preview">
-              {String((previewMutation.error as Error).message)}
-            </Alert>
-          ) : null}
-        </section>
+                <div
+                  className="care-grid"
+                  style={{
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(24rem, 1fr))',
+                    gap: '1rem',
+                  }}
+                >
+                  <section className="admin-card admin-card--lift" aria-label="Upload file">
+                    <h2 className="admin-card__title">
+                      <CloudUpload size={18} aria-hidden="true" /> Upload CSV
+                    </h2>
+                    <p className="admin-card__subtitle">
+                      Unggah file .xlsx (sheet “CARE_ORG DATA_[Bulan]”) atau .csv UTF-8, maksimal 10
+                      MB. Kolom: Noreg, Nama, Posisi (Struktural), Pers Area, Directorat, Division,
+                      Department, Section, Line, Tgl Lahir (dd/mm/yyyy). Urutan kolom bebas.
+                    </p>
+                    <FileUpload
+                      label="Unggah file organisasi"
+                      accept=".xlsx,.csv"
+                      maxFiles={1}
+                      onFilesAdded={(files) => setFile(files[0] ?? null)}
+                    />
+                    {file ? (
+                      <p className="admin-meta" style={{ marginTop: '0.5rem' }}>
+                        <FileSpreadsheet size={14} aria-hidden="true" /> Terpilih: {file.name} (
+                        {(file.size / 1024).toFixed(1)} KB){' '}
+                        <Button variant="ghost" size="sm" onClick={() => setFile(null)}>
+                          Ganti file
+                        </Button>
+                      </p>
+                    ) : null}
+                    {previewMutation.error ? (
+                      <Alert tone="danger" title="Gagal preview">
+                        {String((previewMutation.error as Error).message)}
+                      </Alert>
+                    ) : null}
+                  </section>
 
-        <section className="admin-card admin-card--hero" aria-label="Ringkasan batch">
-          <div className="admin-section__head">
-            <h2 className="admin-card__title" style={{ margin: 0 }}>
-              Ringkasan batch
-            </h2>
-            {data ? (
-              <Badge
-                tone={
-                  data.status === 'CONFIRMED'
-                    ? 'success'
-                    : data.status === 'FAILED'
-                      ? 'danger'
-                      : 'info'
-                }
-              >
-                {data.status === 'PREVIEWED' ? 'SIAP DIVALIDASI' : data.status}
-              </Badge>
-            ) : (
-              <span className="admin-pill" data-tone="neutral">
-                Belum ada batch
-              </span>
-            )}
-          </div>
-          {data ? (
-            <Stack gap="sm">
-              <dl className="admin-dl">
-                <div>
-                  <dt>Nama batch</dt>
-                  <dd className="admin-id">{data.id.slice(0, 8)}</dd>
+                  <section className="admin-card admin-card--hero" aria-label="Ringkasan batch">
+                    <div className="admin-section__head">
+                      <h2 className="admin-card__title" style={{ margin: 0 }}>
+                        Ringkasan batch
+                      </h2>
+                      {data ? (
+                        <Badge
+                          tone={
+                            data.status === 'CONFIRMED'
+                              ? 'success'
+                              : data.status === 'FAILED'
+                                ? 'danger'
+                                : 'info'
+                          }
+                        >
+                          {data.status === 'PREVIEWED' ? 'SIAP DIVALIDASI' : data.status}
+                        </Badge>
+                      ) : (
+                        <span className="admin-pill" data-tone="neutral">
+                          Belum ada batch
+                        </span>
+                      )}
+                    </div>
+                    {data ? (
+                      <Stack gap="sm">
+                        <dl className="admin-dl">
+                          <div>
+                            <dt>Nama batch</dt>
+                            <dd className="admin-id">{data.id.slice(0, 8)}</dd>
+                          </div>
+                          <div>
+                            <dt>Diupload pada</dt>
+                            <dd>{new Date(data.createdAt).toLocaleString('id-ID')}</dd>
+                          </div>
+                          <div>
+                            <dt>Total baris</dt>
+                            <dd>{data.summary.rowCount.toLocaleString('id-ID')}</dd>
+                          </div>
+                          {data.summary.birthDates ? (
+                            <>
+                              <div>
+                                <dt>Tanggal lahir tersedia</dt>
+                                <dd>{data.summary.birthDates.available.toLocaleString('id-ID')}</dd>
+                              </div>
+                              <div>
+                                <dt>Tanggal lahir kosong</dt>
+                                <dd>{data.summary.birthDates.missing.toLocaleString('id-ID')}</dd>
+                              </div>
+                              <div>
+                                <dt>Usia di luar 15–80 tahun</dt>
+                                <dd>
+                                  {data.summary.birthDates.ageAnomalies.toLocaleString('id-ID')}
+                                </dd>
+                              </div>
+                            </>
+                          ) : null}
+                          <div>
+                            <dt>Checksum</dt>
+                            <dd className="admin-id">{data.checksum.slice(0, 12)}…</dd>
+                          </div>
+                        </dl>
+                        <ul className="admin-rows">
+                          <li>
+                            <span className="admin-rowmark" data-tone="success">
+                              <CheckCircle2 size={16} aria-hidden="true" />
+                            </span>
+                            <span className="admin-rowbody">
+                              <strong>Akan dibuat</strong>
+                            </span>
+                            <span className="admin-rowside">
+                              <strong>{counts.create.toLocaleString('id-ID')}</strong>
+                            </span>
+                          </li>
+                          <li>
+                            <span className="admin-rowmark" data-tone="warning">
+                              <TriangleAlert size={16} aria-hidden="true" />
+                            </span>
+                            <span className="admin-rowbody">
+                              <strong>Akan diperbarui</strong>
+                            </span>
+                            <span className="admin-rowside">
+                              <strong>{counts.update.toLocaleString('id-ID')}</strong>
+                            </span>
+                          </li>
+                          <li>
+                            <span className="admin-rowmark" data-tone="danger">
+                              <CircleAlert size={16} aria-hidden="true" />
+                            </span>
+                            <span className="admin-rowbody">
+                              <strong>Akan dinonaktifkan</strong>
+                            </span>
+                            <span className="admin-rowside">
+                              <strong>{counts.deactivate.toLocaleString('id-ID')}</strong>
+                            </span>
+                          </li>
+                          <li>
+                            <span className="admin-rowmark" data-tone="info">
+                              <Info size={16} aria-hidden="true" />
+                            </span>
+                            <span className="admin-rowbody">
+                              <strong>Tidak ada perubahan</strong>
+                            </span>
+                            <span className="admin-rowside">
+                              <strong>{counts.unchanged.toLocaleString('id-ID')}</strong>
+                            </span>
+                          </li>
+                        </ul>
+                        <ImportTierSummary tiers={data.summary.tiers} />
+                        <p className="admin-note">
+                          <Info size={14} aria-hidden="true" />
+                          <span>
+                            Snapshot aktif saat ini diambil{' '}
+                            {snapshot.data?.effectiveAt
+                              ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
+                              : '—'}
+                            . Konfirmasi menonaktifkan akun yang hilang dari snapshot baru.
+                          </span>
+                        </p>
+                      </Stack>
+                    ) : (
+                      <p className="admin-meta">
+                        Pilih file lalu tekan “Validasi data” untuk membuat pratinjau batch.
+                      </p>
+                    )}
+                  </section>
                 </div>
-                <div>
-                  <dt>Diupload pada</dt>
-                  <dd>{new Date(data.createdAt).toLocaleString('id-ID')}</dd>
+
+                {data?.status === 'PREVIEWED' ? (
+                  <ImportAbnormalities items={abnormalities} onSave={saveAbnormality} />
+                ) : null}
+
+                {data?.errors?.length ? (
+                  <Alert
+                    tone={
+                      data.errors.some((e) => e.code === 'DUPLICATE_DEPARTMENT_HEAD')
+                        ? 'danger'
+                        : 'warning'
+                    }
+                    title="Blocking validation"
+                  >
+                    {data.errors
+                      .map((e) => `${String(e.code)}: ${String(e.message ?? '')}`)
+                      .join(' • ')}
+                  </Alert>
+                ) : null}
+
+                {data ? (
+                  <section className="admin-table-card" aria-label="Ringkasan perubahan">
+                    <div className="admin-section__head" style={{ padding: '1rem 1.25rem 0' }}>
+                      <div>
+                        <h2 className="admin-card__title" style={{ margin: 0 }}>
+                          Ringkasan perubahan (pratinjau)
+                        </h2>
+                        <p className="admin-card__subtitle" style={{ margin: 0 }}>
+                          Menampilkan hingga 20 baris pertama dari setiap kategori perubahan.
+                        </p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={downloadSummary}
+                        disabled={!changeItems.length}
+                      >
+                        <Download size={14} /> Unduh ringkasan
+                      </Button>
+                    </div>
+                    <div style={{ padding: '0 1.25rem' }}>
+                      <Tabs
+                        label="Filter perubahan"
+                        defaultValue={changeFilter || 'ALL'}
+                        items={[
+                          { value: 'ALL', label: 'Semua', content: null },
+                          {
+                            value: 'CREATE',
+                            label: `Akan dibuat (${counts.create})`,
+                            content: null,
+                          },
+                          {
+                            value: 'UPDATE',
+                            label: `Akan diperbarui (${counts.update})`,
+                            content: null,
+                          },
+                          {
+                            value: 'DEACTIVATE',
+                            label: `Akan dinonaktifkan (${counts.deactivate})`,
+                            content: null,
+                          },
+                        ]}
+                        onValueChange={(value) => {
+                          setChangeFilter(value === 'ALL' ? '' : value);
+                          setChangeCursor(undefined);
+                          setChangeHistory([]);
+                        }}
+                      />
+                    </div>
+                    {changes.isLoading ? (
+                      <div style={{ padding: '1.25rem' }}>
+                        <AdminSkeleton lines={4} label="Memuat perubahan" />
+                      </div>
+                    ) : (
+                      <>
+                        <DataTable
+                          caption="Pratinjau perubahan impor"
+                          columns={[
+                            {
+                              key: 'noReg',
+                              header: 'No. Reg',
+                              cell: (r: ChangeRow) => <span className="admin-id">{r.noReg}</span>,
+                            },
+                            {
+                              key: 'type',
+                              header: 'Kategori',
+                              cell: (r: ChangeRow) => (
+                                <Badge
+                                  tone={
+                                    r.type === 'CREATE'
+                                      ? 'success'
+                                      : r.type === 'DEACTIVATE'
+                                        ? 'danger'
+                                        : 'warning'
+                                  }
+                                >
+                                  {r.type}
+                                </Badge>
+                              ),
+                            },
+                            {
+                              key: 'detail',
+                              header: 'Perubahan',
+                              cell: (r: ChangeRow) => changeDetail(r),
+                            },
+                          ]}
+                          rows={changeItems as never}
+                          rowKey={(r: ChangeRow) => `${r.noReg}-${r.type}`}
+                          empty={
+                            <AdminEmpty
+                              title="Tidak ada perubahan"
+                              description="Pratinjau batch ini belum memiliki baris pada filter aktif."
+                            />
+                          }
+                        />
+                        <div className="admin-table-foot">
+                          <span>
+                            Total {changes.data?.total ?? 0} perubahan
+                            {changeFilter ? ` · filter ${changeFilter}` : ''}
+                          </span>
+                          <Pagination
+                            page={changeHistory.length + 1}
+                            pageCount={
+                              changeHistory.length + 1 + (changes.data?.nextCursor ? 1 : 0)
+                            }
+                            onPageChange={(page) => {
+                              if (page < changeHistory.length + 1) {
+                                const previous = changeHistory.at(-1) || undefined;
+                                setChangeHistory((items) => items.slice(0, -1));
+                                setChangeCursor(previous);
+                              } else if (changes.data?.nextCursor) {
+                                setChangeHistory((items) => [...items, changeCursor ?? '']);
+                                setChangeCursor(changes.data.nextCursor);
+                              }
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </section>
+                ) : null}
+
+                <div className="admin-stickybar">
+                  <span className="admin-stickybar__hint">
+                    {data
+                      ? `Batch ${data.id.slice(0, 8)} · ${data.status}`
+                      : 'Pilih file untuk memulai pratinjau batch.'}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setFile(null);
+                      const params = new URLSearchParams(searchParams);
+                      params.delete('previewId');
+                      setSearchParams(params);
+                    }}
+                  >
+                    Batal
+                  </Button>
+                  {!data ? (
+                    <Button
+                      onClick={() => file && previewMutation.mutate(file)}
+                      loading={previewMutation.isPending}
+                      disabled={!file}
+                    >
+                      Validasi data →
+                    </Button>
+                  ) : data.status === 'PREVIEWED' ? (
+                    <Button
+                      onClick={() => {
+                        setConfirmKey(crypto.randomUUID());
+                        setConfirmOpen(true);
+                      }}
+                      disabled={Boolean(data.errors?.length) || abnormalities.length > 0}
+                    >
+                      Konfirmasi import
+                    </Button>
+                  ) : data.status === 'QUEUED' || data.status === 'PROCESSING' ? (
+                    <Loader label="Memproses import" />
+                  ) : data.status === 'CONFIRMED' ? (
+                    <Alert tone="success" title="Berhasil">
+                      Import telah dikonfirmasi.
+                    </Alert>
+                  ) : (
+                    <Alert tone="danger" title="Gagal">
+                      Import gagal diproses.
+                    </Alert>
+                  )}
                 </div>
-                <div>
-                  <dt>Total baris</dt>
-                  <dd>{data.summary.rowCount.toLocaleString('id-ID')}</dd>
+              </>
+            ),
+          },
+          {
+            value: 'history',
+            label: 'Riwayat impor',
+            content: (
+              <section className="admin-table-card" aria-label="Riwayat impor">
+                <div className="admin-section__head" style={{ padding: '1rem 1.25rem 0' }}>
+                  <h2 className="admin-card__title" style={{ margin: 0 }}>
+                    Riwayat impor
+                  </h2>
                 </div>
-                {data.summary.birthDates ? (
+                {list.isLoading ? (
+                  <div style={{ padding: '1.25rem' }}>
+                    <AdminSkeleton lines={4} label="Memuat history" />
+                  </div>
+                ) : list.error ? (
+                  <div style={{ padding: '1.25rem' }}>
+                    <Alert tone="danger" title="Gagal">
+                      {String((list.error as Error).message)}
+                    </Alert>
+                  </div>
+                ) : (
                   <>
-                    <div>
-                      <dt>Tanggal lahir tersedia</dt>
-                      <dd>{data.summary.birthDates.available.toLocaleString('id-ID')}</dd>
-                    </div>
-                    <div>
-                      <dt>Tanggal lahir kosong</dt>
-                      <dd>{data.summary.birthDates.missing.toLocaleString('id-ID')}</dd>
-                    </div>
-                    <div>
-                      <dt>Usia di luar 15–80 tahun</dt>
-                      <dd>{data.summary.birthDates.ageAnomalies.toLocaleString('id-ID')}</dd>
+                    <DataTable
+                      caption="Riwayat batch impor"
+                      columns={[
+                        {
+                          key: 'id',
+                          header: 'Batch',
+                          cell: (r: ImportPreview) => (
+                            <span className="admin-id">{r.id.slice(0, 8)}</span>
+                          ),
+                        },
+                        {
+                          key: 'status',
+                          header: 'Status',
+                          cell: (r: ImportPreview) => (
+                            <span style={{ display: 'grid', gap: '0.25rem' }}>
+                              <Badge
+                                tone={
+                                  r.status === 'CONFIRMED'
+                                    ? 'success'
+                                    : r.status === 'FAILED'
+                                      ? 'danger'
+                                      : 'info'
+                                }
+                              >
+                                {r.status}
+                              </Badge>
+                              {(r as ImportPreview & { failureCode?: string | null })
+                                .failureCode ? (
+                                <small>
+                                  {
+                                    (r as ImportPreview & { failureCode?: string | null })
+                                      .failureCode
+                                  }
+                                </small>
+                              ) : null}
+                            </span>
+                          ),
+                        },
+                        {
+                          key: 'rowCount',
+                          header: 'Baris',
+                          cell: (r: ImportPreview) =>
+                            String((r.summary as { rowCount: number }).rowCount),
+                        },
+                        {
+                          key: 'createdAt',
+                          header: 'Dibuat',
+                          cell: (r: ImportPreview) => new Date(r.createdAt).toLocaleString('id-ID'),
+                        },
+                      ]}
+                      rows={(list.data?.items ?? []) as never}
+                      rowKey={(r: ImportPreview) => r.id}
+                      empty={
+                        <AdminEmpty
+                          title="Belum ada import"
+                          description="Unggah file organisasi pertama untuk mengisi riwayat batch."
+                        />
+                      }
+                    />
+                    <div className="admin-table-foot">
+                      <span>Snapshot aktif: {snapshot.data?.id?.slice(0, 8) ?? '—'}</span>
+                      <Pagination
+                        page={pagination.page}
+                        pageCount={pagination.page + (list.data?.nextCursor ? 1 : 0)}
+                        onPageChange={(page) =>
+                          page < pagination.page
+                            ? pagination.previous()
+                            : list.data?.nextCursor
+                              ? pagination.next(list.data.nextCursor)
+                              : undefined
+                        }
+                      />
                     </div>
                   </>
-                ) : null}
-                <div>
-                  <dt>Checksum</dt>
-                  <dd className="admin-id">{data.checksum.slice(0, 12)}…</dd>
-                </div>
-              </dl>
-              <ul className="admin-rows">
-                <li>
-                  <span className="admin-rowmark" data-tone="success">
-                    <CheckCircle2 size={16} aria-hidden="true" />
-                  </span>
-                  <span className="admin-rowbody">
-                    <strong>Akan dibuat</strong>
-                  </span>
-                  <span className="admin-rowside">
-                    <strong>{counts.create.toLocaleString('id-ID')}</strong>
-                  </span>
-                </li>
-                <li>
-                  <span className="admin-rowmark" data-tone="warning">
-                    <TriangleAlert size={16} aria-hidden="true" />
-                  </span>
-                  <span className="admin-rowbody">
-                    <strong>Akan diperbarui</strong>
-                  </span>
-                  <span className="admin-rowside">
-                    <strong>{counts.update.toLocaleString('id-ID')}</strong>
-                  </span>
-                </li>
-                <li>
-                  <span className="admin-rowmark" data-tone="danger">
-                    <CircleAlert size={16} aria-hidden="true" />
-                  </span>
-                  <span className="admin-rowbody">
-                    <strong>Akan dinonaktifkan</strong>
-                  </span>
-                  <span className="admin-rowside">
-                    <strong>{counts.deactivate.toLocaleString('id-ID')}</strong>
-                  </span>
-                </li>
-                <li>
-                  <span className="admin-rowmark" data-tone="info">
-                    <Info size={16} aria-hidden="true" />
-                  </span>
-                  <span className="admin-rowbody">
-                    <strong>Tidak ada perubahan</strong>
-                  </span>
-                  <span className="admin-rowside">
-                    <strong>{counts.unchanged.toLocaleString('id-ID')}</strong>
-                  </span>
-                </li>
-              </ul>
-              <ImportTierSummary tiers={data.summary.tiers} />
-              <p className="admin-note">
-                <Info size={14} aria-hidden="true" />
-                <span>
-                  Snapshot aktif saat ini diambil{' '}
-                  {snapshot.data?.effectiveAt
-                    ? new Date(snapshot.data.effectiveAt).toLocaleString('id-ID')
-                    : '—'}
-                  . Konfirmasi menonaktifkan akun yang hilang dari snapshot baru.
-                </span>
-              </p>
-            </Stack>
-          ) : (
-            <p className="admin-meta">
-              Pilih file lalu tekan “Validasi data” untuk membuat pratinjau batch.
-            </p>
-          )}
-        </section>
-      </div>
-
-      {data?.status === 'PREVIEWED' ? (
-        <ImportAbnormalities items={abnormalities} onSave={saveAbnormality} />
-      ) : null}
-
-      {data?.errors?.length ? (
-        <Alert
-          tone={
-            data.errors.some((e) => e.code === 'DUPLICATE_DEPARTMENT_HEAD') ? 'danger' : 'warning'
-          }
-          title="Blocking validation"
-        >
-          {data.errors.map((e) => `${String(e.code)}: ${String(e.message ?? '')}`).join(' • ')}
-        </Alert>
-      ) : null}
-
-      {data ? (
-        <section className="admin-table-card" aria-label="Ringkasan perubahan">
-          <div className="admin-section__head" style={{ padding: '1rem 1.25rem 0' }}>
-            <div>
-              <h2 className="admin-card__title" style={{ margin: 0 }}>
-                Ringkasan perubahan (pratinjau)
-              </h2>
-              <p className="admin-card__subtitle" style={{ margin: 0 }}>
-                Menampilkan hingga 20 baris pertama dari setiap kategori perubahan.
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={downloadSummary}
-              disabled={!changeItems.length}
-            >
-              <Download size={14} /> Unduh ringkasan
-            </Button>
-          </div>
-          <div style={{ padding: '0 1.25rem' }}>
-            <Tabs
-              label="Filter perubahan"
-              defaultValue={changeFilter || 'ALL'}
-              items={[
-                { value: 'ALL', label: 'Semua', content: null },
-                { value: 'CREATE', label: `Akan dibuat (${counts.create})`, content: null },
-                { value: 'UPDATE', label: `Akan diperbarui (${counts.update})`, content: null },
-                {
-                  value: 'DEACTIVATE',
-                  label: `Akan dinonaktifkan (${counts.deactivate})`,
-                  content: null,
-                },
-              ]}
-              onValueChange={(value) => {
-                setChangeFilter(value === 'ALL' ? '' : value);
-                setChangeCursor(undefined);
-                setChangeHistory([]);
-              }}
-            />
-          </div>
-          {changes.isLoading ? (
-            <div style={{ padding: '1.25rem' }}>
-              <AdminSkeleton lines={4} label="Memuat perubahan" />
-            </div>
-          ) : (
-            <>
-              <DataTable
-                caption="Pratinjau perubahan impor"
-                columns={[
-                  {
-                    key: 'noReg',
-                    header: 'No. Reg',
-                    cell: (r: ChangeRow) => <span className="admin-id">{r.noReg}</span>,
-                  },
-                  {
-                    key: 'type',
-                    header: 'Kategori',
-                    cell: (r: ChangeRow) => (
-                      <Badge
-                        tone={
-                          r.type === 'CREATE'
-                            ? 'success'
-                            : r.type === 'DEACTIVATE'
-                              ? 'danger'
-                              : 'warning'
-                        }
-                      >
-                        {r.type}
-                      </Badge>
-                    ),
-                  },
-                  { key: 'detail', header: 'Perubahan', cell: (r: ChangeRow) => changeDetail(r) },
-                ]}
-                rows={changeItems as never}
-                rowKey={(r: ChangeRow) => `${r.noReg}-${r.type}`}
-                empty={
-                  <AdminEmpty
-                    title="Tidak ada perubahan"
-                    description="Pratinjau batch ini belum memiliki baris pada filter aktif."
-                  />
-                }
-              />
-              <div className="admin-table-foot">
-                <span>
-                  Total {changes.data?.total ?? 0} perubahan
-                  {changeFilter ? ` · filter ${changeFilter}` : ''}
-                </span>
-                <Pagination
-                  page={changeHistory.length + 1}
-                  pageCount={changeHistory.length + 1 + (changes.data?.nextCursor ? 1 : 0)}
-                  onPageChange={(page) => {
-                    if (page < changeHistory.length + 1) {
-                      const previous = changeHistory.at(-1) || undefined;
-                      setChangeHistory((items) => items.slice(0, -1));
-                      setChangeCursor(previous);
-                    } else if (changes.data?.nextCursor) {
-                      setChangeHistory((items) => [...items, changeCursor ?? '']);
-                      setChangeCursor(changes.data.nextCursor);
-                    }
-                  }}
-                />
-              </div>
-            </>
-          )}
-        </section>
-      ) : null}
-
-      <div className="admin-stickybar">
-        <span className="admin-stickybar__hint">
-          {data
-            ? `Batch ${data.id.slice(0, 8)} · ${data.status}`
-            : 'Pilih file untuk memulai pratinjau batch.'}
-        </span>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setFile(null);
-            const params = new URLSearchParams(searchParams);
-            params.delete('previewId');
-            setSearchParams(params);
-          }}
-        >
-          Batal
-        </Button>
-        {!data ? (
-          <Button
-            onClick={() => file && previewMutation.mutate(file)}
-            loading={previewMutation.isPending}
-            disabled={!file}
-          >
-            Validasi data →
-          </Button>
-        ) : data.status === 'PREVIEWED' ? (
-          <Button
-            onClick={() => {
-              setConfirmKey(crypto.randomUUID());
-              setConfirmOpen(true);
-            }}
-            disabled={Boolean(data.errors?.length) || abnormalities.length > 0}
-          >
-            Konfirmasi import
-          </Button>
-        ) : data.status === 'QUEUED' || data.status === 'PROCESSING' ? (
-          <Loader label="Memproses import" />
-        ) : data.status === 'CONFIRMED' ? (
-          <Alert tone="success" title="Berhasil">
-            Import telah dikonfirmasi.
-          </Alert>
-        ) : (
-          <Alert tone="danger" title="Gagal">
-            Import gagal diproses.
-          </Alert>
-        )}
-      </div>
-
-      <section className="admin-table-card" aria-label="Riwayat impor">
-        <div className="admin-section__head" style={{ padding: '1rem 1.25rem 0' }}>
-          <h2 className="admin-card__title" style={{ margin: 0 }}>
-            Riwayat impor
-          </h2>
-        </div>
-        {list.isLoading ? (
-          <div style={{ padding: '1.25rem' }}>
-            <AdminSkeleton lines={4} label="Memuat history" />
-          </div>
-        ) : list.error ? (
-          <div style={{ padding: '1.25rem' }}>
-            <Alert tone="danger" title="Gagal">
-              {String((list.error as Error).message)}
-            </Alert>
-          </div>
-        ) : (
-          <>
-            <DataTable
-              caption="Riwayat batch impor"
-              columns={[
-                {
-                  key: 'id',
-                  header: 'Batch',
-                  cell: (r: ImportPreview) => <span className="admin-id">{r.id.slice(0, 8)}</span>,
-                },
-                {
-                  key: 'status',
-                  header: 'Status',
-                  cell: (r: ImportPreview) => (
-                    <span style={{ display: 'grid', gap: '0.25rem' }}>
-                      <Badge
-                        tone={
-                          r.status === 'CONFIRMED'
-                            ? 'success'
-                            : r.status === 'FAILED'
-                              ? 'danger'
-                              : 'info'
-                        }
-                      >
-                        {r.status}
-                      </Badge>
-                      {(r as ImportPreview & { failureCode?: string | null }).failureCode ? (
-                        <small>
-                          {(r as ImportPreview & { failureCode?: string | null }).failureCode}
-                        </small>
-                      ) : null}
-                    </span>
-                  ),
-                },
-                {
-                  key: 'rowCount',
-                  header: 'Baris',
-                  cell: (r: ImportPreview) => String((r.summary as { rowCount: number }).rowCount),
-                },
-                {
-                  key: 'createdAt',
-                  header: 'Dibuat',
-                  cell: (r: ImportPreview) => new Date(r.createdAt).toLocaleString('id-ID'),
-                },
-              ]}
-              rows={(list.data?.items ?? []) as never}
-              rowKey={(r: ImportPreview) => r.id}
-              empty={
-                <AdminEmpty
-                  title="Belum ada import"
-                  description="Unggah file organisasi pertama untuk mengisi riwayat batch."
-                />
-              }
-            />
-            <div className="admin-table-foot">
-              <span>Snapshot aktif: {snapshot.data?.id?.slice(0, 8) ?? '—'}</span>
-              <Pagination
-                page={pagination.page}
-                pageCount={pagination.page + (list.data?.nextCursor ? 1 : 0)}
-                onPageChange={(page) =>
-                  page < pagination.page
-                    ? pagination.previous()
-                    : list.data?.nextCursor
-                      ? pagination.next(list.data.nextCursor)
-                      : undefined
-                }
-              />
-            </div>
-          </>
-        )}
-      </section>
+                )}
+              </section>
+            ),
+          },
+        ]}
+      />
 
       <Dialog
         open={confirmOpen}

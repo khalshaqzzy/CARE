@@ -203,6 +203,12 @@ export class VoicesController {
   ) {
     return this.voices.markConversationRead(a, id);
   }
+  @Post('voices/:id/seen') markVoiceSeen(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.voices.markVoiceSeen(a, id);
+  }
   @Get('voices/:id/assignment-candidates') assignmentCandidates(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,

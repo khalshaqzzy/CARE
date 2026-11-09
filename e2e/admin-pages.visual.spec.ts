@@ -25,29 +25,29 @@ const voice: MockVoice = {
 const pages: { path: string; heading: string; anchor: string; baseline: string }[] = [
   {
     path: '/',
-    heading: 'Overview Operasional',
-    anchor: 'Ringkasan operasional',
+    heading: 'Overview',
+    anchor: 'Voice bulan ini',
     baseline: 'admin-overview-1440.png',
   },
   {
     path: '/imports',
-    heading: 'Import & Master Data',
+    heading: 'Data Organisasi',
     anchor: 'Ringkasan batch',
     baseline: 'admin-imports-1440.png',
   },
   {
     path: '/remediation',
-    heading: 'Remediation & Route',
+    heading: 'Route & Kategori',
     anchor: 'Antrian remediation',
     baseline: 'admin-remediation-1440.png',
   },
   {
     path: '/union',
-    heading: 'Union Accounts',
+    heading: 'Akun Komite',
     anchor: 'Komite (Head)',
     baseline: 'admin-union-1440.png',
   },
-  { path: '/accounts', heading: 'Accounts', anchor: '000128', baseline: 'admin-accounts-1440.png' },
+  { path: '/accounts', heading: 'Akun', anchor: '000128', baseline: 'admin-accounts-1440.png' },
   {
     path: '/voices',
     heading: 'Voice Explorer',
@@ -62,7 +62,7 @@ const pages: { path: string; heading: string; anchor: string; baseline: string }
   },
   {
     path: '/system',
-    heading: 'System Status',
+    heading: 'Status Sistem',
     anchor: 'Konfigurasi AI',
     baseline: 'admin-system-1440.png',
   },
@@ -81,7 +81,7 @@ for (const p of pages) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.clock.setFixedTime(new Date('2026-08-01T10:00:00Z'));
     await page.goto(`http://127.0.0.1:4174${p.path === '/' ? '' : p.path}`);
-    await expect(page.getByRole('heading', { name: p.heading })).toBeVisible();
+    await expect(page.getByRole('heading', { name: p.heading, exact: true })).toBeVisible();
     await expect(page.getByText(p.anchor).first()).toBeVisible();
     await capture(page, p.baseline, {
       animations: 'disabled',

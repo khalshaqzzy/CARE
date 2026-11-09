@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { careQueryKey, useAuth } from '@care/frontend-core';
 import { Alert, DataTable, Input, Pagination, Select, Stack } from '@care/ui';
 import { Funnel, Lock } from 'lucide-react';
+import { VoiceSummary, wibRange } from './VoiceSummary';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AdminFilterBar } from '../../components/AdminFilterBar';
@@ -61,6 +62,27 @@ export function VoiceExplorerPage() {
   const divisionAdmin = !!session?.capabilities.includes('DIVISION_ADMIN');
   const overview = useDivisionOverview();
   const pagination = cursorPagination(searchParams, setSearchParams);
+  // Migrated Voices have their own page; the explorer shows Voices sent in CARE.
+  const origin = divisionAdmin ? undefined : ('CARE' as const);
+  const range = wibRange(dateFrom, dateTo);
+  const categories = useQuery({
+    queryKey: careQueryKey(session?.sessionId ?? 'anon', 'voices', 'category-options'),
+    queryFn: () => api.generalVoiceCategories('ALL'),
+    enabled: !!session && !divisionAdmin,
+    staleTime: 5 * 60_000,
+  });
+  const reportQuery = {
+    search: search || undefined,
+    status: status || undefined,
+    visibility: visibility || undefined,
+    severity: severity || undefined,
+    area: area || undefined,
+    category: category || undefined,
+    handler: handler || undefined,
+    from: range.from,
+    to: range.to,
+    origin,
+  };
 
   const q = useQuery({
     queryKey: careQueryKey(
@@ -91,8 +113,9 @@ export function VoiceExplorerPage() {
         area: area || undefined,
         category: category || undefined,
         handler: handler || undefined,
-        from: dateFrom || undefined,
-        to: dateTo || undefined,
+        from: range.from,
+        to: range.to,
+        origin,
         cursor: pagination.cursor,
         sort: 'updatedAt',
       }),
@@ -111,8 +134,8 @@ export function VoiceExplorerPage() {
     statusGroup: statusGroup || undefined,
     severity: severity || undefined,
     due: due || undefined,
-    from: dateFrom || undefined,
-    to: dateTo || undefined,
+    from: range.from,
+    to: range.to,
   };
   const currentTile = (
     ['open', 'responded', 'inProgress', 'closed', 'overdue', 'soon'] as DivisionTile[]
@@ -146,25 +169,19 @@ export function VoiceExplorerPage() {
           badge={<ExportButton query={exportQuery} />}
         />
       ) : (
-        <>
-          <AdminPageHeader
-            eyebrow="Voice Explorer"
-            title="Voice Explorer"
-            description="Jelajahi seluruh rekaman Voice dari General dan Private. Akses Private diaudit dan setiap akses tercatat."
-            badge={
-              <span
-                className="admin-meta--xs"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
-              >
-                Read-only • Akses Private diaudit <Lock size={12} aria-hidden="true" />
+        <AdminPageHeader
+          eyebrow="Voice"
+          title="Semua Voice"
+          description="Voice General dan Private yang dikirim di CARE. Hanya baca."
+          badge={
+            <span className="admin-export-row">
+              <span className="admin-meta--xs admin-inline-icon">
+                <Lock size={12} aria-hidden="true" /> Akses Private diaudit
               </span>
-            }
-          />
-          <Alert tone="warning" title="Akses Private diaudit">
-            Setiap akses detail Private dicatat sebagai audit event teredaksi. Mutasi Voice oleh
-            Admin ditolak.
-          </Alert>
-        </>
+              <ExportButton download={() => api.voiceExport(reportQuery)} />
+            </span>
+          }
+        />
       )}
       {divisionAdmin && overview.data ? (
         <section className="admin-card">
@@ -258,25 +275,20 @@ export function VoiceExplorerPage() {
                 ),
               ]}
             />
-            <Select
-              label="Kategori"
-              value={category || 'ALL'}
-              onValueChange={(v) => updateFilter('category', v === 'ALL' ? '' : v)}
-              options={[
-                { value: 'ALL', label: 'Semua' },
-                ...[
-                  'SAFETY',
-                  'ENVIRONMENT',
-                  'FACILITY',
-                  'FACILITY_REPAIR',
-                  'WORK_DIFFICULTY',
-                  'WELFARE',
-                ].map((value) => ({
-                  value,
-                  label: value,
-                })),
-              ]}
-            />
+            {divisionAdmin ? null : (
+              <Select
+                label="Kategori"
+                value={category || 'ALL'}
+                onValueChange={(v) => updateFilter('category', v === 'ALL' ? '' : v)}
+                options={[
+                  { value: 'ALL', label: 'Semua' },
+                  ...(categories.data ?? []).map((item) => ({
+                    value: item.key,
+                    label: item.status === 'ARCHIVED' ? `${item.name} (arsip)` : item.name,
+                  })),
+                ]}
+              />
+            )}
             <Input
               label="Handler"
               value={handler}
@@ -284,13 +296,18 @@ export function VoiceExplorerPage() {
               placeholder="Semua"
             />
             <Input
-              label="Rentang tanggal"
+              label="Dikirim dari"
               type="date"
               value={dateFrom}
-              onChange={(e) => {
-                updateFilter('dateFrom', e.target.value);
-                if (e.target.value && !dateTo) updateFilter('dateTo', e.target.value);
-              }}
+              max={dateTo || undefined}
+              onChange={(e) => updateFilter('dateFrom', e.target.value)}
+            />
+            <Input
+              label="Sampai"
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => updateFilter('dateTo', e.target.value)}
             />
           </>
         }
@@ -311,6 +328,18 @@ export function VoiceExplorerPage() {
           : {})}
         {...(activeFilters > 0 ? { onReset: () => setSearchParams({}) } : {})}
       />
+
+      {divisionAdmin ? null : (
+        <VoiceSummary
+          query={reportQuery}
+          period={dateLabel}
+          status={status}
+          category={category}
+          severity={severity}
+          area={area}
+          onFilter={(name, value) => updateFilter(name, value)}
+        />
+      )}
 
       {q.isLoading ? (
         <section className="admin-table-card" aria-label="Memuat voices">

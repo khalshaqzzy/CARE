@@ -14,7 +14,7 @@ import {
   Stack,
   Textarea,
 } from '@care/ui';
-import { CheckCircle2, ChevronRight, CircleAlert, KeyRound, Lock } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleAlert, Download, KeyRound, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminFilterBar } from '../../components/AdminFilterBar';
@@ -24,7 +24,7 @@ import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi, type Account } from '../../admin-api';
 import { cursorPagination } from '../../use-cursor-pagination';
 import { LoginSummary } from './LoginSummary';
-import { ResponderLoginSummary } from './ResponderLoginSummary';
+import { AccountsSummary } from './AccountsSummary';
 
 function orgContext(account: Account): string {
   const membership = account.employee?.memberships?.[0];
@@ -278,12 +278,10 @@ export function AccountsPage() {
   return (
     <Stack gap="lg">
       <AdminPageHeader
-        eyebrow={divisionAdmin ? 'Admin Divisi' : 'Akun'}
-        title={divisionAdmin ? 'Akun divisi' : 'Accounts'}
+        eyebrow={divisionAdmin ? 'Admin Divisi' : 'Akun & Akses'}
+        title={divisionAdmin ? 'Akun divisi' : 'Akun'}
         description={
-          divisionAdmin
-            ? (summaryQuery.data?.division ?? '')
-            : 'Akun workforce, Union, dan Admin Divisi.'
+          divisionAdmin ? (summaryQuery.data?.division ?? '') : 'Akun workforce, Komite, dan Admin.'
         }
         {...(divisionAdmin
           ? {
@@ -293,24 +291,19 @@ export function AccountsPage() {
                 </span>
               ),
             }
-          : {})}
+          : {
+              badge: (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={exporting}
+                  onClick={() => void exportNotLoggedIn()}
+                >
+                  <Download size={14} aria-hidden="true" /> Ekspor belum login
+                </Button>
+              ),
+            })}
       />
-
-      {divisionAdmin ? null : (
-        <ResponderLoginSummary
-          division={division}
-          department={department}
-          section={section}
-          onShowMissing={(level) =>
-            updateParams({
-              responderLevel: level,
-              loggedIn: 'false',
-              kind: 'WORKFORCE',
-              status: 'ACTIVE',
-            })
-          }
-        />
-      )}
 
       <AdminFilterBar
         controls={
@@ -329,7 +322,7 @@ export function AccountsPage() {
                 options={[
                   { value: 'ALL', label: 'Semua' },
                   { value: 'WORKFORCE', label: 'Workforce' },
-                  { value: 'UNION', label: 'Union' },
+                  { value: 'UNION', label: 'Komite' },
                   { value: 'CARE_ADMIN', label: 'Admin' },
                   { value: 'DIVISION_ADMIN', label: 'Admin Divisi' },
                 ]}
@@ -416,7 +409,25 @@ export function AccountsPage() {
         {...(filtersActive ? { onReset: () => setSearchParams({}) } : {})}
       />
 
-      {summaryQuery.data ? (
+      {divisionAdmin ? null : (
+        <AccountsSummary
+          filters={{
+            search: search || undefined,
+            kind: kind || undefined,
+            status: status || undefined,
+            responderLevel: responderLevel || undefined,
+            division: division || undefined,
+            department: department || undefined,
+            section: section || undefined,
+            loggedIn: (loggedIn || undefined) as 'true' | 'false' | undefined,
+          }}
+          onFilter={updateParams}
+          onPickLogin={pickLogin}
+          onPickGroup={pickGroup}
+        />
+      )}
+
+      {divisionAdmin && summaryQuery.data ? (
         <LoginSummary
           summary={summaryQuery.data}
           exporting={exporting}

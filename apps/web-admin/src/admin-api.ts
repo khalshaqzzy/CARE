@@ -13,6 +13,14 @@ export type Account = components['schemas']['AccountSummary'];
 export type AccountList = components['schemas']['AccountSummaryList'];
 export type AccountLoginSummary = components['schemas']['AccountLoginSummary'];
 export type ResponderLoginSummary = components['schemas']['ResponderLoginSummary'];
+export type AccountOverviewSummary = components['schemas']['AccountOverviewSummary'];
+export type AdminVoiceSummary = components['schemas']['AdminVoiceSummary'];
+export type AdminVoiceReportQuery = NonNullable<
+  operations['AdminVoicesController_summary']['parameters']['query']
+>;
+type AccountSummaryQuery = NonNullable<
+  operations['AdminController_accountSummary']['parameters']['query']
+>;
 export type OrganizationAbnormality = components['schemas']['OrganizationAbnormality'];
 export type AdminOverview = components['schemas']['AdminOverview'];
 export type ImportPreview = components['schemas']['OrganizationImportPreview'];
@@ -49,6 +57,8 @@ export type ShopLocationUnmatched = components['schemas']['ShopLocationUnmatched
 export type AreaKey = ShopLocationAdmin['areas'][number];
 export type AdminGuide = components['schemas']['AdminGuide'];
 export type AdminGuideList = components['schemas']['AdminGuideList'];
+export type AdminQuickReply = components['schemas']['AdminQuickReply'];
+export type AdminQuickReplyList = components['schemas']['AdminQuickReplyList'];
 export type AdminHandoverQueue = components['schemas']['AdminHandoverQueue'];
 export type AdminHandoverDetail = components['schemas']['AdminHandoverDetail'];
 export type AdminHandoverOptions = components['schemas']['AdminHandoverOptions'];
@@ -229,6 +239,25 @@ export function createAdminApi(transport: CareTransport) {
           params: { query: compactQuery(query) },
         }),
       ),
+    accountSummary: (query: QueryInput<AccountSummaryQuery>) =>
+      dataOrThrow<AccountOverviewSummary>(
+        client.GET('/api/v1/admin/accounts/summary', {
+          params: { query: compactQuery(query) },
+        }),
+      ),
+    voiceSummary: (query: QueryInput<AdminVoiceReportQuery>) =>
+      dataOrThrow<AdminVoiceSummary>(
+        client.GET('/api/v1/admin/voices/summary', { params: { query: compactQuery(query) } }),
+      ),
+    voiceExport: async (query: QueryInput<AdminVoiceReportQuery>) => {
+      const { data, error, response } = await client.GET('/api/v1/admin/voices/export', {
+        params: { query: compactQuery(query) },
+        parseAs: 'blob',
+      });
+      if (!data) throw normalizeApiError(error, response.status);
+      const name = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '');
+      return { blob: data as Blob, filename: name?.[1] ?? 'voice.xlsx' };
+    },
     responderSummary: (query: {
       division?: string | undefined;
       department?: string | undefined;
@@ -488,6 +517,34 @@ export function createAdminApi(transport: CareTransport) {
     deleteGuide: (id: string) =>
       dataOrThrow(
         client.DELETE('/api/v1/admin/guides/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+        }),
+      ),
+    quickReplies: () => dataOrThrow<AdminQuickReplyList>(client.GET('/api/v1/admin/quick-replies')),
+    createQuickReply: (body: components['schemas']['QuickReplyCreateRequest']) =>
+      dataOrThrow<AdminQuickReplyList>(
+        client.POST('/api/v1/admin/quick-replies', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    updateQuickReply: (id: string, body: components['schemas']['QuickReplyUpdateRequest']) =>
+      dataOrThrow<AdminQuickReplyList>(
+        client.PATCH('/api/v1/admin/quick-replies/{id}', {
+          params: { path: { id }, header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    reorderQuickReplies: (body: components['schemas']['QuickReplyOrderRequest']) =>
+      dataOrThrow<AdminQuickReplyList>(
+        client.PUT('/api/v1/admin/quick-replies/order', {
+          params: { header: { 'X-CSRF-Token': '' } },
+          body,
+        }),
+      ),
+    deleteQuickReply: (id: string) =>
+      dataOrThrow(
+        client.DELETE('/api/v1/admin/quick-replies/{id}', {
           params: { path: { id }, header: { 'X-CSRF-Token': '' } },
         }),
       ),

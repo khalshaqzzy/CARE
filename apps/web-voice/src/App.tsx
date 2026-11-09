@@ -56,8 +56,6 @@ import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AppBadgeSync } from './features/notifications/NotificationBell';
 import { PushAutoEnable } from './features/notifications/use-web-push';
 import { ConversationPage } from './features/voice/ConversationPage';
-import { HandoverHistoryPage } from './features/voice/HandoverHistoryPage';
-import { HandoverPage } from './features/voice/HandoverPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
 import { desktopQuery, useMediaQuery } from './lib/use-media-query';
@@ -118,8 +116,22 @@ export function App() {
           <Route path="general" element={<GeneralRoute />} />
           <Route path="voices/:id" element={<VoiceDetailPage />} />
           <Route path="voices/:id/chat" element={<ConversationPage />} />
-          <Route path="voices/:id/handover" element={<HandoverPage />} />
-          <Route path="voices/:id/handover-history" element={<HandoverHistoryPage />} />
+          <Route
+            path="voices/:id/handover"
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <HandoverPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="voices/:id/handover-history"
+            element={
+              <Suspense fallback={<RouteLoader />}>
+                <HandoverHistoryPage />
+              </Suspense>
+            }
+          />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/away" element={<AwayPage />} />
@@ -544,6 +556,15 @@ const GuideViewerPage = lazy(() =>
 );
 const InstallPage = lazy(() =>
   import('./features/install/InstallPage').then((module) => ({ default: module.InstallPage })),
+);
+// Handover screens are a responder-only, occasional step.
+const HandoverPage = lazy(() =>
+  import('./features/voice/HandoverPage').then((module) => ({ default: module.HandoverPage })),
+);
+const HandoverHistoryPage = lazy(() =>
+  import('./features/voice/HandoverHistoryPage').then((module) => ({
+    default: module.HandoverHistoryPage,
+  })),
 );
 
 /** Dock/route map so every mobile bottom-nav tap resolves to a real route. */

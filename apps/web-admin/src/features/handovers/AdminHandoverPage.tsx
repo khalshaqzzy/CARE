@@ -152,7 +152,7 @@ export function AdminHandoverDecisionPage() {
           ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: careQueryKey(session?.sessionId ?? 'anon') });
-      void navigate('/handovers', { replace: true });
+      void navigate('/voices?tab=handovers', { replace: true });
     },
     onError: async (error) => {
       setFeedback(error instanceof Error ? error.message : 'Keputusan gagal disimpan.');
@@ -175,12 +175,14 @@ export function AdminHandoverDecisionPage() {
       <EmptyState
         title="Handover sudah diputuskan"
         description="Kembali ke antrean untuk memilih Voice lain."
-        action={<Button onClick={() => void navigate('/handovers')}>Kembali ke antrean</Button>}
+        action={
+          <Button onClick={() => void navigate('/voices?tab=handovers')}>Kembali ke antrean</Button>
+        }
       />
     );
   return (
     <Stack gap="lg">
-      <Button variant="ghost" size="sm" onClick={() => void navigate('/handovers')}>
+      <Button variant="ghost" size="sm" onClick={() => void navigate('/voices?tab=handovers')}>
         <ArrowLeft size={16} /> Kembali ke antrean
       </Button>
       <AdminPageHeader

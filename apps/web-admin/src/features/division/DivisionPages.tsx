@@ -30,8 +30,11 @@ export function useDivisionOverview() {
 /** "Unduh Excel": every General Voice of the division matching the filter, with chat. */
 export function ExportButton({
   query,
+  download: fetchFile,
 }: {
-  query: { [K in keyof DivisionExportQuery]?: string | undefined };
+  query?: { [K in keyof DivisionExportQuery]?: string | undefined };
+  /** Another export than the division one, such as the CARE Admin Voice export. */
+  download?: () => Promise<{ blob: Blob; filename: string }>;
 }) {
   const { transport } = useAuth();
   const api = useMemo(() => createAdminApi(transport), [transport]);
@@ -41,7 +44,7 @@ export function ExportButton({
     setPending(true);
     setError('');
     try {
-      const file = await api.divisionExport(query as never);
+      const file = fetchFile ? await fetchFile() : await api.divisionExport((query ?? {}) as never);
       const url = URL.createObjectURL(file.blob);
       const anchor = document.createElement('a');
       anchor.href = url;

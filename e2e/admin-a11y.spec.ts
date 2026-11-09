@@ -20,14 +20,14 @@ const voice: MockVoice = {
 // Every authenticated Admin page, with a stable "content rendered" anchor. The
 // Account page needs no /api fetch (uses the session directly).
 const pages: { path: string; heading: RegExp | string }[] = [
-  { path: '/', heading: 'Overview operasional' },
-  { path: '/imports', heading: 'Import & Master Data' },
-  { path: '/remediation', heading: 'Remediation & Route' },
-  { path: '/union', heading: 'Union Accounts' },
-  { path: '/accounts', heading: 'Accounts' },
+  { path: '/', heading: 'Overview' },
+  { path: '/imports', heading: 'Data Organisasi' },
+  { path: '/remediation', heading: 'Route & Kategori' },
+  { path: '/union', heading: 'Akun Komite' },
+  { path: '/accounts', heading: 'Akun' },
   { path: '/voices', heading: 'Voice Explorer' },
   { path: '/audit', heading: 'Audit' },
-  { path: '/system', heading: 'System Status' },
+  { path: '/system', heading: 'Status Sistem' },
   { path: '/account', heading: 'Akun Saya' },
 ];
 
@@ -40,7 +40,7 @@ test.describe('Admin accessibility contract', () => {
         await mockAdminApi(p, { voices: { items: [voice], nextCursor: null } });
         await p.setViewportSize({ width, height: 900 });
         await p.goto(`${ADMIN}${page.path}`);
-        await expect(p.getByRole('heading', { name: page.heading })).toBeVisible();
+        await expect(p.getByRole('heading', { name: page.heading, exact: true })).toBeVisible();
 
         const results = await new AxeBuilder({ page: p })
           .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -78,7 +78,7 @@ test.describe('Admin accessibility contract', () => {
     await mockAdminApi(page);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`${ADMIN}/accounts`);
-    await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Akun', exact: true })).toBeVisible();
 
     const detail = page.getByRole('button', { name: 'Detail' }).first();
     await detail.click();
@@ -99,7 +99,7 @@ test.describe('Admin accessibility contract', () => {
     await mockAdminApi(page);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`${ADMIN}/accounts`);
-    await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Akun', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Detail' }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();

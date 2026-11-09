@@ -4,6 +4,10 @@
 
 Phase 13 remains the only `in_progress` phase. On `fix/private-low-confidence` (from `origin/staging` 7221db7, not released): a Private verdict below the confidence threshold now locks General too, the prompt names mocking and insults as bullying (`care-classification-v1.10`), and the draft preview page has the same lock. See the ADR-0078 amendment; checks are in sessionHandoff.md.
 
+## CARE Admin menu sections and report dashboards — 8 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/admin-dashboards` (from `origin/staging` 5061bd2, not released): the Admin menu is grouped into five sections (Handover Admin and Koreksi Kategori are tabs of Voice Explorer; Kalender & Eskalasi, Jawaban Cepat and Panduan are tabs of a new Pengaturan Sistem page), Voice Explorer and Akun gain collapsible summaries that follow their filters, migrated Voices move to Voice Migrasi, Admin can export filtered Voices to Excel, the Overview becomes a reporting home, and multi-job configuration pages use tabs. See ADR-0082 and PRD §46; checks are in sessionHandoff.md.
+
 ## Location-based categories and mandatory Private Voice — 5 November 2026
 
 Same branch, same PR: CARE Admin reviews handed-over Voices on **Koreksi Kategori** and turns them into category Examples (ADR-0080).
@@ -1551,3 +1555,34 @@ cleared and Diproses restarts as Direspon. New table `AdminPicHandover`, endpoin
 `GET /admin/voices/:id/pic-candidates` and `POST /admin/voices/:id/pic-handover`.
 ADR-0079 records the decision and PRD §44 is added. Phase 13 remains the only
 `in_progress` phase; no hosted delivery is claimed. Checks are in sessionHandoff.md.
+
+## Voice read state, chat read receipts and Jawaban Cepat — 7 November 2026
+
+Implemented on `feat/voice-read-quick-answers` (from `origin/staging` 7221db7).
+Opening a Voice's detail or chat from any page reads its notifications
+(`POST /voices/:id/seen`); chat notifications are read only when the chat is opened
+(`conversation/read`). Own chat messages show WhatsApp-style ticks with an "Info pesan"
+sheet listing who read them and when (new table `MessageRead`, `receipt` on
+`GET /voices/:id/messages`). CARE Admin manages Jawaban Cepat per place on a new Admin
+page (table `QuickReply`, `/quick-replies` and `/admin/quick-replies` endpoints); the
+Respons sheet, Naikkan dialog, Handover page and Lapor Sudah Selesai / Tutup Voice
+dialogs show them as chips. Handover routes are now lazy-loaded to stay inside the
+workforce bundle budget. ADR-0081 records the decision; PRD §16, §19.1, §11.5 and the
+new §45 are updated. Phase 13 remains the only `in_progress` phase; no hosted delivery
+is claimed. Checks are in sessionHandoff.md.
+
+## CARE Admin menu sections and report dashboards — 8 November 2026
+
+Implemented on `feat/admin-dashboards` (from `origin/staging` 5061bd2). The Admin menu
+is grouped into Ringkasan, Voice, Akun & Akses, Konfigurasi and Sistem (shared
+`Sidebar` gains `group`/`badge`), Union is shown as Komite, and pages holding separate
+jobs use URL tabs (Route & Kategori, Kalender & Eskalasi, Data Organisasi, Status
+Sistem). Voice Explorer gains a collapsible Ringkasan Voice that follows its filters
+(`GET /admin/voices/summary`, dashboard-equivalent response/completion averages), an
+Excel export (`GET /admin/voices/export`, Private reporters redacted, audited) and real
+category and date-range filters; migrated Voices move to a new Voice Migrasi page
+(`origin=CARE|MIGRATED` on `GET /voices`). Akun gains a collapsible Ringkasan Akun
+(`GET /admin/accounts/summary`: status, kind, role and logins). The Overview becomes a
+reporting home. ADR-0082 records the decision; PRD §11.5 and the new §46 are updated.
+Phase 13 remains the only `in_progress` phase; no hosted delivery is claimed. Checks are
+in sessionHandoff.md.

@@ -108,3 +108,23 @@ against the `dl-4` repository URL used by the Dockerfiles. A local Trivy 0.70.0
 scan of that patched base with the CI flags (vulnerabilities, High/Critical,
 unfixed included) reports 0 findings. The hosted container and Trivy gates
 remain the release checks.
+
+## 7 November 2026: musl regcomp overflow
+
+The pull-request run for `88a627b` (PR #129) failed the web-voice image scan:
+Trivy reported CVE-2026-107891 (High, integer overflow in `regcomp`) in `musl`
+and `musl-utils` 1.2.6-r2, fixed in 1.2.6-r3. The Postgres runtime base ships
+the same revision. Both web images and the Postgres runtime now pin
+`musl=1.2.6-r3` and `musl-utils=1.2.6-r3` alongside the existing pins. A local
+Trivy 0.70.0 scan (vulnerabilities, High/Critical, unfixed included, with the
+repository `.trivyignore`) of the pinned nginx base and the pinned Postgres
+runtime base reports 0 findings. The hosted container and Trivy gates remain
+the release checks.
+
+The following run (`dd6e3e3`) passed both web images and Postgres and failed the
+Caddy scan: CVE-2026-78661 (High, denial of service in `golang.org/x/net/html`)
+in `golang.org/x/net` v0.60.0, fixed in 0.62.0. The Caddy build now pins
+`golang.org/x/net@v0.62.0`, which requires `golang.org/x/crypto@v0.58.0` and
+`golang.org/x/text@v0.43.0`, so those pins move too. The rebuilt image reports
+Caddy v2.11.4, validates the production Caddyfile, and a local Trivy 0.70.0 scan
+with the repository `.trivyignore` reports 0 High/Critical.
