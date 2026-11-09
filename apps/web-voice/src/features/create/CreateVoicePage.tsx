@@ -54,6 +54,7 @@ import {
   ReviewMetaBar,
   ReviewSummary,
 } from './ReviewParts';
+import { GeneralSuggestionDialog } from './GeneralSuggestionDialog';
 import { TmPositionCard } from './TmPositionCard';
 import { useDraftWizard, type Category, type Severity, type Visibility } from './useDraftWizard';
 
@@ -812,6 +813,14 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
     'privateSuggested' in classification &&
     classification.privateSuggested,
   );
+  // A Private Voice about a general workplace issue: offer General, never force it.
+  const generalSuggested = Boolean(
+    isPrivate &&
+    classification &&
+    'generalSuggested' in classification &&
+    classification.generalSuggested,
+  );
+  const [keepPrivate, setKeepPrivate] = useState(false);
 
   const preview = useQuery({
     queryKey: voiceQuery(sessionId, 'draft', draft?.id ?? 'none', 'review-preview'),
@@ -920,6 +929,11 @@ function ReviewStep({ wizard }: { wizard: Wizard }) {
           }
         />
       </Stack>
+      <GeneralSuggestionDialog
+        open={generalSuggested && !keepPrivate}
+        onKeepPrivate={() => setKeepPrivate(true)}
+        onMoveToGeneral={wizard.switchToGeneral}
+      />
     </div>
   );
 }

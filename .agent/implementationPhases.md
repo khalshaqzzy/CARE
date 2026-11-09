@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Private Voice also on low confidence — 5 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `fix/private-low-confidence` (from `origin/staging` 7221db7, not released): a Private verdict below the confidence threshold now locks General too, the prompt names mocking and insults as bullying (`care-classification-v1.10`), and the draft preview page has the same lock. The same branch also offers General Voice (never forced) for Private Voices about clearly general issues. See the ADR-0078 amendments; checks are in sessionHandoff.md.
+
 ## CARE Admin menu sections and report dashboards — 8 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/admin-dashboards` (from `origin/staging` 5061bd2, not released): the Admin menu is grouped into five sections (Handover Admin and Koreksi Kategori are tabs of Voice Explorer; Kalender & Eskalasi, Jawaban Cepat and Panduan are tabs of a new Pengaturan Sistem page), Voice Explorer and Akun gain collapsible summaries that follow their filters, migrated Voices move to Voice Migrasi, Admin can export filtered Voices to Excel, the Overview becomes a reporting home, and multi-job configuration pages use tabs. See ADR-0082 and PRD §46; checks are in sessionHandoff.md.

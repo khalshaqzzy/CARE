@@ -339,6 +339,52 @@ describe('Organization, remediation, and routing journey', () => {
       ),
     ).rejects.toMatchObject({ code: 'PRIVATE_VOICE_REQUIRED' });
 
+    // A Private verdict below the confidence threshold is kept: the reporter
+    // does not reach manual fallback and cannot send the Voice as General.
+    const lowConfidenceAi = {
+      classify: async () => ({
+        source: 'MANUAL_FALLBACK' as const,
+        fallbackCode: 'LOW_CONFIDENCE',
+        candidate: {
+          category: 'WORK_DIFFICULTY',
+          severity: Severity.MEDIUM,
+          confidence: 0.4,
+          privateSuggested: true,
+        },
+        model: 'test-model',
+        promptVersion: 'test-prompt',
+        responseId: 'resp-low',
+        latencyMs: 3,
+        errorDetail: null,
+      }),
+    };
+    const lowConfidenceVoices = new VoicesService(
+      prisma as never,
+      lowConfidenceAi as never,
+      {} as never,
+      policy,
+    );
+    const mockingDraft = await voices.createDraft(member, {
+      visibility: 'GENERAL',
+      area: 'KARAWANG_1',
+      locationDetail: 'Line A station 4',
+      title: 'Member tidak ramah',
+      detail: 'Ada member yang tidak ramah dan sering mengolok-olok saya',
+    });
+    const lowConfidence = await lowConfidenceVoices.classify(member, mockingDraft.id);
+    expect(lowConfidence).toMatchObject({ source: 'AI', privateSuggested: true });
+    await expect(
+      voices.submit(
+        member,
+        mockingDraft.id,
+        {
+          version: (await prisma.voiceDraft.findUniqueOrThrow({ where: { id: mockingDraft.id } }))
+            .version,
+        },
+        'organization-routing-private-low-confidence',
+      ),
+    ).rejects.toMatchObject({ code: 'PRIVATE_VOICE_REQUIRED' });
+
     let privateDraft = await voices.createDraft(member, {
       visibility: 'PRIVATE',
       showReporterIdentity: false,

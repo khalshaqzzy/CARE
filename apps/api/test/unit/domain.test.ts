@@ -40,7 +40,15 @@ describe('CARE domain contracts', () => {
     expect(() => decodeCursor(`${cursor}x`)).toThrowError(/Cursor is invalid/);
   });
   it('encodes all category and severity routing rules in the versioned Indonesian prompt', () => {
-    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.9');
+    expect(CLASSIFICATION_PROMPT_VERSION).toBe('care-classification-v1.10');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('mengolok-olok');
+    // Private → General is only offered, for clearly general issues.
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('isi generalSuggested true hanya jika');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain('pelapor tetap memutuskan');
+    expect(classificationSchema(['A'], true).required).toContain('generalSuggested');
+    expect(CLASSIFICATION_SYSTEM_PROMPT).toContain(
+      'jangan menurunkan confidence hanya karena tidak ada category General yang cocok',
+    );
     for (const value of [
       'SAFETY',
       'FACILITY',
@@ -129,6 +137,7 @@ describe('CARE domain contracts', () => {
       'severity',
       'confidence',
       'privateSuggested',
+      'generalSuggested',
     ]);
     expect(generalSchema.properties).not.toHaveProperty('rationaleCode');
     expect(CLASSIFICATION_SYSTEM_PROMPT).not.toContain('rationaleCode');

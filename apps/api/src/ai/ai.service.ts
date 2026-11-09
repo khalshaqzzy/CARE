@@ -69,6 +69,7 @@ const classificationOutput = z
     severity: z.nativeEnum(Severity),
     confidence: z.number().min(0).max(1),
     privateSuggested: z.boolean().optional(),
+    generalSuggested: z.boolean().optional(),
   })
   .strict();
 const locationOutput = z
@@ -178,6 +179,10 @@ export class AiService {
         source: 'MANUAL_FALLBACK' as const,
         fallbackCode: 'LOW_CONFIDENCE',
         candidate: parsed.data,
+        // Kept so a low-confidence Private verdict can still be recorded.
+        model: response.model,
+        promptVersion: CLASSIFICATION_PROMPT_VERSION,
+        responseId: response.responseId,
         latencyMs: response.latencyMs,
         errorDetail: null,
       };

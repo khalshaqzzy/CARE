@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@care/frontend-core';
 import type {
   ClassificationPreview,
@@ -346,6 +346,31 @@ export function useDraftWizard(draftId?: string) {
     setStep('form');
   }, [setField]);
 
+  // A Private draft the reporter chose to send as General after the AI
+  // suggestion: content is kept and re-analysed; Private choices are cleared.
+  const switchToGeneral = useCallback(() => {
+    setError(null);
+    setField({ visibility: 'GENERAL' });
+    setStep('form');
+    window.scrollTo({ top: 0 });
+  }, [setField]);
+
+  // The draft preview page sends a draft here to change visibility once the
+  // saved draft has loaded.
+  const location = useLocation();
+  const moveTo = (location.state as { toPrivate?: boolean; toGeneral?: boolean } | null) ?? {};
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    if (moved || !loaded.data) return;
+    if (moveTo.toPrivate && loaded.data.visibility === 'GENERAL') {
+      setMoved(true);
+      switchToPrivate();
+    } else if (moveTo.toGeneral && loaded.data.visibility === 'PRIVATE') {
+      setMoved(true);
+      switchToGeneral();
+    }
+  }, [moveTo.toPrivate, moveTo.toGeneral, moved, loaded.data, switchToPrivate, switchToGeneral]);
+
   const submit = useCallback(async () => {
     setError(null);
     if (draft?.visibility === 'PRIVATE' && draft.privateContactConsent !== true) {
@@ -419,6 +444,7 @@ export function useDraftWizard(draftId?: string) {
     runFallback,
     proceedToReview,
     switchToPrivate,
+    switchToGeneral,
     privacyFocus,
     clearPrivacyFocus: () => setPrivacyFocus(false),
     submit,

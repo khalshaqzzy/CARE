@@ -1,5 +1,29 @@
 # CARE Session Handoff
 
+## Private Voice also on low confidence — 5 November 2026
+
+**Problem (staging after #128):** "member tidak ramah dan mengolok-olok" came back below the confidence threshold, and with "bullying" added the reporter still sent it as General into Kesejahteraan. Cause: a low-confidence result (including its `privateSuggested`) was never stored; Manual Fallback then let the reporter pick a category, and the manual record had no Private flag.
+
+**Change (`fix/private-low-confidence`, from `origin/staging` 7221db7; ADR-0078 amendment, PRD §43.5):**
+
+- `voices.service.classify`: General + `LOW_CONFIDENCE` + `candidate.privateSuggested` is stored as an AI classification (low confidence kept); `ai.service` returns model/prompt/response id with low-confidence results.
+- Prompt `care-classification-v1.10`: mocking/insulting/humiliating/belittling/shouting/excluding counts as bullying or intimidation; confidence must not drop just because no General category fits.
+- `DraftPreviewPage`: same lock; **Lanjut ke Private Voice** opens `/drafts/:id/edit` with `state.toPrivate`, which `useDraftWizard` turns into `switchToPrivate()` after the draft loads.
+
+**Checks:** API/web typecheck; API unit 171/171; `organization-routing` (incl. new low-confidence case) 4/4 + 1 skipped (10k timing); Playwright `workforce-journeys` 55/55; inventory 496; ESLint/Prettier.
+
+**Not verifiable locally:** whether the live model now flags "tidak ramah dan mengolok-olok" with enough confidence; re-test that sentence on staging after deploy.
+
+**Same branch, 9 November 2026: General Voice offered for Private Voices about general issues** (product owner: suggestion only, not forced, because General shows the reporter's name to handlers).
+
+- Branch merged with `origin/staging` 6ab61e2 (#130, #131) first; doc and inventory conflicts kept both sides.
+- Prompt/tool: `generalSuggested` (required in the tool schema; true only for PRIVATE and clearly general, person-free issues; false when unsure). `AIClassification.generalSuggested` + migration `20261109090000_private_general_suggestion`; OpenAPI/contracts regenerated.
+- Web: `GeneralSuggestionDialog.tsx` (stacked buttons under 400 px), used by `CreateVoicePage` review and `DraftPreviewPage`; `useDraftWizard.switchToGeneral` (scrolls to top; Private consent fields are not sent for General). The draft preview passes `state.toGeneral` / `state.toPrivate` to `/drafts/:id/edit`.
+- Screenshots (untracked): main checkout `docs/preview-general-suggestion/`.
+- Test note: on `/drafts/:id/edit` the page re-reads the saved draft after analysis, so the e2e mock draft must carry the same classification as the classify response.
+
+Checks: API unit 171/171; Playwright `workforce-journeys` + `voice-consent` 76/76; pop-up test 5/5 repeated; inventory 505.
+
 ## CARE Admin menu sections and report dashboards — 8 November 2026
 
 **Objective:** make CARE Admin usable for reporting and easier to navigate. Requests from the product owner, agreed through HTML mockups before execution:

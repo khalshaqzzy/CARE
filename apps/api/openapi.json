@@ -27600,6 +27600,9 @@
               },
               "privateSuggested": {
                 "type": "boolean"
+              },
+              "generalSuggested": {
+                "type": "boolean"
               }
             }
           },
