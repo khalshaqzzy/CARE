@@ -3314,8 +3314,12 @@ export interface components {
             reporter: {
                 noReg: string;
                 name: string;
+                directorate?: string | null;
                 division: string;
                 department: string;
+                section: string | null;
+                position?: string | null;
+                line: string | null;
             };
         };
         LeadershipGeneralVoiceDetail: {
@@ -3417,6 +3421,7 @@ export interface components {
                 department: string;
                 section?: string | null;
                 position?: string | null;
+                line?: string | null;
             } & {
                 [key: string]: unknown;
             };
@@ -3718,6 +3723,7 @@ export interface components {
                 department: string;
                 section: string | null;
                 position: string | null;
+                line: string | null;
             };
         };
         LocationReviewSnapshot: {

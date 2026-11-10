@@ -11,7 +11,7 @@ import {
   Textarea,
 } from '@care/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Clock, Info, MessageCircle, UserRound } from 'lucide-react';
+import { CalendarDays, Clock, FileText, Info, MessageCircle, UserRound } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@care/frontend-core';
@@ -95,7 +95,12 @@ export function VoiceDetailPage() {
       <ReporterCard voice={voice} />
 
       <section className="voice-detail voice-detail--card" aria-label="Detail Voice">
-        <h2 className="voice-detail__heading">Detail Voice</h2>
+        <h2 className="voice-detail__heading">
+          <span className="voice-detail__icon" aria-hidden="true">
+            <FileText size={18} />
+          </span>
+          Detail Voice
+        </h2>
         <p className="voice-detail__body">{voice.detail}</p>
         {voice.attachments?.length ? (
           <MediaGallery attachments={voice.attachments} variant="row" />

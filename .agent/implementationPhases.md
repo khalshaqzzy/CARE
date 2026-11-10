@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Reporter profile and location-first Voice detail header — 9 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/responder-reporter-profile` (from `origin/staging` 75ca3df, not released): General responders and leaders open **Profil pelapor** from the reporter name (No. Reg, Divisi, Departemen, Section, Line from the submit snapshot; `reporter.line` added to the General and Admin private detail contract), the open-Voice hero leads with a highlighted Lokasi block and a Severity | Kategori / PIC | Pelapor grid, and the Detail Voice card gets a tinted header, brand outline and glow. See ADR-0083 and PRD §47; checks are in sessionHandoff.md.
+
 ## Private Voice also on low confidence — 5 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `fix/private-low-confidence` (from `origin/staging` 7221db7, not released): a Private verdict below the confidence threshold now locks General too, the prompt names mocking and insults as bullying (`care-classification-v1.10`), and the draft preview page has the same lock. The same branch also offers General Voice (never forced) for Private Voices about clearly general issues. See the ADR-0078 amendments; checks are in sessionHandoff.md.

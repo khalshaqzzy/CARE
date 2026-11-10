@@ -6035,6 +6035,7 @@ export class VoicesService {
           department: voice.reporterDepartmentSnapshot,
           section: voice.reporterSectionSnapshot,
           position: voice.reporterPositionSnapshot,
+          line: voice.reporterLineSnapshot,
         },
       };
     if (actor.capabilities.includes('CARE_ADMIN'))
@@ -6050,6 +6051,7 @@ export class VoicesService {
           department: voice.reporterDepartmentSnapshot,
           section: voice.reporterSectionSnapshot,
           position: voice.reporterPositionSnapshot,
+          line: voice.reporterLineSnapshot,
         },
       };
     if (voice.showReporterIdentity)

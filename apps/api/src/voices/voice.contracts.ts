@@ -136,6 +136,7 @@ export type GeneralResponderVoiceDetail = VoiceDetailBase & {
     department: string;
     section: string | null;
     position: string | null;
+    line: string | null;
   };
 };
 export type LeadershipGeneralVoiceDetail = Omit<GeneralResponderVoiceDetail, 'audience'> & {
