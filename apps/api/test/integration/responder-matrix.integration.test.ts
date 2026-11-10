@@ -56,6 +56,8 @@ async function seedVoice(
       reporterDirectorateSnapshot: 'Manufacturing',
       reporterDivisionSnapshot: 'Division A',
       reporterDepartmentSnapshot: 'Department A',
+      reporterSectionSnapshot: 'Section A',
+      reporterLineSnapshot: 'Line A',
       reporterOrganizationUnitId: unitId,
       routeOwnerId: overrides.routeOwnerId ?? manager.accountId,
       status: overrides.status ?? VoiceStatus.OPEN,
@@ -235,12 +237,27 @@ describe('Responder and leadership permission matrix', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
+  it('shows responders the reporter organization path down to the line', async () => {
+    const voice = await seedVoice();
+    const detail = await voices.detail(manager, voice.id);
+    expect(detail.audience).toBe('GENERAL_RESPONDER');
+    expect((detail as { reporter: unknown }).reporter).toMatchObject({
+      noReg: '000001',
+      name: 'Reporter',
+      division: 'Division A',
+      department: 'Department A',
+      section: 'Section A',
+      line: 'Line A',
+    });
+  });
+
   it('gives leadership read-only detail and no lifecycle action', async () => {
     const voice = await seedVoice();
     for (const leader of [divisionHead, deputyDivisionHead, director]) {
       const detail = await voices.detail(leader, voice.id);
       expect(detail.audience).toBe('LEADERSHIP_GENERAL_READ_ONLY');
       expect(detail.availableActions).toEqual([]);
+      expect((detail as { reporter: { line?: string } }).reporter.line).toBe('Line A');
     }
     await expect(
       voices.ask(director, voice.id, { text: 'x', version: 1 }, 'ask-dir'),

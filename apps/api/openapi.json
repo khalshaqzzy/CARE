@@ -28439,7 +28439,9 @@
               "noReg",
               "name",
               "division",
-              "department"
+              "department",
+              "section",
+              "line"
             ],
             "properties": {
               "noReg": {
@@ -28448,11 +28450,27 @@
               "name": {
                 "type": "string"
               },
+              "directorate": {
+                "type": "string",
+                "nullable": true
+              },
               "division": {
                 "type": "string"
               },
               "department": {
                 "type": "string"
+              },
+              "section": {
+                "type": "string",
+                "nullable": true
+              },
+              "position": {
+                "type": "string",
+                "nullable": true
+              },
+              "line": {
+                "type": "string",
+                "nullable": true
               }
             }
           }
@@ -28878,6 +28896,10 @@
                 "nullable": true
               },
               "position": {
+                "type": "string",
+                "nullable": true
+              },
+              "line": {
                 "type": "string",
                 "nullable": true
               }
@@ -30114,7 +30136,8 @@
               "division",
               "department",
               "section",
-              "position"
+              "position",
+              "line"
             ],
             "additionalProperties": false,
             "properties": {
@@ -30139,6 +30162,10 @@
                 "nullable": true
               },
               "position": {
+                "type": "string",
+                "nullable": true
+              },
+              "line": {
                 "type": "string",
                 "nullable": true
               }

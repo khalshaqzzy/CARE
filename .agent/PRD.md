@@ -517,7 +517,7 @@ Detail Lokasi menjalankan location review otomatis setelah debounce/on-blur keti
 
 Button **Selesai** menyimpan/update `VoiceDraft`, memvalidasi media, lalu meminta AI classification. Private meminta severity saja; General meminta category dan severity. Button tidak mengirim Voice kepada responder.
 
-Pada detail dan percakapan, audience General responder melihat nama snapshot pelapor, sedangkan reporter sendiri melihat PIC. Identitas Private tetap mengikuti consent/alias yang disaring server, termasuk pada detail Closed.
+Pada detail dan percakapan, audience General responder melihat nama snapshot pelapor, sedangkan reporter sendiri melihat PIC. Pada detail, nama pelapor membuka **Profil pelapor** (No. Reg, Divisi, Departemen, Section, Line; §47). Identitas Private tetap mengikuti consent/alias yang disaring server, termasuk pada detail Closed.
 
 ### 12.2 Preview Voice
 
@@ -2651,7 +2651,7 @@ Status: **Tahap 1 diimplementasikan dan dirilis ke staging; Tahap 2 dan 3 diimpl
 
 ### 43.5 Tahap 2 — inkremen 1–7 (diimplementasikan, belum dirilis)
 
-- **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus.
+- **Detail Voice:** urutan Header → Detail Voice (kartu putih) → Percakapan → Penanganan (progress, target, aksi) → Timeline. Header menampilkan chip severity dan kategori, satu baris lokasi (Area · Detail Lokasi), serta kolom PIC/Pelapor. Baris Klasifikasi, Kategori, Kelengkapan lokasi, dan Diperbarui dihapus. (Header Voice yang belum ditutup diperbarui pada §47.)
 - **Pesan belum dibaca:** kartu Percakapan menampilkan badge jumlah pesan dari pihak lain sejak pengguna terakhir membuka chat. Membuka chat menandai semua pesan terbaca (`POST /api/v1/voices/:id/conversation/read`).
 - **Selesaikan hanya oleh PIC:** hanya PIC yang menekan Proses (atau menerima tugas) yang dapat menyelesaikan Voice, di semua kategori. Voice lama yang belum pernah mencatat PIC tetap dapat diselesaikan oleh route owner.
 - **Ambil alih:** jika akun PIC sudah tidak aktif, atasan yang berwenang menugaskan melihat peringatan **PIC sudah tidak aktif** dan tombol **Ambil alih** (`POST /api/v1/voices/:id/take-over`). Atasan menjadi PIC; target tidak berubah; pelapor diberi notifikasi.
@@ -2799,3 +2799,12 @@ Tujuan: laporan dapat dibaca langsung dari CARE Admin tanpa olah data terpisah. 
 - **Menu digabung (revisi 8 November 2026).** Handover Admin dan Koreksi Kategori menjadi tab di Voice Explorer (Semua Voice · Handover Admin · Koreksi Kategori). Kalender & Eskalasi, Jawaban Cepat, dan Panduan menjadi satu menu **Pengaturan Sistem** dengan tiga tab. Halaman di dalam tab memakai judul bagian kecil; tombol aksinya (Tambah jawaban cepat, Upload PDF, Unduh Excel) tetap ada.
 - **Tab per pekerjaan.** Route & Kategori: Remediation · Kategori · Lokasi shop (baris status route di atas). Kalender & Eskalasi: Kalender kerja · Batas waktu. Data Organisasi: Impor baru · Riwayat impor. Status Sistem: Kesehatan · Konfigurasi AI.
 - **Endpoint baru (CARE Admin saja, akun lain 404):** `GET /admin/voices/summary`, `GET /admin/voices/export` (filter Voice Explorer + `origin`), `GET /admin/accounts/summary` (filter daftar akun). `GET /voices` menerima `origin=CARE|MIGRATED`; item daftar Voice membawa `legacyId`.
+
+## 47. Profil pelapor dan header Detail Voice — 9 November 2026
+
+Tujuan: responder mengetahui posisi pelapor di organisasi tanpa membuat halaman detail penuh, dan lokasi serta isi laporan menjadi bagian yang paling menonjol. Keputusan rinci di ADR-0083.
+
+- **Header (Voice belum ditutup, tampilan penuh, semua audience non-Komite).** Urutan: judul → kotak **Lokasi** (latar biru muda, ikon pin, label LOKASI, Area tebal, Detail Lokasi di bawahnya) → grid dua kolom **Severity | Kategori**, lalu **PIC | Pelapor**. Pelapor hanya untuk General responder dan pimpinan (read-only). Sel terakhir yang sendirian di barisnya memakai lebar penuh. Header Voice Closed, header percakapan (compact), dan tampilan Komite tidak berubah.
+- **Profil pelapor.** Nama pelapor berupa tautan; ketukan membuka sheet bawah (dialog di desktop) **Profil pelapor**: nama, No. Reg, lalu Divisi, Departemen, Section, Line. Section dan Line hanya tampil bila ada. Semua nilai berasal dari snapshot saat Voice dikirim, bukan data organisasi terkini.
+- **Kartu Detail Voice.** Header kartu berlatar biru muda dengan ikon dokumen; garis biru tegas di sekeliling kartu dan glow biru lembut.
+- **Kontrak.** `reporter.line` (nullable) ditambahkan pada detail `GENERAL_RESPONDER`, `LEADERSHIP_GENERAL_READ_ONLY`, dan `ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY`; skema `GENERAL_RESPONDER` kini juga mendokumentasikan `directorate`, `section`, dan `position` yang sudah dikirim server. Detail Komite (`UNION_IDENTIFIED`/`UNION_ANONYMOUS`) dan `REPORTER_SELF` tidak berubah.

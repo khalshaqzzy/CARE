@@ -89,7 +89,14 @@ for (const audience of ['GENERAL_RESPONDER', 'REPORTER_SELF']) {
               locationDetail: 'Gedung A',
               severity: 'MEDIUM',
               availableActions: [],
-              reporter: { name: 'Muhammad Budi Santoso Pratama Wicaksono', noReg: '000128' },
+              reporter: {
+                name: 'Muhammad Budi Santoso Pratama Wicaksono',
+                noReg: '000128',
+                division: 'Production Engineering Division',
+                department: 'Assembly Plant 1 Department',
+                section: 'Final Assembly Section',
+                line: null,
+              },
               currentHandler: { displayName: 'Manager PIC' },
             }
           : undefined,
@@ -115,5 +122,15 @@ for (const audience of ['GENERAL_RESPONDER', 'REPORTER_SELF']) {
       ).toBeVisible();
     else await expect(people.getByText('Pelapor', { exact: true })).toHaveCount(0);
     await capture(page, `detail-identity-${audience}-360-${visualPlatform}.png`, screenshot);
+    if (audience === 'GENERAL_RESPONDER') {
+      // The name opens the organization profile; a missing line stays hidden.
+      await people.getByRole('button', { name: /Lihat profil pelapor/ }).click();
+      const sheet = page.getByRole('dialog', { name: 'Profil pelapor' });
+      await expect(sheet.getByText('No. Reg 000128')).toBeVisible();
+      await expect(sheet.getByText('Assembly Plant 1 Department', { exact: true })).toBeVisible();
+      await expect(sheet.getByText('Final Assembly Section', { exact: true })).toBeVisible();
+      await expect(sheet.getByText('Line', { exact: true })).toHaveCount(0);
+      await capture(page, `detail-reporter-profile-360-${visualPlatform}.png`, screenshot);
+    }
   });
 }

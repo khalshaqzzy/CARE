@@ -1,5 +1,47 @@
 # CARE Session Handoff
 
+## Reporter profile for responders and location-first Voice detail header — 9 November 2026
+
+**Objective:** on the Voice detail, responders saw only the reporter's name. They need the reporter's division → department → section → line (when present) without crowding the page. The product owner also asked for a tidier hero with the location highlighted, and a highlighted Detail Voice card. Agreed through rendered mock variants before execution:
+
+1. Reporter profile: option **B** — the name in the hero opens a sheet (chosen over an inline path in the hero and over a collapsible row under the hero).
+2. Hero: option **3** — title → Lokasi block → grid Severity | Kategori / PIC | Pelapor (chosen over pills + location box, and pills above the title).
+3. Detail Voice: option **2** (tinted header band) with a stronger blue outline and a glow-like shadow.
+
+Decision record: ADR-0083 (`docs/adr/0083-reporter-profile-and-voice-detail-header.md`), PRD §47 (plus short pointers in the §11 detail paragraph and §43.5).
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry at the top of implementationPhases.md.
+
+**Branch:** `feat/responder-reporter-profile` in worktree `../CARE-reporter-profile`, from `origin/staging` 75ca3df (after PR #132). Not committed or pushed yet. The main checkout (`feat/time-for-team`, 96 commits behind staging with its own uncommitted work) was left as it was; the temporary prototype edits made there for the mockups were reverted. Mock screenshots are untracked in the main checkout at `docs/preview-reporter-profile/` (the `final-*` files show the approved design); the screenshot spec `.tft-preview/reporter.spec.ts` there is a throwaway.
+
+**Behaviour now:**
+
+- **Profil pelapor** (`apps/web-voice/src/components/ReporterProfileSheet.tsx`, new): for `GENERAL_RESPONDER` and `LEADERSHIP_GENERAL_READ_ONLY`, the Pelapor cell shows the name as a link-styled button (`aria-label` "Lihat profil pelapor <name>"); it opens a `BottomSheet` "Profil pelapor" with name, No. Reg, Divisi, Departemen, Section, Line. Empty Section/Line rows are skipped. Values come from the submit snapshot.
+- **Hero** (`VoiceHero.tsx`): for a non-closed Voice, full variant, non-Komite audience: title → `.voice-hero__location` (LOKASI label, area bold, location detail) → `dl.voice-hero__people.voice-hero__facts` with Severity, Kategori (only when the Voice has a category), PIC, Pelapor (responder/leadership only). A last cell alone on its row spans both columns. The compact (chat) hero keeps its chip strip; the closed hero and both Komite heroes are unchanged. The old `.voice-hero__place` and dead `.voice-hero__location` rules were removed from `styles.css`.
+- **Detail Voice card** (`VoiceDetailPage.tsx` + `styles.css`): header band on `--raw-brand-50` with a `FileText` badge, 1.5 px `--raw-brand-500` outline, 4 px translucent brand ring plus diffuse brand shadow. Text on light brand backgrounds uses `--raw-brand-700` (brand-600 failed axe at 4.43:1).
+- **API:** `reporter.line` (`Voice.reporterLineSnapshot`) added to General detail (responder + leadership) and Admin private full-identity detail (`voice.contracts.ts`, `voices.service.ts`). OpenAPI (`scripts/enrich-openapi.ts`): `GeneralResponderVoiceDetail.reporter` now documents `directorate`, `section`, `position`, `line` (section/line required-nullable); Leadership and AdminPrivate gain `line`. Union and reporter-self audiences unchanged. `openapi.json` and `packages/contracts/src/generated.ts` regenerated (diff limited to these fields).
+
+**Files changed (worktree `../CARE-reporter-profile`):**
+
+- API: `src/voices/{voice.contracts,voices.service}.ts`, `scripts/enrich-openapi.ts`, `openapi.json`, `test/integration/responder-matrix.integration.test.ts` (seed has section/line snapshots; new case "shows responders the reporter organization path down to the line"; leadership case asserts `line`).
+- Contracts: `packages/contracts/src/generated.ts`.
+- Web: `src/components/{VoiceHero,ReporterProfileSheet(new)}.tsx`, `src/features/voice/VoiceDetailPage.tsx`, `src/styles.css`.
+- E2E: `e2e/voice-consent.visual.spec.ts` (GENERAL_RESPONDER detail opens the profile sheet, checks No. Reg/department/section and that a null line is hidden; new capture `detail-reporter-profile-360`). No new test was added, so the browser inventory count is unchanged.
+- Docs: ADR-0083, PRD §47 (+ §11/§43.5 pointers), implementationPhases.md, this handoff.
+
+**Checks run (Windows, portable Node 22.23.4 / pnpm 11.8.0):**
+
+- Typecheck `@care/contracts`, `@care/api`, `@care/web-voice`, `@care/web-admin`: pass.
+- Prettier `--check --end-of-line auto` on all changed files: pass.
+- `pnpm openapi:generate`: regenerated; `scripts/validation/generated-contract.mjs` cannot spawn `pnpm` on Windows (ENOENT), so the generated-contract check was not run locally; the regenerated diff contains only the intended fields.
+- Unit: web-voice 166/166, API unit 171/171.
+- Integration (throwaway `pgvector/pgvector:pg16` on 54349, migrated, stopped afterwards): `responder-matrix` + `division-admin` 13/13.
+- Playwright (builds of web-voice and web-admin): Chromium `voice-consent.visual`, `voice-consent`, `workforce-journeys`, `workforce-a11y`, `closure-approval`, `workforce-security`, `shop-routing.visual`, `workforce-handover` 115/115 after the contrast fix (first run: three axe failures from brand-600 on brand-50, fixed); `legacy-ios` + `visual` projects 191/191; reran detail-related Chromium + visual specs after the last CSS change 98/98. Captures `detail-identity-GENERAL_RESPONDER`, `detail-identity-REPORTER_SELF`, `detail-reporter-profile` reviewed; tracked `e2e/captures/local/` restored afterwards (Windows captures replace the darwin references).
+- `scripts/check-pwa-compatibility.mjs`: pass (workforce main gzip 147,759 bytes).
+- Not run: full `verify:local`, full browser suite, fullstack project, migration/performance harnesses (no schema or query change), Gitleaks (no commit yet), hosted CI.
+
+**Next recommended action:** run Gitleaks, commit on `feat/responder-reporter-profile`, push, open a PR into `staging`, wait for green CI, merge, then confirm `/ready` releaseSha and check a real Voice detail as a responder on staging (including a Voice with and without a line).
+
 ## Private Voice also on low confidence — 5 November 2026
 
 **Problem (staging after #128):** "member tidak ramah dan mengolok-olok" came back below the confidence threshold, and with "bullying" added the reporter still sent it as General into Kesejahteraan. Cause: a low-confidence result (including its `privateSuggested`) was never stored; Manual Fallback then let the reporter pick a category, and the manual record had no Private flag.

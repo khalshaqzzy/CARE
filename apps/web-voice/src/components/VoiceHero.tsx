@@ -20,17 +20,18 @@ import { categoryIcon, SEVERITY_FLAG_TONES, statusFlagTone } from '../lib/voice-
 import type { VoiceDetail } from '../workforce-api';
 import { LegacySourceBadge } from './LegacySourceBadge';
 import { OverdueBadge } from './OverdueBadge';
+import { ReporterProfileSheet, type ReporterProfile } from './ReporterProfileSheet';
 import { SpecialHandlingBadge } from './SpecialHandlingBadge';
 
 /**
  * Shared voice header for the detail and conversation surfaces (screens 13/20
  * of the member redesign): a full-bleed cobalt band with the back control,
- * CARE lockup, and live status pill, and an overlapping white card carrying
- * the title, context chips, area/PIC split, and location detail. Responder
- * and leadership views lead the chips with `Area:` and split the grid into
- * PIC | Pelapor, while the reporter's own view keeps Area | PIC. `compact`
- * renders the conversation variant of the chip strip. Union audiences keep
- * the consent-first presentation inside the card.
+ * CARE lockup, and live status pill, and an overlapping white card. The full
+ * open-Voice card carries the title, a highlighted Lokasi block (area plus
+ * location detail), and a two-column fact grid: Severity | Kategori, then
+ * PIC | Pelapor for responders and leadership, where the reporter name opens
+ * the organization profile sheet. `compact` renders the conversation chip
+ * strip. Closed Voices and Union audiences keep their own presentations.
  */
 export function VoiceHero({
   voice,
@@ -61,14 +62,13 @@ export function VoiceHero({
       : voice.audience === 'UNION_ANONYMOUS'
         ? `Alias: ${voice.anonymousReporter.alias}`
         : `PIC: ${pic}`;
-  // Responder and leadership detail leads with the handling PIC and keeps
-  // the reporter identity in the second grid cell; the reporter's own view
-  // keeps the area/PIC split.
-  const responderAudience =
-    voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'LEADERSHIP_GENERAL_READ_ONLY';
-  const responderReporterName = responderAudience
-    ? ((voice.reporter as { name?: string }).name ?? '')
-    : null;
+  // Responder and leadership detail add a Pelapor cell after PIC; the name
+  // opens the reporter's organization profile. The reporter's own view and
+  // the Admin private view keep the grid without it.
+  const responderReporter =
+    voice.audience === 'GENERAL_RESPONDER' || voice.audience === 'LEADERSHIP_GENERAL_READ_ONLY'
+      ? (voice.reporter as ReporterProfile)
+      : null;
   const area = AREA_LABELS[voice.area] ?? voice.area;
   const categoryName = voice.category
     ? formatCategoryName(voice.category, voice.categoryNameSnapshot)
@@ -257,7 +257,7 @@ export function VoiceHero({
                 </>
               ) : null}
             </>
-          ) : (
+          ) : variant === 'compact' ? (
             <>
               <h1 className="voice-hero__title">{voice.title}</h1>
               <div className="voice-hero__chips">
@@ -268,48 +268,65 @@ export function VoiceHero({
                   />
                   {SEVERITY_LABELS[voice.severity] ?? voice.severity}
                 </span>
-                {variant === 'full' && categoryName ? (
-                  <span className="voice-hero__chip">
-                    <CategoryIcon size={15} aria-hidden="true" />
-                    {categoryName}
-                  </span>
-                ) : null}
-                {variant === 'compact' ? (
-                  <span className="voice-hero__chip">
-                    <UserRound size={15} aria-hidden="true" />
-                    {personLabel}
-                  </span>
-                ) : null}
-                {variant === 'compact' ? (
-                  <span className="voice-hero__chip">
-                    <MapPin size={15} aria-hidden="true" />
-                    {area}
-                  </span>
-                ) : null}
+                <span className="voice-hero__chip">
+                  <UserRound size={15} aria-hidden="true" />
+                  {personLabel}
+                </span>
+                <span className="voice-hero__chip">
+                  <MapPin size={15} aria-hidden="true" />
+                  {area}
+                </span>
               </div>
-              {variant === 'full' ? (
-                <>
-                  <p className="voice-hero__place">
-                    <MapPin size={15} aria-hidden="true" />
-                    <span>
-                      <strong>{area}</strong>
-                      {voice.locationDetail ? ` · ${voice.locationDetail}` : ''}
-                    </span>
-                  </p>
-                  <dl className="voice-hero__people">
-                    <div>
-                      <dt>PIC</dt>
-                      <dd>{pic}</dd>
-                    </div>
-                    {responderAudience ? (
-                      <div>
-                        <dt>Pelapor</dt>
-                        <dd>{responderReporterName}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </>
-              ) : null}
+            </>
+          ) : (
+            <>
+              <h1 className="voice-hero__title">{voice.title}</h1>
+              <div className="voice-hero__location">
+                <span className="voice-hero__location-icon" aria-hidden="true">
+                  <MapPin size={18} />
+                </span>
+                <div className="voice-hero__location-body">
+                  <small>Lokasi</small>
+                  <strong>{area}</strong>
+                  {voice.locationDetail ? <span>{voice.locationDetail}</span> : null}
+                </div>
+              </div>
+              <dl className="voice-hero__people voice-hero__facts">
+                <div>
+                  <dt>Severity</dt>
+                  <dd>
+                    <i
+                      className="voice-hero__dot"
+                      data-tone={SEVERITY_FLAG_TONES[voice.severity] ?? 'medium'}
+                      aria-hidden="true"
+                    />
+                    {SEVERITY_LABELS[voice.severity] ?? voice.severity}
+                  </dd>
+                </div>
+                {categoryName ? (
+                  <div>
+                    <dt>Kategori</dt>
+                    <dd>
+                      <CategoryIcon size={14} aria-hidden="true" />
+                      <span>{categoryName}</span>
+                    </dd>
+                  </div>
+                ) : null}
+                <div>
+                  <dt>PIC</dt>
+                  <dd>
+                    <span>{pic}</span>
+                  </dd>
+                </div>
+                {responderReporter ? (
+                  <div>
+                    <dt>Pelapor</dt>
+                    <dd>
+                      <ReporterProfileSheet reporter={responderReporter} />
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
             </>
           )}
         </div>

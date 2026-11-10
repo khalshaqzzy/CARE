@@ -2661,19 +2661,6 @@
   flex: 0 0 auto;
   color: var(--text-secondary);
 }
-.voice-hero__location {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: var(--line-base, 1.5);
-}
-.voice-hero__location svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  color: var(--text-secondary);
-}
 /* Closed variant: check plate + tinted pills inside the white card. */
 .voice-hero__closedhead {
   display: flex;
@@ -7287,63 +7274,215 @@
   line-height: var(--line-snug, 1.35);
 }
 
-/* Voice detail — compact hero meta, detail card, conversation unread badge */
-.voice-hero__place {
+/* Voice detail — highlighted location, fact grid, reporter profile sheet,
+   detail card, conversation unread badge */
+.voice-hero__location {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 14px;
+  background: var(--raw-brand-50);
+}
+.voice-hero__location-icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: var(--raw-brand-600);
+}
+.voice-hero__location-body {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+.voice-hero__location-body small {
+  color: var(--raw-brand-700);
+  font-size: var(--font-size-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.voice-hero__location-body strong {
+  font-size: var(--font-size-md);
+  font-weight: var(--weight-bold);
+}
+.voice-hero__location-body span {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   line-height: var(--line-relaxed);
   overflow-wrap: anywhere;
 }
-.voice-hero__place svg {
-  flex: 0 0 auto;
-  margin-top: 3px;
-}
-.voice-hero__place strong {
-  color: var(--text-primary);
-}
 .voice-hero__people {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
-  border-top: 1px solid var(--border-subtle);
-  padding-top: var(--space-3);
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
 }
 .voice-hero__people div {
   display: grid;
   min-width: 0;
+  gap: 2px;
+}
+/* A last cell alone on its row (no category) takes the full width so a
+   long reporter name is not cut at half the card. */
+.voice-hero__people > div:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 .voice-hero__people dt {
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
 }
 .voice-hero__people dd {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-  overflow: hidden;
   font-size: var(--font-size-sm);
   font-weight: var(--weight-semibold);
+}
+.voice-hero__people dd > span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.voice-hero__people dd svg {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+.reporter-profile__trigger {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 1.5rem;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  padding: 0;
+  color: var(--raw-brand-600);
+  background: none;
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+.voice-hero__people .reporter-profile__trigger svg {
+  color: currentColor;
+}
+.reporter-profile__trigger span {
+  overflow: hidden;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-overflow: ellipsis;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.reporter-profile__trigger:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--raw-brand-500);
+  outline-offset: 2px;
+}
+.reporter-profile {
+  display: grid;
+  gap: var(--space-4);
+}
+.reporter-profile__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.reporter-profile__avatar {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--raw-brand-600);
+  background: var(--raw-brand-50);
+}
+.reporter-profile__name {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--weight-bold);
+}
+.reporter-profile__reg {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+.reporter-profile__list {
+  display: grid;
+  margin: 0;
+}
+.reporter-profile__list div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-3) 0;
+}
+.reporter-profile__list dt {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+.reporter-profile__list dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--weight-semibold);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+/* Detail Voice: tinted header band, brand outline and a soft brand glow so
+   the report itself stands out right after the hero. */
 .voice-detail--card {
-  padding: var(--space-5);
-  border: 1px solid var(--border-subtle);
+  gap: 0;
+  overflow: hidden;
+  border: 1.5px solid var(--raw-brand-500);
   border-radius: var(--radius-card);
   background: var(--surface-raised);
-  box-shadow: 0 6px 18px rgb(0 41 123 / 6%);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--raw-brand-500) 12%, transparent),
+    0 8px 28px color-mix(in srgb, var(--raw-brand-500) 28%, transparent);
 }
 .voice-detail--card .voice-detail__heading {
-  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  color: var(--raw-brand-700);
+  background: var(--raw-brand-50);
+}
+.voice-detail__icon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  background: var(--raw-brand-600);
+}
+.voice-detail--card > :not(.voice-detail__heading) {
+  margin-inline: var(--space-5);
+}
+.voice-detail--card .voice-detail__body {
+  margin-top: var(--space-4);
+}
+.voice-detail--card > :last-child {
+  margin-bottom: var(--space-5);
+}
+.voice-detail--card > * + :not(.voice-detail__body) {
+  margin-top: var(--space-4);
 }
 .voice-detail__submitted {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: var(--space-3) 0 0;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
 }
