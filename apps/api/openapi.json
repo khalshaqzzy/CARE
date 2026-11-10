@@ -10314,7 +10314,8 @@
               "type": "string",
               "enum": [
                 "OVERDUE",
-                "SOON"
+                "SOON",
+                "SPECIAL"
               ]
             }
           },
@@ -10806,7 +10807,8 @@
               "type": "string",
               "enum": [
                 "OVERDUE",
-                "SOON"
+                "SOON",
+                "SPECIAL"
               ]
             }
           },
@@ -10880,6 +10882,18 @@
                 "me",
                 "approve",
                 "closed"
+              ]
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CARE",
+                "MIGRATED"
               ]
             }
           }
@@ -16973,6 +16987,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
           }
         ],
         "responses": {
@@ -17222,6 +17248,18 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -17595,6 +17633,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
           }
         ],
         "responses": {
@@ -17837,6 +17887,18 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -18081,6 +18143,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
           }
         ],
         "responses": {
@@ -18324,6 +18398,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
           }
         ],
         "responses": {
@@ -18566,6 +18652,18 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "migrated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -18981,7 +19079,8 @@
               "type": "string",
               "enum": [
                 "OVERDUE",
-                "SOON"
+                "SOON",
+                "SPECIAL"
               ]
             }
           },

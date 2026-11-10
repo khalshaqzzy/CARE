@@ -8066,6 +8066,42 @@
 .ops-filter-chip--static {
   cursor: default;
 }
+/* "Migrasi": a small switch; off keeps the dashboard to CARE Voices. */
+.ops-migrated {
+  gap: 7px;
+}
+.ops-migrated[aria-checked='true'] {
+  border-color: #bfdbfe;
+  background: var(--ops-accent-soft);
+  color: var(--ops-accent-ink);
+}
+.ops-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 15px;
+  border-radius: 999px;
+  background: #94a3b8;
+  transition: background 0.15s;
+}
+.ops-switch::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
+  transition: transform 0.15s;
+}
+.ops-migrated[aria-checked='true'] .ops-switch {
+  background: var(--ops-accent);
+}
+.ops-migrated[aria-checked='true'] .ops-switch::after {
+  transform: translateX(11px);
+}
 .ops-filters .filter-pills__pill[data-active] .care-select-trigger {
   border-color: #bfdbfe;
   background: var(--ops-accent-soft);
@@ -9356,6 +9392,13 @@
   border-color: #fde68a;
   background: #fffbeb;
   color: #b45309;
+}
+/* Penanganan Khusus: the same amber as its badge on Voice cards. */
+.ops-special-chip {
+  align-items: center;
+  border-color: #fde4b0;
+  background: #fff1d6;
+  color: #7a4a00;
 }
 .ops-urgency__chip[data-kind='critical']:not([data-zero]) {
   border-color: #fecdd3;

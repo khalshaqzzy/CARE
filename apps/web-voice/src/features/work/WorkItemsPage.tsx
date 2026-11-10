@@ -125,8 +125,12 @@ export function WorkItemsPage() {
   const sort =
     rawSort === 'newest' || rawSort === 'severity' ? rawSort : isUnion ? 'severity' : 'action';
   const dueParam = searchParams.get('due');
-  const due: 'OVERDUE' | 'SOON' | undefined =
-    dueParam === 'OVERDUE' || dueParam === 'SOON' ? dueParam : undefined;
+  const due: 'OVERDUE' | 'SOON' | 'SPECIAL' | undefined =
+    dueParam === 'OVERDUE' || dueParam === 'SOON' || dueParam === 'SPECIAL' ? dueParam : undefined;
+  // Like the dashboard, CARE Voices only unless migrated ones are asked for
+  // (ADR-0084). A search still finds a migrated Voice by its old ID.
+  const migrated = searchParams.get('migrated') === '1';
+  const keepMigrated: Record<string, string> = migrated ? { migrated: '1' } : {};
 
   const inbox = useQuery({
     queryKey: voiceQuery(
@@ -143,6 +147,7 @@ export function WorkItemsPage() {
       to,
       search,
       due,
+      migrated,
       sort,
       orgKey,
       directorPrivate ? 'private' : 'general',
@@ -163,6 +168,7 @@ export function WorkItemsPage() {
         ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
         ...(search ? { search } : {}),
         ...(due ? { due } : {}),
+        ...(migrated || search ? {} : { origin: 'CARE' as const }),
         ...(nav.cursor ? { cursor: nav.cursor } : {}),
       };
       return isUnion
@@ -199,16 +205,21 @@ export function WorkItemsPage() {
   // "Butuh Tindakan Saya" counts the Voices waiting for the viewer; the status
   // strip counts every Voice in the selected organization.
   const actions = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'actions', orgKey),
-    queryFn: ({ signal }) => api.dashboardPreview(org, signal),
+    queryKey: voiceQuery(sessionId, 'dashboard', 'actions', orgKey, migrated),
+    queryFn: ({ signal }) =>
+      api.dashboardPreview({ ...org, ...(migrated ? { migrated: 'true' } : {}) }, signal),
     enabled: !!session && !isUnion,
     refetchInterval: 30_000,
   });
 
   // Voice Tim Saya counts the Voices the viewer's team sent (reporter basis).
   const team = useQuery({
-    queryKey: voiceQuery(sessionId, 'dashboard', 'team', orgKey),
-    queryFn: ({ signal }) => api.dashboardPreview({ ...org, basis: 'REPORTER' }, signal),
+    queryKey: voiceQuery(sessionId, 'dashboard', 'team', orgKey, migrated),
+    queryFn: ({ signal }) =>
+      api.dashboardPreview(
+        { ...org, basis: 'REPORTER', ...(migrated ? { migrated: 'true' } : {}) },
+        signal,
+      ),
     enabled: !!session && tabs.includes('team'),
     refetchInterval: 30_000,
   });
@@ -240,7 +251,8 @@ export function WorkItemsPage() {
                     ? 'inProgress'
                     : null;
   // Switching lists clears the filters but keeps the organization from Home.
-  const openTab = (id: ListTab) => setSearchParams(new URLSearchParams({ ...org, tab: id }));
+  const openTab = (id: ListTab) =>
+    setSearchParams(new URLSearchParams({ ...org, ...keepMigrated, tab: id }));
 
   const options = useQuery({
     queryKey: voiceQuery(sessionId, 'monitoring-options'),
@@ -346,7 +358,9 @@ export function WorkItemsPage() {
               onPick={(kind) =>
                 setSearchParams(
                   new URLSearchParams(
-                    kind === activeKind ? { tab: 'me' } : { ...ACTION_FILTERS[kind], tab: 'me' },
+                    kind === activeKind
+                      ? { ...keepMigrated, tab: 'me' }
+                      : { ...ACTION_FILTERS[kind], ...keepMigrated, tab: 'me' },
                   ),
                 )
               }
@@ -486,6 +500,7 @@ export function WorkItemsPage() {
                       { value: '', label: 'Semua' },
                       { value: 'OVERDUE', label: 'Terlambat' },
                       { value: 'SOON', label: '< 24 jam' },
+                      { value: 'SPECIAL', label: 'Penanganan Khusus' },
                     ],
                   },
                   {

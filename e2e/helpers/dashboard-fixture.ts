@@ -286,6 +286,7 @@ export function dashboardFixture(
           'statusToday',
           'previousPerformance',
           'onTime',
+          'specialHandling',
           'reporterOrigins',
           'teamOverdue',
           'otherBasisTotal',

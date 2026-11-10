@@ -1169,11 +1169,14 @@ export class VoicesService {
       section?: string;
       visibility?: string;
       action?: string;
+      origin?: string;
     } = {},
   ) {
     this.assertStatusFilter(query.status, query.statusGroup);
     if (query.action !== undefined && !['me', 'approve', 'closed'].includes(query.action))
       throw badRequest('ACTION_FILTER_INVALID', 'action must be me, approve or closed');
+    if (query.origin !== undefined && query.origin !== 'CARE' && query.origin !== 'MIGRATED')
+      throw badRequest('ORIGIN_FILTER_INVALID', 'origin must be CARE or MIGRATED');
     if (query.scope !== undefined && query.scope !== 'unit' && query.scope !== 'team')
       throw badRequest('SCOPE_FILTER_INVALID', 'scope must be unit or team');
     // Director and Deputy/Division Heads: their directorate's Private Voices, read-only.
@@ -1220,6 +1223,9 @@ export class VoicesService {
     const take = Math.min(Math.max(Number(query.limit ?? 30), 1), 100);
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const and: Prisma.VoiceWhereInput[] = [where];
+    // Voice Member follows the dashboard: CARE Voices only unless migrated ones are asked for.
+    if (query.origin === 'CARE') and.push({ legacySource: null });
+    if (query.origin === 'MIGRATED') and.push({ legacySource: { not: null } });
     if (query.due) and.push(await this.dueFilter(query.due));
     // The Union Head assignment queue: only voices still awaiting an officer.
     // The flag is deliberately ignored for every other actor so existing inbox
@@ -3825,7 +3831,7 @@ export class VoicesService {
         const voice = await this.finishableVoice(tx, actor, id, data.version, 'CLOSE');
         const evidenceIds = await this.stagedEvidence(tx, id);
         return this.closeVoice(tx, actor, voice, {
-          picId: actor.accountId,
+          picId: this.creditedPic(actor, voice),
           note: data.note,
           evidenceIds,
           completedAt: new Date(),
@@ -3851,6 +3857,7 @@ export class VoicesService {
         const voice = await this.finishableVoice(tx, actor, id, data.version, 'REPORT_DONE');
         const evidenceIds = await this.stagedEvidence(tx, id);
         const reportedAt = new Date();
+        const picId = this.creditedPic(actor, voice);
         const steps = await approvalSteps(
           tx,
           voice,
@@ -3860,7 +3867,7 @@ export class VoicesService {
         // Nobody above to approve: the PIC closes it.
         if (!steps.length) {
           await this.closeVoice(tx, actor, voice, {
-            picId: actor.accountId,
+            picId,
             note: data.note,
             evidenceIds,
             completedAt: reportedAt,
@@ -3871,7 +3878,7 @@ export class VoicesService {
         const report = await tx.closureReport.create({
           data: {
             voiceId: id,
-            actorId: actor.accountId,
+            actorId: picId,
             note: data.note,
             evidenceIds,
             reportedAt,
@@ -3902,7 +3909,7 @@ export class VoicesService {
           where: { id },
           data: {
             closureApproverIds: steps[0]!.accountIds,
-            closureReportedById: actor.accountId,
+            closureReportedById: picId,
             version: { increment: 1 },
           },
         });
@@ -3915,7 +3922,7 @@ export class VoicesService {
             payload: { reportId: report.id, evidenceCount: evidenceIds.length },
           },
         });
-        await this.notifyApprovers(tx, id, steps[0]!.accountIds, actor.accountId);
+        await this.notifyApprovers(tx, id, steps[0]!.accountIds, picId);
         return this.mutationResult(updated);
       },
     );
@@ -4165,6 +4172,19 @@ export class VoicesService {
         'Perlu persetujuan penyelesaian',
         `${pic?.displayName ?? 'PIC'} melaporkan Voice ini selesai.`,
       );
+  }
+  /**
+   * The PIC a General closure or report done is credited to: the Voice's
+   * handler, even when a substitute acting for them pressed the button
+   * (ADR-0084). Private closures stay with the Komite who closed them.
+   */
+  private creditedPic(
+    actor: AuthActor,
+    voice: { visibility: VoiceVisibility; currentHandlerId: string | null },
+  ) {
+    return voice.visibility === VoiceVisibility.GENERAL && voice.currentHandlerId
+      ? voice.currentHandlerId
+      : actor.accountId;
   }
   /**
    * Closes the Voice. The closure is credited to the PIC and their completion
@@ -4519,7 +4539,17 @@ export class VoicesService {
         general ? latest(waiting) : null,
         // Status Voice "Perlu perhatian": the urgent Voices of the whole unit.
         general ? this.actionSummary(active) : null,
-        general ? this.prisma.voice.count({ where: this.policy.closedByScope(actor) }) : 0,
+        general
+          ? this.prisma.voice.count({
+              where: {
+                AND: [
+                  this.policy.closedByScope(actor),
+                  // The same migrated-Voice choice as the rest of the dashboard.
+                  ...(context.q.migrated === 'true' ? [] : [{ legacySource: null }]),
+                ],
+              },
+            })
+          : 0,
         general ? this.prisma.voice.count({ where: this.policy.approvalScope(actor) }) : 0,
         general ? this.approves(actor) : false,
       ]);
@@ -4622,8 +4652,16 @@ export class VoicesService {
    * Shared by the action summary and the Voice Member filter so both agree.
    */
   async dueFilter(due: string, now = new Date()): Promise<Prisma.VoiceWhereInput> {
-    if (due !== 'OVERDUE' && due !== 'SOON')
-      throw badRequest('DUE_FILTER_INVALID', 'due must be OVERDUE or SOON');
+    if (due !== 'OVERDUE' && due !== 'SOON' && due !== 'SPECIAL')
+      throw badRequest('DUE_FILTER_INVALID', 'due must be OVERDUE, SOON or SPECIAL');
+    // Penanganan Khusus: Diproses with no deadline on the current cycle (ADR-0084).
+    if (due === 'SPECIAL') {
+      const special = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT v.id FROM "Voice" v JOIN "VoiceHandlingTarget" t ON t."voiceId" = v.id
+          AND t."cycleNumber" = v."handlingCycleNumber"
+        WHERE v.status = 'IN_PROGRESS' AND t.kind = 'SPECIAL'`);
+      return { status: VoiceStatus.IN_PROGRESS, id: { in: special.map((row) => row.id) } };
+    }
     const late = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       SELECT v.id FROM "Voice" v JOIN "VoiceHandlingTarget" t ON t."voiceId" = v.id
         AND t."cycleNumber" = v."handlingCycleNumber"

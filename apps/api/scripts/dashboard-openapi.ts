@@ -109,6 +109,7 @@ export const dashboardParameters = [
   'status',
   'from',
   'to',
+  'migrated',
 ];
 const handler = {
   type: 'object',

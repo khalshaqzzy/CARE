@@ -6,6 +6,7 @@ import {
   BellRing,
   Building2,
   ChevronRight,
+  Hourglass,
   Lock,
   CircleCheck,
   RefreshCw,
@@ -76,6 +77,11 @@ export type OpsDashboardProps = {
   onOpenActionList: () => void;
   /** Voice Member over the unit, filtered to one urgency. */
   onOpenAttention: (kind: AttentionKind) => void;
+  /** Whether migrated Voices count; off shows CARE Voices only (ADR-0084). */
+  migrated?: boolean;
+  onMigrated?: (on: boolean) => void;
+  /** Voice Member over the Voices in view, filtered to Penanganan Khusus. */
+  onOpenSpecial?: () => void;
   peopleQuery: Record<string, string | undefined>;
   peopleInsights: boolean;
   /**
@@ -352,6 +358,19 @@ function ProfileCard(props: OpsDashboardProps & { mineLine?: ReactNode }) {
           </span>
         ) : null}
         {props.filterRow}
+        {props.onMigrated && !props.privateView ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(props.migrated)}
+            aria-label="Termasuk Voice migrasi"
+            className="ops-filter-chip ops-migrated"
+            onClick={() => props.onMigrated?.(!props.migrated)}
+          >
+            <span className="ops-switch" aria-hidden="true" />
+            <span>Migrasi</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="ops-icon-button"
@@ -373,10 +392,13 @@ function StatusCard({
   onOpenRange,
   attention,
   onAttention,
+  onSpecial,
 }: {
   data: View & ViewExtras;
   team: boolean;
   onOpenRange?: ((from: string, to: string) => void) | undefined;
+  /** Opens the Voices in Penanganan Khusus; absent where they are not listed. */
+  onSpecial?: (() => void) | undefined;
   /** Urgent active Voices of the unit in view (handling basis only). */
   attention?: DashboardPreview['summary']['attention'] | undefined;
   onAttention?: ((kind: AttentionKind) => void) | undefined;
@@ -405,6 +427,20 @@ function StatusCard({
       {/* Right under the tiles, where Butuh Tindakan Saya shows its urgency. */}
       {attention && onAttention ? (
         <AttentionRow attention={attention} onPick={onAttention} />
+      ) : null}
+      {onSpecial && data.specialHandling ? (
+        <div className="ops-urgency ops-urgency--unit">
+          <button
+            type="button"
+            className="ops-urgency__chip ops-special-chip"
+            aria-label={`${data.specialHandling} Voice Penanganan Khusus`}
+            onClick={onSpecial}
+          >
+            <Hourglass size={13} aria-hidden="true" />
+            <strong>{data.specialHandling}</strong> Penanganan Khusus
+            <ChevronRight size={13} aria-hidden="true" />
+          </button>
+        </div>
       ) : null}
       <TrendMini data={data} onOpenRange={onOpenRange} />
     </section>
@@ -825,7 +861,11 @@ export function OpsDashboard(props: OpsDashboardProps) {
           ) : team ? (
             <>
               <div className="ops-column">
-                <StatusCard data={data} team={team} />
+                <StatusCard
+                  data={data}
+                  team={team}
+                  onSpecial={props.observer ? undefined : props.onOpenSpecial}
+                />
                 {props.peopleInsights ? (
                   <ParticipationSummaryCard query={props.peopleQuery} />
                 ) : null}
@@ -845,6 +885,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
                   onOpenRange={props.onOpenRange}
                   attention={props.inbox.preview?.summary.attention}
                   onAttention={props.onOpenAttention}
+                  onSpecial={props.observer ? undefined : props.onOpenSpecial}
                 />
                 <SpreadCard {...props} data={data} />
               </div>

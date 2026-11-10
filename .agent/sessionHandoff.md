@@ -1,5 +1,56 @@
 # CARE Session Handoff
 
+## Penanganan Khusus chip, closures credited to the PIC, Migrasi switch — 10 November 2026
+
+**Objective:** three fixes requested by the product owner, agreed in discussion and through rendered mock variants before execution:
+
+1. Voices in Penanganan Khusus could not be found as a list; only a badge and a small "Penanganan Khusus: N" text existed. Wanted on both Voice Untuk Saya and Voice Tim Saya. Picked: **variant B**, a chip in the Status Voice card (over variant A, a separate list card).
+2. **Selesai oleh saya** must mean "Voices I handled as PIC that are finished", not "Voices whose Selesai button I pressed". Reported case: Y. Kristiawan (Section Head, Employee Satisfaction Service) saw 4 Voices on Voice Untuk Saya but 6 in Selesai oleh saya.
+3. Migrated Voices made the figures confusing. Wanted: CARE Voices only by default, with a small, simple toggle to include migrated ones. Picked: **T1**, a small switch pill **Migrasi** in the hero filter row (over T2, a full-width "Termasuk Voice migrasi" line).
+
+Decision record: ADR-0084 (`docs/adr/0084-special-handling-list-pic-credit-and-migrated-toggle.md`), PRD §48 (plus pointers in §15.5 and the §18.8.6 "Selesai oleh saya" bullet).
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry at the top of implementationPhases.md.
+
+**Branch:** `feat/special-handling-and-migrated-toggle` from `origin/staging` 42473c8 (after PR #133), in a worktree in the session scratchpad. The main checkout on `feat/time-for-team` is far behind staging and holds unrelated uncommitted work, so it was not used. Mock and final screenshots are untracked in the main checkout under `docs/preview-special-migrasi/` (`1-…` to `7-…` are the mock variants; `chip-360`, `hero-360-*` and `dashboard-1440-*` show the implemented UI).
+
+**Findings behind the decisions (from code, not production data):**
+
+- `closedByScope` counted the latest unreopened `ClosureCycle.actorId`. Approved reports were already credited to the PIC (ADR-0069), but a direct close or a report done by a **substitute** (`actingFor`) was credited to the substitute.
+- `closedByScope` had no migrated filter. The legacy import (ADR-0061) records the old platform's handler as the closure actor, so migrated Voices counted in Selesai oleh saya. Status Voice also included them; only timeliness and averages excluded them.
+- Production data was not queried (the VPS is reachable only via the Hostinger console), so which of these explains the 6-vs-4 case is inferred, not confirmed.
+
+**Behaviour now:**
+
+- **Penanganan Khusus chip** (`OpsDashboard.tsx` StatusCard): amber chip "N Penanganan Khusus ›" (`aria-label` "N Voice Penanganan Khusus") under Perlu perhatian on Voice Untuk Saya and Voice Tim Saya when `specialHandling > 0`; hidden for the Director. It opens Voice Member on the current list with `due=SPECIAL` and the dashboard filters. `dueFilter('SPECIAL')` returns Diproses Voices whose current cycle has a SPECIAL target; Voice Member's Tenggat filter has the option "Penanganan Khusus".
+- **PIC credit** (`voices.service.ts` `creditedPic`): `close` and `reportDone` credit `ClosureCycle.actorId`, `ClosureReport.actorId`, `Voice.closureReportedById` and the approver notification to `currentHandlerId` for General Voices. The actor is credited when no handler is recorded and for Private Voices. Events keep the real actor. The pending part of `closedByScope` is now "pending report and I am the handler". Migration `20261110090000_credit_closure_to_pic` re-credits existing open cycles of closed General CARE Voices, pending reports, and `closureReportedById` to `currentHandlerId`.
+- **Migrasi switch:** the dashboard query `migrated=true|false` (default false) adds `legacySource IS NULL` to the cohort in `OrganizationDashboard.context`. Aggregate, preview, Performa Responder, Diri Saya and the other-basis total are therefore CARE-only by default; participation and Selesai oleh saya apply the same rule separately. UI: a `role="switch"` pill "Migrasi" after the filter button; URL state `migrated=1`, cleared by the filter reset. Links to Voice Member carry `migrated=1`. Voice Member sends `origin=CARE` (new on `GET /work-items`) unless `migrated=1` is set or a search is typed; its tab counts pass `migrated` to the preview.
+
+**Files changed:**
+
+- API: `src/voices/{dashboard,dashboard-people,voices.service}.ts`, `src/auth/policy.service.ts`, `scripts/{dashboard-openapi,enrich-openapi}.ts`, `openapi.json`, new migration `prisma/migrations/20261110090000_credit_closure_to_pic/`.
+- Tests: `test/integration/dashboard-people.integration.test.ts` (new case), `tiered-routing-foundation.integration.test.ts` (substitute close), `legacy-voice-import.integration.test.ts` (default excludes, `migrated=true` includes).
+- Contracts: `packages/contracts/src/generated.ts`.
+- Web: `features/home/{DashboardHome,OpsDashboard}.tsx`, `features/work/WorkItemsPage.tsx`, `styles.css`.
+- E2E: `e2e/dashboard.spec.ts` (new test), `e2e/helpers/dashboard-fixture.ts` (passes `specialHandling`), `scripts/validation/validation.test.mjs` (inventory 505 → 506).
+- Docs: ADR-0084, PRD §48 (+ §15.5 and §18.8.6 pointers), implementationPhases.md, this handoff.
+
+**Checks run (Windows, portable Node 22.23.4 / pnpm 11.8.0, throwaway `pgvector/pgvector:pg16` on 54339):**
+
+- Typecheck `@care/api`, `@care/web-voice`: pass. ESLint and Prettier (`--end-of-line auto`) on changed files: pass.
+- `pnpm openapi:generate` run twice; the second run produced no diff. `generated-contract.mjs` cannot spawn `pnpm` on Windows (ENOENT), so that script itself was not run.
+- API unit 176/176; web-voice Vitest 166/166.
+- API integration + security (all files, sequential): 217/218. The one failure was `legacy-voice-import` asserting migrated Voices on the default dashboard, which is the intended change; the test was updated and passes alone (3/3). Changed suites `dashboard-people` + `tiered-routing-foundation`: 31/31. Migrations applied cleanly to a fresh database; the backfill ran on empty tables and was not exercised against existing rows.
+- Playwright Chromium on a fresh web-voice build (`dashboard`, `member-voice`, `workforce-journeys`, `workforce-a11y`, `closure-approval`, `voice-lifecycle`): 144/145. The failure was the first test of `dashboard.spec.ts` timing out while the preview server warmed up under 6 workers; it passes on its own (twice, together with the new test).
+- `pwa:compat-check`: pass (main gzip 148,123 bytes; budget 166,640).
+- Not run: full `verify:local`, the legacy WebKit and visual projects, the validation inventory test itself (count raised by hand for one new test), `test:migration:upgrade`, hosted CI, and a real-device check.
+
+**Next:**
+
+1. Commit on the branch, run Gitleaks, open a PR to `staging`, wait for CI, merge, confirm `/ready` `releaseSha`.
+2. After deploy, as Y. Kristiawan (or any Section Head): Selesai oleh saya should no longer exceed what they handled as PIC; switching **Migrasi** on should bring migrated volume back; the chip should appear when a Voice in the unit is in Penanganan Khusus.
+3. If users miss the Migrasi pill on phones (it sits at the end of the scrolling filter row), move it before the area filter.
+
 ## Reporter profile for responders and location-first Voice detail header — 9 November 2026
 
 **Objective:** on the Voice detail, responders saw only the reporter's name. They need the reporter's division → department → section → line (when present) without crowding the page. The product owner also asked for a tidier hero with the location highlighted, and a highlighted Detail Voice card. Agreed through rendered mock variants before execution:

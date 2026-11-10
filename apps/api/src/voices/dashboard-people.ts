@@ -229,6 +229,7 @@ export class DashboardPeople {
           by: ['reporterId'],
           where: {
             reporterId: { in: accountIds },
+            ...(q.migrated === 'true' ? {} : { legacySource: null }),
             ...(q.area ? { area: q.area } : {}),
             ...(q.from || q.to
               ? {
