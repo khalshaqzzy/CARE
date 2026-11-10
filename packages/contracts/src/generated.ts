@@ -14064,7 +14064,7 @@ export interface operations {
                 from?: string;
                 to?: string;
                 sort?: string;
-                due?: "OVERDUE" | "SOON";
+                due?: "OVERDUE" | "SOON" | "SPECIAL";
                 origin?: "CARE" | "MIGRATED";
             };
             header?: never;
@@ -14336,7 +14336,7 @@ export interface operations {
                 to?: string;
                 unassigned?: string;
                 handler?: string;
-                due?: "OVERDUE" | "SOON";
+                due?: "OVERDUE" | "SOON" | "SPECIAL";
                 sort?: string;
                 scope?: "unit" | "team";
                 scopeMode?: string;
@@ -14345,6 +14345,7 @@ export interface operations {
                 department?: string;
                 section?: string;
                 action?: "me" | "approve" | "closed";
+                origin?: "CARE" | "MIGRATED";
             };
             header?: never;
             path?: never;
@@ -19495,6 +19496,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -19632,6 +19634,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -19890,6 +19893,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -20027,6 +20031,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -20164,6 +20169,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -20301,6 +20307,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -20438,6 +20445,7 @@ export interface operations {
                 status?: string;
                 from?: string;
                 to?: string;
+                migrated?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -20807,7 +20815,7 @@ export interface operations {
                 status?: string;
                 statusGroup?: "ACTIVE" | "CLOSED" | "ALL";
                 severity?: string;
-                due?: "OVERDUE" | "SOON";
+                due?: "OVERDUE" | "SOON" | "SPECIAL";
                 from?: string;
                 to?: string;
             };

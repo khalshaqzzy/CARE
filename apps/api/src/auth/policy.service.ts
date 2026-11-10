@@ -305,8 +305,9 @@ export class PolicyService {
   }
 
   /**
-   * "Selesai oleh saya": General Voices whose current closure this responder
-   * made, counting a report done that waits for approval (ADR-0069).
+   * "Selesai oleh saya": General Voices this responder handled as PIC and that
+   * are finished. A closure is credited to the PIC, whoever pressed the button
+   * (ADR-0084); a report done that waits for approval counts (ADR-0069).
    */
   closedByScope(actor: Principal): Prisma.VoiceWhereInput {
     return {
@@ -317,7 +318,11 @@ export class PolicyService {
           // Only the latest cycle is never reopened.
           closureCycles: { some: { actorId: actor.accountId, reopenedAt: null } },
         },
-        { status: VoiceStatus.IN_PROGRESS, closureReportedById: actor.accountId },
+        {
+          status: VoiceStatus.IN_PROGRESS,
+          closureReportedById: { not: null },
+          currentHandlerId: actor.accountId,
+        },
       ],
     };
   }

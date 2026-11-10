@@ -1334,6 +1334,34 @@ describe('Tiered routing foundation', () => {
       expect((await prisma.voice.findUniqueOrThrow({ where: { id: critical } })).status).toBe(
         'CLOSED',
       );
+
+      // A substitute closing for an away PIC credits the PIC, not themselves (ADR-0084).
+      const covered = await processedByGroupLeader('close-substitute', Severity.LOW);
+      await away.set(groupLeader, {
+        startsOn: dayKey(0),
+        endsOn: dayKey(1),
+        substituteId: sectionHead.accountId,
+      });
+      try {
+        const substitute = await principal('700002');
+        expect(substitute.actingFor).toEqual([groupLeader.accountId]);
+        const glBefore = (await voices.dashboardPreview(groupLeader, {})).summary.closedByMe;
+        const shBefore = (await voices.dashboardPreview(substitute, {})).summary.closedByMe;
+        await voices.close(
+          substitute,
+          covered,
+          { note: 'Ditutup pengganti.', version: await version(covered) },
+          'close-substitute-close',
+        );
+        const cycle = await prisma.closureCycle.findFirstOrThrow({ where: { voiceId: covered } });
+        expect(cycle.actorId).toBe(groupLeader.accountId);
+        expect((await voices.dashboardPreview(groupLeader, {})).summary.closedByMe).toBe(
+          glBefore + 1,
+        );
+        expect((await voices.dashboardPreview(substitute, {})).summary.closedByMe).toBe(shBefore);
+      } finally {
+        await away.end(groupLeader);
+      }
     } finally {
       await prisma.organizationMembership.delete({ where: { id: membership.id } });
     }

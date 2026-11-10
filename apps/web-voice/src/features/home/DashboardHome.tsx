@@ -66,6 +66,7 @@ const filterNames = [
   'dashStatus',
   'dashFrom',
   'dashTo',
+  'migrated',
 ];
 
 // Promise.allSettled is absent on the supported legacy WebKit tier.
@@ -131,6 +132,8 @@ export function DashboardHome() {
     category: isPrivate ? undefined : read('dashCategory'),
     severity: read('dashSeverity'),
     status: read('dashStatus'),
+    // CARE Voices only unless migrated ones are switched on (ADR-0084).
+    migrated: read('migrated') === '1' ? ('true' as const) : undefined,
   };
   const metadataQuery = {
     ...query,
@@ -282,6 +285,7 @@ export function DashboardHome() {
     if (director && isPrivate) p.set('visibility', 'PRIVATE');
     // Responders land on the Voice Member list matching the basis in view.
     if (!union && !director) p.set('tab', query.basis === 'REPORTER' ? 'team' : 'unit');
+    if (!union && query.migrated) p.set('migrated', '1');
     for (const [key, value] of Object.entries(extra)) p.set(key, value);
     return `${union && !isPrivate ? '/general' : '/work-items'}?${p}`;
   };
@@ -440,8 +444,16 @@ export function DashboardHome() {
         onOpenTeamOverdue={() => void navigate(listUrl({ tab: 'team', due: 'OVERDUE' }))}
         // The action list ignores the dashboard filters, like its counts.
         onOpenAction={(kind) =>
-          void navigate(`/work-items?${new URLSearchParams(ACTION_FILTERS[kind])}`)
+          void navigate(
+            `/work-items?${new URLSearchParams({
+              ...ACTION_FILTERS[kind],
+              ...(query.migrated ? { migrated: '1' } : {}),
+            })}`,
+          )
         }
+        migrated={Boolean(query.migrated)}
+        onMigrated={(on) => set({ migrated: on ? '1' : undefined })}
+        onOpenSpecial={() => void navigate(listUrl({ due: 'SPECIAL' }))}
         onOpenActionList={() => void navigate(`/work-items?${new URLSearchParams(ACTION_LIST)}`)}
         // "Perlu perhatian" counts the unit in view, so its list keeps the filters.
         onOpenAttention={(kind) => void navigate(listUrl(ATTENTION_FILTERS[kind]))}

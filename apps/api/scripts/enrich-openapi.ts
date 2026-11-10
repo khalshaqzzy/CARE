@@ -43,28 +43,30 @@ export function enrichOpenApi(document: OpenAPIObject): OpenAPIObject {
                   : parameter === 'origin'
                     ? { type: 'string', enum: ['CARE', 'MIGRATED'] }
                     : parameter === 'due'
-                      ? { type: 'string', enum: ['OVERDUE', 'SOON'] }
-                      : parameter === 'download'
-                        ? { type: 'string', enum: ['1'] }
-                        : parameter === 'loggedIn'
-                          ? { type: 'string', enum: ['true', 'false'] }
-                          : parameter === 'responderLevel'
-                            ? {
-                                type: 'string',
-                                enum: [
-                                  'GROUP_LEADER',
-                                  'SECTION_HEAD',
-                                  'MANAGER',
-                                  'DIVISION',
-                                  'ANY',
-                                ],
-                              }
-                            : parameter === 'scope'
-                              ? { type: 'string', enum: ['unit', 'team'] }
-                              : parameter === 'action' &&
-                                  operation.operationId === 'VoicesController_workItems'
-                                ? { type: 'string', enum: ['me', 'approve', 'closed'] }
-                                : { type: 'string' },
+                      ? { type: 'string', enum: ['OVERDUE', 'SOON', 'SPECIAL'] }
+                      : parameter === 'migrated'
+                        ? { type: 'string', enum: ['true', 'false'] }
+                        : parameter === 'download'
+                          ? { type: 'string', enum: ['1'] }
+                          : parameter === 'loggedIn'
+                            ? { type: 'string', enum: ['true', 'false'] }
+                            : parameter === 'responderLevel'
+                              ? {
+                                  type: 'string',
+                                  enum: [
+                                    'GROUP_LEADER',
+                                    'SECTION_HEAD',
+                                    'MANAGER',
+                                    'DIVISION',
+                                    'ANY',
+                                  ],
+                                }
+                              : parameter === 'scope'
+                                ? { type: 'string', enum: ['unit', 'team'] }
+                                : parameter === 'action' &&
+                                    operation.operationId === 'VoicesController_workItems'
+                                  ? { type: 'string', enum: ['me', 'approve', 'closed'] }
+                                  : { type: 'string' },
           });
       if (
         method !== 'get' &&
@@ -259,6 +261,7 @@ const queryParameters: Record<string, string[]> = {
     'department',
     'section',
     'action',
+    'origin',
   ],
   VoicesController_listDrafts: ['cursor', 'limit'],
   VoicesController_dashboardGeneral: dashboardParameters,

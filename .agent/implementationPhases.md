@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Penanganan Khusus chip, closures credited to the PIC, Migrasi switch — 10 November 2026
+
+Phase 13 remains the only `in_progress` phase. On `feat/special-handling-and-migrated-toggle` (from `origin/staging` 42473c8, not released): the Status Voice card shows an **N Penanganan Khusus** chip that opens Voice Member with `due=SPECIAL`; a General closure or report done is credited to the PIC (`currentHandlerId`) even when a substitute pressed the button, with a data migration for existing credits, so **Selesai oleh saya** means "handled by me as PIC and finished"; and the dashboard counts CARE Voices only unless the new **Migrasi** switch (`migrated=true`) is on, with Voice Member following the same choice (`origin=CARE`). See ADR-0084 and PRD §48; checks are in sessionHandoff.md.
+
 ## Reporter profile and location-first Voice detail header — 9 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/responder-reporter-profile` (from `origin/staging` 75ca3df, not released): General responders and leaders open **Profil pelapor** from the reporter name (No. Reg, Divisi, Departemen, Section, Line from the submit snapshot; `reporter.line` added to the General and Admin private detail contract), the open-Voice hero leads with a highlighted Lokasi block and a Severity | Kategori / PIC | Pelapor grid, and the Detail Voice card gets a tinted header, brand outline and glow. See ADR-0083 and PRD §47; checks are in sessionHandoff.md.

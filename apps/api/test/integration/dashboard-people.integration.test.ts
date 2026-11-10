@@ -530,6 +530,78 @@ describe('Dashboard people: handling performance and member participation', () =
     await expect(voices.workItems(manager, { due: 'LATER' })).rejects.toThrow();
   });
 
+  it('keeps migrated Voices out unless asked for, and lists Penanganan Khusus', async () => {
+    const care = await voice({ title: 'Tutup CARE', status: 'CLOSED' });
+    await db.closureCycle.create({
+      data: { voiceId: care.id, cycleNumber: 1, actorId: manager.accountId, note: 'Selesai' },
+    });
+    const old = await voice({
+      title: 'Tutup migrasi',
+      status: 'CLOSED',
+      legacySource: 'Voice Lama',
+      legacyId: `OLD-${seq}`,
+    });
+    await db.closureCycle.create({
+      data: { voiceId: old.id, cycleNumber: 1, actorId: manager.accountId, note: 'Selesai' },
+    });
+    // Reported done by a substitute: still the PIC's own finished work.
+    await voice({
+      title: 'Dilaporkan pengganti',
+      status: 'IN_PROGRESS',
+      currentHandlerId: manager.accountId,
+      closureReportedById: sectionHead.accountId,
+    });
+    const special = await voice({
+      title: 'Khusus',
+      status: 'IN_PROGRESS',
+      currentHandlerId: sectionHead.accountId,
+      handlingCycleNumber: 1,
+    });
+    await db.voiceHandlingTarget.create({
+      data: {
+        voiceId: special.id,
+        cycleNumber: 1,
+        kind: 'SPECIAL',
+        specialReason: 'Menunggu anggaran',
+        setById: sectionHead.accountId,
+      },
+    });
+    const closedCount = (preview: Awaited<ReturnType<VoicesService['dashboardPreview']>>) =>
+      preview.summary.status.find((row) => row.label === 'CLOSED')?.value;
+
+    // By default only CARE Voices count, everywhere on the dashboard.
+    const care1 = await voices.dashboardPreview(manager, { basis: 'HANDLING' });
+    expect(care1.summary.closedByMe).toBe(2);
+    expect(closedCount(care1)).toBe(1);
+    const view = await dashboard.aggregate(manager, { basis: 'HANDLING' });
+    expect(view.total).toBe(3);
+    expect(view.specialHandling).toBe(1);
+    expect(view.organization.some((bucket) => bucket.label.startsWith('Migrasi'))).toBe(false);
+
+    // Switched on, migrated Voices join the counts.
+    const all = await voices.dashboardPreview(manager, { basis: 'HANDLING', migrated: 'true' });
+    expect(all.summary.closedByMe).toBe(3);
+    expect(closedCount(all)).toBe(2);
+    expect(
+      (await dashboard.aggregate(manager, { basis: 'HANDLING', migrated: 'true' })).total,
+    ).toBe(4);
+
+    const titles = async (query: Parameters<VoicesService['workItems']>[1]) =>
+      (await voices.workItems(manager, query)).items.map((item) => item.title).sort();
+    expect(await titles({ action: 'closed', origin: 'CARE' })).toEqual([
+      'Dilaporkan pengganti',
+      'Tutup CARE',
+    ]);
+    expect(await titles({ action: 'closed' })).toEqual([
+      'Dilaporkan pengganti',
+      'Tutup CARE',
+      'Tutup migrasi',
+    ]);
+    // The Penanganan Khusus chip opens exactly the Voices it counts.
+    expect(await titles({ scope: 'unit', due: 'SPECIAL' })).toEqual(['Khusus']);
+    await expect(voices.workItems(manager, { origin: 'OLD' })).rejects.toThrow();
+  });
+
   it('lists the unit the dashboard counts when Voice Member asks for scope=unit', async () => {
     // Held by the Section Head below: in the unit, not in the Manager's own work list.
     await voice({

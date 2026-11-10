@@ -265,8 +265,10 @@ describe('Legacy voice import', () => {
     expect(former).toMatchObject({ status: 'INACTIVE', accountKind: 'WORKFORCE' });
     expect(await db.notification.count()).toBe(0);
 
-    // Volume only: counted, but out of timeliness, the averages and personal figures.
-    const result = await dashboard.aggregate(manager, { basis: 'HANDLING' });
+    // Left out of the dashboard unless migrated Voices are switched on (ADR-0084).
+    expect((await dashboard.aggregate(manager, { basis: 'HANDLING' })).total).toBe(0);
+    // Switched on: volume only, out of timeliness, the averages and personal figures.
+    const result = await dashboard.aggregate(manager, { basis: 'HANDLING', migrated: 'true' });
     expect(result.total).toBe(2);
     expect(result.status).toEqual([{ label: 'CLOSED', value: 2 }]);
     expect(result.handlingUnresolved).toBe(0);
@@ -284,7 +286,7 @@ describe('Legacy voice import', () => {
       averageFeedbackScore: null,
       feedbackSampleCount: 0,
     });
-    expect(await people.mine(manager, {})).toMatchObject({
+    expect(await people.mine(manager, { migrated: 'true' })).toMatchObject({
       held: 0,
       onTimeRate: null,
       responseSampleCount: 0,

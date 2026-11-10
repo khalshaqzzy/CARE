@@ -848,7 +848,7 @@ Sebagian Voice membutuhkan diskusi panjang (misalnya budget) sehingga durasi tid
 - **Close ditolak** selama siklus berada pada Penanganan Khusus (`SPECIAL_HANDLING_REQUIRES_TARGET`). Tombol Tutup diganti **Tetapkan target**. Close terbuka setelah target hari ditetapkan.
 - **Konversi** dari Penanganan Khusus ke target hari hanya oleh PIC efektif, satu kali dan satu arah. Target hari yang sudah ditetapkan tidak dapat diubah menjadi Penanganan Khusus. Konversi menetapkan target immutable seperti §15.4 dan menyimpan riwayat kedua langkah; perhitungan waktu dimulai dari konversi.
 - Reopen membuka siklus baru tanpa target dan tidak mewarisi Penanganan Khusus. Siklus baru tanpa target tetap dapat ditutup seperti aturan data lama; penolakan close hanya berlaku bagi siklus yang secara eksplisit berada pada Penanganan Khusus.
-- Dashboard (§18.8.6): selama Penanganan Khusus, Voice dikeluarkan dari Tepat waktu dan Terlambat serta dihitung terpisah sebagai **Penanganan Khusus: N**. Setelah dikonversi, Voice masuk perhitungan normal sejak target ditetapkan. Durasi aktual tetap tercatat saat Voice ditutup.
+- Dashboard (§18.8.6): selama Penanganan Khusus, Voice dikeluarkan dari Tepat waktu dan Terlambat serta dihitung terpisah sebagai **Penanganan Khusus: N**. Kartu Status Voice menampilkan chip **N Penanganan Khusus** yang membuka daftarnya di Voice Member (§48). Setelah dikonversi, Voice masuk perhitungan normal sejak target ditetapkan. Durasi aktual tetap tercatat saat Voice ditutup.
 - Voice yang tidak pernah dikonversi tetap Diproses tanpa batas. Tanggal tinjau tidak termasuk ruang lingkup dan dapat ditambahkan kemudian bila diperlukan.
 
 ## 16. Conversation dan Keterangan Penanganan
@@ -2538,7 +2538,7 @@ belum dibaca tetap), dan entri sidebar desktop **Akun Saya** menjadi **Pengatura
 **Pembaruan 13 Oktober 2026 — susunan kartu.**
 
 - **Butuh Tindakan Saya** memecah total menurut langkah berikutnya: **Perlu Direspon** (Terbuka), **Perlu Diproses** (Direspon), **Perlu Diselesaikan** (Diproses, sebagai PIC). Ketiga angka selalu berjumlah sama dengan total.
-  - Di sebelahnya ada kotak hijau **Selesai oleh saya**: Voice yang penutupan terakhirnya dilakukan orang itu dan belum dibuka kembali, sepanjang waktu, tidak termasuk total.
+  - Di sebelahnya ada kotak hijau **Selesai oleh saya**: Voice yang penutupan terakhirnya dilakukan orang itu dan belum dibuka kembali, sepanjang waktu, tidak termasuk total. _Diganti 10 November 2026 (§48): Voice yang ditangani orang itu sebagai PIC dan sudah selesai, siapa pun yang menekan tombol; Voice migrasi tidak dihitung kecuali saklar Migrasi aktif._
   - Di bawah kotak tampil chip mendesak pribadi (**Lewat batas**, **Batas < 24 jam**, **Kritis**) bila angkanya lebih dari 0, lalu **Paling mendesak**.
 - **Status Voice** menampilkan baris **Perlu perhatian** (Lewat batas · Batas < 24 jam · Kritis) tepat di bawah kotak status. Angkanya mencakup seluruh unit dalam filter dashboard, termasuk Voice yang masih di jenjang bawah, dan membuka Voice Member dengan filter yang sama. Batang warna status dihapus dari kartu ini.
 - **Voice Member:** filter **Tindakan** berisi Semua · Tindakan saya · Selesai oleh saya (`action=closed`).
@@ -2808,3 +2808,15 @@ Tujuan: responder mengetahui posisi pelapor di organisasi tanpa membuat halaman 
 - **Profil pelapor.** Nama pelapor berupa tautan; ketukan membuka sheet bawah (dialog di desktop) **Profil pelapor**: nama, No. Reg, lalu Divisi, Departemen, Section, Line. Section dan Line hanya tampil bila ada. Semua nilai berasal dari snapshot saat Voice dikirim, bukan data organisasi terkini.
 - **Kartu Detail Voice.** Header kartu berlatar biru muda dengan ikon dokumen; garis biru tegas di sekeliling kartu dan glow biru lembut.
 - **Kontrak.** `reporter.line` (nullable) ditambahkan pada detail `GENERAL_RESPONDER`, `LEADERSHIP_GENERAL_READ_ONLY`, dan `ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY`; skema `GENERAL_RESPONDER` kini juga mendokumentasikan `directorate`, `section`, dan `position` yang sudah dikirim server. Detail Komite (`UNION_IDENTIFIED`/`UNION_ANONYMOUS`) dan `REPORTER_SELF` tidak berubah.
+
+## 48. Penanganan Khusus di dashboard, kredit penyelesaian ke PIC, dan saklar Voice migrasi — 10 November 2026
+
+Tujuan: Voice Penanganan Khusus dapat dibuka sebagai daftar, **Selesai oleh saya** berarti pekerjaan PIC itu sendiri, dan angka dashboard tidak bercampur dengan Voice migrasi. Keputusan rinci di ADR-0084.
+
+- **Chip Penanganan Khusus.** Kartu Status Voice (Voice Untuk Saya dan Voice Tim Saya) menampilkan chip kuning **N Penanganan Khusus ›** di bawah baris Perlu perhatian bila N > 0. Angkanya mengikuti semua filter dashboard. Ketukan membuka Voice Member (tab Voice Untuk Unit atau Voice Tim Saya) dengan filter **Tenggat → Penanganan Khusus** (`due=SPECIAL`). Tidak tampil di dashboard Director (read-only).
+- **Selesai oleh saya = pekerjaan PIC.** Voice General yang ditangani orang itu sebagai PIC dan sudah selesai (penutupan terakhir belum dibuka kembali), ditambah laporan selesai yang masih menunggu persetujuan. Patokannya PIC (`currentHandlerId`), bukan siapa yang menekan Selesai atau Laporkan selesai: bila pengganti (substitute) menekan tombol untuk PIC yang sedang tidak masuk, penyelesaian dan waktunya dikreditkan ke PIC. Event tetap mencatat siapa yang menekan tombol. Data lama dipindahkan ke PIC oleh migrasi (Voice General CARE saja).
+- **Saklar Migrasi.** Baris filter di kotak biru dashboard memuat saklar kecil **Migrasi** (nama aksesibel "Termasuk Voice migrasi"), default mati.
+  - Mati: semua angka dashboard hanya Voice CARE: total, Status Voice, Butuh Tindakan Saya termasuk Selesai oleh saya, sebaran, Performa Responder, Diri Saya, partisipasi, dan total basis lain. Bucket "Migrasi Voice …" tidak tampil.
+  - Nyala: URL membawa `migrated=1` dan Voice migrasi ikut dihitung seperti sebelumnya; Tepat waktu dan rata-rata tetap tanpa Voice migrasi (ADR-0061).
+  - Voice Member mengikuti pilihan yang sama: tautan dari dashboard membawa `migrated=1` bila saklar nyala; tanpa itu daftar dan angka tab hanya Voice CARE. Pencarian tetap menemukan Voice migrasi lewat ID lamanya.
+- **Kontrak.** Semua endpoint dashboard menerima `migrated=true|false` (default false). `GET /work-items` menerima `origin=CARE|MIGRATED`. `due` pada `GET /work-items` dan `GET /voices` menerima `SPECIAL`.

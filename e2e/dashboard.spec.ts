@@ -949,6 +949,44 @@ test('Pantau on Voice Tim Saya opens the team Voices past their deadline', async
   await expect.poll(() => lists.at(-1)?.searchParams.get('scope')).toBe('team');
   expect(lists.at(-1)?.searchParams.get('due')).toBe('OVERDUE');
 });
+test('Penanganan Khusus and the Migrasi switch carry into Voice Member', async ({ page }) => {
+  const dashboards: URL[] = [];
+  const lists: URL[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/v1/dashboard/general') dashboards.push(url);
+    if (url.pathname === '/api/v1/work-items') lists.push(url);
+  });
+  await mockWorkforceApi(page, {
+    session: manager,
+    generalDashboard: { total: 6, specialHandling: 2 },
+  });
+  await page.goto('/');
+  // CARE Voices only by default.
+  const migrated = page.getByRole('switch', { name: 'Termasuk Voice migrasi' });
+  await expect(migrated).toHaveAttribute('aria-checked', 'false');
+  await expect.poll(() => dashboards.length).toBeGreaterThan(0);
+  expect(dashboards.at(-1)?.searchParams.has('migrated')).toBe(false);
+  await migrated.click();
+  await expect(page).toHaveURL(/migrated=1/);
+  await expect(migrated).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(() => dashboards.at(-1)?.searchParams.get('migrated')).toBe('true');
+  expect((await new AxeBuilder({ page }).include('.ops').analyze()).violations).toEqual([]);
+
+  const special = page.getByRole('button', { name: '2 Voice Penanganan Khusus' });
+  await expect(special).toBeVisible();
+  await special.click();
+  await expect(page).toHaveURL(/\/work-items\?/);
+  await expect(page).toHaveURL(/due=SPECIAL/);
+  await expect(page).toHaveURL(/migrated=1/);
+  await expect.poll(() => lists.at(-1)?.searchParams.get('due')).toBe('SPECIAL');
+  expect(lists.at(-1)?.searchParams.get('scope')).toBe('unit');
+  expect(lists.at(-1)?.searchParams.has('origin')).toBe(false);
+
+  // Without the switch, Voice Member lists CARE Voices only.
+  await page.goto('/work-items?tab=unit');
+  await expect.poll(() => lists.at(-1)?.searchParams.get('origin')).toBe('CARE');
+});
 test('Group Leader reads two lists: Butuh Tindakan Saya and Voice Tim Saya', async ({ page }) => {
   await mockWorkforceApi(page, {
     session: memberSession({

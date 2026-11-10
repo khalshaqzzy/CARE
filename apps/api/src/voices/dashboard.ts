@@ -21,6 +21,8 @@ export const dashboardQuerySchema = z
     status: z.nativeEnum(VoiceStatus).optional(),
     from: z.iso.datetime({ offset: true }).optional(),
     to: z.iso.datetime({ offset: true }).optional(),
+    // Migrated Voices stay out of every figure unless asked for (ADR-0084).
+    migrated: z.enum(['true', 'false']).optional(),
   })
   .strict()
   .superRefine((q, ctx) => {
@@ -406,6 +408,7 @@ export class OrganizationDashboard {
     }));
     if (q.handler && !handlers.some((h) => h.id === q.handler)) throw forbiddenAsNotFound();
     const clauses: Prisma.VoiceWhereInput[] = [{ visibility: q.visibility }, scope];
+    if (q.migrated !== 'true') clauses.push({ legacySource: null });
     const selectedPath = [...levels].reverse().find((l) => selections[l]);
     if (selectedPath) clauses.push(forPath(parts(selections[selectedPath]!)));
     if (q.handler) clauses.push({ currentHandlerId: q.handler });
