@@ -8,6 +8,7 @@ import {
   Ellipsis,
   Heart,
   HeartHandshake,
+  Hourglass,
   ImagePlus,
   MessageCircle,
   Presentation,
@@ -16,7 +17,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { initials } from '../home/DashboardPeople';
 import {
   TEAM_POSTS,
@@ -52,19 +53,70 @@ export function TeamPhoto({
   );
 }
 
-/** Home entryway (approved design): one tappable card under the profile hero. */
-export function TimeForTeamCard() {
+/** Coming Soon illustration: a blue calendar with an orange hourglass, drawn in CSS. */
+function ComingSoonArt() {
   return (
-    <Link to="/time-for-team" className="tft-card tft-entry ops-span-2">
-      <span className="tft-entry__icon" aria-hidden="true">
-        <HeartHandshake size={38} strokeWidth={2.25} />
+    <span className="tft-soon__art" aria-hidden="true">
+      <span className="tft-soon__ray tft-soon__ray--a" />
+      <span className="tft-soon__ray tft-soon__ray--b" />
+      <span className="tft-soon__ray tft-soon__ray--c" />
+      <span className="tft-soon__ray tft-soon__ray--d" />
+      <span className="tft-soon__calendar">
+        <span className="tft-soon__rings" />
+        <span className="tft-soon__days" />
       </span>
-      <span className="tft-entry__text">
-        <strong>Time for Team</strong>
-        <span>Lebih dekat, lebih peduli, lebih kuat bersama.</span>
+      <span className="tft-soon__hourglass">
+        <Hourglass size={22} strokeWidth={2.5} />
       </span>
-      <ChevronRight className="tft-entry__chevron" size={22} aria-hidden="true" />
-    </Link>
+    </span>
+  );
+}
+
+/**
+ * Home entryway (approved design): one tappable card under the profile hero.
+ * Until Time for Team is released it opens a Coming Soon dialog, not the page.
+ */
+export function TimeForTeamCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="tft-card tft-entry ops-span-2"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+      >
+        <span className="tft-entry__icon" aria-hidden="true">
+          <HeartHandshake size={38} strokeWidth={2.25} />
+        </span>
+        <span className="tft-entry__text">
+          <span className="tft-entry__title">
+            <strong>Time for Team</strong>
+            <span className="tft-badge">Coming Soon</span>
+          </span>
+          <span className="tft-entry__desc">Aktivitas kebersamaan untuk memperkuat tim.</span>
+        </span>
+        <ChevronRight className="tft-entry__chevron" size={24} aria-hidden="true" />
+      </button>
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Time for Team"
+        size="sm"
+        className="tft-soon-dialog"
+      >
+        <div className="tft-card tft-soon">
+          <ComingSoonArt />
+          <p className="tft-soon__title" aria-hidden="true">
+            Time for Team
+          </p>
+          <span className="tft-badge tft-badge--lg">Coming Soon</span>
+          <p className="tft-soon__text">
+            Fitur Time for Team akan segera hadir di CARE. Nantikan pembaruannya!
+          </p>
+        </div>
+      </Dialog>
+    </>
   );
 }
 

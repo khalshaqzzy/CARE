@@ -815,7 +815,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
   return (
     <div className={team ? 'ops ops--team' : 'ops ops--handling'}>
       <ProfileCard {...props} mineLine={<MineLine mine={mine} />} />
-      {!props.observer ? <TimeForTeamCard /> : null}
+      <TimeForTeamCard />
       {!team && !props.observer && data ? (
         <ActionSummaryCard
           preview={props.inbox.preview}

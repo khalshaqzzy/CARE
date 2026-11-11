@@ -32,6 +32,7 @@ import { VoiceCard } from '../../components/VoiceCard';
 import { VoiceSummaryCard } from '../../components/VoiceSummaryCard';
 import { GuideButton } from '../guide/GuideButton';
 import { NotificationBellButton } from '../notifications/NotificationBell';
+import { TimeForTeamCard } from '../team/TimeForTeam';
 import {
   AREA_LABELS,
   CATEGORY_LABELS,
@@ -289,6 +290,8 @@ function MemberHomePage() {
           />
         ) : null}
       </section>
+
+      <TimeForTeamCard />
 
       {member.isError ? (
         <Alert tone="danger" title="Gagal memuat ringkasan">

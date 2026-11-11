@@ -1,5 +1,93 @@
 # CARE Session Handoff
 
+## Time for Team: dedicated worktree, Coming Soon entryway on every Home, access decision — 11 November 2026
+
+**Objective:** move the approved Time for Team (TFT) homepage entryway off the stale main checkout onto its own branch from current staging, record the main developer's access decisions, make the entryway reach every signed-in CARE user, and keep the unfinished feature behind a Coming Soon dialog. No TFT backend or real posting in this round.
+
+**Confirmed decisions (main CARE developer):**
+
+- Every signed-in CARE user (registered employee) can see and open TFT.
+- TFT reuses CARE login, identity and the organization hierarchy. There is no separate registration or user store.
+- Permissions to create, edit and monitor records will follow role and organizational scope. No universal edit or admin right is assumed.
+- The entryway visual is approved; the reference is `docs/preview-time-for-team/entryway-home-390.png` (untracked).
+- Mbak Caca approved the entryway and pushing it to GitHub, after a Coming Soon change: the card opens a Coming Soon dialog instead of the unfinished page. A later revision supersedes the first "words only" version: card and dialog follow the final mockup `Time for Team Coming Soon UI(1).png` (outside the repo). That covers a badge beside the title, the new description, and the illustrated dialog. Home layouts and role content stay as they are in CARE.
+
+Recorded in PRD §49, which separates confirmed, proposed and unknown items.
+
+**Phase:** Phase 13 stays the only `in_progress` phase; new entry at the top of implementationPhases.md.
+
+**Branch / worktree:**
+
+- `feat/time-for-team` in worktree `../CARE-tft`, from `origin/staging` 63cfece (after PR #134), created with `--no-track` (no upstream).
+- Local commit `5fb0f17` "feat: add the Time for Team home entryway and prototype page": `features/team/{TimeForTeam.tsx,time-for-team.css,time-for-team-data.ts}`, the route in `App.tsx`, and the card in `OpsDashboard.tsx`.
+- The access follow-up, the Coming Soon change, the route removal and these doc updates are **uncommitted** on top of it. Nothing is pushed.
+
+**Setup details:**
+
+- The old local `feat/time-for-team` (9a5593d, no commits of its own, never pushed) was renamed to `archive/time-for-team-pre-worktree-2026-11-11`. The main checkout now sits on that archive branch with its uncommitted work unchanged.
+- Backup of that working tree before any change: `C:\Users\ASUS\Documents\GitHub\CARE-backups\tft-setup-2026-11-11\` (patch, tar of 407 untracked files, copies of the 19 modified files, sha256 of all 426, verified by extract and re-hash).
+- From the main checkout only the TFT files and the TFT lines in `App.tsx` and `OpsDashboard.tsx` were carried over, hand-applied on staging's versions. Not carried over: persistent sessions and the logout dialog (already on `fix/persistent-sessions`), push default-on (already on `feat/push-default-on`), the `?mh=` member-home preview, and the web-admin change.
+
+**Access behaviour now (uncommitted follow-up to 5fb0f17):**
+
+Before, the card showed only on the unit-head operations dashboard. It was hidden for Director (`observer`) and missing on the Member and Komite/Union Homes. Now:
+
+- `OpsDashboard.tsx`: the card renders for every viewer, Director included (the `!props.observer` check is removed).
+- `DashboardHome.tsx`: the Komite/Union `organization-home` layout gets the card as the first item of its body.
+- `HomePage.tsx`: `MemberHomePage` gets the card right after the hero.
+- `/time-for-team` was already inside `SessionGate` / `WorkforceShell` with no capability check, so routing needed no change. Signed out → `/login`; the password-change and wrong-app (CARE Admin) gates apply as on every workforce page. No nav or dock item was added.
+
+**Coming Soon (uncommitted):** all changes are in the shared `TimeForTeamCard`, so every placement behaves the same: Member, Unit Head, Director, Komite/Union.
+
+- `TimeForTeam.tsx`:
+  - The card is a `<button aria-haspopup="dialog">` (was a `<Link>` to `/time-for-team`): orange `HeartHandshake` icon, **Time for Team** with a `.tft-badge` **Coming Soon** beside it, "Aktivitas kebersamaan untuk memperkuat tim.", and a chevron. The placement in each Home is unchanged.
+  - A tap opens the CARE `Dialog` (`size="sm"`, `className="tft-soon-dialog"`), centred on phone and desktop.
+  - The dialog header keeps only the CARE close X: its title stays in the DOM as the accessible name but is visually hidden.
+  - The body shows `ComingSoonArt`, a CSS-drawn blue calendar with an orange lucide `Hourglass`, a soft blue blob and four rays. Under it come the visible title **Time for Team**, a larger **Coming Soon** badge, and "Fitur Time for Team akan segera hadir di CARE. Nantikan pembaruannya!". Radix focus trap, Escape, X and focus return are unchanged.
+- `time-for-team.css`:
+  - Card: 16 px radius, 100 px minimum height, 12 px gap, 18 px title, 15 px description. The description is limited to two lines on phones and runs on one line from 768 px.
+  - Shared `.tft-badge`: white on `#c2410c`, because the mockup's brighter orange fails WCAG AA with white text and the a11y suite scans Home.
+  - `button.tft-entry` reset, plus the `.tft-soon*` dialog and illustration styles. No new assets or dependencies.
+- The card no longer links anywhere.
+
+**Route closed while Coming Soon (uncommitted, approved):**
+
+- `App.tsx`: the `time-for-team` route and the `TimeForTeamPage` import are removed, so `App.tsx` is again identical to `origin/staging`.
+- A typed `/time-for-team` now falls through to the shell's existing catch-all (`path="*"` → `<Navigate to="/" replace />`) and lands on Home. Signed-out visitors still go to `/login` first.
+- `TimeForTeamPage`, the sample data and the feed CSS stay in `features/team/` for later; restoring the route is one line plus the import. The unused page is tree-shaken out of the build: main gzip went from 150,568 to 148,491 bytes, and no TFT prototype text is left in the built JS.
+
+**Checks run (Windows, portable Node 22.23.4 / pnpm 11.8.0):**
+
+- `@care/web-voice` typecheck: pass. ESLint (`App.tsx`, `features/home`, `features/team`) and Prettier (`--end-of-line auto`) on the changed files: pass.
+- Build plus `pwa:compat-check`: pass (main gzip 148,491 bytes; budget 166,640). web-voice Vitest: 166/166.
+- Coming Soon spec on the worktree build (`vite preview` on 4183, mocked API): 21/21 pass. For each of 7 roles, typing `/time-for-team` lands on `/` with the card and no prototype posts or composer. At 390×844 and 1440×900:
+  - the card shows once with the badge and the new description, and there is no link to TFT;
+  - a tap opens the "Time for Team" dialog with the exact message while the URL stays `/`;
+  - axe on the card and the open dialog has no violations;
+  - the X closes it and focus returns to the card; it reopens; Escape closes it.
+
+  Roles: Member, Unit Head (Manager), Group Leader, Division Leadership, Director, Komite, Union Officer. The spec (`.tft-preview/coming-soon.spec.ts`) is a throwaway and stays untracked; screenshots are in the session scratchpad.
+
+- Playwright Chromium (`foundation`, `workforce-journeys`, `dashboard`, `workforce-a11y` including axe on every Home, `member-voice`) with 3 workers: 131/131. An earlier run at default workers had 2 load-related timeouts, which passed when rerun alone.
+- Before Coming Soon, the access spec (`.tft-preview/access.spec.ts`, 9/9) showed every role's card opening the page and a signed-out visitor sent to `/login`. Its card-to-page and deep-link steps no longer apply now that the route is removed.
+- Not verified:
+  - closing by tapping outside the dialog (Radix default, not exercised)
+  - phones narrower than 390 px (the badge is allowed to wrap under the title there)
+  - WebKit/iPhone
+  - real API or full-stack runs
+  - the stored capture `e2e/captures/local/workforce-shell-360.png`: it shows a Member Home without the card and will differ once regenerated (captures are artifacts, not assertions).
+
+**Pending / risks:**
+
+- **Silent redirect:** an old bookmark to `/time-for-team` opens Home with no message. Releasing TFT means restoring the route (and pointing the card at it again).
+- **Placeholder visuals:** the logo is the lucide `HeartHandshake` icon, and photos are icon frames.
+- **Undefined permissions:** who sees whose posts, and who may edit, delete or moderate. Record-level permissions need a backend design with role and organizational scope (PRD §49 "Usulan" / "Belum diketahui").
+- **ADR not written.** An ADR for TFT access and identity is recommended by rules §7 but needs approval first (next free number 0085).
+- **No committed e2e for TFT.** Adding one under `e2e/` means bumping the inventory total in `scripts/validation/validation.test.mjs`.
+- **Keep out of commits:** `.tft-preview/` and `docs/preview-time-for-team/`.
+
+**Next recommended action:** review the Coming Soon screenshots and diff, then approve the commit and push of `feat/time-for-team`. A PR to `staging` and any merge or deploy need separate approval. Before the real feature: agree the TFT data and permission model and write the ADR.
+
 ## Penanganan Khusus chip, closures credited to the PIC, Migrasi switch — 10 November 2026
 
 **Objective:** three fixes requested by the product owner, agreed in discussion and through rendered mock variants before execution:

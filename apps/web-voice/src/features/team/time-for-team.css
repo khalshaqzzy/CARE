@@ -37,11 +37,11 @@
 .tft-entry {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 76px;
-  padding: 14px 16px;
+  gap: 12px;
+  min-height: 100px;
+  padding: 18px 14px 18px 16px;
   border: 1px solid #fed7aa;
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--tft-warm-soft);
   color: #0f172a;
   text-decoration: none;
@@ -57,31 +57,219 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   color: var(--tft-warm);
 }
 .tft-entry__text {
   display: grid;
   flex: 1;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
-.tft-entry__text strong {
+.tft-entry__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.tft-entry__title strong {
   font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
-.tft-entry__text span {
-  max-width: 11.5rem;
+.tft-entry__desc {
+  max-width: 15rem;
   color: #475569;
-  font-size: 14px;
-  line-height: 1.35;
+  font-size: 15px;
+  line-height: 1.4;
+}
+@media (min-width: 768px) {
+  .tft-entry__desc {
+    max-width: none;
+  }
+}
+/* Orange rounded label; #c2410c keeps white text above WCAG AA (4.5:1). */
+.tft-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--tft-warm-ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+.tft-badge--lg {
+  padding: 5px 16px;
+  font-size: 15px;
 }
 .tft-entry__chevron {
   flex: none;
   color: #0f172a;
+}
+/* The card is a button while TFT is Coming Soon: look exactly like the link. */
+button.tft-entry {
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+}
+
+/* Coming Soon dialog: X only in the header; the visible title sits under the
+   illustration. The CARE dialog title stays in the DOM as the accessible name. */
+.care-dialog.tft-soon-dialog {
+  max-width: 21rem;
+}
+.tft-soon-dialog .care-dialog__header {
+  justify-content: flex-end;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.tft-soon-dialog .care-dialog__header > div {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.tft-soon-dialog .care-dialog__body {
+  padding-top: 0;
+}
+.tft-soon {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 0 4px 12px;
+  text-align: center;
+}
+.tft-soon__title {
+  margin: 4px 0 0;
+  font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+}
+.tft-soon__text {
+  max-width: 16rem;
+  margin: 0;
+  color: #334155;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Illustration: soft blue blob, calendar, orange hourglass, a few rays. */
+.tft-soon__art {
+  position: relative;
+  width: 132px;
+  height: 104px;
+}
+.tft-soon__art::before {
+  position: absolute;
+  top: 18px;
+  left: 14px;
+  width: 84px;
+  height: 78px;
+  border-radius: 46% 54% 50% 50%;
+  background: #dbeafe;
+  content: '';
+}
+.tft-soon__calendar {
+  position: absolute;
+  top: 16px;
+  left: 30px;
+  width: 72px;
+  height: 64px;
+  overflow: hidden;
+  border: 3px solid #2563eb;
+  border-radius: 12px;
+  background: #fff;
+}
+.tft-soon__calendar::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 15px;
+  background: #2563eb;
+  content: '';
+}
+.tft-soon__rings {
+  position: absolute;
+  inset: 0;
+}
+.tft-soon__rings::before,
+.tft-soon__rings::after {
+  position: absolute;
+  top: 2px;
+  width: 6px;
+  height: 11px;
+  border-radius: 3px;
+  background: #bfdbfe;
+  content: '';
+}
+.tft-soon__rings::before {
+  left: 14px;
+}
+.tft-soon__rings::after {
+  right: 14px;
+}
+.tft-soon__days {
+  position: absolute;
+  top: 22px;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  background: radial-gradient(circle, #bfdbfe 2.5px, transparent 3px) 0 0 / 14px 13px;
+}
+.tft-soon__hourglass {
+  position: absolute;
+  right: 18px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--tft-warm);
+  color: #fff;
+}
+.tft-soon__ray {
+  position: absolute;
+  width: 3px;
+  height: 9px;
+  border-radius: 2px;
+  background: #2563eb;
+}
+.tft-soon__ray--a {
+  top: 4px;
+  right: 22px;
+  transform: rotate(20deg);
+}
+.tft-soon__ray--b {
+  top: 14px;
+  right: 10px;
+  background: var(--tft-warm);
+  transform: rotate(60deg);
+}
+.tft-soon__ray--c {
+  bottom: 20px;
+  left: 8px;
+  transform: rotate(-60deg);
+}
+.tft-soon__ray--d {
+  bottom: 8px;
+  left: 20px;
+  background: var(--tft-warm);
+  transform: rotate(-25deg);
 }
 
 /* Feed page */
