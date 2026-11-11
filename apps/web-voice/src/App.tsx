@@ -55,6 +55,7 @@ import { HomePage } from './features/home/HomePage';
 import { NotificationsPage } from './features/notifications/NotificationsPage';
 import { AppBadgeSync } from './features/notifications/NotificationBell';
 import { PushAutoEnable } from './features/notifications/use-web-push';
+import { TimeForTeamPage } from './features/team/TimeForTeam';
 import { ConversationPage } from './features/voice/ConversationPage';
 import { VoiceDetailPage } from './features/voice/VoiceDetailPage';
 import { WorkItemsPage } from './features/work/WorkItemsPage';
@@ -132,6 +133,7 @@ export function App() {
               </Suspense>
             }
           />
+          <Route path="time-for-team" element={<TimeForTeamPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/away" element={<AwayPage />} />

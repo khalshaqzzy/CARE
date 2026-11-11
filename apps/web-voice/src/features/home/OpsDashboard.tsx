@@ -25,6 +25,7 @@ import { InboxVoiceCard } from '../../components/InboxVoiceCard';
 import { GuideButton } from '../guide/GuideButton';
 import { NotificationBellButton } from '../notifications/NotificationBell';
 import type { DashboardPreview } from '../../workforce-api';
+import { TimeForTeamCard } from '../team/TimeForTeam';
 import {
   ActionSummaryCard,
   AttentionRow,
@@ -814,6 +815,7 @@ export function OpsDashboard(props: OpsDashboardProps) {
   return (
     <div className={team ? 'ops ops--team' : 'ops ops--handling'}>
       <ProfileCard {...props} mineLine={<MineLine mine={mine} />} />
+      {!props.observer ? <TimeForTeamCard /> : null}
       {!team && !props.observer && data ? (
         <ActionSummaryCard
           preview={props.inbox.preview}

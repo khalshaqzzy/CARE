@@ -1,0 +1,410 @@
+/* ===== Time for Team (design preview) =====
+   Leaders share team engagement moments; warm coral sets it apart from the
+   blue operations figures. */
+.tft,
+.tft-card,
+.tft-compose {
+  --tft-warm: #f97316;
+  --tft-warm-ink: #c2410c;
+  --tft-warm-soft: #fff7ed;
+  --tft-rose: #f43f5e;
+}
+.tft-photo {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  color: rgb(255 255 255 / 88%);
+}
+.tft-photo[data-tone='sunrise'] {
+  background: linear-gradient(135deg, #fdba74, #fb7185);
+}
+.tft-photo[data-tone='leaf'] {
+  background: linear-gradient(135deg, #6ee7b7, #0ea5e9);
+}
+.tft-photo[data-tone='sky'] {
+  background: linear-gradient(135deg, #93c5fd, #6366f1);
+}
+.tft-photo[data-tone='berry'] {
+  background: linear-gradient(135deg, #f9a8d4, #a855f7);
+}
+.tft-photo[data-tone='sand'] {
+  background: linear-gradient(135deg, #fde68a, #f97316);
+}
+
+/* Home entryway: approved design, one warm card under the profile hero. */
+.tft-entry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 76px;
+  padding: 14px 16px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  background: var(--tft-warm-soft);
+  color: #0f172a;
+  text-decoration: none;
+}
+.tft-entry:hover {
+  background: #ffedd5;
+}
+.tft-entry:focus-visible {
+  outline: 2px solid var(--tft-warm-ink);
+  outline-offset: 2px;
+}
+.tft-entry__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  color: var(--tft-warm);
+}
+.tft-entry__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.tft-entry__text strong {
+  font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.tft-entry__text span {
+  max-width: 11.5rem;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.tft-entry__chevron {
+  flex: none;
+  color: #0f172a;
+}
+
+/* Feed page */
+.tft {
+  --ops-ink: #0f172a;
+  --ops-ink-2: #475569;
+  --ops-line: #e2e8f0;
+  --ops-tile: #f8fafc;
+  --ops-accent: #2563eb;
+  --ops-accent-soft: #eff6ff;
+  display: grid;
+  gap: 14px;
+  max-width: 60rem;
+  margin-inline: auto;
+  color: var(--ops-ink);
+}
+.tft h1,
+.tft h2 {
+  margin: 0;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif;
+  letter-spacing: -0.01em;
+}
+.tft__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tft__top h1 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+}
+.tft__top h1 svg {
+  color: var(--tft-warm);
+}
+.tft__layout {
+  display: grid;
+  gap: 14px;
+}
+.tft__feed {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.tft__tabs {
+  justify-self: start;
+  background: #e2e8f0;
+}
+.tft__tabs button {
+  padding-inline: 14px;
+}
+@media (min-width: 768px) {
+  .tft .tft-post__photos {
+    aspect-ratio: 16 / 10;
+  }
+}
+.tft__aside {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .tft__layout {
+    grid-template-columns: minmax(0, 36rem) 17rem;
+    justify-content: center;
+    align-items: start;
+    gap: 20px;
+  }
+  .tft__aside {
+    display: block;
+    position: sticky;
+    top: 16px;
+  }
+}
+.tft-icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ops-ink-2);
+  cursor: pointer;
+}
+.tft-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fdba74, #f43f5e);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tft-composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--ops-line);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tft-composer__prompt {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--ops-tile);
+  color: #64748b;
+  font-size: 13.5px;
+}
+.tft-composer__camera {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--tft-warm-soft);
+  color: var(--tft-warm);
+}
+.tft-post {
+  display: grid;
+  gap: 10px;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid var(--ops-line);
+  border-radius: 12px;
+  background: #fff;
+}
+.tft-post__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tft-post__who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.tft-post__who strong {
+  font-size: 14px;
+}
+.tft-post__who small {
+  color: var(--ops-ink-2);
+  font-size: 11.5px;
+}
+.tft-post__caption {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.tft-post__photos {
+  display: grid;
+  gap: 3px;
+  margin-inline: -14px;
+  aspect-ratio: 4 / 3;
+}
+.tft-post__photos .tft-photo {
+  border-radius: 0;
+}
+.tft-post__photos[data-count='2'] {
+  grid-template-columns: 1fr 1fr;
+}
+.tft-post__photos[data-count='3'] {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.tft-post__photos[data-count='3'] .tft-photo:first-child {
+  grid-row: 1 / -1;
+}
+.tft-post__with {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ops-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tft-post__actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ops-line);
+}
+.tft-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ops-ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.tft-react[aria-pressed='true'] {
+  color: var(--tft-rose);
+}
+.tft-react[aria-pressed='true'] svg {
+  fill: currentColor;
+}
+.tft-post__comment {
+  margin: 0;
+  color: var(--ops-ink-2);
+  font-size: 12.5px;
+}
+.tft-post__comment strong {
+  color: var(--ops-ink);
+}
+.tft-summary {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--ops-line);
+  border-radius: 12px;
+  background: #fff;
+}
+.tft-summary h2 {
+  font-size: 15px;
+}
+.tft-summary__figures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.tft-summary__figures span {
+  display: grid;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--tft-warm-soft);
+}
+.tft-summary__figures strong {
+  color: var(--tft-warm-ink);
+  font-size: 22px;
+}
+.tft-summary__figures small {
+  color: #9a3412;
+  font-size: 11.5px;
+}
+.tft-summary__units {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  list-style: none;
+}
+.tft-summary__units li {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Composer sheet */
+.tft-compose {
+  display: grid;
+  gap: 14px;
+}
+.tft-compose__photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.tft-compose__photos > * {
+  aspect-ratio: 1;
+}
+.tft-compose__add {
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed #fdba74;
+  border-radius: 10px;
+  background: var(--tft-warm-soft);
+  color: var(--tft-warm);
+  cursor: pointer;
+}
+.tft-compose ~ .dialog-actions .care-button--primary {
+  border-color: var(--tft-warm);
+  background: var(--tft-warm);
+}
+.tft-compose__field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tft-compose__field textarea {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+.tft-compose__team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.tft-compose__team svg:last-child {
+  margin-left: auto;
+}
+
+/* Phones: the card sits right under the profile hero. */
+@media (max-width: 767px) {
+  .ops--handling .tft-card,
+  .ops--team .tft-card {
+    order: 0;
+  }
+}
