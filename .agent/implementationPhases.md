@@ -1,5 +1,9 @@
 # CARE v1.1 Implementation Phases
 
+## Container gate: libxslt and krb5-libs pins — 12 November 2026
+
+Phase 13 remains the only `in_progress` phase. The pull-request run for PR #135 (Time for Team) failed "Production containers and routing" on new `libxslt` advisories in the frozen Alpine bases; `staging` itself had passed on 10 November. `fix/pin-libxslt-1.1.43` (from `origin/staging` 63cfece) pins `libxslt=1.1.43-r4` in both web images and in the Postgres runtime, which also needs `krb5-libs=1.22.3-r0` (ADR-0041 section "12 November 2026"). PR #135 waits on this fix.
+
 ## Penanganan Khusus chip, closures credited to the PIC, Migrasi switch — 10 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/special-handling-and-migrated-toggle` (from `origin/staging` 42473c8, not released): the Status Voice card shows an **N Penanganan Khusus** chip that opens Voice Member with `due=SPECIAL`; a General closure or report done is credited to the PIC (`currentHandlerId`) even when a substitute pressed the button, with a data migration for existing credits, so **Selesai oleh saya** means "handled by me as PIC and finished"; and the dashboard counts CARE Voices only unless the new **Migrasi** switch (`migrated=true`) is on, with Voice Member following the same choice (`origin=CARE`). See ADR-0084 and PRD §48; checks are in sessionHandoff.md.
