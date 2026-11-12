@@ -1,5 +1,8 @@
 # CARE v1.1 Implementation Phases
 
+## Container gate: libxslt and krb5-libs pins — 12 November 2026
+
+Phase 13 remains the only `in_progress` phase. The pull-request run for PR #135 (Time for Team) failed "Production containers and routing" on new `libxslt` advisories in the frozen Alpine bases; `staging` itself had passed on 10 November. `fix/pin-libxslt-1.1.43` (from `origin/staging` 63cfece) pins `libxslt=1.1.43-r4` in both web images and in the Postgres runtime, which also needs `krb5-libs=1.22.3-r0` (ADR-0041 section "12 November 2026"). PR #135 waits on this fix.
 ## Time for Team entryway prototype and access — 11 November 2026
 
 Phase 13 remains the only `in_progress` phase. On `feat/time-for-team`, a worktree at `../CARE-tft` cut from `origin/staging` 63cfece; local commit `5fb0f17` plus uncommitted follow-up; not pushed, not released. The approved **Time for Team** card now sits under the blue hero on every workforce Home: Member, the operations dashboard including Director, and Komite/Union. Until TFT is released it follows the final Coming Soon mockup: a **Coming Soon** badge beside the title, the description "Aktivitas kebersamaan untuk memperkuat tim.", and a dismissible Coming Soon dialog (calendar-and-hourglass illustration) instead of the page. The `/time-for-team` route is removed while Coming Soon, so a typed URL falls through to Home. The UI prototype (static sample data, no backend) stays in the code, unreachable. Confirmed: every signed-in CARE user can see TFT; it reuses CARE login, identity and organization data; record-level permissions will follow role and organizational scope. Mbak Caca approved the entryway and pushing it to GitHub. See PRD §49. An ADR is pending approval; checks are in sessionHandoff.md.

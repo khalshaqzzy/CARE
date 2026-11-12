@@ -1,5 +1,30 @@
 # CARE Session Handoff
 
+## Container gate: libxslt and krb5-libs pins — 12 November 2026
+
+**Problem:** PR #135 (`feat/time-for-team` → `staging`, head `8cf0427`) failed "Production containers and routing", and so "Release candidate gate". Trivy found CVE-2026-87636 and CVE-2026-9947 (High) in `libxslt` 1.1.43-r3 in `care-web-voice`, fixed in 1.1.43-r4. `staging` 63cfece passed the same gate on 10 November, so these are new advisories against the frozen base images and unrelated to Time for Team. The scan stops at the first failing image, so the other Alpine runtimes were checked locally:
+
+- the nginx base (web-admin) has the same `libxslt`;
+- the Postgres runtime has it too, plus `krb5-libs` 1.22.2-r1 with 16 High findings, fixed in 1.22.3-r0;
+- the distroless Caddy runtime has neither; `care-api` (Debian) scanned clean in the PR run.
+
+**Change (`fix/pin-libxslt-1.1.43`, from `origin/staging` 63cfece):**
+
+- `apps/web-voice/Dockerfile` and `apps/web-admin/Dockerfile` pin `libxslt=1.1.43-r4`.
+- `deploy/postgres/Dockerfile` pins `libxslt=1.1.43-r4` and `krb5-libs=1.22.3-r0`.
+- ADR-0041 section "12 November 2026: libxslt and krb5-libs". All other pins unchanged.
+
+**Checks (Docker Desktop, `linux/amd64`):**
+
+- On the pinned nginx base, the full pinned `apk add` exits 0 and moves `libxslt` from 1.1.43-r3 to 1.1.43-r4. `nginx -t` passes. Trivy 0.70.0 (High/Critical, repository `.trivyignore`) reports 0.
+- On the pinned Postgres runtime base, the same pinned `apk add` installs `krb5-libs` 1.22.3-r0 and `libxslt` 1.1.43-r4, and PostgreSQL 16.15 starts its binary. Trivy reports 0 (16 High before the `krb5-libs` pin).
+- Not run locally: a full image build of each Dockerfile (the app build stages and the pgvector download are unchanged). The hosted container and Trivy gates on the PR are the release checks.
+
+**Next:**
+
+1. Open the fix PR to `staging` and wait for CI.
+2. Merge it; that deploys to satucare.com, so confirm `/ready` `releaseSha` afterwards.
+3. Update `feat/time-for-team` with the new `staging` so PR #135 reruns CI.
 ## Time for Team: dedicated worktree, Coming Soon entryway on every Home, access decision — 11 November 2026
 
 **Objective:** move the approved Time for Team (TFT) homepage entryway off the stale main checkout onto its own branch from current staging, record the main developer's access decisions, make the entryway reach every signed-in CARE user, and keep the unfinished feature behind a Coming Soon dialog. No TFT backend or real posting in this round.

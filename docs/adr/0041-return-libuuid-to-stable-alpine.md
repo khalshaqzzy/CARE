@@ -128,3 +128,26 @@ in `golang.org/x/net` v0.60.0, fixed in 0.62.0. The Caddy build now pins
 `golang.org/x/text@v0.43.0`, so those pins move too. The rebuilt image reports
 Caddy v2.11.4, validates the production Caddyfile, and a local Trivy 0.70.0 scan
 with the repository `.trivyignore` reports 0 High/Critical.
+
+## 12 November 2026: libxslt and krb5-libs
+
+The pull-request run for `8cf0427` (PR #135) failed the web-voice image scan:
+Trivy reported CVE-2026-87636 and CVE-2026-9947 (High, XML handling) in
+`libxslt` 1.1.43-r3, fixed in 1.1.43-r4. The same `staging` commit had passed
+the gate on 10 November, so the findings are new advisories against the frozen
+base images, not a regression in application code. The scan stops at the first
+failing image, so the remaining Alpine runtimes were checked locally. The nginx
+base carries the same `libxslt` revision. The Postgres runtime base carries it
+too, plus `krb5-libs` 1.22.2-r1 with 16 High findings (including
+CVE-2026-107364, CVE-2026-112315 and CVE-2026-112316), all fixed in 1.22.3-r0.
+The nginx base does not ship `krb5-libs`, and the distroless Caddy runtime has
+neither package.
+
+Both web images now pin `libxslt=1.1.43-r4`, and the Postgres runtime pins
+`libxslt=1.1.43-r4` and `krb5-libs=1.22.3-r0`, alongside the existing pins.
+Every other pin is unchanged. The full pinned `apk add` was run on the pinned
+nginx base and the pinned Postgres runtime base (`linux/amd64`). Local Trivy
+0.70.0 scans of both patched bases (vulnerabilities, High/Critical, unfixed
+included, with the repository `.trivyignore`) report 0 findings, and PostgreSQL
+16.15 still starts its binary. The hosted container and Trivy gates remain the
+release checks.
