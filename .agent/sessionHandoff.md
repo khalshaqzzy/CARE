@@ -25,6 +25,7 @@
 1. Open the fix PR to `staging` and wait for CI.
 2. Merge it; that deploys to satucare.com, so confirm `/ready` `releaseSha` afterwards.
 3. Update `feat/time-for-team` with the new `staging` so PR #135 reruns CI.
+
 ## Time for Team: dedicated worktree, Coming Soon entryway on every Home, access decision — 11 November 2026
 
 **Objective:** move the approved Time for Team (TFT) homepage entryway off the stale main checkout onto its own branch from current staging, record the main developer's access decisions, make the entryway reach every signed-in CARE user, and keep the unfinished feature behind a Coming Soon dialog. No TFT backend or real posting in this round.
@@ -43,9 +44,10 @@ Recorded in PRD §49, which separates confirmed, proposed and unknown items.
 
 **Branch / worktree:**
 
-- `feat/time-for-team` in worktree `../CARE-tft`, from `origin/staging` 63cfece (after PR #134), created with `--no-track` (no upstream).
-- Local commit `5fb0f17` "feat: add the Time for Team home entryway and prototype page": `features/team/{TimeForTeam.tsx,time-for-team.css,time-for-team-data.ts}`, the route in `App.tsx`, and the card in `OpsDashboard.tsx`.
-- The access follow-up, the Coming Soon change, the route removal and these doc updates are **uncommitted** on top of it. Nothing is pushed.
+- `feat/time-for-team` in worktree `../CARE-tft`, from `origin/staging` 63cfece (after PR #134). Pushed; PR #135 to `staging`.
+- Commit `5fb0f17` "feat: add the Time for Team home entryway and prototype page": `features/team/{TimeForTeam.tsx,time-for-team.css,time-for-team-data.ts}`, the route in `App.tsx`, and the card in `OpsDashboard.tsx`.
+- Commit `8cf0427` "feat: show a Coming Soon Time for Team card on every workforce Home": the access follow-up, the Coming Soon card and dialog, the route removal, and these doc updates.
+- PR #135's first CI run failed the container gate on new `libxslt` advisories (see the 12 November entry above). After PR #136 merged, `origin/staging` 1ef8b0d was merged into the branch so the PR reruns CI.
 
 **Setup details:**
 
@@ -53,7 +55,7 @@ Recorded in PRD §49, which separates confirmed, proposed and unknown items.
 - Backup of that working tree before any change: `C:\Users\ASUS\Documents\GitHub\CARE-backups\tft-setup-2026-11-11\` (patch, tar of 407 untracked files, copies of the 19 modified files, sha256 of all 426, verified by extract and re-hash).
 - From the main checkout only the TFT files and the TFT lines in `App.tsx` and `OpsDashboard.tsx` were carried over, hand-applied on staging's versions. Not carried over: persistent sessions and the logout dialog (already on `fix/persistent-sessions`), push default-on (already on `feat/push-default-on`), the `?mh=` member-home preview, and the web-admin change.
 
-**Access behaviour now (uncommitted follow-up to 5fb0f17):**
+**Access behaviour now (in `8cf0427`):**
 
 Before, the card showed only on the unit-head operations dashboard. It was hidden for Director (`observer`) and missing on the Member and Komite/Union Homes. Now:
 
@@ -62,7 +64,7 @@ Before, the card showed only on the unit-head operations dashboard. It was hidde
 - `HomePage.tsx`: `MemberHomePage` gets the card right after the hero.
 - `/time-for-team` was already inside `SessionGate` / `WorkforceShell` with no capability check, so routing needed no change. Signed out → `/login`; the password-change and wrong-app (CARE Admin) gates apply as on every workforce page. No nav or dock item was added.
 
-**Coming Soon (uncommitted):** all changes are in the shared `TimeForTeamCard`, so every placement behaves the same: Member, Unit Head, Director, Komite/Union.
+**Coming Soon (in `8cf0427`):** all changes are in the shared `TimeForTeamCard`, so every placement behaves the same: Member, Unit Head, Director, Komite/Union.
 
 - `TimeForTeam.tsx`:
   - The card is a `<button aria-haspopup="dialog">` (was a `<Link>` to `/time-for-team`): orange `HeartHandshake` icon, **Time for Team** with a `.tft-badge` **Coming Soon** beside it, "Aktivitas kebersamaan untuk memperkuat tim.", and a chevron. The placement in each Home is unchanged.
@@ -75,7 +77,7 @@ Before, the card showed only on the unit-head operations dashboard. It was hidde
   - `button.tft-entry` reset, plus the `.tft-soon*` dialog and illustration styles. No new assets or dependencies.
 - The card no longer links anywhere.
 
-**Route closed while Coming Soon (uncommitted, approved):**
+**Route closed while Coming Soon (in `8cf0427`):**
 
 - `App.tsx`: the `time-for-team` route and the `TimeForTeamPage` import are removed, so `App.tsx` is again identical to `origin/staging`.
 - A typed `/time-for-team` now falls through to the shell's existing catch-all (`path="*"` → `<Navigate to="/" replace />`) and lands on Home. Signed-out visitors still go to `/login` first.
@@ -111,7 +113,7 @@ Before, the card showed only on the unit-head operations dashboard. It was hidde
 - **No committed e2e for TFT.** Adding one under `e2e/` means bumping the inventory total in `scripts/validation/validation.test.mjs`.
 - **Keep out of commits:** `.tft-preview/` and `docs/preview-time-for-team/`.
 
-**Next recommended action:** review the Coming Soon screenshots and diff, then approve the commit and push of `feat/time-for-team`. A PR to `staging` and any merge or deploy need separate approval. Before the real feature: agree the TFT data and permission model and write the ADR.
+**Next recommended action:** wait for PR #135's rerun CI to pass, then decide on merging it. A merge to `staging` deploys the Coming Soon card to satucare.com, so confirm `/ready` `releaseSha` afterwards. Before the real feature: agree the TFT data and permission model and write the ADR.
 
 ## Penanganan Khusus chip, closures credited to the PIC, Migrasi switch — 10 November 2026
 
