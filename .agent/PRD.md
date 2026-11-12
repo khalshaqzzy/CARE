@@ -2820,3 +2820,29 @@ Tujuan: Voice Penanganan Khusus dapat dibuka sebagai daftar, **Selesai oleh saya
   - Nyala: URL membawa `migrated=1` dan Voice migrasi ikut dihitung seperti sebelumnya; Tepat waktu dan rata-rata tetap tanpa Voice migrasi (ADR-0061).
   - Voice Member mengikuti pilihan yang sama: tautan dari dashboard membawa `migrated=1` bila saklar nyala; tanpa itu daftar dan angka tab hanya Voice CARE. Pencarian tetap menemukan Voice migrasi lewat ID lamanya.
 - **Kontrak.** Semua endpoint dashboard menerima `migrated=true|false` (default false). `GET /work-items` menerima `origin=CARE|MIGRATED`. `due` pada `GET /work-items` dan `GET /voices` menerima `SPECIAL`.
+
+## 49. Time for Team (TFT) — pintu masuk di Home dan akses — 11 November 2026
+
+Tujuan: karyawan berbagi kegiatan kebersamaan tim (olahraga, makan bersama, briefing, apresiasi) di dalam CARE, tanpa aplikasi atau akun terpisah. Rujukan desain: `Time for Team UIUX - CARE.pdf` (di luar repositori). Status bagian ini: **prototipe UI**; belum ada backend.
+
+**Terkonfirmasi (disetujui pengembang utama CARE):**
+
+- **Siapa yang melihat.** Semua pengguna CARE yang sudah masuk (karyawan terdaftar) melihat dan membuka TFT: Member, Group Leader, Section Head, Manager, Division Leadership, Director, Komite, dan Union Officer. Akun CARE Admin tidak termasuk karena hanya memakai aplikasi Admin.
+- **Identitas.** TFT memakai autentikasi, identitas akun, dan hierarki organisasi CARE yang ada. Tidak ada registrasi atau basis data pengguna khusus TFT.
+- **Izin rinci.** Hak membuat, mengubah, dan memantau catatan TFT ditentukan menurut peran dan cakupan organisasi. Tidak ada asumsi bahwa semua pengguna boleh mengubah atau mengelola semua catatan.
+- **Pintu masuk (desain disetujui).** Kartu oranye muda **Time for Team** dengan ikon dan chevron, tepat di bawah kotak biru Home, di atas konten Home lainnya (pada dashboard operasional: di atas Butuh Tindakan Saya). Tampil di keempat bentuk Home: Home Member, dashboard operasional (termasuk Director), dan Home Komite/Union.
+- **Sementara: Coming Soon (mengikuti mockup final "Time for Team Coming Soon UI").** Selama TFT belum rilis:
+  - **Kartu:** ikon oranye, judul **Time for Team** dengan badge oranye membulat **Coming Soon** tepat di sampingnya, deskripsi "Aktivitas kebersamaan untuk memperkuat tim.", dan chevron. Di ponsel deskripsi dua baris; di tablet/desktop satu baris. Seluruh kartu dapat diketuk.
+  - **Dialog:** ketukan membuka dialog di tengah layar (ponsel dan desktop) dengan tombol X di kanan atas, ilustrasi kalender biru dengan jam pasir oranye, judul **Time for Team**, badge **Coming Soon**, dan kalimat "Fitur Time for Team akan segera hadir di CARE. Nantikan pembaruannya!". Dialog ditutup dengan X, Escape, atau ketukan di luar dialog; fokus kembali ke kartu dan pengguna tetap di Home.
+  - Kartu tidak membuka halaman TFT. Badge memakai oranye gelap `#c2410c` (bukan oranye terang mockup) agar teks putih memenuhi kontras WCAG AA.
+- **Rute (ditutup selama Coming Soon).** Rute `/time-for-team` dihapus dari aplikasi workforce. Alamat itu, bila diketik, dialihkan ke Home oleh pengalihan bawaan shell untuk alamat yang tidak dikenal; halaman prototipe tidak dapat dibuka sama sekali. Kode halaman prototipe tetap disimpan untuk pengembangan berikutnya. Saat TFT dirilis, rute dipasang kembali di dalam shell workforce yang sama: tanpa sesi ke halaman masuk, aturan ganti password dan akun aplikasi lain tetap berlaku, tanpa pembatasan per kapabilitas.
+
+**Sudah dibangun sebagai prototipe (data contoh, bukan fitur jadi; tidak dapat dibuka selama Coming Soon):** halaman TFT berisi kotak "Bagikan kegiatan bersama tim…", tab Semua / Postingan saya, kartu postingan (penulis, peran, unit, waktu, keterangan, foto, jumlah anggota, suka, komentar), sheet **Bagikan kegiatan**, dan ringkasan bulanan. Semua isi berasal dari data contoh statis di kode. Tombol Posting hanya menutup sheet. Suka hanya tersimpan di layar. Komentar dan Opsi belum berfungsi. Foto berupa bingkai ikon, dan logo TFT masih ikon sementara.
+
+**Usulan (belum diputuskan):**
+
+- Penyimpanan postingan, foto, suka, dan komentar di backend CARE, dengan aturan unggah foto yang sama seperti lampiran Voice.
+- Siapa yang melihat postingan siapa (seluruh perusahaan, divisi, atau departemen), dan siapa yang boleh menghapus atau memoderasi.
+- Ringkasan bulanan dihitung per unit dari data nyata.
+
+**Belum diketahui:** aturan moderasi dan pelaporan konten, masa simpan foto, apakah TFT memicu notifikasi atau push, apakah CARE Admin perlu tampilan pemantauan TFT, logo resmi TFT, dan kapan Coming Soon diganti dengan fitur sebenarnya.

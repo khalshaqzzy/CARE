@@ -24,6 +24,7 @@ import { TrendCard } from '../../components/TrendCard';
 import { VoiceSummaryCard } from '../../components/VoiceSummaryCard';
 import { GuideButton } from '../guide/GuideButton';
 import { NotificationBellButton } from '../notifications/NotificationBell';
+import { TimeForTeamCard } from '../team/TimeForTeam';
 import { bucketValue } from '../../lib/dashboard-math';
 import { dashboardDates, isDashboardDate, type DashboardRange } from '../../lib/dashboard-range';
 import {
@@ -528,6 +529,7 @@ export function DashboardHome() {
         />
       </section>
       <div className="organization-home__body">
+        <TimeForTeamCard />
         {!online ? (
           <Alert tone="warning" title="Anda sedang offline">
             Ringkasan terakhir mungkin sudah usang. Sambungkan kembali untuk memperbarui dashboard.
