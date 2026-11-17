@@ -11175,6 +11175,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/AdminPrivateVoiceDetail"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AdminPrivateAnonymousVoiceDetail"
                     }
                   ],
                   "discriminator": {
@@ -11185,7 +11188,8 @@
                       "LEADERSHIP_GENERAL_READ_ONLY": "#/components/schemas/LeadershipGeneralVoiceDetail",
                       "UNION_ANONYMOUS": "#/components/schemas/UnionAnonymousVoiceDetail",
                       "UNION_IDENTIFIED": "#/components/schemas/UnionIdentifiedVoiceDetail",
-                      "ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY": "#/components/schemas/AdminPrivateVoiceDetail"
+                      "ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY": "#/components/schemas/AdminPrivateVoiceDetail",
+                      "ADMIN_PRIVATE_ANONYMOUS_READ_ONLY": "#/components/schemas/AdminPrivateAnonymousVoiceDetail"
                     }
                   }
                 }
@@ -29818,6 +29822,424 @@
               },
               "department": {
                 "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "AdminPrivateAnonymousVoiceDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayId",
+          "audience",
+          "visibility",
+          "area",
+          "locationDetail",
+          "title",
+          "detail",
+          "category",
+          "categoryNameSnapshot",
+          "classificationCategory",
+          "severity",
+          "status",
+          "version",
+          "legacySource",
+          "submittedAt",
+          "updatedAt",
+          "classificationSource",
+          "availableActions",
+          "participants",
+          "handlingCycleNumber",
+          "handlingTargets",
+          "conversationState",
+          "closureCycles",
+          "routeOwner",
+          "currentHandler",
+          "holderNames",
+          "attachments",
+          "locationReview",
+          "closureApproval",
+          "anonymousReporter"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayId": {
+            "type": "string",
+            "example": "CARE-202608-000001"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "ADMIN_PRIVATE_ANONYMOUS_READ_ONLY"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PRIVATE"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "KARAWANG_1",
+              "KARAWANG_2",
+              "KARAWANG_3",
+              "SUNTER_1",
+              "SUNTER_2"
+            ]
+          },
+          "locationDetail": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "categoryNameSnapshot": {
+            "type": "string",
+            "nullable": true
+          },
+          "classificationCategory": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "key",
+              "name"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESPONDED",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "legacySource": {
+            "type": "string",
+            "nullable": true
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classificationSource": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "AI",
+              "MANUAL_FALLBACK"
+            ]
+          },
+          "availableActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationParticipant"
+            }
+          },
+          "handlingCycleNumber": {
+            "type": "integer"
+          },
+          "handlingTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandlingTarget"
+            }
+          },
+          "conversationState": {
+            "type": "string",
+            "enum": [
+              "UNAVAILABLE",
+              "ACTIVE",
+              "READ_ONLY"
+            ]
+          },
+          "closureCycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureCycleResponse"
+            }
+          },
+          "routeOwner": {
+            "type": "object",
+            "required": [
+              "id",
+              "displayName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            }
+          },
+          "currentHandler": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "id",
+              "displayName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            }
+          },
+          "holderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentResponse"
+            }
+          },
+          "locationReview": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocationReviewSnapshot"
+              }
+            ],
+            "nullable": true
+          },
+          "closureApproval": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "reportedAt",
+              "steps"
+            ],
+            "properties": {
+              "reportedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "reportedBy": {
+                "type": "string",
+                "nullable": true
+              },
+              "note": {
+                "type": "string",
+                "nullable": true
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AttachmentResponse"
+                }
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "level",
+                    "names",
+                    "state",
+                    "dueAt",
+                    "late"
+                  ],
+                  "properties": {
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "SECTION_HEAD",
+                        "MANAGER",
+                        "DIVISION"
+                      ]
+                    },
+                    "names": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "APPROVED",
+                        "PENDING",
+                        "NEXT"
+                      ]
+                    },
+                    "dueAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "late": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "tierLevel": {
+            "type": "string",
+            "enum": [
+              "GROUP_LEADER",
+              "SECTION_HEAD",
+              "MANAGER",
+              "DIVISION"
+            ],
+            "nullable": true
+          },
+          "outsideReporter": {
+            "type": "boolean"
+          },
+          "tierDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "tierStages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "state",
+                "names"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "GROUP_LEADER",
+                    "SECTION_HEAD",
+                    "MANAGER",
+                    "DIVISION"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "DONE",
+                    "LATE",
+                    "CURRENT",
+                    "NEXT"
+                  ]
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "unreadMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Messages from others since the viewer last opened the conversation."
+          },
+          "shopLocation": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "department",
+              "source"
+            ],
+            "properties": {
+              "department": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  "ALIAS",
+                  "AI",
+                  "REPORTER_CONFIRMED",
+                  "REPORTER_NOT_SHOP",
+                  "NO_MATCH",
+                  null
+                ]
+              }
+            }
+          },
+          "privateContactConsent": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "privateContactConsentRecordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "privateContactConsentVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "anonymousReporter": {
+            "type": "object",
+            "required": [
+              "alias"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "alias": {
+                "type": "string",
+                "example": "Reporter-000047"
               }
             }
           }

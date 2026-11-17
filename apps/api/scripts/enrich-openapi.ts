@@ -383,6 +383,7 @@ function successSchema(operationId: string) {
         { $ref: '#/components/schemas/UnionAnonymousVoiceDetail' },
         { $ref: '#/components/schemas/UnionIdentifiedVoiceDetail' },
         { $ref: '#/components/schemas/AdminPrivateVoiceDetail' },
+        { $ref: '#/components/schemas/AdminPrivateAnonymousVoiceDetail' },
       ],
       discriminator: {
         propertyName: 'audience',
@@ -393,6 +394,8 @@ function successSchema(operationId: string) {
           UNION_ANONYMOUS: '#/components/schemas/UnionAnonymousVoiceDetail',
           UNION_IDENTIFIED: '#/components/schemas/UnionIdentifiedVoiceDetail',
           ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY: '#/components/schemas/AdminPrivateVoiceDetail',
+          ADMIN_PRIVATE_ANONYMOUS_READ_ONLY:
+            '#/components/schemas/AdminPrivateAnonymousVoiceDetail',
         },
       },
     };
@@ -2333,6 +2336,25 @@ const schemas: Record<string, any> = {
           division: { type: 'string' },
           department: { type: 'string' },
         },
+      },
+    },
+  },
+  AdminPrivateAnonymousVoiceDetail: {
+    type: 'object',
+    required: [...Object.keys(baseVoiceProperties), 'anonymousReporter'],
+    additionalProperties: false,
+    properties: {
+      ...baseVoiceProperties,
+      ...shopVoiceProperties,
+      audience: { type: 'string', enum: ['ADMIN_PRIVATE_ANONYMOUS_READ_ONLY'] },
+      privateContactConsent: { type: 'boolean', nullable: true },
+      privateContactConsentRecordedAt: { type: 'string', format: 'date-time', nullable: true },
+      privateContactConsentVersion: { type: 'string', nullable: true },
+      anonymousReporter: {
+        type: 'object',
+        required: ['alias'],
+        additionalProperties: false,
+        properties: { alias: { type: 'string', example: 'Reporter-000047' } },
       },
     },
   },

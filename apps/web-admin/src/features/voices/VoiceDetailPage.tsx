@@ -113,6 +113,8 @@ type FullDetail = {
     section?: string | null;
     position?: string | null;
   };
+  /** Private reporter who hid their name: only the alias is sent. */
+  anonymousReporter?: { alias: string };
   tierStages?: { level: string; state: string; names: string[] }[];
   participants?: { id: string; displayName: string; role: string }[];
   handlingCycleNumber?: number;
@@ -506,6 +508,11 @@ export function VoiceDetailPage() {
                 <Row label="Departemen">{voice.reporter.department}</Row>
                 <Row label="Seksi">{voice.reporter.section ?? '–'}</Row>
                 <Row label="Posisi">{voice.reporter.position ?? '–'}</Row>
+              </div>
+            ) : voice.anonymousReporter ? (
+              <div className="admin-kv">
+                <Row label="Alias">{voice.anonymousReporter.alias}</Row>
+                <p className="admin-meta--xs">Pelapor menyembunyikan nama.</p>
               </div>
             ) : (
               <p className="admin-meta--xs">Identitas pelapor tidak ditampilkan.</p>

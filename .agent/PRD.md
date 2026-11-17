@@ -19,7 +19,7 @@ Dokumen ini adalah kontrak produk dan implementasi CARE v1. Kata **MUST/wajib**,
 
 CARE adalah aplikasi pelaporan suara member (_member voice_) untuk lingkungan enterprise manufacturing. CARE menyediakan jalur mobile yang aman dan dapat ditelusuri untuk menyampaikan temuan, keluhan, ide, informasi, atau apresiasi; mengklasifikasikan kategori dan severity melalui DeepSeek Chat Completions dengan function calling; memberi peringatan kelengkapan lokasi; meneruskan General Voice kepada Manager/Department Head atau Section Head dan Private Voice kepada Union; menyediakan chat verifikasi; serta mencatat penyelesaian, bukti, rating, feedback, dan reopen.
 
-CARE memakai workforce PWA dan aplikasi Admin React yang terpisah, tetapi keduanya menggunakan satu backend dan generated OpenAPI client yang sama. Backend menjadi satu-satunya akses ke PostgreSQL dan media. Seluruh perubahan lifecycle disimpan sebagai timeline append-only dengan actor dan timestamp. General Voice memakai deterministic server routing dari organization master. Private Voice selalu masuk kepada Union Head dan dapat didelegasikan kepada Union 1 atau Union 2; identitas reporter kepada Union mengikuti consent immutable pada Voice, sedangkan CARE Admin memiliki read-only access ke content dan identitas lengkap.
+CARE memakai workforce PWA dan aplikasi Admin React yang terpisah, tetapi keduanya menggunakan satu backend dan generated OpenAPI client yang sama. Backend menjadi satu-satunya akses ke PostgreSQL dan media. Seluruh perubahan lifecycle disimpan sebagai timeline append-only dengan actor dan timestamp. General Voice memakai deterministic server routing dari organization master. Private Voice selalu masuk kepada Union Head dan dapat didelegasikan kepada Union 1 atau Union 2; identitas reporter kepada Union mengikuti consent immutable pada Voice, sedangkan CARE Admin memiliki read-only access ke content; identitas reporter Private hanya tampil bila reporter memilih menampilkannya (§50).
 
 ### 1.1 Amandemen Kategori General Voice Dinamis — 1 September 2026
 
@@ -1006,7 +1006,7 @@ Overview lintas department tidak boleh membawa Voice ID, judul, reporter, attach
 
 - Aggregate scope dan detail/list scope dihitung dengan policy terpisah di backend.
 - Aggregate lintas detail scope hanya mengembalikan bucket/count/time series yang memenuhi minimum privacy threshold yang ditetapkan implementasi; tidak mengembalikan item identifiers atau identity.
-- CARE Admin mempunyai operational overview dan Voice Explorer seluruh General/Private; Private memuat identity lengkap, read-only, dan setiap access diaudit. Satu-satunya aksi Admin adalah memindahkan PIC General Voice aktif (§44).
+- CARE Admin mempunyai operational overview dan Voice Explorer seluruh General/Private; Private memuat identity lengkap hanya bila reporter menampilkannya (bila disembunyikan, hanya alias; §50), read-only, dan setiap access diaudit. Satu-satunya aksi Admin adalah memindahkan PIC General Voice aktif (§44).
 
 ### 18.7 Voice Member Inbox
 
@@ -1869,7 +1869,7 @@ Minimum journeys:
 - Section Head tidak bertindak tanpa assignment.
 - Union tidak melakukan General action dan Union Officer tidak membaca unassigned Private.
 - Private `HIDE` tidak membocorkan identity kepada Union; `SHOW` hanya memuat contracted profile snapshot.
-- CARE Admin Private response memuat full identity tetapi tetap read-only dan access diaudit.
+- CARE Admin Private response memuat full identity hanya bila reporter menampilkannya; bila disembunyikan hanya alias (§50). Tetap read-only dan access diaudit.
 - Client tidak dapat spoof reporter, route Manager, severity source, handler, status, closure actor, atau role.
 - CSRF, CORS, over-posting, mass-assignment, XSS, SQL injection, path traversal, SSRF push endpoint, malicious image, decompression bomb, stale version, dan duplicate mutation ditolak.
 - Disabled/reset account/session tidak dapat melanjutkan action.
@@ -2093,7 +2093,7 @@ V1 siap production bila:
 - Katalog kategori General Voice bersifat database-driven, berversi, archive-only, dan dimulai dengan enam stable key yang ditetapkan pada §1.1.
 - Category route memilih fixed exact department atau related reporter department; PIC efektif berasal dari Department Head/default PIC aktif saat submit. `Department=14` tidak memiliki route General yang sah.
 - Private selalu menuju Union Head; Union Officer hanya menangani assignment-nya.
-- Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, sementara CARE Admin selalu melihat profil lengkap secara read-only.
+- Private menyimpan immutable identity-consent snapshot: Union melihat identity hanya bila consent `Ya`, dan CARE Admin mengikuti pilihan yang sama: profil lengkap read-only bila consent `Ya`, alias bila `Tidak` (§50).
 - General bukan public feed.
 - Union memakai tepat satu akun Head dan dua akun Officer dengan operator attribution individual.
 - AI memakai official OpenAI JavaScript SDK untuk OpenAI-compatible Chat Completions. DeepSeek `deepseek-v4-flash` dan local `inclusionAI/Ling-3.0-tiny-fp8` didukung; reasoning kosong adalah provider default, sedangkan DeepSeek non-thinking memakai `none` eksplisit. Admin dapat mengaktifkan encrypted runtime override tanpa restart, dengan environment sebagai fallback.
@@ -2846,3 +2846,13 @@ Tujuan: karyawan berbagi kegiatan kebersamaan tim (olahraga, makan bersama, brie
 - Ringkasan bulanan dihitung per unit dari data nyata.
 
 **Belum diketahui:** aturan moderasi dan pelaporan konten, masa simpan foto, apakah TFT memicu notifikasi atau push, apakah CARE Admin perlu tampilan pemantauan TFT, logo resmi TFT, dan kapan Coming Soon diganti dengan fitur sebenarnya.
+
+## 50. Nama pelapor Private yang disembunyikan juga tertutup bagi CARE Admin — 17 November 2026
+
+Keputusan pemilik produk: bila pelapor Private memilih menyembunyikan nama, aplikasi Admin juga hanya menampilkan alias (mis. `Reporter-000047`). ADR-0085.
+
+- **Detail Voice Explorer.** Audience baru `ADMIN_PRIVATE_ANONYMOUS_READ_ONLY` berisi `anonymousReporter.alias` dan consent kontak, tanpa No. Reg, nama, direktorat, divisi, departemen, seksi, jabatan, atau line. Kartu Pelapor menampilkan Alias dan "Pelapor menyembunyikan nama."
+- **Chat, peserta, dan Riwayat.** Pesan, daftar peserta, dan nama pelaku di Riwayat menampilkan alias untuk pelapor, sama seperti yang dilihat Komite.
+- **Pelapor menampilkan nama.** Tidak berubah: CARE Admin tetap melihat profil lengkap (`ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY`).
+- **Penelusuran.** Identitas tetap tersimpan di database (`Voice.reporterNoRegSnapshot`, `reporterNameSnapshot`, dan seterusnya). Bila perlu ditelusuri, pemilik server membacanya langsung dari PostgreSQL di VPS; aplikasi tidak menyediakan tombol buka identitas.
+- **Tetap.** Read-only dan audit `PRIVATE_*_READ` tidak berubah. Ekspor Admin sudah menulis "Private" tanpa identitas.

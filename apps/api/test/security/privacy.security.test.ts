@@ -48,6 +48,26 @@ describe('Private Voice response boundary', () => {
     ])
       expect(json).not.toContain(value);
   });
+  it('keeps a hidden name hidden from CARE Admin too', () => {
+    const service = Object.create(VoicesService.prototype) as any;
+    const response = service.serialize(actor(['CARE_ADMIN']), {
+      ...voice,
+      showReporterIdentity: false,
+    });
+    expect(response.audience).toBe('ADMIN_PRIVATE_ANONYMOUS_READ_ONLY');
+    expect(response.anonymousReporter).toEqual({ alias: 'Anonymous-X' });
+    const json = JSON.stringify(response);
+    for (const value of [
+      'reporter-secret',
+      'SECRET',
+      'Secret Name',
+      'Secret Directorate',
+      'Secret Division',
+      'Secret Department',
+      'Secret Section',
+    ])
+      expect(json).not.toContain(value);
+  });
   it('reveals only consented fields to Union and full snapshots to Admin', () => {
     const service = Object.create(VoicesService.prototype) as any;
     const identified = service.serialize(actor(['UNION_HEAD']), {
@@ -62,7 +82,7 @@ describe('Private Voice response boundary', () => {
     });
     const admin = service.serialize(actor(['CARE_ADMIN']), {
       ...voice,
-      showReporterIdentity: false,
+      showReporterIdentity: true,
     });
     expect(admin.audience).toBe('ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY');
     expect(admin.reporter.section).toBe('Secret Section');
