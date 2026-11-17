@@ -324,15 +324,29 @@ describe('Responder and leadership permission matrix', () => {
     expect((headDetail as { reporter?: unknown }).reporter).toBeUndefined();
   });
 
-  it('gives CARE Admin full read-only Private identity and rejects mutations', async () => {
+  it('gives CARE Admin read-only Private identity only when shown and rejects mutations', async () => {
     const privateVoice = await seedVoice({
       visibility: VoiceVisibility.PRIVATE,
       routeOwnerId: unionHead.accountId,
       handlerType: HandlerType.UNION_HEAD,
     });
     const detail = await voices.detail(careAdmin, privateVoice.id);
-    expect(detail.audience).toBe('ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY');
-    expect((detail as { reporter: { name: string } }).reporter.name).toBe('Reporter');
+    expect(detail.audience).toBe('ADMIN_PRIVATE_ANONYMOUS_READ_ONLY');
+    expect((detail as { reporter?: unknown }).reporter).toBeUndefined();
+    expect((detail as { anonymousReporter: { alias: string } }).anonymousReporter.alias).toMatch(
+      /^R-/,
+    );
+    const timeline = await voices.timeline(careAdmin, privateVoice.id, {});
+    expect(JSON.stringify(timeline)).not.toContain('"actorName":"Reporter"');
+    const identified = await seedVoice({
+      visibility: VoiceVisibility.PRIVATE,
+      routeOwnerId: unionHead.accountId,
+      handlerType: HandlerType.UNION_HEAD,
+      showReporterIdentity: true,
+    });
+    const shown = await voices.detail(careAdmin, identified.id);
+    expect(shown.audience).toBe('ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY');
+    expect((shown as { reporter: { name: string } }).reporter.name).toBe('Reporter');
     expect(detail.availableActions).toEqual([]);
     await expect(
       voices.close(careAdmin, privateVoice.id, { note: 'x', version: 1 }, 'close-admin'),

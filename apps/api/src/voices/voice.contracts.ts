@@ -155,6 +155,12 @@ export type AdminPrivateVoiceDetail = VoiceDetailBase &
     audience: 'ADMIN_PRIVATE_FULL_IDENTITY_READ_ONLY';
     reporter: GeneralResponderVoiceDetail['reporter'];
   };
+/** CARE Admin on a Private Voice whose reporter hid their name. */
+export type AdminPrivateAnonymousVoiceDetail = VoiceDetailBase &
+  PrivateContactConsentSnapshot & {
+    audience: 'ADMIN_PRIVATE_ANONYMOUS_READ_ONLY';
+    anonymousReporter: { alias: string };
+  };
 export type DashboardAggregate = {
   total: number;
   status: Array<{ label: string; value: number }>;

@@ -3620,6 +3620,106 @@ export interface components {
                 department: string;
             };
         };
+        AdminPrivateAnonymousVoiceDetail: {
+            /** Format: uuid */
+            id: string;
+            /** @example CARE-202608-000001 */
+            displayId: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            audience: "ADMIN_PRIVATE_ANONYMOUS_READ_ONLY";
+            /** @enum {string} */
+            visibility: "GENERAL" | "PRIVATE";
+            /** @enum {string} */
+            area: "KARAWANG_1" | "KARAWANG_2" | "KARAWANG_3" | "SUNTER_1" | "SUNTER_2";
+            locationDetail: string;
+            title: string;
+            detail: string;
+            category: string | null;
+            categoryNameSnapshot: string | null;
+            classificationCategory: {
+                key: string;
+                name: string | null;
+            } | null;
+            /** @enum {string} */
+            severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            status: "OPEN" | "RESPONDED" | "IN_PROGRESS" | "CLOSED";
+            version: number;
+            legacySource: string | null;
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @enum {string|null} */
+            classificationSource: "AI" | "MANUAL_FALLBACK" | null;
+            availableActions: string[];
+            participants: components["schemas"]["ConversationParticipant"][];
+            handlingCycleNumber: number;
+            handlingTargets: components["schemas"]["HandlingTarget"][];
+            /** @enum {string} */
+            conversationState: "UNAVAILABLE" | "ACTIVE" | "READ_ONLY";
+            closureCycles: components["schemas"]["ClosureCycleResponse"][];
+            routeOwner: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            };
+            currentHandler: {
+                /** Format: uuid */
+                id: string;
+                displayName: string;
+            } | null;
+            holderNames: string[];
+            attachments: components["schemas"]["AttachmentResponse"][];
+            locationReview: components["schemas"]["LocationReviewSnapshot"] | null;
+            closureApproval: {
+                /** Format: date-time */
+                reportedAt: string;
+                reportedBy?: string | null;
+                note?: string | null;
+                evidence?: components["schemas"]["AttachmentResponse"][];
+                steps: {
+                    /** @enum {string} */
+                    level: "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                    names: string[];
+                    /** @enum {string} */
+                    state: "APPROVED" | "PENDING" | "NEXT";
+                    /** Format: date-time */
+                    dueAt: string | null;
+                    late: boolean;
+                }[];
+            } | null;
+            /** @enum {string|null} */
+            tierLevel?: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION" | null;
+            outsideReporter?: boolean;
+            /** Format: date-time */
+            tierDueAt?: string | null;
+            tierStages?: {
+                /** @enum {string} */
+                level: "GROUP_LEADER" | "SECTION_HEAD" | "MANAGER" | "DIVISION";
+                /** @enum {string} */
+                state: "DONE" | "LATE" | "CURRENT" | "NEXT";
+                names: string[];
+            }[];
+            /** @description Messages from others since the viewer last opened the conversation. */
+            unreadMessages?: number;
+            shopLocation?: {
+                department: string;
+                /** @enum {string|null} */
+                source: "ALIAS" | "AI" | "REPORTER_CONFIRMED" | "REPORTER_NOT_SHOP" | "NO_MATCH" | null;
+            } | null;
+            privateContactConsent?: boolean | null;
+            /** Format: date-time */
+            privateContactConsentRecordedAt?: string | null;
+            privateContactConsentVersion?: string | null;
+            anonymousReporter: {
+                /** @example Reporter-000047 */
+                alias: string;
+            };
+        };
         AdminPrivateVoiceDetail: {
             /** Format: uuid */
             id: string;
@@ -14602,7 +14702,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReporterSelfVoiceDetail"] | components["schemas"]["GeneralResponderVoiceDetail"] | components["schemas"]["LeadershipGeneralVoiceDetail"] | components["schemas"]["UnionAnonymousVoiceDetail"] | components["schemas"]["UnionIdentifiedVoiceDetail"] | components["schemas"]["AdminPrivateVoiceDetail"];
+                    "application/json": components["schemas"]["ReporterSelfVoiceDetail"] | components["schemas"]["GeneralResponderVoiceDetail"] | components["schemas"]["LeadershipGeneralVoiceDetail"] | components["schemas"]["UnionAnonymousVoiceDetail"] | components["schemas"]["UnionIdentifiedVoiceDetail"] | components["schemas"]["AdminPrivateVoiceDetail"] | components["schemas"]["AdminPrivateAnonymousVoiceDetail"];
                 };
             };
             /** @description Request validation failed */

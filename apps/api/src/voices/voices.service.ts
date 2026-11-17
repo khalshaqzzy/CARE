@@ -1682,6 +1682,7 @@ export class VoicesService {
         type: true,
         occurredAt: true,
         payload: true,
+        actorId: true,
         actor: { select: { displayName: true } },
       },
     });
@@ -1689,10 +1690,20 @@ export class VoicesService {
     const data = hasNext ? items.slice(0, take) : items;
     const nextCursor = hasNext && data.length ? encodeCursor(data[data.length - 1].id) : null;
     // Admin pages name who did each step; other audiences keep the bare event.
+    // A reporter who hid their name on a Private Voice shows as the alias.
     const named = actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN');
+    const hidden = this.hidesReporter(actor, voice);
     return {
-      items: data.map(({ actor: eventActor, ...event }) =>
-        named ? { ...event, actorName: eventActor.displayName } : event,
+      items: data.map(({ actor: eventActor, actorId, ...event }) =>
+        named
+          ? {
+              ...event,
+              actorName:
+                hidden && actorId === voice.reporterId
+                  ? voice.anonymousAlias
+                  : eventActor.displayName,
+            }
+          : event,
       ),
       nextCursor,
     };
@@ -3661,11 +3672,7 @@ export class VoicesService {
     const receipts = ownIds.length
       ? await this.messageReceipts(actor, voice, ownIds)
       : new Map<string, unknown>();
-    const anonymousUnion =
-      voice.visibility === VoiceVisibility.PRIVATE &&
-      !voice.showReporterIdentity &&
-      !actor.capabilities.includes('CARE_ADMIN') &&
-      voice.reporterId !== actor.accountId;
+    const anonymousUnion = this.hidesReporter(actor, voice);
     return {
       items: data.map(({ sender: senderAccount, senderNameSnapshot, ...message }) => ({
         ...message,
@@ -5529,6 +5536,24 @@ export class VoicesService {
       specialHandling,
     };
   }
+  /**
+   * A Private reporter who hid their name is shown to everyone else, CARE
+   * Admin included, only by their alias. The identity stays in the database.
+   */
+  private hidesReporter(
+    actor: AuthActor,
+    voice: {
+      visibility: VoiceVisibility;
+      showReporterIdentity: boolean | null;
+      reporterId: string;
+    },
+  ) {
+    return (
+      voice.visibility === VoiceVisibility.PRIVATE &&
+      !voice.showReporterIdentity &&
+      voice.reporterId !== actor.accountId
+    );
+  }
   private async authorizedVoice(actor: AuthActor, id: string) {
     const scope = await this.policy.detailScope(actor);
     const voice = await this.prisma.voice.findFirst({
@@ -5898,11 +5923,7 @@ export class VoicesService {
     voice: any,
   ): { accountId: string; id: string; displayName: string; role: string }[] {
     const privateVoice = voice.visibility === VoiceVisibility.PRIVATE;
-    const hiddenReporter =
-      privateVoice &&
-      !voice.showReporterIdentity &&
-      actor.accountId !== voice.reporterId &&
-      !actor.capabilities.includes('CARE_ADMIN');
+    const hiddenReporter = this.hidesReporter(actor, voice);
     const participants = [
       {
         accountId: voice.reporterId,
@@ -6075,6 +6096,14 @@ export class VoicesService {
           position: voice.reporterPositionSnapshot,
           line: voice.reporterLineSnapshot,
         },
+      };
+    // CARE Admin follows the reporter's choice: a hidden name stays hidden.
+    if (actor.capabilities.includes('CARE_ADMIN') && !voice.showReporterIdentity)
+      return {
+        ...base,
+        ...contactConsent,
+        audience: 'ADMIN_PRIVATE_ANONYMOUS_READ_ONLY',
+        anonymousReporter: { alias: voice.anonymousAlias },
       };
     if (actor.capabilities.includes('CARE_ADMIN'))
       return {
