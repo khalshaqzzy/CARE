@@ -590,6 +590,85 @@ describe('Manager Voice handover', () => {
     });
   });
 
+  it('drops the old tier chain when a tiered Voice goes through Admin', async () => {
+    const past = new Date(Date.now() - 60_000);
+    const tiered = await prisma.voice.create({
+      data: {
+        displayId: 'CARE-202609-990004',
+        reporterId: reporter.accountId,
+        visibility: VoiceVisibility.GENERAL,
+        area: 'KARAWANG_1',
+        reporterOrganizationUnitId: reporterUnitId,
+        reporterNoRegSnapshot: '104',
+        reporterNameSnapshot: 'Reporter Handover',
+        reporterDivisionSnapshot: 'Production',
+        reporterDepartmentSnapshot: 'Production Control',
+        locationDetail: 'Gudang',
+        title: 'Tiered Admin route fixture',
+        detail: 'Salah departemen',
+        categoryKey: 'ASSEMBLY_HANDOVER',
+        categoryId: categoryAId,
+        categoryNameSnapshot: 'Assembly',
+        currentCategoryKey: 'ASSEMBLY_HANDOVER',
+        currentCategoryId: categoryAId,
+        currentCategoryNameSnapshot: 'Assembly',
+        severity: Severity.MEDIUM,
+        routeOwnerId: managerC.accountId,
+        handlerType: HandlerType.MANAGER,
+        status: VoiceStatus.OPEN,
+        anonymousAlias: 'R-TIER',
+        // Missed at Section Head, now with the Department Head of the old route.
+        tierLevel: 'MANAGER',
+        tierPath: ['SECTION_HEAD', 'MANAGER', 'DIVISION'],
+        tierHolderIds: [managerB.accountId, managerC.accountId],
+        tierLowerHolderIds: [managerB.accountId],
+        tierDueAt: past,
+        tierDueKind: 'RESPOND',
+      },
+    });
+    const request = await voices.requestAdminHandover(
+      managerC,
+      tiered.id,
+      { detail: 'Mohon diteruskan ke Assembly', expectedVersion: 1 },
+      'admin-request-tiered',
+    );
+    // With Admin, nobody of the old chain holds it and its clock is stopped.
+    expect(await prisma.voice.findUniqueOrThrow({ where: { id: tiered.id } })).toMatchObject({
+      routeOwnerId: admin.accountId,
+      tierLevel: null,
+      tierPath: [],
+      tierHolderIds: [],
+      tierLowerHolderIds: [],
+      tierDueAt: null,
+    });
+    await voices.resolveAdminHandover(
+      admin,
+      request.handoverId,
+      {
+        organizationUnitId: managerA.organizationUnitId,
+        categoryId: categoryAId,
+        detail: 'Diteruskan ke Assembly',
+        expectedVersion: 2,
+      },
+      'admin-route-tiered',
+    );
+    const routed = await prisma.voice.findUniqueOrThrow({ where: { id: tiered.id } });
+    expect(routed).toMatchObject({
+      status: VoiceStatus.OPEN,
+      routeOwnerId: managerA.accountId,
+      tierLevel: null,
+      tierHolderIds: [],
+      tierLowerHolderIds: [],
+    });
+    expect(routed.tierDueAt === null || routed.tierDueAt > past).toBe(true);
+    // The destination Manager sees and acts on it; the old holders do not.
+    const work = (actor: Principal) =>
+      prisma.voice.count({ where: { AND: [{ id: tiered.id }, policy.workItemScope(actor)] } });
+    expect(await work(managerA)).toBe(1);
+    expect(await work(managerB)).toBe(0);
+    expect(await work(managerC)).toBe(0);
+  });
+
   it('lists handed-over Voices for CARE Admin and turns one into a category Example', async () => {
     const categories = new CategoriesService(prisma as never);
     const stored = await prisma.voice.findUniqueOrThrow({ where: { id: voiceId } });

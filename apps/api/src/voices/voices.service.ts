@@ -238,6 +238,21 @@ const submitSchema = z
   })
   .strict();
 const versionSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
+
+/**
+ * A Voice that leaves its route through Admin drops the old tier chain: its
+ * holders no longer act on it and its window no longer moves it up.
+ */
+const CLEARED_TIER = {
+  tierLevel: null,
+  tierPath: [],
+  tierHolderIds: [],
+  tierLowerHolderIds: [],
+  tierObserverIds: [],
+  tierParticipantIds: [],
+  tierHolderResponded: false,
+  tierMissedDueAt: null,
+} satisfies Prisma.VoiceUpdateInput;
 const severitySchema = z
   .object({
     expectedVersion: z.number().int().positive(),
@@ -2528,6 +2543,11 @@ export class VoicesService {
             routeMappingId: null,
             handlerType: HandlerType.ADMIN_TRIAGE,
             handlingOrganizationSource: 'ADMIN_HANDOVER',
+            // The old tier chain stops here: its holders no longer act and its
+            // clock must not move the Voice up while Admin decides.
+            ...CLEARED_TIER,
+            tierDueAt: null,
+            tierDueKind: null,
             version: { increment: 1 },
           },
         });
@@ -3142,6 +3162,7 @@ export class VoicesService {
           category?.key ??
           `ADMIN_CUSTOM_${canonicalHash(categoryName.toLocaleLowerCase('id-ID')).slice(0, 32)}`;
         const now = new Date();
+        const window = await tierWindow(tx, row.voice.severity, 'RESPOND', now);
         await tx.adminHandover.update({
           where: { id: handoverId },
           data: {
@@ -3172,6 +3193,9 @@ export class VoicesService {
             handlingDepartmentSnapshot: unit.department,
             handlingSectionSnapshot: null,
             handlingOrganizationSource: 'ADMIN_HANDOVER',
+            // The destination PIC holds it alone with a fresh response window.
+            ...CLEARED_TIER,
+            ...(window ?? { tierDueAt: null, tierDueKind: null }),
             version: { increment: 1 },
           },
         });
@@ -3267,6 +3291,11 @@ export class VoicesService {
             handlerType: HandlerType.MANAGER,
             handlingOrganizationUnitId: row.sourceOrganizationUnitId,
             handlingOrganizationSource: 'ADMIN_RETURN',
+            ...CLEARED_TIER,
+            ...((await tierWindow(tx, row.voice.severity, 'RESPOND')) ?? {
+              tierDueAt: null,
+              tierDueKind: null,
+            }),
             version: { increment: 1 },
           },
         });
