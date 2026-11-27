@@ -7,14 +7,14 @@
   },
   {
     "scanner": "trivy",
-    "id": "CVE-2026-85091",
-    "rationale": "zlib1g 1:1.3.dfsg+really1.3.1-1+b1 in the API distroless Debian 13 runtime; Debian has no fixed package yet (status affected). The flaw is in gz_vacate() of the gzFile write API. Node.js links its own bundled zlib (no libz.so dependency); libcrypto links the system libz only for compress/uncompress and never calls the gzFile API, so the vulnerable path is not reachable. ADR-0057 addendum of 7 November 2026.",
-    "expiresOn": "2026-11-30"
+    "id": "CVE-2026-107494",
+    "rationale": "libssl3t64 and openssl-provider-legacy 3.5.9-1~deb13u1 in the API distroless Debian 13 runtime; Debian has no fixed package yet (status affected). Both flaws are denial of service in OpenSSL's QUIC stack. Node.js uses its bundled OpenSSL, so the system libssl is loaded only by the Prisma query engine for its TCP connection to PostgreSQL, which never uses QUIC, and the API serves no QUIC listener (Caddy terminates HTTP/3 in Go). ADR-0057 addendum of 27 November 2026.",
+    "expiresOn": "2026-12-31"
   },
   {
     "scanner": "trivy",
-    "id": "CVE-2026-76844",
-    "rationale": "Reported against zlib1g 1:1.3.dfsg+really1.3.1-1+b1 in the API distroless Debian 13 runtime with no fixed package; the advisory title describes a webpack-dev-middleware path traversal, a dev-server package that is not in the runtime image. Treated as a feed mis-attribution until the record is corrected or Debian ships a fix. ADR-0057 addendum of 7 November 2026.",
-    "expiresOn": "2026-11-30"
+    "id": "CVE-2026-124709",
+    "rationale": "libssl3t64 and openssl-provider-legacy 3.5.9-1~deb13u1 in the API distroless Debian 13 runtime; Debian has no fixed package yet (status affected). Both flaws are denial of service in OpenSSL's QUIC stack. Node.js uses its bundled OpenSSL, so the system libssl is loaded only by the Prisma query engine for its TCP connection to PostgreSQL, which never uses QUIC, and the API serves no QUIC listener (Caddy terminates HTTP/3 in Go). ADR-0057 addendum of 27 November 2026.",
+    "expiresOn": "2026-12-31"
   }
 ]
