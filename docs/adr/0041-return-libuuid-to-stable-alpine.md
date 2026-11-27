@@ -151,3 +151,21 @@ nginx base and the pinned Postgres runtime base (`linux/amd64`). Local Trivy
 included, with the repository `.trivyignore`) report 0 findings, and PostgreSQL
 16.15 still starts its binary. The hosted container and Trivy gates remain the
 release checks.
+
+## 27 November 2026: OpenSSL 3.5.9-r1, libexpat 2.11.0 and libxml2
+
+The pull-request run for `f5b63a3` (PR #138) failed "Production containers and
+routing" before any scan: Alpine v3.24 main replaced `libcrypto3`/`libssl3`
+3.5.9-r0 with 3.5.9-r1 and `libexpat` 2.10.0-r0 with 2.11.0-r0, so the pinned
+`apk add` in both nginx runtimes and the Postgres runtime could not resolve.
+`staging` had passed the same gate on 17 November. With the pins moved, a local
+Trivy 0.70.0 scan then reported CVE-2026-86144 (High) in `libxml2` 2.13.9-r2 in
+the nginx and Postgres bases. Stable v3.24 carries 2.13.9-r5.
+
+All three Alpine runtimes now pin `libcrypto3=3.5.9-r1` and `libssl3=3.5.9-r1`,
+both web images pin `libexpat=2.11.0-r0`, and all three pin
+`libxml2=2.13.9-r5`. Every other pin is unchanged. The pinned `apk add` was run on
+each pinned base (`linux/amd64`); `nginx -t` passes and PostgreSQL 16.15 starts
+its binary. Local Trivy scans of the three patched runtimes (vulnerabilities,
+High/Critical, unfixed included, repository `.trivyignore`) report 0 findings.
+The hosted container and Trivy gates remain the release checks.
