@@ -94,3 +94,13 @@ ExcelJS/archiver, OpenAPI generation, Workbox/Ajv and jsdom test infrastructure.
 Audit thresholds, workflow coverage and exceptions remain unchanged. Initial
 fresh/frozen installs and audit passed with zero High/Critical and ten Moderate
 findings. Final regression and hosted evidence is recorded in the session handoff.
+
+## effect 3.22.5 — 27 November 2026
+
+`pnpm audit --audit-level high` began failing on 26 November with one High:
+`effect` <= 3.22.0, ReDoS in `Schema.TemplateLiteral`
+([GHSA-7589-6fvf-x4pw](https://github.com/advisories/GHSA-7589-6fvf-x4pw)),
+fixed in 3.22.1. It comes only through `@prisma/config` 6.19.3, which pins
+`effect` 3.21.0. The workspace overrides `effect` to `3.22.5`, the newest 3.x
+release, so the major version is unchanged. After the override, `prisma validate`
+loads the config and the audit reports zero High/Critical findings.
