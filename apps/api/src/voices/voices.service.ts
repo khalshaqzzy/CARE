@@ -66,9 +66,9 @@ import {
   tierAssignees,
 } from './tier-chain';
 import { privateObservers } from './private-observers';
-import { jakartaDateKey } from '../escalation/working-time';
+import { addWorkingTime, jakartaDateKey } from '../escalation/working-time';
 import { activeSubstitutes } from '../away/away';
-import { tierWindow } from '../escalation/tier-window';
+import { tierWindow, workingCalendar } from '../escalation/tier-window';
 import { divisionLeadershipPositions, normalizedPosition } from '../auth/capabilities';
 import {
   handlingDueAt,
@@ -1404,6 +1404,15 @@ export class VoicesService {
       unreadMessages: voice.conversation
         ? await this.unreadMessageCount(voice.conversation.id, actor.accountId)
         : 0,
+      // CARE Admin never acts on a Voice, except finishing for the PIC (ADR-0086).
+      ...(actor.capabilities.includes('CARE_ADMIN') &&
+      (await this.adminMayCloseOnBehalf(this.prisma, voice))
+        ? { availableActions: ['CLOSE_ON_BEHALF'] }
+        : {}),
+      ...(!actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN') &&
+      (await this.mayCloseOnBehalf(this.prisma, actor, voice))
+        ? { availableActions: [...this.actionSet(actor, voice), 'CLOSE_ON_BEHALF'] }
+        : {}),
     };
   }
 
@@ -3849,7 +3858,11 @@ export class VoicesService {
     });
   }
   async stageEvidence(actor: AuthActor, id: string, file: Express.Multer.File) {
-    await this.actionVoice(actor, id);
+    if (actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN'))
+      throw forbiddenAsNotFound();
+    const voice = await this.authorizedVoice(actor, id);
+    if (!this.mayAct(actor, voice) && !(await this.mayCloseOnBehalf(this.prisma, actor, voice)))
+      throw forbiddenAsNotFound();
     return this.media.process(file, actor.accountId, AttachmentPurpose.CLOSURE_EVIDENCE, {
       voiceId: id,
     });
@@ -3891,76 +3904,288 @@ export class VoicesService {
       201,
       async (tx) => {
         const voice = await this.finishableVoice(tx, actor, id, data.version, 'REPORT_DONE');
-        const evidenceIds = await this.stagedEvidence(tx, id);
-        const reportedAt = new Date();
-        const picId = this.creditedPic(actor, voice);
-        const steps = await approvalSteps(
-          tx,
-          voice,
-          actor.accountId,
-          ownTierLevel(actor.capabilities),
-        );
-        // Nobody above to approve: the PIC closes it.
-        if (!steps.length) {
-          await this.closeVoice(tx, actor, voice, {
-            picId,
-            note: data.note,
-            evidenceIds,
-            completedAt: reportedAt,
-          });
-          return this.mutationResult(await tx.voice.findUniqueOrThrow({ where: { id } }));
-        }
-        const dueAt = await approvalDueAt(tx, reportedAt);
-        const report = await tx.closureReport.create({
-          data: {
-            voiceId: id,
-            actorId: picId,
-            note: data.note,
-            evidenceIds,
-            reportedAt,
-            steps: {
-              create: steps.map((step, position) => ({
-                position,
-                level: step.level,
-                approverIds: step.accountIds,
-                ...(position === 0
-                  ? {
-                      state: ClosureApprovalState.PENDING,
-                      startedAt: reportedAt,
-                      dueAt,
-                      remindedAt: reportedAt,
-                    }
-                  : {}),
-              })),
-            },
-          },
+        return this.finishForPic(tx, actor, voice, {
+          picId: this.creditedPic(actor, voice),
+          picLevel: ownTierLevel(actor.capabilities),
+          exclude: actor.accountId,
+          note: data.note,
+          evidenceIds: await this.stagedEvidence(tx, id),
         });
-        // The evidence stays with the Voice until the closure takes it.
-        if (evidenceIds.length)
-          await tx.attachment.updateMany({
-            where: { id: { in: evidenceIds } },
-            data: { state: AttachmentState.REFERENCED },
-          });
-        const updated = await tx.voice.update({
-          where: { id },
-          data: {
-            closureApproverIds: steps[0]!.accountIds,
-            closureReportedById: picId,
-            version: { increment: 1 },
-          },
-        });
-        await tx.voiceEvent.create({
-          data: {
-            voiceId: id,
-            actorId: actor.accountId,
-            ...this.policy.actorSnapshot(actor),
-            type: VoiceEventType.CLOSURE_REPORTED,
-            payload: { reportId: report.id, evidenceCount: evidenceIds.length },
-          },
-        });
-        await this.notifyApprovers(tx, id, steps[0]!.accountIds, picId);
-        return this.mutationResult(updated);
       },
+    );
+  }
+  /**
+   * Atasan PIC finishes for a PIC whose target passed (ADR-0086): the closure
+   * or report is the PIC's, at the PIC's level, so Medium and above still go
+   * through approval.
+   */
+  async closeOnBehalf(actor: AuthActor, id: string, input: unknown, key: string) {
+    const data = parse(closeSchema, input);
+    if (actor.capabilities.some((c) => c === 'CARE_ADMIN' || c === 'DIVISION_ADMIN'))
+      throw forbiddenAsNotFound();
+    await this.authorizedVoice(actor, id);
+    return this.idempotentMutation(
+      actor,
+      `close-on-behalf:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const voice = await tx.voice.findUniqueOrThrow({
+          where: { id },
+          include: { conversation: { select: { id: true } }, handlingTargets: true },
+        });
+        if (voice.version !== data.version)
+          throw conflict('VERSION_CONFLICT', 'Voice version changed');
+        if (!(await this.mayCloseOnBehalf(tx, actor, voice)))
+          throw invalidTransition('Tutup atas nama PIC tidak tersedia untuk Voice ini.');
+        const picId = voice.currentHandlerId!;
+        return this.finishForPic(tx, actor, voice, {
+          picId,
+          picLevel: await this.accountTierLevel(picId),
+          exclude: picId,
+          note: data.note,
+          evidenceIds: await this.stagedEvidence(tx, id),
+          onBehalf: true,
+        });
+      },
+    );
+  }
+  /**
+   * CARE Admin finishes for the PIC once the target is two working days past
+   * and nobody above acted (ADR-0086). No evidence: Admin was not there.
+   */
+  async adminCloseOnBehalf(actor: AuthActor, id: string, input: unknown, key: string) {
+    this.policy.require(actor, 'CARE_ADMIN');
+    const data = parse(closeSchema, input);
+    return this.idempotentMutation(
+      actor,
+      `admin-close-on-behalf:${id}`,
+      key,
+      canonicalHash(data),
+      201,
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id"::text FROM "Voice" WHERE "id" = ${id}::uuid FOR UPDATE`;
+        const voice = await tx.voice.findUnique({
+          where: { id },
+          include: { conversation: { select: { id: true } }, handlingTargets: true },
+        });
+        if (!voice) throw forbiddenAsNotFound();
+        if (voice.version !== data.version)
+          throw conflict('VERSION_CONFLICT', 'Voice version changed');
+        if (!(await this.adminMayCloseOnBehalf(tx, voice)))
+          throw invalidTransition(
+            'Tutup atas nama PIC tersedia 2 hari kerja setelah target terlewati.',
+          );
+        const picId = voice.currentHandlerId ?? voice.routeOwnerId;
+        return this.finishForPic(tx, actor, voice, {
+          picId,
+          picLevel: await this.accountTierLevel(picId),
+          exclude: picId,
+          note: data.note,
+          evidenceIds: [],
+          onBehalf: true,
+        });
+      },
+    );
+  }
+  /** The live day target, when it has passed and nothing is waiting on approval. */
+  private overdueTarget(voice: {
+    visibility: VoiceVisibility;
+    status: VoiceStatus;
+    closureReportedById: string | null;
+    handlingCycleNumber: number;
+    handlingTargets?: Array<{
+      cycleNumber: number;
+      kind: HandlingTargetKind;
+      dueAt: Date | null;
+    }>;
+  }) {
+    const target = voice.handlingTargets?.find(
+      (item) => item.cycleNumber === voice.handlingCycleNumber,
+    );
+    if (
+      voice.visibility !== VoiceVisibility.GENERAL ||
+      voice.status !== VoiceStatus.IN_PROGRESS ||
+      voice.closureReportedById ||
+      !target?.dueAt ||
+      target.kind === HandlingTargetKind.SPECIAL ||
+      target.dueAt.getTime() >= Date.now()
+    )
+      return null;
+    return target as typeof target & { dueAt: Date };
+  }
+  /**
+   * The leaders above the PIC who may finish for them once the target passed
+   * (ADR-0086): every level above the PIC in the Voice's chain, as for closure
+   * approval, and the Manager who owns the route.
+   */
+  private async mayCloseOnBehalf(
+    db: Prisma.TransactionClient | PrismaService,
+    actor: AuthActor,
+    voice: Parameters<typeof chainForVoice>[1] &
+      Parameters<VoicesService['overdueTarget']>[0] & {
+        currentHandlerId: string | null;
+        tierPath: TierLevel[];
+      },
+  ) {
+    const picId = voice.currentHandlerId;
+    if (!picId || !this.overdueTarget(voice)) return false;
+    const ids = [actor.accountId, ...(actor.actingFor ?? [])];
+    if (ids.includes(picId)) return false;
+    if (ids.includes(voice.routeOwnerId)) return true;
+    const picLevel = await this.accountTierLevel(picId);
+    const from = picLevel ? TIER_ORDER.indexOf(picLevel) : -1;
+    const tiered = voice.tierPath.length > 0;
+    return (await chainForVoice(db, voice)).some(
+      (step) =>
+        TIER_ORDER.indexOf(step.level) > from &&
+        (tiered || step.level === 'MANAGER' || step.level === 'DIVISION') &&
+        step.accountIds.some((id) => ids.includes(id)),
+    );
+  }
+  /** Working days after the target when CARE Admin may finish for the PIC. */
+  private static readonly ADMIN_ON_BEHALF_WORKING_DAYS = 2;
+  private async adminMayCloseOnBehalf(
+    db: Prisma.TransactionClient | PrismaService,
+    voice: {
+      visibility: VoiceVisibility;
+      status: VoiceStatus;
+      closureReportedById: string | null;
+      handlingCycleNumber: number;
+      handlingTargets?: Array<{
+        cycleNumber: number;
+        kind: HandlingTargetKind;
+        dueAt: Date | null;
+      }>;
+    },
+    now = new Date(),
+  ) {
+    const target = this.overdueTarget(voice);
+    if (!target) return false;
+    const from = addWorkingTime(
+      target.dueAt,
+      VoicesService.ADMIN_ON_BEHALF_WORKING_DAYS,
+      'WORKING_DAY',
+      await workingCalendar(db),
+    );
+    return from.getTime() <= now.getTime();
+  }
+  /** The tier a PIC holds by position, as their own session would see it. */
+  private async accountTierLevel(accountId: string) {
+    const account = await this.prisma.userAccount.findUniqueOrThrow({ where: { id: accountId } });
+    const principal = await this.policy.resolvePrincipal(account, {
+      id: 'close-on-behalf',
+      passwordRestricted: false,
+    });
+    return ownTierLevel(principal.capabilities);
+  }
+  /**
+   * Closes for the PIC, or files their report done when the severity needs
+   * the levels above to approve (ADR-0069).
+   */
+  private async finishForPic(
+    tx: Prisma.TransactionClient,
+    actor: AuthActor,
+    voice: Parameters<typeof approvalSteps>[1] & { id: string; reporterId: string },
+    input: {
+      picId: string;
+      picLevel: TierLevel | null;
+      /** Never asked to approve their own report. */
+      exclude: string;
+      note: string;
+      evidenceIds: string[];
+      onBehalf?: boolean;
+    },
+  ) {
+    const id = voice.id;
+    const { picId, note, evidenceIds } = input;
+    const onBehalf = input.onBehalf ? { onBehalf: true } : {};
+    const reportedAt = new Date();
+    const steps = await approvalSteps(tx, voice, input.exclude, input.picLevel);
+    // Nobody above to approve: the PIC closes it.
+    if (!steps.length) {
+      await this.closeVoice(tx, actor, voice, {
+        picId,
+        note,
+        evidenceIds,
+        completedAt: reportedAt,
+        onBehalf: input.onBehalf,
+      });
+      if (input.onBehalf) await this.notifyOnBehalf(tx, id, picId, 'ditutup');
+      return this.mutationResult(await tx.voice.findUniqueOrThrow({ where: { id } }));
+    }
+    const dueAt = await approvalDueAt(tx, reportedAt);
+    const report = await tx.closureReport.create({
+      data: {
+        voiceId: id,
+        actorId: picId,
+        note,
+        evidenceIds,
+        reportedAt,
+        steps: {
+          create: steps.map((step, position) => ({
+            position,
+            level: step.level,
+            approverIds: step.accountIds,
+            ...(position === 0
+              ? {
+                  state: ClosureApprovalState.PENDING,
+                  startedAt: reportedAt,
+                  dueAt,
+                  remindedAt: reportedAt,
+                }
+              : {}),
+          })),
+        },
+      },
+    });
+    // The evidence stays with the Voice until the closure takes it.
+    if (evidenceIds.length)
+      await tx.attachment.updateMany({
+        where: { id: { in: evidenceIds } },
+        data: { state: AttachmentState.REFERENCED },
+      });
+    const updated = await tx.voice.update({
+      where: { id },
+      data: {
+        closureApproverIds: steps[0]!.accountIds,
+        closureReportedById: picId,
+        version: { increment: 1 },
+      },
+    });
+    await tx.voiceEvent.create({
+      data: {
+        voiceId: id,
+        actorId: actor.accountId,
+        ...this.policy.actorSnapshot(actor),
+        type: VoiceEventType.CLOSURE_REPORTED,
+        payload: {
+          reportId: report.id,
+          evidenceCount: evidenceIds.length,
+          ...(picId !== actor.accountId ? { picId } : {}),
+          ...onBehalf,
+        },
+      },
+    });
+    await this.notifyApprovers(tx, id, steps[0]!.accountIds, picId);
+    if (input.onBehalf) await this.notifyOnBehalf(tx, id, picId, 'dilaporkan selesai');
+    return this.mutationResult(updated);
+  }
+  private async notifyOnBehalf(
+    tx: Prisma.TransactionClient,
+    voiceId: string,
+    picId: string,
+    done: string,
+  ) {
+    await this.notify(
+      tx,
+      picId,
+      voiceId,
+      NotificationType.CLOSED,
+      `Voice ${done} atas nama Anda`,
+      'Target terlewati, jadi atasan atau Admin menyelesaikannya.',
     );
   }
   /** An approver passes the report on; the last level closes the Voice. */
@@ -4230,7 +4455,13 @@ export class VoicesService {
     tx: Prisma.TransactionClient,
     actor: AuthActor,
     voice: { id: string; reporterId: string },
-    input: { picId: string; note: string; evidenceIds: string[]; completedAt: Date },
+    input: {
+      picId: string;
+      note: string;
+      evidenceIds: string[];
+      completedAt: Date;
+      onBehalf?: boolean;
+    },
   ) {
     const id = voice.id;
     const cycles = await tx.closureCycle.count({ where: { voiceId: id } });
@@ -4273,6 +4504,7 @@ export class VoicesService {
           closureId: closure.id,
           evidenceCount: input.evidenceIds.length,
           ...(input.picId !== actor.accountId ? { picId: input.picId } : {}),
+          ...(input.onBehalf ? { onBehalf: true } : {}),
         },
       },
     });

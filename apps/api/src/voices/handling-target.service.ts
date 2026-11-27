@@ -9,6 +9,8 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { loadConfig } from '../config';
+import { isWorkingDay, jakartaDateKey } from '../escalation/working-time';
+import { workingCalendar } from '../escalation/tier-window';
 import { formatHandlingDueAt, handlingReminderAt } from './handling-target';
 import { activeSubstitutes } from '../away/away';
 import { privateObservers } from './private-observers';
@@ -30,7 +32,8 @@ type CurrentVoice = {
  * guarded by its own timestamp inside the Voice row lock. A Voice the PIC
  * reported done waits for approval: its target is met, so no target notices.
  * The approval level gets a reminder every day and one late notice once its
- * two working days pass (ADR-0069).
+ * two working days pass (ADR-0069). While overdue, the PIC is reminded every
+ * working day at 08:00 WIB until they finish or report done (ADR-0086).
  */
 @Injectable()
 export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
@@ -53,6 +56,7 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.sendReminders();
       await this.sendOverdueNotices();
+      await this.sendOverdueReminders();
       await this.sendApprovalReminders();
     } finally {
       this.running = false;
@@ -161,6 +165,42 @@ export class HandlingTargetService implements OnModuleInit, OnModuleDestroy {
             `Target ${formatHandlingDueAt(target.dueAt)} telah terlewati. Penanganan dan percakapan tetap berjalan.`,
             `TARGET_OVERDUE:${target.id}:${recipientId}`,
           );
+      });
+  }
+
+  private async sendOverdueReminders(now = new Date()) {
+    const today = jakartaDateKey(now);
+    // 08:00 WIB today, as UTC.
+    const morning = new Date(Date.parse(`${today}T08:00:00+07:00`));
+    if (now < morning || !isWorkingDay(today, await workingCalendar(this.prisma))) return;
+    const targets = await this.prisma.$queryRaw<Array<{ id: string; voiceId: string }>>`
+      SELECT t.id, t."voiceId" FROM "VoiceHandlingTarget" t JOIN "Voice" v ON v.id = t."voiceId"
+      WHERE t."overdueNotifiedAt" IS NOT NULL AND t."overdueNotifiedAt" < ${morning}
+        AND (t."overdueRemindedAt" IS NULL OR t."overdueRemindedAt" < ${morning})
+        AND t.kind = 'DAYS' AND v.status = 'IN_PROGRESS'
+        AND v."handlingCycleNumber" = t."cycleNumber" AND v."closureReportedById" IS NULL
+      ORDER BY t."dueAt" ASC LIMIT 100`;
+    for (const candidate of targets)
+      await this.prisma.$transaction(async (tx) => {
+        const locked = await this.lockCurrentTarget(tx, candidate);
+        if (!locked) return;
+        const { voice, target } = locked;
+        if (!target.dueAt || (target.overdueRemindedAt && target.overdueRemindedAt >= morning))
+          return;
+        await tx.voiceHandlingTarget.update({
+          where: { id: target.id },
+          data: { overdueRemindedAt: now },
+        });
+        const days = Math.max(1, Math.floor((now.getTime() - target.dueAt.getTime()) / 86_400_000));
+        await this.notify(
+          tx,
+          voice.currentHandlerId ?? voice.routeOwnerId,
+          voice.id,
+          NotificationType.TARGET_OVERDUE,
+          'Voice belum diselesaikan',
+          `Target terlewati ${days} hari.`,
+          `TARGET_OVERDUE_DAILY:${target.id}:${today}`,
+        );
       });
   }
 

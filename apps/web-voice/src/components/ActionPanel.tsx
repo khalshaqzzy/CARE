@@ -33,6 +33,7 @@ type Action =
   | 'target'
   | 'close'
   | 'report-done'
+  | 'on-behalf'
   | 'approve'
   | 'return'
   | 'assign'
@@ -89,6 +90,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
     (target) => target.cycleNumber === detail.handlingCycleNumber && target.kind === 'SPECIAL',
   );
   const refresh = () => queryClient.invalidateQueries({ queryKey: voiceQuery(sessionId) });
+  const picName = detail.currentHandler?.displayName ?? 'PIC';
   const open = (action: Action) => {
     setActive(action);
     setError(null);
@@ -135,6 +137,8 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
         );
       if (action === 'close') return api.close(detail.id, { note: note!, version }, key);
       if (action === 'report-done') return api.reportDone(detail.id, { note: note!, version }, key);
+      if (action === 'on-behalf')
+        return api.closeOnBehalf(detail.id, { note: note!, version }, key);
       if (action === 'approve') return api.approveClosure(detail.id, { version }, key);
       if (action === 'return') return api.returnClosure(detail.id, { text: note!, version }, key);
       if (action === 'take-over') return api.takeOver(detail.id, { expectedVersion: version }, key);
@@ -182,7 +186,7 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
               : 'Target penyelesaian tersimpan. Pelapor dan penanggung jawab telah diberi tahu.'
             : variables.action === 'close'
               ? 'Voice berhasil ditutup. Percakapan kini hanya dapat dibaca.'
-              : variables.action === 'report-done'
+              : variables.action === 'report-done' || variables.action === 'on-behalf'
                 ? (_result as { status?: string } | undefined)?.status === 'CLOSED'
                   ? 'Voice berhasil ditutup.'
                   : 'Laporan terkirim. Menunggu persetujuan atasan.'
@@ -362,6 +366,12 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
             <Button variant="primary" onClick={() => open('approve')}>
               <Check size={18} aria-hidden="true" />
               {closesOnApprove ? 'Tutup Voice' : ACTION_LABELS.APPROVE_CLOSURE}
+            </Button>
+          ) : null}
+          {actions.includes('CLOSE_ON_BEHALF') ? (
+            <Button variant="primary" onClick={() => open('on-behalf')}>
+              <UserRoundCheck size={18} aria-hidden="true" />
+              {ACTION_LABELS.CLOSE_ON_BEHALF}
             </Button>
           ) : null}
           {actions.includes('REPORT_DONE') ? (
@@ -633,6 +643,28 @@ export function ActionPanel({ detail }: { detail: VoiceDetail }) {
           submitLabel="Kirim laporan"
           onCancel={cancel}
           onConfirm={(body) => mutation.mutate({ action: 'report-done', note: body.note })}
+          loading={pending}
+        />
+      </Dialog>
+      <Dialog
+        open={active === 'on-behalf'}
+        onOpenChange={(value) => {
+          if (!value) cancel();
+        }}
+        mobileSheet
+        title="Tutup atas nama PIC"
+        description={`PIC: ${picName}${detail.severity !== 'LOW' ? ' · atasan tetap menyetujui' : ''}`}
+      >
+        {error ? (
+          <Alert tone="danger" title="Belum tersimpan">
+            {error}
+          </Alert>
+        ) : null}
+        <CloseDialog
+          detail={detail}
+          submitLabel={detail.severity !== 'LOW' ? 'Kirim laporan' : 'Tutup Voice'}
+          onCancel={cancel}
+          onConfirm={(body) => mutation.mutate({ action: 'on-behalf', note: body.note })}
           loading={pending}
         />
       </Dialog>

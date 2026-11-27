@@ -1401,6 +1401,8 @@ model VoiceHandlingTarget {
   /// 08:00 WIB on the target day; skipped for same-day targets.
   reminderSentAt    DateTime?
   overdueNotifiedAt DateTime?
+  /// Last daily 08:00 WIB reminder to the PIC while overdue (ADR-0086).
+  overdueRemindedAt DateTime?
   voice             Voice     @relation(fields: [voiceId], references: [id])
 
   @@unique([voiceId, cycleNumber])

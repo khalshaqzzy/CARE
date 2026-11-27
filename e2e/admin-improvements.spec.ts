@@ -249,3 +249,36 @@ test('Voice detail lets CARE Admin hand the Voice to a responder typed by name',
     detail: 'PIC lama cuti panjang',
   });
 });
+
+test('CARE Admin finishes for a PIC two working days past the target', async ({ page }) => {
+  const voice: MockVoice = {
+    id: '00000000-0000-4000-8000-000000000003',
+    displayId: 'CARE-202611-000215',
+    audience: 'GENERAL_RESPONDER',
+    visibility: 'GENERAL',
+    status: 'IN_PROGRESS',
+    area: 'KARAWANG_1',
+    title: 'Lampu lorong gudang B padam',
+    detail: 'Tiga lampu di lorong gudang B padam sejak kemarin.',
+    availableActions: ['CLOSE_ON_BEHALF'],
+  };
+  await mockAdminApi(page, { voiceDetail: voiceDetail(voice) as never });
+  let body: unknown = null;
+  await page.route('**/api/v1/admin/voices/*/close-on-behalf', (route) => {
+    body = route.request().postDataJSON();
+    return route.fulfill({
+      status: 201,
+      json: { id: voice.id, displayId: voice.displayId, status: 'IN_PROGRESS', version: 2 },
+    });
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${ADMIN}/voices/${voice.id}`);
+  const handling = page.getByLabel('Penanganan');
+  await handling.getByRole('button', { name: 'Tutup atas nama PIC' }).click();
+  // The mock Voice is High, so it still goes to approval.
+  const close = handling.getByRole('button', { name: 'Kirim laporan' });
+  await expect(close).toBeDisabled();
+  await handling.getByLabel('Catatan penyelesaian').fill('PIC dan atasan tidak merespons.');
+  await close.click();
+  await expect.poll(() => body).toMatchObject({ note: 'PIC dan atasan tidak merespons.' });
+});
