@@ -164,7 +164,9 @@ the nginx and Postgres bases. Stable v3.24 carries 2.13.9-r5.
 
 All three Alpine runtimes now pin `libcrypto3=3.5.9-r1` and `libssl3=3.5.9-r1`,
 both web images pin `libexpat=2.11.0-r0`, and all three pin
-`libxml2=2.13.9-r5`. Every other pin is unchanged. The pinned `apk add` was run on
+`libxml2=2.13.9-r5`. They also pin `zlib=1.4-r0` for CVE-2026-85091 (fixed after
+1.3.2-r0), which a global `.trivyignore` entry had covered until the Debian fix
+let that entry go (ADR-0057). Every other pin is unchanged. The pinned `apk add` was run on
 each pinned base (`linux/amd64`); `nginx -t` passes and PostgreSQL 16.15 starts
 its binary. Local Trivy scans of the three patched runtimes (vulnerabilities,
 High/Critical, unfixed included, repository `.trivyignore`) report 0 findings.

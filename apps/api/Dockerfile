@@ -7,11 +7,13 @@ ARG PATCH_IMAGE=debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7
 
 # Signed Debian security packages overlay the frozen distroless runtime.
 FROM ${PATCH_IMAGE} AS runtime-patch
-ARG OPENSSL_VERSION=3.5.7-1~deb13u3
+ARG OPENSSL_VERSION=3.5.9-1~deb13u1
+ARG ZSTD_VERSION=1.5.7+dfsg-1+deb13u1
+ARG ZLIB_VERSION=1:1.3.dfsg+really1.3.1-1+deb13u1
 RUN apt-get update \
   && mkdir -p /patched/var/lib/dpkg/status.d \
-  && apt-get install --yes --no-install-recommends --download-only --reinstall "libssl3t64=${OPENSSL_VERSION}" "openssl-provider-legacy=${OPENSSL_VERSION}" \
-  && for package in /var/cache/apt/archives/libssl3t64_*.deb /var/cache/apt/archives/openssl-provider-legacy_*.deb; do \
+  && apt-get install --yes --no-install-recommends --download-only --reinstall "libssl3t64=${OPENSSL_VERSION}" "openssl-provider-legacy=${OPENSSL_VERSION}" "libzstd1=${ZSTD_VERSION}" "zlib1g=${ZLIB_VERSION}" \
+  && for package in /var/cache/apt/archives/libssl3t64_*.deb /var/cache/apt/archives/openssl-provider-legacy_*.deb /var/cache/apt/archives/libzstd1_*.deb /var/cache/apt/archives/zlib1g_*.deb; do \
     dpkg-deb --extract "${package}" /patched; \
     dpkg-deb --control "${package}" /control; \
     name="$(dpkg-deb --field "${package}" Package)"; \

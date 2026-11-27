@@ -94,3 +94,24 @@ The pull-request run for `94b473e` (PR #129) failed "Production containers and r
 - **CVE-2026-76844**: the record is filed against `zlib1g`, but its title describes a path traversal in `webpack-dev-middleware`, a development-server package that is not part of any runtime image. It is treated as a feed mis-attribution.
 
 Both IDs are registered as exact entries in `.trivyignore` with their rationale in `.agent/securityExceptions.json`, expiring on **30 November 2026**. Before then, each entry is removed as soon as Debian publishes a fixed `zlib1g` (and the patch overlay pins it, as was done for OpenSSL) or the record is corrected; otherwise it is re-justified. No other scanner policy or threshold changes.
+
+## 27 November 2026: OpenSSL 3.5.9, zstd and zlib overlay
+
+Debian 13 now ships `libssl3t64`/`openssl-provider-legacy` 3.5.9-1~deb13u1,
+`libzstd1` 1.5.7+dfsg-1+deb13u1 (CVE-2026-124851, High) and `zlib1g`
+1:1.3.dfsg+really1.3.1-1+deb13u1 (CVE-2026-85091). The API patch stage overlays
+all four packages the same way as before. With the patched zlib, Trivy no longer
+reports CVE-2026-85091 or CVE-2026-76844, so both entries leave `.trivyignore`
+and the exception registry three days before they expired. The Alpine runtimes
+pin `zlib=1.4-r0` for the same CVE (ADR-0041).
+
+Trivy still reports CVE-2026-107494 and CVE-2026-124709 (High, QUIC denial of
+service) against Debian's OpenSSL 3.5.9 with status affected and no fixed
+package. Node.js uses its bundled OpenSSL. The system `libssl` is loaded only by
+the Prisma query engine for its TCP connection to PostgreSQL, which never uses
+QUIC, and the API serves no QUIC listener. Both IDs are registered as exact
+exceptions until 31 December 2026.
+
+Checks: the full API image builds, Prisma queries PostgreSQL 16.15 through the
+patched runtime, and Trivy 0.70.0 reports 0 High/Critical with the repository
+`.trivyignore`.

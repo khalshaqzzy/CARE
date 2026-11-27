@@ -7,17 +7,22 @@
 - **Production containers and routing:** Alpine v3.24 replaced `libcrypto3`/`libssl3` 3.5.9-r0 with 3.5.9-r1 and `libexpat` 2.10.0-r0 with 2.11.0-r0, so the pinned `apk add` failed in both nginx runtimes and the Postgres runtime. With the pins moved, Trivy also reported CVE-2026-86144 (High) in `libxml2` 2.13.9-r2.
 - **Dependency security:** `pnpm audit` reported GHSA-7589-6fvf-x4pw (High) in `effect` 3.21.0, pulled in by `@prisma/config` 6.19.3.
 - **Browser (legacy 1/1):** the known flaky `workforce-guide-webkit` soft-mask poll.
+- The API image, scanned locally because CI stops at the first failure, had new Debian findings: OpenSSL QUIC CVE-2026-107494 and CVE-2026-124709 (no fix) and `libzstd1` CVE-2026-124851.
+- The zlib exceptions CVE-2026-85091 and CVE-2026-76844 expire on 30 November.
 
 **Change (`fix/alpine-pins-effect`, from `origin/staging` 775d430):**
 
-- The web Dockerfiles and `deploy/postgres/Dockerfile` pin `libcrypto3`/`libssl3=3.5.9-r1`. Both web images pin `libexpat=2.11.0-r0`. All three pin `libxml2=2.13.9-r5`.
+- The web Dockerfiles and `deploy/postgres/Dockerfile` pin `libcrypto3`/`libssl3=3.5.9-r1`. Both web images pin `libexpat=2.11.0-r0`. All three pin `libxml2=2.13.9-r5` and `zlib=1.4-r0`.
+- The API patch stage overlays OpenSSL 3.5.9-1~deb13u1, `libzstd1` 1.5.7+dfsg-1+deb13u1 and `zlib1g` 1:1.3.dfsg+really1.3.1-1+deb13u1.
+- The two zlib exceptions are removed. The OpenSSL QUIC CVEs are registered as exceptions until 2026-12-31 (not reachable: Node.js bundles its own OpenSSL, and Prisma only uses TCP).
 - `pnpm-workspace.yaml` overrides `effect: 3.22.5`.
-- ADR-0041 and ADR-0045 each get a dated section.
+- ADR-0041, ADR-0045 and ADR-0057 each get a dated section.
 
 **Checks:**
 
 - Pinned runtime stages built on `linux/amd64`. `nginx -t` passes and PostgreSQL 16.15 starts.
-- Trivy 0.70.0 (High/Critical, unfixed included, `.trivyignore`) reports 0 for web-voice, web-admin and Postgres.
+- Trivy 0.70.0 (High/Critical, unfixed included, `.trivyignore`) reports 0 for all five images: API, Caddy, web-voice, web-admin and Postgres. The Trivy fs scan also reports 0, and `check-security-exceptions.sh` passes.
+- The API image queries PostgreSQL through Prisma. The Postgres image starts and answers `psql`.
 - `pnpm audit --audit-level high` reports 0 High. `prisma validate`, `migrate status` and the `voice-handover` integration tests pass.
 
 **Next:** open the PR to `staging` and merge it, then update PR #138 from `staging` and rerun its CI.
