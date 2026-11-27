@@ -42,6 +42,7 @@ A new integration test covers a tiered Voice going through Admin.
 **Checks:** `voice-handover` and `tiered-routing-foundation` integration tests pass (26). The new test fails without the change. tsc, eslint and prettier pass on the changed files.
 
 **Next:** merge the PR, confirm `/ready`. Repair 000067 with the one-off SQL (backup table first), and check other Voices routed by Admin while tiered.
+
 ## Container gate: libxslt and krb5-libs pins — 12 November 2026
 
 **Problem:** PR #135 (`feat/time-for-team` → `staging`, head `8cf0427`) failed "Production containers and routing", and so "Release candidate gate". Trivy found CVE-2026-87636 and CVE-2026-9947 (High) in `libxslt` 1.1.43-r3 in `care-web-voice`, fixed in 1.1.43-r4. `staging` 63cfece passed the same gate on 10 November, so these are new advisories against the frozen base images and unrelated to Time for Team. The scan stops at the first failing image, so the other Alpine runtimes were checked locally:
