@@ -593,6 +593,17 @@ export function createAdminApi(transport: CareTransport) {
           body,
         }),
       ),
+    adminCloseOnBehalf: (
+      voiceId: string,
+      body: components['schemas']['CloseVoiceRequest'],
+      key: string,
+    ) =>
+      dataOrThrow<components['schemas']['VoiceMutationResponse']>(
+        client.POST('/api/v1/admin/voices/{id}/close-on-behalf', {
+          params: { path: { id: voiceId }, header: { 'X-CSRF-Token': '', 'Idempotency-Key': key } },
+          body,
+        }),
+      ),
     resolveAdminHandover: (
       id: string,
       body: components['schemas']['AdminHandoverDecisionRequest'],

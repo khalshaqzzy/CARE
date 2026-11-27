@@ -1367,6 +1367,177 @@ describe('Tiered routing foundation', () => {
     }
   });
 
+  it('lets the leaders above an overdue PIC, then CARE Admin, finish for them (ADR-0086)', async () => {
+    const groupLeader = await principal('700003');
+    const sectionHead = await principal('700002');
+    const manager = await principal('700001');
+    const reporter = await principal('700004');
+    const version = async (id: string) =>
+      (await prisma.voice.findUniqueOrThrow({ where: { id } })).version;
+    const processed = async (key: string, severity: Severity) => {
+      const voice = await submitAs('700004', key, severity);
+      await voices.respond(
+        groupLeader,
+        voice.id,
+        { text: 'Saya tangani.', version: 1, days: 3 },
+        `${key}-process`,
+      );
+      return voice.id;
+    };
+    const overdue = (id: string, daysAgo: number) =>
+      prisma.voiceHandlingTarget.updateMany({
+        where: { voiceId: id },
+        data: { dueAt: new Date(Date.now() - daysAgo * 86_400_000) },
+      });
+    const actions = async (who: Principal, id: string) =>
+      (await voices.detail(who, id)).availableActions;
+
+    // Medium: before the target passes nobody but the PIC may finish it.
+    const medium = await processed('obo-medium', Severity.MEDIUM);
+    expect(await actions(sectionHead, medium)).not.toContain('CLOSE_ON_BEHALF');
+    await expect(
+      voices.closeOnBehalf(
+        sectionHead,
+        medium,
+        { note: 'Terlalu cepat.', version: await version(medium) },
+        'obo-medium-early',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+
+    // Once it passed, the levels above the PIC get the action; the PIC, the
+    // reporter and CARE Admin (until two working days pass) do not.
+    await overdue(medium, 1);
+    expect(await actions(sectionHead, medium)).toContain('CLOSE_ON_BEHALF');
+    expect(await actions(manager, medium)).toContain('CLOSE_ON_BEHALF');
+    expect(await actions(groupLeader, medium)).not.toContain('CLOSE_ON_BEHALF');
+    expect(await actions(reporter, medium)).not.toContain('CLOSE_ON_BEHALF');
+    expect(await actions(admin, medium)).not.toContain('CLOSE_ON_BEHALF');
+
+    // Medium still goes through approval, as the PIC's own report.
+    await voices.closeOnBehalf(
+      sectionHead,
+      medium,
+      { note: 'PIC konfirmasi selesai di chat.', version: await version(medium) },
+      'obo-medium-report',
+    );
+    const report = await prisma.closureReport.findFirstOrThrow({
+      where: { voiceId: medium, state: 'PENDING' },
+      include: { steps: { orderBy: { position: 'asc' } } },
+    });
+    expect(report.actorId).toBe(groupLeader.accountId);
+    expect(report.steps.map((step) => step.level)).toEqual(['SECTION_HEAD', 'MANAGER']);
+    expect(
+      await prisma.voiceEvent.findFirstOrThrow({
+        where: { voiceId: medium, type: 'CLOSURE_REPORTED' },
+      }),
+    ).toMatchObject({
+      actorId: sectionHead.accountId,
+      payload: expect.objectContaining({ onBehalf: true, picId: groupLeader.accountId }),
+    });
+    expect(
+      await prisma.notification.count({
+        where: {
+          voiceId: medium,
+          recipientId: groupLeader.accountId,
+          title: 'Voice dilaporkan selesai atas nama Anda',
+        },
+      }),
+    ).toBe(1);
+    expect(await actions(sectionHead, medium)).not.toContain('CLOSE_ON_BEHALF');
+
+    // Low: the Manager closes it, credited to the PIC.
+    const low = await processed('obo-low', Severity.LOW);
+    await overdue(low, 1);
+    await voices.closeOnBehalf(
+      manager,
+      low,
+      { note: 'Sudah beres menurut chat.', version: await version(low) },
+      'obo-low-close',
+    );
+    const closed = await prisma.voice.findUniqueOrThrow({
+      where: { id: low },
+      include: { closureCycles: true },
+    });
+    expect(closed.status).toBe('CLOSED');
+    expect(closed.closureCycles.at(-1)?.actorId).toBe(groupLeader.accountId);
+    expect(
+      (await prisma.voiceEvent.findFirstOrThrow({ where: { voiceId: low, type: 'CLOSED' } }))
+        .payload,
+    ).toMatchObject({ onBehalf: true, picId: groupLeader.accountId });
+
+    // CARE Admin: only once the target is two working days past.
+    const late = await processed('obo-admin', Severity.LOW);
+    await overdue(late, 1);
+    await expect(
+      voices.adminCloseOnBehalf(
+        admin,
+        late,
+        { note: 'Belum boleh.', version: await version(late) },
+        'obo-admin-early',
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_TRANSITION' });
+    await overdue(late, 10);
+    expect(await actions(admin, late)).toEqual(['CLOSE_ON_BEHALF']);
+    await voices.adminCloseOnBehalf(
+      admin,
+      late,
+      { note: 'PIC dan atasan tidak merespons.', version: await version(late) },
+      'obo-admin-close',
+    );
+    expect(await prisma.closureCycle.findFirstOrThrow({ where: { voiceId: late } })).toMatchObject({
+      actorId: groupLeader.accountId,
+    });
+    await expect(
+      voices.closeOnBehalf(
+        admin,
+        late,
+        { note: 'Bukan jalur Admin.', version: await version(late) },
+        'obo-admin-wrong',
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('reminds an overdue PIC every working day at 08:00 WIB (ADR-0086)', async () => {
+    const groupLeader = await principal('700003');
+    const voice = await submitAs('700004', 'obo-daily', Severity.LOW);
+    await voices.respond(
+      groupLeader,
+      voice.id,
+      { text: 'Saya tangani.', version: 1, days: 3 },
+      'obo-daily-process',
+    );
+    // Monday 30 Nov 2026: overdue since the Friday before.
+    const monday = (time: string) => new Date(`2026-11-30T${time}+07:00`);
+    await prisma.voiceHandlingTarget.updateMany({
+      where: { voiceId: voice.id },
+      data: {
+        dueAt: new Date('2026-11-27T16:59:59.999Z'),
+        overdueNotifiedAt: new Date('2026-11-27T17:00:30.000Z'),
+      },
+    });
+    const worker = new HandlingTargetService(prisma as never) as unknown as {
+      sendOverdueReminders: (now: Date) => Promise<void>;
+    };
+    const reminders = () =>
+      prisma.notification.count({
+        where: { voiceId: voice.id, title: 'Voice belum diselesaikan' },
+      });
+    await worker.sendOverdueReminders(monday('07:59:00'));
+    expect(await reminders()).toBe(0);
+    await worker.sendOverdueReminders(monday('08:00:00'));
+    await worker.sendOverdueReminders(monday('13:00:00'));
+    expect(await reminders()).toBe(1);
+    expect(
+      await prisma.notification.findFirstOrThrow({
+        where: { voiceId: voice.id, title: 'Voice belum diselesaikan' },
+      }),
+    ).toMatchObject({ recipientId: groupLeader.accountId, body: 'Target terlewati 2 hari.' });
+    // Tuesday again; a weekend day would be skipped.
+    await worker.sendOverdueReminders(new Date('2026-12-01T08:05:00+07:00'));
+    await worker.sendOverdueReminders(new Date('2026-12-05T08:05:00+07:00'));
+    expect(await reminders()).toBe(2);
+  });
+
   it('moves active location-owner Voices back to the reporter department chain', async () => {
     const groupLeader = await principal('700003');
     const reporterUnit = (

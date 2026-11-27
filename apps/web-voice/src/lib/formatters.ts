@@ -72,6 +72,7 @@ export const ACTION_LABELS: Record<string, string> = {
   HANDOVER: 'Handover',
   CLOSE: 'Selesaikan Voice',
   REPORT_DONE: 'Lapor Sudah Selesai',
+  CLOSE_ON_BEHALF: 'Tutup atas nama PIC',
   APPROVE_CLOSURE: 'Setujui',
   RETURN_CLOSURE: 'Kembalikan',
   MESSAGE: 'Kirim Pesan',

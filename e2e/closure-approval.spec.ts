@@ -142,3 +142,38 @@ test('Perlu Disetujui shows only for leaders who approve', async ({ page }) => {
   await page.getByRole('button', { name: 'Perlu Disetujui: 1 Voice' }).click();
   await expect(page).toHaveURL(/action=approve/);
 });
+
+// ADR-0086: once the target passed, the leaders above the PIC finish for them.
+test('a leader above an overdue PIC reports it done on their behalf', async ({ page }) => {
+  await mockWorkforceApi(page, {
+    session: leader('sh-1', 'SECTION_HEAD', 'Section Head'),
+    voiceDetail: voice({
+      availableActions: ['MESSAGE', 'CLOSE_ON_BEHALF'],
+      currentHandler: { id: 'gl-1', displayName: 'Andi Pratama' },
+    }),
+  });
+  let body: unknown = null;
+  await page.route('**/api/v1/voices/closure-voice/close-on-behalf', (route) => {
+    body = route.request().postDataJSON();
+    return route.fulfill({
+      status: 201,
+      json: {
+        id: 'closure-voice',
+        displayId: 'CARE-202610-000031',
+        status: 'IN_PROGRESS',
+        version: 2,
+      },
+    });
+  });
+  await page.goto('/voices/closure-voice');
+  await expect(page.getByRole('button', { name: 'Lapor Sudah Selesai' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tutup atas nama PIC' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tutup atas nama PIC' });
+  await expect(dialog).toContainText('PIC: Andi Pratama · atasan tetap menyetujui');
+  const send = dialog.getByRole('button', { name: 'Kirim laporan' });
+  await expect(send).toBeDisabled();
+  await dialog.getByLabel('Catatan penyelesaian').fill('PIC konfirmasi selesai di chat.');
+  await send.click();
+  await expect(page.getByText('Laporan terkirim. Menunggu persetujuan atasan.')).toBeVisible();
+  expect(body).toMatchObject({ note: 'PIC konfirmasi selesai di chat.' });
+});

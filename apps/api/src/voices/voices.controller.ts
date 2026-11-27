@@ -276,6 +276,14 @@ export class VoicesController {
   ) {
     return this.voices.adminPicHandover(a, id, b, key);
   }
+  @Post('admin/voices/:id/close-on-behalf') @Capabilities('CARE_ADMIN') adminCloseOnBehalf(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.adminCloseOnBehalf(a, id, b, key);
+  }
   @Post('admin/handovers/:id/resolve') @Capabilities('CARE_ADMIN') resolveAdminHandover(
     @Actor() a: AuthActor,
     @Param('id', ParseUUIDPipe) id: string,
@@ -392,6 +400,15 @@ export class VoicesController {
     @Headers('idempotency-key') key = '',
   ) {
     return this.voices.reportDone(a, id, b, key);
+  }
+  // ADR-0086: the leader above the PIC finishes for them once the target passed.
+  @Post('voices/:id/close-on-behalf') closeOnBehalf(
+    @Actor() a: AuthActor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+    @Headers('idempotency-key') key = '',
+  ) {
+    return this.voices.closeOnBehalf(a, id, b, key);
   }
   @Post('voices/:id/approve-closure') approveClosure(
     @Actor() a: AuthActor,

@@ -426,6 +426,13 @@ export function createWorkforceApi(transport: CareTransport) {
           body,
         }),
       ),
+    closeOnBehalf: (id: string, body: components['schemas']['CloseVoiceRequest'], key: string) =>
+      dataOrThrow(
+        client.POST('/api/v1/voices/{id}/close-on-behalf', {
+          params: { path: { id }, header: csrfIdempotentHeader(key) },
+          body,
+        }),
+      ),
     approveClosure: (
       id: string,
       body: components['schemas']['VersionedMutationRequest'],

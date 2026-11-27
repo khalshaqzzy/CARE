@@ -7,6 +7,7 @@ import { Link, useParams } from 'react-router-dom';
 import { AdminSkeleton } from '../../components/AdminSkeleton';
 import { createAdminApi } from '../../admin-api';
 import { PicHandover } from './PicHandover';
+import { OnBehalfClose } from './OnBehalfClose';
 import { remainingTime } from './voice-time';
 
 const STATUS = ['OPEN', 'RESPONDED', 'IN_PROGRESS', 'CLOSED'] as const;
@@ -103,6 +104,8 @@ type FullDetail = {
   currentHandler?: Named | null;
   /** Tiered Voices nobody processes yet: who holds the current level. */
   holderNames?: string[];
+  /** CLOSE_ON_BEHALF once the target is 2 working days past (ADR-0086). */
+  availableActions?: string[];
   shopLocation?: { department: string } | null;
   attachments?: { id: string; state: string; mimeType?: string }[];
   reporter?: {
@@ -369,6 +372,15 @@ export function VoiceDetailPage() {
             {careAdmin && general && voice.status !== 'CLOSED' ? (
               <PicHandover key={voice.version} voiceId={voice.id} version={voice.version} />
             ) : null}
+            {careAdmin && voice.availableActions?.includes('CLOSE_ON_BEHALF') ? (
+              <OnBehalfClose
+                key={`on-behalf-${voice.version}`}
+                voiceId={voice.id}
+                version={voice.version}
+                pic={picName(voice)}
+                needsApproval={voice.severity !== 'LOW'}
+              />
+            ) : null}
             {voice.tierStages?.length ? (
               <>
                 <h3 className="admin-vd__sub">Tahap penanganan</h3>
@@ -524,7 +536,12 @@ export function VoiceDetailPage() {
                 const actorName = (event as { actorName?: string }).actorName;
                 return (
                   <li key={event.id}>
-                    <strong>{EVENT_LABELS[event.type] ?? event.type}</strong>
+                    <strong>
+                      {EVENT_LABELS[event.type] ?? event.type}
+                      {(event.payload as { onBehalf?: boolean } | null)?.onBehalf
+                        ? ' atas nama PIC'
+                        : ''}
+                    </strong>
                     <span className="admin-meta--xs">
                       {dateTime(event.occurredAt)}
                       {actorName ? ` · ${actorName}` : ''}

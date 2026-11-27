@@ -1,5 +1,24 @@
 # CARE Session Handoff
 
+## Tutup atas nama PIC and a daily overdue reminder — 27 November 2026
+
+**Problem:** a PIC finishes the work and says so in the chat, but never presses Selesai or Lapor Sudah Selesai, so the Voice stays Diproses. Only the PIC could finish it. The target sent one reminder on the target day and one overdue notice, and nothing after that.
+
+**Change (`feat/close-on-behalf`, from `origin/staging` e23f1e0, ADR-0086):**
+
+- **Leaders above the PIC:** once the target passed, every level above the PIC in the chain and the route Manager get `CLOSE_ON_BEHALF`, via `POST /voices/:id/close-on-behalf`. The closure is credited to the PIC, and Medium and higher still go to approval at the PIC's level. The blue button "Tutup atas nama PIC" was chosen from preview variants.
+- **CARE Admin:** gets the same action 2 working days after the target, via `POST /admin/voices/:id/close-on-behalf` (note only).
+- **Daily reminder:** the PIC is reminded every working day at 08:00 WIB while overdue. New nullable column `VoiceHandlingTarget.overdueRemindedAt` (migration `20261127090000_overdue_daily_reminder`).
+
+**Checks:**
+
+- 2 new integration tests (leader, Admin and daily reminder); the `tiered-routing-foundation` integration file passes 20/20.
+- 2 new Playwright tests; the e2e inventory is now 508.
+- API, web-voice and web-admin unit tests pass. tsc and eslint are clean.
+- The PWA gate passes (main gzip 148,666).
+
+**Next:** open the PR to `staging` and merge it, then confirm `/ready`.
+
 ## CI gate: Alpine pin rollover, libxml2 and effect — 27 November 2026
 
 **Problem:** PR #138 (`fix/admin-handover-tier-reset`) failed three CI jobs, all unrelated to its change. `staging` passed the same jobs on 17 November.
