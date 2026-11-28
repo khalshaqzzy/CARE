@@ -76,6 +76,10 @@ function fields(basis: Query['basis']) {
   return levels.map((level) => `${prefix}${level[0]!.toUpperCase()}${level.slice(1)}Snapshot`);
 }
 const column = (name: string) => Prisma.raw(`v."${name}"`);
+/** Reported done by the PIC, waiting for the levels above to verify (ADR-0069). */
+const verifyingVoice = Prisma.sql`(v.status = 'IN_PROGRESS' AND v."closureReportedById" IS NOT NULL)`;
+/** Status Voice counts a reported-done Voice as Selesai; `closedVerifying` says how many. */
+const shownStatus = Prisma.sql`(CASE WHEN ${verifyingVoice} THEN 'CLOSED' ELSE v.status::text END)`;
 // Trend labels are WIB calendar dates; weeks start on Monday as in date_trunc.
 const jakartaDay = (at: Date) => new Date(at.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
 function trendBucket(day: string, grain: 'day' | 'week' | 'month') {
@@ -608,7 +612,7 @@ export class OrganizationDashboard {
   ) {
     const extra = [
       ...new Set([
-        ...(ops || overdue || metrics ? ['status'] : []),
+        ...(ops || overdue || metrics ? ['status', 'closureReportedById'] : []),
         ...(overdue ? ['tierDueAt'] : []),
         ...(ops || overdue ? ['handlingCycleNumber'] : []),
         ...columns,
@@ -617,6 +621,7 @@ export class OrganizationDashboard {
     const migrated = Prisma.sql`v.id NOT IN (SELECT id FROM migrated)`;
     // Penanganan Khusus has no deadline, so it stays out of timeliness and is counted apart.
     // Looked up once per query (hashed), not per Voice: the set of live special cycles is tiny.
+    const verifying = Prisma.sql`${verifyingVoice}`;
     const special = Prisma.sql`(v.status = 'IN_PROGRESS'
       AND (v.id, v."handlingCycleNumber") IN (SELECT "voiceId", "cycleNumber" FROM special_targets))`;
     const operations = ops
@@ -629,9 +634,11 @@ export class OrganizationDashboard {
           count(*) FILTER (WHERE v.status <> 'OPEN'
             AND v.id NOT IN (SELECT "voiceId" FROM flags WHERE missed) AND NOT ${special}
             AND ${migrated}) AS "onTime",
-          count(*) FILTER (WHERE ${special}) AS "specialHandling"`
+          count(*) FILTER (WHERE ${special}) AS "specialHandling",
+          count(*) FILTER (WHERE ${verifying}) AS "closedVerifying"`
       : Prisma.sql`0::bigint AS "openedToday", 0::bigint AS "proceededToday", 0::bigint AS "closedToday",
-          0::bigint AS "onTimeTotal", 0::bigint AS "onTime", 0::bigint AS "specialHandling"`;
+          0::bigint AS "onTimeTotal", 0::bigint AS "onTime", 0::bigint AS "specialHandling",
+          0::bigint AS "closedVerifying"`;
     return (
       await this.db.$queryRaw<
         Array<{
@@ -652,6 +659,7 @@ export class OrganizationDashboard {
           onTimeTotal: bigint;
           onTime: bigint;
           specialHandling: bigint;
+          closedVerifying: bigint;
           overdue: bigint;
           metrics: Array<{ kind: string; label: string | null; value: number | bigint }> | null;
           otherTotal: bigint | null;
@@ -817,7 +825,7 @@ export class OrganizationDashboard {
     const grouped = Prisma.sql`
       SELECT
         CASE
-          WHEN GROUPING(v.status) = 0 THEN 'status'
+          WHEN GROUPING(${shownStatus}) = 0 THEN 'status'
           WHEN GROUPING(v.severity) = 0 THEN 'severity'
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN 'category'
           WHEN GROUPING(${orgColumns[0]!}) = 0 THEN 'organization'
@@ -826,7 +834,7 @@ export class OrganizationDashboard {
           ELSE 'area'
         END AS kind,
         CASE
-          WHEN GROUPING(v.status) = 0 THEN v.status::text
+          WHEN GROUPING(${shownStatus}) = 0 THEN ${shownStatus}
           WHEN GROUPING(v.severity) = 0 THEN v.severity::text
           WHEN GROUPING(COALESCE(v."currentCategoryKey", v."categoryKey")) = 0 THEN COALESCE(v."currentCategoryKey", v."categoryKey")
           WHEN GROUPING(${orgColumns[0]!}) = 0 THEN ${groupExpr}
@@ -837,7 +845,7 @@ export class OrganizationDashboard {
         count(*) AS value
       FROM ${wide ? Prisma.sql`"Voice" v WHERE ${sql}` : Prisma.sql`cohort v`}
       GROUP BY GROUPING SETS (
-        (v.status), (v.severity),
+        (${shownStatus}), (v.severity),
         (COALESCE(v."currentCategoryKey", v."categoryKey")),
         (${Prisma.join(orgGroup)}), (v.area), (${day})
         ${origins ? Prisma.sql`, (v."reporterDepartmentSnapshot", v."legacySource")` : Prisma.empty}
@@ -1025,6 +1033,7 @@ export class OrganizationDashboard {
       ? { onTime: Number(summary.onTime), total: Number(summary.onTimeTotal) }
       : null;
     const specialHandling = ops ? Number(summary.specialHandling) : undefined;
+    const closedVerifying = ops ? Number(summary.closedVerifying) : undefined;
     // Migrated Voices name their source platform as the origin; one platform
     // spans several reporter departments, so equal labels are summed first.
     const originTotals = new Map<string, number>();
@@ -1062,6 +1071,7 @@ export class OrganizationDashboard {
       ...(statusToday ? { statusToday } : {}),
       ...(onTime ? { onTime } : {}),
       ...(specialHandling !== undefined ? { specialHandling } : {}),
+      ...(closedVerifying !== undefined ? { closedVerifying } : {}),
       ...(reporterOrigins ? { reporterOrigins } : {}),
       ...(teamOverdue !== undefined ? { teamOverdue } : {}),
       ...(otherBasisTotal !== undefined ? { otherBasisTotal } : {}),

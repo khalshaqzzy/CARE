@@ -4481,6 +4481,24 @@
   color: color-mix(in srgb, var(--raw-warning) 78%, black);
   background: #fff7ed;
 }
+/* Reported done, waiting for approval: a faint note under the Selesai figure,
+   so every count stays on one line. */
+.ops-status[data-verifying] .ops-status__tile {
+  position: relative;
+  padding-bottom: 15px;
+}
+.ops-status .ops-status__tile[data-status='CLOSED'] small.ops-status__verifying {
+  position: absolute;
+  right: 2px;
+  bottom: 4px;
+  left: 2px;
+  color: #b6bcc6;
+  font-size: 9px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
+}
 .inbox-card__status[data-status='REOPENED'] {
   color: var(--raw-danger);
   background: #fef2f2;

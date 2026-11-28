@@ -32157,6 +32157,10 @@
             "type": "integer",
             "minimum": 0
           },
+          "closedVerifying": {
+            "type": "integer",
+            "minimum": 0
+          },
           "reporterOrigins": {
             "type": "array",
             "items": {
