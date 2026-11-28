@@ -32,3 +32,12 @@ Until now the PIC who processed a Voice closed it on their own (or the route Man
 - New tables `ClosureReport` and `ClosureApprovalStep`, new Voice columns `closureApproverIds` and `closureReportedById`, `ClosureCycle.completedAt` (null on older closures, read as `closedAt`), new event and notification types.
 - New endpoints `POST /voices/{id}/report-done`, `/approve-closure`, `/return-closure`; new actions `REPORT_DONE`, `APPROVE_CLOSURE`, `RETURN_CLOSURE`.
 - Approvers are added to the work-item scope so they can open the Voice.
+
+## 28 November 2026: Status Voice counts reported-done Voices as Selesai
+
+Leaders read the Status Voice card as "how much is finished". A Voice the PIC reported done but still waiting for approval used to sit under Diproses, so finished work looked unfinished.
+
+- `GET /dashboard/general` now counts such a Voice in the `CLOSED` status bucket. A Voice counts when it is `IN_PROGRESS` and `closureReportedById` is set.
+- A new field, `closedVerifying`, says how many Voices in that bucket wait for approval. It is only sent where the operational figures are.
+- The workforce Status Voice tile shows the number as a faint italic note under the Selesai figure, **verifikasi: n**, so the figures stay level.
+- The Voice's real status and its badges elsewhere are unchanged.

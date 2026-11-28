@@ -341,6 +341,8 @@ export const dashboardSchemas = {
       },
       // Voices in Penanganan Khusus, outside the on-time figures.
       specialHandling: { type: 'integer', minimum: 0 },
+      // Reported done and waiting for approval; already inside the CLOSED status bucket.
+      closedVerifying: { type: 'integer', minimum: 0 },
       // General handling basis only: top reporter departments of the cohort.
       reporterOrigins: buckets,
       // General reporter basis only: team Voices still open past their deadline.

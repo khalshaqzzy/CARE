@@ -1,5 +1,22 @@
 # CARE Session Handoff
 
+## Status Voice: reported-done Voices count as Selesai — 28 November 2026
+
+**Problem:** a PIC reports a Medium or higher Voice done and it waits for approval. On the dashboard it still counted as Diproses, so finished work looked unfinished.
+
+**Change (`feat/selesai-menunggu-verifikasi`, from `origin/staging` 673dd60, ADR-0069 addendum):**
+
+- `GET /dashboard/general` counts an `IN_PROGRESS` Voice with `closureReportedById` in the `CLOSED` status bucket, and returns `closedVerifying`.
+- The Status Voice tile on Home shows a faint italic **verifikasi: n** under the Selesai figure.
+- Badges, stepper and list labels are unchanged. The user dropped the yellow and green Selesai badges and kept only the dashboard tile.
+
+**Checks:**
+
+- New integration test in `dashboard-people` (dashboard files pass 42/42) and a new Playwright test; e2e inventory is now 509.
+- web-voice unit tests pass, and so does the PWA gate (main gzip 148,716).
+
+**Next:** open the PR to `staging`, merge it, confirm `/ready`.
+
 ## Tutup atas nama PIC and a daily overdue reminder — 27 November 2026
 
 **Problem:** a PIC finishes the work and says so in the chat, but never presses Selesai or Lapor Sudah Selesai, so the Voice stays Diproses. Only the PIC could finish it. The target sent one reminder on the target day and one overdue notice, and nothing after that.

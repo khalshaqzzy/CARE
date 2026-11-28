@@ -4113,6 +4113,7 @@ export interface components {
                 total: number;
             };
             specialHandling?: number;
+            closedVerifying?: number;
             reporterOrigins?: {
                 id?: string;
                 label: string;

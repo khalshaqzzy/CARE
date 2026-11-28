@@ -34,6 +34,18 @@ async function clearFilters(page: Page) {
   await page.getByRole('button', { name: 'Bersihkan filter', exact: true }).click();
   await page.getByRole('button', { name: 'Terapkan', exact: true }).click();
 }
+test('Selesai counts Voices waiting for verification with a faint note', async ({ page }) => {
+  await mockWorkforceApi(page, { session: manager });
+  await page.route('**/api/v1/dashboard/general**', async (route) => {
+    const url = new URL(route.request().url());
+    if (!url.searchParams.has('basis')) return route.fallback();
+    return route.fulfill({ json: { ...dashboardFixture(manager, url).view, closedVerifying: 2 } });
+  });
+  await page.goto('/');
+  const closed = statusGrid(page).locator('[data-status="CLOSED"]');
+  await expect(closed.locator('.ops-status__verifying')).toHaveText('verifikasi: 2');
+  await expect(statusGrid(page).locator('.ops-status__verifying')).toHaveCount(1);
+});
 test('dashboard KPI, hierarchy, basis and browser history share one URL state', async ({
   page,
 }) => {

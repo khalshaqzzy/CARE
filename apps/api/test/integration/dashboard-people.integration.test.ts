@@ -422,6 +422,22 @@ describe('Dashboard people: handling performance and member participation', () =
     expect(afterRow?.overdue).toBe(beforeHeld?.overdue);
   });
 
+  it('counts a Voice reported done as Selesai and says how many wait for verification', async () => {
+    const count = (view: { status: Array<{ label: string; value: number }> }, label: string) =>
+      view.status.find((bucket) => bucket.label === label)?.value ?? 0;
+    const before = await dashboard.aggregate(manager, { basis: 'HANDLING' });
+    await voice({
+      status: 'IN_PROGRESS',
+      currentHandlerId: sectionHead.accountId,
+      closureReportedById: sectionHead.accountId,
+    });
+    const after = await dashboard.aggregate(manager, { basis: 'HANDLING' });
+    expect(count(after, 'CLOSED')).toBe(count(before, 'CLOSED') + 1);
+    expect(count(after, 'IN_PROGRESS')).toBe(count(before, 'IN_PROGRESS'));
+    expect(after.closedVerifying).toBe((before.closedVerifying ?? 0) + 1);
+    expect(after.total).toBe(before.total + 1);
+  });
+
   it('orders General preview by the deadline that applies and shows the reporter', async () => {
     const now = Date.now();
     await voice({ title: 'Tanpa batas', severity: 'CRITICAL' });

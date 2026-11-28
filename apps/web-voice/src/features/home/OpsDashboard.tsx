@@ -411,13 +411,20 @@ function StatusCard({
         <h2 id="ops-status">{team ? 'Status Voice Tim' : 'Status Voice'}</h2>
         <span className="ops-chip">Total {total}</span>
       </div>
-      <div className="ops-status" data-total={total}>
+      <div
+        className="ops-status"
+        data-total={total}
+        data-verifying={data.closedVerifying ? true : undefined}
+      >
         {STATUSES.map((status) => {
           const today = data.statusToday ? bucketValue(data.statusToday, status) : null;
           return (
             <div className="ops-tile ops-status__tile" data-status={status} key={status}>
               <span className="ops-status__label">{STATUS_LABELS[status]}</span>
               <strong>{bucketValue(data.status, status)}</strong>
+              {status === 'CLOSED' && data.closedVerifying ? (
+                <small className="ops-status__verifying">verifikasi: {data.closedVerifying}</small>
+              ) : null}
               {today !== null ? (
                 <small data-zero={today === 0 || undefined}>+{today} hari ini</small>
               ) : null}
